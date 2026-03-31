@@ -2,7 +2,7 @@
   "name": "@qdrant-memory/monorepo",
   "private": true,
   "author": "Elias Mawa <elias@mawa.dev>",
-  "version": "0.1.2",
+  "version": "0.1.0",
   "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory",
   "license": "MIT",
   "packageManager": "pnpm@10.30.3",

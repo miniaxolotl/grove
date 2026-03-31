@@ -1,6 +1,6 @@
 {
   "name": "@qdrant-memory/mcp",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
   "main": "dist/index.js",
   "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.",
