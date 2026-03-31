@@ -44,6 +44,7 @@
     "release": "changeset publish"
   },
   "devDependencies": {
-    "@changesets/cli": "~2.30.0"
+    "@changesets/cli": "~2.30.0",
+    "@types/node": "~25.5.0"
   }
 }
