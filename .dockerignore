@@ -1,11 +1,16 @@
 node_modules
-dist
+**/node_modules
+**/dist
 data
 .env
 .env.*
 !.env.example
 .git
+.github
 .gitignore
 .DS_Store
 *.log
 *.tsbuildinfo
+*.md
+LICENSE
+docker-compose.yml

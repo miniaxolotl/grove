@@ -1,3 +1,5 @@
+name: "qdrant-memory-monorepo"
+
 services:
   qdrant-memory:
     build:
@@ -48,7 +50,7 @@ services:
       - memory-net
 
   qdrant:
-    image: qdrant/qdrant:v1.12.0
+    image: qdrant/qdrant:latest
     restart: unless-stopped
 
     environment:
