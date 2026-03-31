@@ -16,18 +16,18 @@
  *   GHCR_REGISTRY=ghcr.io/miniaxolotl DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @qdrant-memory/deploy run deploy
  */
 
+const { execSync } = await import("node:child_process");
+
 const IMAGE = "qdrant-memory";
 const REPO = "miniaxolotl/qdrant-memory";
 const ROOT = new URL("../../..", import.meta.url).pathname;
 
-async function run(cmd: string, cwd?: string) {
+function run(cmd: string, cwd?: string) {
   console.log(`> ${cmd}`);
-  const { execSync } = await import("node:child_process");
   execSync(cmd, { stdio: "inherit", cwd: cwd || ROOT });
 }
 
 async function gitRevision(): Promise<string> {
-  const { execSync } = await import("node:child_process");
   return execSync("git rev-parse HEAD", { cwd: ROOT }).toString().trim();
 }
 
@@ -52,7 +52,6 @@ async function createGithubRelease(tag: string) {
 
   console.log(`\n--- Creating GitHub release ${tag} ---`);
 
-  const { execSync } = await import("node:child_process");
   const exists = execSync(`git tag -l "${tag}"`).toString().trim();
   if (!exists) {
     run(`git tag -a ${tag} -m "Release ${tag}"`);
@@ -64,16 +63,18 @@ async function createGithubRelease(tag: string) {
 }
 
 async function deploy() {
-  const version = JSON.parse(
-    execSync("pnpm --filter @qdrant-memory/mcp pkg get version", {
-      encoding: "utf8",
-    })
-  ).version;
+  const packageJson = JSON.parse(
+    execSync("cat ../../packages/mcp/package.json", { encoding: "utf8" }),
+  );
+  const version = packageJson.version;
 
   const tag = process.env.TAG || "latest";
-  const tags = tag === "latest" 
-    ? ["latest", `v${version}`]
-    : [tag, tag.replace(/^v/, "") === version ? "latest" : null].filter(Boolean) as string[];
+  const tags =
+    tag === "latest"
+      ? ["latest", `v${version}`]
+      : ([tag, tag.replace(/^v/, "") === version ? "latest" : null].filter(
+          Boolean,
+        ) as string[]);
 
   const registries: { name: string; url: string }[] = [];
 
@@ -95,7 +96,9 @@ async function deploy() {
     for (const t of tags) {
       run(`docker build ${await buildLabels(t)} -t ${IMAGE}:${t} .`);
     }
-    console.log(`\n✓ Built ${tags.map((t) => `${IMAGE}:${t}`).join(", ")} (no registry set, skipping push)`);
+    console.log(
+      `\n✓ Built ${tags.map((t) => `${IMAGE}:${t}`).join(", ")} (no registry set, skipping push)`,
+    );
   } else {
     for (const registry of registries) {
       console.log(`\n--- Pushing to ${registry.name} ---`);

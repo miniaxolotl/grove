@@ -47,7 +47,8 @@
     "format": "prettier --write \"**/*.{ts,md,json}\"",
     "clean": "rm -rf packages/mcp/dist scripts/setup/dist tests/dist node_modules",
     "version": "changeset version",
-    "release": "changeset publish"
+    "release": "pnpm --filter @qdrant-memory/release run release",
+    "deploy": "pnpm --filter @qdrant-memory/deploy run deploy"
   },
   "devDependencies": {
     "@changesets/cli": "~2.30.0",

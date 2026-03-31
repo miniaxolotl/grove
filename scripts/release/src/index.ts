@@ -34,7 +34,7 @@ async function getGithubRelease(tag: string): Promise<boolean> {
   }
 }
 
-async function createGithubRelease(tag: string) {
+async function createGithubRelease(tag: string, version: string) {
   const exists = await getGithubRelease(tag);
   if (exists) {
     console.log(`✓ Release ${tag} already exists on GitHub`);
@@ -51,7 +51,30 @@ async function createGithubRelease(tag: string) {
     run(`git push origin ${tag}`);
   }
 
-  run(`gh release create ${tag} --generate-notes --repo ${REPO}`);
+  const body = `## Installation
+
+\`\`\`bash
+npm install @qdrant-memory/mcp@${version}
+\`\`\`
+
+## Docker
+
+\`\`\`bash
+docker pull ghcr.io/miniaxolotl/qdrant-memory:v${version}
+docker pull miniaxolotl/qdrant-memory:v${version}
+\`\`\`
+
+## Quick Start
+
+See the [README](https://github.com/miniaxolotl/qdrant-memory#readme) for full documentation.
+
+## Changes
+
+See [CHANGELOG](./packages/mcp/CHANGELOG.md) for details.`;
+
+  run(
+    `gh release create ${tag} --title "Release v${version}" --notes "${body}" --repo ${REPO}`,
+  );
   console.log(`✓ GitHub release ${tag} created`);
 }
 
@@ -60,11 +83,10 @@ async function release() {
 
   console.log("\n=== Release ===\n");
 
-  const localVersion = JSON.parse(
-    execSync("pnpm --filter @qdrant-memory/mcp pkg get version", {
-      encoding: "utf8",
-    })
-  ).version;
+  const packageJson = JSON.parse(
+    execSync("cat ../../packages/mcp/package.json", { encoding: "utf8" }),
+  );
+  const localVersion = packageJson.version;
 
   const npmVersion = await getNpmVersion(PACKAGE);
   const tag = `v${localVersion}`;
@@ -86,7 +108,7 @@ async function release() {
     run("npx changeset status");
     console.log("\n✓ Dry run complete — no changes published");
   } else {
-    await createGithubRelease(tag);
+    await createGithubRelease(tag, localVersion);
     console.log("\n✓ Release complete");
   }
 }
