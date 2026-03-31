@@ -1,12 +1,13 @@
 {
   "name": "qdrant-memory",
+  "author": "Elias Mawa <elias@mawa.dev>",
   "version": "0.1.0",
   "description": "Self-hosted agentic memory MCP server using Qdrant vector database with semantic search, entity/relation knowledge graph, and optional reranking",
   "license": "MIT",
   "packageManager": "pnpm@10.30.3",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/miniaxolotl/qdrant-memory.git"
   },
   "keywords": [
     "mcp",
