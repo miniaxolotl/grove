@@ -19,9 +19,9 @@ services:
       TRANSPORT: ${TRANSPORT:-stdio}
       COLLECTION_PREFIX: ${COLLECTION_PREFIX:-memory}
       # EMBEDDING_URL: ${EMBEDDING_URL:-}
-      # EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
+      # EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       # RERANKING_URL: ${RERANKING_URL:-}
-      # RERANKING_MODEL: ${RERANKING_MODEL:-bge-reranker-v2-m3}
+      # RERANKING_MODEL: ${RERANKING_MODEL:-}
 
     volumes:
       - ./data:/app/data:rw
@@ -52,9 +52,9 @@ services:
       PORT: ${PORT:-3001}
       COLLECTION_PREFIX: ${COLLECTION_PREFIX:-memory}
       # EMBEDDING_URL: ${EMBEDDING_URL:-}
-      # EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
+      # EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       # RERANKING_URL: ${RERANKING_URL:-}
-      # RERANKING_MODEL: ${RERANKING_MODEL:-bge-reranker-v2-m3}
+      # RERANKING_MODEL: ${RERANKING_MODEL:-}
 
     ports:
       - "${PORT:-3001}:${PORT:-3001}"

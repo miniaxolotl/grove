@@ -3,7 +3,7 @@ import { z } from "zod";
 import { memoryRepository } from "./repositories/memory.repository.js";
 import { entityRepository } from "./repositories/entity.repository.js";
 import { relationRepository } from "./repositories/relation.repository.js";
-import { hasRemoteReranking } from "./config.js";
+import { config, hasRemoteReranking } from "./config.js";
 import { rerankDocuments } from "./services/reranking.js";
 
 const server = new FastMCP({
@@ -612,16 +612,13 @@ async function init() {
 
 init();
 
-const transport = process.env.TRANSPORT ?? "stdio";
-
-if (transport === "http") {
-  const port = parseInt(process.env.PORT ?? "3001", 10);
+if (config.transport === "http") {
   server.start({
     transportType: "httpStream",
-    httpStream: { endpoint: "/mcp", port },
+    httpStream: { endpoint: "/mcp", port: config.port },
   });
   console.error(
-    `[qdrant-memory] HTTP server listening on http://localhost:${port}/mcp`,
+    `[qdrant-memory] HTTP server listening on http://localhost:${config.port}/mcp`,
   );
 } else {
   server.start({ transportType: "stdio" });
