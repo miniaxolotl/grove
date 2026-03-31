@@ -1,89 +1,39 @@
 # qdrant-memory
 
-Self-hosted agentic memory MCP server backed by [Qdrant](https://qdrant.tech/) vector database. Provides semantic memory storage, entity/relation knowledge graph management, and optional reranking — all exposed as [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) tools.
+Self-hosted agentic memory MCP server backed by Qdrant. Exposes semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.
 
 ## Features
 
-- **Semantic memory** — save, search, update, and delete memories with vector embeddings
-- **Entity graph** — create entities with observations, link them via typed relations
-- **Batch operations** — save/search multiple memories in a single call
-- **Pagination** — cursor-based scroll for large datasets
-- **Import/export** — full JSON export and import of memories
-- **Reranking** — optional cross-encoder reranking for higher-quality search results
-- **Dual transport** — stdio (for local MCP clients) or HTTP streaming (for remote clients)
-- **Flexible embeddings** — remote embedding service (OpenAI-compatible API) or local ONNX model via `@huggingface/transformers`
-- **Docker-ready** — includes `docker-compose.yml` with optional local Qdrant
-
-## Tools
-
-| Tool | Description |
-|------|-------------|
-| `memory_save` | Save a single memory |
-| `memory_save_batch` | Save multiple memories at once |
-| `memory_search` | Semantic search with optional reranking |
-| `memory_search_batch` | Search multiple queries at once |
-| `memory_update` | Update text or metadata of a memory |
-| `memory_get` | Get a single memory by ID |
-| `memory_forget` | Delete memories by IDs or filter |
-| `memory_scroll` | Paginate through memories |
-| `memory_stats` | Collection statistics |
-| `memory_export` | Export all memories as JSON |
-| `memory_import` | Import memories from JSON |
-| `memory_note` | Quick-save a note (auto-tagged) |
-| `memory_notes` | Batch save notes |
-| `entity_create` | Create a named entity |
-| `entity_get` | Get entity details by name |
-| `entity_search` | Find entities by name or type |
-| `entity_list` | List entities with pagination |
-| `entity_add_observations` | Append observations to an entity |
-| `entity_update` | Update entity fields |
-| `entity_stats` | Entity collection statistics |
-| `relation_create` | Create a typed relation between entities |
-| `relation_search` | Find relations by source/target/type |
-| `relation_list` | List relations with pagination |
-| `relation_delete` | Delete relations by filter |
-| `relation_stats` | Relation collection statistics |
+- Semantic memory with vector embeddings (remote or local ONNX)
+- Entity/relation knowledge graph
+- Batch save/search, cursor-based pagination, import/export
+- Optional cross-encoder reranking
+- stdio or HTTP transport
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 22+
-- A running Qdrant instance (v1.12+)
-
-### Local Development
-
 ```bash
-# Clone and install
-git clone https://github.com/your-username/qdrant-memory.git
-cd qdrant-memory
 npm install
-
-# Configure
 cp .env.example .env
-# Edit .env with your Qdrant URL and API key
-
-# Setup collections
+# Edit .env with QDRANT_URL and QDRANT_API_KEY
 npm run setup
-
-# Run in dev mode
 npm run dev
-
-# Build and run
-npm run build
-npm start
 ```
 
-### Docker
+## Docker
 
 ```bash
-# With docker-compose (includes local Qdrant)
+# Full stack (MCP server + local Qdrant)
 docker compose up -d
 
-# Or build and run manually
+# HTTP transport (accessible at http://localhost:3001/mcp)
+docker compose up -d qdrant-memory-http
+
+# Standalone with external Qdrant
 docker build -t qdrant-memory .
-docker run -e QDRANT_URL=http://host:6333 \
+docker run -e QDRANT_URL=https://your-qdrant.cloud \
            -e QDRANT_API_KEY=your-key \
+           -e TRANSPORT=http -p 26080:26080 \
            qdrant-memory
 ```
 
@@ -92,31 +42,49 @@ docker run -e QDRANT_URL=http://host:6333 \
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `QDRANT_URL` | `http://localhost:6333` | Qdrant server URL |
-| `QDRANT_API_KEY` | *(empty)* | Qdrant API key |
-| `COLLECTION_PREFIX` | `memory` | Prefix for Qdrant collection names |
-| `VECTOR_DIM` | `384` or `1024` | Vector dimension (auto-detects from embedding config) |
-| `TRANSPORT` | `stdio` | `stdio` for local MCP, `http` for remote |
-| `PORT` | `3001` | HTTP port (when `TRANSPORT=http`) |
-| `EMBEDDING_URL` | *(empty)* | Remote embedding service URL (OpenAI-compatible). Falls back to local ONNX model if unset. |
-| `EMBEDDING_MODEL` | `bge-m3` | Model name for remote embedding |
-| `EMBEDDING_BATCH_SIZE` | `10` | Batch size for embedding requests |
-| `EMBEDDING_MAX_TOKENS` | `512` | Max tokens per text before truncation |
-| `RERANKING_URL` | *(empty)* | Remote reranking service URL. Reranking is disabled if unset. |
-| `RERANKING_MODEL` | `bge-reranker-v2-m3` | Model name for reranking |
+| `QDRANT_API_KEY` | — | Qdrant API key |
+| `COLLECTION_PREFIX` | `memory` | Prefix for collection names |
+| `VECTOR_DIM` | `384` / `1024` | Auto-detected from embedding config |
+| `TRANSPORT` | `stdio` | `stdio` or `http` |
+| `PORT` | `3001` | HTTP port |
+| `EMBEDDING_URL` | — | Remote embedding URL (OpenAI-compatible). Falls back to local ONNX if unset |
+| `EMBEDDING_MODEL` | `bge-m3` | Remote embedding model name |
+| `EMBEDDING_BATCH_SIZE` | `10` | Embedding request batch size |
+| `EMBEDDING_MAX_TOKENS` | `512` | Max tokens per text |
+| `RERANKING_URL` | — | Remote reranking URL. Disabled if unset |
+| `RERANKING_MODEL` | `bge-reranker-v2-m3` | Reranking model name |
 
-## Architecture
+## Tools
 
+**Memory:** `memory_save`, `memory_save_batch`, `memory_search`, `memory_search_batch`, `memory_update`, `memory_get`, `memory_forget`, `memory_scroll`, `memory_stats`, `memory_export`, `memory_import`, `memory_note`, `memory_notes`
+
+**Entities:** `entity_create`, `entity_get`, `entity_search`, `entity_list`, `entity_add_observations`, `entity_update`, `entity_stats`
+
+**Relations:** `relation_create`, `relation_search`, `relation_list`, `relation_delete`, `relation_stats`
+
+## Usage
+
+### Save and search
+
+```json
+{"information": "The project uses TypeScript with strict mode", "metadata": {"project": "my-app", "tags": ["tech-stack"]}}
+{"query": "what language does the project use?", "project": "my-app"}
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│  MCP Client │────▶│  qdrant-     │────▶│   Qdrant     │
-│  (Claude,   │     │  memory      │     │   (vectors)  │
-│   Cursor)   │◀────│  MCP Server  │◀────│              │
-└─────────────┘     └──────────────┘     └──────────────┘
-                           │
-                    ┌──────┴──────┐
-                    │ Embedding   │  (remote or local ONNX)
-                    │ Reranking   │  (optional remote)
-                    └─────────────┘
+
+### Knowledge graph
+
+```json
+{"name": "Qdrant", "entityType": "database", "observations": ["Vector database", "Written in Rust"]}
+{"from": "Qdrant", "relationType": "used_by", "to": "qdrant-memory"}
+{"from": "Qdrant"}
+```
+
+### Batch and pagination
+
+```json
+{"items": [{"information": "Deployed v2.1", "metadata": {"tags": ["deploy"]}}, {"information": "Migration v42 applied"}]}
+{"limit": 50}
+{"limit": 50, "offset": "abc123"}
 ```
 
 ## License
