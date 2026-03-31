@@ -1,11 +1,11 @@
 import { FastMCP } from "fastmcp";
 import { z } from "zod";
 import { createServer } from "node:http";
-import { memoryRepository } from "./repositories/memory.repository";
-import { entityRepository } from "./repositories/entity.repository";
-import { relationRepository } from "./repositories/relation.repository";
-import { config, hasRemoteReranking } from "./config";
-import { rerankDocuments } from "./services/reranking";
+import { memoryRepository } from "./repositories/memory.repository.ts";
+import { entityRepository } from "./repositories/entity.repository.ts";
+import { relationRepository } from "./repositories/relation.repository.ts";
+import { config, hasRemoteReranking } from "./config.ts";
+import { rerankDocuments } from "./services/reranking.ts";
 
 let collectionsReady = false;
 

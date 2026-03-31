@@ -1,4 +1,4 @@
-import { config } from "../config";
+import { config } from "../config.ts";
 
 export interface RerankResult {
   index: number;

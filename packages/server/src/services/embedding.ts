@@ -1,4 +1,4 @@
-import { config, hasRemoteEmbedding } from "../config";
+import { config, hasRemoteEmbedding } from "../config.ts";
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];

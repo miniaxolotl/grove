@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { config } from "../config";
-import { qdrant, type VectorPoint } from "../services/qdrant";
+import { config } from "../config.ts";
+import { qdrant, type VectorPoint } from "../services/qdrant.ts";
 
 const COLLECTION = `${config.collection.prefix}_relations`;
 
