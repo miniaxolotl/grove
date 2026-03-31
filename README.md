@@ -13,11 +13,11 @@ Self-hosted agentic memory MCP server backed by Qdrant. Exposes semantic memory 
 ## Quick Start
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env
 # Edit .env with QDRANT_URL and QDRANT_API_KEY
-npm run setup
-npm run dev
+pnpm run setup
+pnpm run dev
 ```
 
 ## Docker
@@ -32,6 +32,19 @@ docker run -e QDRANT_URL=https://your-qdrant.cloud \
            -e QDRANT_API_KEY=your-key \
            -p 26080:26080 \
            qdrant-memory
+```
+
+## Project Structure
+
+```
+qdrant-memory/
+├── src/                    # MCP server source
+├── tests/                  # E2E tests
+├── scripts/                # Setup and utility scripts
+├── lib/                    # Shared packages
+│   ├── eslint-config/      # ESLint configuration
+│   └── typescript-config/  # TypeScript base configs
+└── packages/               # Future packages
 ```
 
 ## Configuration

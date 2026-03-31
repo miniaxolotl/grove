@@ -1,4 +1,4 @@
-import { config } from "../config.js";
+import { config } from "../config";
 
 const QDRANT_HEADERS = {
   "Content-Type": "application/json",

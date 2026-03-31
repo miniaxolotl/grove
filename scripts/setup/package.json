@@ -1,0 +1,17 @@
+{
+  "name": "@qdrant-memory/setup",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@qdrant-memory/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@qdrant-memory/eslint-config": "workspace:*",
+    "@qdrant-memory/typescript-config": "workspace:*",
+    "tsx": "~4.19.0"
+  }
+}

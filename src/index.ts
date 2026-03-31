@@ -1,10 +1,10 @@
 import { FastMCP } from "fastmcp";
 import { z } from "zod";
-import { memoryRepository } from "./repositories/memory.repository.js";
-import { entityRepository } from "./repositories/entity.repository.js";
-import { relationRepository } from "./repositories/relation.repository.js";
-import { config, hasRemoteReranking } from "./config.js";
-import { rerankDocuments } from "./services/reranking.js";
+import { memoryRepository } from "./repositories/memory.repository";
+import { entityRepository } from "./repositories/entity.repository";
+import { relationRepository } from "./repositories/relation.repository";
+import { config, hasRemoteReranking } from "./config";
+import { rerankDocuments } from "./services/reranking";
 
 const server = new FastMCP({
   name: "qdrant-memory",

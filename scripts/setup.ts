@@ -2,8 +2,8 @@
  * Setup script: creates Qdrant collections and indexes.
  * Run with: npm run setup
  */
-import { config } from "../src/config.js";
-import { qdrant } from "../src/services/qdrant.js";
+import { config } from "../src/config";
+import { qdrant } from "../src/services/qdrant";
 
 const PREFIX = config.collection.prefix;
 const COLLECTIONS = [

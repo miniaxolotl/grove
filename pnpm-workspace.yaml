@@ -1,0 +1,10 @@
+packages:
+  - "lib/*"
+  - "packages/*"
+  - "scripts/*"
+
+onlyBuiltDependencies:
+  - esbuild
+  - onnxruntime-node
+  - protobufjs
+  - sharp

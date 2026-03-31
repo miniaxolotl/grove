@@ -1,19 +1,23 @@
-
 FROM node:22-alpine AS build
+
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 
 # Build dependencies for @huggingface/transformers ONNX runtime
 RUN apk add --no-cache python3 make g++ python3-dev musl-dev
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY lib/ ./lib/
+RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build
+RUN pnpm run build
 
 FROM node:22-alpine AS production
+
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 
 EXPOSE 26080
 

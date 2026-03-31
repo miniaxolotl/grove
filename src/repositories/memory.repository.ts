@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { config } from "../config.js";
-import { qdrant, type VectorPoint } from "../services/qdrant.js";
+import { config } from "../config";
+import { qdrant, type VectorPoint } from "../services/qdrant";
 
 const COLLECTION = `${config.collection.prefix}_memories`;
 
@@ -27,7 +27,7 @@ async function getEmbedTexts(): Promise<
 > {
   if (_embedTexts === null) {
     try {
-      const { embedTexts } = await import("../services/embedding.js");
+      const { embedTexts } = await import("../services/embedding");
       _embedTexts = embedTexts;
     } catch {
       _embedTexts = null;
