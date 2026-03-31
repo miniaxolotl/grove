@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [production]
+  workflow_dispatch:
 
 jobs:
   release:
@@ -10,25 +11,65 @@ jobs:
     permissions:
       contents: write
       packages: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
-      - name: Create Release Pull Request or Publish
-        uses: changesets/action@v1
-        with:
-          publish: pnpm run release
-          version: npx changeset version
-          commit: "chore: version packages"
-          title: "chore: version packages"
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=$(node -p \"require('./packages/mcp/package.json').version\")" >> $GITHUB_OUTPUT
+
+      - name: Check npm
+        id: npm-check
+        run: |
+          if npm view @qdrant-memory/mcp version 2>/dev/null | grep -q "^${{ steps.version.outputs.VERSION }}$"; then
+            echo "published=true" >> $GITHUB_OUTPUT
+          else
+            echo "published=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to npm
+        if: steps.npm-check.outputs.published != 'true'
+        run: npx changeset publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub release
+        run: |
+          TAG="v${{ steps.version.outputs.VERSION }}"
+          if gh release view $TAG --repo ${{ github.repository }} 2>/dev/null; then
+            echo "Release $TAG already exists"
+          else
+            BODY=$(cat <<EOF
+          ## Installation
+
+          \`\`\`bash
+          npm install @qdrant-memory/mcp@${{ steps.version.outputs.VERSION }}
+          \`\`\`
+
+          ## Docker
+
+          \`\`\`bash
+          docker pull ghcr.io/miniaxolotl/qdrant-memory:v${{ steps.version.outputs.VERSION }}
+          docker pull miniaxolotl/qdrant-memory:v${{ steps.version.outputs.VERSION }}
+          \`\`\`
+
+          ## Quick Start
+
+          See the [README](https://github.com/miniaxolotl/qdrant-memory#readme) for full documentation.
+          EOF
+            )
+            gh release create $TAG --title "Release $TAG" --notes "$BODY" --repo ${{ github.repository }}
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
