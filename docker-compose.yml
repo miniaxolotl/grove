@@ -19,14 +19,14 @@ services:
       VECTOR_DIM: ${VECTOR_DIM:-384}
 
       # Optional: remote embedding (falls back to local ONNX if unset)
-      # EMBEDDING_URL:
-      # EMBEDDING_MODEL:
-      # EMBEDDING_BATCH_SIZE:
-      # EMBEDDING_MAX_TOKENS:
+      EMBEDDING_URL: ${EMBEDDING_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-10}
+      EMBEDDING_MAX_TOKENS: ${EMBEDDING_MAX_TOKENS:-512}
 
       # Optional: remote reranking (disabled if unset)
-      # RERANKING_URL:
-      # RERANKING_MODEL:
+      RERANKING_URL: ${RERANKING_URL:-}
+      RERANKING_MODEL: ${RERANKING_MODEL:-}
 
     ports:
       - "${PORT:-26080}:${PORT:-26080}"
