@@ -64,7 +64,16 @@ async function createGithubRelease(tag: string) {
 }
 
 async function deploy() {
+  const version = JSON.parse(
+    execSync("pnpm --filter @qdrant-memory/mcp pkg get version", {
+      encoding: "utf8",
+    })
+  ).version;
+
   const tag = process.env.TAG || "latest";
+  const tags = tag === "latest" 
+    ? ["latest", `v${version}`]
+    : [tag, tag.replace(/^v/, "") === version ? "latest" : null].filter(Boolean) as string[];
 
   const registries: { name: string; url: string }[] = [];
 
@@ -78,22 +87,24 @@ async function deploy() {
     });
   }
 
-  console.log(`\n=== Deploy ${IMAGE}:${tag} ===\n`);
+  console.log(`\n=== Deploy ${IMAGE}:${tags.join(", ")} ===\n`);
 
   run("pnpm --filter @qdrant-memory/mcp build");
 
-  const labels = await buildLabels(tag);
-
   if (registries.length === 0) {
-    run(`docker build ${labels} -t ${IMAGE}:${tag} .`);
-    console.log(`\n✓ Built ${IMAGE}:${tag} (no registry set, skipping push)`);
+    for (const t of tags) {
+      run(`docker build ${await buildLabels(t)} -t ${IMAGE}:${t} .`);
+    }
+    console.log(`\n✓ Built ${tags.map((t) => `${IMAGE}:${t}`).join(", ")} (no registry set, skipping push)`);
   } else {
     for (const registry of registries) {
-      const fullImage = `${registry.url}/${IMAGE}:${tag}`;
       console.log(`\n--- Pushing to ${registry.name} ---`);
-      run(`docker build ${labels} -t ${fullImage} .`);
-      run(`docker push ${fullImage}`);
-      console.log(`✓ Pushed ${fullImage}`);
+      for (const t of tags) {
+        const fullImage = `${registry.url}/${IMAGE}:${t}`;
+        run(`docker build ${await buildLabels(t)} -t ${fullImage} .`);
+        run(`docker push ${fullImage}`);
+        console.log(`✓ Pushed ${fullImage}`);
+      }
     }
     console.log(`\n✓ Deployed to ${registries.map((r) => r.name).join(" + ")}`);
   }
