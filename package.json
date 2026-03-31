@@ -1,5 +1,5 @@
 {
-  "name": "qdrant-memory",
+  "name": "@qdrant-memory/monorepo",
   "private": true,
   "author": "Elias Mawa <elias@mawa.dev>",
   "version": "0.1.0",

@@ -1,10 +1,13 @@
 import { FastMCP } from "fastmcp";
 import { z } from "zod";
+import { createServer } from "node:http";
 import { memoryRepository } from "./repositories/memory.repository";
 import { entityRepository } from "./repositories/entity.repository";
 import { relationRepository } from "./repositories/relation.repository";
 import { config, hasRemoteReranking } from "./config";
 import { rerankDocuments } from "./services/reranking";
+
+let collectionsReady = false;
 
 const server = new FastMCP({
   name: "qdrant-memory",
@@ -604,6 +607,7 @@ async function init() {
     await memoryRepository.init();
     await entityRepository.init();
     await relationRepository.init();
+    collectionsReady = true;
     console.error("Collections initialized");
   } catch (err) {
     console.error("Failed to initialize collections:", err);
@@ -613,6 +617,32 @@ async function init() {
 init();
 
 if (config.transport === "http") {
+  // Health check server (separate port)
+  const healthPort = config.port + 1;
+  createServer((req, res) => {
+    if (req.url === "/ready") {
+      if (collectionsReady) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "ready" }));
+      } else {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "initializing" }));
+      }
+      return;
+    }
+    if (req.url === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "healthy", uptime: process.uptime() }));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  }).listen(healthPort, () => {
+    console.error(
+      `[qdrant-memory] Health check server on http://localhost:${healthPort}`,
+    );
+  });
+
   server.start({
     transportType: "httpStream",
     httpStream: { endpoint: "/mcp", port: config.port },

@@ -18,7 +18,7 @@ RUN pnpm --filter @qdrant-memory/server build
 
 FROM node:22-alpine AS production
 
-EXPOSE 26080
+EXPOSE 26080 26081
 
 WORKDIR /app
 
@@ -32,16 +32,20 @@ COPY --from=build /app/lib ./lib
 COPY --from=build /app/packages/server/package.json ./packages/server/package.json
 
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
-RUN pnpm install --frozen-lockfile --prod
+RUN CI=true pnpm install --frozen-lockfile --prod
 
 # Patch SDK: comment out the completions capability check.
 # fastmcp registers a completion handler but doesn't announce the completions
 # capability in its server info, causing SDK 1.29.0 to throw.
-RUN sed -i '218s/^/\/\/ /' node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js
+RUN find node_modules -path "*/@modelcontextprotocol/sdk/dist/esm/server/index.js" -exec sed -i '218s/^/\/\/ /' {} +
 
 # Non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodeapp -u 1001
 
 USER nodeapp
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
+  CMD sh -c 'cat < /dev/tcp/localhost/26081 || exit 1'
+
 ENTRYPOINT ["node", "dist/index.js"]
