@@ -2,6 +2,7 @@ packages:
   - "lib/*"
   - "packages/*"
   - "scripts/*"
+  - "tests"
 
 onlyBuiltDependencies:
   - esbuild

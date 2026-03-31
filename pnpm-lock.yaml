@@ -6,42 +6,7 @@ settings:
 
 importers:
 
-  .:
-    dependencies:
-      '@huggingface/transformers':
-        specifier: ~3.0.0
-        version: 3.0.2
-      fastmcp:
-        specifier: ~1.27.7
-        version: 1.27.7
-      uuid:
-        specifier: ~11.0.0
-        version: 11.0.5
-      zod:
-        specifier: ~3.25.0
-        version: 3.25.76
-    devDependencies:
-      '@qdrant-memory/eslint-config':
-        specifier: workspace:*
-        version: link:lib/eslint-config
-      '@qdrant-memory/typescript-config':
-        specifier: workspace:*
-        version: link:lib/typescript-config
-      '@types/node':
-        specifier: ~22.0.0
-        version: 22.0.3
-      '@types/uuid':
-        specifier: ~10.0.0
-        version: 10.0.0
-      eslint:
-        specifier: ~9.0.0
-        version: 9.0.0
-      tsx:
-        specifier: ~4.19.0
-        version: 4.19.4
-      typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+  .: {}
 
   lib/eslint-config:
     dependencies:
@@ -53,6 +18,72 @@ importers:
         version: 8.0.1(eslint@9.0.0)(typescript@5.6.3)
 
   lib/typescript-config: {}
+
+  packages/server:
+    dependencies:
+      '@huggingface/transformers':
+        specifier: ~3.0.0
+        version: 3.0.2
+      fastmcp:
+        specifier: ~1.27.7
+        version: 1.27.7
+      uuid:
+        specifier: ~11.0.0
+        version: 11.0.5
+      zod:
+        specifier: ~3.23.0
+        version: 3.23.8
+    devDependencies:
+      '@qdrant-memory/eslint-config':
+        specifier: workspace:*
+        version: link:../../lib/eslint-config
+      '@qdrant-memory/typescript-config':
+        specifier: workspace:*
+        version: link:../../lib/typescript-config
+      '@types/node':
+        specifier: ~22.0.0
+        version: 22.0.3
+      '@types/uuid':
+        specifier: ~10.0.0
+        version: 10.0.0
+      tsx:
+        specifier: ~4.19.0
+        version: 4.19.4
+      typescript:
+        specifier: ~5.6.0
+        version: 5.6.3
+
+  scripts/setup:
+    dependencies:
+      '@qdrant-memory/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+    devDependencies:
+      '@qdrant-memory/eslint-config':
+        specifier: workspace:*
+        version: link:../../lib/eslint-config
+      '@qdrant-memory/typescript-config':
+        specifier: workspace:*
+        version: link:../../lib/typescript-config
+      tsx:
+        specifier: ~4.19.0
+        version: 4.19.4
+
+  tests:
+    dependencies:
+      '@qdrant-memory/server':
+        specifier: workspace:*
+        version: link:../packages/server
+    devDependencies:
+      '@qdrant-memory/eslint-config':
+        specifier: workspace:*
+        version: link:../lib/eslint-config
+      '@qdrant-memory/typescript-config':
+        specifier: workspace:*
+        version: link:../lib/typescript-config
+      tsx:
+        specifier: ~4.19.0
+        version: 4.19.4
 
 packages:
 
@@ -1479,6 +1510,9 @@ packages:
     peerDependencies:
       zod: ^3.25.28 || ^4
 
+  zod@3.23.8:
+    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
+
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
@@ -2878,5 +2912,7 @@ snapshots:
   zod-to-json-schema@3.25.2(zod@3.25.76):
     dependencies:
       zod: 3.25.76
+
+  zod@3.23.8: {}
 
   zod@3.25.76: {}

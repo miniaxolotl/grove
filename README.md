@@ -38,13 +38,15 @@ docker run -e QDRANT_URL=https://your-qdrant.cloud \
 
 ```
 qdrant-memory/
-├── src/                    # MCP server source
+├── packages/
+│   └── server/             # MCP server source
 ├── tests/                  # E2E tests
-├── scripts/                # Setup and utility scripts
+├── scripts/
+│   └── setup/              # Qdrant collection setup
 ├── lib/                    # Shared packages
 │   ├── eslint-config/      # ESLint configuration
 │   └── typescript-config/  # TypeScript base configs
-└── packages/               # Future packages
+└── docker-compose.yml      # Full stack (server + Qdrant)
 ```
 
 ## Configuration

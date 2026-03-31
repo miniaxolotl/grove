@@ -9,23 +9,30 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY lib/ ./lib/
+COPY packages/ ./packages/
+COPY scripts/ ./scripts/
+COPY tests/ ./tests/
 RUN pnpm install --frozen-lockfile
 
-COPY tsconfig.json ./
-COPY src ./src
-RUN pnpm run build
+RUN pnpm --filter @qdrant-memory/server build
 
 FROM node:22-alpine AS production
-
-RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 
 EXPOSE 26080
 
 WORKDIR /app
 
-COPY --from=build --chown=nodeapp:nodejs /app/dist ./dist
-COPY --from=build --chown=nodeapp:nodejs /app/node_modules ./node_modules
-COPY --from=build --chown=nodeapp:nodejs /app/package.json ./package.json
+COPY --from=build /app/packages/server/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/server/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=build /app/lib ./lib
+COPY --from=build /app/packages/server/package.json ./packages/server/package.json
+
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
+RUN pnpm install --frozen-lockfile --prod
 
 # Patch SDK: comment out the completions capability check.
 # fastmcp registers a completion handler but doesn't announce the completions

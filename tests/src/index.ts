@@ -1,10 +1,10 @@
 /**
  * E2E test for qdrant-memory MCP server.
- * Tests all 10 tools against the live Qdrant instance.
+ * Tests all tools against the live Qdrant instance.
  */
-import { memoryRepository } from "../src/repositories/memory.repository";
-import { entityRepository } from "../src/repositories/entity.repository";
-import { relationRepository } from "../src/repositories/relation.repository";
+import { memoryRepository } from "@qdrant-memory/server/repositories/memory.repository";
+import { entityRepository } from "@qdrant-memory/server/repositories/entity.repository";
+import { relationRepository } from "@qdrant-memory/server/repositories/relation.repository";
 
 async function runTests() {
   console.log("=== qdrant-memory E2E Tests ===\n");

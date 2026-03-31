@@ -1,9 +1,9 @@
 /**
  * Setup script: creates Qdrant collections and indexes.
- * Run with: npm run setup
+ * Run with: pnpm --filter @qdrant-memory/setup run setup
  */
-import { config } from "../src/config";
-import { qdrant } from "../src/services/qdrant";
+import { config } from "@qdrant-memory/server/config";
+import { qdrant } from "@qdrant-memory/server/services/qdrant";
 
 const PREFIX = config.collection.prefix;
 const COLLECTIONS = [
@@ -41,7 +41,6 @@ async function setup() {
 
   for (const name of COLLECTIONS) {
     try {
-      // Delete existing collection to recreate with correct dimension
       try {
         await qdrant.deleteCollection(name);
         console.log(`  (deleted existing "${name}")`);
