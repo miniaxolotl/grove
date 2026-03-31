@@ -26,6 +26,23 @@ async function run(cmd: string, cwd?: string) {
   execSync(cmd, { stdio: "inherit", cwd: cwd || ROOT });
 }
 
+async function gitRevision(): Promise<string> {
+  const { execSync } = await import("node:child_process");
+  return execSync("git rev-parse HEAD", { cwd: ROOT }).toString().trim();
+}
+
+async function buildLabels(tag: string): Promise<string> {
+  const version = tag.replace(/^v/, "");
+  const revision = await gitRevision();
+  const created = new Date().toISOString();
+
+  return [
+    `--label "org.opencontainers.image.version=${version}"`,
+    `--label "org.opencontainers.image.revision=${revision}"`,
+    `--label "org.opencontainers.image.created=${created}"`,
+  ].join(" ");
+}
+
 async function createGithubRelease(tag: string) {
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   if (!token) {
@@ -65,14 +82,16 @@ async function deploy() {
 
   run("pnpm --filter @qdrant-memory/mcp build");
 
+  const labels = await buildLabels(tag);
+
   if (registries.length === 0) {
-    run(`docker build -t ${IMAGE}:${tag} .`);
+    run(`docker build ${labels} -t ${IMAGE}:${tag} .`);
     console.log(`\n✓ Built ${IMAGE}:${tag} (no registry set, skipping push)`);
   } else {
     for (const registry of registries) {
       const fullImage = `${registry.url}/${IMAGE}:${tag}`;
       console.log(`\n--- Pushing to ${registry.name} ---`);
-      run(`docker build -t ${fullImage} .`);
+      run(`docker build ${labels} -t ${fullImage} .`);
       run(`docker push ${fullImage}`);
       console.log(`✓ Pushed ${fullImage}`);
     }

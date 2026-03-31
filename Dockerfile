@@ -58,6 +58,16 @@ RUN find /prod/node_modules -path "*/onnxruntime-node/bin" -type d | while read 
 # ── Production ────────────────────────────────────────────────────────────────
 FROM node:22-alpine
 
+LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/qdrant-memory" \
+      org.opencontainers.image.url="https://github.com/miniaxolotl/qdrant-memory" \
+      org.opencontainers.image.documentation="https://github.com/miniaxolotl/qdrant-memory#readme" \
+      org.opencontainers.image.title="qdrant-memory" \
+      org.opencontainers.image.description="Self-hosted agentic memory MCP server using Qdrant" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="Elias Mawa" \
+      org.opencontainers.image.authors="Elias Mawa <elias@mawa.dev>" \
+      org.opencontainers.image.base.name="node:22-alpine"
+
 RUN apk add --no-cache curl
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nodeapp -u 1001
