@@ -1,8 +1,9 @@
 {
-  "name": "@qdrant-memory/server",
-  "version": "0.2.1",
+  "name": "@qdrant-memory/mcp",
+  "version": "0.2.2",
   "type": "module",
   "main": "dist/index.js",
+  "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.",
   "repository": {
     "type": "git",
     "url": "https://github.com/miniaxolotl/qdrant-memory.git"
@@ -10,6 +11,21 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "mcp",
+    "memory",
+    "qdrant",
+    "vector-database",
+    "semantic-search",
+    "knowledge-graph",
+    "agent",
+    "ai",
+    "llm",
+    "embeddings",
+    "supermemory",
+    "agentic-memory",
+    "context"
+  ],
   "exports": {
     ".": "./dist/index.js",
     "./config": "./dist/config.js",

@@ -2,8 +2,8 @@
   "name": "@qdrant-memory/monorepo",
   "private": true,
   "author": "Elias Mawa <elias@mawa.dev>",
-  "version": "0.1.1",
-  "description": "Self-hosted agentic memory MCP server using Qdrant vector database with semantic search, entity/relation knowledge graph, and optional reranking",
+  "version": "0.1.2",
+  "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory",
   "license": "MIT",
   "packageManager": "pnpm@10.30.3",
   "repository": {
@@ -17,19 +17,25 @@
     "vector-database",
     "semantic-search",
     "knowledge-graph",
-    "agent"
+    "agent",
+    "ai",
+    "llm",
+    "embeddings",
+    "supermemory",
+    "agentic-memory",
+    "context"
   ],
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @qdrant-memory/server dev",
+    "dev": "pnpm --filter @qdrant-memory/mcp dev",
     "dev:setup": "pnpm services:up && pnpm setup",
-    "build": "pnpm --filter @qdrant-memory/server build",
-    "start": "pnpm --filter @qdrant-memory/server start",
-    "lint": "pnpm --filter @qdrant-memory/server lint",
-    "lint:fix": "pnpm --filter @qdrant-memory/server lint:fix",
-    "check-types": "pnpm --filter @qdrant-memory/server exec tsc --noEmit",
+    "build": "pnpm --filter @qdrant-memory/mcp build",
+    "start": "pnpm --filter @qdrant-memory/mcp start",
+    "lint": "pnpm --filter @qdrant-memory/mcp lint",
+    "lint:fix": "pnpm --filter @qdrant-memory/mcp lint:fix",
+    "check-types": "pnpm --filter @qdrant-memory/mcp exec tsc --noEmit",
     "test": "pnpm --filter @qdrant-memory/tests test",
     "setup": "pnpm --filter @qdrant-memory/setup run setup",
     "services:up": "docker compose up -d",
@@ -39,7 +45,7 @@
     "services:ps": "docker compose ps",
     "services:prune": "docker compose down -v",
     "format": "prettier --write \"**/*.{ts,md,json}\"",
-    "clean": "rm -rf packages/server/dist scripts/setup/dist tests/dist node_modules",
+    "clean": "rm -rf packages/mcp/dist scripts/setup/dist tests/dist node_modules",
     "version": "changeset version",
     "release": "changeset publish"
   },

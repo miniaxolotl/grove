@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Wraps Changesets version and publish workflow for npm releases",
   "scripts": {
     "release": "tsx src/index.ts"
   },

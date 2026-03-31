@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "E2E tests for qdrant-memory MCP server against live Qdrant",
   "scripts": {
     "test": "tsx src/index.ts"
   },
   "dependencies": {
-    "@qdrant-memory/server": "workspace:*"
+    "@qdrant-memory/mcp": "workspace:*"
   },
   "devDependencies": {
     "@qdrant-memory/eslint-config": "workspace:*",

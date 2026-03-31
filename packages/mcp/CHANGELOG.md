@@ -1,4 +1,4 @@
-# @qdrant-memory/server
+# @qdrant-memory/mcp
 
 ## 0.2.0
 

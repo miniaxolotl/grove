@@ -1,6 +1,6 @@
 # qdrant-memory
 
-![npm](https://img.shields.io/npm/v/@qdrant-memory/server)
+![npm](https://img.shields.io/npm/v/@qdrant-memory/mcp)
 ![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/qdrant-memory?label=docker%20hub)
 ![GHCR](https://img.shields.io/github/v/release/miniaxolotl/qdrant-memory?label=ghcr)
 

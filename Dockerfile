@@ -9,7 +9,7 @@ WORKDIR /app
 # Layer-cached install: manifests first, source later
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY lib/ ./lib/
-COPY packages/server/package.json ./packages/server/package.json
+COPY packages/mcp/package.json ./packages/mcp/package.json
 COPY scripts/setup/package.json ./scripts/setup/package.json
 COPY scripts/deploy/package.json ./scripts/deploy/package.json
 COPY scripts/release/package.json ./scripts/release/package.json
@@ -17,12 +17,12 @@ COPY tests/package.json ./tests/package.json
 
 RUN pnpm install --frozen-lockfile
 
-COPY packages/server/ ./packages/server/
+COPY packages/mcp/ ./packages/mcp/
 COPY lib/typescript-config/ ./lib/typescript-config/
-RUN pnpm --filter @qdrant-memory/server build
+RUN pnpm --filter @qdrant-memory/mcp build
 
 # Flatten prod deps (resolves workspace: links)
-RUN pnpm --filter @qdrant-memory/server deploy --prod --legacy /prod
+RUN pnpm --filter @qdrant-memory/mcp deploy --prod --legacy /prod
 
 # Patch SDK: fastmcp doesn't announce completions capability
 RUN find /prod/node_modules -path "*/@modelcontextprotocol/sdk/dist/esm/server/index.js" \

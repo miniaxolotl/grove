@@ -4,7 +4,7 @@
  *
  * Registries are enabled by setting the corresponding env var:
  *   GHCR_REGISTRY=ghcr.io/miniaxolotl   → push to GitHub Container Registry
- *   DOCKERHUB_REGISTRY=miniaxolotl       → push to Docker Hub
+ *   DOCKERHUB_REGISTRY=miniaxolotl      → push to Docker Hub
  *
  * GitHub release is created when GH_TOKEN or GITHUB_TOKEN is set.
  *
@@ -55,13 +55,15 @@ async function deploy() {
     registries.push({ name: "GHCR", url: process.env.GHCR_REGISTRY });
   }
   if (process.env.DOCKERHUB_REGISTRY) {
-    registries.push({ name: "Docker Hub", url: process.env.DOCKERHUB_REGISTRY });
+    registries.push({
+      name: "Docker Hub",
+      url: process.env.DOCKERHUB_REGISTRY,
+    });
   }
 
   console.log(`\n=== Deploy ${IMAGE}:${tag} ===\n`);
 
-  // Build
-  run("pnpm --filter @qdrant-memory/server build");
+  run("pnpm --filter @qdrant-memory/mcp build");
 
   if (registries.length === 0) {
     run(`docker build -t ${IMAGE}:${tag} .`);
@@ -77,7 +79,6 @@ async function deploy() {
     console.log(`\n✓ Deployed to ${registries.map((r) => r.name).join(" + ")}`);
   }
 
-  // GitHub release
   if (tag !== "latest") {
     await createGithubRelease(tag);
   }

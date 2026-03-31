@@ -20,7 +20,7 @@ async function release() {
     console.log("\n✓ Dry run complete — no changes published");
   } else {
     run("npx changeset version");
-    run("pnpm --filter @qdrant-memory/server build");
+    run("pnpm --filter @qdrant-memory/mcp build");
     run("npx changeset publish");
     console.log("\n✓ Release complete");
   }

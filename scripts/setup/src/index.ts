@@ -2,8 +2,8 @@
  * Setup script: creates Qdrant collections and indexes.
  * Run with: pnpm --filter @qdrant-memory/setup run setup
  */
-import { config } from "@qdrant-memory/server/config";
-import { qdrant } from "@qdrant-memory/server/services/qdrant";
+import { config } from "@qdrant-memory/mcp/config";
+import { qdrant } from "@qdrant-memory/mcp/services/qdrant";
 
 const PREFIX = config.collection.prefix;
 const COLLECTIONS = [
