@@ -34,7 +34,7 @@ services:
       - ./data:/app/data:rw
 
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:26081/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:26081/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,7 +62,7 @@ services:
       - ./data/qdrant:/qdrant/storage:rw
 
     healthcheck:
-      test: ["CMD-SHELL", "cat < /dev/tcp/localhost/6333 || exit 1"]
+      test: ["CMD-SHELL", "timeout 2 bash -c 'echo > /dev/tcp/localhost/6333' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
