@@ -602,15 +602,23 @@ server.addTool({
 
 // ── Initialize collections on startup ────────────────────────────────────────
 
-async function init() {
-  try {
-    await memoryRepository.init();
-    await entityRepository.init();
-    await relationRepository.init();
-    collectionsReady = true;
-    console.error("Collections initialized");
-  } catch (err) {
-    console.error("Failed to initialize collections:", err);
+async function init(retries = 10, delayMs = 3000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await memoryRepository.init();
+      await entityRepository.init();
+      await relationRepository.init();
+      collectionsReady = true;
+      console.error("Collections initialized");
+      return;
+    } catch (err) {
+      if (attempt === retries) {
+        console.error(`Failed to initialize collections after ${retries} attempts:`, err);
+        return;
+      }
+      console.error(`Collection init attempt ${attempt}/${retries} failed, retrying in ${delayMs / 1000}s...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 }
 
