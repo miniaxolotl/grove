@@ -1,5 +1,9 @@
 # qdrant-memory
 
+![npm](https://img.shields.io/npm/v/@qdrant-memory/server)
+![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/qdrant-memory?label=docker%20hub)
+![GHCR](https://img.shields.io/github/v/release/miniaxolotl/qdrant-memory?label=ghcr)
+
 Self-hosted agentic memory MCP server backed by Qdrant. Exposes semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.
 
 ## Quick Start
@@ -13,15 +17,28 @@ pnpm run dev
 
 ## Docker
 
-```bash
-# Full stack (server + Qdrant)
-docker compose up -d
+### Full stack (server + Qdrant)
 
-# Standalone with external Qdrant
+```bash
+docker compose up -d
+```
+
+### From Docker Hub
+
+```bash
 docker run -e QDRANT_URL=https://your-qdrant.cloud \
            -e QDRANT_API_KEY=your-key \
            -p 26080:26080 \
            miniaxolotl/qdrant-memory
+```
+
+### From GHCR
+
+```bash
+docker run -e QDRANT_URL=https://your-qdrant.cloud \
+           -e QDRANT_API_KEY=your-key \
+           -p 26080:26080 \
+           ghcr.io/miniaxolotl/qdrant-memory
 ```
 
 ## Configuration
