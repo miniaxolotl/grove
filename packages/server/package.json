@@ -1,9 +1,11 @@
 {
   "name": "@qdrant-memory/server",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "main": "dist/index.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": "./dist/index.js",
     "./config": "./dist/config.js",

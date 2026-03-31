@@ -1,5 +1,6 @@
 {
   "name": "qdrant-memory",
+  "private": true,
   "author": "Elias Mawa <elias@mawa.dev>",
   "version": "0.1.0",
   "description": "Self-hosted agentic memory MCP server using Qdrant vector database with semantic search, entity/relation knowledge graph, and optional reranking",
@@ -22,18 +23,27 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "dev": "pnpm --filter @qdrant-memory/server dev",
+    "dev:setup": "pnpm services:up && pnpm setup",
     "build": "pnpm --filter @qdrant-memory/server build",
     "start": "pnpm --filter @qdrant-memory/server start",
-    "dev": "pnpm --filter @qdrant-memory/server dev",
     "lint": "pnpm --filter @qdrant-memory/server lint",
     "lint:fix": "pnpm --filter @qdrant-memory/server lint:fix",
+    "check-types": "pnpm --filter @qdrant-memory/server exec tsc --noEmit",
     "test": "pnpm --filter @qdrant-memory/tests test",
     "setup": "pnpm --filter @qdrant-memory/setup run setup",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down",
-    "docker:restart": "docker compose down && docker compose up -d",
-    "docker:logs": "docker compose logs -f",
-    "docker:ps": "docker compose ps",
-    "docker:prune": "docker compose down -v"
+    "services:up": "docker compose up -d",
+    "services:down": "docker compose down",
+    "services:restart": "pnpm run services:down && pnpm run services:up",
+    "services:logs": "docker compose logs -f",
+    "services:ps": "docker compose ps",
+    "services:prune": "docker compose down -v",
+    "format": "prettier --write \"**/*.{ts,md,json}\"",
+    "clean": "rm -rf packages/server/dist scripts/setup/dist tests/dist node_modules",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "~2.30.0"
   }
 }

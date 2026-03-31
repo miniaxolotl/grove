@@ -1,0 +1,14 @@
+{
+  "name": "@qdrant-memory/release",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "release": "tsx src/index.ts"
+  },
+  "devDependencies": {
+    "@qdrant-memory/eslint-config": "workspace:*",
+    "@qdrant-memory/typescript-config": "workspace:*",
+    "tsx": "~4.19.0"
+  }
+}
