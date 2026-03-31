@@ -18,11 +18,12 @@
 
 const IMAGE = "qdrant-memory";
 const REPO = "miniaxolotl/qdrant-memory";
+const ROOT = new URL("../../..", import.meta.url).pathname;
 
-async function run(cmd: string) {
+async function run(cmd: string, cwd?: string) {
   console.log(`> ${cmd}`);
   const { execSync } = await import("node:child_process");
-  execSync(cmd, { stdio: "inherit" });
+  execSync(cmd, { stdio: "inherit", cwd: cwd || ROOT });
 }
 
 async function createGithubRelease(tag: string) {
