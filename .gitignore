@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+data/
+
+.env*
+!.env.example
+
+*.log
+*.tsbuildinfo
+.DS_Store
+.cache/
+tmp/
+
+docker-build.sh
+docker-run.sh
