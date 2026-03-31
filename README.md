@@ -26,14 +26,11 @@ npm run dev
 # Full stack (MCP server + local Qdrant)
 docker compose up -d
 
-# HTTP transport (accessible at http://localhost:3001/mcp)
-docker compose up -d qdrant-memory-http
-
 # Standalone with external Qdrant
 docker build -t qdrant-memory .
 docker run -e QDRANT_URL=https://your-qdrant.cloud \
            -e QDRANT_API_KEY=your-key \
-           -e TRANSPORT=http -p 26080:26080 \
+           -p 26080:26080 \
            qdrant-memory
 ```
 
@@ -45,7 +42,7 @@ docker run -e QDRANT_URL=https://your-qdrant.cloud \
 | `QDRANT_API_KEY`       | —                         | Qdrant API key                                                              |
 | `COLLECTION_PREFIX`    | `memory`                  | Prefix for collection names                                                 |
 | `VECTOR_DIM`           | `384`                     | Auto-detected from embedding config                                         |
-| `TRANSPORT`            | `stdio`                   | `stdio` or `http`                                                           |
+| `TRANSPORT`            | `http`                    | `stdio` or `http`                                                           |
 | `PORT`                 | `3001`                    | HTTP port                                                                   |
 | `EMBEDDING_URL`        | —                         | Remote embedding URL (OpenAI-compatible). Falls back to local ONNX if unset |
 | `EMBEDDING_MODEL`      | —                         | Model name for remote embedding only                                        |

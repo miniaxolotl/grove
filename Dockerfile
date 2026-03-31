@@ -1,14 +1,4 @@
-# qdrant-memory - Self-hosted agentic memory MCP server
-#
-# Build:
-#   docker build -t qdrant-memory .
-#
-# Run (override env with -e):
-#   docker run -e QDRANT_URL=http://host:6333 \
-#              -e QDRANT_API_KEY=your-key \
-#              qdrant-memory
 
-# ── Build Stage ────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS build
 
 # Build dependencies for @huggingface/transformers ONNX runtime
@@ -23,10 +13,8 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-# ── Production Stage ────────────────────────────────────────────────────────────
 FROM node:22-alpine AS production
 
-# Default HTTP port when TRANSPORT=http
 EXPOSE 26080
 
 WORKDIR /app

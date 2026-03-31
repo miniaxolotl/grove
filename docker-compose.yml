@@ -1,63 +1,33 @@
 services:
-  # ── qdrant-memory (stdio transport) ─────────────────────────────────────────
-  # Default: connects to OpenCode via stdio as a local subprocess.
-  # Usage: docker compose up -d qdrant-memory
   qdrant-memory:
     build:
       context: .
       dockerfile: Dockerfile
     image: qdrant-memory:latest
-
-    restart: unless-stopped
-    tty: true
-    user: "1001"
-
-    environment:
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-qdrant-api-key}
-      VECTOR_DIM: ${VECTOR_DIM:-384}
-      TRANSPORT: ${TRANSPORT:-stdio}
-      COLLECTION_PREFIX: ${COLLECTION_PREFIX:-memory}
-      # EMBEDDING_URL: ${EMBEDDING_URL:-}
-      # EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
-      # RERANKING_URL: ${RERANKING_URL:-}
-      # RERANKING_MODEL: ${RERANKING_MODEL:-}
-
-    volumes:
-      - ./data:/app/data:rw
-
-    depends_on:
-      qdrant:
-        condition: service_healthy
-    networks:
-      - memory-net
-
-  # ── qdrant-memory (HTTP transport) ─────────────────────────────────────────
-  # Enable with: TRANSPORT=http docker compose up -d qdrant-memory-http
-  # Exposes HTTP streaming endpoint for remote MCP clients.
-  qdrant-memory-http:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: qdrant-memory:latest
-
     restart: unless-stopped
     user: "1001"
 
+    # Core
     environment:
+      TRANSPORT: ${TRANSPORT:-http}
+      PORT: ${PORT:-26080}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-qdrant-api-key}
-      VECTOR_DIM: ${VECTOR_DIM:-384}
-      TRANSPORT: http
-      PORT: ${PORT:-3001}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
       COLLECTION_PREFIX: ${COLLECTION_PREFIX:-memory}
-      # EMBEDDING_URL: ${EMBEDDING_URL:-}
-      # EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
-      # RERANKING_URL: ${RERANKING_URL:-}
-      # RERANKING_MODEL: ${RERANKING_MODEL:-}
+      VECTOR_DIM: ${VECTOR_DIM:-384}
+
+      # Optional: remote embedding (falls back to local ONNX if unset)
+      # EMBEDDING_URL:
+      # EMBEDDING_MODEL:
+      # EMBEDDING_BATCH_SIZE:
+      # EMBEDDING_MAX_TOKENS:
+
+      # Optional: remote reranking (disabled if unset)
+      # RERANKING_URL:
+      # RERANKING_MODEL:
 
     ports:
-      - "${PORT:-3001}:${PORT:-3001}"
+      - "${PORT:-26080}:${PORT:-26080}"
 
     volumes:
       - ./data:/app/data:rw
@@ -65,24 +35,31 @@ services:
     depends_on:
       qdrant:
         condition: service_healthy
+
     networks:
       - memory-net
 
-  # ── Local Qdrant (optional) ─────────────────────────────────────────────────
   qdrant:
     image: qdrant/qdrant:v1.12.0
     restart: unless-stopped
+
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+
     ports:
       - "6333:6333"
       - "6334:6334"
+
     volumes:
       - ./data/qdrant:/qdrant/storage:rw
+
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:6333/readyz"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
+
     networks:
       - memory-net
 

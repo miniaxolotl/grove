@@ -1,6 +1,6 @@
 export const config = {
-  transport: (process.env.TRANSPORT ?? "stdio") as "stdio" | "http",
-  port: parseInt(process.env.PORT ?? "3001", 10),
+  transport: (process.env.TRANSPORT ?? "http") as "stdio" | "http",
+  port: parseInt(process.env.PORT ?? "26080", 10),
   qdrant: {
     url: process.env.QDRANT_URL ?? "http://localhost:6333",
     apiKey: process.env.QDRANT_API_KEY ?? "",
