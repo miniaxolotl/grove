@@ -8,6 +8,7 @@
     "type": "git",
     "url": "https://github.com/miniaxolotl/qdrant-memory.git"
   },
+  "homepage": "https://github.com/miniaxolotl/qdrant-memory#readme",
   "publishConfig": {
     "access": "public"
   },
