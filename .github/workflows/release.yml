@@ -27,7 +27,7 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "VERSION=$(node -p \"require('./packages/mcp/package.json').version\")" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(node -p "require('./packages/mcp/package.json').version")" >> $GITHUB_OUTPUT
 
       - name: Check npm
         id: npm-check
@@ -47,29 +47,13 @@ jobs:
       - name: Create GitHub release
         run: |
           TAG="v${{ steps.version.outputs.VERSION }}"
-          if gh release view $TAG --repo ${{ github.repository }} 2>/dev/null; then
+          if gh release view "$TAG" --repo "${{ github.repository }}" 2>/dev/null; then
             echo "Release $TAG already exists"
           else
-            BODY=$(cat <<EOF
-          ## Installation
-
-          \`\`\`bash
-          npm install @qdrant-memory/mcp@${{ steps.version.outputs.VERSION }}
-          \`\`\`
-
-          ## Docker
-
-          \`\`\`bash
-          docker pull ghcr.io/miniaxolotl/qdrant-memory:v${{ steps.version.outputs.VERSION }}
-          docker pull miniaxolotl/qdrant-memory:v${{ steps.version.outputs.VERSION }}
-          \`\`\`
-
-          ## Quick Start
-
-          See the [README](https://github.com/miniaxolotl/qdrant-memory#readme) for full documentation.
-          EOF
-            )
-            gh release create $TAG --title "Release $TAG" --notes "$BODY" --repo ${{ github.repository }}
+            gh release create "$TAG" \
+              --title "Release $TAG" \
+              --generate-notes \
+              --repo "${{ github.repository }}"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
