@@ -1,5 +1,10 @@
 # @qdrant-memory/mcp
 
+[![npm](https://img.shields.io/npm/v/@qdrant-memory/mcp)](https://npmjs.com/package/@qdrant-memory/mcp)
+[![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/qdrant-memory?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/qdrant-memory)
+[![GHCR](https://img.shields.io/github/v/release/miniaxolotl/qdrant-memory?label=ghcr)](https://github.com/miniaxolotl/qdrant-memory/releases)
+[![License](https://img.shields.io/npm/l/@qdrant-memory/mcp)](LICENSE)
+
 Self-hosted agentic memory MCP server backed by Qdrant vector database. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools for AI agents.
 
 ## Features
