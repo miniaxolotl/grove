@@ -39,20 +39,24 @@ docker run -e QDRANT_URL=https://your-qdrant.cloud \
 
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `QDRANT_URL` | `http://localhost:6333` | Qdrant server URL |
-| `QDRANT_API_KEY` | — | Qdrant API key |
-| `COLLECTION_PREFIX` | `memory` | Prefix for collection names |
-| `VECTOR_DIM` | `384` / `1024` | Auto-detected from embedding config |
-| `TRANSPORT` | `stdio` | `stdio` or `http` |
-| `PORT` | `3001` | HTTP port |
-| `EMBEDDING_URL` | — | Remote embedding URL (OpenAI-compatible). Falls back to local ONNX if unset |
-| `EMBEDDING_MODEL` | `bge-m3` | Remote embedding model name |
-| `EMBEDDING_BATCH_SIZE` | `10` | Embedding request batch size |
-| `EMBEDDING_MAX_TOKENS` | `512` | Max tokens per text |
-| `RERANKING_URL` | — | Remote reranking URL. Disabled if unset |
-| `RERANKING_MODEL` | `bge-reranker-v2-m3` | Reranking model name |
+| Variable               | Default                   | Description                                                                 |
+| ---------------------- | ------------------------- | --------------------------------------------------------------------------- |
+| `QDRANT_URL`           | `http://localhost:6333`   | Qdrant server URL                                                           |
+| `QDRANT_API_KEY`       | —                         | Qdrant API key                                                              |
+| `COLLECTION_PREFIX`    | `memory`                  | Prefix for collection names                                                 |
+| `VECTOR_DIM`           | `384`                     | Auto-detected from embedding config                                         |
+| `TRANSPORT`            | `stdio`                   | `stdio` or `http`                                                           |
+| `PORT`                 | `3001`                    | HTTP port                                                                   |
+| `EMBEDDING_URL`        | —                         | Remote embedding URL (OpenAI-compatible). Falls back to local ONNX if unset |
+| `EMBEDDING_MODEL`      | —                         | Model name for remote embedding only                                        |
+| `EMBEDDING_BATCH_SIZE` | `10`                      | Embedding request batch size                                                |
+| `EMBEDDING_MAX_TOKENS` | `512`                     | Max tokens per text                                                         |
+| `RERANKING_URL`        | —                         | Remote reranking URL. Disabled if unset                                     |
+| `RERANKING_MODEL`      | —                         | Model name for remote reranking only                                        |
+
+### Local embedding (default)
+
+When `EMBEDDING_URL` is unset, the server embeds locally using `Xenova/all-MiniLM-L6-v2` via ONNX — no external service needed. `VECTOR_DIM` defaults to `384`. Reranking is disabled by default.
 
 ## Tools
 
