@@ -43,7 +43,7 @@ docker run -e QDRANT_URL=https://your-qdrant.cloud \
 | `COLLECTION_PREFIX`    | `memory`                  | Prefix for collection names                                                 |
 | `VECTOR_DIM`           | `384`                     | Auto-detected from embedding config                                         |
 | `TRANSPORT`            | `http`                    | `stdio` or `http`                                                           |
-| `PORT`                 | `3001`                    | HTTP port                                                                   |
+| `PORT`                 | `26080`                   | HTTP port                                                                   |
 | `EMBEDDING_URL`        | —                         | Remote embedding URL (OpenAI-compatible). Falls back to local ONNX if unset |
 | `EMBEDDING_MODEL`      | —                         | Model name for remote embedding only                                        |
 | `EMBEDDING_BATCH_SIZE` | `10`                      | Embedding request batch size                                                |
