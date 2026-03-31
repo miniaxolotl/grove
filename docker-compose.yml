@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: qdrant-memory:latest
+    image: miniaxolotl/qdrant-memory:latest
     restart: unless-stopped
     user: "1001"
 
