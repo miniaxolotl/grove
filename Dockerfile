@@ -18,8 +18,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/mcp/ ./packages/mcp/
 COPY lib/typescript-config/ ./lib/typescript-config/
-RUN pnpm --filter @grove/mcp build
-RUN pnpm --filter @grove/mcp deploy --prod --legacy /prod
+RUN pnpm --filter @miniaxolotl/grove build
+RUN pnpm --filter @miniaxolotl/grove deploy --prod --legacy /prod
 
 # Patch SDK: fastmcp doesn't announce completions capability
 RUN find /prod/node_modules -path "*/@modelcontextprotocol/sdk/dist/esm/server/index.js" \
