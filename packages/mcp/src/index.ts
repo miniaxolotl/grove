@@ -119,6 +119,48 @@ server.addTool({
   },
 });
 
+server.addTool({
+  name: "memory_compact",
+  description: "Compact memories by session or project, removing low-importance ones (importance < 0.6)",
+  parameters: z.object({
+    project: z.string().optional(),
+    sessionId: z.string().optional(),
+    importanceThreshold: z.number().optional().default(0.6),
+  }),
+  execute: async (args) => {
+    try {
+      const result = await memoryRepository.compact({
+        project: args.project,
+        sessionId: args.sessionId,
+        importanceThreshold: args.importanceThreshold,
+      });
+      return text(`Compacted ${result.compacted} memories`);
+    } catch (err) {
+      return toolErr(err);
+    }
+  },
+});
+
+server.addTool({
+  name: "memory_prune",
+  description: "Delete memories below an importance threshold",
+  parameters: z.object({
+    threshold: z.number(),
+    project: z.string().optional(),
+  }),
+  execute: async (args) => {
+    try {
+      const result = await memoryRepository.prune({
+        threshold: args.threshold,
+        project: args.project,
+      });
+      return text(`Pruned ${result.pruned} memories`);
+    } catch (err) {
+      return toolErr(err);
+    }
+  },
+});
+
 // ── Entity Tools ──────────────────────────────────────────────────────────────
 
 server.addTool({
@@ -270,69 +312,7 @@ server.addTool({
   },
 });
 
-// ── Batch Memory Tools ─────────────────────────────────────────────────────────
-
-server.addTool({
-  name: "memory_save_batch",
-  description: "Save multiple memories in a single call for efficiency",
-  parameters: z.object({
-    items: z.array(
-      z.object({
-        information: z.string(),
-        metadata: z
-          .object({
-            source: z.string().optional(),
-            project: z.string().optional(),
-            tags: z.array(z.string()).optional(),
-          })
-          .optional(),
-      }),
-    ),
-  }),
-  execute: async (args) => {
-    try {
-      const items = args.items.map((item) => ({
-        text: item.information,
-        metadata: item.metadata,
-      }));
-      const results = await memoryRepository.saveBatch(items);
-      return text(
-        JSON.stringify(
-          { saved: results.length, ids: results.map((r) => r.id) },
-          null,
-          2,
-        ),
-      );
-    } catch (err) {
-      return toolErr(err);
-    }
-  },
-});
-
-server.addTool({
-  name: "memory_search_batch",
-  description: "Search multiple queries at once for efficiency",
-  parameters: z.object({
-    queries: z.array(
-      z.object({
-        query: z.string(),
-        project: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-        limit: z.number().optional().default(5),
-      }),
-    ),
-  }),
-  execute: async (args) => {
-    try {
-      const results = await memoryRepository.searchBatch(args.queries);
-      return text(JSON.stringify(results, null, 2));
-    } catch (err) {
-      return toolErr(err);
-    }
-  },
-});
-
-// ── Memory Update / Get ────────────────────────────────────────────────────────
+// ── Memory Update ─────────────────────────────────────────────────────────────
 
 server.addTool({
   name: "memory_update",
@@ -354,23 +334,6 @@ server.addTool({
         text: args.text,
         metadata: args.metadata,
       });
-      if (!result) return text(`Memory not found: ${args.id}`);
-      return text(JSON.stringify(result, null, 2));
-    } catch (err) {
-      return toolErr(err);
-    }
-  },
-});
-
-server.addTool({
-  name: "memory_get",
-  description: "Get a single memory by its ID",
-  parameters: z.object({
-    id: z.string(),
-  }),
-  execute: async (args) => {
-    try {
-      const result = await memoryRepository.getById(args.id);
       if (!result) return text(`Memory not found: ${args.id}`);
       return text(JSON.stringify(result, null, 2));
     } catch (err) {
@@ -413,49 +376,6 @@ server.addTool({
     try {
       const stats = await memoryRepository.stats();
       return text(JSON.stringify(stats, null, 2));
-    } catch (err) {
-      return toolErr(err);
-    }
-  },
-});
-
-// ── Memory Import / Export ────────────────────────────────────────────────────
-
-server.addTool({
-  name: "memory_export",
-  description: "Export all memories as JSON",
-  parameters: z.object({}),
-  execute: async () => {
-    try {
-      const memories = await memoryRepository.export();
-      return text(JSON.stringify(memories, null, 2));
-    } catch (err) {
-      return toolErr(err);
-    }
-  },
-});
-
-server.addTool({
-  name: "memory_import",
-  description: "Import memories from JSON array",
-  parameters: z.object({
-    items: z.array(
-      z.object({
-        text: z.string(),
-        metadata: z
-          .object({
-            source: z.string().optional(),
-            project: z.string().optional(),
-            tags: z.array(z.string()).optional(),
-          })
-          .optional(),
-      }),
-    ),
-  }),
-  execute: async (args) => {
-    try {
-      const result = await memoryRepository.import(args.items);
-      return text(JSON.stringify(result, null, 2));
     } catch (err) {
       return toolErr(err);
     }
@@ -535,41 +455,6 @@ server.addTool({
         createdAt: new Date().toISOString(),
       });
       return text(`Saved note: ${result.id}`);
-    } catch (err) {
-      return toolErr(err);
-    }
-  },
-});
-
-server.addTool({
-  name: "memory_notes",
-  description: "Save multiple notes at once (batch lightweight memory saves)",
-  parameters: z.object({
-    notes: z.array(
-      z.object({
-        content: z.string(),
-        project: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-      }),
-    ),
-  }),
-  execute: async (args) => {
-    try {
-      const items = args.notes.map((n) => ({
-        text: n.content,
-        metadata: {
-          project: n.project,
-          tags: [...(n.tags ?? []), "note"],
-        },
-      }));
-      const results = await memoryRepository.saveBatch(items);
-      return text(
-        JSON.stringify(
-          { saved: results.length, ids: results.map((r) => r.id) },
-          null,
-          2,
-        ),
-      );
     } catch (err) {
       return toolErr(err);
     }

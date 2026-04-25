@@ -14,6 +14,8 @@ export interface Memory {
     tags?: string[];
     createdAt: string;
     updatedAt?: string;
+    importance?: number;
+    sessionId?: string;
   };
 }
 
@@ -184,93 +186,6 @@ export async function updateMemory(
   return updated;
 }
 
-export async function saveMemoryBatch(
-  items: Array<{
-    text: string;
-    metadata?: Partial<Memory["metadata"]>;
-  }>,
-): Promise<Memory[]> {
-  const embedFn = await getEmbedTexts();
-  const texts = items.map((i) => i.text);
-
-  let vectors: number[][];
-  if (embedFn) {
-    vectors = await embedFn(texts);
-  } else {
-    vectors = items.map(() => Array(config.vector.dim).fill(0));
-  }
-
-  const now = new Date().toISOString();
-  const points: VectorPoint[] = items.map((item, i) => {
-    const id = randomUUID();
-    return {
-      id,
-      vector: vectors[i],
-      payload: {
-        id,
-        text: item.text,
-        metadata: {
-          ...item.metadata,
-          createdAt: item.metadata?.createdAt ?? now,
-        },
-      },
-    };
-  });
-
-  if (points.length > 0) {
-    await qdrant.upsertPoints(COLLECTION, points);
-  }
-
-  return points.map((p) => ({
-    id: p.id,
-    text: p.payload.text as string,
-    metadata: p.payload.metadata as Memory["metadata"],
-  }));
-}
-
-export async function searchMemoriesBatch(
-  queries: Array<{
-    query: string;
-    project?: string;
-    tags?: string[];
-    limit?: number;
-  }>,
-): Promise<Array<MemorySearchResult[]>> {
-  const embedFn = await getEmbedTexts();
-
-  if (!embedFn) {
-    return queries.map(() => []);
-  }
-
-  const queryTexts = queries.map((q) => q.query);
-  const allVectors = await embedFn(queryTexts);
-
-  const results: Array<MemorySearchResult[]> = await Promise.all(
-    queries.map(async (q, i) => {
-      const filter = buildFilter([
-        q.project ? { key: "metadata.project", value: q.project } : null,
-        q.tags?.length ? { key: "metadata.tags", any: q.tags } : null,
-      ]);
-      const limit = q.limit ?? 5;
-
-      const found = await qdrant.searchVectors(
-        COLLECTION,
-        allVectors[i],
-        limit,
-        filter,
-      );
-      return found.map((r) => ({
-        id: r.id,
-        text: r.payload.text as string,
-        metadata: r.payload.metadata as Memory["metadata"],
-        score: r.score ?? 0,
-      }));
-    }),
-  );
-
-  return results;
-}
-
 export async function scrollMemories(
   options: {
     project?: string;
@@ -318,31 +233,81 @@ export async function getMemoriesStats(): Promise<{
   };
 }
 
-export async function exportMemories(): Promise<Memory[]> {
+export async function compactMemories(options: {
+  project?: string;
+  sessionId?: string;
+  importanceThreshold?: number;
+}): Promise<{ compacted: number }> {
+  const threshold = options.importanceThreshold ?? 0.6;
+  const filter = buildFilter([
+    options.project ? { key: "metadata.project", value: options.project } : null,
+    options.sessionId ? { key: "metadata.sessionId", value: options.sessionId } : null,
+  ]);
+
   let offset: string | null = null;
-  const allMemories: Memory[] = [];
+  let deleted = 0;
 
   do {
-    const { memories, offset: nextOffset } = await scrollMemories({
-      limit: 1000,
-      offset: offset ?? undefined,
-    });
-    allMemories.push(...memories);
-    offset = nextOffset;
+    const { points, nextPageOffset } = await qdrant.scrollPoints(
+      COLLECTION,
+      filter,
+      100,
+      offset ?? undefined,
+    );
+
+    const toDelete = points
+      .filter((p) => {
+        const imp = (p.payload.metadata as Memory["metadata"])?.importance;
+        return imp !== undefined && imp < threshold;
+      })
+      .map((p) => p.id);
+
+    if (toDelete.length > 0) {
+      await qdrant.deletePoints(COLLECTION, toDelete);
+      deleted += toDelete.length;
+    }
+
+    offset = nextPageOffset;
   } while (offset !== null);
 
-  return allMemories;
+  return { compacted: deleted };
 }
 
-export async function importMemories(
-  items: Array<{
-    text: string;
-    metadata?: Partial<Memory["metadata"]>;
-  }>,
-): Promise<{ imported: number }> {
-  if (items.length === 0) return { imported: 0 };
-  const saved = await saveMemoryBatch(items);
-  return { imported: saved.length };
+export async function pruneMemories(options: {
+  threshold: number;
+  project?: string;
+}): Promise<{ pruned: number }> {
+  const filter = buildFilter([
+    options.project ? { key: "metadata.project", value: options.project } : null,
+  ]);
+
+  let offset: string | null = null;
+  let deleted = 0;
+
+  do {
+    const { points, nextPageOffset } = await qdrant.scrollPoints(
+      COLLECTION,
+      filter,
+      100,
+      offset ?? undefined,
+    );
+
+    const toDelete = points
+      .filter((p) => {
+        const imp = (p.payload.metadata as Memory["metadata"])?.importance;
+        return imp !== undefined && imp < options.threshold;
+      })
+      .map((p) => p.id);
+
+    if (toDelete.length > 0) {
+      await qdrant.deletePoints(COLLECTION, toDelete);
+      deleted += toDelete.length;
+    }
+
+    offset = nextPageOffset;
+  } while (offset !== null);
+
+  return { pruned: deleted };
 }
 
 export async function initMemoryCollection(): Promise<void> {
@@ -358,12 +323,9 @@ export const memoryRepository = {
   delete: deleteMemories,
   deleteByFilter: deleteMemoriesByFilter,
   init: initMemoryCollection,
-  getById: getMemoryById,
   update: updateMemory,
-  saveBatch: saveMemoryBatch,
-  searchBatch: searchMemoriesBatch,
   scroll: scrollMemories,
   stats: getMemoriesStats,
-  export: exportMemories,
-  import: importMemories,
+  compact: compactMemories,
+  prune: pruneMemories,
 };

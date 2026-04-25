@@ -1,0 +1,24 @@
+{
+  "name": "@miniaxolotl/grove-opencode-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.14.20",
+    "@opencode-ai/sdk": "^1.14.20",
+    "effect": "~3.21.2",
+    "zod": "~4.1.8"
+  },
+  "devDependencies": {
+    "@tsconfig/node22": "^22.0.2",
+    "@types/node": "^22.13.9",
+    "typescript": "^5.8.2"
+  }
+}
