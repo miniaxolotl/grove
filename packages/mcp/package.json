@@ -1,5 +1,5 @@
 {
-  "name": "@grove/mcp",
+  "name": "@miniaxolotl/grove",
   "version": "0.2.4",
   "type": "module",
   "main": "dist/index.js",

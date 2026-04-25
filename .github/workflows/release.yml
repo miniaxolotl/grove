@@ -32,7 +32,7 @@ jobs:
       - name: Check npm
         id: npm-check
         run: |
-          if npm view @grove/mcp version 2>/dev/null | grep -q "^${{ steps.version.outputs.VERSION }}$"; then
+          if npm view @miniaxolotl/grove version 2>/dev/null | grep -q "^${{ steps.version.outputs.VERSION }}$"; then
             echo "published=true" >> $GITHUB_OUTPUT
           else
             echo "published=false" >> $GITHUB_OUTPUT

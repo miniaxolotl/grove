@@ -90,7 +90,7 @@ async function deploy() {
 
   console.log(`\n=== Deploy ${IMAGE}:${tags.join(", ")} ===\n`);
 
-  run("pnpm --filter @grove/mcp build");
+  run("pnpm --filter @miniaxolotl/grove build");
 
   if (registries.length === 0) {
     for (const t of tags) {

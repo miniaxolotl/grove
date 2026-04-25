@@ -8,7 +8,7 @@
     "setup": "tsx src/index.ts"
   },
   "dependencies": {
-    "@grove/mcp": "workspace:*"
+    "@miniaxolotl/grove": "workspace:*"
   },
   "devDependencies": {
     "@grove/eslint-config": "workspace:*",

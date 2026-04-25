@@ -1,4 +1,4 @@
-# @grove/mcp
+# @miniaxolotl/grove
 
 ## 0.2.0
 

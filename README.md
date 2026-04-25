@@ -1,11 +1,17 @@
 # grove
 
-[![npm](https://img.shields.io/npm/v/@grove/mcp)](https://npmjs.com/package/@grove/mcp)
+[![npm](https://img.shields.io/npm/v/@miniaxolotl/grove)](https://npmjs.com/package/@miniaxolotl/grove)
 [![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/grove?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/grove)
 [![GHCR](https://img.shields.io/github/v/release/miniaxolotl/grove?label=ghcr)](https://github.com/miniaxolotl/grove/releases)
-[![License](https://img.shields.io/npm/l/@grove/mcp)](LICENSE)
+[![License](https://img.shields.io/npm/l/@miniaxolotl/grove)](LICENSE)
 
 Self-hosted agentic memory MCP server backed by Qdrant. Exposes semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.
+
+## Install
+
+```bash
+npm install @miniaxolotl/grove
+```
 
 ## Quick Start
 

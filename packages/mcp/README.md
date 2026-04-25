@@ -1,9 +1,9 @@
-# @grove/mcp
+# @miniaxolotl/grove
 
-[![npm](https://img.shields.io/npm/v/@grove/mcp)](https://npmjs.com/package/@grove/mcp)
+[![npm](https://img.shields.io/npm/v/@miniaxolotl/grove)](https://npmjs.com/package/@miniaxolotl/grove)
 [![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/grove?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/grove)
 [![GHCR](https://img.shields.io/github/v/release/miniaxolotl/grove?label=ghcr)](https://github.com/miniaxolotl/grove/releases)
-[![License](https://img.shields.io/npm/l/@grove/mcp)](LICENSE)
+[![License](https://img.shields.io/npm/l/@miniaxolotl/grove)](LICENSE)
 
 Self-hosted agentic memory MCP server backed by Qdrant vector database. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools for AI agents.
 
@@ -20,7 +20,7 @@ Self-hosted agentic memory MCP server backed by Qdrant vector database. Provides
 ## Installation
 
 ```bash
-npm install @grove/mcp
+npm install @miniaxolotl/grove
 ```
 
 ## Quick Start
@@ -34,13 +34,13 @@ docker run -p 6333:6333 qdrant/qdrant
 ### 2. Run the server
 
 ```bash
-npx @grove/mcp
+npx @miniaxolotl/grove
 ```
 
 Or via code:
 
 ```typescript
-import { server } from "@grove/mcp";
+import { server } from "@miniaxolotl/grove";
 
 // Start with HTTP transport (default port 26080)
 server.run({ transport: "http" });

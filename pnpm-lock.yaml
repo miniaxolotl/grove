@@ -89,7 +89,7 @@ importers:
 
   scripts/setup:
     dependencies:
-      '@grove/mcp':
+      '@miniaxolotl/grove':
         specifier: workspace:*
         version: link:../../packages/mcp
     devDependencies:
@@ -105,7 +105,7 @@ importers:
 
   tests:
     dependencies:
-      '@grove/mcp':
+      '@miniaxolotl/grove':
         specifier: workspace:*
         version: link:../packages/mcp
     devDependencies:

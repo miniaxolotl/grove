@@ -5,7 +5,7 @@
 
 const { execSync } = await import("node:child_process");
 
-const PACKAGE = "@grove/mcp";
+const PACKAGE = "@miniaxolotl/grove";
 const REPO = "miniaxolotl/grove";
 
 async function run(cmd: string) {
@@ -54,7 +54,7 @@ async function createGithubRelease(tag: string, version: string) {
   const body = `## Installation
 
 \`\`\`bash
-npm install @grove/mcp@${version}
+npm install @miniaxolotl/grove@${version}
 \`\`\`
 
 ## Docker
