@@ -1,6 +1,7 @@
 /**
  * Setup script: creates Qdrant collections and indexes.
-* Run with: pnpm --filter @script/setup run setup
+ * Run with: pnpm --filter @script/setup run setup
+ */
 
 import { config } from "@miniaxolotl/grove/config";
 import { qdrant } from "@miniaxolotl/grove/services/qdrant";
