@@ -1,28 +1,28 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 import type { GrovePluginOptions } from "../index.js";
-
-interface MemoryItem {
-  id: string;
-  text: string;
-  score: number;
-  metadata: {
-    importance?: number;
-    project?: string;
-    tags?: string[];
-    sessionId?: string;
-  };
-}
+import type { MemorySearchResult } from "../client/index.js";
+import { MCPClient } from "../client/index.js";
 
 const HOT_THRESHOLD = 0.8;
-const WARM_THRESHOLD = 0.5;
 
 export function createContextEngine(
-  _input: PluginInput,
-  _opts: GrovePluginOptions,
+  _pluginInput: PluginInput,
+  opts: GrovePluginOptions,
 ) {
-  async function queryHotMemories(): Promise<MemoryItem[]> {
-    console.log("[grove-plugin] Querying hot memories (importance > 0.8)");
-    return [];
+  const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:3100/mcp" });
+
+  async function queryHotMemories(): Promise<MemorySearchResult[]> {
+    try {
+      const memories = await mcp.searchMemories({
+        query: "important decision error resolution",
+        limit: 10,
+      });
+
+      return memories.filter((m) => m.score >= HOT_THRESHOLD);
+    } catch (err) {
+      console.error("[grove-plugin] Failed to query hot memories:", err);
+      return [];
+    }
   }
 
   async function injectContext(
@@ -36,10 +36,7 @@ export function createContextEngine(
     }
 
     const memoryContext = hotMemories
-      .map(
-        (m) =>
-          `[Memory ${m.score.toFixed(2)}] ${m.text}`,
-      )
+      .map((m) => `[Memory ${(m.score * 100).toFixed(0)}%] ${m.text}`)
       .join("\n");
 
     output.system.push(
@@ -55,8 +52,18 @@ export function createContextEngine(
       `[grove-plugin] Session ${input.sessionID} compacting, current context items: ${output.context.length}`,
     );
 
+    try {
+      const compacted = await mcp.compactMemories({
+        sessionId: input.sessionID,
+        importanceThreshold: opts.importanceThreshold ?? 0.6,
+      });
+      console.log(`[grove-plugin] Compacted ${compacted} memories for session ${input.sessionID}`);
+    } catch (err) {
+      console.error("[grove-plugin] Failed to compact memories:", err);
+    }
+
     output.context.push(
-      `Session ${input.sessionID} should be compacted using grove memory_compact tool after summarization.`,
+      `Session ${input.sessionID} compacted. Consider using grove memory_compact tool if needed.`,
     );
   }
 

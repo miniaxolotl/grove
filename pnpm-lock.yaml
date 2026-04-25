@@ -35,10 +35,10 @@ importers:
   packages/grove-opencode-plugin:
     dependencies:
       '@opencode-ai/plugin':
-        specifier: ^1.14.20
+        specifier: ~1.14.20
         version: 1.14.25
       '@opencode-ai/sdk':
-        specifier: ^1.14.20
+        specifier: ~1.14.20
         version: 1.14.25
       effect:
         specifier: ~3.21.2
@@ -48,13 +48,13 @@ importers:
         version: 4.1.8
     devDependencies:
       '@tsconfig/node22':
-        specifier: ^22.0.2
+        specifier: ~22.0.2
         version: 22.0.5
       '@types/node':
-        specifier: ^22.13.9
+        specifier: ~22.13.9
         version: 22.19.17
       typescript:
-        specifier: ^5.8.2
+        specifier: ~5.8.2
         version: 5.9.3
 
   packages/mcp:

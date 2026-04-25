@@ -3,6 +3,9 @@ import { tool } from "@opencode-ai/plugin/tool";
 import { z } from "zod";
 import { createCaptureHooks } from "./capture/hooks.js";
 import { createContextEngine } from "./engine/context.js";
+import { createStalenessEngine } from "./engine/staleness.js";
+import { createImportanceEngine } from "./engine/importance.js";
+import { MCPClient } from "./client/index.js";
 
 export interface GrovePluginOptions {
   mcpUrl?: string;
@@ -26,6 +29,9 @@ export const grovePlugin: Plugin = async (
 
   const capture = createCaptureHooks(input, opts);
   const contextEngine = createContextEngine(input, opts);
+  const stalenessEngine = createStalenessEngine(opts);
+  const importanceEngine = createImportanceEngine(opts);
+  const mcp = new MCPClient({ url: opts.mcpUrl });
 
   return {
     tool: {
@@ -46,6 +52,27 @@ export const grovePlugin: Plugin = async (
           return `Saved memory for session ${ctx.sessionID}`;
         },
       }),
+      grove_check_staleness: tool({
+        description: "Check for stale memories that haven't been accessed in a while",
+        args: {},
+        execute: async () => {
+          const result = await stalenessEngine.onStalenessCheck();
+          return result.message;
+        },
+      }),
+      grove_compact_session: tool({
+        description: "Compact memories for a specific session",
+        args: {
+          sessionId: z.string().describe("Session ID to compact"),
+        },
+        execute: async (args) => {
+          const compacted = await mcp.compactMemories({
+            sessionId: args.sessionId,
+            importanceThreshold: opts.importanceThreshold,
+          });
+          return `Compacted ${compacted} memories`;
+        },
+      }),
     },
     async "tool.execute.after"(input, output) {
       await capture.onToolExecuted(input, output);
@@ -55,6 +82,12 @@ export const grovePlugin: Plugin = async (
     },
     async "experimental.session.compacting"(input, output) {
       await contextEngine.onSessionCompacting(input, output);
+      await importanceEngine.decayMemories(input.sessionID);
+
+      const staleResult = await stalenessEngine.onStalenessCheck();
+      if (staleResult.staleCount > 0) {
+        output.context.push(`[grove-plugin] ${staleResult.message}`);
+      }
     },
   };
 };
