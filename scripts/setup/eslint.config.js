@@ -1,1 +1,1 @@
-export { default } from "@grove/eslint-config";
+export { default } from "@lib/eslint-config";
