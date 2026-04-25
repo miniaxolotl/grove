@@ -1,41 +1,13 @@
 node_modules/
-/.vscode/
-/logs/
-/archive/
-/data/
-/tmp/
-/temp/
-
-/.vscode/
-!/.vscode/extensions.json
-
-**/*.tsbuildinfo
-build/
+bin/
 dist/
-.cache/
-.turbo/
-.next/
-tmp/
+/data/
 
-# Compiled TypeScript outputs
-# **/*.d.ts
-# **/*.d.ts.map
-# **/*.js
-# **/*.js.map
-# !*.config.js
-# !*.config.ts
-# !**/eslint*.js
-# !**/jest*.js
+.env
+.env.*
+!.env.example
 
-.env*
-!.env.local
-!.env*.example
-
-.agents/
-.claude/
-.codex/
-.github/agents/
+logs/
+plans/
 .opencode/
-skills-lock.json
 
-/generated/prisma

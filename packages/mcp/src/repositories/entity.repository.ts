@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { config } from "../config.ts";
 import { qdrant } from "../services/qdrant.ts";
+import { buildFilter } from "../utils/filter.ts";
 
 const COLLECTION = `${config.collection.prefix}_entities`;
 
@@ -83,12 +84,10 @@ export async function searchEntities(
   entityType?: string,
   limit: number = 10,
 ): Promise<Entity[]> {
-  const must: Record<string, unknown>[] = [];
-  if (query) must.push({ key: "name", match: { value: query } });
-  if (entityType)
-    must.push({ key: "entityType", match: { value: entityType } });
-
-  const filter = must.length > 0 ? { must } : undefined;
+  const filter = buildFilter([
+    query ? { key: "name", value: query } : null,
+    entityType ? { key: "entityType", value: entityType } : null,
+  ]);
   const { points } = await qdrant.scrollPoints(COLLECTION, filter, limit);
 
   return points.map((p) => ({
@@ -109,7 +108,7 @@ export async function addObservations(
 
   const updated = {
     ...entity,
-    observations: [...entity.observations, ...newObservations],
+    observations: Array.from(new Set([...entity.observations, ...newObservations])),
   };
 
   await qdrant.upsertPoints(COLLECTION, [
@@ -135,15 +134,13 @@ export async function deleteEntities(
     entityType?: string;
   } = {},
 ): Promise<void> {
-  const must: Record<string, unknown>[] = [];
-  if (filter.name) must.push({ key: "name", match: { value: filter.name } });
-  if (filter.entityType)
-    must.push({ key: "entityType", match: { value: filter.entityType } });
-  if (must.length === 0) {
-    return;
-  }
+  const qdrantFilter = buildFilter([
+    filter.name ? { key: "name", value: filter.name } : null,
+    filter.entityType ? { key: "entityType", value: filter.entityType } : null,
+  ]);
+  if (!qdrantFilter) return;
 
-  await qdrant.deleteByFilter(COLLECTION, { must });
+  await qdrant.deleteByFilter(COLLECTION, qdrantFilter);
 }
 
 export async function getEntityById(id: string): Promise<Entity | null> {
@@ -212,10 +209,9 @@ export async function listEntities(
   limit: number = 100,
   offset?: string,
 ): Promise<{ entities: Entity[]; offset: string | null }> {
-  const must: Record<string, unknown>[] = [];
-  if (entityType)
-    must.push({ key: "entityType", match: { value: entityType } });
-  const filter = must.length > 0 ? { must } : undefined;
+  const filter = buildFilter([
+    entityType ? { key: "entityType", value: entityType } : null,
+  ]);
 
   const { points, nextPageOffset } = await qdrant.scrollPoints(
     COLLECTION,

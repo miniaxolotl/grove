@@ -151,16 +151,16 @@ export async function getPoint(
   collection: string,
   id: string,
 ): Promise<VectorPoint | null> {
-  try {
-    const data = (await qdrantFetch(
-      "GET",
-      `/collections/${collection}/points/${id}`,
-    )) as { result: VectorPoint | null };
-    return data.result;
-  } catch (err) {
-    console.warn(`Failed to get point ${id} from ${collection}:`, err);
-    return null;
+  const url = `${config.qdrant.url}/collections/${collection}/points/${id}`;
+  const response = await fetch(url, { method: "GET", headers: QDRANT_HEADERS });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(
+      `Qdrant GET points/${id} failed: ${response.status} ${await response.text()}`,
+    );
   }
+  const data = (await response.json()) as { result: VectorPoint | null };
+  return data.result;
 }
 
 export async function getCollectionInfo(name: string): Promise<{

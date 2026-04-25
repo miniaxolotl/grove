@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { config } from "../config.ts";
 import { qdrant, type VectorPoint } from "../services/qdrant.ts";
+import { buildFilter } from "../utils/filter.ts";
 
 const COLLECTION = `${config.collection.prefix}_memories`;
 
@@ -80,13 +81,10 @@ export async function searchMemories(
   const embedFn = await getEmbedTexts();
 
   if (!embedFn) {
-    const must: Record<string, unknown>[] = [];
-    if (options.project)
-      must.push({ key: "metadata.project", match: { value: options.project } });
-    if (options.tags && options.tags.length > 0) {
-      must.push({ key: "metadata.tags", match: { any: options.tags } });
-    }
-    const filter = must.length > 0 ? { must } : undefined;
+    const filter = buildFilter([
+      options.project ? { key: "metadata.project", value: options.project } : null,
+      options.tags?.length ? { key: "metadata.tags", any: options.tags } : null,
+    ]);
     const { points } = await qdrant.scrollPoints(COLLECTION, filter, limit);
     return points.map((r) => ({
       id: r.id,
@@ -98,13 +96,10 @@ export async function searchMemories(
 
   const [queryVector] = await embedFn([query]);
 
-  const must: Record<string, unknown>[] = [];
-  if (options.project)
-    must.push({ key: "metadata.project", match: { value: options.project } });
-  if (options.tags && options.tags.length > 0) {
-    must.push({ key: "metadata.tags", match: { any: options.tags } });
-  }
-  const filter = must.length > 0 ? { must } : undefined;
+  const filter = buildFilter([
+    options.project ? { key: "metadata.project", value: options.project } : null,
+    options.tags?.length ? { key: "metadata.tags", any: options.tags } : null,
+  ]);
 
   const results = await qdrant.searchVectors(
     COLLECTION,
@@ -129,15 +124,13 @@ export async function deleteMemoriesByFilter(filter: {
   project?: string;
   tags?: string[];
 }): Promise<void> {
-  const must: Record<string, unknown>[] = [];
-  if (filter.project)
-    must.push({ key: "metadata.project", match: { value: filter.project } });
-  if (filter.tags && filter.tags.length > 0) {
-    must.push({ key: "metadata.tags", match: { any: filter.tags } });
-  }
-  if (must.length === 0) return;
+  const qdrantFilter = buildFilter([
+    filter.project ? { key: "metadata.project", value: filter.project } : null,
+    filter.tags?.length ? { key: "metadata.tags", any: filter.tags } : null,
+  ]);
+  if (!qdrantFilter) return;
 
-  await qdrant.deleteByFilter(COLLECTION, { must });
+  await qdrant.deleteByFilter(COLLECTION, qdrantFilter);
 }
 
 export async function getMemoryById(id: string): Promise<Memory | null> {
@@ -254,13 +247,10 @@ export async function searchMemoriesBatch(
 
   const results: Array<MemorySearchResult[]> = await Promise.all(
     queries.map(async (q, i) => {
-      const must: Record<string, unknown>[] = [];
-      if (q.project)
-        must.push({ key: "metadata.project", match: { value: q.project } });
-      if (q.tags && q.tags.length > 0) {
-        must.push({ key: "metadata.tags", match: { any: q.tags } });
-      }
-      const filter = must.length > 0 ? { must } : undefined;
+      const filter = buildFilter([
+        q.project ? { key: "metadata.project", value: q.project } : null,
+        q.tags?.length ? { key: "metadata.tags", any: q.tags } : null,
+      ]);
       const limit = q.limit ?? 5;
 
       const found = await qdrant.searchVectors(
@@ -290,13 +280,10 @@ export async function scrollMemories(
   } = {},
 ): Promise<{ memories: Memory[]; offset: string | null }> {
   const limit = options.limit ?? 100;
-  const must: Record<string, unknown>[] = [];
-  if (options.project)
-    must.push({ key: "metadata.project", match: { value: options.project } });
-  if (options.tags && options.tags.length > 0) {
-    must.push({ key: "metadata.tags", match: { any: options.tags } });
-  }
-  const filter = must.length > 0 ? { must } : undefined;
+  const filter = buildFilter([
+    options.project ? { key: "metadata.project", value: options.project } : null,
+    options.tags?.length ? { key: "metadata.tags", any: options.tags } : null,
+  ]);
 
   const { points, nextPageOffset } = await qdrant.scrollPoints(
     COLLECTION,

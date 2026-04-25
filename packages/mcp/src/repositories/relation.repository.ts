@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { config } from "../config.ts";
 import { qdrant } from "../services/qdrant.ts";
+import { buildFilter } from "../utils/filter.ts";
 
 const COLLECTION = `${config.collection.prefix}_relations`;
 
@@ -55,12 +56,11 @@ export async function searchRelations(
   } = {},
   defaultLimit: number = 20,
 ): Promise<Relation[]> {
-  const must: Record<string, unknown>[] = [];
-  if (options.from) must.push({ key: "from", match: { value: options.from } });
-  if (options.to) must.push({ key: "to", match: { value: options.to } });
-  if (options.relationType) must.push({ key: "relationType", match: { value: options.relationType } });
-
-  const filter = must.length > 0 ? { must } : undefined;
+  const filter = buildFilter([
+    options.from ? { key: "from", value: options.from } : null,
+    options.to ? { key: "to", value: options.to } : null,
+    options.relationType ? { key: "relationType", value: options.relationType } : null,
+  ]);
   const { points } = await qdrant.scrollPoints(COLLECTION, filter, options.limit ?? defaultLimit);
 
   return points.map((p) => ({
@@ -73,13 +73,14 @@ export async function searchRelations(
 }
 
 export async function deleteRelations(options: { from?: string; to?: string; relationType?: string }): Promise<void> {
-  const must: Record<string, unknown>[] = [];
-  if (options.from) must.push({ key: "from", match: { value: options.from } });
-  if (options.to) must.push({ key: "to", match: { value: options.to } });
-  if (options.relationType) must.push({ key: "relationType", match: { value: options.relationType } });
-  if (must.length === 0) return;
+  const filter = buildFilter([
+    options.from ? { key: "from", value: options.from } : null,
+    options.to ? { key: "to", value: options.to } : null,
+    options.relationType ? { key: "relationType", value: options.relationType } : null,
+  ]);
+  if (!filter) return;
 
-  await qdrant.deleteByFilter(COLLECTION, { must });
+  await qdrant.deleteByFilter(COLLECTION, filter);
 }
 
 export async function getRelationStats(): Promise<{
@@ -101,9 +102,9 @@ export async function listRelations(
   limit: number = 100,
   offset?: string,
 ): Promise<{ relations: Relation[]; offset: string | null }> {
-  const must: Record<string, unknown>[] = [];
-  if (relationType) must.push({ key: "relationType", match: { value: relationType } });
-  const filter = must.length > 0 ? { must } : undefined;
+  const filter = buildFilter([
+    relationType ? { key: "relationType", value: relationType } : null,
+  ]);
 
   const { points, nextPageOffset } = await qdrant.scrollPoints(
     COLLECTION,

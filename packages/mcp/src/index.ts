@@ -15,6 +15,15 @@ const server = new FastMCP({
   version: "0.1.0",
 });
 
+function text(content: string) {
+  return { content: [{ type: "text" as const, text: content }] };
+}
+
+function toolErr(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err);
+  return text(`Error: ${message}`);
+}
+
 // ── Memory Tools ──────────────────────────────────────────────────────────────
 
 server.addTool({
@@ -31,11 +40,15 @@ server.addTool({
       .optional(),
   }),
   execute: async (args) => {
-    const result = await memoryRepository.save(args.information, {
-      ...args.metadata,
-      createdAt: new Date().toISOString(),
-    });
-    return `Saved memory: ${result.id}`;
+    try {
+      const result = await memoryRepository.save(args.information, {
+        ...args.metadata,
+        createdAt: new Date().toISOString(),
+      });
+      return text(`Saved memory: ${result.id}`);
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -47,41 +60,34 @@ server.addTool({
     project: z.string().optional(),
     tags: z.array(z.string()).optional(),
     limit: z.number().optional().default(5),
-    rerank: z.boolean().optional().default(true),
+    rerank: z.boolean().optional().default(hasRemoteReranking),
     rerankTopK: z.number().optional().default(20),
   }),
   execute: async (args) => {
-    const limit = args.limit ?? 5;
-    const rerankTopK = args.rerankTopK ?? 20;
+    try {
+      const limit = args.limit ?? 5;
+      const rerankTopK = args.rerankTopK ?? 20;
 
-    const results = await memoryRepository.search(args.query, {
-      project: args.project,
-      tags: args.tags,
-      limit: args.rerank && hasRemoteReranking ? rerankTopK : limit,
-    });
+      const results = await memoryRepository.search(args.query, {
+        project: args.project,
+        tags: args.tags,
+        limit: args.rerank && hasRemoteReranking ? rerankTopK : limit,
+      });
 
-    if (args.rerank && hasRemoteReranking && results.length > limit) {
-      const docs = results.map((r) => r.text);
-      const reranked = await rerankDocuments(args.query, docs, limit);
-      const rerankedResults = reranked
-        .map((r) => ({ ...results[r.index], score: r.relevanceScore }))
-        .filter((r) => r.text !== undefined);
+      if (args.rerank && hasRemoteReranking && results.length > limit) {
+        const docs = results.map((r) => r.text);
+        const reranked = await rerankDocuments(args.query, docs, limit);
+        const rerankedResults = reranked
+          .map((r) => ({ ...results[r.index], score: r.relevanceScore }))
+          .filter((r) => r.text !== undefined);
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(rerankedResults, null, 2),
-          },
-        ],
-      };
+        return text(JSON.stringify(rerankedResults, null, 2));
+      }
+
+      return text(JSON.stringify(results, null, 2));
+    } catch (err) {
+      return toolErr(err);
     }
-
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(results, null, 2) },
-      ],
-    };
   },
 });
 
@@ -94,18 +100,22 @@ server.addTool({
     tags: z.array(z.string()).optional(),
   }),
   execute: async (args) => {
-    if (args.ids && args.ids.length > 0) {
-      await memoryRepository.delete(args.ids);
-      return `Deleted ${args.ids.length} memories`;
+    try {
+      if (args.ids && args.ids.length > 0) {
+        await memoryRepository.delete(args.ids);
+        return text(`Deleted ${args.ids.length} memories`);
+      }
+      if (args.project || args.tags) {
+        await memoryRepository.deleteByFilter({
+          project: args.project,
+          tags: args.tags,
+        });
+        return text("Deleted memories by filter");
+      }
+      return text("No IDs or filter provided");
+    } catch (err) {
+      return toolErr(err);
     }
-    if (args.project || args.tags) {
-      await memoryRepository.deleteByFilter({
-        project: args.project,
-        tags: args.tags,
-      });
-      return "Deleted memories by filter";
-    }
-    return "No IDs or filter provided";
   },
 });
 
@@ -121,13 +131,17 @@ server.addTool({
     metadata: z.record(z.unknown()).optional(),
   }),
   execute: async (args) => {
-    const result = await entityRepository.create(
-      args.name,
-      args.entityType,
-      args.observations ?? [],
-      args.metadata,
-    );
-    return `Created entity: ${result.name} (${result.id})`;
+    try {
+      const result = await entityRepository.create(
+        args.name,
+        args.entityType,
+        args.observations ?? [],
+        args.metadata,
+      );
+      return text(`Created entity: ${result.name} (${result.id})`);
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -140,16 +154,16 @@ server.addTool({
     limit: z.number().optional().default(10),
   }),
   execute: async (args) => {
-    const results = await entityRepository.search(
-      args.query,
-      args.entityType,
-      args.limit,
-    );
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(results, null, 2) },
-      ],
-    };
+    try {
+      const results = await entityRepository.search(
+        args.query,
+        args.entityType,
+        args.limit,
+      );
+      return text(JSON.stringify(results, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -161,12 +175,16 @@ server.addTool({
     observations: z.array(z.string()),
   }),
   execute: async (args) => {
-    const result = await entityRepository.addObservations(
-      args.name,
-      args.observations,
-    );
-    if (!result) return `Entity not found: ${args.name}`;
-    return `Added observations to: ${result.name}`;
+    try {
+      const result = await entityRepository.addObservations(
+        args.name,
+        args.observations,
+      );
+      if (!result) return text(`Entity not found: ${args.name}`);
+      return text(`Added observations to: ${result.name}`);
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -177,13 +195,13 @@ server.addTool({
     name: z.string(),
   }),
   execute: async (args) => {
-    const result = await entityRepository.get(args.name);
-    if (!result) return `Entity not found: ${args.name}`;
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(result, null, 2) },
-      ],
-    };
+    try {
+      const result = await entityRepository.get(args.name);
+      if (!result) return text(`Entity not found: ${args.name}`);
+      return text(JSON.stringify(result, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -199,13 +217,19 @@ server.addTool({
     metadata: z.record(z.unknown()).optional(),
   }),
   execute: async (args) => {
-    const result = await relationRepository.create(
-      args.from,
-      args.relationType,
-      args.to,
-      args.metadata,
-    );
-    return `Created relation: ${args.from} --[${args.relationType}]--> ${args.to} (${result.id})`;
+    try {
+      const result = await relationRepository.create(
+        args.from,
+        args.relationType,
+        args.to,
+        args.metadata,
+      );
+      return text(
+        `Created relation: ${args.from} --[${args.relationType}]--> ${args.to} (${result.id})`,
+      );
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -219,12 +243,12 @@ server.addTool({
     limit: z.number().optional().default(20),
   }),
   execute: async (args) => {
-    const results = await relationRepository.search(args, args.limit);
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(results, null, 2) },
-      ],
-    };
+    try {
+      const results = await relationRepository.search(args, args.limit);
+      return text(JSON.stringify(results, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -237,8 +261,12 @@ server.addTool({
     relationType: z.string().optional(),
   }),
   execute: async (args) => {
-    await relationRepository.delete(args);
-    return "Relations deleted";
+    try {
+      await relationRepository.delete(args);
+      return text("Relations deleted");
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -262,23 +290,22 @@ server.addTool({
     ),
   }),
   execute: async (args) => {
-    const items = args.items.map((item) => ({
-      text: item.information,
-      metadata: item.metadata,
-    }));
-    const results = await memoryRepository.saveBatch(items);
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(
-            { saved: results.length, ids: results.map((r) => r.id) },
-            null,
-            2,
-          ),
-        },
-      ],
-    };
+    try {
+      const items = args.items.map((item) => ({
+        text: item.information,
+        metadata: item.metadata,
+      }));
+      const results = await memoryRepository.saveBatch(items);
+      return text(
+        JSON.stringify(
+          { saved: results.length, ids: results.map((r) => r.id) },
+          null,
+          2,
+        ),
+      );
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -296,12 +323,12 @@ server.addTool({
     ),
   }),
   execute: async (args) => {
-    const results = await memoryRepository.searchBatch(args.queries);
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(results, null, 2) },
-      ],
-    };
+    try {
+      const results = await memoryRepository.searchBatch(args.queries);
+      return text(JSON.stringify(results, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -322,16 +349,16 @@ server.addTool({
       .optional(),
   }),
   execute: async (args) => {
-    const result = await memoryRepository.update(args.id, {
-      text: args.text,
-      metadata: args.metadata,
-    });
-    if (!result) return `Memory not found: ${args.id}`;
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(result, null, 2) },
-      ],
-    };
+    try {
+      const result = await memoryRepository.update(args.id, {
+        text: args.text,
+        metadata: args.metadata,
+      });
+      if (!result) return text(`Memory not found: ${args.id}`);
+      return text(JSON.stringify(result, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -342,13 +369,13 @@ server.addTool({
     id: z.string(),
   }),
   execute: async (args) => {
-    const result = await memoryRepository.getById(args.id);
-    if (!result) return `Memory not found: ${args.id}`;
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(result, null, 2) },
-      ],
-    };
+    try {
+      const result = await memoryRepository.getById(args.id);
+      if (!result) return text(`Memory not found: ${args.id}`);
+      return text(JSON.stringify(result, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -364,20 +391,17 @@ server.addTool({
     offset: z.string().optional(),
   }),
   execute: async (args) => {
-    const { memories, offset } = await memoryRepository.scroll({
-      project: args.project,
-      tags: args.tags,
-      limit: args.limit,
-      offset: args.offset,
-    });
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify({ memories, nextOffset: offset }, null, 2),
-        },
-      ],
-    };
+    try {
+      const { memories, offset } = await memoryRepository.scroll({
+        project: args.project,
+        tags: args.tags,
+        limit: args.limit,
+        offset: args.offset,
+      });
+      return text(JSON.stringify({ memories, nextOffset: offset }, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -386,12 +410,12 @@ server.addTool({
   description: "Get statistics about the memories collection",
   parameters: z.object({}),
   execute: async () => {
-    const stats = await memoryRepository.stats();
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(stats, null, 2) },
-      ],
-    };
+    try {
+      const stats = await memoryRepository.stats();
+      return text(JSON.stringify(stats, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -402,12 +426,12 @@ server.addTool({
   description: "Export all memories as JSON",
   parameters: z.object({}),
   execute: async () => {
-    const memories = await memoryRepository.export();
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(memories, null, 2) },
-      ],
-    };
+    try {
+      const memories = await memoryRepository.export();
+      return text(JSON.stringify(memories, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -429,12 +453,12 @@ server.addTool({
     ),
   }),
   execute: async (args) => {
-    const result = await memoryRepository.import(args.items);
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(result, null, 2) },
-      ],
-    };
+    try {
+      const result = await memoryRepository.import(args.items);
+      return text(JSON.stringify(result, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -450,17 +474,17 @@ server.addTool({
     metadata: z.record(z.unknown()).optional(),
   }),
   execute: async (args) => {
-    const result = await entityRepository.update(args.id, {
-      name: args.name,
-      entityType: args.entityType,
-      metadata: args.metadata,
-    });
-    if (!result) return `Entity not found: ${args.id}`;
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(result, null, 2) },
-      ],
-    };
+    try {
+      const result = await entityRepository.update(args.id, {
+        name: args.name,
+        entityType: args.entityType,
+        metadata: args.metadata,
+      });
+      if (!result) return text(`Entity not found: ${args.id}`);
+      return text(JSON.stringify(result, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -469,12 +493,12 @@ server.addTool({
   description: "Get statistics about the entities collection",
   parameters: z.object({}),
   execute: async () => {
-    const stats = await entityRepository.stats();
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(stats, null, 2) },
-      ],
-    };
+    try {
+      const stats = await entityRepository.stats();
+      return text(JSON.stringify(stats, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -483,12 +507,12 @@ server.addTool({
   description: "Get statistics about the relations collection",
   parameters: z.object({}),
   execute: async () => {
-    const stats = await relationRepository.stats();
-    return {
-      content: [
-        { type: "text" as const, text: JSON.stringify(stats, null, 2) },
-      ],
-    };
+    try {
+      const stats = await relationRepository.stats();
+      return text(JSON.stringify(stats, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -503,13 +527,17 @@ server.addTool({
     tags: z.array(z.string()).optional(),
   }),
   execute: async (args) => {
-    const tags = [...(args.tags ?? []), "note"];
-    const result = await memoryRepository.save(args.content, {
-      project: args.project,
-      tags,
-      createdAt: new Date().toISOString(),
-    });
-    return `Saved note: ${result.id}`;
+    try {
+      const tags = [...(args.tags ?? []), "note"];
+      const result = await memoryRepository.save(args.content, {
+        project: args.project,
+        tags,
+        createdAt: new Date().toISOString(),
+      });
+      return text(`Saved note: ${result.id}`);
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -526,26 +554,25 @@ server.addTool({
     ),
   }),
   execute: async (args) => {
-    const items = args.notes.map((n) => ({
-      text: n.content,
-      metadata: {
-        project: n.project,
-        tags: [...(n.tags ?? []), "note"],
-      },
-    }));
-    const results = await memoryRepository.saveBatch(items);
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(
-            { saved: results.length, ids: results.map((r) => r.id) },
-            null,
-            2,
-          ),
+    try {
+      const items = args.notes.map((n) => ({
+        text: n.content,
+        metadata: {
+          project: n.project,
+          tags: [...(n.tags ?? []), "note"],
         },
-      ],
-    };
+      }));
+      const results = await memoryRepository.saveBatch(items);
+      return text(
+        JSON.stringify(
+          { saved: results.length, ids: results.map((r) => r.id) },
+          null,
+          2,
+        ),
+      );
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -559,19 +586,16 @@ server.addTool({
     offset: z.string().optional(),
   }),
   execute: async (args) => {
-    const { entities, offset } = await entityRepository.list(
-      args.entityType,
-      args.limit,
-      args.offset,
-    );
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify({ entities, nextOffset: offset }, null, 2),
-        },
-      ],
-    };
+    try {
+      const { entities, offset } = await entityRepository.list(
+        args.entityType,
+        args.limit,
+        args.offset,
+      );
+      return text(JSON.stringify({ entities, nextOffset: offset }, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -585,19 +609,16 @@ server.addTool({
     offset: z.string().optional(),
   }),
   execute: async (args) => {
-    const { relations, offset } = await relationRepository.list(
-      args.relationType,
-      args.limit,
-      args.offset,
-    );
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify({ relations, nextOffset: offset }, null, 2),
-        },
-      ],
-    };
+    try {
+      const { relations, offset } = await relationRepository.list(
+        args.relationType,
+        args.limit,
+        args.offset,
+      );
+      return text(JSON.stringify({ relations, nextOffset: offset }, null, 2));
+    } catch (err) {
+      return toolErr(err);
+    }
   },
 });
 
@@ -611,13 +632,16 @@ async function init(retries = 10, delayMs = 3000) {
       await relationRepository.init();
       collectionsReady = true;
       console.error("Collections initialized");
-      await warmup();
+      try {
+        await warmup();
+      } catch (err) {
+        console.warn("Embedding warmup failed (non-fatal):", err);
+      }
       return;
     } catch (err) {
       if (attempt === retries) {
         console.error(`Failed to initialize collections after ${retries} attempts:`, err);
-        console.error("[grove] WARNING: Server starting in degraded mode - collections unavailable");
-        return;
+        process.exit(1);
       }
       console.error(`Collection init attempt ${attempt}/${retries} failed, retrying in ${delayMs / 1000}s...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));

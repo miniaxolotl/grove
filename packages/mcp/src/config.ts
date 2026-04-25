@@ -23,5 +23,10 @@ export const config = {
   },
 } as const;
 
+if (isNaN(config.port)) throw new Error("Invalid PORT: must be a valid number");
+if (isNaN(config.embedding.batchSize)) throw new Error("Invalid EMBEDDING_BATCH_SIZE: must be a valid number");
+if (isNaN(config.embedding.maxTokensPerText)) throw new Error("Invalid EMBEDDING_MAX_TOKENS: must be a valid number");
+if (isNaN(config.vector.dim)) throw new Error("Invalid VECTOR_DIM: must be a valid number");
+
 export const hasRemoteEmbedding = !!config.embedding.url;
 export const hasRemoteReranking = !!config.reranking.url;
