@@ -139,7 +139,10 @@ export async function deleteEntities(
   if (filter.name) must.push({ key: "name", match: { value: filter.name } });
   if (filter.entityType)
     must.push({ key: "entityType", match: { value: filter.entityType } });
-  if (must.length === 0) return;
+  if (must.length === 0) {
+    await qdrant.deleteByFilter(COLLECTION, {});
+    return;
+  }
 
   await qdrant.deleteByFilter(COLLECTION, { must });
 }
