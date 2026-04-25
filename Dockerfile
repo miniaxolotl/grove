@@ -18,8 +18,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/mcp/ ./packages/mcp/
 COPY lib/typescript-config/ ./lib/typescript-config/
-RUN pnpm --filter @qdrant-memory/mcp build
-RUN pnpm --filter @qdrant-memory/mcp deploy --prod --legacy /prod
+RUN pnpm --filter @grove/mcp build
+RUN pnpm --filter @grove/mcp deploy --prod --legacy /prod
 
 # Patch SDK: fastmcp doesn't announce completions capability
 RUN find /prod/node_modules -path "*/@modelcontextprotocol/sdk/dist/esm/server/index.js" \
@@ -52,10 +52,10 @@ RUN rm -rf /prod/node_modules/@img /prod/node_modules/sharp /prod/node_modules/f
 # ── Production ────────────────────────────────────────────────────────────────
 FROM node:24-alpine AS production
 
-LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/qdrant-memory" \
-      org.opencontainers.image.url="https://github.com/miniaxolotl/qdrant-memory" \
-      org.opencontainers.image.documentation="https://github.com/miniaxolotl/qdrant-memory#readme" \
-      org.opencontainers.image.title="qdrant-memory" \
+LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/grove" \
+      org.opencontainers.image.url="https://github.com/miniaxolotl/grove" \
+      org.opencontainers.image.documentation="https://github.com/miniaxolotl/grove#readme" \
+      org.opencontainers.image.title="grove" \
       org.opencontainers.image.description="Self-hosted agentic memory MCP server using Qdrant" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="Elias Mawa" \
