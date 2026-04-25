@@ -251,7 +251,10 @@ export async function listEntities(
 }
 
 export async function initEntityCollection(): Promise<void> {
-  await qdrant.ensureCollection(COLLECTION, config.vector.dim);
+  await qdrant.ensureCollection(COLLECTION, config.vector.dim, [
+    "name",
+    "entityType",
+  ]);
 }
 
 export const entityRepository = {

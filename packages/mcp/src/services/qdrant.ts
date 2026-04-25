@@ -40,18 +40,28 @@ export interface SearchResult extends VectorPoint {
 export async function ensureCollection(
   name: string,
   vectorDim: number = config.vector.dim,
+  indexFields: string[] = [],
 ): Promise<void> {
   const data = (await qdrantFetch("GET", "/collections")) as {
     result: { collections: { name: string }[] };
   };
 
-  if (!data.result.collections.some((c) => c.name === name)) {
+  const exists = data.result.collections.some((c) => c.name === name);
+  if (!exists) {
     await qdrantFetch("PUT", `/collections/${name}`, {
       vectors: {
         size: vectorDim,
         distance: "Cosine",
       },
     });
+  }
+
+  for (const field of indexFields) {
+    try {
+      await createIndex(name, field);
+    } catch {
+      // Index may already exist
+    }
   }
 }
 

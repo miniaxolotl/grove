@@ -372,7 +372,10 @@ export async function importMemories(
 }
 
 export async function initMemoryCollection(): Promise<void> {
-  await qdrant.ensureCollection(COLLECTION, config.vector.dim);
+  await qdrant.ensureCollection(COLLECTION, config.vector.dim, [
+    "metadata.project",
+    "metadata.tags",
+  ]);
 }
 
 export const memoryRepository = {

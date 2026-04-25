@@ -138,7 +138,11 @@ export async function listRelations(
 }
 
 export async function initRelationCollection(): Promise<void> {
-  await qdrant.ensureCollection(COLLECTION, config.vector.dim);
+  await qdrant.ensureCollection(COLLECTION, config.vector.dim, [
+    "from",
+    "to",
+    "relationType",
+  ]);
 }
 
 export const relationRepository = {
