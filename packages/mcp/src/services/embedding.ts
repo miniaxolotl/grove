@@ -140,3 +140,10 @@ export async function embedText(text: string): Promise<number[]> {
   const results = await embedTexts([text]);
   return results[0];
 }
+
+export async function warmup(): Promise<void> {
+  const localEmbedder = await getLocalEmbedder();
+  if (localEmbedder) {
+    await localEmbedder(["warmup"]);
+  }
+}

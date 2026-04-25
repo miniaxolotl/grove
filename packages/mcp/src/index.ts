@@ -6,6 +6,7 @@ import { entityRepository } from "./repositories/entity.repository.ts";
 import { relationRepository } from "./repositories/relation.repository.ts";
 import { config, hasRemoteReranking } from "./config.ts";
 import { rerankDocuments } from "./services/reranking.ts";
+import { warmup } from "./services/embedding.ts";
 
 let collectionsReady = false;
 
@@ -610,6 +611,7 @@ async function init(retries = 10, delayMs = 3000) {
       await relationRepository.init();
       collectionsReady = true;
       console.error("Collections initialized");
+      await warmup();
       return;
     } catch (err) {
       if (attempt === retries) {
