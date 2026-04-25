@@ -1,3 +1,3 @@
-# @qdrant-memory/typescript-config
+# @grove/typescript-config
 
 Shared TypeScript configurations for the monorepo.

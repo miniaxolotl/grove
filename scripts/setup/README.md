@@ -1,4 +1,4 @@
-# @qdrant-memory/setup
+# @grove/setup
 
 Initializes Qdrant collections required by the server.
 

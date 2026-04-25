@@ -1,9 +1,9 @@
-# @qdrant-memory/mcp
+# @grove/mcp
 
-[![npm](https://img.shields.io/npm/v/@qdrant-memory/mcp)](https://npmjs.com/package/@qdrant-memory/mcp)
-[![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/qdrant-memory?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/qdrant-memory)
-[![GHCR](https://img.shields.io/github/v/release/miniaxolotl/qdrant-memory?label=ghcr)](https://github.com/miniaxolotl/qdrant-memory/releases)
-[![License](https://img.shields.io/npm/l/@qdrant-memory/mcp)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@grove/mcp)](https://npmjs.com/package/@grove/mcp)
+[![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/grove?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/grove)
+[![GHCR](https://img.shields.io/github/v/release/miniaxolotl/grove?label=ghcr)](https://github.com/miniaxolotl/grove/releases)
+[![License](https://img.shields.io/npm/l/@grove/mcp)](LICENSE)
 
 Self-hosted agentic memory MCP server backed by Qdrant vector database. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools for AI agents.
 
@@ -20,7 +20,7 @@ Self-hosted agentic memory MCP server backed by Qdrant vector database. Provides
 ## Installation
 
 ```bash
-npm install @qdrant-memory/mcp
+npm install @grove/mcp
 ```
 
 ## Quick Start
@@ -34,13 +34,13 @@ docker run -p 6333:6333 qdrant/qdrant
 ### 2. Run the server
 
 ```bash
-npx @qdrant-memory/mcp
+npx @grove/mcp
 ```
 
 Or via code:
 
 ```typescript
-import { server } from "@qdrant-memory/mcp";
+import { server } from "@grove/mcp";
 
 // Start with HTTP transport (default port 26080)
 server.run({ transport: "http" });
@@ -103,7 +103,7 @@ By default, uses `Xenova/all-MiniLM-L6-v2` via ONNX — no external service requ
 ```bash
 docker run -e QDRANT_URL=http://host.docker.internal:6333 \
            -p 26080:26080 \
-           ghcr.io/miniaxolotl/qdrant-memory
+           ghcr.io/miniaxolotl/grove
 ```
 
 Or use `docker-compose.yml` from the repo for full stack.

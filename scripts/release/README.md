@@ -1,7 +1,7 @@
-# @qdrant-memory/release
+# @grove/release
 
 Wraps Changesets version and publish workflow for npm.
 
 ```bash
-pnpm --filter @qdrant-memory/release run release
+pnpm --filter @grove/release run release
 ```
