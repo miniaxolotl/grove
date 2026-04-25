@@ -8,18 +8,18 @@
  *
  * GitHub release is created when GH_TOKEN or GITHUB_TOKEN is set.
  *
- * Run with: pnpm --filter @qdrant-memory/deploy run deploy
+ * Run with: pnpm --filter @grove/deploy run deploy
  *
  * Examples:
- *   GHCR_REGISTRY=ghcr.io/miniaxolotl TAG=v0.1.0 pnpm --filter @qdrant-memory/deploy run deploy
- *   DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @qdrant-memory/deploy run deploy
- *   GHCR_REGISTRY=ghcr.io/miniaxolotl DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @qdrant-memory/deploy run deploy
+ *   GHCR_REGISTRY=ghcr.io/miniaxolotl TAG=v0.1.0 pnpm --filter @grove/deploy run deploy
+ *   DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @grove/deploy run deploy
+ *   GHCR_REGISTRY=ghcr.io/miniaxolotl DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @grove/deploy run deploy
  */
 
 const { execSync } = await import("node:child_process");
 
-const IMAGE = "qdrant-memory";
-const REPO = "miniaxolotl/qdrant-memory";
+const IMAGE = "grove";
+const REPO = "miniaxolotl/grove";
 const ROOT = new URL("../../..", import.meta.url).pathname;
 
 function run(cmd: string, cwd?: string) {
@@ -90,7 +90,7 @@ async function deploy() {
 
   console.log(`\n=== Deploy ${IMAGE}:${tags.join(", ")} ===\n`);
 
-  run("pnpm --filter @qdrant-memory/mcp build");
+  run("pnpm --filter @grove/mcp build");
 
   if (registries.length === 0) {
     for (const t of tags) {

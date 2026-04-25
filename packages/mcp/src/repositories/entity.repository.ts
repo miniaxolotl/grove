@@ -225,7 +225,7 @@ export async function listEntities(
     headers: {
       "Content-Type": "application/json",
       "api-key": config.qdrant.apiKey,
-      "User-Agent": "qdrant-memory/1.0",
+      "User-Agent": "grove/1.0",
     },
     body: JSON.stringify(body),
   });

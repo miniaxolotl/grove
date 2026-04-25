@@ -1,18 +1,18 @@
 {
-  "name": "@qdrant-memory/setup",
+  "name": "@grove/setup",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Initializes Qdrant collections and indexes for qdrant-memory MCP server",
+  "description": "Initializes Qdrant collections and indexes for grove MCP server",
   "scripts": {
     "setup": "tsx src/index.ts"
   },
   "dependencies": {
-    "@qdrant-memory/mcp": "workspace:*"
+    "@grove/mcp": "workspace:*"
   },
   "devDependencies": {
-    "@qdrant-memory/eslint-config": "workspace:*",
-    "@qdrant-memory/typescript-config": "workspace:*",
+    "@grove/eslint-config": "workspace:*",
+    "@grove/typescript-config": "workspace:*",
     "tsx": "~4.21.0"
   }
 }

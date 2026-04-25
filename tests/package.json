@@ -1,18 +1,18 @@
 {
-  "name": "@qdrant-memory/tests",
+  "name": "@grove/tests",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "E2E tests for qdrant-memory MCP server against live Qdrant",
+  "description": "E2E tests for grove MCP server against live Qdrant",
   "scripts": {
     "test": "tsx src/index.ts"
   },
   "dependencies": {
-    "@qdrant-memory/mcp": "workspace:*"
+    "@grove/mcp": "workspace:*"
   },
   "devDependencies": {
-    "@qdrant-memory/eslint-config": "workspace:*",
-    "@qdrant-memory/typescript-config": "workspace:*",
+    "@grove/eslint-config": "workspace:*",
+    "@grove/typescript-config": "workspace:*",
     "tsx": "~4.21.0"
   }
 }

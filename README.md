@@ -1,9 +1,9 @@
-# qdrant-memory
+# grove
 
-[![npm](https://img.shields.io/npm/v/@qdrant-memory/mcp)](https://npmjs.com/package/@qdrant-memory/mcp)
-[![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/qdrant-memory?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/qdrant-memory)
-[![GHCR](https://img.shields.io/github/v/release/miniaxolotl/qdrant-memory?label=ghcr)](https://github.com/miniaxolotl/qdrant-memory/releases)
-[![License](https://img.shields.io/npm/l/@qdrant-memory/mcp)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@grove/mcp)](https://npmjs.com/package/@grove/mcp)
+[![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/grove?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/grove)
+[![GHCR](https://img.shields.io/github/v/release/miniaxolotl/grove?label=ghcr)](https://github.com/miniaxolotl/grove/releases)
+[![License](https://img.shields.io/npm/l/@grove/mcp)](LICENSE)
 
 Self-hosted agentic memory MCP server backed by Qdrant. Exposes semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.
 
@@ -30,7 +30,7 @@ docker compose up -d
 docker run -e QDRANT_URL=https://your-qdrant.cloud \
            -e QDRANT_API_KEY=your-key \
            -p 26080:26080 \
-           miniaxolotl/qdrant-memory
+           miniaxolotl/grove
 ```
 
 ### From GHCR
@@ -39,7 +39,7 @@ docker run -e QDRANT_URL=https://your-qdrant.cloud \
 docker run -e QDRANT_URL=https://your-qdrant.cloud \
            -e QDRANT_API_KEY=your-key \
            -p 26080:26080 \
-           ghcr.io/miniaxolotl/qdrant-memory
+           ghcr.io/miniaxolotl/grove
 ```
 
 ## Configuration

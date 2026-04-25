@@ -10,7 +10,7 @@ import { rerankDocuments } from "./services/reranking.ts";
 let collectionsReady = false;
 
 const server = new FastMCP({
-  name: "qdrant-memory",
+  name: "grove",
   version: "0.1.0",
 });
 
@@ -647,7 +647,7 @@ if (config.transport === "http") {
     res.end();
   }).listen(healthPort, () => {
     console.error(
-      `[qdrant-memory] Health check server on http://localhost:${healthPort}`,
+      `[grove] Health check server on http://localhost:${healthPort}`,
     );
   });
 
@@ -656,7 +656,7 @@ if (config.transport === "http") {
     httpStream: { endpoint: "/mcp", port: config.port },
   });
   console.error(
-    `[qdrant-memory] HTTP server listening on http://localhost:${config.port}/mcp`,
+    `[grove] HTTP server listening on http://localhost:${config.port}/mcp`,
   );
 } else {
   server.start({ transportType: "stdio" });
