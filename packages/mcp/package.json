@@ -47,8 +47,8 @@
     "zod": "~3.25.0"
   },
   "devDependencies": {
-    "@grove/eslint-config": "workspace:*",
-    "@grove/typescript-config": "workspace:*",
+    "@lib/eslint-config": "workspace:*",
+    "@lib/typescript-config": "workspace:*",
     "@types/uuid": "~11.0.0",
     "tsx": "~4.21.0",
     "typescript": "~6.0.2"

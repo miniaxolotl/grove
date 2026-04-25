@@ -1,6 +1,6 @@
 /**
  * Release script: runs Changesets version + publish workflow.
- * Run with: pnpm --filter @grove/release run release
+ * Run with: pnpm --filter @script/release run release
  */
 
 const { execSync } = await import("node:child_process");
@@ -98,7 +98,7 @@ async function release() {
 
     if (!dryRun) {
       run("npx changeset version");
-      run("pnpm --filter @grove/mcp build");
+      run("pnpm --filter @miniaxolotl/grove build");
       run("npx changeset publish");
       console.log(`✓ Published ${PACKAGE}@${localVersion} to npm`);
     }

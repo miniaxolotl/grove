@@ -1,5 +1,5 @@
 {
-  "name": "@grove/setup",
+  "name": "@script/setup",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
     "@miniaxolotl/grove": "workspace:*"
   },
   "devDependencies": {
-    "@grove/eslint-config": "workspace:*",
-    "@grove/typescript-config": "workspace:*",
+    "@lib/eslint-config": "workspace:*",
+    "@lib/typescript-config": "workspace:*",
     "tsx": "~4.21.0"
   }
 }

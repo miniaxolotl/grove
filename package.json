@@ -1,5 +1,5 @@
 {
-  "name": "@grove/monorepo",
+  "name": "@monorepo/grove",
   "private": true,
   "author": "Elias Mawa <elias@mawa.dev>",
   "version": "0.1.0",
@@ -37,8 +37,8 @@
     "lint": "pnpm --filter @miniaxolotl/grove lint",
     "lint:fix": "pnpm --filter @miniaxolotl/grove lint:fix",
     "check-types": "pnpm --filter @miniaxolotl/grove exec tsc --noEmit",
-    "test": "pnpm --filter @grove/tests test",
-    "setup": "pnpm --filter @grove/setup run setup",
+    "test": "pnpm --filter @monorepo/tests test",
+    "setup": "pnpm --filter @script/setup run setup",
     "services:up": "docker compose up -d",
     "services:down": "docker compose down",
     "services:restart": "pnpm run services:down && pnpm run services:up",
@@ -48,8 +48,8 @@
     "format": "prettier --write \"**/*.{ts,md,json}\"",
     "clean": "rm -rf packages/mcp/dist scripts/setup/dist tests/dist node_modules",
     "version": "changeset version",
-    "release": "pnpm --filter @grove/release run release",
-    "deploy": "pnpm --filter @grove/deploy run deploy"
+    "release": "pnpm --filter @script/release run release",
+    "deploy": "pnpm --filter @script/deploy run deploy"
   },
   "devDependencies": {
     "@changesets/cli": "~2.30.0",

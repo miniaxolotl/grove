@@ -1,9 +1,9 @@
 /**
  * Setup script: creates Qdrant collections and indexes.
- * Run with: pnpm --filter @grove/setup run setup
- */
-import { config } from "@grove/mcp/config";
-import { qdrant } from "@grove/mcp/services/qdrant";
+* Run with: pnpm --filter @script/setup run setup
+
+import { config } from "@miniaxolotl/grove/config";
+import { qdrant } from "@miniaxolotl/grove/services/qdrant";
 
 const PREFIX = config.collection.prefix;
 const COLLECTIONS = [

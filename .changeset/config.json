@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "production",
   "updateInternalDependencies": "patch",
-  "ignore": ["@grove/setup", "@grove/tests"]
+  "ignore": ["@script/setup", "@monorepo/tests"]
 }

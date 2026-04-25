@@ -8,12 +8,12 @@
  *
  * GitHub release is created when GH_TOKEN or GITHUB_TOKEN is set.
  *
- * Run with: pnpm --filter @grove/deploy run deploy
+ * Run with: pnpm --filter @script/deploy run deploy
  *
  * Examples:
- *   GHCR_REGISTRY=ghcr.io/miniaxolotl TAG=v0.1.0 pnpm --filter @grove/deploy run deploy
- *   DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @grove/deploy run deploy
- *   GHCR_REGISTRY=ghcr.io/miniaxolotl DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @grove/deploy run deploy
+ *   GHCR_REGISTRY=ghcr.io/miniaxolotl TAG=v0.1.0 pnpm --filter @script/deploy run deploy
+ *   DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @script/deploy run deploy
+ *   GHCR_REGISTRY=ghcr.io/miniaxolotl DOCKERHUB_REGISTRY=miniaxolotl TAG=v0.1.0 pnpm --filter @script/deploy run deploy
  */
 
 const { execSync } = await import("node:child_process");

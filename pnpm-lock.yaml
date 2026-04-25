@@ -47,10 +47,10 @@ importers:
         specifier: ~3.25.0
         version: 3.25.76
     devDependencies:
-      '@grove/eslint-config':
+      '@lib/eslint-config':
         specifier: workspace:*
         version: link:../../lib/eslint-config
-      '@grove/typescript-config':
+      '@lib/typescript-config':
         specifier: workspace:*
         version: link:../../lib/typescript-config
       '@types/uuid':
@@ -65,10 +65,10 @@ importers:
 
   scripts/deploy:
     devDependencies:
-      '@grove/eslint-config':
+      '@lib/eslint-config':
         specifier: workspace:*
         version: link:../../lib/eslint-config
-      '@grove/typescript-config':
+      '@lib/typescript-config':
         specifier: workspace:*
         version: link:../../lib/typescript-config
       tsx:
@@ -77,10 +77,10 @@ importers:
 
   scripts/release:
     devDependencies:
-      '@grove/eslint-config':
+      '@lib/eslint-config':
         specifier: workspace:*
         version: link:../../lib/eslint-config
-      '@grove/typescript-config':
+      '@lib/typescript-config':
         specifier: workspace:*
         version: link:../../lib/typescript-config
       tsx:
@@ -93,10 +93,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/mcp
     devDependencies:
-      '@grove/eslint-config':
+      '@lib/eslint-config':
         specifier: workspace:*
         version: link:../../lib/eslint-config
-      '@grove/typescript-config':
+      '@lib/typescript-config':
         specifier: workspace:*
         version: link:../../lib/typescript-config
       tsx:
@@ -109,10 +109,10 @@ importers:
         specifier: workspace:*
         version: link:../packages/mcp
     devDependencies:
-      '@grove/eslint-config':
+      '@lib/eslint-config':
         specifier: workspace:*
         version: link:../lib/eslint-config
-      '@grove/typescript-config':
+      '@lib/typescript-config':
         specifier: workspace:*
         version: link:../lib/typescript-config
       tsx:

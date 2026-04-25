@@ -1,4 +1,4 @@
-# @grove/setup
+# @script/setup
 
 Initializes Qdrant collections required by the server.
 
