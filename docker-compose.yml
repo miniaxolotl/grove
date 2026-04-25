@@ -1,11 +1,11 @@
-name: "qdrant-memory-monorepo"
+name: "grove-monorepo"
 
 services:
-  qdrant-memory:
+  grove:
     build:
       context: .
       dockerfile: Dockerfile
-    image: miniaxolotl/qdrant-memory:latest
+    image: miniaxolotl/grove:latest
     restart: unless-stopped
     user: "1001"
 

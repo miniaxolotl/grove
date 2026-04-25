@@ -1,12 +1,12 @@
 /**
  * Release script: runs Changesets version + publish workflow.
- * Run with: pnpm --filter @qdrant-memory/release run release
+ * Run with: pnpm --filter @grove/release run release
  */
 
 const { execSync } = await import("node:child_process");
 
-const PACKAGE = "@qdrant-memory/mcp";
-const REPO = "miniaxolotl/qdrant-memory";
+const PACKAGE = "@grove/mcp";
+const REPO = "miniaxolotl/grove";
 
 async function run(cmd: string) {
   console.log(`> ${cmd}`);
@@ -54,19 +54,19 @@ async function createGithubRelease(tag: string, version: string) {
   const body = `## Installation
 
 \`\`\`bash
-npm install @qdrant-memory/mcp@${version}
+npm install @grove/mcp@${version}
 \`\`\`
 
 ## Docker
 
 \`\`\`bash
-docker pull ghcr.io/miniaxolotl/qdrant-memory:v${version}
-docker pull miniaxolotl/qdrant-memory:v${version}
+docker pull ghcr.io/miniaxolotl/grove:v${version}
+docker pull miniaxolotl/grove:v${version}
 \`\`\`
 
 ## Quick Start
 
-See the [README](https://github.com/miniaxolotl/qdrant-memory#readme) for full documentation.
+See the [README](https://github.com/miniaxolotl/grove#readme) for full documentation.
 
 ## Changes
 
@@ -98,7 +98,7 @@ async function release() {
 
     if (!dryRun) {
       run("npx changeset version");
-      run("pnpm --filter @qdrant-memory/mcp build");
+      run("pnpm --filter @grove/mcp build");
       run("npx changeset publish");
       console.log(`✓ Published ${PACKAGE}@${localVersion} to npm`);
     }

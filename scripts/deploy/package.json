@@ -1,5 +1,5 @@
 {
-  "name": "@qdrant-memory/deploy",
+  "name": "@grove/deploy",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "deploy": "tsx src/index.ts"
   },
   "devDependencies": {
-    "@qdrant-memory/eslint-config": "workspace:*",
-    "@qdrant-memory/typescript-config": "workspace:*",
+    "@grove/eslint-config": "workspace:*",
+    "@grove/typescript-config": "workspace:*",
     "tsx": "~4.21.0"
   }
 }

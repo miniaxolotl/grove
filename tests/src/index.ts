@@ -1,13 +1,13 @@
 /**
- * E2E test for qdrant-memory MCP server.
+ * E2E test for grove MCP server.
  * Tests all tools against the live Qdrant instance.
  */
-import { memoryRepository } from "@qdrant-memory/mcp/repositories/memory.repository";
-import { entityRepository } from "@qdrant-memory/mcp/repositories/entity.repository";
-import { relationRepository } from "@qdrant-memory/mcp/repositories/relation.repository";
+import { memoryRepository } from "@grove/mcp/repositories/memory.repository";
+import { entityRepository } from "@grove/mcp/repositories/entity.repository";
+import { relationRepository } from "@grove/mcp/repositories/relation.repository";
 
 async function runTests() {
-  console.log("=== qdrant-memory E2E Tests ===\n");
+  console.log("=== grove E2E Tests ===\n");
 
   let passed = 0;
   let failed = 0;

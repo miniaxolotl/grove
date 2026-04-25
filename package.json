@@ -1,5 +1,5 @@
 {
-  "name": "@qdrant-memory/monorepo",
+  "name": "@grove/monorepo",
   "private": true,
   "author": "Elias Mawa <elias@mawa.dev>",
   "version": "0.1.0",
@@ -8,9 +8,9 @@
   "packageManager": "pnpm@10.30.3",
   "repository": {
     "type": "git",
-    "url": "https://github.com/miniaxolotl/qdrant-memory.git"
+    "url": "https://github.com/miniaxolotl/grove.git"
   },
-  "homepage": "https://github.com/miniaxolotl/qdrant-memory#readme",
+  "homepage": "https://github.com/miniaxolotl/grove#readme",
   "keywords": [
     "mcp",
     "memory",
@@ -30,15 +30,15 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @qdrant-memory/mcp dev",
+    "dev": "pnpm --filter @grove/mcp dev",
     "dev:setup": "pnpm services:up && pnpm setup",
-    "build": "pnpm --filter @qdrant-memory/mcp build",
-    "start": "pnpm --filter @qdrant-memory/mcp start",
-    "lint": "pnpm --filter @qdrant-memory/mcp lint",
-    "lint:fix": "pnpm --filter @qdrant-memory/mcp lint:fix",
-    "check-types": "pnpm --filter @qdrant-memory/mcp exec tsc --noEmit",
-    "test": "pnpm --filter @qdrant-memory/tests test",
-    "setup": "pnpm --filter @qdrant-memory/setup run setup",
+    "build": "pnpm --filter @grove/mcp build",
+    "start": "pnpm --filter @grove/mcp start",
+    "lint": "pnpm --filter @grove/mcp lint",
+    "lint:fix": "pnpm --filter @grove/mcp lint:fix",
+    "check-types": "pnpm --filter @grove/mcp exec tsc --noEmit",
+    "test": "pnpm --filter @grove/tests test",
+    "setup": "pnpm --filter @grove/setup run setup",
     "services:up": "docker compose up -d",
     "services:down": "docker compose down",
     "services:restart": "pnpm run services:down && pnpm run services:up",
@@ -48,8 +48,8 @@
     "format": "prettier --write \"**/*.{ts,md,json}\"",
     "clean": "rm -rf packages/mcp/dist scripts/setup/dist tests/dist node_modules",
     "version": "changeset version",
-    "release": "pnpm --filter @qdrant-memory/release run release",
-    "deploy": "pnpm --filter @qdrant-memory/deploy run deploy"
+    "release": "pnpm --filter @grove/release run release",
+    "deploy": "pnpm --filter @grove/deploy run deploy"
   },
   "devDependencies": {
     "@changesets/cli": "~2.30.0",

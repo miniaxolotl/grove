@@ -1,14 +1,14 @@
 {
-  "name": "@qdrant-memory/mcp",
+  "name": "@grove/mcp",
   "version": "0.2.4",
   "type": "module",
   "main": "dist/index.js",
   "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/miniaxolotl/qdrant-memory.git"
+    "url": "https://github.com/miniaxolotl/grove.git"
   },
-  "homepage": "https://github.com/miniaxolotl/qdrant-memory#readme",
+  "homepage": "https://github.com/miniaxolotl/grove#readme",
   "publishConfig": {
     "access": "public"
   },
@@ -47,8 +47,8 @@
     "zod": "~3.25.0"
   },
   "devDependencies": {
-    "@qdrant-memory/eslint-config": "workspace:*",
-    "@qdrant-memory/typescript-config": "workspace:*",
+    "@grove/eslint-config": "workspace:*",
+    "@grove/typescript-config": "workspace:*",
     "@types/uuid": "~11.0.0",
     "tsx": "~4.21.0",
     "typescript": "~6.0.2"

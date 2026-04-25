@@ -1,1 +1,1 @@
-export { default } from "@qdrant-memory/eslint-config";
+export { default } from "@grove/eslint-config";

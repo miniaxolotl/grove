@@ -61,11 +61,11 @@ jobs:
       - name: Compute tags
         id: tags
         run: |
-          TAGS="ghcr.io/miniaxolotl/qdrant-memory:latest"
-          TAGS="$TAGS,ghcr.io/miniaxolotl/qdrant-memory:v${{ steps.version.outputs.TAG }}"
+          TAGS="ghcr.io/miniaxolotl/grove:latest"
+          TAGS="$TAGS,ghcr.io/miniaxolotl/grove:v${{ steps.version.outputs.TAG }}"
           if [ "${{ steps.dockerhub.outputs.available }}" = "true" ]; then
-            TAGS="$TAGS,miniaxolotl/qdrant-memory:latest"
-            TAGS="$TAGS,miniaxolotl/qdrant-memory:v${{ steps.version.outputs.TAG }}"
+            TAGS="$TAGS,miniaxolotl/grove:latest"
+            TAGS="$TAGS,miniaxolotl/grove:v${{ steps.version.outputs.TAG }}"
           fi
           echo "TAGS=$TAGS" >> $GITHUB_OUTPUT
 

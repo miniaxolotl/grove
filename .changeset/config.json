@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "production",
   "updateInternalDependencies": "patch",
-  "ignore": ["@qdrant-memory/setup", "@qdrant-memory/tests"]
+  "ignore": ["@grove/setup", "@grove/tests"]
 }

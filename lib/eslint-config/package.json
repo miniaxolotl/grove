@@ -1,9 +1,9 @@
 {
-  "name": "@qdrant-memory/eslint-config",
+  "name": "@grove/eslint-config",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared ESLint configuration for qdrant-memory monorepo",
+  "description": "Shared ESLint configuration for grove monorepo",
   "main": "index.js",
   "exports": {
     ".": "./index.js"
