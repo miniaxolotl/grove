@@ -87,7 +87,7 @@ export async function searchMemories(
       must.push({ key: "metadata.tags", match: { any: options.tags } });
     }
     const filter = must.length > 0 ? { must } : undefined;
-    const points = await qdrant.scrollPoints(COLLECTION, filter, limit);
+    const { points } = await qdrant.scrollPoints(COLLECTION, filter, limit);
     return points.map((r) => ({
       id: r.id,
       text: r.payload.text as string,
@@ -298,27 +298,14 @@ export async function scrollMemories(
   }
   const filter = must.length > 0 ? { must } : undefined;
 
-  const url = `${config.qdrant.url}/collections/${COLLECTION}/points/scroll`;
-  const scrollBody: Record<string, unknown> = { limit, with_payload: true };
-  if (filter) scrollBody.filter = filter;
-  if (options.offset) scrollBody.offset = options.offset;
+  const { points, nextPageOffset } = await qdrant.scrollPoints(
+    COLLECTION,
+    filter,
+    limit,
+    options.offset,
+  );
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": config.qdrant.apiKey,
-      "User-Agent": "grove/1.0",
-    },
-    body: JSON.stringify(scrollBody),
-  });
-
-  if (!response.ok) throw new Error(`scroll failed: ${response.status}`);
-  const scrollData = (await response.json()) as {
-    result: { points: VectorPoint[]; next_page_offset: string | null };
-  };
-
-  const memories: Memory[] = scrollData.result.points.map((p) => ({
+  const memories: Memory[] = points.map((p) => ({
     id: p.id,
     text: p.payload.text as string,
     metadata: p.payload.metadata as Memory["metadata"],
@@ -326,7 +313,7 @@ export async function scrollMemories(
 
   return {
     memories,
-    offset: scrollData.result.next_page_offset ?? null,
+    offset: nextPageOffset,
   };
 }
 

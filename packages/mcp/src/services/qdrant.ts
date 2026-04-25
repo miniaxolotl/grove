@@ -59,8 +59,8 @@ export async function ensureCollection(
   for (const field of indexFields) {
     try {
       await createIndex(name, field);
-    } catch {
-      // Index may already exist
+    } catch (err) {
+      console.warn(`Failed to create index on '${name}.${field}':`, err);
     }
   }
 }
@@ -124,18 +124,23 @@ export async function scrollPoints(
   collection: string,
   filter?: Record<string, unknown>,
   limit: number = 100,
-): Promise<VectorPoint[]> {
+  offset?: string,
+): Promise<{ points: VectorPoint[]; nextPageOffset: string | null }> {
   const body: Record<string, unknown> = { limit, with_payload: true };
   if (filter) body.filter = filter;
+  if (offset) body.offset = offset;
 
   const data = (await qdrantFetch(
     "POST",
     `/collections/${collection}/points/scroll`,
     body,
   )) as {
-    result: { points: VectorPoint[] };
+    result: { points: VectorPoint[]; next_page_offset: string | null };
   };
-  return data.result.points;
+  return {
+    points: data.result.points,
+    nextPageOffset: data.result.next_page_offset ?? null,
+  };
 }
 
 export async function deleteCollection(name: string): Promise<void> {
@@ -152,7 +157,8 @@ export async function getPoint(
       `/collections/${collection}/points/${id}`,
     )) as { result: VectorPoint | null };
     return data.result;
-  } catch {
+  } catch (err) {
+    console.warn(`Failed to get point ${id} from ${collection}:`, err);
     return null;
   }
 }
@@ -175,7 +181,8 @@ export async function getCollectionInfo(name: string): Promise<{
       pointsCount: data.result.points_count,
       indexedVectorsCount: data.result.indexed_vectors_count,
     };
-  } catch {
+  } catch (err) {
+    console.warn(`Failed to get collection info for '${name}':`, err);
     return null;
   }
 }

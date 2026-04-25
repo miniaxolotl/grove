@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { config } from "../config.ts";
-import { qdrant, type VectorPoint } from "../services/qdrant.ts";
+import { qdrant } from "../services/qdrant.ts";
 
 const COLLECTION = `${config.collection.prefix}_relations`;
 
@@ -61,7 +61,7 @@ export async function searchRelations(
   if (options.relationType) must.push({ key: "relationType", match: { value: options.relationType } });
 
   const filter = must.length > 0 ? { must } : undefined;
-  const points = await qdrant.scrollPoints(COLLECTION, filter, options.limit ?? defaultLimit);
+  const { points } = await qdrant.scrollPoints(COLLECTION, filter, options.limit ?? defaultLimit);
 
   return points.map((p) => ({
     id: p.id,
@@ -105,35 +105,22 @@ export async function listRelations(
   if (relationType) must.push({ key: "relationType", match: { value: relationType } });
   const filter = must.length > 0 ? { must } : undefined;
 
-  const url = `${config.qdrant.url}/collections/${COLLECTION}/points/scroll`;
-  const body: Record<string, unknown> = { limit, with_payload: true };
-  if (filter) body.filter = filter;
-  if (offset) body.offset = offset;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": config.qdrant.apiKey,
-      "User-Agent": "grove/1.0",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) throw new Error(`scroll failed: ${response.status}`);
-  const data = (await response.json()) as {
-    result: { points: VectorPoint[]; next_page_offset: string | null };
-  };
+  const { points, nextPageOffset } = await qdrant.scrollPoints(
+    COLLECTION,
+    filter,
+    limit,
+    offset,
+  );
 
   return {
-    relations: data.result.points.map((p) => ({
+    relations: points.map((p) => ({
       id: p.id,
       from: p.payload.from as string,
       relationType: p.payload.relationType as string,
       to: p.payload.to as string,
       metadata: p.payload.metadata as Record<string, unknown> | undefined,
     })),
-    offset: data.result.next_page_offset ?? null,
+    offset: nextPageOffset,
   };
 }
 

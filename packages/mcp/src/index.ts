@@ -616,6 +616,7 @@ async function init(retries = 10, delayMs = 3000) {
     } catch (err) {
       if (attempt === retries) {
         console.error(`Failed to initialize collections after ${retries} attempts:`, err);
+        console.error("[grove] WARNING: Server starting in degraded mode - collections unavailable");
         return;
       }
       console.error(`Collection init attempt ${attempt}/${retries} failed, retrying in ${delayMs / 1000}s...`);
@@ -663,3 +664,18 @@ if (config.transport === "http") {
 } else {
   server.start({ transportType: "stdio" });
 }
+
+function shutdown(signal: string) {
+  console.error(`[grove] Received ${signal}, shutting down...`);
+  server.stop().then(() => {
+    console.error("[grove] Server stopped");
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error("[grove] Force exit after timeout");
+    process.exit(1);
+  }, 5000);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

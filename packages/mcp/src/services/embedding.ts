@@ -96,7 +96,8 @@ async function getLocalEmbedder(): Promise<
     };
 
     return _localEmbedder;
-  } catch {
+  } catch (err) {
+    console.warn("Failed to initialize local embedder (@huggingface/transformers):", err);
     _localEmbedder = null;
     return null;
   }
