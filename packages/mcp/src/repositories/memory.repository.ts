@@ -168,7 +168,7 @@ export async function updateMemory(
   };
 
   let vector: number[];
-  if (updates.text) {
+  if (updates.text !== undefined) {
     const embedFn = await getEmbedTexts();
     if (embedFn) {
       [vector] = await embedFn([updated.text]);
