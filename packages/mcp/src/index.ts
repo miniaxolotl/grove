@@ -36,6 +36,8 @@ server.addTool({
         source: z.string().optional(),
         project: z.string().optional(),
         tags: z.array(z.string()).optional(),
+        importance: z.number().optional(),
+        sessionId: z.string().optional(),
       })
       .optional(),
   }),
@@ -325,6 +327,8 @@ server.addTool({
         source: z.string().optional(),
         project: z.string().optional(),
         tags: z.array(z.string()).optional(),
+        importance: z.number().optional(),
+        sessionId: z.string().optional(),
       })
       .optional(),
   }),

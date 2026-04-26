@@ -1,5 +1,4 @@
 import type { GrovePluginOptions } from "../index.js";
-import { execSync } from "child_process";
 import { MCPClient } from "../client/index.js";
 
 export type CaptureType = "decision" | "error_resolution" | "activity_log" | "reference";
@@ -22,15 +21,6 @@ const BASE_IMPORTANCE: Record<CaptureType, number> = {
 
 function computeImportance(type: CaptureType): number {
   return BASE_IMPORTANCE[type];
-}
-
-function gitLog(cwd: string): string {
-  try {
-    const log = execSync("git log --oneline -1", { cwd, encoding: "utf-8" });
-    return log.trim();
-  } catch {
-    return "";
-  }
 }
 
 export function createCaptureHooks(

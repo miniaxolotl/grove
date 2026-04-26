@@ -142,4 +142,20 @@ export class MCPClient {
     const match = text.match(/Pruned (\d+)/);
     return match ? parseInt(match[1], 10) : 0;
   }
+
+  async updateMemory(
+    id: string,
+    updates: {
+      text?: string;
+      metadata?: {
+        source?: string;
+        project?: string;
+        tags?: string[];
+        importance?: number;
+        sessionId?: string;
+      };
+    },
+  ): Promise<unknown> {
+    return this.callTool("memory_update", { id, ...updates });
+  }
 }

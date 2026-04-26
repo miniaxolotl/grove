@@ -38,10 +38,9 @@ export function createImportanceEngine(opts: GrovePluginOptions) {
           const newImportance = applyDecay(memory.metadata.importance, daysSinceAccess);
 
           try {
-            await mcp.callTool("memory_update" as never, {
-              id: memory.id,
+            await mcp.updateMemory(memory.id, {
               metadata: { importance: newImportance },
-            } as never);
+            });
             decayed++;
           } catch {
             // Memory may have been deleted already
