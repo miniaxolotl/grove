@@ -1,5 +1,14 @@
 # @miniaxolotl/grove-opencode-plugin
 
+## [0.3.2](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.3.1...grove-opencode-plugin-v0.3.2) (2026-04-26)
+
+
+### Bug Fixes
+
+* update MCPClient URL to correct default for importance engine ([0e0ab02](https://github.com/miniaxolotl/grove/commit/0e0ab02f91866285f4b3cecf06ad634ed3e51355))
+* update MCPClient URL to correct default for plugin components ([28315b2](https://github.com/miniaxolotl/grove/commit/28315b2a4e54921b347e7350aefc20fe1e28093a))
+* update MCPClient URL to correct default for staleness engine ([5446c17](https://github.com/miniaxolotl/grove/commit/5446c1780228ea82fbd76ba9a7e795ad1be1b862))
+
 ## [0.3.1](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.3.0...grove-opencode-plugin-v0.3.1) (2026-04-26)
 
 
