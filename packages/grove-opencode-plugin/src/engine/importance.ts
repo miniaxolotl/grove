@@ -4,7 +4,7 @@ import { MCPClient } from "../client/index.js";
 const DECAY_RATE = 0.01;
 
 export function createImportanceEngine(opts: GrovePluginOptions) {
-  const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:3100/mcp" });
+  const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:26080/mcp" });
 
   function applyDecay(currentImportance: number, daysSinceAccess: number): number {
     const decayed = currentImportance - daysSinceAccess * DECAY_RATE;
