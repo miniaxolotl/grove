@@ -1,0 +1,27 @@
+{
+  "name": "@lib/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/type/index.ts",
+    "./schemas": "./src/schema/index.ts",
+    "/enums": "./src/enum/index.ts",
+    "/constants": "./src/constants/index.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "lint": "eslint .",
+    "clean": "rm -rf node_modules"
+  },
+  "dependencies": {
+    "zod": "~4.1.8"
+  },
+  "devDependencies": {
+    "@lib/eslint-config": "workspace:*",
+    "@lib/typescript-config": "workspace:*"
+  }
+}

@@ -1,0 +1,15 @@
+export const DEFAULT_MEMORY_IMPORTANCE = 0.5;
+
+export const DEFAULT_IMPORTANCE_THRESHOLD = 0.6;
+
+export const MAX_MEMORIES_PER_PAGE = 100;
+
+export const IMPORTANCE_DECAY_RATE = 0.01;
+
+export const MIN_IMPORTANCE_VALUE = 0;
+
+export const MAX_IMPORTANCE_VALUE = 1;
+
+export const DEFAULT_SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+export const DEFAULT_VECTOR_DIMENSION = 1536;
