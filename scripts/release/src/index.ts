@@ -5,18 +5,27 @@
 
 const { execSync } = await import("node:child_process");
 
-const PACKAGE = "@miniaxolotl/grove";
+const PACKAGES = {
+  mcp: "@miniaxolotl/grove",
+  plugin: "@minimaxolotl/grove-opencode-plugin",
+};
 const REPO = "miniaxolotl/grove";
 
-async function run(cmd: string) {
+async function run(cmd: string, ignoreErrors = false) {
   console.log(`> ${cmd}`);
-  execSync(cmd, { stdio: "inherit" });
+  try {
+    execSync(cmd, { stdio: "inherit" });
+  } catch (err) {
+    if (!ignoreErrors) {
+      throw err;
+    }
+  }
 }
 
 async function getNpmVersion(pkg: string): Promise<string | null> {
   try {
-    const { execSync } = await import("node:child_process");
-    const version = execSync(`npm view ${pkg} version --json`, {
+    const { execSync: exec } = await import("node:child_process");
+    const version = exec(`npm view ${pkg} version --json`, {
       encoding: "utf8",
     }).trim();
     return version.replace(/"/g, "");
@@ -34,7 +43,7 @@ async function getGithubRelease(tag: string): Promise<boolean> {
   }
 }
 
-async function createGithubRelease(tag: string, version: string) {
+async function createGithubRelease(tag: string, version: string, mcpVersion: string) {
   const exists = await getGithubRelease(tag);
   if (exists) {
     console.log(`✓ Release ${tag} already exists on GitHub`);
@@ -54,15 +63,34 @@ async function createGithubRelease(tag: string, version: string) {
   const body = `## Installation
 
 \`\`\`bash
-npm install @miniaxolotl/grove@${version}
+npm install @miniaxolotl/grove@${mcpVersion}
+npm install @minimaxolotl/grove-opencode-plugin@${version}
 \`\`\`
 
 ## Docker
 
 \`\`\`bash
-docker pull ghcr.io/miniaxolotl/grove:v${version}
-docker pull miniaxolotl/grove:v${version}
+docker pull ghcr.io/miniaxolotl/grove:v${mcpVersion}
+docker pull miniaxolotl/grove:v${mcpVersion}
 \`\`\`
+
+## OpenCode Plugin
+
+Install the Grove plugin for OpenCode:
+
+\`\`\`bash
+opencode plugin install @minimaxolotl/grove-opencode-plugin
+\`\`\`
+
+Or add to your opencode config:
+
+\`\`\`json
+{ "plugin": ["@minimaxolotl/grove-opencode-plugin"] }
+\`\`\`
+
+Set environment variables:
+- \`GROVE_MCP_URL\` - MCP server URL (default: http://localhost:3100/mcp)
+- \`GROVE_PROJECT\` - Default project tag for memories
 
 ## Quick Start
 
@@ -78,37 +106,73 @@ See [CHANGELOG](./packages/mcp/CHANGELOG.md) for details.`;
   console.log(`✓ GitHub release ${tag} created`);
 }
 
+async function publishPlugin(dryRun: boolean): Promise<boolean> {
+  const pluginPkg = "@minimaxolotl/grove-opencode-plugin";
+  const pluginJson = JSON.parse(
+    execSync("cat ../../packages/grove-opencode-plugin/package.json", { encoding: "utf8" }),
+  );
+  const localVersion = pluginJson.version;
+
+  let npmVersion: string | null = null;
+  try {
+    npmVersion = await getNpmVersion(pluginPkg);
+  } catch {
+    // Package doesn't exist yet
+  }
+
+  if (npmVersion === localVersion) {
+    console.log(`✓ ${pluginPkg}@${localVersion} already deployed to npm`);
+    return false;
+  }
+
+  console.log(`Publishing ${pluginPkg}@${localVersion}...`);
+
+  if (!dryRun) {
+    run("pnpm --filter @minimaxolotl/grove-opencode-plugin build");
+    run("cd ../../packages/grove-opencode-plugin && npm publish --access public");
+    console.log(`✓ Published ${pluginPkg}@${localVersion} to npm`);
+  }
+
+  return true;
+}
+
 async function release() {
   const dryRun = process.argv.includes("--dry-run");
 
   console.log("\n=== Release ===\n");
+
+  const pluginJson = JSON.parse(
+    execSync("cat ../../packages/grove-opencode-plugin/package.json", { encoding: "utf8" }),
+  );
+  const pluginVersion = pluginJson.version;
+
+  const published = await publishPlugin(dryRun);
 
   const packageJson = JSON.parse(
     execSync("cat ../../packages/mcp/package.json", { encoding: "utf8" }),
   );
   const localVersion = packageJson.version;
 
-  const npmVersion = await getNpmVersion(PACKAGE);
-  const tag = `v${localVersion}`;
+  const npmVersion = await getNpmVersion(PACKAGES.mcp);
 
-  if (npmVersion === localVersion) {
-    console.log(`✓ ${PACKAGE}@${localVersion} already deployed to npm`);
+  if (npmVersion === localVersion && !published) {
+    console.log(`✓ ${PACKAGES.mcp}@${localVersion} already deployed to npm`);
   } else {
-    console.log(`Local: ${localVersion} → npm: ${npmVersion || "none"}\n`);
+    console.log(`\nMCP: Local ${localVersion} → npm: ${npmVersion || "none"}\n`);
 
     if (!dryRun) {
       run("npx changeset version");
       run("pnpm --filter @miniaxolotl/grove build");
       run("npx changeset publish");
-      console.log(`✓ Published ${PACKAGE}@${localVersion} to npm`);
+      console.log(`✓ Published ${PACKAGES.mcp}@${localVersion} to npm`);
     }
   }
 
   if (dryRun) {
-    run("npx changeset status");
+    run("npx changeset status", true);
     console.log("\n✓ Dry run complete — no changes published");
   } else {
-    await createGithubRelease(tag, localVersion);
+    await createGithubRelease(`v${pluginVersion}`, pluginVersion, localVersion);
     console.log("\n✓ Release complete");
   }
 }

@@ -1,4 +1,4 @@
-import type { Plugin, PluginInput } from "@opencode-ai/plugin";
+import type { Plugin } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin/tool";
 import { z } from "zod";
 import { createCaptureHooks } from "./capture/hooks.js";
@@ -15,23 +15,25 @@ export interface GrovePluginOptions {
   maxContextItems?: number;
 }
 
-export const grovePlugin: Plugin = async (
-  input: PluginInput,
-  options?: GrovePluginOptions,
-) => {
-  const opts = {
-    mcpUrl: options?.mcpUrl ?? "http://localhost:3100/mcp",
-    project: options?.project,
-    importanceThreshold: options?.importanceThreshold ?? 0.6,
-    stalenessDays: options?.stalenessDays ?? 7,
-    maxContextItems: options?.maxContextItems ?? 20,
+export const grovePlugin: Plugin = async (ctx) => {
+  const directory = ctx.directory || ".";
+
+  const mcpUrl = process.env.GROVE_MCP_URL || "http://localhost:3100/mcp";
+  const project = process.env.GROVE_PROJECT;
+
+  const opts: GrovePluginOptions = {
+    mcpUrl,
+    project,
+    importanceThreshold: 0.6,
+    stalenessDays: 7,
+    maxContextItems: 20,
   };
 
-  const capture = createCaptureHooks(input, opts);
-  const contextEngine = createContextEngine(input, opts);
+  const capture = createCaptureHooks(directory, opts);
+  const contextEngine = createContextEngine(directory, opts);
   const stalenessEngine = createStalenessEngine(opts);
   const importanceEngine = createImportanceEngine(opts);
-  const mcp = new MCPClient({ url: opts.mcpUrl });
+  const mcp = new MCPClient({ url: mcpUrl });
 
   return {
     tool: {
@@ -41,15 +43,15 @@ export const grovePlugin: Plugin = async (
           information: z.string().describe("The memory content to save"),
           tags: z.array(z.string()).optional().describe("Tags for the memory"),
         },
-        execute: async (args, ctx) => {
+        execute: async (args, context) => {
           await capture.capture({
             type: "activity_log",
             text: args.information,
             tags: args.tags,
-            sessionId: ctx.sessionID,
+            sessionId: context.sessionID,
             project: opts.project,
           });
-          return `Saved memory for session ${ctx.sessionID}`;
+          return `Saved memory for session ${context.sessionID}`;
         },
       }),
       grove_check_staleness: tool({
@@ -74,19 +76,16 @@ export const grovePlugin: Plugin = async (
         },
       }),
     },
-    async "tool.execute.after"(input, output) {
+    async "tool.execute.after"(input: { tool: string; sessionID: string; args: unknown }, output: { title: string; output: string }) {
       await capture.onToolExecuted(input, output);
     },
-    async "experimental.chat.system.transform"(input, output) {
-      await contextEngine.injectContext(input, output);
-    },
-    async "experimental.session.compacting"(input, output) {
+    async "experimental.session.compacting"(input: { sessionID: string }, output: { context: string[]; prompt?: string }) {
       await contextEngine.onSessionCompacting(input, output);
       await importanceEngine.decayMemories(input.sessionID);
 
       const staleResult = await stalenessEngine.onStalenessCheck();
       if (staleResult.staleCount > 0) {
-        output.context.push(`[grove-plugin] ${staleResult.message}`);
+        output.context.push(`[grove] ${staleResult.message}`);
       }
     },
   };

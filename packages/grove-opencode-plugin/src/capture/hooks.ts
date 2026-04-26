@@ -1,5 +1,5 @@
-import type { PluginInput } from "@opencode-ai/plugin";
 import type { GrovePluginOptions } from "../index.js";
+import { execSync } from "child_process";
 import { MCPClient } from "../client/index.js";
 
 export type CaptureType = "decision" | "error_resolution" | "activity_log" | "reference";
@@ -26,7 +26,6 @@ function computeImportance(type: CaptureType): number {
 
 function gitLog(cwd: string): string {
   try {
-    const { execSync } = require("child_process");
     const log = execSync("git log --oneline -1", { cwd, encoding: "utf-8" });
     return log.trim();
   } catch {
@@ -35,7 +34,7 @@ function gitLog(cwd: string): string {
 }
 
 export function createCaptureHooks(
-  pluginInput: PluginInput,
+  directory: string,
   opts: GrovePluginOptions,
 ) {
   const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:3100/mcp" });
@@ -52,7 +51,7 @@ export function createCaptureHooks(
         importance,
       });
     } catch (err) {
-      console.error("[grove-plugin] Failed to save memory:", err);
+      console.error("[grove] Failed to save memory:", err);
     }
   }
 
@@ -74,39 +73,8 @@ export function createCaptureHooks(
     }
   }
 
-  async function onChatMessage(
-    input: { sessionID: string },
-    output: { message: { role: string }; parts: unknown[] },
-  ): Promise<void> {
-    const msg = output.message as { role: string; content?: string };
-
-    if (msg.role === "user" && msg.content) {
-      if (msg.content.match(/https?:\/\//)) {
-        await captureMemory({
-          type: "reference",
-          text: `User referenced: ${msg.content}`,
-          sessionId: input.sessionID,
-          project: opts.project,
-        });
-      }
-    }
-
-    if (msg.role === "assistant") {
-      const gitInfo = gitLog(pluginInput.directory);
-      if (gitInfo) {
-        await captureMemory({
-          type: "activity_log",
-          text: `Git: ${gitInfo}`,
-          sessionId: input.sessionID,
-          project: opts.project,
-        });
-      }
-    }
-  }
-
   return {
     capture: captureMemory,
     onToolExecuted,
-    onChatMessage,
   };
 }

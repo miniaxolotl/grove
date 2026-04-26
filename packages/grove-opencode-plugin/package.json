@@ -1,14 +1,30 @@
 {
-  "name": "@miniaxolotl/grove-opencode-plugin",
+  "name": "@minimaxolotl/grove-opencode-plugin",
   "version": "0.1.0",
   "type": "module",
+  "description": "OpenCode plugin for Grove - captures memories, injects hot context, manages importance tiers",
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/miniaxolotl/grove.git"
+  },
+  "keywords": [
+    "opencode",
+    "grove",
+    "memory",
+    "context",
+    "plugin"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "publish": "npm publish"
   },
   "dependencies": {
     "@opencode-ai/plugin": "~1.14.20",
