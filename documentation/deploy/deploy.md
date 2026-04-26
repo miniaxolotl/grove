@@ -23,7 +23,7 @@ This starts Grove on port 3100 with Qdrant.
 **docker-compose.yml:**
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   grove:
     image: ghcr.io/miniaxolotl/grove:latest
@@ -132,14 +132,14 @@ grove.example.com {
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `QDRANT_URL` | Qdrant server URL | `http://localhost:6333` |
-| `COLLECTION_PREFIX` | Prefix for collection names | `grove` |
-| `EMBEDDING_MODEL` | Embedding model | `Xenocrat/embeddings` |
-| `RERANKING_URL` | Reranking service URL | (none) |
-| `PORT` | Server port | `3100` |
-| `HOST` | Server host | `0.0.0.0` |
+| Variable            | Description                 | Default                 |
+| ------------------- | --------------------------- | ----------------------- |
+| `QDRANT_URL`        | Qdrant server URL           | `http://localhost:6333` |
+| `COLLECTION_PREFIX` | Prefix for collection names | `grove`                 |
+| `EMBEDDING_MODEL`   | Embedding model             | `Xenocrat/embeddings`   |
+| `RERANKING_URL`     | Reranking service URL       | (none)                  |
+| `PORT`              | Server port                 | `3100`                  |
+| `HOST`              | Server host                 | `0.0.0.0`               |
 
 ## Health Checks
 
@@ -167,16 +167,16 @@ This creates the required Qdrant collections. **Warning:** This deletes existing
 # In your opencode.json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@minimaxolotl/grove-opencode-plugin"]
+  "plugin": ["@miniaxolotl/grove-opencode-plugin"]
 }
 ```
 
 Configure via environment:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GROVE_MCP_URL` | Grove MCP server URL | `http://localhost:3100/mcp` |
-| `GROVE_PROJECT` | Project name for memory filtering | (none) |
+| Variable        | Description                       | Default                     |
+| --------------- | --------------------------------- | --------------------------- |
+| `GROVE_MCP_URL` | Grove MCP server URL              | `http://localhost:3100/mcp` |
+| `GROVE_PROJECT` | Project name for memory filtering | (none)                      |
 
 ## Security Checklist
 

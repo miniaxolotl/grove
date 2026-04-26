@@ -18,13 +18,13 @@ docker compose up -d
 
 Copy `.env.example` to `.env` and configure:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `QDRANT_URL` | Qdrant server URL | `http://localhost:6333` |
-| `COLLECTION_PREFIX` | Prefix for collection names | `grove` |
-| `EMBEDDING_MODEL` | Embedding model | `Xenocrat/embeddings` |
-| `RERANKING_URL` | Reranking service URL | (none) |
-| `PORT` | Server port | `3100` |
+| Variable            | Description                 | Default                 |
+| ------------------- | --------------------------- | ----------------------- |
+| `QDRANT_URL`        | Qdrant server URL           | `http://localhost:6333` |
+| `COLLECTION_PREFIX` | Prefix for collection names | `grove`                 |
+| `EMBEDDING_MODEL`   | Embedding model             | `Xenocrat/embeddings`   |
+| `RERANKING_URL`     | Reranking service URL       | (none)                  |
+| `PORT`              | Server port                 | `3100`                  |
 
 ## OpenCode Plugin
 
@@ -33,18 +33,69 @@ Add to your `opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@minimaxolotl/grove-opencode-plugin"]
+  "plugin": ["@miniaxolotl/grove-opencode-plugin"]
 }
 ```
 
 Plugins are installed automatically by Bun at startup.
 
-Configure via environment variables:
+| Variable        | Description                       | Default                     |
+| --------------- | --------------------------------- | --------------------------- |
+| `GROVE_MCP_URL` | Grove MCP server URL              | `http://localhost:3100/mcp` |
+| `GROVE_PROJECT` | Project name for memory filtering | (none)                      |
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GROVE_MCP_URL` | Grove MCP server URL | `http://localhost:3100/mcp` |
-| `GROVE_PROJECT` | Project name for memory filtering | (none) |
+## MCP Server
+
+Use Grove as a general-purpose MCP server with any MCP client.
+
+### Docker
+
+```bash
+docker run -p 3100:3100 \
+  -e QDRANT_URL=http://host.docker.internal:6333 \
+  ghcr.io/miniaxolotl/grove:latest
+```
+
+### npm
+
+```bash
+npm install -g @miniaxolotl/grove
+grove serve
+```
+
+### Connect to OpenCode
+
+Add to your `opencode.json`:
+
+```json
+{
+  "mcpServers": {
+    "grove": {
+      "command": "grove",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+Or for Docker:
+
+```json
+{
+  "mcpServers": {
+    "grove": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-p",
+        "3100:3100",
+        "ghcr.io/miniaxolotl/grove:latest"
+      ]
+    }
+  }
+}
+```
 
 ## MCP Tools
 

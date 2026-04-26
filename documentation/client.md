@@ -8,10 +8,10 @@ The `grove-opencode-plugin` is an OpenCode plugin that captures memories, inject
 
 Configuration is loaded from environment variables:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GROVE_MCP_URL` | Grove MCP server URL | `http://localhost:3100/mcp` |
-| `GROVE_PROJECT` | Project name for memory filtering | (none) |
+| Variable        | Description                       | Default                     |
+| --------------- | --------------------------------- | --------------------------- |
+| `GROVE_MCP_URL` | Grove MCP server URL              | `http://localhost:3100/mcp` |
+| `GROVE_PROJECT` | Project name for memory filtering | (none)                      |
 
 ### Environment Variables Example
 
@@ -63,13 +63,13 @@ Memories stored with the following metadata:
 
 ```typescript
 interface MemoryMetadata {
-  source?: string;        // Tool or source that created the memory
-  project?: string;       // Project association
-  tags?: string[];        // Optional tags
-  importance?: number;    // 0-1 importance score
-  sessionId?: string;    // Session identifier
-  createdAt?: string;    // ISO datetime
-  updatedAt?: string;    // ISO datetime
+  source?: string; // Tool or source that created the memory
+  project?: string; // Project association
+  tags?: string[]; // Optional tags
+  importance?: number; // 0-1 importance score
+  sessionId?: string; // Session identifier
+  createdAt?: string; // ISO datetime
+  updatedAt?: string; // ISO datetime
   lastAccessedAt?: string; // ISO datetime
 }
 ```
@@ -78,13 +78,13 @@ interface MemoryMetadata {
 
 The plugin calls these Grove MCP tools:
 
-| Tool | Description |
-|------|-------------|
-| `memory_save` | Save a new memory |
-| `memory_search` | Search memories by semantic similarity |
-| `memory_compact` | Compact memories by session/project |
-| `memory_prune` | Delete memories below threshold |
-| `memory_update` | Update memory text or metadata |
+| Tool             | Description                            |
+| ---------------- | -------------------------------------- |
+| `memory_save`    | Save a new memory                      |
+| `memory_search`  | Search memories by semantic similarity |
+| `memory_compact` | Compact memories by session/project    |
+| `memory_prune`   | Delete memories below threshold        |
+| `memory_update`  | Update memory text or metadata         |
 
 ## Architecture
 
@@ -105,10 +105,10 @@ The plugin calls these Grove MCP tools:
 
 ## Installation
 
-The plugin is published as `@minimaxolotl/grove-opencode-plugin` on npm.
+The plugin is published as `@miniaxolotl/grove-opencode-plugin` on npm.
 
 ```bash
-npm install @minimaxolotl/grove-opencode-plugin
+npm install @miniaxolotl/grove-opencode-plugin
 ```
 
 ## Development

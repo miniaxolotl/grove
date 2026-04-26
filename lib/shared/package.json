@@ -9,8 +9,8 @@
     ".": "./src/index.ts",
     "./types": "./src/type/index.ts",
     "./schemas": "./src/schema/index.ts",
-    "/enums": "./src/enum/index.ts",
-    "/constants": "./src/constants/index.ts"
+    "./enums": "./src/enum/index.ts",
+    "./constants": "./src/constants/index.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",

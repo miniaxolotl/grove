@@ -1,11 +1,12 @@
 packages:
-  - "lib/*"
-  - "packages/*"
-  - "scripts/*"
-  - "tests"
+  - lib/*
+  - packages/*
+  - scripts/*
+  - tests
 
 onlyBuiltDependencies:
   - esbuild
+  - msgpackr-extract
   - onnxruntime-node
   - protobufjs
   - sharp
