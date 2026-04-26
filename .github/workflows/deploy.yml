@@ -41,11 +41,14 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
             echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           else
+            PREVIEW_VERSION=$(node -p "require('./packages/mcp/package.json').version")
             echo "TAGS<<EOF" >> $GITHUB_OUTPUT
-            echo "ghcr.io/miniaxolotl/grove:dev" >> $GITHUB_OUTPUT
-            echo "miniaxolotl/grove:dev" >> $GITHUB_OUTPUT
+            echo "ghcr.io/miniaxolotl/grove:preview" >> $GITHUB_OUTPUT
+            echo "ghcr.io/miniaxolotl/grove:preview-v${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
+            echo "miniaxolotl/grove:preview" >> $GITHUB_OUTPUT
+            echo "miniaxolotl/grove:preview-v${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            echo "VERSION=dev" >> $GITHUB_OUTPUT
+            echo "VERSION=preview-v${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx
