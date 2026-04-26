@@ -12,7 +12,7 @@ interface StaleMemory {
 }
 
 export function createStalenessEngine(opts: GrovePluginOptions) {
-  const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:3100/mcp" });
+  const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:26080/mcp" });
 
   async function findStaleMemories(daysThreshold: number): Promise<StaleMemory[]> {
     const staleMemories: StaleMemory[] = [];
