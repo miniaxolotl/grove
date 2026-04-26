@@ -12,9 +12,10 @@
  */
 
 const { execSync } = await import("node:child_process");
+const path = await import("node:path");
 
 const IMAGE = "grove";
-const ROOT = new URL("../../..", import.meta.url).pathname;
+const ROOT = path.resolve(new URL("../../..", import.meta.url).pathname);
 
 function run(cmd: string, cwd?: string) {
   console.log(`> ${cmd}`);
