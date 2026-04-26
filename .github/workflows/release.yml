@@ -38,12 +38,26 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
 
+      - name: Check versions
+        id: versions
+        run: |
+          LOCAL_MCP=$(node -p "require('./packages/mcp/package.json').version")
+          LOCAL_PLUGIN=$(node -p "require('./packages/grove-opencode-plugin/package.json').version")
+          NPM_MCP=$(npm view @miniaxolotl/grove version 2>/dev/null || echo "none")
+          NPM_PLUGIN=$(npm view @miniaxolotl/grove-opencode-plugin version 2>/dev/null || echo "none")
+          echo "MCP local=$LOCAL_MCP npm=$NPM_MCP"
+          echo "Plugin local=$LOCAL_PLUGIN npm=$NPM_PLUGIN"
+          [ "$LOCAL_MCP" != "$NPM_MCP" ] && echo "PUBLISH_MCP=true" >> $GITHUB_OUTPUT || echo "PUBLISH_MCP=false" >> $GITHUB_OUTPUT
+          [ "$LOCAL_PLUGIN" != "$NPM_PLUGIN" ] && echo "PUBLISH_PLUGIN=true" >> $GITHUB_OUTPUT || echo "PUBLISH_PLUGIN=false" >> $GITHUB_OUTPUT
+
       - name: Publish MCP
+        if: steps.versions.outputs.PUBLISH_MCP == 'true'
         run: pnpm --filter @miniaxolotl/grove publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish Plugin
+        if: steps.versions.outputs.PUBLISH_PLUGIN == 'true'
         run: pnpm --filter @miniaxolotl/grove-opencode-plugin publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
