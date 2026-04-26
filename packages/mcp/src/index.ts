@@ -520,7 +520,7 @@ async function init(retries = 10, delayMs = 3000) {
       await entityRepository.init();
       await relationRepository.init();
       collectionsReady = true;
-      console.error("Collections initialized");
+      console.log("Collections initialized");
       try {
         await warmup();
       } catch (err) {
@@ -562,7 +562,7 @@ if (config.transport === "http") {
     res.writeHead(404);
     res.end();
   }).listen(healthPort, () => {
-    console.error(
+    console.log(
       `[grove] Health check server on http://localhost:${healthPort}`,
     );
   });
@@ -571,7 +571,7 @@ if (config.transport === "http") {
     transportType: "httpStream",
     httpStream: { endpoint: "/mcp", port: config.port },
   });
-  console.error(
+  console.log(
     `[grove] HTTP server listening on http://localhost:${config.port}/mcp`,
   );
 } else {

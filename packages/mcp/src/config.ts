@@ -3,7 +3,7 @@ export const config = {
   port: parseInt(process.env.PORT ?? "26080", 10),
   qdrant: {
     url: process.env.QDRANT_URL ?? "http://localhost:6333",
-    apiKey: process.env.QDRANT_API_KEY ?? "",
+    apiKey: process.env.QDRANT_API_KEY || undefined,
   },
   collection: {
     prefix: process.env.COLLECTION_PREFIX ?? "memory",

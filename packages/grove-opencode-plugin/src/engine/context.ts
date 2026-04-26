@@ -1,5 +1,4 @@
 import type { GrovePluginOptions } from "../index.js";
-import type { MemorySearchResult } from "../client/index.js";
 import { MCPClient } from "../client/index.js";
 
 const HOT_THRESHOLD = 0.8;

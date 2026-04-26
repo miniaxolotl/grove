@@ -12,7 +12,6 @@ export interface GrovePluginOptions {
   project?: string;
   importanceThreshold?: number;
   stalenessDays?: number;
-  maxContextItems?: number;
 }
 
 export const grovePlugin: Plugin = async (ctx) => {
@@ -26,7 +25,6 @@ export const grovePlugin: Plugin = async (ctx) => {
     project,
     importanceThreshold: 0.6,
     stalenessDays: 7,
-    maxContextItems: 20,
   };
 
   const capture = createCaptureHooks(directory, opts);
