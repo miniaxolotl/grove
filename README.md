@@ -56,6 +56,7 @@ Configure via environment variables:
 
 ## Documentation
 
+- [Deployment guide](documentation/deploy/deploy.md)
 - [Client/Plugin reference](documentation/client.md)
 - [Server setup & deployment](documentation/server.md)
 
