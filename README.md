@@ -7,20 +7,37 @@
 
 Self-hosted agentic memory MCP server backed by Qdrant. Exposes semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.
 
-## Server
+## Quick Start
 
 ```bash
 cp .env.example .env
 docker compose up -d
 ```
 
+## Configuration
+
+Copy `.env.example` to `.env` and configure:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `QDRANT_URL` | Qdrant server URL | `http://localhost:6333` |
+| `COLLECTION_PREFIX` | Prefix for collection names | `grove` |
+| `EMBEDDING_MODEL` | Embedding model | `Xenocrat/embeddings` |
+| `RERANKING_URL` | Reranking service URL | (none) |
+| `PORT` | Server port | `3100` |
+
 ## OpenCode Plugin
 
-The Grove OpenCode plugin (`@minimaxolotl/grove-opencode-plugin`) captures memories, injects hot context, and manages memory importance tiers.
+Add to your `opencode.json`:
 
-```bash
-npm install @minimaxolotl/grove-opencode-plugin
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@minimaxolotl/grove-opencode-plugin"]
+}
 ```
+
+Plugins are installed automatically by Bun at startup.
 
 Configure via environment variables:
 
@@ -36,19 +53,6 @@ Configure via environment variables:
 **Entities:** `entity_create`, `entity_get`, `entity_search`, `entity_list`, `entity_add_observations`, `entity_update`, `entity_stats`
 
 **Relations:** `relation_create`, `relation_search`, `relation_list`, `relation_delete`, `relation_stats`
-
-## Local Dev
-
-```bash
-docker compose up -d
-pnpm install
-pnpm run dev:setup
-pnpm run dev
-```
-
-## Deploy
-
-See `documentation/server.md` for deployment and configuration options.
 
 ## Documentation
 

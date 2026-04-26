@@ -240,6 +240,14 @@ interface Relation {
 
 ### Docker Compose
 
+```bash
+docker compose up -d
+```
+
+This starts:
+- `grove` server on port 3100
+- `qdrant` on port 6333
+
 ```yaml
 version: '3.8'
 services:
@@ -273,3 +281,7 @@ volumes:
 | `RERANKING_URL` | Reranking service URL | (none) |
 | `PORT` | Server HTTP port | `3100` |
 | `HOST` | Server host | `0.0.0.0` |
+
+## Deploy (Docker)
+
+See `scripts/deploy/README.md` for Docker deployment.

@@ -123,3 +123,7 @@ pnpm run dev
 # Publish to npm
 pnpm run publish
 ```
+
+## Deploy
+
+See `scripts/deploy/README.md` for Docker deployment.
