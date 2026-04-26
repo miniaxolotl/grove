@@ -23,11 +23,8 @@ function computeImportance(type: CaptureType): number {
   return BASE_IMPORTANCE[type];
 }
 
-export function createCaptureHooks(
-  directory: string,
-  opts: GrovePluginOptions,
-) {
-  const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:3100/mcp" });
+export function createCaptureHooks(opts: GrovePluginOptions) {
+  const mcp = new MCPClient({ url: opts.mcpUrl ?? "http://localhost:26080/mcp" });
 
   async function captureMemory(input: CaptureInput): Promise<void> {
     const importance = input.importance ?? computeImportance(input.type);

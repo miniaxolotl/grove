@@ -17,7 +17,7 @@ export interface GrovePluginOptions {
 export const grovePlugin: Plugin = async (ctx) => {
   const directory = ctx.directory || ".";
 
-  const mcpUrl = process.env.GROVE_MCP_URL || "http://localhost:3100/mcp";
+  const mcpUrl = process.env.GROVE_MCP_URL || "http://localhost:26080/mcp";
   const project = process.env.GROVE_PROJECT;
 
   const opts: GrovePluginOptions = {
@@ -27,8 +27,8 @@ export const grovePlugin: Plugin = async (ctx) => {
     stalenessDays: 7,
   };
 
-  const capture = createCaptureHooks(directory, opts);
-  const contextEngine = createContextEngine(directory, opts);
+  const capture = createCaptureHooks(opts);
+  const contextEngine = createContextEngine(opts);
   const stalenessEngine = createStalenessEngine(opts);
   const importanceEngine = createImportanceEngine(opts);
   const mcp = new MCPClient({ url: mcpUrl });
@@ -75,15 +75,23 @@ export const grovePlugin: Plugin = async (ctx) => {
       }),
     },
     async "tool.execute.after"(input: { tool: string; sessionID: string; args: unknown }, output: { title: string; output: string }) {
-      await capture.onToolExecuted(input, output);
+      try {
+        await capture.onToolExecuted(input, output);
+      } catch (err) {
+        console.error("[grove] tool.execute.after hook failed:", err);
+      }
     },
     async "experimental.session.compacting"(input: { sessionID: string }, output: { context: string[]; prompt?: string }) {
-      await contextEngine.onSessionCompacting(input, output);
-      await importanceEngine.decayMemories(input.sessionID);
+      try {
+        await contextEngine.onSessionCompacting(input, output);
+        await importanceEngine.decayMemories(input.sessionID);
 
-      const staleResult = await stalenessEngine.onStalenessCheck();
-      if (staleResult.staleCount > 0) {
-        output.context.push(`[grove] ${staleResult.message}`);
+        const staleResult = await stalenessEngine.onStalenessCheck();
+        if (staleResult.staleCount > 0) {
+          output.context.push(`[grove] ${staleResult.message}`);
+        }
+      } catch (err) {
+        console.error("[grove] session.compacting hook failed:", err);
       }
     },
   };
