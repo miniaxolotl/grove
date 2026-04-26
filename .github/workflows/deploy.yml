@@ -20,10 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
       - name: Get version
         id: version
         run: |
@@ -50,29 +46,17 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push to GHCR
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64
           push: true
           tags: |
             ghcr.io/miniaxolotl/grove:latest
-            ghcr.io/miniaxolotl/grove:v${{ steps.version.outputs.VERSION }}
-          labels: |
-            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push to Docker Hub
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
+            ghcr.io/miniaxolotl/grove:${{ steps.version.outputs.VERSION }}
             miniaxolotl/grove:latest
-            miniaxolotl/grove:v${{ steps.version.outputs.VERSION }}
+            miniaxolotl/grove:${{ steps.version.outputs.VERSION }}
           labels: |
             org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
             org.opencontainers.image.revision=${{ github.sha }}
