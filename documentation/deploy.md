@@ -6,9 +6,10 @@ Grove uses [release-please](https://github.com/googleapis/release-please) for au
 
 ### Workflow
 
-1. Push conventional commits to `production`
+1. Push conventional commits to `development`
 2. Release-please creates a release PR with version bumps and changelogs
-3. Merge the PR → GitHub releases, tags, and npm publishes
+3. Merge the PR to `production` → GitHub releases, `grove-v*` tags, and npm publishes
+4. `deploy.yml` triggers on `grove-v*` tag → pushes Docker to GHCR + Docker Hub
 
 ### Conventional Commits
 
@@ -102,11 +103,12 @@ grove.example.com {
 
 ## CI/CD
 
-| Workflow | Trigger | Action |
-| -------- | ------- | ------ |
-| `ci.yml` | Push/PR to `production`, `development` | Lint, build, test |
-| `release.yml` | Push to `production` | Release PR → npm publish |
-| `deploy.yml` | `grove-v*` tag | Push Docker to GHCR + Docker Hub |
+| Workflow      | Trigger                              | Action                                      |
+| ------------- | ------------------------------------ | ------------------------------------------- |
+| `ci.yml`      | Push/PR to `development`, `production` | Lint, build, test                           |
+| `release.yml` | Push to `development`                 | Run release-please (creates PR)             |
+| `release.yml` | Push to `production` (PR merge)      | Publish npm packages                        |
+| `deploy.yml`  | `grove-v*` tag                       | Push Docker to GHCR + Docker Hub            |
 
 ## Updating
 

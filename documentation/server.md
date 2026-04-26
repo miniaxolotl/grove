@@ -8,9 +8,39 @@
 
 ```bash
 grove serve          # HTTP transport (default)
-grove                # stdio transport (for direct MCP client)
+grove                # stdio transport (for direct MCP clients)
 grove --version      # Show version
 grove --help         # Show help
+```
+
+## OpenCode Configuration
+
+### Remote (Recommended)
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "grove": {
+      "type": "remote",
+      "url": "http://localhost:26080/mcp"
+    }
+  }
+}
+```
+
+### Local
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "grove": {
+      "type": "local",
+      "command": ["grove"]
+    }
+  }
+}
 ```
 
 ## Configuration
@@ -30,39 +60,39 @@ grove --help         # Show help
 
 ### Memory
 
-| Tool | Description |
-| ---- | ----------- |
-| `memory_save` | Save a memory to semantic storage |
-| `memory_search` | Search by semantic similarity with optional reranking |
-| `memory_scroll` | Paginate through memories |
-| `memory_update` | Update memory text or metadata |
-| `memory_forget` | Delete memories by ID or filter |
-| `memory_compact` | Remove low-importance memories by session/project |
-| `memory_prune` | Delete memories below importance threshold |
-| `memory_stats` | Collection statistics |
-| `memory_note` | Quick-save a note (auto-tagged) |
+| Tool               | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `memory_save`      | Save a memory to semantic storage                    |
+| `memory_search`    | Search by semantic similarity with optional reranking |
+| `memory_scroll`    | Paginate through memories                            |
+| `memory_update`    | Update memory text or metadata                       |
+| `memory_forget`    | Delete memories by ID or filter                      |
+| `memory_compact`   | Remove low-importance memories by session/project     |
+| `memory_prune`     | Delete memories below importance threshold           |
+| `memory_stats`     | Collection statistics                                |
+| `memory_note`      | Quick-save a note (auto-tagged `note`)               |
 
 ### Entity
 
-| Tool | Description |
-| ---- | ----------- |
-| `entity_create` | Create an entity |
-| `entity_get` | Get entity details by name |
-| `entity_search` | Find entities by name or type |
-| `entity_list` | List entities with pagination |
-| `entity_update` | Update entity by ID |
-| `entity_add_observations` | Add observations to an entity |
-| `entity_stats` | Collection statistics |
+| Tool                    | Description                        |
+| ----------------------- | ---------------------------------- |
+| `entity_create`         | Create an entity                   |
+| `entity_get`            | Get entity details by name          |
+| `entity_search`         | Find entities by name or type       |
+| `entity_list`           | List entities with pagination       |
+| `entity_update`         | Update entity by ID                 |
+| `entity_add_observations` | Add observations to an entity     |
+| `entity_stats`          | Collection statistics               |
 
 ### Relation
 
-| Tool | Description |
-| ---- | ----------- |
-| `relation_create` | Create a relation between entities |
-| `relation_search` | Find relations by source, target, or type |
-| `relation_list` | List relations with pagination |
-| `relation_delete` | Delete relations |
-| `relation_stats` | Collection statistics |
+| Tool                 | Description                        |
+| -------------------- | ---------------------------------- |
+| `relation_create`    | Create a relation between entities |
+| `relation_search`    | Find relations by source/target/type |
+| `relation_list`      | List relations with pagination      |
+| `relation_delete`    | Delete relations                   |
+| `relation_stats`     | Collection statistics              |
 
 ## Tool Parameters
 
@@ -314,14 +344,14 @@ interface Relation {
 │     OpenCode     │         │   Grove MCP      │         │    Qdrant        │
 │     (IDE)        │◄────────│    Server        │◄────────│  (vector store)  │
 └──────────────────┘  MCP    └──────────────────┘         └──────────────────┘
-                                                       ┌──────────────────┐
-                                                       │   Embedding      │
-                                                       │   Model          │
-                                                       └──────────────────┘
-                                                       ┌──────────────────┐
-                                                       │   Reranking      │
-                                                       │   Service (opt)  │
-                                                       └──────────────────┘
+                                                        ┌──────────────────┐
+                                                        │   Embedding      │
+                                                        │   Model          │
+                                                        └──────────────────┘
+                                                        ┌──────────────────┐
+                                                        │   Reranking      │
+                                                        │   Service (opt)   │
+                                                        └──────────────────┘
 ```
 
 ## Health Checks
