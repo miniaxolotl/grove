@@ -1,3 +1,5 @@
+import type { MemoryMetadata } from "@lib/shared";
+
 export interface MCPToolResult {
   content: Array<{ type: string; text: string }>;
 }
@@ -5,15 +7,7 @@ export interface MCPToolResult {
 export interface MemorySearchResult {
   id: string;
   text: string;
-  metadata?: {
-    source?: string;
-    project?: string;
-    tags?: string[];
-    importance?: number;
-    sessionId?: string;
-    lastAccessedAt?: string;
-    createdAt?: string;
-  };
+  metadata?: MemoryMetadata;
   score: number;
 }
 

@@ -30,10 +30,26 @@ importers:
         specifier: ~8.58.0
         version: 8.58.0(eslint@10.1.0)(typescript@6.0.2)
 
+  lib/shared:
+    dependencies:
+      zod:
+        specifier: ~4.1.8
+        version: 4.1.8
+    devDependencies:
+      '@lib/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@lib/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+
   lib/typescript-config: {}
 
   packages/grove-opencode-plugin:
     dependencies:
+      '@lib/shared':
+        specifier: workspace:*
+        version: link:../../lib/shared
       '@opencode-ai/plugin':
         specifier: ~1.14.20
         version: 1.14.25
@@ -62,6 +78,9 @@ importers:
       '@huggingface/transformers':
         specifier: ~3.0.0
         version: 3.0.2
+      '@lib/shared':
+        specifier: workspace:*
+        version: link:../../lib/shared
       fastmcp:
         specifier: ~1.27.7
         version: 1.27.7(effect@3.21.2)

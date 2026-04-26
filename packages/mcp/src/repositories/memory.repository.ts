@@ -2,26 +2,11 @@ import { randomUUID } from "crypto";
 import { config } from "../config.ts";
 import { qdrant, type VectorPoint } from "../services/qdrant.ts";
 import { buildFilter } from "../utils/filter.ts";
+import type { Memory, MemorySearchResult } from "@lib/shared";
 
 const COLLECTION = `${config.collection.prefix}_memories`;
 
-export interface Memory {
-  id: string;
-  text: string;
-  metadata: {
-    source?: string;
-    project?: string;
-    tags?: string[];
-    createdAt: string;
-    updatedAt?: string;
-    importance?: number;
-    sessionId?: string;
-  };
-}
-
-export interface MemorySearchResult extends Memory {
-  score: number;
-}
+export type { Memory, MemorySearchResult };
 
 let _embedTexts: ((texts: string[]) => Promise<number[][]>) | null = null;
 
