@@ -24,6 +24,5 @@
     { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
     { "type": "ci", "section": "CI/CD", "hidden": true }
   ],
-  "separate-pull-requests": false,
-  "group-pull-request-title-pattern": "chore: release ${version}"
+  "separate-pull-requests": false
 }
