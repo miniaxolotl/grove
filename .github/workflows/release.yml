@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    branches: [production]
+    branches: [development]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -12,12 +13,13 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
-      grove--tag_name: ${{ steps.release.outputs['packages/mcp--tag_name'] }}
-      grove--release_created: ${{ steps.release.outputs['packages/mcp--release_created'] }}
-      grove-opencode-plugin--tag_name: ${{ steps.release.outputs['packages/grove-opencode-plugin--tag_name'] }}
-      grove-opencode-plugin--release_created: ${{ steps.release.outputs['packages/grove-opencode-plugin--release_created'] }}
+      grove--tag_name: ${{ steps.release.outputs['grove--tag_name'] }}
+      grove--release_created: ${{ steps.release.outputs['grove--release_created'] }}
+      grove-opencode-plugin--tag_name: ${{ steps.release.outputs['grove-opencode-plugin--tag_name'] }}
+      grove-opencode-plugin--release_created: ${{ steps.release.outputs['grove-opencode-plugin--release_created'] }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
@@ -28,10 +30,13 @@ jobs:
 
   publish-npm:
     runs-on: ubuntu-latest
-    needs: release-please
-    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -43,14 +48,12 @@ jobs:
       - run: pnpm run build
 
       - name: Publish MCP
-        if: ${{ needs.release-please.outputs['grove--release_created'] == 'true' }}
         run: |
           cd packages/mcp && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish Plugin
-        if: ${{ needs.release-please.outputs['grove-opencode-plugin--release_created'] == 'true' }}
         run: |
           cd packages/grove-opencode-plugin && npm publish --access public
         env:

@@ -1,24 +1,31 @@
 # grove
 
+[![npm](https://img.shields.io/npm/v/@miniaxolotl/grove)](https://npmjs.com/package/@miniaxolotl/grove)
+[![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/grove?label=docker%20hub)](https://hub.docker.com/r/miniaxolotl/grove)
+[![GHCR](https://img.shields.io/github/v/release/miniaxolotl/grove?label=ghcr)](https://github.com/miniaxolotl/grove/pkgs/container/grove)
+[![License](https://img.shields.io/github/license/miniaxolotl/grove)](LICENSE)
+
 Self-hosted agentic memory MCP server backed by Qdrant.
 
 ## Quick Start
+
+### Docker Compose
 
 ```bash
 cp .env.example .env
 docker compose up -d
 ```
 
-## Install
+### npm
 
 ```bash
-npm install -g @miniaxolotl/grove   # or pnpm add -g, bun add -g
+npm install -g @miniaxolotl/grove
 grove serve
 ```
 
 Or run without installing: `npx @miniaxolotl/grove serve`
 
-## Connect to OpenCode
+## OpenCode
 
 ### Plugin (Recommended)
 
@@ -49,7 +56,6 @@ Or run without installing: `npx @miniaxolotl/grove serve`
 | `QDRANT_URL`        | `http://localhost:6333` |
 | `PORT`              | `26080`                 |
 | `COLLECTION_PREFIX` | `memory`                |
-| `EMBEDDING_URL`     | (local ONNX)            |
 
 Full list in `.env.example`.
 
