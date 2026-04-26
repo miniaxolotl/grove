@@ -2,12 +2,11 @@ name: Deploy
 
 on:
   push:
-    tags:
-      - "grove-v*"
+    branches: [development, production]
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to deploy (e.g., 0.2.6)"
+        description: "Version to deploy (e.g., 0.3.1) — leave empty for dev deploy"
         required: false
         default: ""
 
@@ -20,14 +19,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get version
-        id: version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Resolve tags
+        id: meta
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_name }}" = "production" ]; then
+            VERSION=$(node -p "require('./packages/mcp/package.json').version")
+          fi
+
+          if [ -n "$VERSION" ]; then
+            echo "TAGS<<EOF" >> $GITHUB_OUTPUT
+            echo "ghcr.io/miniaxolotl/grove:latest" >> $GITHUB_OUTPUT
+            echo "ghcr.io/miniaxolotl/grove:v${VERSION}" >> $GITHUB_OUTPUT
+            echo "miniaxolotl/grove:latest" >> $GITHUB_OUTPUT
+            echo "miniaxolotl/grove:v${VERSION}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           else
-            TAG="${{ github.ref_name }}"
-            echo "VERSION=${TAG#grove-v}" >> $GITHUB_OUTPUT
+            echo "TAGS<<EOF" >> $GITHUB_OUTPUT
+            echo "ghcr.io/miniaxolotl/grove:dev" >> $GITHUB_OUTPUT
+            echo "miniaxolotl/grove:dev" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "VERSION=dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx
@@ -52,13 +70,9 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: |
-            ghcr.io/miniaxolotl/grove:latest
-            ghcr.io/miniaxolotl/grove:${{ steps.version.outputs.VERSION }}
-            miniaxolotl/grove:latest
-            miniaxolotl/grove:${{ steps.version.outputs.VERSION }}
+          tags: ${{ steps.meta.outputs.TAGS }}
           labels: |
-            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.VERSION }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha
