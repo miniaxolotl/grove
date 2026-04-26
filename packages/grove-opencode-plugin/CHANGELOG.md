@@ -1,5 +1,12 @@
 # @miniaxolotl/grove-opencode-plugin
 
+## [0.3.1](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.3.0...grove-opencode-plugin-v0.3.1) (2026-04-26)
+
+
+### Bug Fixes
+
+* update release workflow to include production branch and adjust publish steps ([9ac62b0](https://github.com/miniaxolotl/grove/commit/9ac62b0459c4144aaff71a1f9ca6382c3bdb9c22))
+
 ## [0.3.0](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.2.8...grove-opencode-plugin-v0.3.0) (2026-04-26)
 
 
