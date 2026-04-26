@@ -9,30 +9,26 @@ Self-hosted agentic memory MCP server backed by Qdrant. Provides semantic memory
 
 ## Install
 
-### npm
-
 ```bash
+# npm
 npm install -g @miniaxolotl/grove
-```
 
-### pnpm
-
-```bash
+# pnpm
 pnpm add -g @miniaxolotl/grove
-```
 
-### bun
-
-```bash
+# bun
 bun add -g @miniaxolotl/grove
+
+# Docker
+docker pull ghcr.io/miniaxolotl/grove:latest
 ```
 
-### Docker
+Run without installing:
 
 ```bash
-docker pull ghcr.io/miniaxolotl/grove:latest
-# or
-docker pull miniaxolotl/grove:latest
+npx @miniaxolotl/grove serve
+pnpm dlx @miniaxolotl/grove serve
+bunx @miniaxolotl/grove serve
 ```
 
 ## Quick Start
@@ -44,25 +40,13 @@ cp .env.example .env
 docker compose up -d
 ```
 
-### npm / pnpm / bun
+### Global Install
 
 ```bash
 grove serve
 ```
 
-Or run without installing:
-
-```bash
-npx @miniaxolotl/grove serve
-# or
-pnpm dlx @miniaxolotl/grove serve
-# or
-bunx @miniaxolotl/grove serve
-```
-
 ## Configuration
-
-Copy `.env.example` to `.env`:
 
 | Variable            | Description                 | Default                 |
 | ------------------- | --------------------------- | ----------------------- |
@@ -79,6 +63,8 @@ Copy `.env.example` to `.env`:
 
 ### Via Plugin (Recommended)
 
+Add to your `opencode.json`:
+
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
@@ -92,8 +78,6 @@ Copy `.env.example` to `.env`:
 | `GROVE_PROJECT` | Project name for memory filtering | (none)                       |
 
 ### Via MCP Server
-
-Add to your `opencode.json`:
 
 ```json
 {
@@ -129,9 +113,9 @@ Or via Docker:
 
 ## Documentation
 
-- [Installation & usage](documentation/server.md)
-- [Deployment guide](documentation/deploy.md)
-- [Client/Plugin reference](documentation/client.md)
+- [Server reference](documentation/server.md) — full tool parameters, data model, architecture
+- [Deploy & release guide](documentation/deploy.md) — production deploy, CI/CD, release-please
+- [Plugin reference](documentation/client.md) — OpenCode plugin configuration and hooks
 
 ## License
 
