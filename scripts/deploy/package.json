@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Builds and pushes Docker images to GHCR and Docker Hub, creates GitHub releases",
+  "description": "Local Docker build and push script for development",
   "scripts": {
     "deploy": "tsx src/index.ts"
   },

@@ -46,13 +46,9 @@
     "services:ps": "docker compose ps",
     "services:prune": "docker compose down -v",
     "format": "prettier --write \"**/*.{ts,md,json}\"",
-    "clean": "rm -rf packages/mcp/dist scripts/setup/dist tests/dist node_modules",
-    "version": "changeset version",
-    "release": "pnpm --filter @script/release run release",
-    "deploy": "pnpm --filter @script/deploy run deploy"
+    "clean": "rm -rf packages/mcp/dist scripts/setup/dist tests/dist node_modules"
   },
   "devDependencies": {
-    "@changesets/cli": "~2.30.0",
     "@types/node": "~25.5.0",
     "eslint": "~10.1.0",
     "prettier": "~3.8.1"

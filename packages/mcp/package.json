@@ -1,8 +1,11 @@
 {
   "name": "@miniaxolotl/grove",
-  "version": "0.2.6",
+  "version": "0.2.8",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "grove": "./dist/cli.js"
+  },
   "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.",
   "repository": {
     "type": "git",

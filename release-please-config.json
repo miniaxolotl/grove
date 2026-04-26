@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "packages": {
+    "packages/mcp": {
+      "release-type": "node",
+      "component": "grove",
+      "package-name": "@miniaxolotl/grove"
+    },
+    "packages/grove-opencode-plugin": {
+      "release-type": "node",
+      "component": "grove-opencode-plugin",
+      "package-name": "@miniaxolotl/grove-opencode-plugin"
+    }
+  },
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "refactor", "section": "Code Refactoring" },
+    { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+    { "type": "ci", "section": "CI/CD", "hidden": true }
+  ],
+  "separate-pull-requests": false,
+  "group-pull-request-title-pattern": "chore: release ${version}"
+}

@@ -11,7 +11,6 @@ COPY lib/ ./lib/
 COPY packages/mcp/package.json ./packages/mcp/package.json
 COPY scripts/setup/package.json ./scripts/setup/package.json
 COPY scripts/deploy/package.json ./scripts/deploy/package.json
-COPY scripts/release/package.json ./scripts/release/package.json
 COPY tests/package.json ./tests/package.json
 
 RUN pnpm install --frozen-lockfile
@@ -60,7 +59,7 @@ LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/grove" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="Elias Mawa" \
       org.opencontainers.image.authors="Elias Mawa <elias@mawa.dev>" \
-      org.opencontainers.image.base.name="node:22-alpine@sha256:4d64b49e6c891c8fc821007cb1cdc6c0db7773110ac2c34bf2f6960adef62ed3"
+      org.opencontainers.image.base.name="docker.io/library/node:24-alpine"
 
 # Install runtime deps: curl for healthcheck, gcompat for ONNX
 RUN apk add --no-cache curl gcompat

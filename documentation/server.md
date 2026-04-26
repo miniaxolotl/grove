@@ -2,55 +2,81 @@
 
 ## Overview
 
-`@miniaxolotl/grove` is a self-hosted agentic memory MCP server backed by Qdrant, inspired by Supermemory. It provides semantic memory storage, entity/relation knowledge graphs, and optional reranking as MCP tools.
+`@miniaxolotl/grove` is a self-hosted agentic memory MCP server backed by Qdrant. It provides semantic memory storage, entity/relation knowledge graphs, and optional reranking as MCP tools.
 
-## Configuration
+## Install
 
-Configuration is loaded from environment variables:
+### npm
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `QDRANT_URL` | Qdrant server URL | `http://localhost:6333` |
-| `COLLECTION_PREFIX` | Prefix for collection names | `grove` |
-| `EMBEDDING_MODEL` | Embedding model to use | `Xenocrat/embeddings` |
-| `RERANKING_URL` | Reranking service URL | (none) |
-| `PORT` | Server port | `3100` |
+```bash
+npm install -g @miniaxolotl/grove
+```
+
+### pnpm
+
+```bash
+pnpm add -g @miniaxolotl/grove
+```
+
+### bun
+
+```bash
+bun add -g @miniaxolotl/grove
+```
+
+### Run Without Install
+
+```bash
+npx @miniaxolotl/grove serve
+pnpm dlx @miniaxolotl/grove serve
+bunx @miniaxolotl/grove serve
+```
+
+## Usage
+
+### Start Server
+
+```bash
+grove serve
+```
+
+Or with stdio transport (for direct MCP client connections):
+
+```bash
+grove
+```
+
+### CLI Options
+
+```
+grove serve    Start the MCP server
+grove          Start the MCP server (default)
+
+Options:
+  --version, -v  Show version
+  --help, -h     Show this help
+```
+
+### Environment Variables
+
+| Variable            | Description                 | Default                 |
+| ------------------- | --------------------------- | ----------------------- |
+| `PORT`              | Server port                 | `26080`                 |
+| `TRANSPORT`         | `http` or `stdio`           | `http`                  |
+| `QDRANT_URL`        | Qdrant server URL           | `http://localhost:6333` |
+| `QDRANT_API_KEY`    | Qdrant API key              | (none)                  |
+| `COLLECTION_PREFIX` | Prefix for collection names | `memory`                |
+| `VECTOR_DIM`        | Embedding dimension         | `384`                   |
+| `EMBEDDING_URL`     | Remote embedding URL        | (uses local ONNX)       |
+| `RERANKING_URL`     | Remote reranking URL        | (disabled)              |
 
 ### .env Example
 
 ```
 QDRANT_URL=http://localhost:6333
-COLLECTION_PREFIX=grove
-EMBEDDING_MODEL=Xenocrat/embeddings
-RERANKING_URL=http://localhost:8080
-PORT=3100
+COLLECTION_PREFIX=memory
+PORT=26080
 ```
-
-## Commands
-
-### Development
-
-```bash
-pnpm dev
-```
-
-Starts the MCP server in development mode with hot reload.
-
-### Production
-
-```bash
-pnpm build && pnpm start
-```
-
-Builds the TypeScript and starts the production server.
-
-### Docker
-
-```bash
-docker compose up -d
-```
-
-Starts the Grove server with Qdrant and optional reranking services.
 
 ## MCP Tools
 
@@ -62,63 +88,7 @@ Save a memory document to semantic storage.
 
 ```typescript
 {
-  information: string,      // The memory text
-  metadata?: {
-    source?: string,        // Source of the memory
-    project?: string,       // Project association
-    tags?: string[],        // Optional tags
-    importance?: number,    // 0-1 importance score
-    sessionId?: string,     // Session identifier
-  }
-}
-```
-
-#### `memory_search`
-
-Search memories by semantic similarity with optional reranking.
-
-```typescript
-{
-  query: string,            // Search query
-  project?: string,         // Filter by project
-  tags?: string[],          // Filter by tags
-  limit?: number,           // Max results (default: 5)
-  rerank?: boolean,         // Enable reranking (default: false)
-  rerankTopK?: number,      // Top K for reranking (default: 20)
-}
-```
-
-#### `memory_compact`
-
-Compact memories by session or project, removing low-importance ones.
-
-```typescript
-{
-  project?: string,               // Filter by project
-  sessionId?: string,             // Filter by session
-  importanceThreshold?: number,   // Min importance to keep (default: 0.6)
-}
-```
-
-#### `memory_prune`
-
-Delete memories below an importance threshold.
-
-```typescript
-{
-  threshold: number,        // Min importance to keep
-  project?: string,         // Filter by project
-}
-```
-
-#### `memory_update`
-
-Update memory text or metadata.
-
-```typescript
-{
-  id: string,              // Memory ID
-  text?: string,           // New text (optional)
+  information: string,
   metadata?: {
     source?: string,
     project?: string,
@@ -129,13 +99,100 @@ Update memory text or metadata.
 }
 ```
 
-#### `memory_delete`
+#### `memory_search`
 
-Delete a specific memory by ID.
+Search memories by semantic similarity with optional reranking.
 
 ```typescript
 {
-  id: string               // Memory ID to delete
+  query: string,
+  project?: string,
+  tags?: string[],
+  limit?: number,
+  rerank?: boolean,
+  rerankTopK?: number,
+}
+```
+
+#### `memory_scroll`
+
+Paginate through memories with cursor-based pagination.
+
+```typescript
+{
+  project?: string,
+  tags?: string[],
+  limit?: number,
+  offset?: string,
+}
+```
+
+#### `memory_update`
+
+Update memory text or metadata.
+
+```typescript
+{
+  id: string,
+  text?: string,
+  metadata?: {
+    source?: string,
+    project?: string,
+    tags?: string[],
+    importance?: number,
+    sessionId?: string,
+  }
+}
+```
+
+#### `memory_forget`
+
+Delete memories by IDs or filter.
+
+```typescript
+{
+  ids?: string[],
+  project?: string,
+  tags?: string[],
+}
+```
+
+#### `memory_compact`
+
+Compact memories by session or project, removing low-importance ones.
+
+```typescript
+{
+  project?: string,
+  sessionId?: string,
+  importanceThreshold?: number,
+}
+```
+
+#### `memory_prune`
+
+Delete memories below an importance threshold.
+
+```typescript
+{
+  threshold: number,
+  project?: string,
+}
+```
+
+#### `memory_stats`
+
+Get statistics about the memories collection.
+
+#### `memory_note`
+
+Quick-save a note (lightweight memory with auto-tag 'note').
+
+```typescript
+{
+  content: string,
+  project?: string,
+  tags?: string[],
 }
 ```
 
@@ -145,31 +202,132 @@ Delete a specific memory by ID.
 
 Create an entity.
 
-#### `entity_search`
-
-Search for entities.
+```typescript
+{
+  name: string,
+  entityType: string,
+  observations?: string[],
+  metadata?: Record<string, unknown>,
+}
+```
 
 #### `entity_get`
 
-Get entity details.
+Get full entity details by name.
 
-#### `entity_delete`
+```typescript
+{
+  name: string,
+}
+```
 
-Delete an entity.
+#### `entity_search`
+
+Find entities by name or type.
+
+```typescript
+{
+  query?: string,
+  entityType?: string,
+  limit?: number,
+}
+```
+
+#### `entity_list`
+
+List all entities with pagination.
+
+```typescript
+{
+  entityType?: string,
+  limit?: number,
+  offset?: string,
+}
+```
+
+#### `entity_update`
+
+Update an existing entity by ID.
+
+```typescript
+{
+  id: string,
+  name?: string,
+  entityType?: string,
+  metadata?: Record<string, unknown>,
+}
+```
+
+#### `entity_add_observations`
+
+Add observations to an existing entity.
+
+```typescript
+{
+  name: string,
+  observations: string[],
+}
+```
+
+#### `entity_stats`
+
+Get statistics about the entities collection.
 
 ### Relation Tools
 
 #### `relation_create`
 
-Create a relation between entities.
+Create a relation between two entities.
+
+```typescript
+{
+  from: string,
+  relationType: string,
+  to: string,
+  metadata?: Record<string, unknown>,
+}
+```
 
 #### `relation_search`
 
-Search relations.
+Find relations by source, target, or type.
+
+```typescript
+{
+  from?: string,
+  to?: string,
+  relationType?: string,
+  limit?: number,
+}
+```
+
+#### `relation_list`
+
+List all relations with pagination.
+
+```typescript
+{
+  relationType?: string,
+  limit?: number,
+  offset?: string,
+}
+```
 
 #### `relation_delete`
 
-Delete a relation.
+Delete relations.
+
+```typescript
+{
+  from?: string,
+  to?: string,
+  relationType?: string,
+}
+```
+
+#### `relation_stats`
+
+Get statistics about the relations collection.
 
 ## Architecture
 
@@ -178,14 +336,14 @@ Delete a relation.
 │     OpenCode     │         │   Grove MCP      │         │    Qdrant        │
 │     (IDE)        │◄────────│    Server        │◄────────│  (vector store)  │
 └──────────────────┘  MCP    └──────────────────┘         └──────────────────┘
-                                                      ┌──────────────────┐
-                                                      │   Embedding      │
-                                                      │   Model          │
-                                                      └──────────────────┘
-                                                      ┌──────────────────┐
-                                                      │   Reranking      │
-                                                      │   Service (opt)  │
-                                                      └──────────────────┘
+                                                       ┌──────────────────┐
+                                                       │   Embedding      │
+                                                       │   Model          │
+                                                       └──────────────────┘
+                                                       ┌──────────────────┐
+                                                       │   Reranking      │
+                                                       │   Service (opt)  │
+                                                       └──────────────────┘
 ```
 
 ## Data Model
@@ -200,11 +358,11 @@ interface Memory {
     source?: string;
     project?: string;
     tags?: string[];
-    importance?: number;    // 0-1
+    importance?: number;
     sessionId?: string;
-    createdAt: string;       // ISO datetime
-    updatedAt?: string;      // ISO datetime
-    lastAccessedAt?: string; // ISO datetime
+    createdAt: string;
+    updatedAt?: string;
+    lastAccessedAt?: string;
   };
 }
 ```
@@ -228,60 +386,32 @@ interface Entity {
 ```typescript
 interface Relation {
   id: string;
-  from: string;           // Entity ID
-  to: string;             // Entity ID
+  from: string;
+  to: string;
   relationType: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
 }
 ```
 
-## Deployment
-
-### Docker Compose
+## Health Checks
 
 ```bash
-docker compose up -d
+# Server health (always available)
+curl http://localhost:26081/health
+
+# Collections ready (returns 503 until initialized)
+curl http://localhost:26081/ready
 ```
 
-This starts:
-- `grove` server on port 3100
-- `qdrant` on port 6333
+## Docker
 
-```yaml
-version: '3.8'
-services:
-  grove:
-    image: ghcr.io/miniaxolotl/grove:latest
-    ports:
-      - "3100:3100"
-    environment:
-      - QDRANT_URL=http://qdrant:6333
-    depends_on:
-      - qdrant
-
-  qdrant:
-    image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"
-    volumes:
-      - qdrant_data:/qdrant/storage
-
-volumes:
-  qdrant_data:
+```bash
+docker run -p 26080:26080 -p 26081:26081 \
+  -e QDRANT_URL=http://host.docker.internal:6333 \
+  ghcr.io/miniaxolotl/grove:latest
 ```
 
-### Environment Variables
+## Deployment
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `QDRANT_URL` | Qdrant server URL | `http://localhost:6333` |
-| `COLLECTION_PREFIX` | Prefix for collection names | `grove` |
-| `EMBEDDING_MODEL` | Embedding model name | `Xenocrat/embeddings` |
-| `RERANKING_URL` | Reranking service URL | (none) |
-| `PORT` | Server HTTP port | `3100` |
-| `HOST` | Server host | `0.0.0.0` |
-
-## Deploy (Docker)
-
-See `scripts/deploy/README.md` for Docker deployment.
+See [Deployment Guide](./deploy.md) for production deployment instructions.

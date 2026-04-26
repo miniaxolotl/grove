@@ -1,11 +1,11 @@
 # @script/deploy
 
-Builds and pushes Docker images to GHCR and/or Docker Hub, then creates a GitHub release.
+Local Docker build and push script for development. CI handles production deploys.
 
 ## Usage
 
 ```bash
-pnpm --filter @script/deploy run deploy
+GHCR_REGISTRY=ghcr.io/miniaxolotl DOCKERHUB_REGISTRY=miniaxolotl pnpm --filter @script/deploy run deploy
 ```
 
 ## Environment Variables
@@ -14,6 +14,7 @@ pnpm --filter @script/deploy run deploy
 |----------|-------------|
 | `GHCR_REGISTRY` | GHCR registry path (e.g., `ghcr.io/miniaxolotl`) |
 | `DOCKERHUB_REGISTRY` | Docker Hub namespace (e.g., `miniaxolotl`) |
-| `DOCKERHUB_TOKEN` | Docker Hub API token |
-| `GH_TOKEN` | GitHub token for release creation |
-| `NPM_TOKEN` | npm token for package publishing |
+
+## CI
+
+Production deploys are handled by `.github/workflows/deploy.yml` which triggers on `grove-v*` tags (created by release-please).

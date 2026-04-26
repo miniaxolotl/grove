@@ -1,6 +1,6 @@
 {
   "name": "@miniaxolotl/grove-opencode-plugin",
-  "version": "0.2.6",
+  "version": "0.2.8",
   "type": "module",
   "description": "OpenCode plugin for Grove - captures memories, injects hot context, manages importance tiers",
   "main": "dist/index.js",

@@ -5,15 +5,33 @@ on:
     branches: [production]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      grove--tag_name: ${{ steps.release.outputs['packages/mcp--tag_name'] }}
+      grove--release_created: ${{ steps.release.outputs['packages/mcp--release_created'] }}
+      grove-opencode-plugin--tag_name: ${{ steps.release.outputs['packages/grove-opencode-plugin--tag_name'] }}
+      grove-opencode-plugin--release_created: ${{ steps.release.outputs['packages/grove-opencode-plugin--release_created'] }}
+    steps:
+      - uses: release-please-oss/release-please-action@v5
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -24,35 +42,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
 
-      - name: Get version
-        id: version
-        run: echo "VERSION=$(node -p "require('./packages/mcp/package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Check npm
-        id: npm-check
+      - name: Publish MCP
+        if: ${{ needs.release-please.outputs['grove--release_created'] == 'true' }}
         run: |
-          if npm view @miniaxolotl/grove version 2>/dev/null | grep -q "^${{ steps.version.outputs.VERSION }}$"; then
-            echo "published=true" >> $GITHUB_OUTPUT
-          else
-            echo "published=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Publish to npm
-        if: steps.npm-check.outputs.published != 'true'
-        run: npx changeset publish
+          cd packages/mcp && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create GitHub release
+      - name: Publish Plugin
+        if: ${{ needs.release-please.outputs['grove-opencode-plugin--release_created'] == 'true' }}
         run: |
-          TAG="v${{ steps.version.outputs.VERSION }}"
-          if gh release view "$TAG" --repo "${{ github.repository }}" 2>/dev/null; then
-            echo "Release $TAG already exists"
-          else
-            gh release create "$TAG" \
-              --title "Release $TAG" \
-              --generate-notes \
-              --repo "${{ github.repository }}"
-          fi
+          cd packages/grove-opencode-plugin && npm publish --access public
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
