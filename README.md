@@ -9,21 +9,17 @@ Self-hosted agentic memory MCP server backed by Qdrant.
 
 ## Quick Start
 
-### Docker Compose
-
 ```bash
 cp .env.example .env
 docker compose up -d
 ```
 
-### npm
+Or with npm:
 
 ```bash
 npm install -g @miniaxolotl/grove
 grove serve
 ```
-
-Or run without installing: `npx @miniaxolotl/grove serve`
 
 ## OpenCode
 
@@ -36,42 +32,35 @@ Or run without installing: `npx @miniaxolotl/grove serve`
 }
 ```
 
+Set `GROVE_PROJECT` to your project name for filtering.
+
 ### MCP Server
 
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "grove": {
-      "command": "grove",
-      "args": ["serve"]
+      "type": "remote",
+      "url": "http://localhost:26080/mcp"
     }
   }
 }
 ```
 
-## Configuration
+## Tools
 
-| Variable            | Default                 |
-| ------------------- | ----------------------- |
-| `QDRANT_URL`        | `http://localhost:6333` |
-| `PORT`              | `26080`                 |
-| `COLLECTION_PREFIX` | `memory`                |
+| Category   | Tools                                                                 |
+| ----------- | --------------------------------------------------------------------- |
+| **Memory**  | `memory_save`, `memory_search`, `memory_scroll`, `memory_update`, `memory_forget`, `memory_compact`, `memory_prune`, `memory_stats`, `memory_note` |
+| **Entity**  | `entity_create`, `entity_get`, `entity_search`, `entity_list`, `entity_update`, `entity_add_observations`, `entity_stats` |
+| **Relation**| `relation_create`, `relation_search`, `relation_list`, `relation_delete`, `relation_stats` |
 
-Full list in `.env.example`.
-
-## MCP Tools
-
-**Memory:** `memory_save`, `memory_search`, `memory_scroll`, `memory_update`, `memory_forget`, `memory_compact`, `memory_prune`, `memory_stats`, `memory_note`
-
-**Entity:** `entity_create`, `entity_get`, `entity_search`, `entity_list`, `entity_update`, `entity_add_observations`, `entity_stats`
-
-**Relation:** `relation_create`, `relation_search`, `relation_list`, `relation_delete`, `relation_stats`
-
-## Documentation
+## Docs
 
 - [Server reference](documentation/server.md)
-- [Deploy & release](documentation/deploy.md)
 - [Plugin reference](documentation/client.md)
+- [Deploy & release](documentation/deploy.md)
 
 ## License
 

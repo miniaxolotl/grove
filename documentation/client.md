@@ -2,11 +2,11 @@
 
 ## Overview
 
-`@miniaxolotl/grove-opencode-plugin` captures memories, injects context, and manages importance tiers for the Grove MCP server.
+`@miniaxolotl/grove-opencode-plugin` captures memories from tool executions, injects relevant context into prompts, and manages importance tiers for the Grove MCP server.
 
-## Configuration
+## Use
 
-Add to your `opencode.json`:
+Add to your OpenCode config:
 
 ```json
 {
@@ -14,6 +14,8 @@ Add to your `opencode.json`:
   "plugin": ["@miniaxolotl/grove-opencode-plugin"]
 }
 ```
+
+### Environment Variables
 
 | Variable        | Description                       | Default                      |
 | --------------- | --------------------------------- | ---------------------------- |
@@ -30,20 +32,21 @@ Add to your `opencode.json`:
 
 ## Hooks
 
-| Hook | Description |
-| ---- | ----------- |
-| `tool.execute.after` | Captures memories and updates importance after each tool call |
+| Hook                            | Description                                              |
+| ------------------------------- | -------------------------------------------------------- |
+| `tool.execute.after`             | Captures memories and updates importance after each tool call |
 | `experimental.session.compacting` | Session-level compaction for memory lifecycle management |
 
 ## MCP Tools Used
 
-| Tool | Description |
-| ---- | ----------- |
-| `memory_save` | Save a new memory |
-| `memory_search` | Search by semantic similarity |
-| `memory_compact` | Compact by session/project |
-| `memory_prune` | Delete below threshold |
-| `memory_update` | Update text or metadata |
+| Tool             | Description                   |
+| ---------------- | ----------------------------- |
+| `memory_save`    | Save a new memory             |
+| `memory_search`  | Search by semantic similarity |
+| `memory_compact` | Compact by session/project    |
+| `memory_prune`   | Delete below threshold        |
+| `memory_update`  | Update text or metadata       |
+| `memory_get`     | Retrieve a memory by ID        |
 
 ## Memory Metadata
 
@@ -63,16 +66,12 @@ interface MemoryMetadata {
 ## Architecture
 
 ```
-┌─────────────────────────┐         ┌──────────────────┐         ┌──────────────────┐
-│      OpenCode           │         │  grove-opencode  │         │    Grove MCP      │
-│      (IDE)              │◄────────│    -plugin       │◄────────│    Server        │
-└─────────────────────────┘         └──────────────────┘         └──────────────────┘
-         │                                    │                            │
-         │ tool.execute.after hook            │ JSON-RPC over HTTP          │
-         │ ─────────────────────────────────►│ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─►│
-         │                                    │                             │
-         │                                    │ ┌───────────────────────────┴──► Qdrant
-         │◄───────────────────────────────── │ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ►│ (vector store)
-         │    memory context injection        │    memory operations          │
-         └────────────────────────────────────┘
+┌──────────────────┐         ┌───────────────────┐         ┌──────────────────┐
+│     OpenCode     │──────────│ grove-opencode    │─────────│   Grove MCP     │
+│                  │  hooks   │ -plugin           │ JSON-RPC│   Server        │
+└──────────────────┘          └───────────────────┘         └──────────────────┘
+                                                                        │
+                                                                   ┌─────▼─────┐
+                                                                   │  Qdrant   │
+                                                                   └───────────┘
 ```
