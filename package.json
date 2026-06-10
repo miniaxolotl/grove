@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory",
   "license": "MIT",
-  "packageManager": "pnpm@10.30.3",
+  "packageManager": "pnpm@10.33.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/miniaxolotl/grove.git"

@@ -1,6 +1,9 @@
 import { FastMCP } from "fastmcp";
 import { z } from "zod";
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { memoryRepository } from "./repositories/memory.repository.ts";
 import { entityRepository } from "./repositories/entity.repository.ts";
 import { relationRepository } from "./repositories/relation.repository.ts";
@@ -8,11 +11,16 @@ import { config, hasRemoteReranking } from "./config.ts";
 import { rerankDocuments } from "./services/reranking.ts";
 import { warmup } from "./services/embedding.ts";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(
+  readFileSync(join(__dirname, "..", "package.json"), "utf-8"),
+);
+
 let collectionsReady = false;
 
 const server = new FastMCP({
   name: "grove",
-  version: "0.1.0",
+  version: pkg.version,
 });
 
 function text(content: string) {
