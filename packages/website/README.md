@@ -3,8 +3,11 @@
 The Grove marketing website, published as the private pnpm workspace package `website`.
 
 Primary URL: <https://grove-six-rosy.vercel.app>. A developer tool by Bramble Labs Inc.
-Grove and Burrow share neutral surfaces, sans-serif headings, terminal previews,
-and direct installation paths; Grove uses green product accents.
+Grove and Burrow share warm ivory surfaces, DM Sans with Instrument Serif accents,
+terminal previews, and direct installation paths; Grove uses green product accents.
+Their product-family footer links to Bramble Labs, Fern, Burrow, and Grove.
+Vercel Web Analytics is included in the root layout and enabled on the Vercel project.
+Website privacy information is linked at https://bramblelabs.co/privacy.
 
 ## Develop
 

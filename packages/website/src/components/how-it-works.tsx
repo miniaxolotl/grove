@@ -93,7 +93,7 @@ export function HowItWorks() {
             </div>
           ))}
         </div>
-        <p className="mt-10 flex items-center justify-center gap-2 text-center text-[11px] text-paper/55">
+        <p className="mt-10 flex items-center justify-center gap-2 text-center text-[11px] text-paper/70">
           <Network size={14} className="shrink-0" /> Local embeddings by
           default. Remote embeddings and reranking when you want them.
         </p>

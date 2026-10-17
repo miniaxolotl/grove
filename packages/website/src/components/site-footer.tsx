@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
+import { BrambleFamily } from "@/components/bramble-family";
 import { GitHubIcon as Github } from "@/components/github-icon";
 import { ShareSite } from "@/components/share-site";
 import { site } from "@/lib/site";
@@ -78,9 +79,16 @@ export function SiteFooter() {
             </div>
           </div>
         </div>
+        <BrambleFamily current="grove" />
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[10px] text-muted">
           <p>© {new Date().getFullYear()} Bramble Labs Inc.</p>
           <div className="flex items-center gap-5">
+            <a
+              href="https://bramblelabs.co/privacy"
+              className="inline-flex min-h-9 items-center hover:text-forest"
+            >
+              Website privacy
+            </a>
             <a
               href={`${site.github}/blob/HEAD/LICENSE`}
               className="inline-flex min-h-9 items-center hover:text-forest"

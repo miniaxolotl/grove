@@ -1,11 +1,12 @@
 @import "tailwindcss";
+@import "./bramble-family.css";
 
 @theme {
-  --color-paper: #f7f8f5;
-  --color-forest: #1d2d26;
+  --color-paper: #f7f6f0;
+  --color-forest: #253e31;
   --color-leaf: #326349;
   --color-muted: #5d6962;
-  --color-line: #dce2db;
+  --color-line: #dce0d3;
   --color-sage: #e8eee6;
   --color-lime: #c7e5ae;
 }
@@ -52,7 +53,10 @@
     display: none;
   }
   em {
-    @apply font-sans font-semibold not-italic text-leaf;
+    @apply font-editorial font-normal italic text-leaf;
+  }
+  p {
+    text-wrap: pretty;
   }
 }
 
@@ -67,7 +71,11 @@
     @apply font-mono text-[10px] font-medium leading-5 tracking-[0.12em] text-leaf;
   }
   .section-heading {
-    @apply font-sans text-[34px] font-semibold leading-[1.12] tracking-[-1.4px] sm:text-[44px] lg:text-[48px];
+    @apply font-sans text-[34px] font-medium leading-[1.12] tracking-[-1.4px] sm:text-[44px] lg:text-[48px];
+    text-wrap: balance;
+  }
+  .section-heading em {
+    font-size: 1.12em;
   }
   .section-intro {
     @apply mb-10 flex flex-col justify-between gap-6 md:mb-12 md:flex-row md:items-end;
@@ -79,10 +87,10 @@
     @apply inline-flex min-h-11 items-center text-xs font-medium text-forest/80 underline-offset-4 transition-colors hover:text-leaf hover:underline;
   }
   .button-primary {
-    @apply inline-flex min-h-12 items-center justify-center gap-4 rounded-md border border-forest bg-forest px-5 py-3 text-[13px] font-medium text-paper transition-colors hover:bg-leaf active:brightness-90;
+    @apply inline-flex min-h-12 items-center justify-center gap-4 rounded-lg border border-forest bg-forest px-5 py-3 text-[13px] font-medium text-paper transition-colors hover:bg-leaf active:brightness-90;
   }
   .button-secondary {
-    @apply inline-flex min-h-12 items-center justify-center gap-3 rounded-md border border-line px-5 py-3 text-[13px] font-medium text-forest transition-colors hover:border-leaf hover:bg-sage/60;
+    @apply inline-flex min-h-12 items-center justify-center gap-3 rounded-lg border border-line px-5 py-3 text-[13px] font-medium text-forest transition-colors hover:border-leaf hover:bg-sage/60;
   }
   .footer-link {
     @apply flex min-h-9 w-fit items-center gap-1.5 text-xs text-muted transition-colors hover:text-forest;
@@ -92,7 +100,10 @@
     @apply grid grid-cols-1 items-center gap-10 py-14 sm:py-20 lg:min-h-[650px] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14 lg:py-24;
   }
   .hero-heading {
-    @apply mt-6 font-sans text-[clamp(2.5rem,11vw,4.25rem)] font-semibold leading-[1.04] tracking-[-2px] sm:text-[72px] lg:text-[64px] xl:text-[76px];
+    @apply mt-6 font-sans text-[clamp(2.5rem,11vw,4.25rem)] font-medium leading-[1.08] tracking-[-2px] sm:text-[72px] lg:text-[64px] xl:text-[76px];
+  }
+  .hero-heading em {
+    font-size: 1.12em;
   }
   .lab-bar {
     @apply bg-forest text-paper;
@@ -101,7 +112,7 @@
     @apply flex min-h-9 items-center justify-between gap-3 py-2 text-[10px];
   }
   .product-preview {
-    @apply mx-auto w-full min-w-0 max-w-[540px] rounded-xl border border-line bg-sage/40 p-4 sm:p-6;
+    @apply mx-auto w-full min-w-0 max-w-[540px] rounded-xl border border-line bg-sage/55 p-4 shadow-[0_16px_40px_-28px_#253e3140] sm:p-6;
     background-image: radial-gradient(#84988a40 0.7px, transparent 0.7px);
     background-size: 12px 12px;
   }
