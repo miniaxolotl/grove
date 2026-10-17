@@ -11,7 +11,8 @@
     "type": "git",
     "url": "https://github.com/miniaxolotl/grove.git"
   },
-  "homepage": "https://github.com/miniaxolotl/grove#readme",
+  "homepage": "https://grove-six-rosy.vercel.app",
+  "author": "Bramble Labs Inc.",
   "publishConfig": {
     "access": "public"
   },

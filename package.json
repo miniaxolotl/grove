@@ -1,16 +1,16 @@
 {
   "name": "@monorepo/grove",
   "private": true,
-  "author": "Elias Mawa <elias@mawa.dev>",
+  "author": "Bramble Labs Inc.",
   "version": "0.1.0",
-  "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory",
+  "description": "Self-hosted memory for AI agents by Bramble Labs Inc.",
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/miniaxolotl/grove.git"
   },
-  "homepage": "https://github.com/miniaxolotl/grove#readme",
+  "homepage": "https://grove-six-rosy.vercel.app",
   "keywords": [
     "mcp",
     "memory",
@@ -34,6 +34,12 @@
     "dev:setup": "pnpm services:up && pnpm setup",
     "build": "pnpm --filter @miniaxolotl/grove build",
     "start": "pnpm --filter @miniaxolotl/grove start",
+    "dev:website": "pnpm --filter website dev",
+    "build:website": "pnpm --filter website build",
+    "start:website": "pnpm --filter website start",
+    "lint:website": "pnpm --filter website lint",
+    "check-types:website": "pnpm --filter website check-types",
+    "test:website": "pnpm --filter website test",
     "lint": "pnpm --filter @miniaxolotl/grove lint",
     "lint:fix": "pnpm --filter @miniaxolotl/grove lint:fix",
     "check-types": "pnpm --filter @miniaxolotl/grove exec tsc --noEmit",

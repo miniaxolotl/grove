@@ -1,67 +1,38 @@
-# grove
+# Grove
 
-[![npm](https://img.shields.io/npm/v/@miniaxolotl/grove)](https://npmjs.com/package/@miniaxolotl/grove)
-[![Docker Hub](https://img.shields.io/docker/v/miniaxolotl/grove?label=dockerhub&color=light)](https://hub.docker.com/r/miniaxolotl/grove)
-[![GHCR](https://img.shields.io/github/v/release/miniaxolotl/grove?label=ghcr&color=light)](https://github.com/miniaxolotl/grove/pkgs/container/grove)
-[![License](https://img.shields.io/github/license/miniaxolotl/grove)](LICENSE)
+Self-hosted memory for AI agents, by **Bramble Labs Inc.**
 
-Self-hosted agentic memory MCP server backed by Qdrant.
+Grove is an MCP server for semantic memory, knowledge graphs, and persistent
+project context. It uses Qdrant for storage and local embeddings by default.
 
-## Quick Start
+[Website](https://grove-six-rosy.vercel.app) · [Installation](https://grove-six-rosy.vercel.app/install) · [Tool reference](documentation/server.md)
+
+## Quick start
+
+From a clone of this repository, start Grove and Qdrant with Docker:
 
 ```bash
 cp .env.example .env
 docker compose up -d
 ```
 
-Or with npm:
+Connect your MCP client to `http://localhost:26080/mcp`. Your agent can then save
+decisions, search related memories, and connect entities across sessions.
+See the [OpenCode integration](documentation/client.md) for plugin setup.
+
+## Website development
+
+Requires Node.js 22+ and pnpm 10.
 
 ```bash
-npm install -g @miniaxolotl/grove
-grove serve
+pnpm install --frozen-lockfile
+pnpm dev:website
 ```
 
-## OpenCode
-
-### Plugin (Recommended)
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@miniaxolotl/grove-opencode-plugin"]
-}
-```
-
-Set `GROVE_PROJECT` to your project name for filtering.
-
-### MCP Server
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "grove": {
-      "type": "remote",
-      "url": "http://localhost:26080/mcp"
-    }
-  }
-}
-```
-
-## Tools
-
-| Category   | Tools                                                                 |
-| ----------- | --------------------------------------------------------------------- |
-| **Memory**  | `memory_save`, `memory_search`, `memory_scroll`, `memory_update`, `memory_forget`, `memory_compact`, `memory_prune`, `memory_stats`, `memory_note` |
-| **Entity**  | `entity_create`, `entity_get`, `entity_search`, `entity_list`, `entity_update`, `entity_add_observations`, `entity_stats` |
-| **Relation**| `relation_create`, `relation_search`, `relation_list`, `relation_delete`, `relation_stats` |
-
-## Docs
-
-- [Server reference](documentation/server.md)
-- [Plugin reference](documentation/client.md)
-- [Deploy & release](documentation/deploy.md)
+The marketing site runs at `http://localhost:3000`. See the
+[website guide](packages/website/README.md) for builds and checks, and the
+[deployment reference](documentation/deploy.md) for server hosting.
 
 ## License
 
-MIT
+[MIT](LICENSE)
