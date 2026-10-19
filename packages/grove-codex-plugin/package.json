@@ -1,0 +1,21 @@
+{
+  "name": "@miniaxolotl/grove-codex-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Grove private memory tools and skills for Codex",
+  "license": "MIT",
+  "files": [
+    "plugin.json",
+    "mcp.json",
+    "hooks",
+    "skills",
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

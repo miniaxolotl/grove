@@ -52,10 +52,10 @@ export function SiteHeader() {
               <Github size={20} />
             </a>
             <Link
-              href="/#install"
+              href="/app"
               className="button-primary hidden min-h-10! gap-3! px-4! py-2! text-xs! min-[360px]:inline-flex"
             >
-              Install Grove <ArrowRight size={15} />
+              Your Grove <ArrowRight size={15} />
             </Link>
             <MobileNavigation github={site.github} />
           </div>

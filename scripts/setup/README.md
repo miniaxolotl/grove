@@ -1,6 +1,6 @@
 # @script/setup
 
-Initializes Qdrant collections required by the Grove MCP server.
+Applies forward-only PostgreSQL migrations using `MIGRATION_DATABASE_URL`.
 
 ## Usage
 
@@ -16,5 +16,6 @@ pnpm --filter @script/setup run setup
 
 ## What it does
 
-- Creates Qdrant collections for memories, entities, and relations
-- Configures vector field schemas based on embedding model
+- Applies missing schema migrations; repeat runs preserve existing data.
+- Requires migration-owner credentials. API/worker use separate non-owner roles.
+- See `documentation/deploy.md` for role bootstrap and PostgreSQL Compose setup.

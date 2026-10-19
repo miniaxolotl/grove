@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Initializes Qdrant collections and indexes for grove MCP server",
+  "description": "Applies Grove PostgreSQL migrations without deleting data",
   "scripts": {
     "setup": "tsx src/index.ts"
   },
   "dependencies": {
-    "@miniaxolotl/grove": "workspace:*"
+    "@miniaxolotl/grove-server": "workspace:*"
   },
   "devDependencies": {
     "@lib/eslint-config": "workspace:*",

@@ -16,7 +16,7 @@ export const site = {
   creator: "Bramble Labs Inc.",
   title: "Grove — New session. Same context.",
   description:
-    "Give your AI agent a memory that lasts. Grove is an open-source, self-hosted MCP server for semantic memory, knowledge graphs, and context you control.",
+    "Private memory across your AI agents. Remember useful preferences, decisions and task context, then browse, correct and archive it in your Grove.",
   url: origin.origin,
   github: "https://github.com/miniaxolotl/grove",
   npm: "https://www.npmjs.com/package/@miniaxolotl/grove",

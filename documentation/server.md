@@ -1,366 +1,108 @@
-# Grove MCP Server
-
-## Overview
-
-`@miniaxolotl/grove` is a self-hosted agentic memory MCP server backed by Qdrant. It provides semantic memory storage, entity/relation knowledge graphs, and optional reranking as MCP tools.
-
-## Usage
-
-```bash
-grove serve          # HTTP transport (default)
-grove                # stdio transport (for direct MCP clients)
-grove --version      # Show version
-grove --help         # Show help
-```
-
-## OpenCode Configuration
-
-### Remote (Recommended)
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "grove": {
-      "type": "remote",
-      "url": "http://localhost:26080/mcp"
-    }
-  }
-}
-```
-
-### Local
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "grove": {
-      "type": "local",
-      "command": ["grove"]
-    }
-  }
-}
-```
-
-## Configuration
-
-| Variable            | Description                 | Default                 |
-| ------------------- | --------------------------- | ----------------------- |
-| `PORT`              | Server port                 | `26080`                 |
-| `TRANSPORT`         | `http` or `stdio`           | `http`                  |
-| `QDRANT_URL`        | Qdrant server URL           | `http://localhost:6333` |
-| `QDRANT_API_KEY`    | Qdrant API key              | (none)                  |
-| `COLLECTION_PREFIX` | Prefix for collection names | `memory`                |
-| `VECTOR_DIM`        | Embedding dimension         | `384`                   |
-| `EMBEDDING_URL`     | Remote embedding URL        | (uses local ONNX)       |
-| `RERANKING_URL`     | Remote reranking URL        | (disabled)              |
-
-## MCP Tools
-
-### Memory
-
-| Tool               | Description                                          |
-| ------------------ | ---------------------------------------------------- |
-| `memory_save`      | Save a memory to semantic storage                    |
-| `memory_search`    | Search by semantic similarity with optional reranking |
-| `memory_scroll`    | Paginate through memories                            |
-| `memory_update`    | Update memory text or metadata                       |
-| `memory_forget`    | Delete memories by ID or filter                      |
-| `memory_compact`   | Remove low-importance memories by session/project     |
-| `memory_prune`     | Delete memories below importance threshold           |
-| `memory_stats`     | Collection statistics                                |
-| `memory_note`      | Quick-save a note (auto-tagged `note`)               |
-
-### Entity
-
-| Tool                    | Description                        |
-| ----------------------- | ---------------------------------- |
-| `entity_create`         | Create an entity                   |
-| `entity_get`            | Get entity details by name          |
-| `entity_search`         | Find entities by name or type       |
-| `entity_list`           | List entities with pagination       |
-| `entity_update`         | Update entity by ID                 |
-| `entity_add_observations` | Add observations to an entity     |
-| `entity_stats`          | Collection statistics               |
-
-### Relation
-
-| Tool                 | Description                        |
-| -------------------- | ---------------------------------- |
-| `relation_create`    | Create a relation between entities |
-| `relation_search`    | Find relations by source/target/type |
-| `relation_list`      | List relations with pagination      |
-| `relation_delete`    | Delete relations                   |
-| `relation_stats`     | Collection statistics              |
-
-## Tool Parameters
-
-### memory_save
-
-```typescript
-{
-  information: string,
-  metadata?: {
-    source?: string,
-    project?: string,
-    tags?: string[],
-    importance?: number,
-    sessionId?: string,
-  }
-}
-```
-
-### memory_search
-
-```typescript
-{
-  query: string,
-  project?: string,
-  tags?: string[],
-  limit?: number,       // default: 5
-  rerank?: boolean,     // default: false
-  rerankTopK?: number,  // default: 20
-}
-```
-
-### memory_scroll
-
-```typescript
-{
-  project?: string,
-  tags?: string[],
-  limit?: number,       // default: 100
-  offset?: string,
-}
-```
-
-### memory_update
-
-```typescript
-{
-  id: string,
-  text?: string,
-  metadata?: {
-    source?: string,
-    project?: string,
-    tags?: string[],
-    importance?: number,
-    sessionId?: string,
-  }
-}
-```
-
-### memory_forget
-
-```typescript
-{
-  ids?: string[],
-  project?: string,
-  tags?: string[],
-}
-```
-
-### memory_compact
-
-```typescript
-{
-  project?: string,
-  sessionId?: string,
-  importanceThreshold?: number,  // default: 0.6
-}
-```
-
-### memory_prune
-
-```typescript
-{
-  threshold: number,
-  project?: string,
-}
-```
-
-### memory_note
-
-```typescript
-{
-  content: string,
-  project?: string,
-  tags?: string[],
-}
-```
-
-### entity_create
-
-```typescript
-{
-  name: string,
-  entityType: string,
-  observations?: string[],
-  metadata?: Record<string, unknown>,
-}
-```
-
-### entity_get
-
-```typescript
-{ name: string }
-```
-
-### entity_search
-
-```typescript
-{
-  query?: string,
-  entityType?: string,
-  limit?: number,  // default: 10
-}
-```
-
-### entity_list
-
-```typescript
-{
-  entityType?: string,
-  limit?: number,   // default: 100
-  offset?: string,
-}
-```
-
-### entity_update
-
-```typescript
-{
-  id: string,
-  name?: string,
-  entityType?: string,
-  metadata?: Record<string, unknown>,
-}
-```
-
-### entity_add_observations
-
-```typescript
-{
-  name: string,
-  observations: string[],
-}
-```
-
-### relation_create
-
-```typescript
-{
-  from: string,
-  relationType: string,
-  to: string,
-  metadata?: Record<string, unknown>,
-}
-```
-
-### relation_search
-
-```typescript
-{
-  from?: string,
-  to?: string,
-  relationType?: string,
-  limit?: number,  // default: 20
-}
-```
-
-### relation_list
-
-```typescript
-{
-  relationType?: string,
-  limit?: number,   // default: 100
-  offset?: string,
-}
-```
-
-### relation_delete
-
-```typescript
-{
-  from?: string,
-  to?: string,
-  relationType?: string,
-}
-```
-
-## Data Model
-
-### Memory
-
-```typescript
-interface Memory {
-  id: string;
-  text: string;
-  metadata: {
-    source?: string;
-    project?: string;
-    tags?: string[];
-    importance?: number;
-    sessionId?: string;
-    createdAt: string;
-    updatedAt?: string;
-    lastAccessedAt?: string;
-  };
-}
-```
-
-### Entity
-
-```typescript
-interface Entity {
-  id: string;
-  name: string;
-  entityType: string;
-  observations: string[];
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-  updatedAt?: string;
-}
-```
-
-### Relation
-
-```typescript
-interface Relation {
-  id: string;
-  from: string;
-  to: string;
-  relationType: string;
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-}
-```
-
-## Architecture
-
-```
-┌──────────────────┐         ┌──────────────────┐         ┌──────────────────┐
-│     OpenCode     │         │   Grove MCP      │         │    Qdrant        │
-│     (IDE)        │◄────────│    Server        │◄────────│  (vector store)  │
-└──────────────────┘  MCP    └──────────────────┘         └──────────────────┘
-                                                        ┌──────────────────┐
-                                                        │   Embedding      │
-                                                        │   Model          │
-                                                        └──────────────────┘
-                                                        ┌──────────────────┐
-                                                        │   Reranking      │
-                                                        │   Service (opt)   │
-                                                        └──────────────────┘
-```
-
-## Health Checks
-
-```bash
-curl http://localhost:26081/health   # Server health
-curl http://localhost:26081/ready    # Collections ready (503 until initialized)
-```
-
-## Deployment
-
-See [Deploy & Release Guide](./deploy.md) for production deployment.
+# Memory tools and API
+
+The Node 24 Hono service exposes `/v1` REST and stateless Streamable HTTP `/mcp`.
+Both call the same transactional memory service and Zod contracts. The published
+CLI is an API-only stdio bridge; it has no database credentials or local database.
+
+## Authentication
+
+Every data endpoint requires `Authorization: Bearer …`:
+
+- Website: Clerk session JWT, fixed issuer/JWKS, RS256, expiry, session ID and exact
+  authorized website origin. No cookies are accepted directly by the API.
+- Agent OAuth: Clerk Backend API verifies active access tokens, **exact resource
+  audience `API_ORIGIN/mcp`**, user subject, OAuth client identity and token scopes.
+  Clerk requires `openid`; its scopes establish identity, not memory permissions.
+  Grove checks the database connection's `memory:*` capabilities and project grant
+  on every call. An identity token alone grants no content access.
+- Headless: named random API keys, stored hashed, with the same grant enforcement.
+
+An unapproved OAuth client gets no memory access. Keys never grant account-admin
+access. Connections may include personal memories, selected projects, or all current
+and future projects. Revocation is checked for each request. Revoked keys cannot be
+reactivated. OAuth reapproval requires a token issued after the new authorization
+cutoff. Client-supplied owner IDs are rejected.
+
+Protected-resource discovery: `/.well-known/oauth-protected-resource/mcp`.
+Anonymous requests receive 401 and `WWW-Authenticate`. Provider outages return 503,
+not a fabricated connected state. Live Clerk development OAuth passed; production
+configuration remains a deployment gate. See [delivery evidence](delivery.md).
+
+## Four everyday tools
+
+| Tool       | Purpose                                        | Main fields                                                                                  |
+| ---------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `remember` | Durable save or versioned correction           | `operationId`, `content`, `kind`, `projectId`, `source`; correction: `id`, `expectedVersion` |
+| `recall`   | Bounded active context                         | `query`, `projectId`, `includePersonal`, optional `taskId`                                   |
+| `memories` | Inspect IDs, versions, provenance and statuses | `query`, `projectId`, `kind`, `status`, `cursor`, `limit`                                    |
+| `forget`   | Permanent exact-ID deletion                    | `operationId`, `items: [{id, expectedVersion}]`                                              |
+
+Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope is
+`projectId: null`. Project IDs are account-owned UUIDs. A handoff requires a stable
+`taskId`; update its existing ID/version instead of creating duplicate handoffs.
+Content is trimmed, 1–6,000 characters. `capture: "automatic"` is rejected when
+automatic capture is paused; explicit user-requested saves use `"explicit"`.
+
+Use a new UUID operation ID per mutation and keep it across retries. Reusing an ID
+with different arguments returns 409. Replaying a deleted save returns 410 and
+does not resurrect content. A correction race yields one success and one conflict.
+Deletion reports `deleted`, `not_found`, or `version_conflict` **per item**.
+
+`remember` returns the actual current memory and `indexing: pending|ready|failed`.
+Storage success does not claim the embedding has finished. Revisions and embedding
+jobs are committed with the save. MCP failures set `isError: true`.
+
+Recall defaults: 8 items, 6,000 total content/metadata characters (approximately
+1,500 tokens), no unrelated filler. Full-text and semantic ranks are fused; semantic
+distance is thresholded. Query-free recall selects a compact preference/fact/decision
+profile, with a specific handoff only when `taskId` is supplied. Archived and expired
+records never enter normal recall. Other projects are never searched automatically.
+No server content cache can outlive deletion or revocation.
+
+## REST routes
+
+Responses use `{success: true, data}` or
+`{success: false, error: {code, message, requestId}}`. Export is NDJSON.
+
+| Routes                                                                            | Access                                                             |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `GET /v1/me`                                                                      | Authenticated identity/effective grant and settings                |
+| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                                | Approved scope; create needs all-project access or website session |
+| `POST /v1/memories`; `PATCH /v1/memories/:id`                                     | `memory:write`                                                     |
+| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id`            | `memory:read`                                                      |
+| `GET /v1/memories/:id/revisions`                                                  | `memory:read`, current scope                                       |
+| `POST /v1/memories/:id/archive`; `…/restore`                                      | `memory:write`, operation ID and current version                   |
+| `POST /v1/memories/delete`                                                        | `memory:delete`                                                    |
+| `POST /v1/recall`                                                                 | `memory:read`                                                      |
+| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`                  | Website session only                                               |
+| `POST /v1/keys`                                                                   | Website session only; secret returned once                         |
+| `POST /v1/logout`                                                                 | Revoke calling agent's connection                                  |
+| `PATCH /v1/account/settings`; `GET /v1/account/export`; `POST /v1/account/delete` | Website session only                                               |
+| `POST /v1/webhooks/clerk`                                                         | Svix signature, replay receipt and event ordering                  |
+| `GET /health/live`, `/health/ready`                                               | Public, content-free                                               |
+
+Use POST search so query text stays out of URLs. Cursors are signed and bound to
+account, connection, filters, and creation-time ceiling. Pagination is bounded,
+not a database snapshot of concurrent edits. `Idempotency-Key` may supply the body
+operation ID; conflicting identifiers are rejected. Restore can select an older
+revision and creates a new revision; `durable: true` promotes a handoff to a fact.
+
+## Persistence and jobs
+
+`lib/database` uses Knex/Objection/pg with explicit open/close and transaction-local
+tenant context. Ownership-aware foreign keys cover projects, memories, revisions,
+embeddings and jobs. Runtime startup rejects superuser, BYPASSRLS and table-owner
+credentials. Migration credentials are separate. Security-definer entrypoints are
+narrow, fixed-search-path functions with public execution revoked.
+
+The worker claims jobs with `FOR UPDATE SKIP LOCKED`, a 120-second lease, revision
+identity, bounded retries and terminal failure. Completion rechecks the lease,
+account and current revision in one transaction. Deletion cascades prevent stale
+worker completion from restoring content. Model/profile: 384-dimensional
+`Xenova/all-MiniLM-L6-v2`, mean pooled and normalized. `disabled` embedding mode is
+explicitly lexical and reports it; it never substitutes a different model.
+
+Account deletion first revokes access, then purges application content even during
+an identity-provider outage. Clerk deletion retries separately. Minimal subject and
+operation tombstones prevent delayed webhook/retry reprovisioning. Backups require
+the retention and deletion procedures in the deployment guide.

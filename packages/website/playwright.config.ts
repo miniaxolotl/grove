@@ -16,10 +16,18 @@ export default defineConfig({
     screenshot: "only-on-failure",
     ...devices["Desktop Chrome"],
   },
-  webServer: {
-    command: `pnpm start --port ${port}`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
-  },
+  webServer: [
+    {
+      command: `pnpm start --port ${port}`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+    {
+      command: "node tests/fixtures/dashboard-server.mjs",
+      url: `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30000,
+    },
+  ],
 });

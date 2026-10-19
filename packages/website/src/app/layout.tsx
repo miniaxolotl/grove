@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Analytics } from "@vercel/analytics/next";
+import { ClerkProvider } from "@clerk/nextjs";
 import localFont from "next/font/local";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -46,8 +44,8 @@ export const metadata: Metadata = {
     "MCP server",
     "self-hosted",
     "semantic search",
-    "knowledge graph",
-    "Qdrant",
+    "private memory",
+    "PostgreSQL",
     "agent memory",
     "Grove",
   ],
@@ -75,10 +73,26 @@ export default function RootLayout({
         <a href="#main" className="skip-link">
           Skip to content
         </a>
-        <SiteHeader />
-        {children}
-        <SiteFooter />
-        <Analytics />
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
+          <ClerkProvider
+            signInUrl="/sign-in"
+            signUpUrl="/sign-up"
+            signInFallbackRedirectUrl="/app"
+            signUpFallbackRedirectUrl="/app"
+            appearance={{
+              variables: {
+                colorPrimary: "#326349",
+                colorBackground: "#f7f6f0",
+                borderRadius: "0.75rem",
+                fontFamily: "var(--font-dm-sans)",
+              },
+            }}
+          >
+            {children}
+          </ClerkProvider>
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

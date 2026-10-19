@@ -19,7 +19,7 @@ test("serves the product story, installation, and FAQ without JavaScript", async
   await page.getByText("Where does my data go?", { exact: true }).click();
   await expect(
     page.getByText(
-      "Memories are stored in the Qdrant instance you configure.",
+      "Memories are stored in private PostgreSQL behind Grove’s authenticated API.",
       { exact: false },
     ),
   ).toBeVisible();
@@ -64,25 +64,24 @@ test("installation switches methods and copies the complete setup", async ({
   await page.goto("/install");
   await page.getByRole("tab", { name: "npm", exact: true }).click();
   await expect(page.getByLabel("npm setup", { exact: true })).toContainText(
-    "grove-qdrant:/qdrant/storage",
+    "grove init --client opencode",
   );
   await page
     .getByRole("button", { name: "Copy npm setup", exact: true })
     .click();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toContain("npm install -g @miniaxolotl/grove");
-  expect(copied).toContain("grove serve");
-  expect(copied).toContain("docker run");
+  expect(copied).toContain("grove init");
+  expect(copied).toContain("grove status");
   await page.getByRole("tab", { name: "Other MCP clients" }).click();
   await expect(
     page.getByLabel("Streamable HTTP endpoint", { exact: true }),
-  ).toHaveText("http://localhost:26080/mcp");
+  ).toHaveText("https://YOUR-GROVE-API/mcp");
   await page.getByRole("tab", { name: "OpenCode", exact: true }).click();
   const config = JSON.parse(
     (await page.getByLabel("opencode.json", { exact: true }).textContent())!,
   );
-  expect(config.mcp.grove.url).toBe("http://localhost:26080/mcp");
-  expect(config.plugin).toContain("@miniaxolotl/grove-opencode-plugin");
+  expect(config.plugins).toContain("@miniaxolotl/grove-opencode-plugin");
 });
 
 test("sharing copies the canonical URL and offers a fallback when clipboard is unavailable", async ({

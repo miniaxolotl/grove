@@ -10,4 +10,8 @@ dist/
 logs/
 plans/
 .opencode/
-
+worktrees/
+.next/
+test-results/
+playwright-report/
+*.tsbuildinfo

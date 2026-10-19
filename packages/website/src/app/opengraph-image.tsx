@@ -98,7 +98,7 @@ export default async function OpenGraphImage() {
             color: "#62695d",
           }}
         >
-          Persistent context. One self-hosted MCP server.
+          Useful context. One private memory account.
         </div>
         <div
           style={{

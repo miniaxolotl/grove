@@ -1,78 +1,76 @@
-name: "grove-monorepo"
+name: grove
+
+x-runtime: &runtime
+  NODE_ENV: production
+  PORT: 26080
+  DATABASE_SSL: disable
+  API_ORIGIN: ${API_ORIGIN:-http://localhost:26080}
+  SITE_URL: ${SITE_URL:-http://localhost:3000}
+  CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?Set Grove Clerk keys}
+  CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?Set Grove Clerk keys}
+  CLERK_ISSUER: ${CLERK_ISSUER:?Set Grove Clerk issuer}
+  CLERK_WEBHOOK_SIGNING_SECRET: ${CLERK_WEBHOOK_SIGNING_SECRET:?Set Clerk webhook signing secret}
+  CURSOR_SECRET: ${CURSOR_SECRET:?Generate a random cursor signing secret}
+  EMBEDDING_MODE: ${EMBEDDING_MODE:-local}
+  EMBEDDING_CACHE: /app/data/models
 
 services:
-  grove:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: miniaxolotl/grove:latest
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg17
     restart: unless-stopped
-    user: "1001"
-
-    # Core
     environment:
-      TRANSPORT: ${TRANSPORT:-http}
-      PORT: ${PORT:-26080}
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
-      COLLECTION_PREFIX: ${COLLECTION_PREFIX:-memory}
-      VECTOR_DIM: ${VECTOR_DIM:-384}
-
-      # Optional: remote embedding (falls back to local ONNX if unset)
-      EMBEDDING_URL: ${EMBEDDING_URL:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
-      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-10}
-      EMBEDDING_MAX_TOKENS: ${EMBEDDING_MAX_TOKENS:-512}
-
-      # Optional: remote reranking (disabled if unset)
-      RERANKING_URL: ${RERANKING_URL:-}
-      RERANKING_MODEL: ${RERANKING_MODEL:-}
-
-    ports:
-      - "${PORT:-26080}:${PORT:-26080}"
-      - "${HEALTH_PORT:-26081}:26081"
-
-    volumes:
-      - ./data:/app/data:rw
-
+      POSTGRES_DB: grove
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate a database owner password}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    networks: [database]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:26081/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      test: [CMD-SHELL, "pg_isready -U postgres -d grove"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
+  migrate:
+    build: .
+    image: grove-api:local
+    command: [node, dist/bootstrap.js]
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/grove
+      API_DATABASE_PASSWORD: ${API_DATABASE_PASSWORD:?Generate an API database password}
+      WORKER_DATABASE_PASSWORD: ${WORKER_DATABASE_PASSWORD:?Generate a worker database password}
     depends_on:
-      qdrant:
-        condition: service_healthy
+      postgres: { condition: service_healthy }
+    networks: [database]
 
-    networks:
-      - memory-net
-
-  qdrant:
-    image: qdrant/qdrant:latest
+  api:
+    build: .
+    image: grove-api:local
     restart: unless-stopped
-
     environment:
-      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+      <<: *runtime
+      DATABASE_URL: postgresql://grove_api:${API_DATABASE_PASSWORD}@postgres:5432/grove
+    ports: ["127.0.0.1:${PORT:-26080}:26080"]
+    volumes: [api-models:/app/data/models]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [database, outbound]
 
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-
-    volumes:
-      - ./data/qdrant:/qdrant/storage:rw
-
-    healthcheck:
-      test: ["CMD-SHELL", "timeout 2 bash -c 'echo > /dev/tcp/localhost/6333' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-
-    networks:
-      - memory-net
+  worker:
+    image: grove-api:local
+    command: [node, dist/worker.js]
+    restart: unless-stopped
+    healthcheck: { disable: true }
+    environment:
+      <<: *runtime
+      DATABASE_URL: postgresql://grove_jobs:${WORKER_DATABASE_PASSWORD}@postgres:5432/grove
+    volumes: [worker-models:/app/data/models]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [database, outbound]
 
 networks:
-  memory-net:
-    driver: bridge
+  database: { internal: true }
+  outbound: {}
+volumes:
+  postgres-data: {}
+  api-models: {}
+  worker-models: {}

@@ -1,12 +1,12 @@
 # Grove website
 
-The Grove marketing website, published as the private pnpm workspace package `website`.
+Grove marketing and the Clerk-authenticated memory library, in private workspace package `website`.
 
 Primary URL: <https://grove-six-rosy.vercel.app>. A developer tool by Bramble Labs Inc.
 Grove and Burrow share warm ivory surfaces, DM Sans with Instrument Serif accents,
 terminal previews, and direct installation paths; Grove uses green product accents.
 Their product-family footer links to Bramble Labs, Fern, Burrow, and Grove.
-Vercel Web Analytics is included in the root layout and enabled on the Vercel project.
+Vercel Web Analytics is included only in the public marketing layout.
 Website privacy information is linked at https://bramblelabs.co/privacy.
 
 ## Develop
@@ -18,7 +18,11 @@ pnpm install
 pnpm dev:website
 ```
 
-Open <http://localhost:3000>. The website runs independently of Grove and Qdrant; the memory demo is an illustrative, local interaction.
+Open <http://localhost:3000>. Public marketing and its illustrative demo work independently.
+The private `/app` library needs Grove Clerk keys and `GROVE_API_URL`; every data
+operation forwards the signed-in user's token to the authenticated API, uncached.
+Set the variables in `.env.example` in an ignored `.env.local` file. Without them,
+private routes show a setup state and no memory data.
 
 ## Production
 

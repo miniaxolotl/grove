@@ -44,8 +44,8 @@ export function Features() {
           </h3>
           <p>
             Ask about “the billing database” and find the decision about
-            PostgreSQL. Semantic search retrieves related memories, with
-            optional reranking for a sharper match.
+            PostgreSQL. Semantic and full-text search work together to retrieve
+            a small, relevant set of memories.
           </p>
           <div
             className="search-illustration"
@@ -78,16 +78,16 @@ export function Features() {
           <h3>
             Good context
             <br />
-            connects the dots.
+            travels with you.
           </h3>
           <p>
-            Build a knowledge graph of entities, observations, and
-            relationships. Give your agent a way to explore how your projects,
-            services, and decisions fit together.
+            One project identity across agents and worktrees. Keep personal
+            preferences close and project decisions in their own scope. Start
+            your next task with the context that belongs there.
           </p>
           <div
             className="graph-illustration"
-            aria-label="Example knowledge graph: Billing API uses PostgreSQL and is part of My app"
+            aria-label="One project connects OpenCode and Claude Code to the same private memories"
           >
             <svg
               viewBox="0 0 400 130"
@@ -109,17 +109,17 @@ export function Features() {
             </svg>
             <div className="graph-entity">
               <Layers3 size={18} />
-              <span>My app</span>
+              <span>OpenCode</span>
             </div>
-            <span className="graph-edge">part of</span>
+            <span className="graph-edge">recalls</span>
             <div className="graph-entity border-leaf/30! bg-forest! text-paper!">
               <GitBranch size={18} />
-              <span>Billing API</span>
+              <span>My project</span>
             </div>
-            <span className="graph-edge">uses</span>
+            <span className="graph-edge">remembers</span>
             <div className="graph-entity">
               <Database size={18} />
-              <span>PostgreSQL</span>
+              <span>Claude Code</span>
             </div>
           </div>
         </article>
@@ -131,15 +131,15 @@ export function Features() {
           <h3>
             Your context.
             <br />
-            Your infrastructure.
+            Your account.
           </h3>
           <p>
-            Self-host Grove and Qdrant on your own infrastructure. Local ONNX
-            embeddings are the default. No hosted memory subscription standing
-            between you and your work.
+            Private account ownership, authenticated connections, and PostgreSQL
+            row security. Give each agent a named scope and revoke it whenever
+            you need to.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
-            {["Self-hosted", "Local embeddings", "MIT licensed"].map(
+            {["Private by account", "Local embeddings", "MIT licensed"].map(
               (label) => (
                 <span
                   key={label}
@@ -163,9 +163,9 @@ export function Features() {
             Keep the signal.
           </h3>
           <p>
-            Organize by project, session, and tags. Set importance, update what
-            changes, and prune what no longer helps. Keep your memory store
-            relevant as your codebase evolves.
+            Browse, search, and correct your memories with revision history.
+            Archive them reversibly or delete them permanently. Durable saves
+            stay until you change them; task handoffs have a clear expiry.
           </p>
           <div className="mt-8 flex items-center gap-3 rounded-lg border border-leaf/15 bg-white/50 px-4 py-3">
             <SlidersHorizontal size={16} className="shrink-0 text-leaf" />
@@ -183,8 +183,8 @@ export function Features() {
       </div>
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-y border-line py-5 text-xs">
         <p className="text-muted">
-          <span className="font-medium text-forest">21 MCP tools.</span> Memory,
-          entities, and relationships. Ready for your agent.
+          <span className="font-medium text-forest">Four MCP tools.</span>{" "}
+          Remember, recall, memories, and forget. Ready for your agent.
         </p>
         <a
           href={site.docs}
