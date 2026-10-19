@@ -270,6 +270,41 @@ test("approval rolls back on invalid scope, cancelled/expired/replaced requests 
   assert.deepEqual((await request(token, "/v1/me")).data.capabilities, []);
 });
 
+test("a second terminal preserves pending approval and Connections exposes its continuation", async () => {
+  const { token, attempt } = await begin();
+  const second = await request(token, "/v1/connect", {
+    agent: "opencode",
+    project: { name: "Second", identity: `git:example.test/${randomUUID()}` },
+  });
+  assert.equal(second.status, 409);
+  assert.equal(second.error.code, "connection_in_progress");
+  assert.equal(
+    (await request(token, `/v1/connect/${attempt.id}`)).data.status,
+    "pending",
+  );
+  const connections = await request("owner", "/v1/connections");
+  assert.equal(
+    connections.data.find(
+      (item: { id: string }) => item.id === attempt.connectionId,
+    ).setup.id,
+    attempt.id,
+  );
+  assert.equal(
+    (
+      await request(
+        "owner",
+        `/v1/connect/${attempt.id}/approve`,
+        approval(attempt),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request(token, `/v1/connect/${attempt.id}`)).data.status,
+    "approved",
+  );
+});
+
 test("manual edits and revocation invalidate outstanding approval links and API keys cannot request broader access", async () => {
   const { token, attempt } = await begin();
   const personal = {

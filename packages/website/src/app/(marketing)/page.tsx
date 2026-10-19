@@ -58,8 +58,8 @@ export default async function HomePage() {
             Less starting over. More getting somewhere.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link href="/sign-up" className="button-primary">
-              Start remembering <ArrowRight size={16} />
+            <Link href="/install" className="button-primary">
+              Get started <ArrowRight size={16} />
             </Link>
             <a
               href="#memory-in-action"
@@ -71,10 +71,10 @@ export default async function HomePage() {
           <div className="mt-6 flex w-fit max-w-full flex-wrap items-center gap-x-4 rounded-lg border border-line bg-white/40 px-3 py-0.5">
             <code className="min-w-0 py-2 font-mono text-[10px] text-muted sm:text-[11px]">
               <span className="mr-2 select-none text-leaf">$</span>npx
-              @miniaxolotl/grove connect opencode
+              @miniaxolotl/grove connect
             </code>
             <CopyButton
-              text="npx @miniaxolotl/grove connect opencode"
+              text="npx @miniaxolotl/grove connect"
               label="Copy Cloud connection command"
             />
           </div>

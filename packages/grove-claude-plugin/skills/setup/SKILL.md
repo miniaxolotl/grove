@@ -11,4 +11,6 @@ links the project and finishes setup. Repeat it after interruption to resume.
 Run `node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" status --client claude --json` and verify
 the account, endpoint and effective capabilities. Never ask the user to paste credentials
 into chat. Report awaiting sign-in/grant until remote status confirms usable access.
-Restart Claude Code to load the integration, then verify a user-requested memory recall.
+Ask the user to run `/reload-plugins` in Claude Code or start a new session, then
+verify a user-requested memory recall. API verification alone does not confirm
+that this session has loaded Grove's tools.

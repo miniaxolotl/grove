@@ -181,12 +181,21 @@ test(
         key: "other-key",
       });
       assert.equal(await configuredOrigin(), "https://other.grove.example");
+      assert.equal(await configuredOrigin(undefined, "cli"), origin);
+      assert.equal(
+        await configuredOrigin(undefined, "claude"),
+        "https://other.grove.example",
+      );
       await assert.rejects(
         activateCredentials(origin, "cli", "wrong-account"),
         { code: "account_changed" },
       );
       await activateCredentials(origin, "cli", "account-a");
       assert.equal(await configuredOrigin(), origin);
+      assert.equal(
+        await configuredOrigin(undefined, "claude"),
+        "https://other.grove.example",
+      );
       assert.equal((await loadCredentials(origin, "cli")).key, "first-account");
       const context = automaticContext("cli", directory);
       await recalled;
@@ -267,6 +276,56 @@ test("repository identity strips credentials and is stable across worktrees", as
     await projectIdentity(worktree),
   );
   assert.equal(await projectIdentity(directory), null);
+});
+
+test("approval waiting survives transient outages but stops on revocation", async () => {
+  const attempt = { id: "fixture", status: "pending" } as ConnectAttempt;
+  let requests = 0;
+  let revoked = false;
+  const server = createServer((_request, response) => {
+    requests++;
+    response.setHeader("Content-Type", "application/json");
+    if (revoked || requests === 1) {
+      response
+        .writeHead(revoked ? 403 : 503)
+        .end(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: revoked ? "connection_revoked" : "auth_unavailable",
+              message: "Fixture failure",
+            },
+          }),
+        );
+    } else
+      response.end(
+        JSON.stringify({
+          success: true,
+          data: { ...attempt, status: "approved" },
+        }),
+      );
+  });
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  try {
+    const client = new ApiClient(
+      `http://127.0.0.1:${(server.address() as { port: number }).port}`,
+      async () => "fixture",
+    );
+    assert.equal(
+      (await waitForApproval(client, attempt, AbortSignal.timeout(1000), 1))
+        .status,
+      "approved",
+    );
+    assert.equal(requests, 2);
+    revoked = true;
+    await assert.rejects(
+      waitForApproval(client, attempt, AbortSignal.timeout(1000), 1),
+      { code: "connection_revoked" },
+    );
+    assert.equal(requests, 3);
+  } finally {
+    await new Promise<void>((done) => server.close(() => done()));
+  }
 });
 
 test("approval waiting reports cancellation and timeout instead of connected", async () => {

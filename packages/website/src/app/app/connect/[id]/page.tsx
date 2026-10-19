@@ -9,5 +9,5 @@ export default async function ConnectPage({
 }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) notFound();
-  return <ConnectAgent id={id} />;
+  return <ConnectAgent key={id} id={id} />;
 }

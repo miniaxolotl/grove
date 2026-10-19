@@ -283,6 +283,90 @@ test("setup is repeatable, preserves JSONC and other plugins, credentials are pr
   );
 });
 
+test("a running packed bridge picks up first login and an explicit origin switch", async () => {
+  const home = await mkdtemp(join(directory, "live-login-"));
+  const executable = join(paths.get("mcp")!, "dist/cli.js");
+  const env = {
+    ...process.env,
+    GROVE_CONFIG_HOME: home,
+    GROVE_API_URL: "",
+    GROVE_API_KEY: "",
+  };
+  const login = (url: string, key: string) =>
+    new Promise<void>((done, fail) => {
+      const child = execFile(
+        process.execPath,
+        [
+          executable,
+          "login",
+          "--client",
+          "opencode",
+          "--url",
+          url,
+          "--key-stdin",
+        ],
+        { env },
+        (error) => (error ? fail(error) : done()),
+      );
+      child.stdin!.end(key);
+    });
+  let recalls = 0;
+  const other = createServer((request, response) => {
+    assert.equal(request.headers.authorization, "Bearer other-origin-key");
+    if (request.url === "/v1/recall") recalls++;
+    response
+      .setHeader("Content-Type", "application/json")
+      .end(
+        JSON.stringify({
+          success: true,
+          data:
+            request.url === "/v1/me"
+              ? { accountId, capabilities: ["memory:read"] }
+              : { items: [], mode: "profile", contentVersion: 0 },
+        }),
+      );
+  });
+  await new Promise<void>((done) => other.listen(0, "127.0.0.1", done));
+  const client = new Client({ name: "live-login-fixture", version: "1" });
+  try {
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [executable, "mcp", "--stdio", "--client", "opencode"],
+        env: { PATH: process.env.PATH!, GROVE_CONFIG_HOME: home },
+        stderr: "pipe",
+      }),
+    );
+    assert.match(
+      JSON.stringify(await client.callTool({ name: "recall", arguments: {} })),
+      /not_configured/,
+    );
+    await login(origin, "artifact-test-key");
+    assert.notEqual(
+      (await client.callTool({ name: "recall", arguments: {} })).isError,
+      true,
+    );
+    const oldRequests = requests.length;
+    await login(
+      `http://127.0.0.1:${(other.address() as { port: number }).port}`,
+      "other-origin-key",
+    );
+    assert.notEqual(
+      (await client.callTool({ name: "recall", arguments: {} })).isError,
+      true,
+    );
+    assert.equal(recalls, 1);
+    assert.equal(
+      requests.length,
+      oldRequests,
+      "The running bridge stopped using the old origin",
+    );
+  } finally {
+    await client.close();
+    await new Promise<void>((done) => other.close(() => done()));
+  }
+});
+
 test(
   "packed Cloud connect completes PKCE, redirects the same browser to approval and resumes saved credentials",
   { timeout: 30000 },
@@ -499,7 +583,9 @@ test(
       const result = await pending.finished;
       assert.equal(JSON.parse(result.stdout).status, "connected");
       assert.equal(JSON.parse(result.stdout).projectId, projectId);
-      assert.equal(JSON.parse(result.stdout).restartRequired, true);
+      assert.equal(JSON.parse(result.stdout).restartRequired, false);
+      assert.equal(JSON.parse(result.stdout).hostVerified, false);
+      assert.match(JSON.parse(result.stdout).nextStep, /automatically/);
       assert.equal(JSON.parse(result.stdout).recallVerified, true);
       assert(polls > 0);
       assert.doesNotMatch(
@@ -513,12 +599,24 @@ test(
         ),
         /grove-opencode-plugin/,
       );
+      const configPath = join(env.XDG_CONFIG_HOME, "opencode/opencode.jsonc");
+      const inode = (await stat(configPath)).ino;
       const resumed = await exec(process.execPath, args, { env, cwd: home });
       assert.equal(JSON.parse(resumed.stdout).status, "connected");
       assert.doesNotMatch(resumed.stderr, /Continue in your browser/);
       assert.equal(registrations, 1);
-      const configPath = join(env.XDG_CONFIG_HOME, "opencode/opencode.jsonc");
       const configSource = await readFile(configPath, "utf8");
+      assert.equal(
+        (await stat(configPath)).ino,
+        inode,
+        "Ready integration setup does not rewrite configuration",
+      );
+      const detected = await exec(
+        process.execPath,
+        args.filter((arg) => arg !== "opencode"),
+        { env: { ...env, PATH: bin }, cwd: home },
+      );
+      assert.equal(JSON.parse(detected.stdout).agent, "opencode");
       await writeFile(configPath, "{ invalid JSON");
       await assert.rejects(
         exec(process.execPath, args, { env, cwd: home }),

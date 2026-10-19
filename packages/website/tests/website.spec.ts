@@ -96,6 +96,29 @@ test("Cloud setup selects the right agent and keeps self-hosting on its own page
   await expect(
     page.getByLabel("Connect to your server", { exact: true }),
   ).toContainText("--url https://grove-api.example.com");
+  await page.goto("/install");
+  await page.getByRole("tab", { name: "Claude Code", exact: true }).click();
+  await page.goto("/");
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: "Get started", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/install$/);
+  await expect(
+    page.getByRole("tab", { name: "Claude Code", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByLabel("Claude Code connection command", { exact: true }),
+  ).toContainText("grove connect claude");
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("Storage full", "QuotaExceededError");
+    };
+  });
+  await page.getByRole("tab", { name: "Codex", exact: true }).click();
+  await expect(
+    page.getByLabel("Codex connection command", { exact: true }),
+  ).toContainText("grove connect codex");
 });
 
 test("the public library preview supports keyboard exploration without account mutations", async ({

@@ -31,6 +31,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </main>
     );
   if (!isSignedIn) return <RedirectToSignIn />;
+  if (path.startsWith("/app/connect/"))
+    return (
+      <div className="connect-shell">
+        <header className="connect-topbar">
+          <Brand />
+          <div className="flex items-center gap-3 text-xs text-muted">
+            <span>{user?.firstName ?? "Your account"}</span>
+            <UserButton />
+          </div>
+        </header>
+        <main id="main" className="connect-content" key={user?.id}>
+          {children}
+        </main>
+        <footer className="app-footer">
+          <Link href="/privacy">Your memories stay private</Link>
+          <Link href="/app/connections">Your connections</Link>
+        </footer>
+      </div>
+    );
   return (
     <div className="grove-app">
       <aside className="app-sidebar">

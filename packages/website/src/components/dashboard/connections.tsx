@@ -1,7 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { KeyRound, Plug, Plus } from "lucide-react";
-import { capabilities, type Grant } from "@lib/shared/contracts";
+import {
+  capabilities,
+  type Grant,
+  type ConnectAttempt,
+} from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
@@ -13,6 +18,7 @@ type Connection = Grant & {
   revokedAt: string | null;
   createdAt: string;
   lastUsedAt: string | null;
+  setup?: ConnectAttempt | null;
 };
 export function Connections({ origin }: { origin: string }) {
   const [items, setItems] = useState<Connection[]>([]);
@@ -39,7 +45,14 @@ export function Connections({ origin }: { origin: string }) {
       api<Project[]>("/projects", undefined, undefined, controller.signal),
     ])
       .then(([connections, list]) => {
-        setItems(connections);
+        setItems(
+          connections.map((item) =>
+            item.setup?.status === "pending" &&
+            Date.parse(item.setup.expiresAt) <= Date.now()
+              ? { ...item, setup: { ...item.setup, status: "expired" } }
+              : item,
+          ),
+        );
         setProjects(list);
       })
       .catch((e) => {
@@ -86,13 +99,8 @@ export function Connections({ origin }: { origin: string }) {
           terminal.
         </p>
         <div className="mt-4">
-          <AgentSetup origin={origin || undefined} />
+          <AgentSetup origin={origin || undefined} headless />
         </div>
-        <p className="mt-3 text-xs text-muted">
-          Headless clients: create a scoped key and run{" "}
-          <code>grove login --client claude --key-stdin</code>. Keys are shown
-          once.
-        </p>
       </section>
       {error && <LoadError message={error} retry={reload} />}
       {loading ? (
@@ -126,12 +134,21 @@ export function Connections({ origin }: { origin: string }) {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    className="app-button secondary"
-                    onClick={() => setSelected(item)}
-                  >
-                    {item.capabilities.length ? "Edit scope" : "Approve"}
-                  </button>
+                  {item.setup?.status === "pending" && !item.revokedAt ? (
+                    <Link
+                      className="app-button secondary"
+                      href={`/app/connect/${item.setup.id}`}
+                    >
+                      Continue setup
+                    </Link>
+                  ) : (
+                    <button
+                      className="app-button secondary"
+                      onClick={() => setSelected(item)}
+                    >
+                      {item.capabilities.length ? "Edit scope" : "Approve"}
+                    </button>
+                  )}
                   {!item.revokedAt && (
                     <button
                       className="app-button danger"

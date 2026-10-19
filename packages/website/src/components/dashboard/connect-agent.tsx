@@ -2,39 +2,46 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Plug } from "lucide-react";
+import { Check } from "lucide-react";
 import {
   agentNames,
   capabilities,
   type ConnectAttempt,
   type ConnectApproval,
 } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import {
+  api,
+  DashboardApiError,
+  errorMessage,
+  type Project,
+} from "@/lib/dashboard-api";
+import { CodeBlock } from "@/components/code-block";
 import { LoadError } from "./load-error";
 
 export function ConnectAgent({ id }: { id: string }) {
   const [attempt, setAttempt] = useState<ConnectAttempt | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState("");
+  const [accountHint, setAccountHint] = useState(false);
+  const [statusError, setStatusError] = useState("");
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    Promise.all([
-      api<ConnectAttempt>(
-        `/connect/${id}`,
-        undefined,
-        undefined,
-        controller.signal,
-      ),
-      api<Project[]>("/projects", undefined, undefined, controller.signal),
-    ])
-      .then(([request, list]) => {
-        setAttempt(request);
-        setProjects(list);
-      })
+    api<ConnectAttempt>(
+      `/connect/${id}`,
+      undefined,
+      undefined,
+      controller.signal,
+    )
+      .then(setAttempt)
       .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
+        if (!controller.signal.aborted) {
+          setError(errorMessage(e));
+          setAccountHint(
+            e instanceof DashboardApiError &&
+              e.code === "connection_unavailable",
+          );
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -42,30 +49,71 @@ export function ConnectAgent({ id }: { id: string }) {
     return () => controller.abort();
   }, [id, revision]);
   useEffect(() => {
-    if (attempt?.status !== "pending") return;
-    const timer = setTimeout(
-      () =>
-        setAttempt((current) =>
-          current?.status === "pending"
-            ? { ...current, status: "expired" }
-            : current,
-        ),
-      Math.max(0, Date.parse(attempt.expiresAt) - Date.now()),
+    if (attempt?.status !== "pending" || error) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    let busy = false;
+    const interval = Math.min(
+      4000,
+      Math.max(1000, Date.parse(attempt.expiresAt) - Date.now()),
     );
-    return () => clearTimeout(timer);
-  }, [attempt]);
+    async function refresh() {
+      if (busy || controller.signal.aborted) return;
+      busy = true;
+      clearTimeout(timer);
+      try {
+        const latest = await api<ConnectAttempt>(
+          `/connect/${id}`,
+          undefined,
+          undefined,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setAttempt((current) =>
+          current?.status === "pending" ? latest : current,
+        );
+        setStatusError("");
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        if (
+          e instanceof DashboardApiError &&
+          e.status < 500 &&
+          e.status !== 429
+        )
+          setError(errorMessage(e));
+        else
+          setStatusError(
+            "Reconnecting to Grove… Your choices are kept while we check your connection.",
+          );
+      } finally {
+        busy = false;
+        if (!controller.signal.aborted) timer = setTimeout(refresh, interval);
+      }
+    }
+    const visible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    timer = setTimeout(refresh, interval);
+    window.addEventListener("focus", visible);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+      window.removeEventListener("focus", visible);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [id, attempt?.status, attempt?.expiresAt, error]);
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="app-page-heading">
+    <div className="mx-auto max-w-xl">
+      <div className="app-page-heading connect-page-heading">
         <div>
-          <p className="eyebrow">BRING YOUR CONTEXT ALONG</p>
           <h1>
             {attempt
               ? `Connect ${agentNames[attempt.agent]}`
               : "Connect your agent"}
             <span className="text-leaf">.</span>
           </h1>
-          <p>Choose what this agent can remember with you.</p>
+          <p>Approve access. Grove finishes setup in your terminal.</p>
         </div>
       </div>
       {loading ? (
@@ -80,18 +128,22 @@ export function ConnectAgent({ id }: { id: string }) {
               setRevision((n) => n + 1);
             }}
           />
-          <p className="mt-4 text-sm text-muted">
-            Use the same Grove account as your terminal. You can switch accounts
-            from the account menu, then reopen this link.
-          </p>
+          {accountHint && (
+            <p className="mt-4 text-sm text-muted">
+              Use the same Grove account as your terminal. You can switch
+              accounts from the account menu, then reopen this link.
+            </p>
+          )}
         </>
       ) : attempt?.status === "pending" ? (
-        <ApprovalForm
-          key={attempt.id}
-          attempt={attempt}
-          projects={projects}
-          done={setAttempt}
-        />
+        <>
+          {statusError && (
+            <p role="status" className="mb-3 text-sm text-muted">
+              {statusError}
+            </p>
+          )}
+          <ApprovalForm key={attempt.id} attempt={attempt} done={setAttempt} />
+        </>
       ) : (
         attempt && (
           <section className="app-panel" aria-live="polite">
@@ -103,13 +155,26 @@ export function ConnectAgent({ id }: { id: string }) {
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-muted">
                   Grove will finish configuring {agentNames[attempt.agent]}{" "}
-                  automatically. Your terminal will tell you when to restart
-                  your agent.
+                  automatically. Your terminal will tell you how to load its
+                  tools.
                 </p>
                 <p className="mt-3 text-sm leading-7 text-muted">
                   If you closed the terminal, run the same connect command again
                   to finish setup.
                 </p>
+                {attempt.grant.capabilities.includes("memory:write") && (
+                  <div className="mt-5">
+                    <CodeBlock
+                      title="Try your first memory"
+                      code={
+                        attempt.grant.personal
+                          ? "Use Grove to remember that I prefer concise answers in my personal memories."
+                          : "Use Grove to save a confirmed decision in an allowed project."
+                      }
+                      light
+                    />
+                  </div>
+                )}
                 <Link
                   className="app-button secondary mt-6"
                   href="/app/connections"
@@ -140,11 +205,9 @@ export function ConnectAgent({ id }: { id: string }) {
 
 function ApprovalForm({
   attempt,
-  projects,
   done,
 }: {
   attempt: ConnectAttempt;
-  projects: Project[];
   done: (value: ConnectAttempt) => void;
 }) {
   const [grant, setGrant] = useState<ConnectApproval>({
@@ -153,6 +216,22 @@ function ApprovalForm({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsError, setProjectsError] = useState("");
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectRevision, setProjectRevision] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    api<Project[]>("/projects", undefined, undefined, controller.signal)
+      .then(setProjects)
+      .catch((e) => {
+        if (!controller.signal.aborted) setProjectsError(errorMessage(e));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProjectsLoading(false);
+      });
+    return () => controller.abort();
+  }, [projectRevision]);
   async function submit(action: "approve" | "cancel") {
     setBusy(true);
     setError("");
@@ -176,21 +255,12 @@ function ApprovalForm({
   };
   return (
     <form
-      className="app-panel app-form"
+      className="app-panel app-form connect-form"
       onSubmit={(event) => {
         event.preventDefault();
         void submit("approve");
       }}
     >
-      <div className="flex items-center gap-3">
-        <Plug size={22} aria-hidden="true" />
-        <h2 className="font-editorial text-2xl">
-          {agentNames[attempt.agent]} + your Grove
-        </h2>
-      </div>
-      <p className="text-sm leading-7 text-muted">
-        You can change or revoke this connection at any time.
-      </p>
       <fieldset className="space-y-3">
         <legend className="mb-3 text-xs font-medium">Memory access</legend>
         <label className="check">
@@ -285,6 +355,21 @@ function ApprovalForm({
             />
             All current and future projects
           </label>
+          {!grant.allProjects && projectsLoading && (
+            <p role="status" className="text-sm text-muted">
+              Loading other projects…
+            </p>
+          )}
+          {projectsError && (
+            <LoadError
+              message={projectsError}
+              retry={() => {
+                setProjectsError("");
+                setProjectsLoading(true);
+                setProjectRevision((n) => n + 1);
+              }}
+            />
+          )}
           {!grant.allProjects &&
             projects
               .filter((p) => p.identity !== attempt.project?.identity)
@@ -353,6 +438,9 @@ function ApprovalForm({
           Cancel
         </button>
       </div>
+      <p className="text-xs text-muted">
+        You can change or revoke access at any time.
+      </p>
     </form>
   );
 }

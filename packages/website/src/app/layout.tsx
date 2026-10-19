@@ -78,7 +78,7 @@ export default function RootLayout({
             signInUrl="/sign-in"
             signUpUrl="/sign-up"
             signInFallbackRedirectUrl="/app"
-            signUpFallbackRedirectUrl="/app"
+            signUpFallbackRedirectUrl="/app/connections"
             appearance={{
               variables: {
                 colorPrimary: "#326349",

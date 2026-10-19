@@ -18,13 +18,14 @@ import {
 } from "@lib/integration-core/node";
 import { GroveError, agentSchema } from "@lib/shared/contracts";
 import { startBridge } from "./bridge.ts";
-import { installIntegration } from "./install.ts";
+import { installIntegration, activationInstructions } from "./install.ts";
 import { openBrowser } from "./browser.ts";
 import { connectAgent, cloudOrigin, type LoginOptions } from "./connect.ts";
+import { selectAgent } from "./select-agent.ts";
 
 const help = `Grove — private memory across your agents
 
-  grove connect opencode|claude|codex [--url <self-hosted origin>] [--no-browser]
+  grove connect [opencode|claude|codex] [--url <self-hosted origin>] [--no-browser]
   grove init --url <origin> --client opencode|claude|codex
   grove login --url <origin> --client <client> [--key-stdin | --no-browser]
   grove status [--client <client>] [--json]
@@ -35,6 +36,7 @@ const help = `Grove — private memory across your agents
   grove mcp --stdio [--client <client>]
   grove serve  (requires @miniaxolotl/grove-server or use Docker)
 
+Run grove connect to choose an installed agent, create an account or sign in, and finish setup.
 Credentials stay in your user configuration, never in project files.
 Use GROVE_API_URL + GROVE_API_KEY for headless clients. Logs use stderr in stdio mode.`;
 
@@ -127,9 +129,18 @@ async function login(
   });
   // Mark an early callback rejection handled while discovery/registration is still running.
   void code.catch(() => {});
+  console.error(
+    "Create your Grove account or sign in in the browser. Setup will continue here automatically.",
+  );
   const timeout = setTimeout(
-    () => fail(new GroveError("login_timeout", "Sign-in timed out")),
-    180000,
+    () =>
+      fail(
+        new GroveError(
+          "login_timeout",
+          "Sign-in timed out. Run the same command to try again.",
+        ),
+      ),
+    10 * 60_000,
   );
   try {
     const authOptions = {
@@ -197,13 +208,19 @@ async function main() {
     );
     return;
   }
-  const command = positionals[0];
+  const command =
+    positionals[0] ??
+    (process.stdin.isTTY && !values.json ? "connect" : undefined);
   if (!command || values.help) {
     console.log(help);
     return;
   }
   if (command === "connect") {
-    const selected = positionals[1] ?? values.client;
+    const selected =
+      positionals[1] ??
+      (values.client !== "cli"
+        ? values.client
+        : await selectAgent(!!process.stdin.isTTY && !values.json));
     const parsed = agentSchema.safeParse(selected);
     if (
       !parsed.success ||
@@ -272,7 +289,11 @@ async function main() {
     await installIntegration(agent, true);
     return;
   }
-  const origin = await configuredOrigin(values.url);
+  const origin = await configuredOrigin(
+    values.url,
+    agent,
+    command === "login" || command === "init" ? cloudOrigin : undefined,
+  );
   if (command === "login" || command === "init") {
     const me = await login(
       origin,
@@ -299,6 +320,7 @@ async function main() {
           "Choose --client opencode, claude or codex to install",
         );
       await installIntegration(agent);
+      console.error(activationInstructions(agent).message);
       if (me.capabilities.includes("memory:read"))
         console.log(
           JSON.stringify({

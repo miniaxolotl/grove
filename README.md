@@ -19,12 +19,14 @@ and non-owner runtime roles enforcing row-level security.
 Connect to **Grove Cloud**, from your project directory (Node 22+ and your agent installed):
 
 ```sh
-npx @miniaxolotl/grove connect opencode
+npx @miniaxolotl/grove connect
 ```
 
-Replace `opencode` with `claude` or `codex` for those clients. Sign in and approve
-access in the browser. Grove links your current project, verifies access and installs
-the integration. Keep the terminal open, then restart your agent when prompted.
+Grove detects your installed agent or lets you choose. You can also specify
+`connect opencode`, `connect claude` or `connect codex`. Create an account or sign in
+in the browser, then approve access. Grove links your current project, verifies
+access and configures the integration. Keep the terminal open and follow its
+agent-specific activation step.
 Run the same command to resume interrupted setup.
 Named, revocable API keys also support headless clients. Credentials stay in your
 user configuration; plugins and hooks use the same connection. Ordinary agent

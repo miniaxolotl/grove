@@ -18,7 +18,11 @@ import {
   type ConnectResponse,
   type ConnectInput,
 } from "@lib/shared/contracts";
-import { installIntegration, requireClient } from "./install.ts";
+import {
+  installIntegration,
+  requireClient,
+  activationInstructions,
+} from "./install.ts";
 import { openBrowser } from "./browser.ts";
 
 export const cloudOrigin = "https://api.usegrove.cloud";
@@ -40,19 +44,45 @@ export async function waitForApproval(
   signal: AbortSignal,
   interval = 2000,
 ) {
+  let retryInterval = interval;
+  let recovering = false;
   while (attempt.status === "pending") {
     try {
-      await delay(interval, undefined, { signal });
+      await delay(retryInterval, undefined, { signal });
       attempt = await client.request<ConnectAttempt>(
         `/v1/connect/${attempt.id}`,
         { signal },
       );
+      retryInterval = interval;
+      if (recovering) console.error("✓ Connection restored; continuing setup");
+      recovering = false;
     } catch (error) {
       if (signal.aborted)
         throw new GroveError(
           "approval_timeout",
           "Approval timed out. Run the same grove connect command to resume.",
           408,
+        );
+      if (
+        error instanceof GroveError &&
+        (error.status >= 500 || ["timeout", "unreachable"].includes(error.code))
+      ) {
+        if (!recovering)
+          console.error(
+            "Grove is temporarily unavailable. Reconnecting automatically…",
+          );
+        recovering = true;
+        retryInterval = Math.min(retryInterval * 2, 8000);
+        continue;
+      }
+      if (
+        error instanceof GroveError &&
+        error.code === "connection_unavailable"
+      )
+        throw new GroveError(
+          error.code,
+          "Connection access changed or this setup was replaced. Run the same grove connect command to resume with your current access.",
+          error.status,
         );
       throw error;
     }
@@ -204,7 +234,7 @@ export async function connectAgent(
     console.error(
       "Launch your agent with the same GROVE_API_URL and GROVE_API_KEY environment.",
     );
-  const restart = `Restart ${agentNames[agent]} to load Grove. Your connection is ready for its memory tools.`;
+  const activation = activationInstructions(agent);
   if (options.json)
     console.log(
       JSON.stringify({
@@ -216,8 +246,19 @@ export async function connectAgent(
         projectId: approved.projectId,
         capabilities: verified.capabilities,
         recallVerified,
-        restartRequired: true,
+        restartRequired: activation.restartRequired,
+        hostVerified: false,
+        nextStep: activation.message,
       }),
     );
-  else console.log(`You're connected to Grove.\n${restart}`);
+  else {
+    const prompt = verified.capabilities.includes("memory:write")
+      ? verified.grant?.personal
+        ? "Use Grove to remember that I prefer concise answers in my personal memories."
+        : "Use Grove to save a confirmed decision in an allowed project."
+      : "Recall my available memories from Grove.";
+    console.log(
+      `You're connected to Grove.\n${activation.message}\nAsk your agent: "${prompt}"`,
+    );
+  }
 }

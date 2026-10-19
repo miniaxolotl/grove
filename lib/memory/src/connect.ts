@@ -91,6 +91,12 @@ export class ConnectionSetup {
         ["pending", "approved"].includes(view(connection).status)
       )
         return view(connection);
+      if (previous && view(connection).status === "pending")
+        throw new GroveError(
+          "connection_in_progress",
+          "This agent already has a connection waiting for approval. Finish or cancel it in Grove Connections, then connect this project.",
+          409,
+        );
       if (!hasAccess && principal.type !== "oauth")
         throw new GroveError(
           "connection_scope",
