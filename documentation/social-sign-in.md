@@ -56,9 +56,9 @@ calendar, email inbox or cloud administration access to sign users in.
 | Provider | Production state | Registration |
 | --- | --- | --- |
 | GitHub | Enabled; real-account sign-in and authenticated account access passed | OAuth app `3944913`, client `Ov23liUu9OnmcwEZjPSY` |
-| Google | Credentials stored; disabled while consent is in Testing and the product privacy page is pending | Project `grove-clerk-auth-2026`, Web client `913831798455-k1uv2lgpv8mffqkfp61pg4saq57mcdr3.apps.googleusercontent.com` |
-| Microsoft | Enabled; personal and organizational account audience | App `4772cb1f-a86c-423b-b123-a3efb67e7f4f`, tenant `345c25c1-c7f1-404b-b756-06f33854ab7d` |
-| Apple | Enabled; private-relay sender registered and SPF verified | App ID `cloud.usegrove.app`, Services ID `cloud.usegrove.web`, team `Q266AQB5H8`, key `8D923PV78Q` |
+| Google | Enabled; External audience In production; real-account linking, cancellation and subsequent sign-in passed | Project `grove-clerk-auth-2026`, Web client `913831798455-k1uv2lgpv8mffqkfp61pg4saq57mcdr3.apps.googleusercontent.com` |
+| Microsoft | Enabled for personal and organizational accounts; existing-account connection verified | App `4772cb1f-a86c-423b-b123-a3efb67e7f4f`, tenant `345c25c1-c7f1-404b-b756-06f33854ab7d` |
+| Apple | Enabled; existing-account connection verified; private-relay sender registered and SPF verified | App ID `cloud.usegrove.app`, Services ID `cloud.usegrove.web`, team `Q266AQB5H8`, key `8D923PV78Q` |
 
 Microsoft's client secret expires **2027-04-17**. Rotate it in Entra and Clerk
 before that date. Its saved manifest includes `email` and `xms_edov` in both ID
@@ -70,12 +70,16 @@ verified Microsoft publisher before allowing their users to authorize the app.
 Apple's private-relay sender is `bounces+116872475@clkmail.usegrove.cloud`.
 Its Services ID and signing key are associated with Grove's own primary App ID.
 
-Google's authorized JavaScript origin is `https://usegrove.cloud`; consent is
-External. The user assigned privacy policies and terms to a separate website
-task. After its Grove policy is live, confirm the URL in Google's Branding page
-(currently `https://usegrove.cloud/privacy`), publish the OAuth app to production,
-then enable `connection_oauth_google` and perform real-account sign-in/linking.
-The public support contact selected for those pages is `grove@mawa.dev`.
+Google's authorized JavaScript origin is `https://usegrove.cloud`; its External
+audience is published **In production**. Branding links to the separately published
+homepage, [privacy policy](https://usegrove.cloud/privacy) and
+[terms](https://usegrove.cloud/terms). Those pages use `grove@mawa.dev` as the
+public support contact. Google's console contact is recorded in the private inventory.
+
+Google declares only `openid`, `https://www.googleapis.com/auth/userinfo.email`
+and `https://www.googleapis.com/auth/userinfo.profile`. The live authorization
+request uses those same scopes, the dedicated Grove client and the exact Clerk
+callback above. Google lists zero sensitive or restricted scopes.
 
 ## Verification and delivery
 
@@ -96,11 +100,25 @@ Configuration inspection and mocked website checks do not establish successful
 real-provider OAuth. Keep completion evidence explicit in the execution status.
 
 The Settings UI passes website lint, type checks, production build and the
-11-test browser/accessibility suite. GitHub's real-account sign-in is verified.
-Apple linking reached Apple's authentication page; Microsoft linking reached
-Clerk's account re-verification. Completion of those real-account flows and
-Google activation remain pending. Hosting PR #7 is still open; any production
-rollout of this UI must include its hosting changes at `fb2b990`.
+19-test browser/accessibility suite. All four providers appear on live sign-in
+and sign-up. GitHub's real-account sign-in is verified. The existing account now
+reports verified connections for Google, Microsoft, Apple and GitHub.
+
+Google's production verification passed:
+
+- Cancelling Google consent preserved the signed-in account and displayed the
+  incomplete connection as needing verification.
+- Completing account re-verification and Google consent linked the Google identity
+  to the original Clerk user and Grove account.
+- Signing out and signing back in through Google returned to `/app` with those
+  same identifiers. Authenticated `/api/grove/me` and private memory search both
+  returned 200; the original zero-item memory collection was unchanged.
+
+Hosting PR #7 and social-login PR #8 are merged into `development`. The website
+branch retains their hosting configuration, connected-account panel and completed
+Google verification alongside the Sprout identity and Settings retry handling.
+The policy pages are live. Google activation is instance configuration and does
+not require another website deployment.
 
 Provider instructions: [GitHub](https://clerk.com/docs/guides/configure/auth-strategies/social-connections/github),
 [Google](https://clerk.com/docs/guides/configure/auth-strategies/social-connections/google),
