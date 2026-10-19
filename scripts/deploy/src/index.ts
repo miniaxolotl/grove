@@ -24,7 +24,7 @@ function run(cmd: string, cwd?: string) {
 
 async function deploy() {
   const packageJson = JSON.parse(
-    execSync("cat ../../packages/mcp/package.json", { encoding: "utf8" }),
+    execSync("cat packages/api/package.json", { encoding: "utf8", cwd: ROOT }),
   );
   const version = packageJson.version;
 
@@ -44,7 +44,7 @@ async function deploy() {
 
   console.log(`\n=== Deploy ${IMAGE}:${tags.join(", ")} ===\n`);
 
-  run("pnpm --filter @miniaxolotl/grove build");
+  run("pnpm --filter @miniaxolotl/grove-server build");
 
   if (registries.length === 0) {
     for (const t of tags) {

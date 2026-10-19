@@ -30,14 +30,14 @@ export function MemoryPreview() {
             <p className="mb-2 text-[9px] tracking-widest text-paper/65">
               SESSION 01 · SAVE A DECISION
             </p>
-            <p className="text-lime">memory_save</p>
+            <p className="text-lime">remember</p>
             <code>
               {
                 '{ "information": "Use Postgres for billing: we need ACID transactions.",\n  "metadata": { "project": "billing-api" } }'
               }
             </code>
             <p className="mt-2 flex items-center gap-2 text-lime">
-              <Check size={12} aria-hidden="true" /> Stored in Qdrant
+              <Check size={12} aria-hidden="true" /> Saved privately
             </p>
           </div>
           <div className="border-t border-white/15 pt-5">

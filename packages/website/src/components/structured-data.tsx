@@ -30,11 +30,11 @@ export function StructuredData() {
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         featureList: [
           "Persistent semantic memory",
-          "Entity and relation knowledge graph",
-          "Self-hosted Qdrant storage",
+          "Private personal and project memories",
+          "PostgreSQL and pgvector storage",
           "Local ONNX embeddings",
           "MCP over HTTP and stdio",
-          "Optional remote reranking",
+          "Revision history, archive and deletion",
         ],
       },
       {

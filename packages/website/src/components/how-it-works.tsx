@@ -35,7 +35,7 @@ export function HowItWorks() {
           <div>
             <Terminal size={25} strokeWidth={1.4} />
             <span>Your AI agent</span>
-            <small>OpenCode or an MCP client</small>
+            <small>OpenCode, Claude, or Codex</small>
           </div>
           <span className="architecture-arrow">
             <span>MCP TOOLS</span>
@@ -45,7 +45,7 @@ export function HowItWorks() {
           <div className="architecture-grove">
             <GroveMark className="size-10" />
             <span>Grove</span>
-            <small>Semantic memory + knowledge graph</small>
+            <small>Authenticated private memory</small>
           </div>
           <span className="architecture-arrow">
             <span>PERSISTENT STORAGE</span>
@@ -54,8 +54,8 @@ export function HowItWorks() {
           </span>
           <div>
             <Database size={25} strokeWidth={1.4} />
-            <span>Qdrant</span>
-            <small>On infrastructure you control</small>
+            <span>PostgreSQL</span>
+            <small>Account-owned rows + pgvector</small>
           </div>
         </div>
 
@@ -65,13 +65,13 @@ export function HowItWorks() {
               number: "01",
               title: "Save the useful things.",
               description:
-                "Your agent calls memory_save or memory_note to store a decision, a preference, or a finding. Add a project and tags to keep it organized.",
+                "Your agent calls remember to save a preference, confirmed decision, useful fact, verified solution, or short handoff. Choose personal or project scope.",
             },
             {
               number: "02",
-              title: "Store and connect.",
+              title: "Keep it private.",
               description:
-                "Grove embeds the text and stores it in Qdrant. Create entities and relationships when you want to connect the bigger picture.",
+                "Grove saves the memory transactionally in PostgreSQL and indexes its current revision. Only your account and approved connections can access it.",
             },
             {
               number: "03",
@@ -95,7 +95,7 @@ export function HowItWorks() {
         </div>
         <p className="mt-10 flex items-center justify-center gap-2 text-center text-[11px] text-paper/70">
           <Network size={14} className="shrink-0" /> Local embeddings by
-          default. Remote embeddings and reranking when you want them.
+          default. One authenticated API for your website and agents.
         </p>
       </div>
     </section>

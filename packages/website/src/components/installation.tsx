@@ -39,8 +39,9 @@ export function Installation() {
           <span className="step-number">01</span>
           <h3>Give your memories a home.</h3>
           <p>
-            Start Grove and its Qdrant store. Docker Compose brings them up
-            together; npm fits an existing setup.
+            Sign in to your Grove deployment and install the client with npm.
+            Self-hosting? Compose starts the API, worker, and private
+            PostgreSQL.
           </p>
           <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] text-leaf">
             <Check size={13} /> macOS, Linux, or Windows with Docker
@@ -70,8 +71,8 @@ export function Installation() {
               />
               <p className="mt-3 text-xs leading-6 text-muted">
                 {value === "docker"
-                  ? "Requires Git and Docker with Compose. Builds Grove and starts Qdrant with persistent storage. The first run downloads the local embedding model."
-                  : "Requires Node.js 22+. The first command starts Qdrant with Docker; skip it if Qdrant is already running. Set QDRANT_URL if your instance is not at localhost:6333."}
+                  ? "Requires Git, Docker Compose, and a configured Grove Clerk application. Set the keys and generated passwords before starting. The first run downloads the local embedding model."
+                  : "Requires Node.js 22+. Replace the example origin with your Grove API. Use --client claude or --client codex for those agents. Approve the connection in your dashboard."}
               </p>
             </div>
           ))}
@@ -82,11 +83,12 @@ export function Installation() {
             <div className="mt-2">
               <CodeBlock
                 title="Readiness check"
-                code="curl --fail http://localhost:26081/ready"
+                code="curl --fail http://localhost:26080/health/ready"
               />
               <p className="mt-2 leading-6">
                 Wait for initialization to finish. The readiness endpoint
-                returns HTTP 200 when the collections are ready.
+                returns HTTP 200 after the database and configured embedding
+                model are ready.
               </p>
             </div>
           </details>
@@ -126,11 +128,10 @@ export function Installation() {
           >
             <CodeBlock title="opencode.json" code={opencodeConfig} />
             <p className="mt-3 text-xs leading-6 text-muted">
-              Merge these entries into your existing configuration, then restart
-              OpenCode. The companion plugin adds manual saves, error capture,
-              and memory lifecycle hooks. Set{" "}
-              <code className="inline-code">GROVE_PROJECT</code> in OpenCode’s
-              environment to group plugin memories by project.
+              Grove init merges this entry into OpenCode V2 configuration. The
+              plugin adds four memory tools and bounded context recall. Run
+              grove project after approving project access to resolve the same
+              repository identity across agents and worktrees.
             </p>
           </div>
           <div
@@ -146,14 +147,14 @@ export function Installation() {
               Add a remote MCP server named{" "}
               <code className="inline-code">grove</code> with this URL and the
               Streamable HTTP transport. Configuration fields vary by client.
-              Replace localhost with your server’s address if Grove runs
-              elsewhere.
+              Use your deployment’s API origin. Sign in with OAuth or provide a
+              named, scoped API key.
             </p>
             <p className="mt-3 text-xs leading-6 text-muted">
               Prefer stdio? Install the npm package and configure your client to
-              launch <code className="inline-code">grove</code> without
-              arguments, with <code className="inline-code">QDRANT_URL</code>{" "}
-              set to your Qdrant instance.
+              launch <code className="inline-code">grove mcp --stdio</code>
+              after running grove login. The bridge and hooks share the same
+              Grove-managed connection.
             </p>
           </div>
         </div>

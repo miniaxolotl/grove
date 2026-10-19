@@ -3,12 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "E2E tests for grove MCP server against live Qdrant",
+  "description": "Isolated PostgreSQL, authorization, lifecycle and actual MCP transport tests",
   "scripts": {
-    "test": "tsx src/index.ts"
+    "test": "tsx --test src/*.test.ts"
   },
   "dependencies": {
-    "@miniaxolotl/grove": "workspace:*"
+    "@lib/database": "workspace:*",
+    "@lib/memory": "workspace:*",
+    "@lib/shared": "workspace:*",
+    "@miniaxolotl/grove-server": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@hono/node-server": "^1.19.0",
+    "jose": "^6.1.0",
+    "svix": "^1.80.0",
+    "@lib/environment": "workspace:*",
+    "@lib/integration-core": "workspace:*"
   },
   "devDependencies": {
     "@lib/eslint-config": "workspace:*",

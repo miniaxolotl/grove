@@ -4,7 +4,10 @@ node_modules
 data
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 .git
 .github
 .gitignore
@@ -12,5 +15,9 @@ data
 *.log
 *.tsbuildinfo
 *.md
-LICENSE
 docker-compose.yml
+worktrees
+plans
+**/.next
+**/playwright-report
+**/test-results

@@ -17,6 +17,8 @@
     "test": "playwright test"
   },
   "dependencies": {
+    "@clerk/nextjs": "7.9.17",
+    "@lib/shared": "workspace:*",
     "@fontsource-variable/dm-sans": "~5.3.0",
     "@fontsource/dm-sans": "~5.3.0",
     "@fontsource/instrument-serif": "~5.3.0",

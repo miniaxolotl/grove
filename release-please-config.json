@@ -4,14 +4,55 @@
   "include-component-in-tag": true,
   "include-v-in-tag": true,
   "packages": {
+    "packages/api": {
+      "release-type": "node",
+      "component": "grove-server",
+      "package-name": "@miniaxolotl/grove-server"
+    },
+    "packages/grove-claude-plugin": {
+      "release-type": "node",
+      "component": "grove-claude-plugin",
+      "package-name": "@miniaxolotl/grove-claude-plugin",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "packages/grove-claude-plugin/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[0].source.version"
+        }
+      ]
+    },
+    "packages/grove-codex-plugin": {
+      "release-type": "node",
+      "component": "grove-codex-plugin",
+      "package-name": "@miniaxolotl/grove-codex-plugin",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "packages/grove-codex-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".agents/plugins/marketplace.json",
+          "jsonpath": "$.plugins[0].source.version"
+        }
+      ]
+    },
     "packages/mcp": {
       "release-type": "node",
       "component": "grove",
+      "release-as": "0.5.0",
       "package-name": "@miniaxolotl/grove"
     },
     "packages/grove-opencode-plugin": {
       "release-type": "node",
       "component": "grove-opencode-plugin",
+      "release-as": "0.5.0",
       "package-name": "@miniaxolotl/grove-opencode-plugin"
     }
   },

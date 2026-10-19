@@ -1,0 +1,42 @@
+{
+  "name": "@miniaxolotl/grove-server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Grove private PostgreSQL memory API and worker",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": "./dist/server.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "worker": "node dist/worker.js",
+    "migrate": "tsx src/migrate.ts",
+    "build": "node ../../scripts/build.mjs api"
+  },
+  "dependencies": {
+    "@clerk/backend": "3.25.0",
+    "@hono/node-server": "^1.19.0",
+    "@huggingface/transformers": "~3.0.0",
+    "knex": "3.3.0",
+    "objection": "3.1.5",
+    "pg": "8.16.3",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "hono": "4.13.13",
+    "jose": "^6.1.0",
+    "svix": "^1.80.0",
+    "zod": "~4.1.8"
+  },
+  "devDependencies": {
+    "@lib/config": "workspace:*",
+    "@lib/database": "workspace:*",
+    "@lib/environment": "workspace:*",
+    "@lib/memory": "workspace:*",
+    "@lib/shared": "workspace:*",
+    "@lib/integration-core": "workspace:*"
+  }
+}

@@ -29,7 +29,7 @@ jobs:
           if [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
           elif [ "${{ github.ref_name }}" = "production" ]; then
-            VERSION=$(node -p "require('./packages/mcp/package.json').version")
+            VERSION=$(node -p "require('./packages/api/package.json').version")
           fi
 
           if [ -n "$VERSION" ]; then
@@ -41,7 +41,7 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
             echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           else
-            PREVIEW_VERSION=$(node -p "require('./packages/mcp/package.json').version")
+            PREVIEW_VERSION=$(node -p "require('./packages/api/package.json').version")
             echo "TAGS<<EOF" >> $GITHUB_OUTPUT
             echo "ghcr.io/miniaxolotl/grove:preview" >> $GITHUB_OUTPUT
             echo "ghcr.io/miniaxolotl/grove:preview-v${PREVIEW_VERSION}" >> $GITHUB_OUTPUT

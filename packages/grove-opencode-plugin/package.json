@@ -2,10 +2,10 @@
   "name": "@miniaxolotl/grove-opencode-plugin",
   "version": "0.3.2",
   "type": "module",
-  "description": "OpenCode plugin for Grove - captures memories, injects hot context, manages importance tiers",
-  "main": "dist/index.js",
+  "description": "Grove private memory for OpenCode V2: bounded recall and four authenticated tools",
+  "main": "index.js",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./index.js"
   },
   "repository": {
     "type": "git",
@@ -21,19 +21,24 @@
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "index.js",
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "publish": "npm publish"
+    "build": "node ../../scripts/build.mjs opencode"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "~1.14.20",
-    "@opencode-ai/sdk": "~1.14.20",
-    "effect": "~3.21.2",
+    "@opencode/plugin": "2.0.32",
     "zod": "~4.1.8"
   },
   "devDependencies": {
     "@lib/shared": "workspace:*",
+    "@lib/integration-core": "workspace:*",
     "@tsconfig/node22": "~22.0.2",
     "@types/node": "~22.13.9",
     "typescript": "~5.8.2"

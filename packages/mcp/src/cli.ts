@@ -1,37 +1,326 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+#!/usr/bin/env node
+import { createServer } from "node:http";
+import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { parseArgs } from "node:util";
+import { auth } from "@modelcontextprotocol/sdk/client/auth.js";
+import { ApiClient, type ConnectionInfo } from "@lib/integration-core";
+import {
+  BrowserOAuthProvider,
+  configuredOrigin,
+  nodeClient,
+  saveCredentials,
+  loadCredentials,
+  clearCredentials,
+  updateConfig,
+  resolveProject,
+  type AgentName,
+  type Credentials,
+} from "@lib/integration-core/node";
+import { GroveError } from "@lib/shared/contracts";
+import { startBridge } from "./bridge.ts";
+import { installIntegration } from "./install.ts";
 
-const command = process.argv[2];
+const help = `Grove — private memory across your agents
 
-if (command === "serve" || command === undefined) {
-  await import("./index.js");
-} else if (command === "--version" || command === "-v") {
-  const pkg = JSON.parse(
-    readFileSync(
-      fileURLToPath(new URL("../package.json", import.meta.url)),
-      "utf8",
-    ),
+  grove init --url <origin> --client opencode|claude|codex
+  grove login --url <origin> --client <client> [--key-stdin | --no-browser]
+  grove status [--client <client>] [--json]
+  grove project [--client <client>]
+  grove logout [--client <client>]
+  grove pause | resume
+  grove uninstall --client <client>
+  grove mcp --stdio [--client <client>]
+  grove serve  (requires @miniaxolotl/grove-server or use Docker)
+
+Credentials stay in your user configuration, never in project files.
+Use GROVE_API_URL + GROVE_API_KEY for headless clients. Logs use stderr in stdio mode.`;
+
+async function login(
+  origin: string,
+  agent: AgentName,
+  keyStdin: boolean,
+  noBrowser: boolean,
+) {
+  if (keyStdin) {
+    let key = "";
+    for await (const chunk of process.stdin) {
+      key += chunk;
+      if (key.length > 16384)
+        throw new GroveError("invalid_key", "Key too long");
+    }
+    key = key.trim();
+    const me = await new ApiClient(
+      origin,
+      async () => key,
+    ).request<ConnectionInfo>("/v1/me");
+    await saveCredentials({ origin, agent, accountId: me.accountId, key });
+    return me;
+  }
+  let finish!: (code: string) => void;
+  let fail!: (error: Error) => void;
+  const code = new Promise<string>((resolve, reject) => {
+    finish = resolve;
+    fail = reject;
+  });
+  const previous = await loadCredentials(origin, agent).catch(() => undefined);
+  const callbackPort = {
+    cli: 34141,
+    opencode: 34142,
+    claude: 34143,
+    codex: 34144,
+  }[agent];
+  const redirectUrl = `http://127.0.0.1:${callbackPort}/callback`;
+  const provider = new BrowserOAuthProvider(
+    {
+      origin,
+      agent,
+      redirectUrl,
+      client:
+        previous?.redirectUrl === redirectUrl ? previous.client : undefined,
+    },
+    async (url) => {
+      console.error(`Sign in: ${url.href}`);
+      if (noBrowser) return;
+      const command =
+        process.platform === "darwin"
+          ? "open"
+          : process.platform === "win32"
+            ? "explorer.exe"
+            : "xdg-open";
+      const browser = spawn(command, [url.href], { stdio: "ignore" });
+      browser.on("error", () => {});
+      browser.unref();
+    },
   );
-  console.log(pkg.version);
-} else if (command === "--help" || command === "-h") {
-  console.log(`grove - Self-hosted agentic memory MCP server
-
-Usage:
-  grove serve    Start the MCP server
-  grove          Start the MCP server (default)
-
-Options:
-  --version, -v  Show version
-  --help, -h     Show this help
-
-Environment:
-  TRANSPORT      Transport type: http (default) or stdio
-  PORT           Server port (default: 26080)
-  QDRANT_URL     Qdrant server URL (default: http://localhost:6333)
-  QDRANT_API_KEY Qdrant API key
-  EMBEDDING_URL  Remote embedding URL (optional, falls back to local ONNX)
-  RERANKING_URL  Remote reranking URL (optional)`);
-} else {
-  console.error(`Unknown command: ${command}`);
-  process.exit(1);
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    response.setHeader("Content-Type", "text/plain");
+    response.setHeader("Cache-Control", "no-store");
+    if (
+      url.pathname !== "/callback" ||
+      !provider.checkState(url.searchParams.get("state"))
+    ) {
+      response.writeHead(400).end("Invalid authorization callback");
+      return;
+    }
+    const result = url.searchParams.get("code");
+    if (!result) {
+      response.writeHead(400).end("Authorization was not completed");
+      fail(
+        new GroveError("login_cancelled", "Authorization was not completed"),
+      );
+      return;
+    }
+    response.end("Authorization received. Return to your terminal.");
+    finish(result);
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", () =>
+      reject(
+        new GroveError(
+          "callback_busy",
+          `Loopback callback port ${callbackPort} is unavailable`,
+        ),
+      ),
+    );
+    server.listen(callbackPort, "127.0.0.1", resolve);
+  });
+  // Mark an early callback rejection handled while discovery/registration is still running.
+  void code.catch(() => {});
+  const timeout = setTimeout(
+    () => fail(new GroveError("login_timeout", "Sign-in timed out")),
+    180000,
+  );
+  try {
+    const options = {
+      serverUrl: `${origin}/mcp`,
+      fetchFn: (url: string | URL, init?: RequestInit) =>
+        fetch(url, { ...init, signal: AbortSignal.timeout(10000) }),
+    };
+    if ((await auth(provider, options)) === "REDIRECT")
+      await auth(provider, { ...options, authorizationCode: await code });
+    const token = provider.data.tokens?.access_token;
+    if (!token)
+      throw new GroveError("login_failed", "No access token was returned");
+    const me = await new ApiClient(
+      origin,
+      async () => token,
+    ).request<ConnectionInfo>("/v1/me");
+    await saveCredentials({
+      ...provider.data,
+      accountId: me.accountId,
+    } as Credentials);
+    return me;
+  } finally {
+    clearTimeout(timeout);
+    server.closeAllConnections();
+    server.close();
+  }
 }
+
+async function main() {
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
+    options: {
+      url: { type: "string" },
+      client: { type: "string", default: "cli" },
+      json: { type: "boolean" },
+      stdio: { type: "boolean" },
+      "key-stdin": { type: "boolean" },
+      "no-browser": { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+      version: { type: "boolean", short: "v" },
+    },
+  });
+  if (values.version) {
+    console.log(
+      JSON.parse(
+        await readFile(new URL("../package.json", import.meta.url), "utf8"),
+      ).version,
+    );
+    return;
+  }
+  const command = positionals[0];
+  if (!command || values.help) {
+    console.log(help);
+    return;
+  }
+  const agent = values.client as AgentName;
+  if (!["cli", "opencode", "claude", "codex"].includes(agent))
+    throw new GroveError(
+      "invalid_client",
+      "Choose cli, opencode, claude or codex",
+    );
+  if (command === "mcp") {
+    if (!values.stdio)
+      throw new GroveError("invalid_command", "Use grove mcp --stdio");
+    await startBridge(agent);
+    return;
+  }
+  if (command === "serve") {
+    const serverPackage = "@miniaxolotl/grove-server";
+    try {
+      const { startServer } = await import(serverPackage);
+      await startServer();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND")
+        throw error;
+      throw new GroveError(
+        "server_missing",
+        "Install @miniaxolotl/grove-server or use the PostgreSQL Compose deployment",
+      );
+    }
+    return;
+  }
+  if (command === "pause" || command === "resume") {
+    await updateConfig({ paused: command === "pause" });
+    console.log(
+      command === "pause"
+        ? "Automatic memory paused"
+        : "Automatic memory resumed",
+    );
+    return;
+  }
+  if (command === "uninstall") {
+    await installIntegration(agent, true);
+    return;
+  }
+  const origin = await configuredOrigin(values.url);
+  if (command === "login" || command === "init") {
+    const me = await login(
+      origin,
+      agent,
+      !!values["key-stdin"],
+      !!values["no-browser"],
+    );
+    console.log(
+      JSON.stringify({
+        status: me.capabilities.length ? "connected" : "awaiting-grant",
+        accountId: me.accountId,
+        connectionId: me.connectionId,
+        origin,
+      }),
+    );
+    if (!me.capabilities.length)
+      console.log(
+        "Approve this client and choose its project/personal access in the Grove Connections page.",
+      );
+    if (command === "init") {
+      if (agent === "cli")
+        throw new GroveError(
+          "choose_client",
+          "Choose --client opencode, claude or codex to install",
+        );
+      await installIntegration(agent);
+      if (me.capabilities.includes("memory:read"))
+        console.log(
+          JSON.stringify({
+            projectId: await resolveProject(
+              await nodeClient(agent),
+              process.cwd(),
+              me.capabilities.includes("memory:write") &&
+                !!me.grant?.allProjects,
+            ),
+          }),
+        );
+    }
+    return;
+  }
+  const client = await nodeClient(agent, origin);
+  if (command === "status") {
+    const me = await client.request<ConnectionInfo>("/v1/me");
+    const status = {
+      status: me.capabilities.length ? "connected" : "awaiting-grant",
+      origin,
+      agent,
+      ...me,
+      projectId: me.capabilities.includes("memory:read")
+        ? await resolveProject(client, process.cwd())
+        : null,
+    };
+    console.log(
+      values.json
+        ? JSON.stringify(status)
+        : `${status.status}\nAccount: ${me.accountId}\nAPI: ${origin}\nClient: ${agent}\nCapabilities: ${me.capabilities.join(", ") || "none (approve in Connections)"}`,
+    );
+    if (!me.capabilities.length) process.exitCode = 1;
+    return;
+  }
+  if (command === "project") {
+    console.log(
+      JSON.stringify({
+        projectId: await resolveProject(client, process.cwd(), true),
+      }),
+    );
+    return;
+  }
+  if (command === "logout") {
+    try {
+      await client.request("/v1/logout", { body: {} });
+    } catch (error) {
+      console.error(
+        `Remote revocation not confirmed (${error instanceof GroveError ? error.code : "unavailable"}); revoke the connection from the dashboard.`,
+      );
+      process.exitCode = 1;
+    }
+    await clearCredentials(origin, agent);
+    console.log("Local credentials cleared");
+    return;
+  }
+  throw new GroveError("invalid_command", help);
+}
+main().catch((error) => {
+  const output = {
+    status: "error",
+    code: error instanceof GroveError ? error.code : "unavailable",
+    message:
+      error instanceof GroveError
+        ? error.message
+        : "Grove could not complete the command",
+  };
+  (process.argv.includes("--json") ? console.log : console.error)(
+    JSON.stringify(output),
+  );
+  process.exitCode = 1;
+});

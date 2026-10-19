@@ -1,32 +1,21 @@
 export const dockerSetup = `git clone https://github.com/miniaxolotl/grove.git
 cd grove
 cp .env.example .env
-docker compose up -d`;
+# Set Grove Clerk keys and generated passwords in .env
+docker compose up -d --build`;
 
-export const npmSetup = `# Start a persistent local Qdrant instance
-docker run -d --name grove-qdrant \\
-  -p 127.0.0.1:6333:6333 \\
-  -v grove-qdrant:/qdrant/storage \\
-  qdrant/qdrant:latest
-
-npm install -g @miniaxolotl/grove
-grove serve`;
+export const npmSetup = `npm install -g @miniaxolotl/grove
+# Use the API origin from your Grove deployment
+grove init --client opencode --url https://YOUR-GROVE-API
+grove status --client opencode --json`;
 
 export const opencodeConfig = `{
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@miniaxolotl/grove-opencode-plugin"],
-  "mcp": {
-    "grove": {
-      "type": "remote",
-      "url": "http://localhost:26080/mcp"
-    }
-  }
+  "plugins": ["@miniaxolotl/grove-opencode-plugin"]
 }`;
 
-export const mcpEndpoint = "http://localhost:26080/mcp";
-
+export const mcpEndpoint = "https://YOUR-GROVE-API/mcp";
 export const firstMemory =
-  'Use Grove to remember: "We use PostgreSQL for billing because we need transactions." Save it under the project "my-app".';
-
+  'Use Grove to remember this confirmed decision in my current project: "We use PostgreSQL for billing because we need transactions."';
 export const recallMemory =
-  'Search Grove for "billing database" in project "my-app". What did we decide, and why?';
+  "Recall our billing database decision from Grove for this project. What did we decide, and why?";
