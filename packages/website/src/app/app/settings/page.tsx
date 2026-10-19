@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useClerk } from "@clerk/nextjs";
 import { Download, SlidersHorizontal } from "lucide-react";
+import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { api, errorMessage } from "@/lib/dashboard-api";
 
 type Settings = {
@@ -15,7 +16,7 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
-  const { signOut, openUserProfile } = useClerk();
+  const { signOut } = useClerk();
   useEffect(() => {
     const controller = new AbortController();
     api<Settings>("/me", undefined, undefined, controller.signal)
@@ -119,18 +120,7 @@ export default function SettingsPage() {
             <p className="mt-4 text-sm text-muted">Loading preferences…</p>
           )}
         </section>
-        <section className="app-panel">
-          <h2 className="font-editorial text-2xl">Your account</h2>
-          <p className="mt-3 text-sm leading-7 text-muted">
-            Manage your profile and sign-in methods with Clerk.
-          </p>
-          <button
-            className="app-button secondary mt-5"
-            onClick={() => openUserProfile()}
-          >
-            Manage profile
-          </button>
-        </section>
+        <ConnectedAccounts />
         <section className="app-panel">
           <h2 className="font-editorial text-2xl">
             Take your memories with you.
