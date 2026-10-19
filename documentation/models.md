@@ -161,8 +161,21 @@ outputs, quotas, invalid citations, stale jobs, source invalidation, scoped acce
 encrypted/masked configuration and reset counts. Browser fixtures exercise model settings,
 cloud read-only controls, cited context and accessibility. See [testing](development/testing.md).
 
-Live DeepInfra/MiniMax calls and production reset/activation are separate release steps:
-credentials were not present in the development worktree/process during implementation.
+Live release checks subsequently passed on 2026-10-19 using dedicated production
+credentials and synthetic source text:
+
+- DeepInfra Qwen returned all 4,096 dimensions; Grove normalized the vectors and
+  matched a paraphrase above an unrelated document. Query embedding took 251 ms
+  within the 850 ms deadline.
+- DeepInfra Clef returned valid kind, topic, salience and duplicate-relationship
+  choices through the production decision adapter.
+- MiniMax M3.1 Flash returned schema-valid titles/tags and a brief with exact source
+  ID/revision citations through the production pay-as-you-go generation adapter,
+  with low reasoning and structured tool output.
+
+These checks establish provider compatibility. Production schema migration,
+feature-image rollout, stored-vector verification and lifecycle checks remain the
+coordinated release steps described above.
 
 Provider references: [DeepInfra embeddings](https://docs.deepinfra.com/api-reference/embeddings/openai-embeddings.md),
 [System One](https://docs.deepinfra.com/api-reference/decisions/systemone.md),
