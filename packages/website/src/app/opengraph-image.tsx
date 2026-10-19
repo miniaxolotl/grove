@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { groveLeaves, groveStem } from "@/lib/brand-mark";
+import { groveSprout } from "@/lib/brand-mark";
 
 export const alt =
   "Grove by Bramble Labs Inc. — New session. Same context. Private memory across your AI agents.";
@@ -20,9 +20,14 @@ const sansSemibold = readFile(
     "node_modules/@fontsource/dm-sans/files/dm-sans-latin-600-normal.woff",
   ),
 );
+const logo = readFile(join(process.cwd(), "public/brand/grove-logo.svg"));
 
 export default async function OpenGraphImage() {
-  const [sansFont, sansSemiboldFont] = await Promise.all([sans, sansSemibold]);
+  const [sansFont, sansSemiboldFont, logoSvg] = await Promise.all([
+    sans,
+    sansSemibold,
+    logo,
+  ]);
 
   return new ImageResponse(
     <div
@@ -47,18 +52,13 @@ export default async function OpenGraphImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <svg width="36" height="40" viewBox="0 0 40 40" fill="none">
-            <path
-              d={groveStem}
-              stroke="#4f6b40"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-            />
-            <path d={groveLeaves} fill="#4f6b40" />
-          </svg>
-          <span style={{ fontSize: 38, letterSpacing: -2, fontWeight: 600 }}>
-            grove.
-          </span>
+          {/* ImageResponse renders the outlined logo directly into the image. */}
+          <img
+            src={`data:image/svg+xml;base64,${logoSvg.toString("base64")}`}
+            width={198}
+            height={36}
+            alt="Grove"
+          />
           <span style={{ marginLeft: "auto", fontSize: 18 }}>
             Bramble Labs Inc.
           </span>
@@ -123,20 +123,14 @@ export default async function OpenGraphImage() {
           right: 70,
           top: 215,
           borderRadius: 12,
-          background: "#1d2d26",
+          background: "#284c38",
           alignItems: "center",
           justifyContent: "center",
           border: "1px solid #dce2db",
         }}
       >
-        <svg width="82" height="88" viewBox="0 0 40 40" fill="none">
-          <path
-            d={groveStem}
-            stroke="#d7e8ae"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-          <path d={groveLeaves} fill="#d7e8ae" />
+        <svg width="108" height="108" viewBox="0 5 100 100" fill="none">
+          <path d={groveSprout} fill="#faf9f3" />
         </svg>
       </div>
     </div>,
