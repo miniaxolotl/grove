@@ -86,11 +86,13 @@ checks above were also exercised against Clerk and the local PostgreSQL-backed A
 
 ## Release and production activation
 
-The npm registry still contains the legacy CLI **0.3.1** and OpenCode plugin
-**0.3.2**. This branch has not published packages or migrated existing user data.
-Release PR #4 must be regenerated after the feature merges; the existing packages
-target **0.5.0** through release-please. Publish the new server/Claude/Codex packages
-and their matching marketplace versions together. See [release sequencing](deploy.md#releases).
+Feature [PR #5](https://github.com/miniaxolotl/grove/pull/5) merged into
+`development` at `6664f51`. Release
+[PR #4](https://github.com/miniaxolotl/grove/pull/4) prepares CLI and OpenCode
+**0.5.0** and the first server, Claude and Codex releases at **1.0.0**, including
+matching native manifests and marketplace pins. Publication runs from `production`
+after release checks. Publication evidence is recorded on the release PR and in
+the canonical execution status. See [release sequencing](deploy.md#releases).
 
 Production remains a separate activation step:
 

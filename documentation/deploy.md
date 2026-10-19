@@ -118,12 +118,15 @@ The publisher preflights all tarballs against registry integrity before the firs
 upload, rejecting changed contents under an existing version. Use
 `node scripts/publish.mjs --dry-run` to check the release without publishing.
 
-Release PR #4 predates this change and currently proposes the legacy CLI's 0.4.0
-release. Merge this feature first, then let release-please regenerate #4: the
-existing CLI and OpenCode packages explicitly target **0.5.0** for this breaking
-migration. The version manifest retains the published 0.3.1/0.3.2 baseline until
-that release PR merges. Include the new server/Claude/Codex packages and verify
-their marketplace versions before promoting the release to `production`.
-Remove the temporary `release-as` entries after 0.5.0 ships. Never publish this
-feature branch directly with its historical package versions; npm publication
-and live data migration are separate rollout steps.
+The PostgreSQL migration release is tracked in
+[PR #4](https://github.com/miniaxolotl/grove/pull/4): CLI and OpenCode **0.5.0**,
+with the new server, Claude and Codex packages at **1.0.0**. Native manifests and
+marketplace pins match their npm package versions. The one-time `release-as`
+overrides are retired with the explicit version updates. In release-please,
+extra-file paths are package-relative; root marketplace paths need a leading `/`.
+
+Review versions and marketplace pins, require green release PR checks, then merge
+into `development` to create GitHub releases. Promote that release to `production`
+to publish npm artifacts and versioned container images. Verify registry versions,
+integrity and installation after publication. Package publication and live data
+migration are separate rollout steps.
