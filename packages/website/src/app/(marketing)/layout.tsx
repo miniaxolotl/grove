@@ -1,6 +1,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { MarketingMotion } from "@/components/marketing-motion";
 
 export default function MarketingLayout({
   children,
@@ -8,11 +9,11 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <MarketingMotion>
       <SiteHeader />
       {children}
       <SiteFooter />
       <Analytics />
-    </>
+    </MarketingMotion>
   );
 }

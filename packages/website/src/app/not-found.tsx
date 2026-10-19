@@ -6,9 +6,11 @@ export default function NotFound() {
   return (
     <main
       id="main"
-      className="page-container flex min-h-[60vh] flex-col items-center justify-center py-20 text-center"
+      className="page-container recovery-page flex min-h-[75vh] flex-col items-center justify-center py-20 text-center"
     >
-      <GroveMark className="mb-6 size-14 text-leaf" />
+      <span className="recovery-mark">
+        <GroveMark className="size-14 text-leaf" />
+      </span>
       <p className="eyebrow">404 / A PATH LESS TRAVELED</p>
       <h1 className="section-heading mt-4">
         Nothing planted here.
@@ -21,6 +23,10 @@ export default function NotFound() {
       <Link href="/" className="button-primary mt-8">
         <ArrowLeft size={16} /> Back to Grove
       </Link>
+      <nav className="recovery-links" aria-label="Helpful links">
+        <Link href="/install">Installation</Link>
+        <a href="mailto:grove@mawa.dev">Get help</a>
+      </nav>
     </main>
   );
 }

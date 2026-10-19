@@ -7,7 +7,7 @@ import { site } from "@/lib/site";
 
 export const metadata = pageMetadata(
   "Install Grove — Give your agent a memory",
-  "Install Grove with Docker or npm, connect your MCP client, and save your first memory. A complete guide to self-hosted AI memory.",
+  "Connect OpenCode, Claude Code, or Codex to hosted Grove. Install the CLI, approve your connection, and save your first memory. Self-hosting is available too.",
   "/install",
 );
 
@@ -30,8 +30,8 @@ export default async function InstallPage() {
           <em>agent’s memory.</em>
         </h1>
         <p className="mt-6 max-w-lg text-sm leading-7 text-muted">
-          Start your server, connect an agent, and save something worth
-          remembering. Here’s everything you need to put down the first roots.
+          Connect an agent, approve its access, and save something worth
+          remembering. Use hosted Grove or bring your own infrastructure.
         </p>
       </div>
       <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-y border-line py-5 text-xs text-leaf">

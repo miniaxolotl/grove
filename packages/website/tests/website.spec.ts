@@ -13,8 +13,8 @@ test("serves the product story, installation, and FAQ without JavaScript", async
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "New session.Same context.",
   );
-  await expect(page.getByLabel("Docker setup", { exact: true })).toContainText(
-    "docker compose up -d",
+  await expect(page.getByLabel("npm setup", { exact: true })).toContainText(
+    "grove init --client opencode",
   );
   await page.getByText("Where does my data go?", { exact: true }).click();
   await expect(
@@ -62,7 +62,9 @@ test("installation switches methods and copies the complete setup", async ({
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/install");
-  await page.getByRole("tab", { name: "npm", exact: true }).click();
+  await page
+    .getByRole("tab", { name: "npm Hosted · Recommended", exact: true })
+    .click();
   await expect(page.getByLabel("npm setup", { exact: true })).toContainText(
     "grove init --client opencode",
   );
@@ -73,6 +75,18 @@ test("installation switches methods and copies the complete setup", async ({
   expect(copied).toContain("npm install -g @miniaxolotl/grove");
   expect(copied).toContain("grove init");
   expect(copied).toContain("grove status");
+  await page.getByRole("tab", { name: "Docker Compose", exact: true }).click();
+  await expect(page.getByLabel("Docker setup", { exact: true })).toContainText(
+    "docker compose up -d",
+  );
+  await page.getByRole("tab", { name: "Claude Code", exact: true }).click();
+  await expect(
+    page.getByLabel("Claude Code setup", { exact: true }),
+  ).toContainText("grove init --client claude");
+  await page.getByRole("tab", { name: "Codex", exact: true }).click();
+  await expect(page.getByLabel("Codex setup", { exact: true })).toContainText(
+    "grove init --client codex",
+  );
   await page.getByRole("tab", { name: "Other MCP clients" }).click();
   await expect(
     page.getByLabel("Streamable HTTP endpoint", { exact: true }),
@@ -82,6 +96,30 @@ test("installation switches methods and copies the complete setup", async ({
     (await page.getByLabel("opencode.json", { exact: true }).textContent())!,
   );
   expect(config.plugins).toContain("@miniaxolotl/grove-opencode-plugin");
+});
+
+test("the public library preview supports keyboard exploration without account mutations", async ({
+  page,
+}) => {
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/grove/") && request.method() !== "GET")
+      writes.push(request.url());
+  });
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Memories", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    page.getByRole("tab", { name: "Connections", exact: true }),
+  ).toBeFocused();
+  await expect(
+    page.getByRole("tabpanel", { name: "Connections", exact: true }),
+  ).toContainText("Project-scoped connection");
+  await page.keyboard.press("End");
+  await expect(
+    page.getByRole("tabpanel", { name: "Archive", exact: true }),
+  ).toContainText("Kept out of active recall");
+  expect(writes).toEqual([]);
 });
 
 test("sharing copies the canonical URL and offers a fallback when clipboard is unavailable", async ({
@@ -197,6 +235,26 @@ test("social metadata, crawler routes, and generated images are usable", async (
     `${siteURL}/install`,
   );
   expect((await request.get("/a-page-that-does-not-exist")).status()).toBe(404);
+});
+
+test("mobile navigation keeps account access available and dismisses on focus exit and resize", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/privacy");
+  const navigation = page.getByRole("navigation", {
+    name: "Mobile navigation",
+  });
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await expect(
+    navigation.getByRole("link", { name: "Your Grove", exact: true }),
+  ).toHaveAttribute("href", "/app");
+  await page.keyboard.press("Shift+Tab");
+  await expect(navigation).not.toBeVisible();
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect(navigation).not.toBeVisible();
 });
 
 test("mobile navigation and layouts work at narrow and wide widths", async ({

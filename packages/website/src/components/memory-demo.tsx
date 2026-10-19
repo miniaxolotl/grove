@@ -175,7 +175,7 @@ export function MemoryDemo() {
                     <div className="mb-5 ml-10 flex items-start gap-2 rounded-md border border-line bg-sage/40 px-3 py-2.5 font-mono text-[10px] leading-5 text-leaf">
                       <Search size={12} className="mt-1 shrink-0" />
                       <span>
-                        memory_search{" "}
+                        recall{" "}
                         <span className="text-muted">“{example.query}”</span>
                       </span>
                     </div>

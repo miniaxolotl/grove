@@ -20,16 +20,18 @@ import {
 } from "@/content/install";
 
 const serverOptions = [
-  { value: "docker", label: "Docker Compose", badge: "Recommended" },
-  { value: "npm", label: "npm" },
+  { value: "npm", label: "npm", badge: "Hosted · Recommended" },
+  { value: "docker", label: "Docker Compose" },
 ];
 const clientOptions = [
   { value: "opencode", label: "OpenCode" },
+  { value: "claude", label: "Claude Code" },
+  { value: "codex", label: "Codex" },
   { value: "mcp", label: "Other MCP clients" },
 ];
 
 export function Installation() {
-  const [server, setServer] = useState("docker");
+  const [server, setServer] = useState("npm");
   const [client, setClient] = useState("opencode");
 
   return (
@@ -39,12 +41,11 @@ export function Installation() {
           <span className="step-number">01</span>
           <h3>Give your memories a home.</h3>
           <p>
-            Sign in to your Grove deployment and install the client with npm.
-            Self-hosting? Compose starts the API, worker, and private
-            PostgreSQL.
+            Install the client, then let grove init open your browser. Sign in
+            and approve the connection. Hosted Grove is ready when you are.
           </p>
           <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] text-leaf">
-            <Check size={13} /> macOS, Linux, or Windows with Docker
+            <Check size={13} /> Node.js 22+ · OpenCode, Claude Code, or Codex
           </span>
         </div>
         <div className="min-w-0">
@@ -76,7 +77,10 @@ export function Installation() {
               </p>
             </div>
           ))}
-          <details className="mt-3 text-xs text-muted">
+          <details
+            className="mt-3 text-xs text-muted"
+            hidden={server !== "docker"}
+          >
             <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 font-medium text-leaf">
               Check that Grove is ready <ChevronDown size={13} />
             </summary>
@@ -100,12 +104,13 @@ export function Installation() {
           <span className="step-number">02</span>
           <h3>Make the connection.</h3>
           <p>
-            Give your agent access to Grove’s MCP tools. Use the OpenCode
-            configuration, or connect your preferred MCP client.
+            Choose the agent you build with. The CLI sets up its integration;
+            you approve what it can access. Connect another agent whenever you
+            like.
           </p>
           <a
             className="mt-4 inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-leaf hover:underline"
-            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/server.md"
+            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/client.md"
           >
             Client configuration reference <ArrowUpRight size={13} />
           </a>
@@ -134,6 +139,27 @@ export function Installation() {
               repository identity across agents and worktrees.
             </p>
           </div>
+          {["claude", "codex"].map((agent) => (
+            <div
+              key={agent}
+              id={`agent-setup-panel-${agent}`}
+              role="tabpanel"
+              aria-labelledby={`agent-setup-tab-${agent}`}
+              hidden={client !== agent}
+              tabIndex={0}
+              className="mt-4"
+            >
+              <CodeBlock
+                title={`${agent === "claude" ? "Claude Code" : "Codex"} setup`}
+                code={`grove init --client ${agent} --url https://api.usegrove.cloud\ngrove status --client ${agent} --json`}
+              />
+              <p className="mt-3 text-xs leading-6 text-muted">
+                Complete browser sign-in and approve this agent’s connection.
+                Use grove project inside your repository after approving project
+                access to share its identity across agents and worktrees.
+              </p>
+            </div>
+          ))}
           <div
             id="agent-setup-panel-mcp"
             role="tabpanel"

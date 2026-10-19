@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { groveLeaves, groveStem } from "@/lib/brand-mark";
 
 export function GroveMark({ className = "size-9" }: { className?: string }) {
   return (
@@ -9,16 +10,13 @@ export function GroveMark({ className = "size-9" }: { className?: string }) {
       aria-hidden="true"
     >
       <path
-        d="M20 32V18M20 25l-8-8M20 20l8-8M20 32l-5 4m5-4 5 4"
+        d={groveStem}
         stroke="currentColor"
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path
-        d="M19.8 19C11 19 6 13.6 6 6c8.6 0 13.8 5.5 13.8 13ZM20.2 15C20.2 7 25.2 3 33 3c0 7.5-5.1 12-12.8 12Z"
-        fill="currentColor"
-      />
+      <path d={groveLeaves} fill="currentColor" />
     </svg>
   );
 }
