@@ -16,12 +16,12 @@
       "extra-files": [
         {
           "type": "json",
-          "path": "packages/grove-claude-plugin/.claude-plugin/plugin.json",
+          "path": ".claude-plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": ".claude-plugin/marketplace.json",
+          "path": "/.claude-plugin/marketplace.json",
           "jsonpath": "$.plugins[0].source.version"
         }
       ]
@@ -33,12 +33,12 @@
       "extra-files": [
         {
           "type": "json",
-          "path": "packages/grove-codex-plugin/plugin.json",
+          "path": "plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": ".agents/plugins/marketplace.json",
+          "path": "/.agents/plugins/marketplace.json",
           "jsonpath": "$.plugins[0].source.version"
         }
       ]
@@ -46,13 +46,11 @@
     "packages/mcp": {
       "release-type": "node",
       "component": "grove",
-      "release-as": "0.5.0",
       "package-name": "@miniaxolotl/grove"
     },
     "packages/grove-opencode-plugin": {
       "release-type": "node",
       "component": "grove-opencode-plugin",
-      "release-as": "0.5.0",
       "package-name": "@miniaxolotl/grove-opencode-plugin"
     }
   },
