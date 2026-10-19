@@ -1,5 +1,17 @@
 # @miniaxolotl/grove-opencode-plugin
 
+## [0.5.0](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.3.2...grove-opencode-plugin-v0.5.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* replace the direct Qdrant server and legacy graph tools with authenticated PostgreSQL-backed remember, recall, memories and forget. Existing installations require explicit ownership-mapped import and new agent setup.
+
+### Features
+
+* consolidate private memory on PostgreSQL ([707eb0c](https://github.com/miniaxolotl/grove/commit/707eb0c7302c7ea0e9d4c6371e039dae211a5476))
+* private PostgreSQL memory, Clerk dashboard and agent integrations ([6664f51](https://github.com/miniaxolotl/grove/commit/6664f51891ccaba9c6fdc547a2a3b79467518d09))
+
 ## [0.3.2](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.3.1...grove-opencode-plugin-v0.3.2) (2026-04-26)
 
 

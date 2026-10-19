@@ -1,5 +1,23 @@
 # @miniaxolotl/grove
 
+## [0.5.0](https://github.com/miniaxolotl/grove/compare/grove-v0.3.1...grove-v0.5.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* replace the direct Qdrant server and legacy graph tools with authenticated PostgreSQL-backed remember, recall, memories and forget. Existing installations require explicit ownership-mapped import and new agent setup.
+
+### Features
+
+* consolidate private memory on PostgreSQL ([707eb0c](https://github.com/miniaxolotl/grove/commit/707eb0c7302c7ea0e9d4c6371e039dae211a5476))
+* private PostgreSQL memory, Clerk dashboard and agent integrations ([6664f51](https://github.com/miniaxolotl/grove/commit/6664f51891ccaba9c6fdc547a2a3b79467518d09))
+* **website:** publish Grove developer website and company branding ([fdd0ce4](https://github.com/miniaxolotl/grove/commit/fdd0ce49c3297c4b76004c956156930e21c2d874))
+
+
+### Bug Fixes
+
+* update packageManager version and use dynamic version from package.json in FastMCP server ([e073f83](https://github.com/miniaxolotl/grove/commit/e073f838464300fdadf3ada9a98f492e37289e6a))
+
 ## [0.3.1](https://github.com/miniaxolotl/grove/compare/grove-v0.3.0...grove-v0.3.1) (2026-04-26)
 
 
