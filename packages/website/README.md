@@ -44,17 +44,20 @@ Deploy from the repository root using `pnpm install --frozen-lockfile`, `pnpm bu
 - Generated 1200×630 Open Graph image, X/Twitter cards, favicon, Apple icon, canonical URLs, sitemap, robots, and JSON-LD.
 - Native Web Share with clipboard/manual-copy fallbacks, plus X, LinkedIn, and Bluesky sharing links.
 
-| Location                   | Purpose                                     |
-| -------------------------- | ------------------------------------------- |
-| `src/app/page.tsx`         | Marketing homepage                          |
-| `src/app/install/page.tsx` | Dedicated installation guide                |
-| `src/app/globals.css`      | Tailwind theme and visual styles            |
-| `src/components/`          | Feature sections and interactive components |
-| `src/content/`             | Navigation, FAQs, and installation commands |
-| `src/lib/site.ts`          | Public origin and official project links    |
-| `tests/website.spec.ts`    | Production-browser integration checks       |
+| Location                               | Purpose                                       |
+| -------------------------------------- | --------------------------------------------- |
+| `src/app/(marketing)/page.tsx`         | Marketing homepage                            |
+| `src/app/(marketing)/install/page.tsx` | Dedicated installation guide                  |
+| `src/app/(auth)/`                      | Clerk signup and signin                       |
+| `src/app/app/`                         | Private memory library and account management |
+| `src/app/api/grove/`                   | Authenticated, uncached API proxy             |
+| `src/app/globals.css`                  | Tailwind theme and visual styles              |
+| `src/components/`                      | Feature sections and interactive components   |
+| `src/content/`                         | Navigation, FAQs, and installation commands   |
+| `src/lib/site.ts`                      | Public origin and official project links      |
+| `tests/website.spec.ts`                | Production-browser integration checks         |
 
-Installation examples follow the repository's actual Docker, npm, and MCP setup. Keep them in sync when server or plugin behavior changes. The site describes tool-based memory retrieval and the current plugin hooks, without claiming automatic conversation capture or automatic context injection.
+Installation examples follow the repository's Docker, npm, and MCP setup. Keep them in sync when server or plugin behavior changes. Hooks provide bounded optional context; memory skills curate concise saves. Raw conversations and tool logs are never automatically uploaded.
 
 ## Checks
 

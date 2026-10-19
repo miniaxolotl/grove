@@ -41,6 +41,15 @@ tombstones, mutation races/replay, leased-worker fencing, archive/expiry and
 provider-outage deletion. Client checks cover refresh/logout serialization,
 account-switch invalidation, private-mode suppression and the recall deadline.
 
+The first CI run caught missing PostgreSQL parameter casts on the fresh role-
+creation path. Both bootstrap scripts were corrected and the full database suite
+passed again on a newly initialized database. The rebuilt production image also
+applied migrations and created roles against a second empty database, then passed
+an idempotent repeat bootstrap. Website and image CI passed on the initial run.
+The final website also verifies signed-out redirects for every
+dashboard section and a 401 from the BFF, using resource-level auth checks rather
+than Clerk's deprecated route-matcher gate.
+
 ### Live Clerk development checks
 
 Used Grove's dedicated development instance and disposable `+clerk_test` accounts:

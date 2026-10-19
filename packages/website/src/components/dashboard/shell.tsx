@@ -1,5 +1,5 @@
 "use client";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { RedirectToSignIn, UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -21,7 +21,9 @@ const links = [
 ];
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { user } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <RedirectToSignIn />;
   return (
     <div className="grove-app">
       <aside className="app-sidebar">

@@ -1,10 +1,8 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const protectedRoute = createRouteMatcher(["/app(.*)"]);
-const middleware = clerkMiddleware(async (auth, request) => {
-  if (protectedRoute(request)) await auth.protect();
-});
+// Authentication is enforced by the dashboard layout and each data route.
+const middleware = clerkMiddleware();
 export default function proxy(...args: Parameters<typeof middleware>) {
   if (
     !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||

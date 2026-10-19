@@ -31,7 +31,7 @@ const result = await build({
               ? 'import React from "react"; export default function Link(props) { return <a {...props}/> }'
               : args.path === "next/navigation"
                 ? "export const usePathname = () => window.location.pathname;"
-                : 'import React from "react"; export const useUser = () => ({user: {id: "fixture-user", firstName: "Alex"}}); export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
+                : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
         }));
       },
     },

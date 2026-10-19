@@ -15,7 +15,7 @@ try {
     ]);
     if (!existing.rows.length) {
       const result = await db.raw(
-        "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS', ?, ?) AS statement",
+        "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS', ?::text, ?::text) AS statement",
         [name, password],
       );
       await db.raw(result.rows[0].statement);
