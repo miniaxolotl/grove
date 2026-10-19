@@ -8,12 +8,14 @@
     "allowImportingTsExtensions": true
   },
   "include": [
+    "lib/ai/src/**/*.ts",
     "lib/config/src/**/*.ts",
     "lib/environment/src/**/*.ts",
     "lib/database/**/*.ts",
     "lib/memory/src/**/*.ts",
     "lib/integration-core/src/**/*.ts",
     "lib/shared/src/contracts.ts",
+    "lib/shared/src/models.ts",
     "packages/api/src/**/*.ts",
     "packages/mcp/src/**/*.ts",
     "packages/grove-opencode-plugin/src/**/*.ts",

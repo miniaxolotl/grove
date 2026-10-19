@@ -5,6 +5,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
+    "@lib/ai": "workspace:*",
     "@lib/config": "workspace:*",
     "@lib/database": "workspace:*",
     "@lib/shared": "workspace:*",

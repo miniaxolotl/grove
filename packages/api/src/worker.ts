@@ -11,6 +11,7 @@ let maintenanceAt = 0;
 try {
   while (!controller.signal.aborted) {
     try {
+      await runtime.models.refresh();
       if (Date.now() > maintenanceAt) {
         await runtime.memories.maintenance(async (subject) => {
           try {
@@ -21,7 +22,12 @@ try {
         });
         maintenanceAt = Date.now() + 60000;
       }
-      if (!(await runtime.memories.runJob()))
+      const work = await Promise.all(
+        Array.from({ length: runtime.env.AI_CONCURRENCY }, () =>
+          runtime.memories.runJob(),
+        ),
+      );
+      if (!work.some(Boolean))
         await setTimeout(1000, undefined, { signal: controller.signal });
     } catch {
       if (!controller.signal.aborted) {

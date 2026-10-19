@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import { hardening, identityState } from "./hardening.ts";
+import { modelProviders } from "./model-migration.ts";
 
 export const migrations = [
   {
@@ -209,6 +210,7 @@ export const migrations = [
       throw new Error("Use a forward migration");
     },
   },
+  modelProviders,
 ];
 
 export const migrationSource: Knex.MigrationSource<

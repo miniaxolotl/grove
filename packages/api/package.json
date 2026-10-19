@@ -32,6 +32,7 @@
     "zod": "~4.1.8"
   },
   "devDependencies": {
+    "@lib/ai": "workspace:*",
     "@lib/config": "workspace:*",
     "@lib/database": "workspace:*",
     "@lib/environment": "workspace:*",

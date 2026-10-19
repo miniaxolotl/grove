@@ -78,10 +78,11 @@ configure the provider's documented transport appropriately; do not disable
 certificate verification. Pgvector extension/role creation needs owner privileges.
 
 API starts with `node dist/server.js`; worker with `node dist/worker.js`.
-Both use the same model profile and a writable model-cache path. The image uses
-CPU inference; it neither patches SDK dependencies nor downloads CUDA providers.
-`EMBEDDING_MODE=disabled` explicitly selects lexical-only operation. The local
-profile never silently falls back to another provider or dimension.
+Both use the same model configuration. Self-hosted local embeddings need a writable
+model-cache path and use CPU inference. Remote role configuration, encrypted settings
+and the Cloud DeepInfra/MiniMax defaults are documented in [models](models.md).
+`EMBEDDING_MODE=disabled` explicitly selects lexical-only operation. A profile never
+silently falls back to another provider or dimension.
 
 Readiness waits for database-role checks and embedding initialization. Configure
 at least 180 seconds of initial startup time for first model download. Health
@@ -112,6 +113,7 @@ app. Initial provisioning needs:
 | `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Matching production instance keys                                |
 | `CLERK_WEBHOOK_SIGNING_SECRET`              | Actual Svix endpoint signing secret                              |
 | `CURSOR_SECRET`                             | Shared random value, at least 32 characters                      |
+| `DEEPINFRA_API_KEY`, `MINIMAX_API_KEY`      | Server-only credentials for the Cloud inference roles            |
 | `API_ORIGIN`, `SITE_URL`, `CLERK_ISSUER`    | Optional overrides of the production origins above               |
 | `GROVE_IMAGE_DIGEST`                        | Optional SHA-256 override of the template's published image      |
 
@@ -126,13 +128,13 @@ node --env-file=.env.digitalocean.local --env-file=.env.neon.local \
 ```
 
 The script never sends migration-owner credentials. Database URLs, Clerk secrets
-and the cursor key are `SECRET`/`RUN_TIME` values. The API and worker receive only
+and inference/cursor keys are `SECRET`/`RUN_TIME` values. The API and worker receive only
 their own database login. `DATABASE_SSL=require` verifies certificates. These
 providers communicate over authenticated public TLS, not a shared private VPC.
 
 The API uses readiness `/health/ready`, liveness `/health/live`, and a 180-second
-startup allowance. Model cache is writable but ephemeral; restarts may download
-the fixed model again. The worker uses the same image/profile with
+startup allowance. Cloud inference uses remote providers; self-hosted local model
+cache is writable but ephemeral. The worker uses the same image/configuration with
 `node dist/worker.js`. App Platform edge caching is disabled for REST/MCP.
 
 ### Rollout and rollback

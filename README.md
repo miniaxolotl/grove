@@ -14,6 +14,11 @@ and non-owner runtime roles enforcing row-level security.
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Delivery evidence](documentation/delivery.md)
 
+Configurable [embedding, decision and generation providers](documentation/models.md)
+add semantic search, generated titles/tags, related memories, and source-linked
+personal profiles, project briefs and task handoffs. Cloud uses full 4,096-dimensional
+Qwen embeddings and Clef decisions on DeepInfra, with MiniMax M3.1 Flash generation.
+
 ## Connect an agent
 
 Connect to **Grove Cloud**, from your project directory (Node 22+ and your agent installed):

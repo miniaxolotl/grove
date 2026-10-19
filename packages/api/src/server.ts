@@ -11,6 +11,7 @@ export async function startServer() {
   const { env, db, memories } = runtime;
   const app = createApp({
     memories,
+    models: runtime.models,
     auth: new Authentication(db, clerkVerifier(env)),
     origin: env.API_ORIGIN,
     siteUrl: env.SITE_URL,

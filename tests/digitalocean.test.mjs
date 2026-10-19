@@ -20,6 +20,8 @@ const env = {
   CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.usegrove.cloud$").toString("base64")}`,
   CLERK_WEBHOOK_SIGNING_SECRET: "whsec_test_fixture",
   CURSOR_SECRET: "test-cursor-secret".repeat(3),
+  DEEPINFRA_API_KEY: "deepinfra-fixture",
+  MINIMAX_API_KEY: "minimax-fixture",
 };
 
 test("initial spec isolates runtime secrets and never deploys the migration owner", () => {
@@ -43,11 +45,17 @@ test("initial spec isolates runtime secrets and never deploys the migration owne
           "CLERK_SECRET_KEY",
           "CLERK_WEBHOOK_SIGNING_SECRET",
           "CURSOR_SECRET",
+          "DEEPINFRA_API_KEY",
+          "MINIMAX_API_KEY",
         ].includes(item.key)
       )
         assert.equal(item.type, "SECRET");
     }
   }
+  assert.equal(
+    spec.services[0].envs.find((item) => item.key === "GROVE_EDITION").value,
+    "cloud",
+  );
 });
 
 test("provisioning rejects owner connections, insecure TLS and stale Clerk keys", () => {

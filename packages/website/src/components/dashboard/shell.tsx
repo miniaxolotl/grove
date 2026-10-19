@@ -10,12 +10,14 @@ import {
   Settings,
   ArrowUpRight,
   LockKeyhole,
+  UserRound,
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 
 const links = [
   { href: "/app", name: "Memories", icon: BookOpen },
   { href: "/app/projects", name: "Projects", icon: Folder },
+  { href: "/app/profile", name: "Personal context", icon: UserRound },
   { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/connections", name: "Connections", icon: Plug },
   { href: "/app/settings", name: "Settings", icon: Settings },

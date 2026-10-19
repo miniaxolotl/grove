@@ -83,6 +83,7 @@ export class MemoryModel extends Model {
   projectId!: string | null;
   content!: string;
   kind!: "preference" | "fact" | "decision" | "solution" | "handoff";
+  autoKind!: boolean;
   status!: "active" | "archived";
   version!: number;
   source!: {

@@ -28,6 +28,8 @@ export function MemoryLibrary({
   const [search, setSearch] = useState("");
   const [project, setProject] = useState("all");
   const [kind, setKind] = useState("");
+  const [tag, setTag] = useState("");
+  const [searchMode, setSearchMode] = useState<string>();
   const [status, setStatus] = useState(archive ? "archived" : "active");
   const [next, setNext] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,7 @@ export function MemoryLibrary({
     search ||
     project !== "all" ||
     kind ||
+    tag ||
     status !== (archive ? "archived" : "active"),
   );
   const filters = {
@@ -47,6 +50,7 @@ export function MemoryLibrary({
     projectId:
       project === "all" ? undefined : project === "personal" ? null : project,
     kind: kind || undefined,
+    tag: tag || undefined,
     status,
   };
   useEffect(() => {
@@ -69,6 +73,7 @@ export function MemoryLibrary({
                     ? null
                     : project,
               kind: kind || undefined,
+              tag: tag || undefined,
               status,
             },
             undefined,
@@ -79,6 +84,7 @@ export function MemoryLibrary({
         if (!controller.signal.aborted) {
           setItems(page.items);
           setNext(page.nextCursor);
+          setSearchMode(page.searchMode);
           setProjects(projectList);
         }
       } catch (e) {
@@ -89,7 +95,7 @@ export function MemoryLibrary({
     }
     void load();
     return () => controller.abort();
-  }, [search, project, kind, status, refresh, retryAttempt]);
+  }, [search, project, kind, tag, status, refresh, retryAttempt]);
   useEffect(() => {
     if (!initialId) return;
     const controller = new AbortController();
@@ -206,6 +212,15 @@ export function MemoryLibrary({
             </select>
           </label>
         )}
+        <label>
+          <span className="sr-only">Topic tag</span>
+          <input
+            value={tag}
+            maxLength={40}
+            onChange={(e) => setTag(e.target.value)}
+            placeholder="Filter by tag"
+          />
+        </label>
         {filtered && (
           <button
             type="button"
@@ -215,6 +230,7 @@ export function MemoryLibrary({
               setSearch("");
               setProject("all");
               setKind("");
+              setTag("");
               setStatus(archive ? "archived" : "active");
             }}
           >
@@ -232,7 +248,12 @@ export function MemoryLibrary({
         <span>
           {archive ? "Saved outside active recall" : "Memory library"}
         </span>
-        <span>{items.length} loaded</span>
+        <span>
+          {items.length} loaded
+          {searchMode
+            ? ` · ${searchMode === "hybrid" ? "Text + meaning" : "Text search"}`
+            : ""}
+        </span>
       </div>
       {loading && !items.length ? (
         <p role="status" className="app-empty">
@@ -287,6 +308,11 @@ export function MemoryLibrary({
                   {memory.kind}
                 </span>
                 <span className="min-w-0">
+                  {memory.enrichment?.title && (
+                    <span className="mb-1 block text-sm font-medium">
+                      {memory.enrichment.title}
+                    </span>
+                  )}
                   <span className="block whitespace-pre-wrap text-sm leading-7 line-clamp-2">
                     {memory.content}
                   </span>
@@ -296,6 +322,9 @@ export function MemoryLibrary({
                         (memory.projectId ? "Project" : "Personal")}
                     </span>
                     <span>via {memory.source.agent}</span>
+                    {memory.enrichment?.tags.map((value) => (
+                      <span key={value}>#{value}</span>
+                    ))}
                     <span>
                       {new Date(memory.updatedAt).toLocaleDateString()}
                     </span>
@@ -308,6 +337,10 @@ export function MemoryLibrary({
                     {memory.indexing !== "ready" && (
                       <span>Semantic index {memory.indexing}</span>
                     )}
+                    {memory.enrichment &&
+                      ["pending", "failed"].includes(
+                        memory.enrichment.status,
+                      ) && <span>Organization {memory.enrichment.status}</span>}
                   </span>
                 </span>
                 <ArrowUpRight className="text-muted" size={16} />
@@ -355,6 +388,7 @@ function MemoryEditor({
 }) {
   const [content, setContent] = useState(memory?.content ?? "");
   const [kind, setKind] = useState(memory?.kind ?? "fact");
+  const [autoKind, setAutoKind] = useState(memory?.autoKind ?? !memory);
   const [projectId, setProjectId] = useState(memory?.projectId ?? "");
   const [taskId, setTaskId] = useState(memory?.taskId ?? "");
   const [busy, setBusy] = useState(false);
@@ -387,6 +421,7 @@ function MemoryEditor({
     const value = {
       content,
       kind,
+      autoKind: kind !== "handoff" && autoKind,
       projectId: projectId || null,
       ...(kind === "handoff" ? { taskId } : {}),
       source: { agent: "website" },
@@ -438,7 +473,10 @@ function MemoryEditor({
             Kind
             <select
               value={kind}
-              onChange={(e) => setKind(e.target.value as Memory["kind"])}
+              onChange={(e) => {
+                setKind(e.target.value as Memory["kind"]);
+                setAutoKind(false);
+              }}
             >
               {["preference", "fact", "decision", "solution", "handoff"].map(
                 (value) => (
@@ -462,6 +500,16 @@ function MemoryEditor({
             </select>
           </label>
         </div>
+        {kind !== "handoff" && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={autoKind}
+              onChange={(e) => setAutoKind(e.target.checked)}
+            />
+            Let the decision model choose the kind
+          </label>
+        )}
         {kind === "handoff" && (
           <label>
             Stable task ID
@@ -521,7 +569,58 @@ function MemoryEditor({
           <p className="mt-4 break-all font-mono text-[10px] text-muted">
             {memory.id}
           </p>
+          {memory.enrichment && (
+            <section className="mt-5 space-y-3 text-sm">
+              <h3 className="font-medium">
+                Organization · {memory.enrichment.status}
+              </h3>
+              {memory.enrichment.title && <p>{memory.enrichment.title}</p>}
+              {!!memory.enrichment.tags.length && (
+                <p className="text-muted">
+                  {memory.enrichment.tags.map((value) => `#${value}`).join(" ")}
+                </p>
+              )}
+              {memory.enrichment.suggestedKind && !memory.autoKind && (
+                <p className="text-xs text-muted">
+                  Suggested kind: {memory.enrichment.suggestedKind}. Your
+                  explicit kind is kept.
+                </p>
+              )}
+              <ul className="space-y-2">
+                {memory.enrichment.relationships.map((relation) => (
+                  <li key={relation.id}>
+                    <Link
+                      href={`/app/memories/${relation.id}`}
+                      className="underline"
+                    >
+                      {relation.relationship} · {relation.id.slice(0, 8)} ·
+                      revision {relation.version}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="mt-5 flex flex-wrap gap-2">
+            {!restore &&
+              (memory.indexing !== "disabled" ||
+                (memory.enrichment &&
+                  memory.enrichment.status !== "disabled")) && (
+                <button
+                  className="app-button secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    execute(async () => {
+                      await api(`/memories/${memory.id}/reprocess`, {
+                        expectedVersion: memory.version,
+                      });
+                      done("Memory queued for processing.");
+                    })
+                  }
+                >
+                  Retry processing
+                </button>
+              )}
             <button
               className="app-button secondary"
               disabled={busy}

@@ -5,9 +5,17 @@ import { Connections } from "../../src/components/dashboard/connections";
 import { ConnectAgent } from "../../src/components/dashboard/connect-agent";
 import Projects from "../../src/app/app/projects/page";
 import Settings from "../../src/app/app/settings/page";
+import { ModelSettings } from "../../src/components/dashboard/model-settings";
+import { MemoryContext } from "../../src/components/dashboard/context";
 
 const path = window.location.pathname;
-const content = path.startsWith("/app/connect/") ? (
+const content = path.endsWith("/settings/models") ? (
+  <ModelSettings />
+) : path.endsWith("/profile") ? (
+  <MemoryContext />
+) : path.startsWith("/app/projects/") ? (
+  <MemoryContext projectId={path.split("/").at(-1)!} />
+) : path.startsWith("/app/connect/") ? (
   <ConnectAgent id={path.split("/").at(-1)!} />
 ) : path.endsWith("/connections") ? (
   <Connections origin="https://api.grove.example" />
@@ -16,7 +24,12 @@ const content = path.startsWith("/app/connect/") ? (
 ) : path.endsWith("/settings") ? (
   <Settings />
 ) : (
-  <MemoryLibrary archive={path.endsWith("/archive")} />
+  <MemoryLibrary
+    archive={path.endsWith("/archive")}
+    initialId={
+      path.startsWith("/app/memories/") ? path.split("/").at(-1) : undefined
+    }
+  />
 );
 createRoot(document.getElementById("root")!).render(
   <DashboardShell>{content}</DashboardShell>,

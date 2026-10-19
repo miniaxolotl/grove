@@ -1,5 +1,19 @@
 # Delivery evidence
 
+## Configurable models (19 October 2026)
+
+The model-provider feature is stacked on cloud-onboarding #11. Local verification:
+32 contract/provider tests, 24 browser/accessibility tests, 4 packed-artifact tests,
+and 5 DigitalOcean configuration tests passed. Root/website type checks, lint,
+builds, Docker image build and a non-owner container readiness smoke check passed.
+The new browser screens were inspected visually. Full 4,096-dimensional storage,
+hybrid retrieval, source invalidation and profile cutovers use disposable pgvector
+fixtures; HTTP fixtures exercise DeepInfra/MiniMax request and response contracts.
+Live provider calls and production activation await server credentials. See
+[model configuration and rollout](models.md).
+
+## Memory consolidation baseline
+
 Verified during 18–19 October 2026 on `feat/memory-consolidation`, based on
 `development` at `b8c1b3d`. This is a breaking replacement of the legacy service.
 

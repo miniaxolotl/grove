@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Brief, Enrichment } from "./models.ts";
 
 export const capabilities = [
   "memory:read",
@@ -36,12 +37,15 @@ export const rememberSchema = z
     capture: z.enum(["explicit", "automatic"]).default("explicit"),
     archived: z.boolean().default(false),
     kind: kindSchema.default("fact"),
+    autoKind: z.boolean().default(false),
     projectId: uuidSchema.nullable().default(null),
     taskId: z.string().min(1).max(128).optional(),
     source: sourceSchema.default({ agent: "api" }),
   })
   .strict()
   .superRefine((input, ctx) => {
+    if (input.autoKind && input.kind === "handoff")
+      ctx.addIssue({ code: "custom", message: "Handoff kind is explicit" });
     if (Boolean(input.id) !== Boolean(input.expectedVersion)) {
       ctx.addIssue({
         code: "custom",
@@ -65,6 +69,7 @@ export const listSchema = z
   .object({
     projectId: uuidSchema.nullable().optional(),
     kind: kindSchema.optional(),
+    tag: z.string().trim().min(1).max(40).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
     cursor: z.string().max(2048).optional(),
@@ -156,6 +161,7 @@ export const memorySchema = z.object({
   projectId: uuidSchema.nullable(),
   content: z.string(),
   kind: kindSchema,
+  autoKind: z.boolean().optional(),
   status: z.enum(["active", "archived"]),
   version: z.number().int(),
   source: sourceSchema,
@@ -164,7 +170,8 @@ export const memorySchema = z.object({
   purgeAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  indexing: z.enum(["pending", "ready", "failed"]),
+  indexing: z.enum(["disabled", "pending", "ready", "failed"]),
+  enrichment: z.custom<Enrichment>().optional(),
 });
 export type Memory = z.infer<typeof memorySchema>;
 export type Remember = z.infer<typeof rememberSchema>;
@@ -181,11 +188,16 @@ export type Principal = {
   issuedAt?: number;
   capabilities: Capability[];
 };
-export type Page<T> = { items: T[]; nextCursor: string | null };
+export type Page<T> = {
+  items: T[];
+  nextCursor: string | null;
+  searchMode?: "hybrid" | "lexical";
+};
 export type RecallResult = {
   items: Memory[];
   mode: "hybrid" | "lexical" | "profile";
   contentVersion: number;
+  briefs?: Brief[];
 };
 export type ApiEnvelope<T> =
   | { success: true; data: T }

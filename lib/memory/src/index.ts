@@ -7,6 +7,19 @@ import {
 } from "node:crypto";
 import { MemoryModel, tenant, camelRows, type Knex } from "@lib/database";
 import { policy } from "@lib/config";
+import type { Embedder, Providers } from "@lib/ai";
+import type { BriefRequest, ModelProfiles } from "@lib/shared/models";
+import {
+  briefFor,
+  enrichmentFor,
+  invalidateBriefs,
+  queueBrief,
+  queueMemory,
+  queryEmbedding,
+  runProcessingJob,
+} from "./processing.ts";
+export type { Embedder } from "@lib/ai";
+export { budgetedInference } from "./processing.ts";
 import {
   GroveError,
   capabilities,
@@ -23,10 +36,6 @@ import {
 
 export { ConnectionSetup } from "./connect.ts";
 
-export type Embedder = {
-  profile: string;
-  embed(text: string): Promise<number[]>;
-};
 type Connection = Omit<Grant, "expiresAt"> & {
   id: string;
   accountId: string;
@@ -43,16 +52,10 @@ type Account = {
   contentVersion: number;
   captureEnabled: boolean;
   recallEnabled: boolean;
+  organizeEnabled: boolean;
+  summariesEnabled: boolean;
 };
 type Access = { trx: Knex.Transaction; account: Account; grant?: Connection };
-type Job = {
-  id: string;
-  accountId: string;
-  memoryId: string;
-  version: number;
-  leaseId: string;
-  attempts: number;
-};
 const missing = () => new GroveError("not_found", "Memory not found", 404);
 const forbidden = () =>
   new GroveError(
@@ -74,18 +77,36 @@ export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export class MemoryService {
+  providers: Providers;
+  jobProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>;
+  get embedder() {
+    return this.providers.embedding;
+  }
   constructor(
     readonly db: Knex,
     readonly cursorSecret: string,
-    readonly embedder?: Embedder,
-  ) {}
+    embedder?: Embedder,
+    providers: Omit<Providers, "embedding"> = {},
+    readonly dailyRequestLimit = 2000,
+  ) {
+    this.providers = { ...providers, embedding: embedder };
+  }
 
   async access<T>(
     principal: Principal,
     capability: Capability | "admin" | "self" | null,
     run: (access: Access) => Promise<T>,
+    modelUpdate = false,
   ): Promise<T> {
     return tenant(this.db, principal.accountId, async (trx) => {
+      // Profile cutovers serialize with writes, before account locks. A replica may
+      // have refreshed before waiting here; queue() resolves the committed profiles.
+      if (capability && capability !== "memory:read")
+        await trx.raw(
+          modelUpdate
+            ? "SELECT pg_advisory_xact_lock(68142019)"
+            : "SELECT pg_advisory_xact_lock_shared(68142019)",
+        );
       const accountQuery = trx<Account>("accounts").where({
         id: principal.accountId,
       });
@@ -212,7 +233,12 @@ export class MemoryService {
     const failed =
       !ready &&
       (await trx("jobs")
-        .where({ memoryId: row.id, version: row.version })
+        .where({
+          memoryId: row.id,
+          version: row.version,
+          kind: "embedding",
+          profile: this.embedder?.profile ?? policy.embeddingProfile,
+        })
         .whereNotNull("failedAt")
         .first("id"));
     return {
@@ -220,6 +246,7 @@ export class MemoryService {
       projectId: row.projectId,
       content: row.content,
       kind: row.kind,
+      autoKind: row.autoKind,
       status: row.status,
       version: row.version,
       source: row.source,
@@ -228,7 +255,17 @@ export class MemoryService {
       purgeAt: iso(row.purgeAt),
       createdAt: iso(row.createdAt)!,
       updatedAt: iso(row.updatedAt)!,
-      indexing: ready ? "ready" : failed ? "failed" : "pending",
+      indexing:
+        !this.embedder ||
+        row.status !== "active" ||
+        (row.expiresAt && new Date(row.expiresAt) <= new Date())
+          ? "disabled"
+          : ready
+            ? "ready"
+            : failed
+              ? "failed"
+              : "pending",
+      enrichment: await enrichmentFor(trx, row, this.providers),
     };
   }
 
@@ -267,6 +304,7 @@ export class MemoryService {
     await trx("accounts")
       .where({ id: accountId })
       .increment("contentVersion", 1);
+    await invalidateBriefs(trx, accountId);
   }
 
   private async revise(trx: Knex.Transaction, row: MemoryModel) {
@@ -277,14 +315,13 @@ export class MemoryService {
       content: row.content,
       source: JSON.stringify(row.source),
     });
-    await trx("jobs").where({ memoryId: row.id }).delete();
     await trx("memory_embeddings").where({ memoryId: row.id }).delete();
-    await trx("jobs").insert({
-      accountId: row.accountId,
-      memoryId: row.id,
-      version: row.version,
-    });
     await this.changed(trx, row.accountId);
+    await this.queue(trx, row);
+  }
+
+  private async queue(trx: Knex.Transaction, row: MemoryModel) {
+    return queueMemory(trx, row, this.providers, await this.jobProfiles?.(trx));
   }
 
   async me(principal: Principal) {
@@ -298,6 +335,8 @@ export class MemoryService {
       contentVersion: account.contentVersion,
       captureEnabled: account.captureEnabled,
       recallEnabled: account.recallEnabled,
+      organizeEnabled: account.organizeEnabled,
+      summariesEnabled: account.summariesEnabled,
       grant: grant
         ? {
             personal: grant.personal,
@@ -369,6 +408,7 @@ export class MemoryService {
               projectId: input.projectId,
               content: input.content,
               kind: input.kind,
+              autoKind: input.autoKind,
               source: input.source,
               taskId: input.taskId ?? null,
               expiresAt: handoff ? trx.raw("now() + interval '30 days'") : null,
@@ -457,6 +497,24 @@ export class MemoryService {
   }
 
   async list(principal: Principal, input: MemoryList): Promise<Page<Memory>> {
+    const embedder = this.embedder;
+    let vector: number[] | undefined;
+    if (input.query && embedder) {
+      await this.access(principal, "memory:read", async ({ grant }) => {
+        if (input.projectId !== undefined) this.scope(grant, input.projectId);
+      });
+      try {
+        vector = await queryEmbedding(
+          this.db,
+          principal.accountId,
+          embedder,
+          input.query,
+          this.dailyRequestLimit,
+        );
+      } catch {
+        /* Keep text search available during provider outages. */
+      }
+    }
     return this.access(principal, "memory:read", async ({ trx, grant }) => {
       const { cursor, limit, ...filters } = input;
       const binding = digest(
@@ -478,6 +536,18 @@ export class MemoryService {
         q.where({ projectId: input.projectId });
       }
       if (input.kind) q.where({ kind: input.kind });
+      if (input.tag)
+        q.whereRaw(
+          `EXISTS (SELECT 1 FROM memory_enrichments e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ANY(?::text[]) AND (e.data->'tags' @> ?::jsonb OR e.data->'topics' @> ?::jsonb))`,
+          [
+            [
+              this.providers.decision?.profile,
+              this.providers.generation?.profile,
+            ].filter(Boolean),
+            JSON.stringify([input.tag]),
+            JSON.stringify([input.tag]),
+          ],
+        );
       if (input.status === "active")
         q.where({ status: "active" }).where((b) =>
           b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
@@ -486,15 +556,29 @@ export class MemoryService {
       if (input.status === "expired")
         q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
       if (input.query)
-        q.whereRaw("search @@ websearch_to_tsquery('english', ?)", [
-          input.query,
-        ]);
+        q.where((b) => {
+          b.whereRaw("search @@ websearch_to_tsquery('english', ?)", [
+            input.query!,
+          ]);
+          if (vector)
+            b.orWhereRaw(
+              `EXISTS(SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
+              [
+                embedder!.profile,
+                JSON.stringify(vector),
+                embedder!.distanceThreshold ?? 0.45,
+              ],
+            );
+        });
       const rows = await q.limit(limit + 1);
       const items = await Promise.all(
         rows.slice(0, limit).map((row) => this.present(trx, row)),
       );
       return {
         items,
+        ...(input.query
+          ? { searchMode: vector ? ("hybrid" as const) : ("lexical" as const) }
+          : {}),
         nextCursor:
           rows.length > limit
             ? this.encodeCursor({
@@ -507,15 +591,27 @@ export class MemoryService {
     });
   }
 
-  async recall(principal: Principal, input: Recall): Promise<RecallResult> {
+  async recall(
+    principal: Principal,
+    input: Recall,
+    signal?: AbortSignal,
+  ): Promise<RecallResult> {
+    const embedder = this.embedder;
     // Authorize before sending text to inference. Reauthorize after asynchronous work.
     await this.access(principal, "memory:read", async ({ grant }) => {
       if (input.projectId) this.scope(grant, input.projectId);
     });
     let vector: number[] | undefined;
-    if (input.query && this.embedder) {
+    if (input.query && embedder) {
       try {
-        vector = await this.embedder.embed(input.query);
+        vector = await queryEmbedding(
+          this.db,
+          principal.accountId,
+          embedder,
+          input.query,
+          this.dailyRequestLimit,
+          signal,
+        );
       } catch {
         /* explicit lexical degradation */
       }
@@ -560,12 +656,16 @@ export class MemoryService {
             ? await base()
                 .whereRaw(
                   `EXISTS (SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id
-          AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ? AND (e.embedding <=> ?::vector) < 0.45)`,
-                  [this.embedder!.profile, JSON.stringify(vector)],
+          AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
+                  [
+                    embedder!.profile,
+                    JSON.stringify(vector),
+                    embedder!.distanceThreshold ?? 0.45,
+                  ],
                 )
                 .orderByRaw(
                   `(SELECT e.embedding <=> ?::vector FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ?)`,
-                  [JSON.stringify(vector), this.embedder!.profile],
+                  [JSON.stringify(vector), embedder!.profile],
                 )
                 .limit(40)
             : [];
@@ -580,6 +680,20 @@ export class MemoryService {
                 score: (candidates.get(row.id)?.score ?? 0) + 1 / (60 + i),
               });
             });
+          if (this.providers.decision && candidates.size) {
+            const annotations = await trx("memory_enrichments")
+              .where({
+                kind: "decision",
+                profile: this.providers.decision.profile,
+              })
+              .whereIn("memoryId", [...candidates.keys()]);
+            for (const annotation of annotations) {
+              const candidate = candidates.get(annotation.memoryId)!;
+              if (candidate.row.version === annotation.version)
+                candidate.score *=
+                  1 + 0.1 * Number(annotation.data.salience ?? 0);
+            }
+          }
           rows = [...candidates.values()]
             .sort((a, b) => b.score - a.score)
             .slice(0, input.limit)
@@ -588,6 +702,37 @@ export class MemoryService {
         const seen = new Set<string>();
         let remaining = input.maxCharacters;
         const items: Memory[] = [];
+        const briefs = [];
+        if (!input.query) {
+          const scopes: BriefRequest[] = [];
+          if (input.projectId) scopes.push({ projectId: input.projectId });
+          if (input.includePersonal && (!grant || grant.personal))
+            scopes.push({ projectId: null });
+          if (
+            input.taskId &&
+            (input.projectId ||
+              (input.includePersonal && (!grant || grant.personal)))
+          )
+            scopes.unshift({
+              projectId: input.projectId,
+              taskId: input.taskId,
+            });
+          let briefBudget = Math.floor(remaining * 0.6);
+          for (const scope of scopes) {
+            const brief = await briefFor(
+              trx,
+              account.id,
+              scope,
+              this.providers,
+            );
+            const size = JSON.stringify(brief).length;
+            if (brief.status === "ready" && size <= briefBudget) {
+              briefs.push(brief);
+              briefBudget -= size;
+              remaining -= size;
+            }
+          }
+        }
         for (const row of rows) {
           const fingerprint = digest(row.content.trim().toLowerCase());
           const item = await this.present(trx, row);
@@ -599,6 +744,7 @@ export class MemoryService {
         }
         return {
           items,
+          briefs,
           mode: !input.query ? "profile" : vector ? "hybrid" : "lexical",
           contentVersion: account.contentVersion,
         };
@@ -860,12 +1006,101 @@ export class MemoryService {
   }
   async settings(
     principal: Principal,
-    input: { captureEnabled: boolean; recallEnabled: boolean },
+    input: {
+      captureEnabled: boolean;
+      recallEnabled: boolean;
+      organizeEnabled?: boolean;
+      summariesEnabled?: boolean;
+    },
   ) {
     return this.access(principal, "admin", async ({ trx, account }) => {
       await trx("accounts").where({ id: account.id }).update(input);
+      if (input.summariesEnabled === false) {
+        await trx("memory_briefs").delete();
+        await trx("jobs").where({ kind: "brief" }).delete();
+      }
+      if (input.organizeEnabled === false) {
+        await trx("jobs")
+          .whereIn("kind", ["decision", "organization"])
+          .delete();
+        await trx("memory_enrichments").delete();
+      }
+      if (
+        (input.organizeEnabled && !account.organizeEnabled) ||
+        (input.summariesEnabled && !account.summariesEnabled)
+      ) {
+        const rows = await MemoryModel.query(trx)
+          .where({ status: "active" })
+          .where((b) =>
+            b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+          );
+        for (const row of rows) await this.queue(trx, row);
+      }
       return input;
     });
+  }
+
+  async brief(principal: Principal, scope: BriefRequest, refresh = false) {
+    return this.access(
+      principal,
+      refresh ? "memory:write" : "memory:read",
+      async ({ trx, account, grant }) => {
+        this.scope(grant, scope.projectId);
+        if (
+          scope.projectId &&
+          !(await trx("projects").where({ id: scope.projectId }).first("id"))
+        )
+          throw new GroveError("not_found", "Project not found", 404);
+        if (refresh && this.providers.generation && account.summariesEnabled) {
+          const target = `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
+          await trx("memory_briefs").where({ target }).delete();
+          await queueBrief(
+            trx,
+            account.id,
+            scope,
+            this.providers.generation.profile,
+            0,
+          );
+        }
+        return briefFor(trx, account.id, scope, this.providers);
+      },
+    );
+  }
+
+  async retryProcessing(
+    principal: Principal,
+    id: string,
+    expectedVersion: number,
+  ) {
+    return this.access(principal, "memory:write", async ({ trx, grant }) => {
+      const row = await this.query(trx, grant).findById(id).forUpdate();
+      if (!row) throw missing();
+      if (row.version !== expectedVersion)
+        throw new GroveError(
+          "version_conflict",
+          "Memory changed; reload before retrying",
+          409,
+        );
+      await this.queue(trx, row);
+      return this.present(trx, row);
+    });
+  }
+
+  async usage(principal: Principal) {
+    return this.access(principal, "admin", async ({ trx }) => ({
+      dailyRequestLimit: this.dailyRequestLimit,
+      today: await trx("inference_usage")
+        .whereRaw("day = CURRENT_DATE")
+        .select("role", "requests", "inputTokens", "outputTokens"),
+      failedJobs: Number(
+        (
+          await trx("jobs")
+            .whereNotNull("failedAt")
+            .count("id as count")
+            .first()
+        )?.count ?? 0,
+      ),
+    }));
   }
   async deleteAccount(principal: Principal) {
     return this.access(principal, "admin", async ({ trx, account }) => {
@@ -894,70 +1129,7 @@ export class MemoryService {
   }
 
   async runJob(): Promise<boolean> {
-    if (!this.embedder) return false;
-    const job = camelRows<Job>(
-      await this.db.raw("SELECT * FROM grove_claim_job()"),
-    )[0];
-    if (!job) return false;
-    try {
-      const content = await tenant(this.db, job.accountId, async (trx) => {
-        const row = await MemoryModel.query(trx)
-          .findById(job.memoryId)
-          .where({ version: job.version });
-        return row?.content;
-      });
-      if (!content) return true;
-      const embedding = await this.embedder.embed(content);
-      if (
-        embedding.length !== policy.embeddingDimensions ||
-        embedding.some((n) => !Number.isFinite(n))
-      )
-        throw new Error("invalid_embedding");
-      await tenant(this.db, job.accountId, async (trx) => {
-        const account = await trx("accounts")
-          .where({ id: job.accountId, status: "active" })
-          .forShare()
-          .first();
-        if (!account) return;
-        const row = await MemoryModel.query(trx)
-          .findById(job.memoryId)
-          .where({ version: job.version })
-          .forShare();
-        const lease = await trx("jobs")
-          .where({ id: job.id, leaseId: job.leaseId })
-          .where("leaseUntil", ">", trx.fn.now())
-          .forUpdate()
-          .first();
-        if (!row || !lease) return;
-        await trx("memory_embeddings")
-          .insert({
-            accountId: job.accountId,
-            memoryId: job.memoryId,
-            version: job.version,
-            profile: this.embedder!.profile,
-            embedding: JSON.stringify(embedding),
-          })
-          .onConflict(["accountId", "memoryId", "version", "profile"])
-          .merge(["embedding"]);
-        await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
-      });
-    } catch {
-      await tenant(this.db, job.accountId, async (trx) => {
-        await trx("jobs")
-          .where({ id: job.id, leaseId: job.leaseId })
-          .update({
-            leaseId: null,
-            leaseUntil: null,
-            dueAt: trx.raw("now() + (? * interval '1 second')", [
-              Math.min(3600, 2 ** job.attempts * 10),
-            ]),
-            errorCode: "embedding_unavailable",
-            failedAt:
-              job.attempts >= policy.jobMaxAttempts ? trx.fn.now() : null,
-          });
-      });
-    }
-    return true;
+    return runProcessingJob(this.db, this.providers, this.dailyRequestLimit);
   }
 
   async maintenance(deleteIdentity: (subject: string) => Promise<void>) {
@@ -978,11 +1150,15 @@ export class MemoryService {
         }
       }
       await tenant(this.db, account.id, async (trx) => {
+        await trx.raw("SELECT pg_advisory_xact_lock_shared(68142019)");
         const current = await trx("accounts")
           .where({ id: account.id })
           .forUpdate()
           .first();
         if (current.status === "deleting" || current.status === "deleted") {
+          await trx("jobs").delete();
+          await trx("memory_briefs").delete();
+          await trx("inference_usage").delete();
           await trx("memories").delete();
           await trx("connections").delete();
           await trx("projects").delete();

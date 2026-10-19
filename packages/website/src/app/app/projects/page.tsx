@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Folder, Plus } from "lucide-react";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "@/components/dashboard/dialog";
@@ -66,7 +67,14 @@ export default function ProjectsPage() {
             >
               <Folder size={22} strokeWidth={1.4} />
               <div className="min-w-0 flex-1">
-                <h2 className="font-medium">{project.name}</h2>
+                <h2 className="font-medium">
+                  <Link
+                    href={`/app/projects/${project.id}`}
+                    className="underline"
+                  >
+                    {project.name}
+                  </Link>
+                </h2>
                 <p className="mt-2 break-all font-mono text-xs text-muted">
                   {project.identity}
                 </p>

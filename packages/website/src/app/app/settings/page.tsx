@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useClerk } from "@clerk/nextjs";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
@@ -9,6 +10,8 @@ import { api, errorMessage } from "@/lib/dashboard-api";
 type Settings = {
   captureEnabled: boolean;
   recallEnabled: boolean;
+  organizeEnabled: boolean;
+  summariesEnabled: boolean;
   accountId: string;
 };
 export default function SettingsPage() {
@@ -38,6 +41,8 @@ export default function SettingsPage() {
         {
           captureEnabled: settings.captureEnabled,
           recallEnabled: settings.recallEnabled,
+          organizeEnabled: settings.organizeEnabled,
+          summariesEnabled: settings.summariesEnabled,
         },
         "PATCH",
       );
@@ -117,6 +122,32 @@ export default function SettingsPage() {
                 />
                 Allow agent-requested capture of confirmed context
               </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={settings.organizeEnabled ?? true}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      organizeEnabled: e.target.checked,
+                    })
+                  }
+                />
+                Automatically organize memories with configured models
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={settings.summariesEnabled ?? true}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      summariesEnabled: e.target.checked,
+                    })
+                  }
+                />
+                Build source-linked profiles, project briefs, and handoffs
+              </label>
               <p className="text-xs leading-6 text-muted">
                 Hooks never upload transcripts. Explicit saves remain available
                 when automatic capture is paused. Use GROVE_PRIVATE=1 or grove
@@ -133,6 +164,18 @@ export default function SettingsPage() {
                 : "Loading preferences…"}
             </p>
           )}
+        </section>
+        <section className="app-panel">
+          <h2 className="font-editorial text-2xl">Models and processing</h2>
+          <p className="mt-3 text-sm leading-7 text-muted">
+            Inspect model profiles, usage, and provider connections.
+          </p>
+          <Link
+            className="app-button secondary mt-5"
+            href="/app/settings/models"
+          >
+            Model settings
+          </Link>
         </section>
         <ConnectedAccounts />
         <section className="app-panel">
