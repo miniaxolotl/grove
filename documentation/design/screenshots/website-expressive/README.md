@@ -30,3 +30,25 @@ Local account fixtures verify UI and interactions, not real-provider OAuth.
 Production sign-in surfaces are checked separately during publication.
 
 All illustrations are editable SVG/CSS authored for this website.
+
+## Production publication — October 19, 2026
+
+- Live: <https://usegrove.cloud>
+- Website source: `94d969553942d2950a0a0beb7e9141731146d431`;
+  [PR #9](https://github.com/miniaxolotl/grove/pull/9).
+- Vercel deployment: `dpl_2kJf9iTqVGWLUXBpWYs4E4yHeKh1`, independently read
+  back as READY with that source SHA and the production domain alias.
+- [CI run 39222173127](https://github.com/miniaxolotl/grove/actions/runs/39222173127)
+  passed website, database contracts, and image checks.
+- [Live route review](live-route-review.json) covers all seven public routes
+  at five widths with expected responses, no page errors, document overflow,
+  or automated WCAG A/AA violations.
+- [Live journeys](live-journeys.json) pass installation switching/copy,
+  protected-route redirection, unauthenticated API rejection, navigation,
+  metadata and legal-link checks.
+- Real Clerk screens rendered successfully:
+  [desktop sign-in](sign-in-live-desktop.png), [mobile sign-in](sign-in-live-mobile.png),
+  and [mobile sign-up](sign-up-live-mobile.png). These captures contain no account data.
+
+Provider-login completion is not claimed by this review. Signed-in lifecycle,
+retry and scope interactions use the isolated dashboard fixtures described above.
