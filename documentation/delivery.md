@@ -17,7 +17,7 @@ Verified during 18–19 October 2026 on `feat/memory-consolidation`, based on
   are partitioned by API origin, agent and account, written atomically with private
   permissions and serialized refresh. Optional context has a 1.5-second deadline
   and 6,000-character ceiling; hooks do not upload transcripts or tool logs.
-- Separate API/worker image, private PostgreSQL Compose, Railway service configs,
+- Separate API/worker image, private PostgreSQL Compose, App Platform configuration,
   release wiring and source-read-only, ownership-mapped legacy import. Imports
   enter the archive atomically and repeated runs do not duplicate them.
 
@@ -94,20 +94,59 @@ matching native manifests and marketplace pins. Publication runs from `productio
 after release checks. Publication evidence is recorded on the release PR and in
 the canonical execution status. See [release sequencing](deploy.md#releases).
 
-Production remains a separate activation step:
+Production promotion [PR #6](https://github.com/miniaxolotl/grove/pull/6) merged at
+`f727969`. All five npm packages and the server image are published and verified.
+Native remote-MCP OAuth credential sharing is not assumed; the supplied hooks and
+stdio bridge use Grove's shared credential store.
 
-- No Grove Railway project was available in the connected workspace; only FITR
-  projects were listed. Grove's production database, domains, TLS, secrets,
-  volume/backup settings and Vercel environment still need configuration.
-- Repeat the live identity/client checks against production origins and register
-  real signed Clerk webhook delivery. Signed webhook behavior was tested locally;
-  live external webhook delivery was not exercised against this loopback API.
-- Complete a provider backup/restore exercise and deletion/revocation-tombstone
-  reconciliation before exposing a restored database. Automated backup replay is
-  not implemented by this branch.
-- Host inventories and packaged transports were verified on Linux at the versions
-  above. Native remote-MCP OAuth credential sharing is not assumed; the supplied
-  hooks and stdio bridge use Grove's shared credential store.
+## Hosted production verification
+
+On 2026-10-19, `feat/neon-digitalocean-deployment` activated:
+
+- Website **https://usegrove.cloud** on Vercel with production Clerk and HTTPS.
+- API/MCP **https://api.usegrove.cloud** and a separate worker on DigitalOcean,
+  app `3aef47f9-3724-4f21-9cad-8c4eb5644af0`, initial deployment
+  `da11e9cf-a74a-4943-868b-705417c95d63`. Both use published image
+  `sha256:884593cd2e9b50528d1421371fcbb77e804d0af357336d6d494da3a2e4585fff`.
+- Neon PostgreSQL 17/pgvector 0.8.0, all three migrations, certificate-verified TLS,
+  separate non-owner API/worker logins and RLS on all 11 tenant tables.
+- Porkbun DNS, verified Clerk identity/email DNS, actual Svix webhook signing
+  secret, and HTTPS 308 redirects for the three alternate domains and `www` names.
+
+Live checks used two disposable production accounts and synthetic memories:
+
+- `/health/ready` reports semantic search enabled; anonymous REST/MCP is rejected.
+- Clerk sessions, website BFF save, leased worker indexing, hybrid recall,
+  two-account isolation, archive exclusion and restore pass.
+- Production DCR, PKCE consent/callback, zero capabilities before grant approval,
+  refresh rotation, exact audience rejection, HTTP/stdio MCP, restricted agent
+  capabilities, logout and online provider revocation pass.
+- Real `user.created`, `session.revoked` and `user.deleted` deliveries populated
+  database authority/receipt tables. Account deletion immediately denies access;
+  the worker purges content and deletes the provider identity.
+- Both fixture accounts were deleted after verification. Their memories, revisions,
+  vectors, jobs, grants, keys and cached operations are gone; Clerk returns 404 for
+  both identities. The temporary restore database and private fixture credentials
+  and dump were removed after the recovery drill.
+- A 61,318-byte PostgreSQL custom dump from Neon was restored in an isolated local
+  database. Current-authority reconciliation removed three stale memories,
+  blocked the deleted account, invalidated three old grants/API keys, replayed
+  session revocation and passed non-owner/RLS isolation checks.
+
+Browser qualification: production password entry reached Clerk's new-device email
+challenge. Synthetic-account session verification used official short-lived sign-in
+tickets. The hosted Account Portal presented Cloudflare verification to the
+headless browser; OAuth consent was exercised using Clerk's documented
+`mountOAuthConsent` component in that disposable browser on the website origin.
+No production authentication/bot settings were relaxed. A human's complete email
+challenge and hosted-portal interaction remain outside this automated evidence.
+
+Relevant checks: 18 PostgreSQL/auth/client/recovery tests, five deployment-script
+tests, 11 website browser tests, root and website typecheck/lint, website build and
+workflow validation pass. A scripted same-digest rollout reached ACTIVE as
+`4ca5a6eb-af88-45a8-9e48-af438604b095`, preserving runtime settings. The recovery integration
+test also verifies reduced grants cannot regain access and the authority database
+is unchanged. One-day Neon history is confirmed; in-place PITR was not performed.
 
 Installation: [agent guide](client.md). Migration: [legacy import](migration.md).
 Deployment and recovery: [runbook](deploy.md).

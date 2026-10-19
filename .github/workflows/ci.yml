@@ -41,6 +41,7 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: node --test tests/digitalocean.test.mjs
       - run: pnpm check-types
       - run: pnpm build
       - run: pnpm test:db:setup
