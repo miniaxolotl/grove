@@ -18,10 +18,12 @@ import {
   projectSchema,
   grantSchema,
   connectionSchema,
+  connectSchema,
+  approveConnectSchema,
   uuidSchema,
   type Principal,
 } from "@lib/shared/contracts";
-import type { MemoryService } from "@lib/memory";
+import { ConnectionSetup, type MemoryService } from "@lib/memory";
 import type { Authentication } from "./auth.ts";
 
 export type AppDependencies = {
@@ -206,6 +208,49 @@ export function createApp(deps: AppDependencies) {
   app.get("/v1/me", async (c) =>
     c.json({ success: true, data: await service.me(c.get("principal")) }),
   );
+  const setup = new ConnectionSetup(service);
+  app.post("/v1/connect", async (c) => {
+    const attempt = await setup.start(
+      c.get("principal"),
+      await body(c, connectSchema),
+    );
+    return c.json({
+      success: true,
+      data: {
+        ...attempt,
+        approvalUrl: `${deps.siteUrl}/app/connect/${attempt.id}`,
+      },
+    });
+  });
+  app.get("/v1/connect/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await setup.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.post("/v1/connect/:id/approve", async (c) =>
+    c.json({
+      success: true,
+      data: await setup.approve(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, approveConnectSchema),
+      ),
+    }),
+  );
+  app.post("/v1/connect/:id/cancel", async (c) => {
+    await body(c, z.object({}).strict());
+    return c.json({
+      success: true,
+      data: await setup.cancel(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    });
+  });
   app.get("/v1/projects", async (c) =>
     c.json({ success: true, data: await service.projects(c.get("principal")) }),
   );

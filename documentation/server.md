@@ -67,6 +67,10 @@ Responses use `{success: true, data}` or
 | Routes                                                                            | Access                                                             |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `GET /v1/me`                                                                      | Authenticated identity/effective grant and settings                |
+| `POST /v1/connect`                                                                | Agent starts/resumes its own connection request; API keys require existing scope |
+| `GET /v1/connect/:id`                                                             | Request's agent connection or owning website session              |
+| `POST /v1/connect/:id/approve`                                                    | Owning website session; transactional project link and grant       |
+| `POST /v1/connect/:id/cancel`                                                     | Request's agent connection or owning website session              |
 | `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                                | Approved scope; create needs all-project access or website session |
 | `POST /v1/memories`; `PATCH /v1/memories/:id`                                     | `memory:write`                                                     |
 | `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id`            | `memory:read`                                                      |
@@ -88,6 +92,13 @@ operation ID; conflicting identifiers are rejected. Restore can select an older
 revision and creates a new revision; `durable: true` promotes a handoff to a fact.
 
 ## Persistence and jobs
+
+Connection setup keeps one bounded JSON request on the existing RLS-protected
+connection row. Requests expire after ten minutes while pending. Request IDs alone
+authorize nothing; the account and OAuth/key connection are rechecked on every call.
+Approval defaults and protocol details are in [Cloud onboarding](cloud-onboarding.md).
+Manual grant edits and revocation invalidate outstanding requests; repeated approval
+returns its existing result without reapplying permissions.
 
 `lib/database` uses Knex/Objection/pg with explicit open/close and transaction-local
 tenant context. Ownership-aware foreign keys cover projects, memories, revisions,

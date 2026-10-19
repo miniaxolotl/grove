@@ -249,6 +249,29 @@ export async function saveCredentials(value: Credentials) {
     await writeConfig(config);
   });
 }
+/** Select an already authenticated origin without replacing possibly refreshed tokens. */
+export async function activateCredentials(
+  origin: string,
+  agent: AgentName,
+  accountId: string,
+) {
+  await withStoreLock(async () => {
+    const credentials = await loadCredentials(origin, agent);
+    if (credentials.accountId !== accountId)
+      throw new GroveError(
+        "account_changed",
+        "Grove account changed; run connect again",
+        409,
+      );
+    const config = await readConfig();
+    if (config.origin !== origin)
+      await writeConfig({
+        ...config,
+        origin,
+        generation: (config.generation ?? 0) + 1,
+      });
+  });
+}
 export async function clearCredentials(origin: string, agent: AgentName) {
   await withStoreLock(async () => {
     const config = await readConfig();

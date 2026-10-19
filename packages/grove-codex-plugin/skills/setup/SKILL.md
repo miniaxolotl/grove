@@ -3,9 +3,11 @@ name: setup
 description: Connect Codex to Grove and verify the account and permitted memory scopes.
 ---
 
-Ask for the Grove API origin if it is not configured. Run the packaged CLI in
-`dist/cli.js` with `login --client codex --url <API origin>` from this plugin's root.
-The user completes browser authorization and approves scope in Grove Connections.
+Run this plugin's packaged `dist/cli.js` with `connect codex`, using its absolute
+path so the working directory stays in the user's project. Grove Cloud is the
+default; add `--url <API origin>` for Grove Open Source. The user signs in and
+approves access in the browser; the command links the project and finishes setup.
+Repeat after interruption to resume, and restart Codex after installation.
 Then run `status --client codex --json` and check remote account/capabilities. Do not
 collect credentials in chat or put them in project files. Hook support depends on the
 host and user trust; explicit memory tools remain available. Never report connected

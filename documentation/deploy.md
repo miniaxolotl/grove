@@ -143,6 +143,12 @@ workflow publishes the image and rolls both components to the resulting digest.
 Development pushes publish preview images. Vercel follows the production branch.
 Database migrations remain an explicit owner-credential operation before rollout.
 
+For the one-command Cloud onboarding release, apply `20261019_004_connection_setup`
+before updating the API, then deploy the approval website, publish updated CLI/native
+packages and verify the install commands. The website and npm release must be
+coordinated because older CLIs do not expose `connect`. See the detailed
+[onboarding rollout](cloud-onboarding.md#rollout).
+
 Existing-app updates preserve provider-encrypted secrets, domains and sizing:
 
 ```sh

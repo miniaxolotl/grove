@@ -196,6 +196,19 @@ export const migrations = [
   },
   hardening,
   identityState,
+  {
+    name: "20261019_004_connection_setup",
+    async up(db: Knex) {
+      // One bounded, replaceable attempt per existing RLS-protected connection.
+      await db.raw("ALTER TABLE connections ADD COLUMN setup jsonb");
+      await db.raw(
+        "CREATE INDEX connections_setup_id ON connections ((setup->>'id')) WHERE setup IS NOT NULL",
+      );
+    },
+    async down() {
+      throw new Error("Use a forward migration");
+    },
+  },
 ];
 
 export const migrationSource: Knex.MigrationSource<

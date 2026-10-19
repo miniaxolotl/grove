@@ -21,6 +21,8 @@ import {
   type Page,
 } from "@lib/shared/contracts";
 
+export { ConnectionSetup } from "./connect.ts";
+
 export type Embedder = {
   profile: string;
   embed(text: string): Promise<number[]>;
@@ -32,6 +34,7 @@ type Connection = Omit<Grant, "expiresAt"> & {
   expiresAt: string | null;
   clientId: string | null;
   authorizedAfter: Date;
+  setup?: unknown;
 };
 type Account = {
   id: string;
@@ -803,6 +806,7 @@ export class MemoryService {
           .where({ id: options.id })
           .update({
             ...values,
+            setup: null,
             revokedAt: null,
             ...(old.revokedAt
               ? {
@@ -839,7 +843,7 @@ export class MemoryService {
     return this.access(principal, "admin", async ({ trx }) => {
       const count = await trx("connections")
         .where({ id })
-        .update({ revokedAt: trx.fn.now() });
+        .update({ revokedAt: trx.fn.now(), setup: null });
       if (!count)
         throw new GroveError("not_found", "Connection not found", 404);
       return { revoked: true };
@@ -850,7 +854,7 @@ export class MemoryService {
     return this.access(principal, "self", async ({ trx }) => {
       await trx("connections")
         .where({ id: principal.connectionId })
-        .update({ revokedAt: trx.fn.now() });
+        .update({ revokedAt: trx.fn.now(), setup: null });
       return { revoked: true };
     });
   }

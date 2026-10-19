@@ -4,14 +4,11 @@ cp .env.example .env
 # Set Grove Clerk keys and generated passwords in .env
 docker compose up -d --build`;
 
-export const npmSetup = `npm install -g @miniaxolotl/grove
-grove init --client opencode --url https://api.usegrove.cloud
-grove status --client opencode --json`;
-
-export const opencodeConfig = `{
-  "$schema": "https://opencode.ai/config.json",
-  "plugins": ["@miniaxolotl/grove-opencode-plugin"]
-}`;
+export const connectCommand = (
+  agent: "opencode" | "claude" | "codex",
+  origin?: string,
+) =>
+  `npx @miniaxolotl/grove connect ${agent}${origin && origin !== "https://api.usegrove.cloud" ? ` --url ${origin}` : ""}`;
 
 export const mcpEndpoint = "https://api.usegrove.cloud/mcp";
 export const firstMemory =

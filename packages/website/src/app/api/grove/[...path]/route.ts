@@ -3,7 +3,7 @@ import { type NextRequest } from "next/server";
 import { site } from "@/lib/site";
 
 const allowed =
-  /^(me|projects(?:\/[0-9a-f-]+)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions|archive|restore))?))?|recall|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete))$/;
+  /^(me|projects(?:\/[0-9a-f-]+)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions|archive|restore))?))?|recall|connect\/[0-9a-f-]+(?:\/(?:approve|cancel))?|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete))$/;
 async function forward(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },

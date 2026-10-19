@@ -3,25 +3,46 @@
 Use Node 22+ for clients; server/development baseline is Node 24. See
 [delivery evidence](delivery.md) for tested host versions and provider gates.
 
-Hosted Grove is at [usegrove.cloud](https://usegrove.cloud), with API origin
-`https://api.usegrove.cloud`. Self-hosted installations substitute their own origin.
+Grove Cloud is at [usegrove.cloud](https://usegrove.cloud), with API origin
+`https://api.usegrove.cloud`. Grove Open Source is the self-hosted edition.
 
 ## CLI
 
 ```sh
-npm install -g @miniaxolotl/grove
-grove init --client opencode --url https://api.usegrove.cloud
-grove status --client opencode --json
-grove project --client opencode
+npx @miniaxolotl/grove connect opencode
 ```
 
-`init` signs in and installs the requested integration. Complete browser consent,
-then approve the pending client in **Connections**, selecting capabilities and
-personal/project scope. `project` resolves or creates the current Git repository's
-identity after access is approved. A login with no grant reports `awaiting-grant`.
-`status` always checks the API; stored credentials alone do not prove connectivity.
+Run inside your project, with your agent installed and on PATH. Replace `opencode`
+with `claude` or `codex`. The command selects Cloud automatically, reuses valid
+credentials, and opens sign-in if needed. The same browser continues to a contextual
+approval page. Defaults are reading/saving personal and current-project memories,
+with permanent deletion off; **Customize access** changes actions, scope, name or
+expiry. Approval creates/links the project without granting all-project access.
 
-For a browser on another machine, `grove login --no-browser` prints the link
+Leave the terminal open. It waits up to ten minutes for approval, checks the effective
+grant, performs a bounded read when permitted, and installs the native integration.
+Restart the agent as directed. This verifies API access; the host loads its plugin
+after restart. Save and recall the first memory from the installation guide to
+confirm the full agent journey. `--json` reports `recallVerified` and
+`restartRequired`; progress and native installer output go to stderr.
+
+Repeat the same command after interruption or installation failure. Existing grants
+are reused without widening them; a new project requires a new owner approval.
+Cancelled or expired requests get a fresh link. Revoked OAuth connections require
+fresh authorization and approval. Named API keys must already cover the project;
+they cannot ask the browser to widen their own permissions.
+
+For Grove Open Source, add `--url https://YOUR-GROVE-API`, or explicitly set
+`GROVE_API_URL`. The API's `SITE_URL` selects your approval website. A plain `connect`
+defaults to Cloud, even if another origin was configured previously. This command
+requires the API/website migration described in [Cloud onboarding](cloud-onboarding.md).
+
+For a persistent `grove` command, install `@miniaxolotl/grove` globally. Existing
+`init`, `login`, `status` and `project` commands remain supported. `init` uses the
+older dashboard-approval workflow; a login with no grant reports `awaiting-grant`.
+`status` checks the API, not whether the host has loaded its plugin.
+
+For a browser on another machine, `grove connect opencode --no-browser` prints the link
 without launching a browser. The loopback callback must still reach the CLI host.
 
 For a named, scoped headless key created in Connections:
@@ -44,7 +65,7 @@ automatic recall and capture. A response already sent to a host cannot be recall
 
 ## OpenCode V2
 
-`grove init --client opencode` merges only the Grove entry in the global JSON/JSONC
+`grove connect opencode` merges only the Grove entry in the global JSON/JSONC
 `plugins` array. Comments, unrelated plugins and MCP entries are preserved.
 
 ```json
@@ -61,7 +82,7 @@ only the matching plugin entry; it does not delete memories or credentials.
 ## Claude Code
 
 ```sh
-grove init --client claude --url https://api.usegrove.cloud
+npx @miniaxolotl/grove connect claude
 # Native installation alone:
 claude plugin marketplace add miniaxolotl/grove
 claude plugin install grove@grove --scope user
@@ -77,7 +98,7 @@ native targeted plugin uninstall.
 ## Codex
 
 ```sh
-grove init --client codex --url https://api.usegrove.cloud
+npx @miniaxolotl/grove connect codex
 # Native installation alone:
 codex plugin marketplace add miniaxolotl/grove
 codex plugin add grove@grove

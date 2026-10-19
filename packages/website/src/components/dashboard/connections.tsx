@@ -5,6 +5,7 @@ import { capabilities, type Grant } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
+import { AgentSetup } from "@/components/installation";
 
 type Connection = Grant & {
   id: string;
@@ -80,17 +81,13 @@ export function Connections({ origin }: { origin: string }) {
           </h2>
         </div>
         <p className="mt-3 text-sm leading-7 text-muted">
-          Install the Grove CLI, then connect OpenCode, Claude Code, or Codex.
-          Browser sign-in creates a pending connection below; approve its scope
-          here.
+          Choose OpenCode, Claude Code, or Codex and run its connection command.
+          Sign in and choose its access in the browser. Setup finishes in your
+          terminal.
         </p>
-        <pre
-          tabIndex={0}
-          aria-label="Agent connection commands"
-          className="mt-4 overflow-x-auto rounded-lg bg-paper p-4 text-xs leading-7"
-        >
-          <code>{`npm install -g @miniaxolotl/grove\ngrove init --client opencode --url ${origin || "<API origin>"}`}</code>
-        </pre>
+        <div className="mt-4">
+          <AgentSetup origin={origin || undefined} />
+        </div>
         <p className="mt-3 text-xs text-muted">
           Headless clients: create a scoped key and run{" "}
           <code>grove login --client claude --key-stdin</code>. Keys are shown

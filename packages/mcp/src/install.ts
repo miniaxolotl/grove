@@ -1,15 +1,33 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { parse, modify, applyEdits } from "jsonc-parser";
 import { type AgentName } from "@lib/integration-core/node";
 import { GroveError } from "@lib/shared/contracts";
 
+export async function requireClient(agent: Exclude<AgentName, "cli">) {
+  try {
+    await promisify(execFile)(agent, ["--version"], {
+      timeout: 10000,
+      maxBuffer: 64 * 1024,
+    });
+  } catch {
+    throw new GroveError(
+      "client_missing",
+      `Install ${agent} and make sure its command is on PATH, then run grove connect ${agent} again.`,
+    );
+  }
+}
+
 const run = (command: string, args: string[]) =>
   new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { stdio: "inherit", shell: false });
+    const child = spawn(command, args, {
+      stdio: ["inherit", 2, 2],
+      shell: false,
+    });
     child.once("error", () =>
       reject(new GroveError("client_missing", `${command} is not installed`)),
     );
@@ -38,7 +56,7 @@ export async function installIntegration(agent: AgentName, remove = false) {
     if (remove) return run("codex", ["plugin", "remove", "grove@grove"]);
     await run("codex", ["plugin", "marketplace", "add", "miniaxolotl/grove"]);
     await run("codex", ["plugin", "add", "grove@grove"]);
-    console.log(
+    console.error(
       "Grove installed. Review and trust its optional hooks in Codex before automatic recall runs.",
     );
   } else {
@@ -85,7 +103,7 @@ export async function installIntegration(agent: AgentName, remove = false) {
     const temporary = `${path}.${randomUUID()}.tmp`;
     await writeFile(temporary, source, { flag: "wx", mode: 0o600 });
     await rename(temporary, path);
-    console.log(
+    console.error(
       remove
         ? "Grove plugin entry removed"
         : "Grove plugin configured. Restart OpenCode to load it.",

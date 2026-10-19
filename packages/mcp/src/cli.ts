@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { createServer } from "node:http";
-import { spawn } from "node:child_process";
+import { createServer, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { auth } from "@modelcontextprotocol/sdk/client/auth.js";
@@ -17,12 +16,15 @@ import {
   type AgentName,
   type Credentials,
 } from "@lib/integration-core/node";
-import { GroveError } from "@lib/shared/contracts";
+import { GroveError, agentSchema } from "@lib/shared/contracts";
 import { startBridge } from "./bridge.ts";
 import { installIntegration } from "./install.ts";
+import { openBrowser } from "./browser.ts";
+import { connectAgent, cloudOrigin, type LoginOptions } from "./connect.ts";
 
 const help = `Grove — private memory across your agents
 
+  grove connect opencode|claude|codex [--url <self-hosted origin>] [--no-browser]
   grove init --url <origin> --client opencode|claude|codex
   grove login --url <origin> --client <client> [--key-stdin | --no-browser]
   grove status [--client <client>] [--json]
@@ -41,6 +43,7 @@ async function login(
   agent: AgentName,
   keyStdin: boolean,
   noBrowser: boolean,
+  options: LoginOptions = {},
 ) {
   if (keyStdin) {
     let key = "";
@@ -64,6 +67,7 @@ async function login(
     fail = reject;
   });
   const previous = await loadCredentials(origin, agent).catch(() => undefined);
+  let callbackResponse: ServerResponse | undefined;
   const callbackPort = {
     cli: 34141,
     opencode: 34142,
@@ -77,20 +81,12 @@ async function login(
       agent,
       redirectUrl,
       client:
-        previous?.redirectUrl === redirectUrl ? previous.client : undefined,
+        !options.freshClient && previous?.redirectUrl === redirectUrl
+          ? previous.client
+          : undefined,
     },
     async (url) => {
-      console.error(`Sign in: ${url.href}`);
-      if (noBrowser) return;
-      const command =
-        process.platform === "darwin"
-          ? "open"
-          : process.platform === "win32"
-            ? "explorer.exe"
-            : "xdg-open";
-      const browser = spawn(command, [url.href], { stdio: "ignore" });
-      browser.on("error", () => {});
-      browser.unref();
+      openBrowser(url, noBrowser);
     },
   );
   const server = createServer((request, response) => {
@@ -99,6 +95,7 @@ async function login(
     response.setHeader("Cache-Control", "no-store");
     if (
       url.pathname !== "/callback" ||
+      callbackResponse ||
       !provider.checkState(url.searchParams.get("state"))
     ) {
       response.writeHead(400).end("Invalid authorization callback");
@@ -112,7 +109,9 @@ async function login(
       );
       return;
     }
-    response.end("Authorization received. Return to your terminal.");
+    callbackResponse = response;
+    if (!options.afterLogin)
+      response.end("Authorization received. Return to your terminal.");
     finish(result);
   });
   await new Promise<void>((resolve, reject) => {
@@ -133,13 +132,13 @@ async function login(
     180000,
   );
   try {
-    const options = {
+    const authOptions = {
       serverUrl: `${origin}/mcp`,
       fetchFn: (url: string | URL, init?: RequestInit) =>
         fetch(url, { ...init, signal: AbortSignal.timeout(10000) }),
     };
-    if ((await auth(provider, options)) === "REDIRECT")
-      await auth(provider, { ...options, authorizationCode: await code });
+    if ((await auth(provider, authOptions)) === "REDIRECT")
+      await auth(provider, { ...authOptions, authorizationCode: await code });
     const token = provider.data.tokens?.access_token;
     if (!token)
       throw new GroveError("login_failed", "No access token was returned");
@@ -151,8 +150,25 @@ async function login(
       ...provider.data,
       accountId: me.accountId,
     } as Credentials);
+    const continuation = await options.afterLogin?.(me);
+    if (callbackResponse && !callbackResponse.writableEnded) {
+      if (continuation)
+        callbackResponse.writeHead(303, { Location: continuation });
+      await new Promise<void>((done) =>
+        callbackResponse!.end(
+          continuation
+            ? "Continue to Grove to approve access."
+            : "Access ready. Return to your terminal to finish setup.",
+          done,
+        ),
+      );
+    }
     return me;
   } finally {
+    if (callbackResponse && !callbackResponse.writableEnded)
+      callbackResponse.end(
+        "Connection could not be completed. Return to your terminal and run grove connect again.",
+      );
     clearTimeout(timeout);
     server.closeAllConnections();
     server.close();
@@ -184,6 +200,36 @@ async function main() {
   const command = positionals[0];
   if (!command || values.help) {
     console.log(help);
+    return;
+  }
+  if (command === "connect") {
+    const selected = positionals[1] ?? values.client;
+    const parsed = agentSchema.safeParse(selected);
+    if (
+      !parsed.success ||
+      positionals.length > 2 ||
+      (positionals[1] &&
+        values.client !== "cli" &&
+        values.client !== positionals[1])
+    )
+      throw new GroveError(
+        "invalid_client",
+        "Use grove connect opencode, claude or codex",
+      );
+    if (values["key-stdin"] || values.stdio)
+      throw new GroveError(
+        "invalid_command",
+        "Use grove login --key-stdin for API keys, or grove mcp --stdio for the bridge",
+      );
+    await connectAgent(
+      {
+        agent: parsed.data,
+        origin: values.url ?? (process.env.GROVE_API_URL || cloudOrigin),
+        noBrowser: !!values["no-browser"],
+        json: !!values.json,
+      },
+      login,
+    );
     return;
   }
   const agent = values.client as AgentName;

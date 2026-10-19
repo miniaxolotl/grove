@@ -6,8 +6,8 @@ import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
 
 export const metadata = pageMetadata(
-  "Install Grove — Give your agent a memory",
-  "Connect OpenCode, Claude Code, or Codex to hosted Grove. Install the CLI, approve your connection, and save your first memory. Self-hosting is available too.",
+  "Connect to Grove Cloud — Give your agent a memory",
+  "Connect OpenCode, Claude Code, or Codex to Grove Cloud with one command. Sign in, choose access, and carry your context across sessions.",
   "/install",
 );
 
@@ -23,21 +23,20 @@ export default async function InstallPage() {
         <ArrowLeft size={14} /> Back to Grove
       </Link>
       <div className="mt-9 max-w-2xl">
-        <p className="eyebrow">THE INSTALLATION GUIDE</p>
+        <p className="eyebrow">CONNECT TO GROVE CLOUD</p>
         <h1 className="section-heading mt-4 text-[56px]! sm:text-[72px]!">
           A home for your
           <br />
           <em>agent’s memory.</em>
         </h1>
         <p className="mt-6 max-w-lg text-sm leading-7 text-muted">
-          Connect an agent, approve its access, and save something worth
-          remembering. Use hosted Grove or bring your own infrastructure.
+          Choose your agent, run one command, and sign in. Grove takes care of
+          linking your project and setting up the connection.
         </p>
       </div>
       <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-y border-line py-5 text-xs text-leaf">
         <span className="flex items-center gap-2">
-          <Terminal size={14} /> Node.js 22+ for clients · Node.js 24 for
-          hosting
+          <Terminal size={14} /> Node.js 22+
         </span>
         <span className="flex items-center gap-2">
           <BookOpen size={14} /> An MCP-compatible client
@@ -59,7 +58,7 @@ export default async function InstallPage() {
           {[
             { label: "Server & tool reference", href: site.docs },
             { label: "OpenCode plugin", href: site.pluginDocs },
-            { label: "Deployment guide", href: site.deployDocs },
+            { label: "Grove Open Source · Self-hosting", href: "/self-host" },
           ].map(({ label, href }) => (
             <a
               key={label}
