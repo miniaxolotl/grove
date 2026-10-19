@@ -1,0 +1,8 @@
+{
+  "name": "grove",
+  "version": "1.0.0",
+  "description": "Private memory across your agents: remember, recall, inspect and forget.",
+  "author": { "name": "Bramble Labs Inc." },
+  "license": "MIT",
+  "repository": "https://github.com/miniaxolotl/grove"
+}

@@ -1,0 +1,7 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node dist/worker.js"
+restartPolicyType = "ON_FAILURE"

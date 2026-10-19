@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "grove",
+  "version": "1.0.0",
+  "description": "Private memory across your agents.",
+  "author": { "name": "Bramble Labs Inc." },
+  "license": "MIT",
+  "repository": "https://github.com/miniaxolotl/grove",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "hooks": "./hooks/hooks.json",
+      "interface": {
+        "displayName": "Grove",
+        "shortDescription": "Remember useful context across sessions",
+        "category": "Productivity",
+        "brandColor": "#326349"
+      }
+    }
+  }
+}

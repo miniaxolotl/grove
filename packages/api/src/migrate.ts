@@ -1,0 +1,14 @@
+import { createDatabase, closeDatabase } from "@lib/database";
+
+const url = process.env.MIGRATION_DATABASE_URL;
+if (!url)
+  throw new Error(
+    "MIGRATION_DATABASE_URL is required; runtime credentials cannot run migrations",
+  );
+const db = createDatabase(url, { ssl: process.env.DATABASE_SSL === "require" });
+try {
+  const [, applied] = await db.migrate.latest();
+  console.log(JSON.stringify({ applied }));
+} finally {
+  await closeDatabase(db);
+}

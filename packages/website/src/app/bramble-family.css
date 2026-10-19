@@ -1,0 +1,63 @@
+.bramble-family {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 26px 0;
+  border-top: 1px solid #dce0d3;
+  color: #253e31;
+}
+.bramble-family-company {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.bramble-family strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.bramble-family small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #656e61;
+  line-height: 1.6;
+}
+.bramble-family nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+}
+.bramble-family nav > * {
+  min-height: 44px;
+  padding: 5px 0;
+}
+.bramble-family nav [aria-current] strong::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #527548;
+}
+.bramble-family a:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+@media (max-width: 540px) {
+  .bramble-family {
+    gap: 22px;
+  }
+  .bramble-family nav {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .bramble-family small {
+    font-size: 9px;
+  }
+}

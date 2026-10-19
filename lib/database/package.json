@@ -1,0 +1,12 @@
+{
+  "name": "@lib/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "knex": "3.3.0",
+    "objection": "3.1.5",
+    "pg": "8.16.3"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "grove",
+  "interface": { "displayName": "Grove" },
+  "plugins": [
+    {
+      "name": "grove",
+      "source": {
+        "source": "npm",
+        "package": "@miniaxolotl/grove-codex-plugin",
+        "version": "1.0.0"
+      },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -4,6 +4,45 @@
   "include-component-in-tag": true,
   "include-v-in-tag": true,
   "packages": {
+    "packages/api": {
+      "release-type": "node",
+      "component": "grove-server",
+      "package-name": "@miniaxolotl/grove-server"
+    },
+    "packages/grove-claude-plugin": {
+      "release-type": "node",
+      "component": "grove-claude-plugin",
+      "package-name": "@miniaxolotl/grove-claude-plugin",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[0].source.version"
+        }
+      ]
+    },
+    "packages/grove-codex-plugin": {
+      "release-type": "node",
+      "component": "grove-codex-plugin",
+      "package-name": "@miniaxolotl/grove-codex-plugin",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.agents/plugins/marketplace.json",
+          "jsonpath": "$.plugins[0].source.version"
+        }
+      ]
+    },
     "packages/mcp": {
       "release-type": "node",
       "component": "grove",

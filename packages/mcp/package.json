@@ -1,27 +1,28 @@
 {
   "name": "@miniaxolotl/grove",
-  "version": "0.3.1",
+  "version": "0.5.0",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "grove": "./dist/cli.js"
   },
-  "description": "Self-hosted agentic memory MCP server backed by Qdrant, inspired by supermemory. Provides semantic memory storage, entity/relation knowledge graph, and optional reranking as MCP tools.",
+  "description": "Grove authenticated API client, setup CLI and four-tool memory MCP bridge",
   "repository": {
     "type": "git",
     "url": "https://github.com/miniaxolotl/grove.git"
   },
-  "homepage": "https://github.com/miniaxolotl/grove#readme",
+  "homepage": "https://grove-six-rosy.vercel.app",
+  "author": "Bramble Labs Inc.",
   "publishConfig": {
     "access": "public"
   },
   "keywords": [
     "mcp",
     "memory",
-    "qdrant",
+    "postgresql",
     "vector-database",
     "semantic-search",
-    "knowledge-graph",
+    "private-memory",
     "agent",
     "ai",
     "llm",
@@ -31,29 +32,33 @@
     "context"
   ],
   "exports": {
-    ".": "./dist/index.js",
-    "./config": "./dist/config.js",
-    "./services/*": "./dist/services/*.js",
-    "./repositories/*": "./dist/repositories/*.js"
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
   },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
+    "build": "node ../../scripts/build.mjs mcp",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"
   },
   "dependencies": {
-    "@huggingface/transformers": "~3.0.0",
-    "fastmcp": "~1.27.7",
-    "uuid": "~11.0.0",
-    "zod": "~3.25.0"
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "jsonc-parser": "^3.3.1",
+    "zod": "~4.1.8"
   },
   "devDependencies": {
     "@lib/eslint-config": "workspace:*",
     "@lib/shared": "workspace:*",
+    "@lib/integration-core": "workspace:*",
     "@lib/typescript-config": "workspace:*",
-    "@types/uuid": "~11.0.0",
     "tsx": "~4.21.0",
     "typescript": "~6.0.2"
   }

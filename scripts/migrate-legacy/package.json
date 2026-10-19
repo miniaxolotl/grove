@@ -1,0 +1,14 @@
+{
+  "name": "@script/migrate-legacy",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@lib/integration-core": "workspace:*",
+    "@lib/shared": "workspace:*",
+    "zod": "~4.1.8"
+  }
+}

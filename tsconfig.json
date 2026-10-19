@@ -1,0 +1,27 @@
+{
+  "extends": "./lib/typescript-config/base.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "lib/config/src/**/*.ts",
+    "lib/environment/src/**/*.ts",
+    "lib/database/**/*.ts",
+    "lib/memory/src/**/*.ts",
+    "lib/integration-core/src/**/*.ts",
+    "lib/shared/src/contracts.ts",
+    "packages/api/src/**/*.ts",
+    "packages/mcp/src/**/*.ts",
+    "packages/grove-opencode-plugin/src/**/*.ts",
+    "tests/src/**/*.ts",
+    "tests/artifacts.test.ts",
+    "scripts/database/**/*.ts",
+    "scripts/testing/**/*.ts",
+    "scripts/setup/src/**/*.ts",
+    "scripts/migrate-legacy/src/**/*.ts"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Grove by Bramble Labs Inc. — persistent memory for AI agents.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check-types": "next typegen && tsc --noEmit",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "7.9.17",
+    "@lib/shared": "workspace:*",
+    "@fontsource-variable/dm-sans": "~5.3.0",
+    "@fontsource/dm-sans": "~5.3.0",
+    "@fontsource/instrument-serif": "~5.3.0",
+    "@vercel/analytics": "~2.0.1",
+    "lucide-react": "~1.57.0",
+    "next": "16.4.2",
+    "react": "~19.3.1",
+    "react-dom": "~19.3.1",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "~4.14.0",
+    "@lib/eslint-config": "workspace:*",
+    "@lib/typescript-config": "workspace:*",
+    "@playwright/test": "~1.64.1",
+    "@tailwindcss/postcss": "~4.3.3",
+    "@types/node": "~25.5.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "~10.1.0",
+    "eslint-config-next": "16.4.2",
+    "tailwindcss": "~4.3.3",
+    "typescript": "~6.0.2"
+  }
+}
