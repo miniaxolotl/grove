@@ -4,6 +4,7 @@ import { KeyRound, Plug, Plus } from "lucide-react";
 import { capabilities, type Grant } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
+import { LoadError } from "./load-error";
 
 type Connection = Grant & {
   id: string;
@@ -20,6 +21,11 @@ export function Connections({ origin }: { origin: string }) {
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Connection | "new" | null>(null);
   const [secret, setSecret] = useState("");
+  const reload = () => {
+    setError("");
+    setLoading(true);
+    setRefresh((value) => value + 1);
+  };
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
@@ -46,7 +52,7 @@ export function Connections({ origin }: { origin: string }) {
   async function revoke(id: string) {
     try {
       await api(`/connections/${id}`, undefined, "DELETE");
-      setRefresh((v) => v + 1);
+      reload();
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -78,7 +84,11 @@ export function Connections({ origin }: { origin: string }) {
           Browser sign-in creates a pending connection below; approve its scope
           here.
         </p>
-        <pre className="mt-4 overflow-x-auto rounded-lg bg-paper p-4 text-xs leading-7">
+        <pre
+          tabIndex={0}
+          aria-label="Agent connection commands"
+          className="mt-4 overflow-x-auto rounded-lg bg-paper p-4 text-xs leading-7"
+        >
           <code>{`npm install -g @miniaxolotl/grove\ngrove init --client opencode --url ${origin || "<API origin>"}`}</code>
         </pre>
         <p className="mt-3 text-xs text-muted">
@@ -87,14 +97,10 @@ export function Connections({ origin }: { origin: string }) {
           once.
         </p>
       </section>
-      {error && (
-        <p role="alert" className="app-error">
-          {error}
-        </p>
-      )}
+      {error && <LoadError message={error} retry={reload} />}
       {loading ? (
         <p role="status">Loading connections…</p>
-      ) : !items.length ? (
+      ) : !items.length && !error ? (
         <div className="app-empty">
           <KeyRound size={28} className="mx-auto mb-4" strokeWidth={1.3} />
           <h2 className="font-editorial text-3xl">
@@ -177,7 +183,7 @@ export function Connections({ origin }: { origin: string }) {
             done={(value) => {
               setSelected(null);
               setSecret(value ?? "");
-              setRefresh((v) => v + 1);
+              reload();
             }}
           />
         </Dialog>

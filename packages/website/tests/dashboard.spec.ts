@@ -142,6 +142,72 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await expect(page.getByText("Good things start small.")).toBeVisible();
 });
 
+test("a filtered empty library can return to all memories without losing the query workflow", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto(`${base}/app`);
+  await page
+    .getByRole("textbox", { name: "Search memories" })
+    .fill("a missing memory");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(page.getByText("Nothing here matches yet.")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await expect(
+    page.getByRole("textbox", { name: "Search memories" }),
+  ).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: /I prefer concise/ }),
+  ).toBeVisible();
+});
+
+for (const path of [
+  "/app",
+  "/app/archive",
+  "/app/projects",
+  "/app/connections",
+  "/app/settings",
+]) {
+  test(`${path} recovers from an unavailable service without a false empty or loading state`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    let unavailable = true;
+    await page.route("**/api/grove/**", async (route) => {
+      if (!unavailable) return route.fallback();
+      await route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: { code: "unavailable", message: "Temporarily unavailable" },
+        },
+      });
+    });
+    await page.goto(`${base}${path}`);
+    await expect(page.getByRole("alert")).toContainText(
+      "Temporarily unavailable",
+    );
+    await expect(page.locator(".app-empty")).toHaveCount(0);
+    await expect(
+      page.getByText(/Loading (memories|projects|connections|preferences)/),
+    ).toHaveCount(0);
+    unavailable = false;
+    await page.getByRole("button", { name: "Try loading again" }).click();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    if (path === "/app")
+      await expect(
+        page.getByRole("button", { name: /I prefer concise/ }),
+      ).toBeVisible();
+    else if (path === "/app/settings")
+      await expect(
+        page.getByRole("button", { name: "Save preferences" }),
+      ).toBeVisible();
+    else await expect(page.locator(".app-empty")).toBeVisible();
+  });
+}
+
 test("dashboard navigation, narrow layouts and dialogs meet accessibility checks", async ({
   page,
 }) => {
@@ -162,18 +228,18 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
           () => document.documentElement.scrollWidth <= window.innerWidth,
         ),
       ).toBe(true);
+      const violations = (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations;
+      expect(
+        violations.map((v) => ({
+          id: v.id,
+          nodes: v.nodes.map((n) => n.target),
+        })),
+      ).toEqual([]);
     }
-    const violations = (
-      await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-        .analyze()
-    ).violations;
-    expect(
-      violations.map((v) => ({
-        id: v.id,
-        nodes: v.nodes.map((n) => n.target),
-      })),
-    ).toEqual([]);
   }
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: /I prefer concise/ }).click();

@@ -13,6 +13,7 @@ import {
 import type { Memory, Page } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
+import { LoadError } from "./load-error";
 
 export function MemoryLibrary({
   archive = false,
@@ -33,7 +34,14 @@ export function MemoryLibrary({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const [selected, setSelected] = useState<Memory | "new" | null>(null);
+  const filtered = Boolean(
+    search ||
+    project !== "all" ||
+    kind ||
+    status !== (archive ? "archived" : "active"),
+  );
   const filters = {
     query: search || undefined,
     projectId:
@@ -81,7 +89,7 @@ export function MemoryLibrary({
     }
     void load();
     return () => controller.abort();
-  }, [search, project, kind, status, refresh]);
+  }, [search, project, kind, status, refresh, retryAttempt]);
   useEffect(() => {
     if (!initialId) return;
     const controller = new AbortController();
@@ -96,7 +104,7 @@ export function MemoryLibrary({
         if (!controller.signal.aborted) setError(errorMessage(e));
       });
     return () => controller.abort();
-  }, [initialId]);
+  }, [initialId, retryAttempt]);
   const reload = (message: string) => {
     setSelected(null);
     setNotice(message);
@@ -198,17 +206,27 @@ export function MemoryLibrary({
             </select>
           </label>
         )}
+        {filtered && (
+          <button
+            type="button"
+            className="app-button secondary"
+            onClick={() => {
+              setQuery("");
+              setSearch("");
+              setProject("all");
+              setKind("");
+              setStatus(archive ? "archived" : "active");
+            }}
+          >
+            Clear filters
+          </button>
+        )}
       </form>
       {error && (
-        <div role="alert" className="app-error">
-          {error}
-          <button
-            onClick={() => setRefresh((value) => value + 1)}
-            className="ml-3 underline"
-          >
-            Retry
-          </button>
-        </div>
+        <LoadError
+          message={error}
+          retry={() => setRetryAttempt((value) => value + 1)}
+        />
       )}
       <div className="mb-3 mt-7 flex items-center justify-between text-[10px] font-medium uppercase tracking-widest text-muted">
         <span>
@@ -230,20 +248,20 @@ export function MemoryLibrary({
             )}
           </div>
           <h2 className="font-editorial text-3xl">
-            {search
+            {filtered
               ? "Nothing here matches yet."
               : archive
                 ? "A little room for later."
                 : "Good things start small."}
           </h2>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-muted">
-            {search
-              ? "Try a different word or adjust your filters."
+            {filtered
+              ? "Try a different word, adjust a filter, or clear filters above to see everything again."
               : archive
                 ? "Archived memories stay here until you restore or delete them."
                 : "Save a preference, a decision, or something you learned. Your agents can pick up where you left off."}
           </p>
-          {!archive && (
+          {!archive && !filtered && (
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button className="app-button" onClick={() => setSelected("new")}>
                 Save your first memory
@@ -262,7 +280,9 @@ export function MemoryLibrary({
                 className="app-memory-row"
                 onClick={() => setSelected(memory)}
               >
-                <span className="memory-kind">{memory.kind}</span>
+                <span className="memory-kind" data-kind={memory.kind}>
+                  {memory.kind}
+                </span>
                 <span className="min-w-0">
                   <span className="block whitespace-pre-wrap text-sm leading-7 line-clamp-2">
                     {memory.content}

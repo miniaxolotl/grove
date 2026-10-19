@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./bramble-family.css";
+@import "./expressive.css";
+@import "./legal.css";
 
 @theme {
   --color-paper: #f7f6f0;

@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
-  background: #fbfbf7;
+  background: #f7f6f0;
 }
 .app-sidebar {
   position: sticky;
@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--color-line);
-  background: var(--color-paper);
+  background: #eef1e7;
 }
 .app-sidebar > a {
   margin-left: 12px;
@@ -22,19 +22,21 @@
   align-items: center;
   gap: 12px;
   padding: 13px 14px;
-  border-radius: 7px;
+  border-radius: 10px;
   color: var(--color-muted);
   font-size: 13px;
   white-space: nowrap;
+  min-height: 48px;
   transition: background 0.15s;
 }
 .app-nav:hover {
   background: var(--color-sage);
 }
 .app-nav[aria-current] {
-  background: #e3eadf;
+  background: #dce7d4;
   color: var(--color-forest);
   font-weight: 600;
+  box-shadow: inset 3px 0 #326349;
 }
 .app-topbar {
   min-height: 74px;
@@ -43,11 +45,13 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--color-line);
+  background: #fffef980;
 }
 .app-content {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 56px 40px;
+  padding: 48px 40px 64px;
+  min-height: calc(100vh - 156px);
 }
 .app-page-heading {
   display: flex;
@@ -70,14 +74,14 @@
   margin-top: 14px;
 }
 .app-button {
-  min-height: 42px;
+  min-height: 48px;
   display: inline-flex;
   justify-content: center;
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
   border: 1px solid var(--color-forest);
-  border-radius: 7px;
+  border-radius: 9px;
   background: var(--color-forest);
   color: #fff;
   font-size: 12px;
@@ -91,7 +95,7 @@
   opacity: 0.85;
 }
 .app-button.secondary {
-  background: transparent;
+  background: #fffef9;
   color: var(--color-forest);
   border-color: var(--color-line);
 }
@@ -102,6 +106,7 @@
 }
 .app-button:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
 }
 .app-icon {
   display: grid;
@@ -134,7 +139,7 @@
   min-width: 0;
   outline: none;
   background: transparent;
-  height: 46px;
+  height: 48px;
   font-size: 13px;
 }
 .app-search:focus-within {
@@ -153,11 +158,11 @@
   font-size: 13px;
 }
 .app-toolbar select {
-  height: 46px;
+  height: 48px;
 }
 .app-memory-list {
   border: 1px solid var(--color-line);
-  border-radius: 10px;
+  border-radius: 16px;
   background: #fff;
   overflow: hidden;
 }
@@ -176,6 +181,27 @@
 .app-memory-row:hover {
   background: #f6f8f2;
 }
+.app-memory-row:focus-visible {
+  outline-offset: -3px;
+}
+.app-memory-row {
+  transition: background 0.15s;
+}
+.app-memory-row > span:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+.memory-kind[data-kind="decision"] {
+  background: #e4e9d4;
+  color: #4e6136;
+}
+.memory-kind[data-kind="solution"] {
+  background: #e5ecec;
+  color: #345c5a;
+}
+.memory-kind[data-kind="handoff"] {
+  background: #f3e7d6;
+  color: #865137;
+}
 .memory-kind {
   width: fit-content;
   margin-top: 3px;
@@ -187,10 +213,13 @@
   text-transform: capitalize;
 }
 .app-empty {
-  border: 1px dashed var(--color-line);
-  border-radius: 12px;
+  border: 1px solid #d4deca;
+  border-radius: 16px;
   padding: 64px 24px;
   text-align: center;
+  background: #eef1e5;
+  background-image: radial-gradient(#72885e22 0.7px, transparent 0.7px);
+  background-size: 14px 14px;
 }
 .app-notice {
   padding: 13px 16px;
@@ -216,10 +245,12 @@
   margin: auto;
   padding: 30px;
   border: 1px solid var(--color-line);
-  border-radius: 14px;
+  border-radius: 20px;
   color: var(--color-forest);
   background: var(--color-paper);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 32px 100px #15251b50;
 }
 .app-dialog::backdrop {
   background: #15251bb3;
@@ -230,12 +261,14 @@
   gap: 20px;
 }
 .app-form label {
+  min-width: 0;
   display: grid;
   gap: 8px;
   font-size: 12px;
   font-weight: 500;
 }
 .app-form textarea {
+  min-width: 0;
   resize: vertical;
   line-height: 1.8;
 }
@@ -244,6 +277,16 @@
   align-items: center;
   gap: 10px;
   font-size: 13px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #dce0d3;
+  border-radius: 9px;
+  background: #fffef9;
+  cursor: pointer;
+}
+.app-form .check:has(input:checked) {
+  background: #e9eee2;
+  border-color: #a9c298;
 }
 .app-form input[type="checkbox"] {
   width: 17px;
@@ -251,10 +294,79 @@
   accent-color: var(--color-leaf);
 }
 .app-panel {
-  background: #fff;
+  background: #fffef9;
   padding: 26px;
   border: 1px solid var(--color-line);
-  border-radius: 10px;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px -10px #253e3120;
+}
+.app-panel pre {
+  border: 1px solid #dce0d3;
+}
+.app-opening {
+  display: grid;
+  min-height: 100vh;
+  align-content: center;
+  justify-items: center;
+  gap: 24px;
+  padding: 24px;
+  color: #5d6962;
+  font-size: 13px;
+}
+.app-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #5d6962;
+}
+.app-breadcrumb strong {
+  color: #253e31;
+  font-weight: 500;
+}
+.app-private-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #5d6962;
+  font-size: 10px;
+}
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 0 40px;
+  padding: 18px 0;
+  border-top: 1px solid #dce0d3;
+  color: #5d6962;
+  font-size: 10px;
+}
+.app-footer nav {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.app-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.app-footer a:hover {
+  color: #326349;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.app-search button {
+  min-height: 44px;
+}
+.app-retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 @media (max-width: 1023px) {
   .grove-app {
@@ -279,6 +391,18 @@
   }
 }
 @media (max-width: 600px) {
+  .app-sidebar nav {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+  .app-nav {
+    padding-inline: 10px;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .app-toolbar .app-search {
+    flex-basis: 100%;
+  }
   .app-content {
     padding: 28px 16px;
   }
@@ -302,5 +426,30 @@
   }
   .app-dialog {
     padding: 22px 18px;
+  }
+  .app-footer {
+    margin-inline: 16px;
+  }
+  .app-topbar {
+    padding-inline: 16px;
+    gap: 12px;
+  }
+  .app-private-label {
+    font-size: 9px;
+  }
+  .app-breadcrumb {
+    gap: 8px;
+    font-size: 11px;
+  }
+  .app-form input:not([type="checkbox"]),
+  .app-form select,
+  .app-form textarea,
+  .app-search input,
+  .app-toolbar select {
+    min-width: 0;
+    font-size: 16px;
+  }
+  .app-form > .grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -9,6 +9,7 @@ import {
   Plug,
   Settings,
   ArrowUpRight,
+  LockKeyhole,
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 
@@ -22,7 +23,13 @@ const links = [
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { user, isLoaded, isSignedIn } = useUser();
-  if (!isLoaded) return null;
+  if (!isLoaded)
+    return (
+      <main id="main" className="app-opening">
+        <Brand />
+        <p role="status">Opening your Grove…</p>
+      </main>
+    );
   if (!isSignedIn) return <RedirectToSignIn />;
   return (
     <div className="grove-app">
@@ -77,9 +84,21 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
       <div className="min-w-0">
         <header className="app-topbar">
-          <span className="text-xs text-muted">Personal workspace</span>
+          <span className="app-breadcrumb">
+            <span>Your Grove</span>
+            <span aria-hidden="true">/</span>
+            <strong>
+              {links.find(({ href }) =>
+                href === "/app"
+                  ? path === href || path.startsWith("/app/memories/")
+                  : path.startsWith(href),
+              )?.name ?? "Personal workspace"}
+            </strong>
+          </span>
           <div className="flex items-center gap-3">
-            <span className="text-[10px] text-muted">PRIVATE BY ACCOUNT</span>
+            <span className="app-private-label">
+              <LockKeyhole size={12} aria-hidden="true" /> Private workspace
+            </span>
             <div className="lg:hidden">
               <UserButton />
             </div>
@@ -88,6 +107,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <main id="main" className="app-content" key={user?.id}>
           {children}
         </main>
+        <footer className="app-footer">
+          <span>Useful context. Yours to keep.</span>
+          <nav aria-label="Workspace help and policies">
+            <Link href="/install">Setup guide</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+            <a href="mailto:grove@mawa.dev">Get help</a>
+          </nav>
+        </footer>
       </div>
     </div>
   );

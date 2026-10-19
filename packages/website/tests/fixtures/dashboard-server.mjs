@@ -20,7 +20,7 @@ const result = await build({
       name: "fixture-host",
       setup(build) {
         build.onResolve(
-          { filter: /^(next\/(link|navigation)|@clerk\/nextjs)$/ },
+          { filter: /^(next\/(link|navigation|image)|@clerk\/nextjs)$/ },
           (args) => ({ path: args.path, namespace: "fixture" }),
         );
         build.onLoad({ filter: /.*/, namespace: "fixture" }, (args) => ({
@@ -31,7 +31,9 @@ const result = await build({
               ? 'import React from "react"; export default function Link(props) { return <a {...props}/> }'
               : args.path === "next/navigation"
                 ? "export const usePathname = () => window.location.pathname;"
-                : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
+                : args.path === "next/image"
+                  ? 'import React from "react"; export default function Image({unoptimized, ...props}) { return <img {...props}/> }'
+                  : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
         }));
       },
     },
@@ -67,6 +69,14 @@ createServer(async (request, response) => {
       response
         .writeHead(200, { "Content-Type": "font/woff2" })
         .end(await readFile(join(root, "node_modules", file)));
+      return;
+    }
+    if (path.startsWith("/brand/") && path.endsWith(".svg")) {
+      const file = resolve(root, "public", path.slice(1));
+      if (!file.startsWith(join(root, "public/brand/"))) throw new Error();
+      response
+        .writeHead(200, { "Content-Type": "image/svg+xml" })
+        .end(await readFile(file));
       return;
     }
     if (path.startsWith("/api/")) {

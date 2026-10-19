@@ -1,66 +1,74 @@
-import { ArrowRight, Check, Database, Terminal } from "lucide-react";
+import { ArrowDown, Check, GitBranch, LockKeyhole } from "lucide-react";
+import { GroveMark } from "@/components/brand";
 
 export function MemoryPreview() {
   return (
     <figure
-      className="product-preview"
-      aria-label="Example of an agent saving and recalling a project decision through Grove"
+      className="memory-garden"
+      aria-label="OpenCode, Claude Code, and Codex connect to one private Grove memory library"
     >
-      <div className="mb-5 flex items-center justify-between gap-3 text-xs text-muted">
-        <span className="flex items-center gap-2">
-          <Terminal size={14} aria-hidden="true" /> Your agent
+      <div className="garden-grid" aria-hidden="true" />
+      <div className="memory-garden-heading">
+        <span>YOUR CONTEXT, CONNECTED</span>
+        <LockKeyhole size={13} aria-hidden="true" />
+      </div>
+      <div className="agent-canopy">
+        <span>
+          <b aria-hidden="true">&gt;_</b>OpenCode
         </span>
-        <ArrowRight size={14} aria-hidden="true" />
-        <span className="flex items-center gap-2">
-          <Database size={14} aria-hidden="true" /> Persistent context
+        <span>
+          <b aria-hidden="true">✳</b>Claude Code
+        </span>
+        <span>
+          <b aria-hidden="true">⌘</b>Codex
         </span>
       </div>
-      <div className="overflow-hidden rounded-lg border border-forest bg-forest text-paper">
-        <div className="terminal-titlebar">
-          <span className="flex gap-1.5" aria-hidden="true">
-            <i className="size-2 rounded-full bg-[#c18b7b]" />
-            <i className="size-2 rounded-full bg-[#c3b777]" />
-            <i className="size-2 rounded-full bg-[#82a682]" />
+      <div className="memory-roots" aria-hidden="true">
+        <svg viewBox="0 0 480 110" preserveAspectRatio="none">
+          <path d="M80 0V24Q80 46 102 46H216Q240 46 240 72V110M240 0V110M400 0V24Q400 46 378 46H264Q240 46 240 72" />
+          <path
+            className="context-flow"
+            d="M80 0V24Q80 46 102 46H216Q240 46 240 72V110M240 0V110M400 0V24Q400 46 378 46H264Q240 46 240 72"
+          />
+        </svg>
+        <span className="memory-root-mark">
+          <GroveMark className="size-10" />
+        </span>
+      </div>
+      <div className="context-window">
+        <div className="context-title">
+          <span>
+            <GroveMark className="size-5" /> Your memory, with you.
           </span>
-          <span>grove / MCP</span>
-          <span className="text-[9px] tracking-wider">EXAMPLE</span>
+          <span className="context-example">EXAMPLE</span>
         </div>
-        <div className="memory-trace">
-          <div>
-            <p className="mb-2 text-[9px] tracking-widest text-paper/65">
-              SESSION 01 · SAVE A DECISION
-            </p>
-            <p className="text-lime">remember</p>
-            <code>
-              {
-                '{ "information": "Use Postgres for billing: we need ACID transactions.",\n  "metadata": { "project": "billing-api" } }'
-              }
-            </code>
-            <p className="mt-2 flex items-center gap-2 text-lime">
-              <Check size={12} aria-hidden="true" /> Saved privately
-            </p>
+        <div className="context-body">
+          <div className="context-tags">
+            <span>
+              <GitBranch size={11} aria-hidden="true" /> billing-api
+            </span>
+            <span>Decision</span>
           </div>
-          <div className="border-t border-white/15 pt-5">
-            <p className="mb-2 text-[9px] tracking-widest text-paper/65">
-              SESSION 02 · RECALL THE CONTEXT
-            </p>
-            <p className="text-lime">memory_search</p>
-            <code>
-              {'{ "query": "Why this database?",\n  "project": "billing-api" }'}
-            </code>
+          <p className="context-quote">
+            “Use PostgreSQL for billing.
+            <br />
+            We need reliable transactions.”
+          </p>
+          <div className="context-saved">
+            <Check size={13} aria-hidden="true" /> Remembered in OpenCode
           </div>
-          <div className="rounded-md border border-lime/20 bg-lime/10 p-3">
-            <p className="text-[9px] tracking-wider text-lime">
-              RELATED MEMORY
-            </p>
-            <p className="mt-1 font-sans text-[13px] leading-6">
-              Use Postgres for billing: we need ACID transactions.
-            </p>
-          </div>
+        </div>
+        <div className="context-recall">
+          <ArrowDown size={15} aria-hidden="true" />
+          <span>
+            New session in Claude Code?
+            <strong>The reasoning comes with you.</strong>
+          </span>
+          <code>recall</code>
         </div>
       </div>
-      <figcaption className="preview-caption">
-        Illustrative tool calls · your agent decides what to save and recall
+      <figcaption>
+        One account. Shared context. A fresh start that isn’t from scratch.
       </figcaption>
     </figure>
   );

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Folder, Plus } from "lucide-react";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "@/components/dashboard/dialog";
+import { LoadError } from "@/components/dashboard/load-error";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -10,6 +11,11 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Project | "new" | null>(null);
   const [refresh, setRefresh] = useState(0);
+  const reload = () => {
+    setError("");
+    setLoading(true);
+    setRefresh((value) => value + 1);
+  };
   useEffect(() => {
     const controller = new AbortController();
     api<Project[]>("/projects", undefined, undefined, controller.signal)
@@ -39,14 +45,10 @@ export default function ProjectsPage() {
           Add project
         </button>
       </div>
-      {error && (
-        <p className="app-error" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <LoadError message={error} retry={reload} />}
       {loading ? (
         <p role="status">Loading projects…</p>
-      ) : !projects.length ? (
+      ) : !projects.length && !error ? (
         <div className="app-empty">
           <Folder className="mx-auto mb-4" size={28} strokeWidth={1.3} />
           <h2 className="font-editorial text-3xl">Give your work a home.</h2>
@@ -91,7 +93,7 @@ export default function ProjectsPage() {
             project={selected === "new" ? undefined : selected}
             done={() => {
               setSelected(null);
-              setRefresh((v) => v + 1);
+              reload();
             }}
           />
         </Dialog>

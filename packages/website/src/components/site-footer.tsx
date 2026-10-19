@@ -8,7 +8,7 @@ import { site } from "@/lib/site";
 
 export function SiteFooter() {
   const shareText =
-    "New session. Same context. Grove is self-hosted memory for your AI agents.";
+    "New session. Same context. Private memory across your AI agents with Grove.";
 
   return (
     <footer className="border-t border-line bg-paper">
@@ -21,7 +21,7 @@ export function SiteFooter() {
               <br />A developer tool by Bramble Labs Inc.
             </p>
             <p className="mt-5 font-mono text-[10px] text-leaf">
-              OPEN SOURCE. SELF-HOSTED. YOURS.
+              OPEN SOURCE. PRIVATE. YOURS.
             </p>
           </div>
           <nav aria-label="Resources">
@@ -82,12 +82,24 @@ export function SiteFooter() {
         <BrambleFamily current="grove" />
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[10px] text-muted">
           <p>© {new Date().getFullYear()} Bramble Labs Inc.</p>
-          <div className="flex items-center gap-5">
-            <a
-              href="https://bramblelabs.co/privacy"
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <Link
+              href="/privacy"
               className="inline-flex min-h-9 items-center hover:text-forest"
             >
-              Website privacy
+              Privacy policy
+            </Link>
+            <Link
+              href="/terms"
+              className="inline-flex min-h-9 items-center hover:text-forest"
+            >
+              Terms & conditions
+            </Link>
+            <a
+              href="mailto:grove@mawa.dev"
+              className="inline-flex min-h-9 items-center hover:text-forest"
+            >
+              Contact
             </a>
             <a
               href={`${site.github}/blob/HEAD/LICENSE`}

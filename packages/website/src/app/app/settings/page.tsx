@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useClerk } from "@clerk/nextjs";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
+import { LoadError } from "@/components/dashboard/load-error";
 import { api, errorMessage } from "@/lib/dashboard-api";
 
 type Settings = {
@@ -16,6 +17,7 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const [refresh, setRefresh] = useState(0);
   const { signOut } = useClerk();
   useEffect(() => {
     const controller = new AbortController();
@@ -25,7 +27,7 @@ export default function SettingsPage() {
         if (!controller.signal.aborted) setError(errorMessage(e));
       });
     return () => controller.abort();
-  }, []);
+  }, [refresh]);
   async function update() {
     if (!settings) return;
     setBusy(true);
@@ -57,11 +59,19 @@ export default function SettingsPage() {
           <p>Useful context, with you in control.</p>
         </div>
       </div>
-      {error && (
+      {error && !settings ? (
+        <LoadError
+          message={error}
+          retry={() => {
+            setError("");
+            setRefresh((value) => value + 1);
+          }}
+        />
+      ) : error ? (
         <p className="app-error" role="alert">
           {error}
         </p>
-      )}
+      ) : null}
       {notice && (
         <p className="app-notice" role="status">
           {notice}
@@ -117,7 +127,11 @@ export default function SettingsPage() {
               </button>
             </form>
           ) : (
-            <p className="mt-4 text-sm text-muted">Loading preferences…</p>
+            <p className="mt-4 text-sm text-muted" role="status">
+              {error
+                ? "Your preferences couldn’t be loaded."
+                : "Loading preferences…"}
+            </p>
           )}
         </section>
         <ConnectedAccounts />

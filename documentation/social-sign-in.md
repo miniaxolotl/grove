@@ -100,7 +100,7 @@ Configuration inspection and mocked website checks do not establish successful
 real-provider OAuth. Keep completion evidence explicit in the execution status.
 
 The Settings UI passes website lint, type checks, production build and the
-11-test browser/accessibility suite. All four providers appear on live sign-in
+19-test browser/accessibility suite. All four providers appear on live sign-in
 and sign-up. GitHub's real-account sign-in is verified. The existing account now
 reports verified connections for Google, Microsoft, Apple and GitHub.
 
@@ -114,10 +114,11 @@ Google's production verification passed:
   same identifiers. Authenticated `/api/grove/me` and private memory search both
   returned 200; the original zero-item memory collection was unchanged.
 
-Hosting PR #7 remains open; website rollouts must retain its hosting changes at
-`fb2b990`. The separate website task has published the policy pages and retained
-the connected-account panel. Google activation is instance configuration and
-does not require another website deployment.
+Hosting PR #7 and social-login PR #8 are merged into `development`. The website
+branch retains their hosting configuration, connected-account panel and completed
+Google verification alongside the Sprout identity and Settings retry handling.
+The policy pages are live. Google activation is instance configuration and does
+not require another website deployment.
 
 Provider instructions: [GitHub](https://clerk.com/docs/guides/configure/auth-strategies/social-connections/github),
 [Google](https://clerk.com/docs/guides/configure/auth-strategies/social-connections/google),

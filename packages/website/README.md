@@ -7,6 +7,14 @@ Grove and Burrow share warm ivory surfaces, DM Sans with Instrument Serif accent
 terminal previews, and direct installation paths; Grove uses green product accents.
 Their product-family footer links to Bramble Labs, Fern, Burrow, and Grove.
 Vercel Web Analytics is included only in the public marketing layout.
+Vercel Speed Insights is mounted alongside it only when `VERCEL_ENV=production`.
+It reports loading, responsiveness, and visual stability for `/`, `/install`,
+`/privacy`, and `/terms`; `beforeSend` removes query strings and fragments and
+drops all other paths. Auth pages and the private dashboard are excluded. Local
+and preview builds do not collect performance metrics. View results in the
+Vercel project's **Speed Insights** dashboard; the SDK uses Vercel's injected
+intake configuration without an extra key. Update `publicPaths` in
+`src/components/website-speed-insights.tsx` when adding public marketing pages.
 Website privacy information is linked at https://bramblelabs.co/privacy.
 
 ## Develop
