@@ -10,17 +10,17 @@ task handoffs. Browse, correct, archive, export, or delete them in your memory l
 **One database:** PostgreSQL, full-text search, and pgvector, with account-owned rows
 and non-owner runtime roles enforcing row-level security.
 
-[Website](https://grove-six-rosy.vercel.app) · [Tools/API](documentation/server.md) ·
+[Website](https://usegrove.cloud) · [Tools/API](documentation/server.md) ·
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Delivery evidence](documentation/delivery.md)
 
 ## Connect an agent
 
-After the new packages are published and your Grove deployment is configured:
+Connect to hosted Grove:
 
 ```sh
 npm install -g @miniaxolotl/grove
-grove init --client opencode --url https://YOUR-GROVE-API
+grove init --client opencode --url https://api.usegrove.cloud
 grove status --client opencode --json
 ```
 
@@ -30,8 +30,9 @@ Named, revocable API keys also support headless clients. Credentials stay in you
 user configuration; plugins and hooks use the same connection. Ordinary agent
 credentials cannot manage your account or issue other credentials.
 
-The new packages are a breaking replacement for the legacy Qdrant server/plugins;
-the currently published versions do not contain this implementation.
+The published PostgreSQL packages replace the legacy Qdrant server/plugins:
+CLI/OpenCode **0.5.0**, server/Claude/Codex **1.0.0**. Self-hosted users can
+substitute their own API origin in the commands above.
 
 ## Host Grove
 
@@ -48,7 +49,7 @@ curl --fail http://localhost:26080/health/ready
 Compose runs private pgvector PostgreSQL, forward-only migrations, a non-owner API,
 and a separate job worker. The database has no published port. Local embeddings
 initialize before readiness. See [deployment](documentation/deploy.md) for the
-website, TLS, OAuth resource settings, backups, and Railway configuration.
+website, TLS, OAuth resource settings, backups, and Neon/DigitalOcean configuration.
 
 ## Memory policy
 

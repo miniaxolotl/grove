@@ -17,7 +17,7 @@ const products = [
     id: "grove",
     name: "Grove",
     detail: "Memory for agents",
-    url: "https://grove-six-rosy.vercel.app",
+    url: "https://usegrove.cloud",
   },
 ];
 

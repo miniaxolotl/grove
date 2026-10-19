@@ -3,11 +3,14 @@
 Use Node 22+ for clients; server/development baseline is Node 24. See
 [delivery evidence](delivery.md) for tested host versions and provider gates.
 
+Hosted Grove is at [usegrove.cloud](https://usegrove.cloud), with API origin
+`https://api.usegrove.cloud`. Self-hosted installations substitute their own origin.
+
 ## CLI
 
 ```sh
 npm install -g @miniaxolotl/grove
-grove init --client opencode --url https://YOUR-GROVE-API
+grove init --client opencode --url https://api.usegrove.cloud
 grove status --client opencode --json
 grove project --client opencode
 ```
@@ -25,7 +28,7 @@ For a named, scoped headless key created in Connections:
 
 ```sh
 # Supply the key via stdin from your credential manager, not a chat or argument.
-grove login --client claude --url https://YOUR-GROVE-API --key-stdin
+grove login --client claude --url https://api.usegrove.cloud --key-stdin
 ```
 
 Services may set `GROVE_API_URL` and `GROVE_API_KEY` together. Credentials are bound
@@ -58,7 +61,7 @@ only the matching plugin entry; it does not delete memories or credentials.
 ## Claude Code
 
 ```sh
-grove init --client claude --url https://YOUR-GROVE-API
+grove init --client claude --url https://api.usegrove.cloud
 # Native installation alone:
 claude plugin marketplace add miniaxolotl/grove
 claude plugin install grove@grove --scope user
@@ -74,7 +77,7 @@ native targeted plugin uninstall.
 ## Codex
 
 ```sh
-grove init --client codex --url https://YOUR-GROVE-API
+grove init --client codex --url https://api.usegrove.cloud
 # Native installation alone:
 codex plugin marketplace add miniaxolotl/grove
 codex plugin add grove@grove
@@ -89,7 +92,7 @@ is a local/team marketplace package, not a submitted public-directory plugin.
 
 ## Other MCP clients
 
-Use remote Streamable HTTP `https://YOUR-GROVE-API/mcp` with OAuth or an API key,
+Use remote Streamable HTTP `https://api.usegrove.cloud/mcp` with OAuth or an API key,
 or configure the local command:
 
 ```json

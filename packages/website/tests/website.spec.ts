@@ -76,7 +76,7 @@ test("installation switches methods and copies the complete setup", async ({
   await page.getByRole("tab", { name: "Other MCP clients" }).click();
   await expect(
     page.getByLabel("Streamable HTTP endpoint", { exact: true }),
-  ).toHaveText("https://YOUR-GROVE-API/mcp");
+  ).toHaveText("https://api.usegrove.cloud/mcp");
   await page.getByRole("tab", { name: "OpenCode", exact: true }).click();
   const config = JSON.parse(
     (await page.getByLabel("opencode.json", { exact: true }).textContent())!,

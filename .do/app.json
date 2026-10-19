@@ -1,0 +1,68 @@
+{
+  "name": "grove",
+  "region": "nyc",
+  "disable_edge_cache": true,
+  "domains": [
+    {
+      "domain": "api.usegrove.cloud",
+      "type": "PRIMARY",
+      "minimum_tls_version": "1.2"
+    }
+  ],
+  "ingress": {
+    "rules": [
+      {
+        "match": { "path": { "prefix": "/" } },
+        "component": { "name": "api", "preserve_path_prefix": true }
+      }
+    ]
+  },
+  "services": [
+    {
+      "name": "api",
+      "image": {
+        "registry_type": "DOCKER_HUB",
+        "registry": "miniaxolotl",
+        "repository": "grove",
+        "digest": "sha256:884593cd2e9b50528d1421371fcbb77e804d0af357336d6d494da3a2e4585fff"
+      },
+      "run_command": "node dist/server.js",
+      "instance_count": 1,
+      "instance_size_slug": "apps-s-1vcpu-1gb-fixed",
+      "http_port": 26080,
+      "health_check": {
+        "http_path": "/health/ready",
+        "initial_delay_seconds": 180,
+        "period_seconds": 10,
+        "timeout_seconds": 5,
+        "success_threshold": 1,
+        "failure_threshold": 9
+      },
+      "liveness_health_check": {
+        "http_path": "/health/live",
+        "port": 26080,
+        "initial_delay_seconds": 180,
+        "period_seconds": 20,
+        "timeout_seconds": 5,
+        "success_threshold": 1,
+        "failure_threshold": 6
+      },
+      "termination": { "drain_seconds": 15, "grace_period_seconds": 120 }
+    }
+  ],
+  "workers": [
+    {
+      "name": "worker",
+      "image": {
+        "registry_type": "DOCKER_HUB",
+        "registry": "miniaxolotl",
+        "repository": "grove",
+        "digest": "sha256:884593cd2e9b50528d1421371fcbb77e804d0af357336d6d494da3a2e4585fff"
+      },
+      "run_command": "node dist/worker.js",
+      "instance_count": 1,
+      "instance_size_slug": "apps-s-1vcpu-1gb-fixed",
+      "termination": { "grace_period_seconds": 120 }
+    }
+  ]
+}

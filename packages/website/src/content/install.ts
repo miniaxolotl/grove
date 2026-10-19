@@ -5,8 +5,7 @@ cp .env.example .env
 docker compose up -d --build`;
 
 export const npmSetup = `npm install -g @miniaxolotl/grove
-# Use the API origin from your Grove deployment
-grove init --client opencode --url https://YOUR-GROVE-API
+grove init --client opencode --url https://api.usegrove.cloud
 grove status --client opencode --json`;
 
 export const opencodeConfig = `{
@@ -14,7 +13,7 @@ export const opencodeConfig = `{
   "plugins": ["@miniaxolotl/grove-opencode-plugin"]
 }`;
 
-export const mcpEndpoint = "https://YOUR-GROVE-API/mcp";
+export const mcpEndpoint = "https://api.usegrove.cloud/mcp";
 export const firstMemory =
   'Use Grove to remember this confirmed decision in my current project: "We use PostgreSQL for billing because we need transactions."';
 export const recallMemory =

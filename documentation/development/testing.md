@@ -15,6 +15,7 @@ pnpm check-types
 pnpm lint
 pnpm build
 pnpm test
+node --test tests/digitalocean.test.mjs
 pnpm test:artifacts
 pnpm lint:website
 pnpm check-types:website
@@ -23,6 +24,12 @@ pnpm --filter website exec playwright install chromium
 pnpm test:website
 docker build -t grove-memory:test .
 ```
+
+The recovery test creates two uniquely named disposable `_test` databases using
+the test migration role, then removes them. That role needs `CREATEDB`. It verifies
+post-snapshot deletions/revocations, restored credential invalidation and RLS.
+The DigitalOcean tests verify runtime-secret isolation and image-only rollouts;
+`--propose` additionally validates a real spec with the provider without deploying.
 
 The contract suite uses real pgvector, migrations, **non-owner API/worker roles**,
 real HTTP requests and the official MCP transport. It covers cross-account access,

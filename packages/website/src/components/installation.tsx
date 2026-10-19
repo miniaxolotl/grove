@@ -72,7 +72,7 @@ export function Installation() {
               <p className="mt-3 text-xs leading-6 text-muted">
                 {value === "docker"
                   ? "Requires Git, Docker Compose, and a configured Grove Clerk application. Set the keys and generated passwords before starting. The first run downloads the local embedding model."
-                  : "Requires Node.js 22+. Replace the example origin with your Grove API. Use --client claude or --client codex for those agents. Approve the connection in your dashboard."}
+                  : "Requires Node.js 22+. Connects to hosted Grove; self-hosted users can substitute their API origin. Use --client claude or --client codex for those agents. Approve the connection in your dashboard."}
               </p>
             </div>
           ))}
@@ -147,8 +147,8 @@ export function Installation() {
               Add a remote MCP server named{" "}
               <code className="inline-code">grove</code> with this URL and the
               Streamable HTTP transport. Configuration fields vary by client.
-              Use your deployment’s API origin. Sign in with OAuth or provide a
-              named, scoped API key.
+              Self-hosted users can substitute their API origin. Sign in with
+              OAuth or provide a named, scoped API key.
             </p>
             <p className="mt-3 text-xs leading-6 text-muted">
               Prefer stdio? Install the npm package and configure your client to
