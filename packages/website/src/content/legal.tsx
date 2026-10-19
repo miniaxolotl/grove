@@ -155,9 +155,12 @@ export const privacy: LegalDocument = {
           <p>
             The public marketing pages use Vercel Web Analytics for aggregate
             visits, referrals, and broad device/region information. It does not
-            use tracking cookies. Website analytics are not mounted in Grove’s
-            private dashboard, and memory content is not sent as marketing
-            analytics.
+            use tracking cookies. Vercel Speed Insights measures loading,
+            responsiveness, and visual stability on these public pages without
+            tracking cookies; its reported URLs exclude query strings and
+            fragments. Website analytics and performance monitoring are not
+            mounted in Grove’s private dashboard, and memory content is not sent
+            as marketing analytics.
           </p>
           <p>
             Authentication uses cookies or similar session storage needed to
