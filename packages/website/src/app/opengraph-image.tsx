@@ -2,9 +2,9 @@ import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { groveSprout } from "@/lib/brand-mark";
+import { positioning } from "@/content/site";
 
-export const alt =
-  "Grove by Bramble Labs Inc. — New session. Same context. Private memory across your AI agents.";
+export const alt = positioning.imageAlt;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -72,7 +72,7 @@ export default async function OpenGraphImage() {
             color: "#4f6b40",
           }}
         >
-          GROVE / AGENT MEMORY
+          YOUR PRIVATE NOTEBOOK
         </div>
         <div
           style={{
@@ -85,8 +85,8 @@ export default async function OpenGraphImage() {
             marginTop: 21,
           }}
         >
-          <span>New session.</span>
-          <span style={{ color: "#326349" }}>Same context.</span>
+          <span>Good ideas.</span>
+          <span style={{ color: "#326349" }}>Room to grow.</span>
         </div>
         <div
           style={{
@@ -96,7 +96,7 @@ export default async function OpenGraphImage() {
             color: "#62695d",
           }}
         >
-          Useful context. One private memory account.
+          Notes, plans, and a little more space to think.
         </div>
         <div
           style={{
@@ -111,7 +111,7 @@ export default async function OpenGraphImage() {
             color: "#4f6b40",
           }}
         >
-          OPENCODE · CLAUDE CODE · CODEX
+          NOTES · JOURNAL · IDEAS, CONNECTED
         </div>
       </div>
       <div

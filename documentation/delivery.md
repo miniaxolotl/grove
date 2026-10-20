@@ -1,5 +1,22 @@
 # Delivery evidence
 
+## Consumer-facing Grove website (20 October 2026 UTC)
+
+The public site leads with “Good ideas. Room to grow.” and a private notebook
+for everyday notes, plans, journaling and connected ideas. Notebook previews,
+Ask Grove examples with source links, FAQs, navigation, account-entry copy and
+social/search metadata share this positioning. The main call to action opens
+browser sign-up; new accounts default to Notes. Optional AI-tool connections and
+self-hosting remain accessible from the public site.
+
+Root and website lint/types/build, five packed artifact checks and all 43 website
+browser/accessibility checks pass. Public checks cover the no-JavaScript story
+and sign-up path, keyboard notebook/demo navigation, source-note links, sharing,
+metadata, installation, mobile navigation and WCAG A/AA accessibility.
+Visual review covers desktop and touch notebook/journal/graph/Ask Grove previews,
+the generated sharing image, and 320–1920px layouts without horizontal overflow.
+The touch review reports no application errors or accessibility violations.
+
 ## Constellation graph and compact workspace (20 October 2026 UTC)
 
 The Notes graph uses notebook-colored stars, connection-count sizing, curved

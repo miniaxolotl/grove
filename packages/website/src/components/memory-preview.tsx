@@ -1,74 +1,75 @@
-import { ArrowDown, Check, GitBranch, LockKeyhole } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  LockKeyhole,
+  MessageSquare,
+  Plus,
+} from "lucide-react";
 import { GroveMark } from "@/components/brand";
 
 export function MemoryPreview() {
   return (
     <figure
-      className="memory-garden"
-      aria-label="OpenCode, Claude Code, and Codex connect to one private Grove memory library"
+      className="notebook-preview"
+      aria-label="Example notebook with weekend plans and an answer from a saved note"
     >
-      <div className="garden-grid" aria-hidden="true" />
-      <div className="memory-garden-heading">
-        <span>YOUR CONTEXT, CONNECTED</span>
-        <LockKeyhole size={13} aria-hidden="true" />
-      </div>
-      <div className="agent-canopy">
+      <div className="notebook-preview-bar">
         <span>
-          <b aria-hidden="true">&gt;_</b>OpenCode
+          <GroveMark className="size-5" /> Your Grove
         </span>
         <span>
-          <b aria-hidden="true">✳</b>Claude Code
-        </span>
-        <span>
-          <b aria-hidden="true">⌘</b>Codex
+          <LockKeyhole size={12} aria-hidden="true" /> Private
         </span>
       </div>
-      <div className="memory-roots" aria-hidden="true">
-        <svg viewBox="0 0 480 110" preserveAspectRatio="none">
-          <path d="M80 0V24Q80 46 102 46H216Q240 46 240 72V110M240 0V110M400 0V24Q400 46 378 46H264Q240 46 240 72" />
-          <path
-            className="context-flow"
-            d="M80 0V24Q80 46 102 46H216Q240 46 240 72V110M240 0V110M400 0V24Q400 46 378 46H264Q240 46 240 72"
-          />
-        </svg>
-        <span className="memory-root-mark">
-          <GroveMark className="size-10" />
-        </span>
-      </div>
-      <div className="context-window">
-        <div className="context-title">
-          <span>
-            <GroveMark className="size-5" /> Your memory, with you.
-          </span>
-          <span className="context-example">EXAMPLE</span>
-        </div>
-        <div className="context-body">
-          <div className="context-tags">
-            <span>
-              <GitBranch size={11} aria-hidden="true" /> billing-api
-            </span>
-            <span>Decision</span>
+      <div className="notebook-preview-body">
+        <div className="notebook-preview-heading">
+          <div>
+            <span>Personal notebook</span>
+            <h2>Everyday ideas</h2>
           </div>
-          <p className="context-quote">
-            “Use PostgreSQL for billing.
-            <br />
-            We need reliable transactions.”
+          <Plus size={18} aria-hidden="true" />
+        </div>
+        <div className="notebook-preview-tabs" aria-hidden="true">
+          <span>All notes</span>
+          <span>Plans</span>
+          <span>Little discoveries</span>
+        </div>
+        <article className="preview-note">
+          <div className="preview-note-label">
+            <BookOpen size={13} /> Weekend plans
+          </div>
+          <h3>A slower Saturday</h3>
+          <p>
+            A long walk by the river. A visit to the bookshop on Maple Street.
+            Leave the rest of the day open.
           </p>
-          <div className="context-saved">
-            <Check size={13} aria-hidden="true" /> Remembered in OpenCode
+          <div className="preview-note-footer">
+            <span>Room for a little spontaneity</span>
+            <Check size={13} aria-label="Saved" />
           </div>
+        </article>
+        <div className="preview-note-peek">
+          <BookOpen size={14} aria-hidden="true" />
+          <span>Things I want to learn</span>
+          <span>3 ideas</span>
         </div>
-        <div className="context-recall">
-          <ArrowDown size={15} aria-hidden="true" />
-          <span>
-            New session in Claude Code?
-            <strong>The reasoning comes with you.</strong>
-          </span>
-          <code>recall</code>
+        <div className="preview-answer">
+          <div>
+            <MessageSquare size={14} /> Ask Grove
+          </div>
+          <p>What did I want to do this weekend?</p>
+          <div className="preview-answer-copy">
+            <GroveMark className="size-5" />
+            <span>
+              Take a walk by the river and visit the bookshop on Maple Street.
+              Keep the rest of Saturday open.
+              <small>1 · A slower Saturday</small>
+            </span>
+          </div>
         </div>
       </div>
       <figcaption>
-        One account. Shared context. A fresh start that isn’t from scratch.
+        An example Grove. Yours begins with your first note.
       </figcaption>
     </figure>
   );

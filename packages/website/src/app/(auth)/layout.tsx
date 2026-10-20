@@ -17,28 +17,28 @@ export default function AuthLayout({
         </Link>
       </header>
       <main id="main" className="page-container auth-shell">
-        <aside className="auth-story" aria-label="A home for your context">
+        <aside className="auth-story" aria-label="A home for your ideas">
           <span className="auth-sprout">
             <GroveMark className="size-16" />
           </span>
-          <p className="eyebrow">A FRESH START, WITH ROOTS.</p>
+          <p className="eyebrow">YOUR IDEAS HAVE A HOME HERE.</p>
           <h2>
             Good to have
             <br />
             <em>you here.</em>
           </h2>
           <p>
-            Your decisions. Your preferences. The fix that took all afternoon.
-            Give them a place to grow with you.
+            Your plans. Your little discoveries. The thought you want to come
+            back to. Give them a place to grow with you.
           </p>
           <ul>
             <li>
-              <Check size={15} aria-hidden="true" /> One memory library across
-              your agents
+              <Check size={15} aria-hidden="true" /> Notes, notebooks, and a
+              journal of your own
             </li>
             <li>
-              <Check size={15} aria-hidden="true" /> See, edit, and keep what
-              matters
+              <Check size={15} aria-hidden="true" /> Find answers and
+              connections in what you save
             </li>
             <li>
               <LockKeyhole size={15} aria-hidden="true" /> Private to your

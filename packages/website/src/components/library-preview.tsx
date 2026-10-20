@@ -1,26 +1,25 @@
 "use client";
 
 import {
-  Archive,
   ArrowUpRight,
   Check,
-  GitBranch,
-  KeyRound,
+  NotebookPen,
+  Network,
   Search,
-  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Tabs } from "@/components/tabs";
+import { IdeaMap } from "@/components/idea-map";
 
 const views = [
-  { value: "memories", label: "Memories" },
-  { value: "connections", label: "Connections" },
-  { value: "archive", label: "Archive" },
+  { value: "notes", label: "Notes" },
+  { value: "journal", label: "Journal" },
+  { value: "graph", label: "Graph" },
 ] as const;
 
 export function LibraryPreview() {
-  const [view, setView] = useState("memories");
+  const [view, setView] = useState("notes");
   return (
     <section
       className="library-section section-space"
@@ -29,33 +28,33 @@ export function LibraryPreview() {
     >
       <div className="page-container library-layout">
         <div data-reveal>
-          <p className="eyebrow">YOUR MEMORY. IN PLAIN SIGHT.</p>
+          <p className="eyebrow">A HOME FOR THE WHOLE PICTURE</p>
           <h2 className="section-heading mt-4" id="library-heading">
-            A little less mystery.
+            Life has a lot
             <br />
-            <em>A lot more control.</em>
+            <em>of little threads.</em>
           </h2>
           <p className="library-description">
-            See what your agents remember. Correct a detail. Retire an old
-            decision. Your Grove gives useful context a home you can actually
-            look around.
+            The trip you’re planning. The idea that arrived on a walk. What you
+            learned about yourself today. Keep it all in notebooks that feel
+            like yours, and follow the connections when you’re ready.
           </p>
           <ul className="library-benefits">
             <li>
               <Search size={17} aria-hidden="true" />
-              <span>Search your library and browse by project</span>
+              <span>Find a note, even when the exact words escape you</span>
             </li>
             <li>
-              <GitBranch size={17} aria-hidden="true" />
-              <span>Edit memories with revision history</span>
+              <NotebookPen size={17} aria-hidden="true" />
+              <span>Give daily thoughts a place in your journal</span>
             </li>
             <li>
-              <ShieldCheck size={17} aria-hidden="true" />
-              <span>Approve each agent’s scope. Revoke any time.</span>
+              <Network size={17} aria-hidden="true" />
+              <span>Explore the ideas that belong together</span>
             </li>
           </ul>
           <Link href="/sign-up" className="button-primary">
-            Make yourself at home <ArrowUpRight size={16} aria-hidden="true" />
+            Start your notebook <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
         </div>
         <div className="library-window" data-reveal>
@@ -65,7 +64,7 @@ export function LibraryPreview() {
           </div>
           <Tabs
             id="library-preview"
-            label="Explore the memory library"
+            label="Explore your notebook"
             options={views}
             value={view}
             onChange={setView}
@@ -83,39 +82,42 @@ export function LibraryPreview() {
               <div className="library-panel-heading">
                 <h3>{label}</h3>
                 <span>
-                  {value === "memories"
-                    ? "PROJECT / BILLING-API"
-                    : value === "connections"
-                      ? "YOU CHOOSE THE ACCESS"
-                      : "KEEP THE SIGNAL"}
+                  {value === "notes"
+                    ? "Weekend projects"
+                    : value === "journal"
+                      ? "A page for your day"
+                      : "Your ideas, connected"}
                 </span>
               </div>
-              {value === "memories" && (
+              {value === "notes" && (
                 <>
                   <div className="library-search">
                     <Search size={14} aria-hidden="true" />
-                    <span>Decisions, preferences, hard-won fixes…</span>
+                    <span>Find something worth coming back to…</span>
                   </div>
                   <article className="library-memory">
-                    <span className="library-kind">Decision</span>
-                    <h4>PostgreSQL for billing</h4>
+                    <span className="library-kind">For home</span>
+                    <h4>A tiny balcony garden</h4>
                     <p>
-                      We need reliable transactions, and the team already knows
-                      it.
+                      Start with mint and rosemary. Find the corner that gets
+                      the afternoon sun.
                     </p>
                     <footer>
-                      <span>billing-api · revision 2</span>
+                      <span>Weekend projects</span>
                       <span>
                         <Check size={11} aria-hidden="true" /> Saved
                       </span>
                     </footer>
                   </article>
                   <article className="library-memory">
-                    <span className="library-kind">Preference</span>
-                    <h4>Tests live beside the source</h4>
-                    <p>Use Vitest and name test files *.test.ts.</p>
+                    <span className="library-kind">A little inspiration</span>
+                    <h4>A reading corner of my own</h4>
+                    <p>
+                      A comfortable chair, a warm lamp, and a place for the next
+                      book.
+                    </p>
                     <footer>
-                      <span>billing-api · revision 1</span>
+                      <span>Weekend projects</span>
                       <span>
                         <Check size={11} aria-hidden="true" /> Saved
                       </span>
@@ -123,53 +125,49 @@ export function LibraryPreview() {
                   </article>
                 </>
               )}
-              {value === "connections" && (
+              {value === "journal" && (
                 <>
                   <p className="library-explainer">
-                    Named connections, explicit permissions. Every agent gets
-                    only the scope you approve.
+                    A few words are enough. Keep your reflections together, in
+                    the order you wrote them.
                   </p>
                   {[
-                    "OpenCode · Work laptop",
-                    "Claude Code · Terminal",
-                    "Codex · Side project",
-                  ].map((name) => (
-                    <article className="library-connection" key={name}>
-                      <KeyRound size={18} aria-hidden="true" />
-                      <div>
-                        <h4>{name}</h4>
-                        <p>Project-scoped connection</p>
-                      </div>
-                      <span>Approved</span>
+                    {
+                      title: "A small win",
+                      text: "Made time for a walk before the day got busy. I’d like to do that more often.",
+                    },
+                    {
+                      title: "Something worth noticing",
+                      text: "The best idea came after I closed my laptop and gave myself a little room.",
+                    },
+                  ].map(({ title, text }) => (
+                    <article className="library-memory" key={title}>
+                      <span className="library-kind">Today</span>
+                      <h4>{title}</h4>
+                      <p>{text}</p>
                     </article>
                   ))}
                   <p className="library-footnote">
-                    Manage connections and API keys in your account.
+                    Your own words. A place to return to.
                   </p>
                 </>
               )}
-              {value === "archive" && (
+              {value === "graph" && (
                 <>
-                  <div className="library-archive">
-                    <Archive size={30} strokeWidth={1.2} aria-hidden="true" />
-                    <h4>Some decisions have a season.</h4>
-                    <p>
-                      Archive what’s no longer relevant. Restore it if you need
-                      it again, or delete it permanently.
-                    </p>
-                  </div>
-                  <article className="library-memory">
-                    <span className="library-kind">Archived decision</span>
-                    <h4>Use the legacy billing endpoint</h4>
-                    <p>Kept out of active recall. Still yours to revisit.</p>
-                  </article>
+                  <p className="library-explainer">
+                    Sometimes the next idea is already in your notes. See the
+                    connections, then follow your curiosity.
+                  </p>
+                  <IdeaMap />
+                  <p className="library-footnote">
+                    In your notebook, tap a star to explore its linked notes.
+                  </p>
                 </>
               )}
             </div>
           ))}
           <p className="library-disclaimer">
-            Illustrative content · your private library starts with your
-            memories
+            Example notes · your private notebook starts with what you save
           </p>
         </div>
       </div>
