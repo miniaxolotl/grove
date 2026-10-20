@@ -86,6 +86,13 @@ PostgreSQL/RLS, authenticated HTTP/MCP, packed stdio clients, and browser checks
 source-read-only. Canonical execution plans are in the main checkout's `plans/`;
 this supersedes the earlier Fern planning location.
 
+## Releases
+
+Release Please manages one coordinated product version across the server, CLI
+and three integrations. A released tag is deliberately frozen and promoted from
+`development` through a protected PR to `production`. Only production publishes
+packages, images and the website. See the [release runbook](documentation/deploy.md#releases).
+
 ## License
 
 [MIT](LICENSE)

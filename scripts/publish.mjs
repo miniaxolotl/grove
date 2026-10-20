@@ -6,6 +6,19 @@ import { tmpdir } from "node:os";
 import process from "node:process";
 
 const root = resolve(import.meta.dirname, "..");
+const dryRun = process.argv.includes("--dry-run");
+if (
+  !dryRun &&
+  (process.env.GITHUB_ACTIONS !== "true" ||
+    process.env.GITHUB_REF !== "refs/heads/production")
+) {
+  throw new Error(
+    "Publish through the protected production Deploy workflow; local checks use --dry-run",
+  );
+}
+const version = JSON.parse(
+  await readFile(join(root, "package.json"), "utf8"),
+).version;
 const temporary = process.env.CI ? tmpdir() : "/tmp/opencode";
 await mkdir(temporary, { recursive: true });
 const directory = await mkdtemp(join(temporary, "grove-publish-"));
@@ -22,6 +35,10 @@ try {
   ]) {
     const path = join(root, "packages", name);
     const pkg = JSON.parse(await readFile(join(path, "package.json"), "utf8"));
+    if (pkg.version !== version)
+      throw new Error(
+        `${pkg.name} must share the product release version ${version}`,
+      );
     let integrity;
     try {
       integrity = execFileSync(
@@ -57,12 +74,18 @@ try {
       pending.push({ archive, name: `${pkg.name}@${pkg.version}` });
   }
   for (const pkg of pending) {
-    if (process.argv.includes("--dry-run"))
-      process.stdout.write(`Would publish ${pkg.name}\n`);
+    if (dryRun) process.stdout.write(`Would publish ${pkg.name}\n`);
     else
       execFileSync(
         "npm",
-        ["publish", pkg.archive, "--access", "public", "--ignore-scripts"],
+        [
+          "publish",
+          pkg.archive,
+          "--access",
+          "public",
+          "--ignore-scripts",
+          "--provenance",
+        ],
         { stdio: "inherit" },
       );
   }

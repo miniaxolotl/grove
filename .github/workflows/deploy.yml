@@ -1,117 +1,144 @@
 name: Deploy
-
-concurrency:
-  group: grove-deploy-${{ github.ref }}
-  cancel-in-progress: false
-
 on:
   push:
-    branches: [development, production]
+    branches: [production]
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Optional production version assertion; must match packages/api/package.json"
-        required: false
-        default: ""
-
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: production-release
+  cancel-in-progress: false
 jobs:
-  deploy:
+  candidate:
+    if: github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
+    timeout-minutes: 50
+    outputs:
+      sha: ${{ steps.candidate.outputs.sha }}
+      tag: ${{ steps.candidate.outputs.tag }}
+      version: ${{ steps.candidate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Wait for complete independent production CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/promotion.mjs wait-ci "$GITHUB_SHA"
+      - id: candidate
+        name: Admit the immutable source before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/promotion.mjs production "$GITHUB_SHA"
+
+  publish-and-deploy:
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
     permissions:
       contents: read
       packages: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
+      RELEASE_SOURCE_SHA: ${{ needs.candidate.outputs.sha }}
+      RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-
-      - name: Resolve tags
-        id: meta
-        env:
-          REQUESTED_VERSION: ${{ inputs.version }}
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:artifacts
+      - name: Preflight credentials, target and every package
         run: |
-          VERSION=""
-          case "$GITHUB_REF" in
-            refs/heads/production)
-              VERSION=$(node -p "require('./packages/api/package.json').version")
-              if [ -n "$REQUESTED_VERSION" ] && [ "$REQUESTED_VERSION" != "$VERSION" ]; then
-                echo "::error::Requested version must match the release promoted to production."
-                exit 1
-              fi
-              ;;
-            refs/heads/development)
-              if [ -n "$REQUESTED_VERSION" ]; then
-                echo "::error::Development publishes preview images; promote the release to production first."
-                exit 1
-              fi
-              ;;
-            *)
-              echo "::error::Deployments follow feature branch -> development -> production."
-              exit 1
-              ;;
-          esac
-
-          if [ -n "$VERSION" ]; then
-            [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]
-            {
-              echo "TAGS<<EOF"
-              echo "ghcr.io/miniaxolotl/grove:latest"
-              echo "ghcr.io/miniaxolotl/grove:v${VERSION}"
-              echo "miniaxolotl/grove:latest"
-              echo "miniaxolotl/grove:v${VERSION}"
-              echo "EOF"
-              echo "VERSION=${VERSION}"
-            } >> "$GITHUB_OUTPUT"
-          else
-            PREVIEW_VERSION=$(node -p "require('./packages/api/package.json').version")
-            {
-              echo "TAGS<<EOF"
-              echo "ghcr.io/miniaxolotl/grove:preview"
-              echo "ghcr.io/miniaxolotl/grove:preview-v${PREVIEW_VERSION}"
-              echo "miniaxolotl/grove:preview"
-              echo "miniaxolotl/grove:preview-v${PREVIEW_VERSION}"
-              echo "EOF"
-              echo "VERSION=preview-v${PREVIEW_VERSION}"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/production" --jq .object.sha)" = "$GITHUB_SHA"
+          npm whoami
+          node scripts/release/preflight-production.mjs
+          node scripts/publish.mjs --dry-run
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+          password: ${{ github.token }}
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push
-        id: image
-        uses: docker/build-push-action@v5
+      - name: Resolve existing immutable images without suppressing registry failures
+        id: existing
+        run: |
+          inspect() {
+            local digest
+            if digest="$(docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>image-error)"; then
+              [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || return 1
+              printf '%s' "$digest"
+            elif ! grep -Eqi 'not found|manifest unknown|no such manifest' image-error; then
+              cat image-error >&2
+              return 1
+            fi
+          }
+          digest="$(inspect "ghcr.io/miniaxolotl/grove:sha-$RELEASE_SOURCE_SHA")"
+          for repository in ghcr.io/miniaxolotl/grove miniaxolotl/grove; do
+            for tag in "sha-$RELEASE_SOURCE_SHA" "$RELEASE_TAG"; do
+              existing="$(inspect "$repository:$tag")"
+              if [[ -n "$existing" && "$existing" != "$digest" ]]; then exit 1; fi
+            done
+          done
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - id: build
+        if: steps.existing.outputs.digest == ''
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.TAGS }}
+          tags: ghcr.io/miniaxolotl/grove:sha-${{ needs.candidate.outputs.sha }}
           labels: |
-            org.opencontainers.image.version=${{ steps.meta.outputs.VERSION }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.version=${{ needs.candidate.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.candidate.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/miniaxolotl/grove
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Roll out production API and worker
-        if: github.ref == 'refs/heads/production' && vars.DIGITALOCEAN_APP_ID != ''
+      - name: Publish all coordinated npm artifacts
+        run: node scripts/publish.mjs
+      - name: Promote the verified image, then deploy API and worker
         env:
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
-          GROVE_IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
-        run: node scripts/deploy-digitalocean.mjs --wait
+          GROVE_IMAGE_DIGEST: ${{ steps.existing.outputs.digest || steps.build.outputs.digest }}
+        run: |
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/production" --jq .object.sha)" = "$GITHUB_SHA"
+          [[ "$GROVE_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          source="ghcr.io/miniaxolotl/grove@$GROVE_IMAGE_DIGEST"
+          docker pull "$source"
+          test "$(docker inspect "$source" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$RELEASE_SOURCE_SHA"
+          for repository in ghcr.io/miniaxolotl/grove miniaxolotl/grove; do
+            for tag in "sha-$RELEASE_SOURCE_SHA" "$RELEASE_TAG" latest; do
+              docker buildx imagetools create --prefer-index=false --tag "$repository:$tag" "$source"
+              test "$(docker buildx imagetools inspect "$repository:$tag" --format '{{.Manifest.Digest}}')" = "$GROVE_IMAGE_DIGEST"
+            done
+          done
+          node scripts/deploy-digitalocean.mjs --wait
+          curl --fail --retry 5 --max-time 30 https://api.usegrove.cloud/health/ready
+          jq -n --arg sha "$RELEASE_SOURCE_SHA" --arg tag "$RELEASE_TAG" --arg digest "$GROVE_IMAGE_DIGEST" \
+            '{sha:$sha,tag:$tag,image:"ghcr.io/miniaxolotl/grove",digest:$digest}' > manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ needs.candidate.outputs.tag }}-${{ github.run_attempt }}
+          path: manifest.json

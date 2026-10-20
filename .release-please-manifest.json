@@ -1,7 +1,3 @@
 {
-  "packages/api": "1.1.0",
-  "packages/grove-claude-plugin": "1.1.0",
-  "packages/grove-codex-plugin": "1.1.0",
-  "packages/mcp": "0.6.0",
-  "packages/grove-opencode-plugin": "0.6.0"
+  ".": "1.1.0"
 }
