@@ -372,10 +372,10 @@ export function MemoryLibrary({
           title={title}
           description={
             archive
-              ? "Set aside for now. Bring a note back whenever you need it."
+              ? "Notes set aside. Restore them whenever you need."
               : initialView === "graph"
                 ? "See how your ideas connect."
-                : "A place for ideas, plans, and things worth keeping."
+                : "Your notes, organized and connected."
           }
           actions={
             !archive && (
@@ -499,22 +499,24 @@ export function MemoryLibrary({
                   ]}
                 />
               )}
-              <label className="library-sort">
-                Sort
-                <select
-                  aria-label="Sort notes"
-                  value={sort}
-                  onChange={(e) =>
-                    setFilters({
-                      ...filters,
-                      sort: e.target.value as typeof sort,
-                    })
-                  }
-                >
-                  <option value="updated_desc">Recently updated</option>
-                  <option value="updated_asc">Oldest updated</option>
-                </select>
-              </label>
+              {view === "list" && (
+                <label className="library-sort">
+                  Sort
+                  <select
+                    aria-label="Sort notes"
+                    value={sort}
+                    onChange={(e) =>
+                      setFilters({
+                        ...filters,
+                        sort: e.target.value as typeof sort,
+                      })
+                    }
+                  >
+                    <option value="updated_desc">Recently updated</option>
+                    <option value="updated_asc">Oldest updated</option>
+                  </select>
+                </label>
+              )}
             </div>
             {view === "list" && selectedItems.length > 0 && (
               <div

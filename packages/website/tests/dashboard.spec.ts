@@ -222,6 +222,13 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     for (const width of [320, 1440]) {
       await page.setViewportSize({ width, height: 900 });
+      if (path !== "/app/archive") {
+        await expect(
+          page
+            .getByRole("navigation", { name: "Notebook navigation" })
+            .locator('[aria-current="page"]'),
+        ).toBeInViewport({ ratio: 1 });
+      }
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= window.innerWidth,

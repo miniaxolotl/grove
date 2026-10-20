@@ -395,6 +395,13 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
 }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  const personal = { ...note, id: crypto.randomUUID() };
+  const revised = {
+    ...handoff,
+    id: crypto.randomUUID(),
+    version: 2,
+    content: "# Revised plan\n\nThe current plan has changed.",
+  };
   await fixture(page, [
     {
       ...note,
@@ -408,26 +415,60 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
             relationship: "complementary",
           },
           { id: crypto.randomUUID(), version: 1, relationship: "duplicate" },
+          { id: personal.id, version: 1, relationship: "duplicate" },
+          { id: revised.id, version: 1, relationship: "conflicting" },
         ],
       },
     },
     handoff,
+    personal,
+    revised,
   ]);
   await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: "Load more", exact: true }).click();
   await page.getByRole("button", { name: "Graph", exact: true }).click();
-  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  await expect(page.locator(".react-flow__node")).toHaveCount(4);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  const first = page.locator(`.react-flow__node[data-id="${note.id}"]`);
+  const unrelated = page.locator(`.react-flow__node[data-id="${personal.id}"]`);
+  const titles = page.getByRole("button", { name: "Show note titles" });
+  await titles.click();
+  await expect(titles).toHaveAttribute("aria-pressed", "false");
+  await expect(first.locator(".graph-node-label")).toHaveCSS("opacity", "0");
+  await first.hover();
+  await expect(first.locator(".graph-node-label")).toHaveCSS("opacity", "1");
+  await expect(unrelated).toHaveCSS("opacity", "0.2");
+  await expect(page.locator(".graph-connection.is-emphasized")).toHaveCount(1);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".graph-connection-spark")).toHaveCSS(
+    "animation-name",
+    "none",
+  );
+  await titles.click();
+  await expect(unrelated).toHaveCSS("opacity", "1");
   const viewport = page.locator(".react-flow__viewport");
   const before = await viewport.getAttribute("style");
   await page.getByRole("button", { name: "Zoom In", exact: true }).click();
   await expect(viewport).not.toHaveAttribute("style", before!);
-  await page.locator(`.react-flow__node[data-id="${note.id}"]`).click();
+  await first.focus();
+  await page.keyboard.press("Space");
   await expect(
     page.getByRole("complementary", { name: "Selected note" }),
   ).toContainText("Launch checklist");
+  await page.getByRole("button", { name: "Expand graph", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement?.className))
+    .toBe("memory-graph");
   await page.getByRole("button", { name: "Read note", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText("Review preferences");
+  await expect(page.getByRole("dialog")).toBeInViewport();
   await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "Exit full screen", exact: true })
+    .click();
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement))
+    .toBeNull();
   await page.locator(`.react-flow__node[data-id="${handoff.id}"]`).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog")).toContainText("Launch checklist");
@@ -457,6 +498,10 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
     .selectOption("duplicate");
   await expect(page.locator(".react-flow__node")).toHaveCount(0);
   await expect(page.getByText("No matching connections here.")).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Graph relationships" })
+    .selectOption("conflicting");
+  await expect(page.locator(".react-flow__edge")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

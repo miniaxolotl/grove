@@ -1,5 +1,26 @@
 # Delivery evidence
 
+## Constellation graph and compact workspace (20 October 2026 UTC)
+
+The Notes graph uses notebook-colored stars, connection-count sizing, curved
+relationship lines, and hover/keyboard/selection neighborhood highlighting.
+Titles stay readable while zooming; title visibility, full-screen exploration,
+touch instructions, and reduced-motion behavior are supported. Connections still
+require a loaded note in the same notebook at the referenced current version.
+
+The workspace has slimmer navigation and headers, compact note metadata/tags,
+quieter neutral surfaces, and tighter filters, Journal, Ask Grove, and readers.
+Mobile navigation scrolls horizontally and reveals the active page; touch
+controls retain larger targets.
+
+Local verification covers root and website lint/types/build, all five packed
+artifact tests, and all 43 website browser/accessibility checks. Expanded graph
+coverage exercises title toggling, neighborhood highlighting, reduced motion,
+keyboard reading, full-screen reading, and stale/cross-notebook exclusions.
+Visual review includes a 30-note/42-connection fixture, sparse graphs, selection,
+full screen, desktop and touch layouts, and 320–2320px workspace breakpoints.
+The populated touch graph reports no browser errors or accessibility violations.
+
 ## Notebook, cited chat, and background services (20 October 2026 UTC)
 
 Implementation `f69b2c6` on PR #12 passed CI

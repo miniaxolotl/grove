@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { RedirectToSignIn, UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -28,6 +29,21 @@ const links = [
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { user, isLoaded, isSignedIn } = useUser();
+  const navigation = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navigation.current;
+    if (!nav) return;
+    const revealCurrent = () => {
+      const link = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      if (link && nav.scrollWidth > nav.clientWidth)
+        nav.scrollLeft =
+          link.offsetLeft - (nav.clientWidth - link.offsetWidth) / 2;
+    };
+    const observer = new ResizeObserver(revealCurrent);
+    observer.observe(nav);
+    revealCurrent();
+    return () => observer.disconnect();
+  }, [path, isLoaded, isSignedIn]);
   if (!isLoaded)
     return (
       <main id="main" className="app-opening">
@@ -58,13 +74,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="grove-app">
       <aside className="app-sidebar">
-        <Brand />
-        <p className="mt-9 px-3 text-[10px] font-semibold tracking-[0.15em] text-muted">
-          YOUR NOTEBOOK
-        </p>
+        <div className="app-sidebar-heading">
+          <Brand />
+          <div className="lg:hidden">
+            <UserButton />
+          </div>
+        </div>
+        <p className="app-nav-label">Workspace</p>
         <nav
+          ref={navigation}
           aria-label="Notebook navigation"
-          className="mt-3 flex gap-1 overflow-x-auto lg:flex-col"
+          className="app-navigation"
         >
           {links.map(({ href, name, icon: Icon }) => (
             <Link
@@ -73,7 +93,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               aria-current={
                 (
                   href === "/app"
-                    ? path === href || path.startsWith("/app/memories/")
+                    ? path === href ||
+                      path === "/app/graph" ||
+                      path.startsWith("/app/memories/")
                     : path.startsWith(href)
                 )
                   ? "page"
@@ -86,7 +108,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto hidden pt-12 lg:block">
+        <div className="app-sidebar-footer">
           <div className="px-2">
             <Link
               href="/app/connections"
@@ -95,7 +117,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               Connect your agents <ArrowUpRight size={14} />
             </Link>
           </div>
-          <div className="mt-6 flex items-center gap-3 px-2">
+          <div className="mt-3 flex items-center gap-3 px-2">
             <UserButton />
             <span className="truncate text-xs">
               {user?.firstName ?? "Your account"}
@@ -103,7 +125,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </aside>
-      <div className="min-w-0">
+      <div className="app-main">
         <header className="app-topbar">
           <span className="app-breadcrumb">
             <span>Your Grove</span>
@@ -124,16 +146,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <span className="app-private-label">
               <LockKeyhole size={12} aria-hidden="true" /> Private notebook
             </span>
-            <div className="lg:hidden">
-              <UserButton />
-            </div>
           </div>
         </header>
         <main id="main" className="app-content" key={user?.id}>
           {children}
         </main>
         <footer className="app-footer">
-          <span>A little space for what matters.</span>
+          <span>Grove</span>
           <nav aria-label="Workspace help and policies">
             <Link
               href="/app/archive"

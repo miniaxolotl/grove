@@ -75,7 +75,7 @@ export function Journal() {
     <>
       <PageHeading
         title="Journal"
-        description="A page for your day. A place to come back to."
+        description="Daily notes and reflections."
         actions={
           <Button onClick={() => setWriting(true)}>
             <Plus size={16} />
