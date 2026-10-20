@@ -58,17 +58,17 @@ const labels: Record<Relationship, string> = {
   conflicting: "Conflicting",
 };
 const colors: Record<Relationship, string> = {
-  complementary: "#8cccb4",
-  duplicate: "#b6a0e9",
-  conflicting: "#e6b17e",
+  complementary: "#5a8875",
+  duplicate: "#8872b0",
+  conflicting: "#ab7439",
 };
 const notebookColors = [
-  "#a8d99c",
-  "#89c9e3",
-  "#bcacf0",
-  "#e4bd87",
-  "#e4a7ba",
-  "#80d5c5",
+  "#5c854a",
+  "#437f9c",
+  "#8872b0",
+  "#ab7439",
+  "#ad677f",
+  "#3a8c7e",
 ];
 function notebookColor(id: string | null) {
   if (!id) return notebookColors[0];
@@ -479,7 +479,6 @@ export default function MemoryGraph({
               <small>{notebook.count}</small>
             </span>
           ))}
-          <p>More links, a brighter star.</p>
         </div>
       )}
       <div className="graph-footer">

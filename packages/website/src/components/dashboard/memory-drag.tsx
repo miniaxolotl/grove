@@ -1,6 +1,12 @@
 "use client";
-import { useState, type ReactNode } from "react";
-import Link from "next/link";
+import {
+  createContext,
+  useContext,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   DndContext,
   DragOverlay,
@@ -10,13 +16,30 @@ import {
   useSensor,
   useSensors,
   useDroppable,
+  useDraggable,
   pointerWithin,
-  rectIntersection,
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
-import { FolderInput } from "lucide-react";
+import { FolderInput, GripVertical, Undo2, X } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { memoryTitle } from "@/lib/memory-display";
+import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { memoryTitle, moveMemoryInput } from "@/lib/memory-display";
+import { notebookPath, notebookOptions } from "@/lib/notebooks";
+import { useNotebooks } from "./notebooks-provider";
+
+export type WorkspaceDragItem =
+  | { kind: "notes"; items: Memory[] }
+  | { kind: "notebook"; project: Project };
+type Undo =
+  | { kind: "notes"; before: Memory; after: Memory }
+  | { kind: "notebook"; before: Project; after: Project };
+const Context = createContext<{
+  active: WorkspaceDragItem | null;
+  busy: boolean;
+  revision: number;
+  refresh: () => void;
+}>({ active: null, busy: false, revision: 0, refresh: () => {} });
+export const useWorkspaceDrag = () => useContext(Context);
 
 const destinationCoordinates: KeyboardCoordinateGetter = (
   event,
@@ -25,165 +48,366 @@ const destinationCoordinates: KeyboardCoordinateGetter = (
   if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(event.code))
     return;
   event.preventDefault();
-  const targets = context.droppableContainers
-    .getEnabled()
-    .filter((target) => context.droppableRects.has(target.id));
-  if (!targets.length || !context.collisionRect) return;
+  const targets = context.droppableContainers.getEnabled().filter((target) => {
+    const rect = context.droppableRects.get(target.id);
+    return rect && rect.width > 0 && rect.height > 0;
+  });
+  if (!targets.length) return;
   const current = targets.findIndex((target) => target.id === context.over?.id);
   const step = event.code === "ArrowUp" || event.code === "ArrowLeft" ? -1 : 1;
   const next = targets[(current + step + targets.length) % targets.length];
   const rect = context.droppableRects.get(next.id)!;
-  return {
-    x: rect.left + 4,
-    y: rect.top + 4,
-  };
+  return { x: rect.left + 4, y: rect.top + 4 };
 };
 
-export function MemoryDrag({
-  items,
-  selected,
-  busy,
-  onMove,
-  children,
-}: {
-  items: Memory[];
-  selected: string[];
-  busy: boolean;
-  onMove: (memories: Memory[], projectId: string | null) => void;
-  children: ReactNode;
-}) {
-  const [dragged, setDragged] = useState<Memory[]>([]);
+/** One drag surface spans navigation, notes, journal and notebook organization. */
+export function WorkspaceDrag({ children }: { children: ReactNode }) {
+  const notebooks = useNotebooks();
+  const [active, setActive] = useState<WorkspaceDragItem | null>(null);
+  const [busy, setBusy] = useState(false);
+  const working = useRef(false);
+  const [revision, setRevision] = useState(0);
+  const [notice, setNotice] = useState("");
+  const [failures, setFailures] = useState<string[]>([]);
+  const [undo, setUndo] = useState<Undo[]>([]);
+  const operations = useRef(new Map<string, string>());
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 180, tolerance: 8 },
+      activationConstraint: { delay: 220, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, { coordinateGetter: destinationCoordinates }),
   );
+  async function moveNote(note: Memory, projectId: string | null) {
+    const body = moveMemoryInput(note, projectId);
+    const key = JSON.stringify(body);
+    if (!operations.current.has(key))
+      operations.current.set(key, crypto.randomUUID());
+    const saved = await api<Memory>("/memories", {
+      ...body,
+      operationId: operations.current.get(key),
+    });
+    // A replay can return a newer note. Undo may only replace our own revision.
+    return { ...saved, version: note.version + 1 };
+  }
+  async function moveNotebook(project: Project, parentId: string | null) {
+    const saved = await api<Project>(
+      `/projects/${project.id}`,
+      {
+        name: project.name,
+        identity: project.identity,
+        parentId,
+        expectedVersion: project.version,
+      },
+      "PATCH",
+    );
+    notebooks.saved(saved);
+    return saved;
+  }
+  async function move(item: WorkspaceDragItem, destination: string | null) {
+    if (working.current) return;
+    working.current = true;
+    setBusy(true);
+    setNotice("");
+    setFailures([]);
+    setUndo([]);
+    const completed: Undo[] = [];
+    const errors: string[] = [];
+    if (item.kind === "notebook") {
+      try {
+        if (
+          item.project.parentId !== destination &&
+          !notebookPath(notebooks.projects, destination).some(
+            (p) => p.id === item.project.id,
+          )
+        ) {
+          const after = await moveNotebook(item.project, destination);
+          completed.push({ kind: "notebook", before: item.project, after });
+        }
+      } catch (error) {
+        errors.push(`${item.project.name}: ${errorMessage(error)}`);
+        notebooks.reload();
+      }
+    } else {
+      for (const before of item.items
+        .filter((note) => note.projectId !== destination)
+        .slice(0, 50)) {
+        try {
+          completed.push({
+            kind: "notes",
+            before,
+            after: await moveNote(before, destination),
+          });
+        } catch (error) {
+          errors.push(`${memoryTitle(before)}: ${errorMessage(error)}`);
+        }
+      }
+    }
+    setUndo(completed);
+    setFailures(errors);
+    const name = destination
+      ? notebookPath(notebooks.projects, destination)
+          .map((p) => p.name)
+          .join(" / ")
+      : item.kind === "notebook"
+        ? "Top level"
+        : "Personal";
+    setNotice(
+      completed.length
+        ? `${completed.length} ${item.kind === "notebook" ? "notebook" : completed.length === 1 ? "note" : "notes"} moved to ${name}.`
+        : errors.length
+          ? "Could not complete the move."
+          : "Already in this notebook.",
+    );
+    setRevision((value) => value + 1);
+    setBusy(false);
+    working.current = false;
+  }
+  async function undoMove() {
+    if (working.current) return;
+    working.current = true;
+    setBusy(true);
+    const remaining: Undo[] = [];
+    const errors: string[] = [];
+    for (const record of undo) {
+      try {
+        if (record.kind === "notes")
+          await moveNote(record.after, record.before.projectId);
+        else await moveNotebook(record.after, record.before.parentId ?? null);
+      } catch (error) {
+        remaining.push(record);
+        errors.push(errorMessage(error));
+      }
+    }
+    setUndo(remaining);
+    setFailures(errors);
+    setNotice(
+      remaining.length
+        ? "Some changes could not be undone. Your newer changes are preserved."
+        : "Change undone.",
+    );
+    if (remaining.some((record) => record.kind === "notebook"))
+      notebooks.reload();
+    setRevision((value) => value + 1);
+    setBusy(false);
+    working.current = false;
+  }
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={(args) => {
-        const hits = pointerWithin({
-          ...args,
-          pointerCoordinates: args.pointerCoordinates ?? {
-            x: args.collisionRect.left + 8,
-            y: args.collisionRect.top + 8,
-          },
-        });
-        return args.pointerCoordinates || hits.length
-          ? hits
-          : rectIntersection(args);
-      }}
-      accessibility={{
-        screenReaderInstructions: {
-          draggable:
-            "Press Space to pick up a note. Use the arrow keys to choose a notebook, then Space to move. Escape cancels.",
-        },
-        announcements: {
-          onDragStart: () => "Note picked up. Choose a notebook.",
-          onDragOver: ({ over }) =>
-            over
-              ? `Move to ${over.data.current?.name}.`
-              : "Choose a notebook for this note.",
-          onDragEnd: ({ over }) =>
-            over ? `Moving to ${over.data.current?.name}.` : "Move cancelled.",
-          onDragCancel: () => "Move cancelled.",
-        },
-      }}
-      onDragStart={({ active }) => {
-        if (busy) return;
-        const memory = items.find((item) => item.id === active.id);
-        if (memory)
-          setDragged(
-            selected.includes(memory.id)
-              ? items.filter((item) => selected.includes(item.id))
-              : [memory],
-          );
-      }}
-      onDragCancel={() => setDragged([])}
-      onDragEnd={({ over }) => {
-        if (over && dragged.length && !busy)
-          onMove(dragged, over.id === "personal" ? null : String(over.id));
-        setDragged([]);
+    <Context.Provider
+      value={{
+        active,
+        busy,
+        revision,
+        refresh: () => setRevision((value) => value + 1),
       }}
     >
-      <div data-dragging={dragged.length > 0 || undefined}>{children}</div>
-      <DragOverlay
-        dropAnimation={
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? null
-            : { duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+      <DndContext
+        sensors={sensors}
+        collisionDetection={(args) =>
+          pointerWithin({
+            ...args,
+            pointerCoordinates: args.pointerCoordinates ?? {
+              x: args.collisionRect.left + 8,
+              y: args.collisionRect.top + 8,
+            },
+          })
         }
+        accessibility={{
+          screenReaderInstructions: {
+            draggable:
+              "Press Space to pick up. Use arrow keys to choose a notebook, then Space to move. Escape cancels.",
+          },
+          announcements: {
+            onDragStart: () => "Picked up. Choose a notebook. Escape cancels.",
+            onDragOver: ({ over }) =>
+              over
+                ? `Move to ${over.data.current?.name}.`
+                : "Choose an available destination.",
+            onDragEnd: ({ over }) =>
+              over
+                ? `Moving to ${over.data.current?.name}.`
+                : "Move cancelled.",
+            onDragCancel: () => "Move cancelled.",
+          },
+        }}
+        onDragStart={({ active }) => {
+          if (!working.current) setActive(active.data.current?.item ?? null);
+        }}
+        onDragCancel={() => setActive(null)}
+        onDragEnd={({ over }) => {
+          if (over && active && !working.current)
+            void move(active, over.data.current?.projectId ?? null);
+          setActive(null);
+        }}
       >
-        {dragged.length > 0 && (
-          <div className="memory-drag-preview">
-            <FolderInput size={20} />
-            <span>
-              <strong>
-                {dragged.length > 1
-                  ? `${dragged.length} notes`
-                  : memoryTitle(dragged[0])}
-              </strong>
-              <small>Drop into a notebook to move</small>
-            </span>
+        {children}
+        {active && (
+          <div className="mobile-drop-tray" aria-label="Move destination">
+            <span>Drop into a notebook · Escape to cancel</span>
+            <div>
+              <NotebookDropTarget
+                projectId={null}
+                name={active.kind === "notebook" ? "Top level" : "Personal"}
+                root
+              />
+              {notebookOptions(notebooks.projects).map((option) => (
+                <NotebookDropTarget
+                  key={option.value}
+                  projectId={option.value}
+                  name={option.label}
+                />
+              ))}
+            </div>
           </div>
         )}
-      </DragOverlay>
-    </DndContext>
+        <DragOverlay dropAnimation={null}>
+          {active && (
+            <div className="memory-drag-preview">
+              <FolderInput size={18} />
+              <span>
+                <strong>
+                  {active.kind === "notebook"
+                    ? active.project.name
+                    : active.items.length > 1
+                      ? `${active.items.length} notes`
+                      : memoryTitle(active.items[0])}
+                </strong>
+                <small>
+                  {active.kind === "notebook"
+                    ? "Move notebook and its contents"
+                    : "Drop into a notebook to move"}
+                </small>
+              </span>
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+      {(notice || busy) && (
+        <div className="workspace-notice" role="status">
+          <div>
+            <span>{busy ? "Moving…" : notice}</span>
+            {failures.length > 0 && (
+              <ul>
+                {failures.map((failure, i) => (
+                  <li key={i}>{failure}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {undo.length > 0 && (
+            <button disabled={busy} onClick={() => void undoMove()}>
+              <Undo2 size={16} />
+              Undo
+            </button>
+          )}
+          <button
+            disabled={busy}
+            aria-label="Dismiss move notification"
+            onClick={() => {
+              setNotice("");
+              setUndo([]);
+              setFailures([]);
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+    </Context.Provider>
   );
 }
 
-export function MemoryDestination({
-  id,
-  name,
-  active,
-  busy,
-  onClick,
-  children,
-  href,
-}: {
-  id: string;
-  name: string;
-  active: boolean;
-  busy: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  href?: string;
-}) {
-  const { setNodeRef, isOver } = useDroppable({
+export function useNotebookDrop(
+  projectId: string | null,
+  name: string,
+  root = false,
+) {
+  const id = useId();
+  const { active, busy } = useWorkspaceDrag();
+  const { projects } = useNotebooks();
+  const invalid =
+    !active ||
+    busy ||
+    (active.kind === "notebook"
+      ? (!projectId && !root) ||
+        (active.project.parentId ?? null) === projectId ||
+        notebookPath(projects, projectId).some(
+          (p) => p.id === active.project.id,
+        )
+      : (!projectId && root && name !== "Personal") ||
+        active.items.every((note) => note.projectId === projectId));
+  const drop = useDroppable({
     id,
-    data: { name },
-    disabled: busy,
+    data: { projectId, name },
+    disabled: invalid,
   });
-  if (href)
-    return (
-      <Link
-        ref={setNodeRef}
-        href={href}
-        className="memory-destination-link"
-        aria-current={active ? "page" : undefined}
-        data-drop-active={isOver || undefined}
-        data-destination={id}
-        title={name}
-      >
-        {children}
-        <span>{name}</span>
-      </Link>
-    );
+  return { ...drop, invalid, dragging: !!active };
+}
+
+export function NotebookDropTarget({
+  projectId,
+  name,
+  root = false,
+}: {
+  projectId: string | null;
+  name: string;
+  root?: boolean;
+}) {
+  const { setNodeRef, isOver, invalid, dragging } = useNotebookDrop(
+    projectId,
+    name,
+    root,
+  );
   return (
-    <button
+    <div
       ref={setNodeRef}
-      type="button"
-      aria-pressed={active}
+      className="notebook-drop-target"
+      data-destination={
+        projectId ?? (root && name !== "Personal" ? "root" : "personal")
+      }
       data-drop-active={isOver || undefined}
-      data-destination={id}
-      title={name}
-      onClick={onClick}
+      data-drop-disabled={(dragging && invalid) || undefined}
     >
-      {children}
-      <span>{name}</span>
-    </button>
+      {name}
+    </div>
+  );
+}
+
+export function NoteDragHandle({
+  memory,
+  disabled = false,
+}: {
+  memory: Memory;
+  disabled?: boolean;
+}) {
+  const id = useId();
+  const { busy } = useWorkspaceDrag();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef } =
+    useDraggable({
+      id,
+      data: {
+        item: { kind: "notes", items: [memory] } satisfies WorkspaceDragItem,
+      },
+      disabled: disabled || busy,
+    });
+  return (
+    <span ref={setNodeRef}>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        disabled={disabled || busy}
+        className="drag-handle"
+        aria-label={`Move ${memoryTitle(memory)} with drag or keyboard`}
+        title={
+          disabled
+            ? "Save your changes before moving"
+            : "Drag to a notebook, or press Space to move"
+        }
+      >
+        <GripVertical size={16} />
+      </button>
+    </span>
   );
 }

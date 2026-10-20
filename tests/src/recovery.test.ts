@@ -35,11 +35,31 @@ test("isolated restore replays current deletions and revocations without changin
       forgotten = randomUUID(),
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
+    const deletedChat = randomUUID(),
+      retainedChat = randomUUID(),
+      accountChat = randomUUID();
     for (const db of databases) {
       await db("accounts").insert([
         { id: a, clerkSubject: "recovery_a" },
         { id: b, clerkSubject: "recovery_b" },
       ]);
+      await db("conversations").insert([
+        { id: deletedChat, accountId: a, scope: "{}" },
+        { id: retainedChat, accountId: a, scope: "{}" },
+        { id: accountChat, accountId: b, scope: "{}" },
+      ]);
+      await db("conversation_turns").insert({
+        id: randomUUID(),
+        accountId: a,
+        conversationId: retainedChat,
+        position: 1,
+        question: "Edit this note",
+        fingerprint: "fixture",
+        status: "pending",
+        result: JSON.stringify({
+          proposal: { status: "proposed", content: "Old preview" },
+        }),
+      });
       await db("memories").insert([
         {
           id: keep,
@@ -115,6 +135,13 @@ test("isolated restore replays current deletions and revocations without changin
       });
     }
     await source("deleted_memories").insert({ accountId: a, id: forgotten });
+    await source("deleted_conversations").insert({
+      accountId: a,
+      id: deletedChat,
+    });
+    await source("conversations")
+      .whereIn("id", [deletedChat, accountChat])
+      .delete();
     await source("memories")
       .whereIn("id", [forgotten, erasedAccountMemory])
       .delete();
@@ -140,6 +167,10 @@ test("isolated restore replays current deletions and revocations without changin
     assert.deepEqual(await source("accounts").orderBy("id"), before);
     assert.equal((await source("connections").first()).capabilities.length, 1);
     assert.deepEqual(await target("memories").pluck("id"), [keep]);
+    assert.deepEqual(await target("conversations").pluck("id"), [retainedChat]);
+    const restoredTurn = await target("conversation_turns").first();
+    assert.equal(restoredTurn.status, "failed");
+    assert.equal(restoredTurn.result.proposal.status, "unavailable");
     for (const table of [
       "memory_revisions",
       "memory_embeddings",

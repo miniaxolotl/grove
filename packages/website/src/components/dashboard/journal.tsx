@@ -11,8 +11,10 @@ import { SearchField } from "./ui/search-field";
 import { Button } from "./ui/button";
 import { MemoryInspector } from "./memory-inspector";
 import { LoadError } from "./load-error";
+import { NoteDragHandle, useWorkspaceDrag } from "./memory-drag";
 
 export function Journal() {
+  const workspace = useWorkspaceDrag();
   const [query, setQuery] = useState("");
   const search = useDebouncedValue(query.trim());
   const [result, setResult] = useState<{
@@ -24,7 +26,7 @@ export function Journal() {
   const [selected, setSelected] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const controller = useRef<AbortController | null>(null);
-  const key = `${search}:${refresh}`;
+  const key = `${search}:${refresh}:${workspace.revision}`;
   const filter = {
     projectId: null,
     sourceAgent: "website",
@@ -121,17 +123,19 @@ export function Journal() {
               <h2>{day}</h2>
               <div>
                 {entries.map((note) => (
-                  <button
-                    className="journal-entry"
-                    key={note.id}
-                    onClick={() => setSelected(note.id)}
-                  >
-                    <span>
-                      <strong>{memoryTitle(note)}</strong>
-                      <p>{memoryExcerpt(note, 280)}</p>
-                    </span>
-                    <ArrowUpRight size={16} />
-                  </button>
+                  <div className="journal-entry-row" key={note.id}>
+                    <NoteDragHandle memory={note} />
+                    <button
+                      className="journal-entry"
+                      onClick={() => setSelected(note.id)}
+                    >
+                      <span>
+                        <strong>{memoryTitle(note)}</strong>
+                        <p>{memoryExcerpt(note, 280)}</p>
+                      </span>
+                      <ArrowUpRight size={16} />
+                    </button>
+                  </div>
                 ))}
               </div>
             </section>

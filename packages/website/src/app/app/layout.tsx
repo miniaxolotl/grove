@@ -7,6 +7,7 @@ import "./exploration.css";
 import "./editor.css";
 import "./controls.css";
 import "./notebooks.css";
+import "./workspace.css";
 
 export const dynamic = "force-dynamic";
 export const metadata = {

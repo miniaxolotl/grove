@@ -9,6 +9,11 @@ import {
   type Memory,
 } from "@lib/shared/contracts";
 import { askSchema, briefRequestSchema } from "@lib/shared/models";
+import {
+  conversationCreateSchema,
+  conversationTurnSchema,
+  type Conversation,
+} from "@lib/shared/conversations";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const project = {
@@ -75,7 +80,7 @@ test("long project names remain inside destinations at every breakpoint", async 
     await page.setViewportSize({ width, height: 1000 });
     const geometry = await page.evaluate(() => {
       const places = document
-        .querySelector(".library-places")!
+        .querySelector(".app-sidebar")!
         .getBoundingClientRect();
       const main = document
         .querySelector(".library-main")!
@@ -83,17 +88,12 @@ test("long project names remain inside destinations at every breakpoint", async 
       return {
         overflow: document.documentElement.scrollWidth > innerWidth,
         separated: places.right <= main.left || places.bottom <= main.top,
-        destinationsContained:
-          getComputedStyle(document.querySelector(".library-places")!)
-            .display !== "grid" ||
-          Array.from(
-            document.querySelectorAll(
-              ".library-places button, .library-places [data-destination]",
-            ),
-          ).every(
-            (element) =>
-              element.getBoundingClientRect().right <= places.right + 1,
-          ),
+        destinationsContained: Array.from(
+          document.querySelectorAll(".notebook-explorer [data-destination]"),
+        ).every(
+          (element) =>
+            element.getBoundingClientRect().right <= places.right + 1,
+        ),
         font: getComputedStyle(document.querySelector("h1")!).fontFamily,
       };
     });
@@ -118,7 +118,7 @@ test("long project names remain inside destinations at every breakpoint", async 
     page
       .getByRole("navigation", { name: "Notebook navigation" })
       .getByRole("link", { name: "Archive" }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(
     page
       .getByRole("navigation", { name: "Workspace help and policies" })
@@ -179,7 +179,7 @@ test("keyboard drag cancels safely and moves a memory to a chosen project", asyn
 }) => {
   const state = await fixture(page, [note]);
   await page.goto(`${base}/app`);
-  const handle = page.locator(".drag-handle");
+  const handle = page.locator(".memory-row .drag-handle");
   await handle.focus();
   // dnd-kit's keyboard sensor attaches document listeners after the activation event.
   await page.keyboard.press("Space", { delay: 50 });
@@ -194,17 +194,76 @@ test("keyboard drag cancels safely and moves a memory to a chosen project", asyn
   await page.keyboard.press("Space", { delay: 50 });
   await expect(page.locator(".memory-drag-preview")).toBeVisible();
   await page.keyboard.press("ArrowDown");
-  await expect(page.locator('[data-destination="personal"]')).toHaveAttribute(
-    "data-drop-active",
-    "true",
-  );
-  await page.keyboard.press("ArrowDown");
   await expect(
-    page.locator(`[data-destination="${project.id}"]`),
+    page.locator(`.notebook-explorer [data-destination="${project.id}"]`),
   ).toHaveAttribute("data-drop-active", "true");
   await page.keyboard.press("Space");
   await expect(page.locator(".workspace-notice")).toContainText("1 note moved");
   expect(state.records.get(note.id)?.projectId).toBe(project.id);
+});
+
+test("sidebar pages and keyboard notebook nesting share destinations, cancellation and undo", async ({
+  page,
+}) => {
+  const state = await fixture(page, [handoff]);
+  const parent = {
+    ...project,
+    id: "00000000-0000-4000-a000-000000000030",
+    name: "Garden",
+  };
+  const child = {
+    ...project,
+    id: "00000000-0000-4000-a000-000000000031",
+    name: "Drafts",
+    parentId: project.id,
+  };
+  state.projects.push(parent, child);
+  await page.goto(`${base}/app`);
+  const sidebar = page.getByRole("region", { name: "Your notebooks" });
+  await sidebar
+    .getByRole("button", { name: `Expand ${project.name}`, exact: true })
+    .click();
+  await expect(
+    sidebar.getByRole("link", { name: "Launch checklist", exact: true }),
+  ).toHaveAttribute("href", `/app/memories/${handoff.id}`);
+  const handle = sidebar.getByRole("button", {
+    name: `Move notebook ${project.name} with drag or keyboard`,
+    exact: true,
+  });
+  await handle.focus();
+  await page.keyboard.press("Space", { delay: 50 });
+  await expect(
+    sidebar.locator(`[data-destination="${child.id}"]`),
+  ).toHaveAttribute("data-drop-disabled", "true");
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    sidebar.locator(`[data-destination="${parent.id}"]`),
+  ).toHaveAttribute("data-drop-active", "true");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  expect(state.projects[0].parentId).toBeNull();
+  await handle.focus();
+  await page.keyboard.press("Space", { delay: 50 });
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    sidebar.locator(`[data-destination="${parent.id}"]`),
+  ).toHaveAttribute("data-drop-active", "true");
+  await page.keyboard.press("Space");
+  await expect(page.locator(".workspace-notice")).toContainText(
+    "notebook moved to Garden",
+  );
+  expect(state.projects.find((p) => p.id === project.id)?.parentId).toBe(
+    parent.id,
+  );
+  expect(state.records.get(handoff.id)?.projectId).toBe(project.id);
+  await page
+    .locator(".workspace-notice")
+    .getByRole("button", { name: "Undo" })
+    .click();
+  await expect(page.locator(".workspace-notice")).toContainText(
+    "Change undone",
+  );
+  expect(state.projects.find((p) => p.id === project.id)?.parentId).toBeNull();
 });
 
 test("personal prompts save explicit preferences and the editor exposes independent lifetimes", async ({
@@ -271,6 +330,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
     initial.map((memory) => [memory.id, [structuredClone(memory)]]),
   );
   const calls: { path: string; body: Record<string, unknown> }[] = [];
+  const chats = new Map<string, Conversation>();
   await page.route("**/api/grove/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace("/api/grove", "");
@@ -288,7 +348,96 @@ async function fixture(page: Page, initial = [note, handoff]) {
           },
         },
       });
-    if (path === "/projects") {
+    if (path === "/conversations") {
+      if (request.method() === "POST") {
+        const { id, ...scope } = conversationCreateSchema.parse(body);
+        if (!chats.has(id))
+          chats.set(id, {
+            id,
+            scope,
+            title: "New conversation",
+            version: 0,
+            updatedAt: new Date().toISOString(),
+            turns: [],
+          });
+        data = chats.get(id);
+      } else data = { items: [...chats.values()].reverse(), nextCursor: null };
+    } else if (path.startsWith("/conversations/")) {
+      const chat = chats.get(path.split("/")[2])!;
+      if (request.method() === "DELETE") {
+        chats.delete(chat.id);
+        data = { deleted: true };
+      } else if (path.endsWith("/turns")) {
+        const input = conversationTurnSchema.parse(body);
+        const sources = [...records.values()].filter(
+          (n) =>
+            chat.scope.projectId === undefined ||
+            n.projectId === chat.scope.projectId ||
+            (chat.scope.includePersonal && n.projectId === null),
+        );
+        if (!chat.turns.some((t) => t.id === input.id)) {
+          chat.version++;
+          if (chat.version === 1) chat.title = input.query;
+          chat.turns.push({
+            id: input.id,
+            question: input.query,
+            format: input.format,
+            expectedVersion: input.expectedVersion,
+            status: "ready",
+            error: null,
+            createdAt: new Date().toISOString(),
+            result: {
+              message: "",
+              statements: sources.length
+                ? [
+                    {
+                      text:
+                        input.query === "Wait for this"
+                          ? "Stale answer"
+                          : "Keep feedback specific and include a working example.",
+                      sources: [
+                        { id: sources[0].id, version: sources[0].version },
+                      ],
+                    },
+                  ]
+                : [],
+              sources,
+              proposal: /shorten|merge/i.test(input.query)
+                ? {
+                    kind: /merge/i.test(input.query) ? "merge" : "edit",
+                    target: { id: sources[0].id, version: sources[0].version },
+                    sources: sources
+                      .slice(0, /merge/i.test(input.query) ? 2 : 1)
+                      .map(({ id, version }) => ({ id, version })),
+                    content:
+                      "# Review preferences\n\nBe specific. Show an example.",
+                    status: "proposed",
+                  }
+                : null,
+            },
+          });
+        }
+        data = chat;
+      } else if (/\/(apply|undo)$/.test(path)) {
+        const proposal = chat.turns.find((t) => t.id === path.split("/")[4])!
+          .result!.proposal!;
+        const source = records.get(proposal.target!.id)!;
+        const undo = path.endsWith("/undo");
+        if (
+          source.version !==
+          (undo ? proposal.applied![0].version : proposal.target!.version)
+        )
+          return conflict();
+        records.set(source.id, {
+          ...source,
+          version: source.version + 1,
+          content: undo ? note.content : proposal.content,
+        });
+        proposal.applied = [{ id: source.id, version: source.version + 1 }];
+        proposal.status = undo ? "undone" : "applied";
+        data = chat;
+      } else data = chat;
+    } else if (path === "/projects") {
       if (request.method() === "POST") {
         const input = projectSchema.parse(body);
         const created = {
@@ -426,7 +575,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
     else throw new Error(`Unexpected fixture request: ${path}`);
     await route.fulfill({ json: { success: true, data } });
   });
-  return { records, calls, projects };
+  return { records, calls, projects, chats };
 }
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
@@ -515,6 +664,28 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   await page.getByRole("button", { name: "Clear graph selection" }).click();
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
+    await expect
+      .poll(() =>
+        page.locator(".graph-node-core").evaluateAll(
+          (nodes) =>
+            nodes.length > 0 &&
+            nodes.every((node) => {
+              const bounds = node.getBoundingClientRect();
+              const canvas = node
+                .closest(".graph-canvas")!
+                .getBoundingClientRect();
+              const x = bounds.x + bounds.width / 2,
+                y = bounds.y + bounds.height / 2;
+              return (
+                x >= canvas.left &&
+                x <= canvas.right &&
+                y >= canvas.top &&
+                y <= canvas.bottom
+              );
+            }),
+        ),
+      )
+      .toBe(true);
     await page.screenshot({
       path: info.outputPath(`note-graph-${width}.png`),
       fullPage: true,
@@ -549,17 +720,20 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
 test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and discards cancelled answers", async ({
   page,
 }, info) => {
-  const state = await fixture(page);
+  const state = await fixture(page, [{ ...note, projectId: project.id }]);
   const calls: ReturnType<typeof askSchema.parse>[] = [];
   const started = Promise.withResolvers<void>();
   const gate = Promise.withResolvers<void>();
-  await page.route("**/api/grove/ask", async (route) => {
-    const input = askSchema.parse(route.request().postDataJSON());
-    calls.push(input);
-    if (input.query === "Wait for this") {
+  await page.route("**/api/grove/conversations/*/turns", async (route) => {
+    if (route.request().postDataJSON().query === "Wait for this") {
       started.resolve();
       await gate.promise;
     }
+    await route.fallback();
+  });
+  await page.route("**/api/grove/ask", async (route) => {
+    const input = askSchema.parse(route.request().postDataJSON());
+    calls.push(input);
     await route.fulfill({
       json: {
         success: true,
@@ -596,12 +770,11 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
   await question.fill("How should I give feedback?");
   await page.getByRole("button", { name: "Send question" }).click();
   await expect(page.locator(".ask-statement")).toContainText("working example");
-  expect(calls[0]).toMatchObject({
+  expect([...state.chats.values()][0].scope).toMatchObject({
     projectId: project.id,
     includePersonal: false,
-    previousQuestions: [],
   });
-  state.records.set(note.id, { ...note, version: 2 });
+  state.records.set(note.id, { ...note, projectId: project.id, version: 2 });
   await page
     .getByRole("button", { name: "Read source 1", exact: true })
     .click();
@@ -613,7 +786,9 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
   await question.fill("Tell me more about that");
   await question.press("Enter");
   await expect(page.locator(".ask-statement")).toHaveCount(2);
-  expect(calls[1].previousQuestions).toEqual(["How should I give feedback?"]);
+  expect(
+    [...state.chats.values()][0].turns.map((turn) => turn.question),
+  ).toEqual(["How should I give feedback?", "Tell me more about that"]);
   for (const width of [1440, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(
@@ -654,6 +829,229 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
     0,
   );
   expect(page.url()).toBe(`${base}/app/ask`);
+});
+
+test("chat composer grows, preserves selections between modes, formats and submits Markdown", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, [note]);
+  await page.goto(`${base}/app/ask`);
+  const input = page.getByLabel("Ask about your notes");
+  const height = (await input.boundingBox())!.height;
+  await input.fill(
+    "First line\nSecond line\nThird line\nFourth line\nFifth line",
+  );
+  expect((await input.boundingBox())!.height).toBeGreaterThan(height + 30);
+  await input.fill("Keep feedback specific");
+  await input.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(5, 13);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await page
+    .getByRole("button", { name: "Markdown input", exact: true })
+    .click();
+  await expect(input).toBeFocused();
+  expect(
+    await input.evaluate((element: HTMLTextAreaElement) => [
+      element.selectionStart,
+      element.selectionEnd,
+    ]),
+  ).toEqual([5, 13]);
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await expect(input).toHaveValue("Keep **feedback** specific");
+  await input.press("Control+z");
+  await expect(input).toHaveValue("Keep feedback specific");
+  await input.press("Control+Shift+z");
+  await expect(input).toHaveValue("Keep **feedback** specific");
+  await page.getByRole("button", { name: "Preview message" }).click();
+  await expect(page.locator(".ask-message-preview strong")).toHaveText(
+    "feedback",
+  );
+  await page
+    .getByRole("button", { name: "Markdown input", exact: true })
+    .click();
+  await expect(input).toHaveValue("Keep **feedback** specific");
+  await expect(
+    page.getByRole("group", { name: "Message formatting" }),
+  ).toHaveCount(0);
+  await expect(input).toBeFocused();
+  await page
+    .getByRole("button", { name: "Markdown input", exact: true })
+    .click();
+  await input.press("End");
+  await input.press("Enter");
+  expect(state.chats.size).toBe(0);
+  await input.press("Control+Enter");
+  await expect(page.locator(".ask-question strong")).toHaveText("feedback");
+  await expect(input).toHaveValue("");
+  expect((await input.boundingBox())!.height).toBeLessThanOrEqual(height + 2);
+  await input.fill("line\n".repeat(70));
+  const bounds = (await input.boundingBox())!;
+  expect(bounds.height).toBeLessThanOrEqual(282);
+  expect(
+    await input.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    ),
+  ).toBe(true);
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await expect(
+      page.getByRole("button", { name: "Send question" }),
+    ).toBeInViewport();
+    await page.screenshot({
+      path: info.outputPath(`composer-${width}.png`),
+      fullPage: true,
+    });
+  }
+});
+
+test("conversations reopen after reload, apply edits with undo, and retain stale previews for recovery", async ({
+  page,
+}) => {
+  const state = await fixture(page, [note]);
+  await page.goto(`${base}/app/ask`);
+  const input = page.getByLabel("Ask about your notes");
+  await input.fill("Find my review note");
+  await input.press("Enter");
+  await expect(page.locator(".ask-statement")).toContainText("working example");
+  await input.fill("Shorten that note");
+  await input.press("Enter");
+  await expect(
+    page.getByRole("region", { name: "Proposed note changes" }),
+  ).toContainText("Be specific");
+  expect(state.records.get(note.id)!.version).toBe(1);
+  await page.getByRole("button", { name: "Apply edit" }).click();
+  await expect(page.locator(".ask-applied")).toContainText("Saved");
+  expect(state.records.get(note.id)!.version).toBe(2);
+  await page.reload();
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Find my review note/ })
+    .first()
+    .click();
+  await expect(page.locator(".ask-turn")).toHaveCount(2);
+  await page
+    .locator(".ask-applied")
+    .getByRole("button", { name: "Undo" })
+    .click();
+  await expect(page.locator(".ask-proposal")).toContainText("Change undone");
+  expect(state.records.get(note.id)!.content).toBe(note.content);
+  await input.fill("Shorten it again");
+  await input.press("Enter");
+  await expect(page.getByRole("button", { name: "Apply edit" })).toBeVisible();
+  state.records.set(note.id, {
+    ...state.records.get(note.id)!,
+    version: 4,
+    content: "A newer edit",
+  });
+  await page.getByRole("button", { name: "Apply edit" }).click();
+  await expect(page.getByRole("alert")).toContainText("Memory changed");
+  expect(state.records.get(note.id)!.content).toBe("A newer edit");
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Delete conversation Find my review note" })
+    .click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Your conversations will appear here",
+  );
+  expect(state.chats.size).toBe(0);
+});
+
+test("an unconfirmed chat message survives navigation and retries with its original identity", async ({
+  page,
+}) => {
+  const state = await fixture(page, [note]);
+  const attempts: ReturnType<typeof conversationTurnSchema.parse>[] = [];
+  await page.route("**/api/grove/conversations/*/turns", async (route) => {
+    attempts.push(conversationTurnSchema.parse(route.request().postDataJSON()));
+    if (attempts.length === 1) return route.abort("failed");
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/ask`);
+  await page.getByLabel("Ask about your notes").fill("Find my review note");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("link", { name: "Notes", exact: true })
+    .click();
+  await page
+    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("link", { name: "Ask Grove", exact: true })
+    .click();
+  await expect(page.locator(".ask-question")).toContainText(
+    "Find my review note",
+  );
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.locator(".ask-statement")).toContainText("working example");
+  expect(attempts[1]).toEqual(attempts[0]);
+  expect([...state.chats.values()][0].turns).toHaveLength(1);
+});
+
+test("workspace search includes personal notes and dialogs light-dismiss only on outside gestures", async ({
+  page,
+}) => {
+  await fixture(page, [note]);
+  const searches: ReturnType<typeof askSchema.parse>[] = [];
+  await page.route("**/api/grove/ask", async (route) => {
+    searches.push(askSchema.parse(route.request().postDataJSON()));
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          status: "search",
+          sources: [note],
+          answer: null,
+          searchMode: "hybrid",
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app`);
+  await page.keyboard.press("Control+k");
+  const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+  await dialog.getByLabel("Search your Grove").fill("review");
+  await expect(dialog.locator(".quick-search-result")).toContainText(
+    "Review preferences",
+  );
+  expect(searches.at(-1)).toMatchObject({
+    query: "review",
+    includePersonal: true,
+  });
+  const box = (await dialog.boundingBox())!;
+  await page.mouse.move(box.x + 30, box.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(2, 2);
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(2, 2);
+  await expect(dialog).toHaveCount(0);
+  await page.locator(".memory-open").click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const drawer = (await page.getByRole("dialog").boundingBox())!;
+  if (drawer.x <= 2 && drawer.y <= 2) {
+    await page.getByRole("button", { name: "Close dialog" }).click();
+  } else await page.mouse.click(2, 2);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page
+    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("link", { name: "Ask Grove", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await page.keyboard.press("Control+k");
+  await dialog.getByLabel("Search your Grove").fill("Summarize my review note");
+  await dialog.getByRole("link", { name: "Ask Grove about this" }).click();
+  await expect(page.getByLabel("Ask about your notes")).toHaveValue(
+    "Summarize my review note",
+  );
 });
 
 test("a journal entry is an editable personal note, with options kept secondary", async ({
@@ -963,17 +1361,19 @@ test("returning to a draft during its first save follows that save without dupli
     .click();
   await page.getByRole("link", { name: "New note", exact: true }).click();
   await expect(page.locator(".note-save-status")).toHaveText("Saving…");
-  await expect(editor).not.toBeEditable();
+  await expect(editor).toBeEditable();
+  await editor.fill("A thought saved once, with newer typing.");
   release();
   await expect(page).toHaveURL(/\/memories\/[^/]+\/edit$/);
   await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  await expect(editor).toHaveText("A thought saved once, with newer typing.");
   await editor.fill("A thought saved once, then refined.");
   await editor.press("Control+s");
   await expect(page.locator(".note-save-status")).toHaveText("Saved");
   expect(state.records.size).toBe(1);
   expect([...state.records.values()][0]).toMatchObject({
     content: "A thought saved once, then refined.",
-    version: 2,
+    version: 3,
   });
 });
 
@@ -996,9 +1396,7 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
   await page.getByRole("button", { name: "Apply tag" }).click();
   await page.getByLabel("Search notes").fill("keyboard access");
   await expect(page.locator(".memory-open")).toHaveCount(1);
-  await expect(
-    page.getByText("Words + meaning", { exact: false }),
-  ).toBeVisible();
+  await expect(page.locator(".library-caption")).toBeVisible();
   await expect
     .poll(
       () =>
@@ -1077,9 +1475,12 @@ test("multi-select drag moves preserve handoff references and provenance, and un
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${base}/app`);
   await page.getByLabel("Select these notes").check();
-  const source = (await page.locator(".drag-handle").first().boundingBox())!;
+  const source = (await page
+    .locator(".memory-row .drag-handle")
+    .first()
+    .boundingBox())!;
   const target = (await page
-    .getByRole("button", { name: project.name, exact: true })
+    .locator(`.notebook-explorer [data-destination="${project.id}"]`)
     .boundingBox())!;
   await page.mouse.move(
     source.x + source.width / 2,
@@ -1096,7 +1497,7 @@ test("multi-select drag moves preserve handoff references and provenance, and un
     { steps: 15 },
   );
   await expect(
-    page.locator(`[data-destination="${project.id}"]`),
+    page.locator(`.notebook-explorer [data-destination="${project.id}"]`),
   ).toHaveAttribute("data-drop-active", "true");
   await page.mouse.up();
   await expect(page.locator(".workspace-notice")).toContainText(
@@ -1168,6 +1569,61 @@ test("partial bulk failures are identifiable and undo never overwrites a concurr
     state.calls.find((call) => call.path.endsWith("/restore"))?.body
       .expectedVersion,
   ).toBe(2);
+});
+
+test("autosave retries a lost first response before saving newer typing and clears the creation draft", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  const attempts: ReturnType<typeof rememberSchema.parse>[] = [];
+  const saved: Memory = {
+    ...note,
+    id: crypto.randomUUID(),
+    content: "The first draft",
+    source: { agent: "website" },
+    enrichment: undefined,
+  };
+  await page.route("**/api/grove/memories", async (route) => {
+    const input = rememberSchema.parse(route.request().postDataJSON());
+    attempts.push(input);
+    if (attempts.length === 1) {
+      state.records.set(saved.id, {
+        ...saved,
+        kind: input.kind,
+        autoKind: input.autoKind,
+      });
+      return route.abort("failed");
+    }
+    if (input.operationId === attempts[0].operationId)
+      return route.fulfill({
+        json: { success: true, data: state.records.get(saved.id) },
+      });
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/notes/new`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill(saved.content);
+  await expect(page.locator(".note-save-status")).toContainText("Not saved");
+  await editor.fill("The first draft, with a newer thought.");
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await expect(page).toHaveURL(`${base}/app/memories/${saved.id}/edit`);
+  await expect(page.locator(".note-save-status")).toContainText("Saved");
+  expect(attempts[1]).toEqual(attempts[0]);
+  expect(attempts[2]).toMatchObject({
+    id: saved.id,
+    expectedVersion: 1,
+    content: "The first draft, with a newer thought.",
+  });
+  expect(state.records.size).toBe(1);
+  expect(state.records.get(saved.id)!.version).toBe(2);
+  await page.getByRole("link", { name: "Write a note", exact: true }).click();
+  await expect(editor.locator(".cm-placeholder")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save note", exact: true }),
+  ).toBeDisabled();
+  await expect(page.locator(".editor-footer")).toContainText("0 / 6,000");
 });
 
 test("save retries retain their operation and draft, and dialogs stay open while saving", async ({
@@ -1356,7 +1812,10 @@ test("nested notebooks share paths, create and move controls, and preserve note 
   await expect(
     page.getByRole("region", { name: "Sub-notebooks" }),
   ).toContainText("Interviews");
-  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await page
+    .locator("main")
+    .getByRole("link", { name: "New note", exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill("# Interview notes\n\nLeave room for a surprising answer.");

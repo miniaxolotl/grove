@@ -91,7 +91,7 @@ for (const editable of [true, false])
       await page
         .getByRole("button", { name: "Save model settings", exact: true })
         .click();
-      await expect(page.getByRole("status")).toContainText(
+      await expect(page.locator("main").getByRole("status")).toContainText(
         "Model settings saved",
       );
       await expect(
@@ -101,20 +101,23 @@ for (const editable of [true, false])
       await page
         .getByRole("button", { name: "Test saved embedding configuration" })
         .click();
-      await expect(page.getByRole("status")).toContainText("4096 dimensions");
+      await expect(page.locator("main").getByRole("status")).toContainText(
+        "4096 dimensions",
+      );
     } else {
       await expect(page.getByText(/4,096 dimensions/)).not.toBeVisible();
-      await page.getByText("Technical details", { exact: true }).click();
-      await expect(page.getByText(/4,096 dimensions/)).toBeVisible();
+      await expect(
+        page.getByText("Technical details", { exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByText("Search your notes", { exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Save model settings" }),
       ).toHaveCount(0);
       await expect(
-        page.getByText(
-          "Grove Cloud manages these providers for your account.",
-          { exact: false },
-        ),
-      ).toBeVisible();
+        page.getByText(/Qwen|MiniMax|embedding|dimensions/i),
+      ).toHaveCount(0);
     }
     for (const width of [320, 1440]) {
       await page.setViewportSize({ width, height: 900 });

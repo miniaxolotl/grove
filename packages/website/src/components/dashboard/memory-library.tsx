@@ -6,11 +6,9 @@ import dynamic from "next/dynamic";
 import {
   Plus,
   Archive,
-  Folder,
   FolderInput,
   X,
   Undo2,
-  UserRound,
   BookOpen,
   List,
   Network,
@@ -23,13 +21,12 @@ import { LoadError } from "./load-error";
 import { MemoryRow } from "./memory-row";
 import { MemoryEditor } from "./memory-editor";
 import { MemoryDetail } from "./memory-detail";
-import { MemoryDrag, MemoryDestination } from "./memory-drag";
+import { useWorkspaceDrag } from "./memory-drag";
 import { LibraryFilterBar, initialFilters } from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
 import { SegmentedControl } from "./ui/segmented-control";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
-import { NotebookTree } from "./notebook-tree";
 import { useNotebooks } from "./notebooks-provider";
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
@@ -51,6 +48,8 @@ export function MemoryLibrary({
   initialKind = "",
   onChanged,
   initialView = "list",
+  initialProject = "all",
+  showCreate = true,
 }: {
   archive?: boolean;
   initialId?: string;
@@ -59,7 +58,10 @@ export function MemoryLibrary({
   initialKind?: string;
   onChanged?: () => void;
   initialView?: "list" | "graph";
+  initialProject?: string;
+  showCreate?: boolean;
 }) {
+  const workspace = useWorkspaceDrag();
   const [view, setView] = useState(initialView);
   const [loadedItems, setItems] = useState<Memory[]>([]);
   const [resultKey, setResultKey] = useState("");
@@ -71,6 +73,7 @@ export function MemoryLibrary({
   const [filters, setFilters] = useState(() => ({
     ...initialFilters(archive),
     kind: initialKind,
+    project: initialProject,
   }));
   const {
     search,
@@ -188,6 +191,7 @@ export function MemoryLibrary({
     lifetime,
     refresh,
     requestKey,
+    workspace.revision,
   ]);
   useEffect(() => {
     if (!initialId) return;
@@ -205,6 +209,7 @@ export function MemoryLibrary({
     setSelected(null);
     if (message) setNotice(message);
     setRefresh((value) => value + 1);
+    workspace.refresh();
     onChanged?.();
   }
   async function loadMore() {
@@ -393,9 +398,8 @@ export function MemoryLibrary({
           }
         />
       )}
-      {embedded && (
+      {embedded && showCreate && (
         <div className="embedded-library-actions">
-          <span>Your notes, together.</span>
           <Link
             className="app-button secondary"
             href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
@@ -405,325 +409,260 @@ export function MemoryLibrary({
           </Link>
         </div>
       )}
-      <MemoryDrag
-        items={items}
-        selected={checked}
-        busy={busy || loading}
-        onMove={(memories, target) => void perform(memories, "move", target)}
-      >
-        <div className={`memory-workspace${embedded ? " embedded" : ""}`}>
-          <aside className="library-places" aria-label="Notebooks">
-            {!embedded && (
-              <button
-                aria-pressed={project === "all"}
-                onClick={() => setFilters({ ...filters, project: "all" })}
-              >
-                <BookOpen size={16} />
-                <span>All notes</span>
-              </button>
-            )}
-            <MemoryDestination
-              id="personal"
-              href={embedded ? "/app/profile" : undefined}
-              name="Personal"
-              active={embedded ? fixedProject === null : project === "personal"}
-              busy={busy}
-              onClick={() => {
-                if (!embedded) setFilters({ ...filters, project: "personal" });
-              }}
-            >
-              <UserRound size={16} />
-            </MemoryDestination>
-            <div className="places-heading">
-              <span>Notebooks</span>
-              <Link href="/app/projects">Manage</Link>
-            </div>
-            <NotebookTree
-              projects={projects}
-              selectedId={embedded ? fixedProject : project}
-              defaultExpanded
-              renderItem={(p) => (
-                <MemoryDestination
-                  key={p.id}
-                  href={embedded ? `/app/projects/${p.id}` : undefined}
-                  id={p.id}
-                  name={p.name}
-                  active={embedded ? fixedProject === p.id : project === p.id}
-                  busy={busy}
-                  onClick={() => {
-                    if (!embedded) setFilters({ ...filters, project: p.id });
-                  }}
-                >
-                  <Folder size={16} />
-                </MemoryDestination>
-              )}
-            />
-            {notebookError && (
-              <button className="text-button" onClick={reloadNotebooks}>
-                Retry notebooks
-              </button>
-            )}
-            <p className="places-hint">Drag a note into a notebook.</p>
-          </aside>
-          <div className="library-main">
-            <LibraryFilterBar
-              value={filters}
-              onChange={setFilters}
-              projects={projects}
-              fixedProject={fixedProject}
-              archive={archive}
-              topics={[
-                ...new Set(
-                  items.flatMap((memory) => memory.enrichment?.tags ?? []),
-                ),
-              ]}
-            />
-            <div className="library-caption">
-              <span>
-                {items.length}
-                {next ? "+" : ""}{" "}
-                {items.length === 1 && !next ? "note" : "notes"}
-                {searchMode && search
-                  ? ` · ${searchMode === "hybrid" ? "Words + meaning" : "Matching words"}`
-                  : ""}
-              </span>
-              {!archive && (
-                <SegmentedControl
-                  label="Note view"
-                  value={view}
-                  onChange={setView}
-                  options={[
-                    {
-                      value: "list",
-                      label: (
-                        <>
-                          <List size={15} />
-                          List
-                        </>
-                      ),
-                    },
-                    {
-                      value: "graph",
-                      label: (
-                        <>
-                          <Network size={15} />
-                          Graph
-                        </>
-                      ),
-                    },
-                  ]}
-                />
-              )}
-              {view === "list" && (
-                <Select
-                  className="library-sort"
-                  label="Sort"
-                  aria-label="Sort notes"
-                  value={sort}
-                  onValueChange={(value) =>
-                    setFilters({
-                      ...filters,
-                      sort: value as typeof sort,
-                    })
-                  }
-                  options={[
-                    { value: "updated_desc", label: "Recently updated" },
-                    { value: "updated_asc", label: "Oldest updated" },
-                  ]}
-                />
-              )}
-            </div>
-            {view === "list" && selectedItems.length > 0 && (
-              <div
-                className="selection-toolbar"
-                role="group"
-                aria-label="Selected notes"
-              >
-                <strong>{selectedItems.length} selected</strong>
-                <button
-                  disabled={busy}
-                  onClick={() => startMove(selectedItems)}
-                >
-                  <FolderInput size={16} />
-                  Move
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void perform(selectedItems, archive ? "restore" : "archive")
-                  }
-                >
-                  <Archive size={16} />
-                  {archive ? "Restore" : "Archive"}
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() => setChecked([])}
-                  aria-label="Clear selection"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-            {currentError && (
-              <LoadError
-                message={currentError}
-                retry={() => setRefresh((v) => v + 1)}
+      <div className={`memory-workspace${embedded ? " embedded" : ""}`}>
+        <div className="library-main">
+          {notebookError && (
+            <button className="text-button" onClick={reloadNotebooks}>
+              Retry notebooks
+            </button>
+          )}
+          <LibraryFilterBar
+            value={filters}
+            onChange={setFilters}
+            projects={projects}
+            fixedProject={fixedProject}
+            archive={archive}
+            topics={[
+              ...new Set(
+                items.flatMap((memory) => memory.enrichment?.tags ?? []),
+              ),
+            ]}
+          />
+          <div className="library-caption">
+            <span>
+              {items.length}
+              {next ? "+" : ""} {items.length === 1 && !next ? "note" : "notes"}
+              {searchMode && search ? " found" : ""}
+            </span>
+            {!archive && (
+              <SegmentedControl
+                label="Note view"
+                value={view}
+                onChange={setView}
+                options={[
+                  {
+                    value: "list",
+                    label: (
+                      <>
+                        <List size={15} />
+                        List
+                      </>
+                    ),
+                  },
+                  {
+                    value: "graph",
+                    label: (
+                      <>
+                        <Network size={15} />
+                        Graph
+                      </>
+                    ),
+                  },
+                ]}
               />
             )}
-            {detailError && (
-              <div className="app-error" role="alert">
-                {detailError}
-                <button
-                  className="text-button ml-3"
-                  onClick={() => setDetailError("")}
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
-            {!!failures.length && (
-              <div className="app-error" role="alert">
-                <p>
-                  Some notes could not be updated. The list below shows their
-                  current state.
-                </p>
-                <ul>
-                  {failures.map((failure, i) => (
-                    <li key={i}>{failure}</li>
-                  ))}
-                </ul>
-                <button className="text-button" onClick={() => setFailures([])}>
-                  Dismiss details
-                </button>
-              </div>
-            )}
-            {loading && !items.length ? (
-              <p role="status" className="library-loading">
-                Opening your notes…
-              </p>
-            ) : !items.length && !currentError ? (
-              <section className="app-empty">
-                <BookOpen
-                  size={26}
-                  className="mx-auto mb-4"
-                  strokeWidth={1.4}
-                />
-                <h2 className="font-editorial text-3xl">
-                  {filtered
-                    ? "Nothing here matches yet."
-                    : archive
-                      ? "Your archive is empty."
-                      : "Good things start small."}
-                </h2>
-                <p>
-                  {filtered
-                    ? "Try a different phrase or clear a filter."
-                    : archive
-                      ? "Archived notes stay here until you restore or delete them."
-                      : "Start with a thought, a plan, or something you want to remember."}
-                </p>
-                {!archive && !filtered && (
-                  <div className="mt-6 flex flex-wrap justify-center gap-3">
-                    <Link
-                      className="app-button"
-                      href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
-                    >
-                      Write your first note
-                    </Link>
-                    <Link
-                      href="/app/connections"
-                      className="app-button secondary"
-                    >
-                      Connect an agent
-                    </Link>
-                  </div>
-                )}
-              </section>
-            ) : (
-              items.length > 0 &&
-              (view === "graph" ? (
-                <MemoryGraph
-                  items={items}
-                  projects={projects}
-                  onOpen={setSelected}
-                />
-              ) : (
-                <div className="library-list">
-                  <label className="select-loaded">
-                    <input
-                      type="checkbox"
-                      disabled={busy}
-                      checked={
-                        items.length > 0 &&
-                        items.slice(0, 50).every((m) => checked.includes(m.id))
-                      }
-                      onChange={(e) =>
-                        setChecked(
-                          e.target.checked
-                            ? items.slice(0, 50).map((m) => m.id)
-                            : [],
-                        )
-                      }
-                    />
-                    Select these notes
-                    {items.length > 50 ? " (first 50)" : ""}
-                  </label>
-                  <ul ref={listRef}>
-                    {items.map((memory) => (
-                      <MemoryRow
-                        key={memory.id}
-                        memory={memory}
-                        projectName={
-                          projects.find((p) => p.id === memory.projectId)
-                            ?.name ?? "Personal"
-                        }
-                        selected={checked.includes(memory.id)}
-                        busy={busy}
-                        onSelect={() =>
-                          setChecked((current) =>
-                            current.includes(memory.id)
-                              ? current.filter((id) => id !== memory.id)
-                              : current.length < 50
-                                ? [...current, memory.id]
-                                : current,
-                          )
-                        }
-                        onOpen={() => setSelected(memory)}
-                        onMove={() => startMove([memory])}
-                        onArchive={() =>
-                          void perform(
-                            [memory],
-                            isInactive(memory) ? "restore" : "archive",
-                          )
-                        }
-                        onTag={(value) =>
-                          setFilters({ ...filters, tag: value })
-                        }
-                      />
-                    ))}
-                  </ul>
-                </div>
-              ))
-            )}
-            {next && (
-              <div className="mt-6 text-center">
-                <button
-                  className="app-button secondary"
-                  disabled={loading}
-                  onClick={loadMore}
-                >
-                  {loading
-                    ? "Loading…"
-                    : view === "graph"
-                      ? "Expand graph"
-                      : "Load more"}
-                </button>
-              </div>
+            {view === "list" && (
+              <Select
+                className="library-sort"
+                label="Sort"
+                aria-label="Sort notes"
+                value={sort}
+                onValueChange={(value) =>
+                  setFilters({
+                    ...filters,
+                    sort: value as typeof sort,
+                  })
+                }
+                options={[
+                  { value: "updated_desc", label: "Recently updated" },
+                  { value: "updated_asc", label: "Oldest updated" },
+                  { value: "created_desc", label: "Recently created" },
+                ]}
+              />
             )}
           </div>
+          {view === "list" && selectedItems.length > 0 && (
+            <div
+              className="selection-toolbar"
+              role="group"
+              aria-label="Selected notes"
+            >
+              <strong>{selectedItems.length} selected</strong>
+              <button disabled={busy} onClick={() => startMove(selectedItems)}>
+                <FolderInput size={16} />
+                Move
+              </button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void perform(selectedItems, archive ? "restore" : "archive")
+                }
+              >
+                <Archive size={16} />
+                {archive ? "Restore" : "Archive"}
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => setChecked([])}
+                aria-label="Clear selection"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {currentError && (
+            <LoadError
+              message={currentError}
+              retry={() => setRefresh((v) => v + 1)}
+            />
+          )}
+          {detailError && (
+            <div className="app-error" role="alert">
+              {detailError}
+              <button
+                className="text-button ml-3"
+                onClick={() => setDetailError("")}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+          {!!failures.length && (
+            <div className="app-error" role="alert">
+              <p>
+                Some notes could not be updated. The list below shows their
+                current state.
+              </p>
+              <ul>
+                {failures.map((failure, i) => (
+                  <li key={i}>{failure}</li>
+                ))}
+              </ul>
+              <button className="text-button" onClick={() => setFailures([])}>
+                Dismiss details
+              </button>
+            </div>
+          )}
+          {loading && !items.length ? (
+            <p role="status" className="library-loading">
+              Opening your notes…
+            </p>
+          ) : !items.length && !currentError ? (
+            <section className="app-empty">
+              <BookOpen size={26} className="mx-auto mb-4" strokeWidth={1.4} />
+              <h2 className="font-editorial text-3xl">
+                {filtered
+                  ? "Nothing here matches yet."
+                  : archive
+                    ? "Your archive is empty."
+                    : "Good things start small."}
+              </h2>
+              <p>
+                {filtered
+                  ? "Try a different phrase or clear a filter."
+                  : archive
+                    ? "Archived notes stay here until you restore or delete them."
+                    : "Start with a thought, a plan, or something you want to remember."}
+              </p>
+              {!archive && !filtered && (
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <Link
+                    className="app-button"
+                    href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+                  >
+                    Write your first note
+                  </Link>
+                  <Link
+                    href="/app/settings/connections"
+                    className="app-button secondary"
+                  >
+                    Connect an agent
+                  </Link>
+                </div>
+              )}
+            </section>
+          ) : (
+            items.length > 0 &&
+            (view === "graph" ? (
+              <MemoryGraph
+                items={items}
+                projects={projects}
+                onOpen={setSelected}
+              />
+            ) : (
+              <div className="library-list">
+                <label className="select-loaded">
+                  <input
+                    type="checkbox"
+                    disabled={busy}
+                    checked={
+                      items.length > 0 &&
+                      items.slice(0, 50).every((m) => checked.includes(m.id))
+                    }
+                    onChange={(e) =>
+                      setChecked(
+                        e.target.checked
+                          ? items.slice(0, 50).map((m) => m.id)
+                          : [],
+                      )
+                    }
+                  />
+                  Select these notes
+                  {items.length > 50 ? " (first 50)" : ""}
+                </label>
+                <ul ref={listRef}>
+                  {items.map((memory) => (
+                    <MemoryRow
+                      key={memory.id}
+                      memory={memory}
+                      projectName={
+                        projects.find((p) => p.id === memory.projectId)?.name ??
+                        "Personal"
+                      }
+                      selected={checked.includes(memory.id)}
+                      selectedItems={selectedItems}
+                      busy={busy}
+                      onSelect={() =>
+                        setChecked((current) =>
+                          current.includes(memory.id)
+                            ? current.filter((id) => id !== memory.id)
+                            : current.length < 50
+                              ? [...current, memory.id]
+                              : current,
+                        )
+                      }
+                      onOpen={() => setSelected(memory)}
+                      onMove={() => startMove([memory])}
+                      onArchive={() =>
+                        void perform(
+                          [memory],
+                          isInactive(memory) ? "restore" : "archive",
+                        )
+                      }
+                      onTag={(value) => setFilters({ ...filters, tag: value })}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
+          {next && (
+            <div className="mt-6 text-center">
+              <button
+                className="app-button secondary"
+                disabled={loading}
+                onClick={loadMore}
+              >
+                {loading
+                  ? "Loading…"
+                  : view === "graph"
+                    ? "Expand graph"
+                    : "Load more"}
+              </button>
+            </div>
+          )}
         </div>
-      </MemoryDrag>
+      </div>
       {(notice || busy) && (
         <div className="workspace-notice" role="status">
           <span>{busy ? "Updating notes…" : notice}</span>

@@ -1,5 +1,33 @@
 # Delivery evidence
 
+## Workspace polish and contextual conversations (20 October 2026 UTC)
+
+The workspace now has one notebook tree with nested note links, shared pointer/
+keyboard/touch move destinations, notebook nesting and version-fenced undo. Compact
+filters, global Ctrl/Cmd+K search, a light graph and grouped Settings share the same
+workspace chrome. Full-page writing is wider, autosaves after a pause and has
+full-viewport focus mode. Save retries preserve their original operation and newer
+typing; clicking outside dismisses idle dialogs and drawers.
+
+Ask Grove stores account-isolated conversations and resolves contextual note
+references before retrieving current evidence. Explicit create/edit/merge requests
+produce reviewable previews with atomic apply and version-fenced undo. Merges keep
+originals in Archive. History deletion, account export/deletion and restore
+reconciliation include conversations. The auto-growing composer has plain and
+Markdown modes, optional formatting/preview, native undo, selection preservation,
+IME-aware shortcuts and touch-friendly sending.
+
+Local verification passes root/website lint and types, production builds, all five
+packed artifact checks, the 44 existing database/provider/auth/recovery scenarios
+and seven conversation scenarios. All 55 Chromium browser/accessibility cases pass;
+three compatible touch WebKit scenarios pass in the Playwright Ubuntu container.
+[Screenshots and visual results](design/screenshots/frontend-polish/README.md)
+cover the workspace, focus, both input modes, mobile composition, Settings and graph.
+
+Before deployment, apply forward migration `20261020_009_conversations` using the
+owner procedure in [deploy.md](deploy.md), then roll out API/worker before website.
+This evidence records local verification; production activation is a separate release.
+
 ## Collection 04 website release (20 October 2026 UTC)
 
 [Website #31](https://github.com/miniaxolotl/grove/pull/31) delivers Space Grotesk

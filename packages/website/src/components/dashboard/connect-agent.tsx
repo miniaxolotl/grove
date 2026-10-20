@@ -177,7 +177,7 @@ export function ConnectAgent({ id }: { id: string }) {
                 )}
                 <Link
                   className="app-button secondary mt-6"
-                  href="/app/connections"
+                  href="/app/settings/connections"
                 >
                   Manage connections
                 </Link>

@@ -1,0 +1,62 @@
+[
+  {
+    "name": "workspace-desktop",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "errors": [],
+    "violations": [],
+    "overflow": false
+  },
+  {
+    "name": "focus-desktop",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "errors": [],
+    "violations": [],
+    "overflow": false
+  },
+  {
+    "name": "composer-plain-desktop",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "errors": [],
+    "violations": [],
+    "overflow": false
+  },
+  {
+    "name": "composer-markdown-desktop",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "errors": [],
+    "violations": [],
+    "overflow": false
+  },
+  {
+    "name": "settings-desktop",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "errors": [],
+    "violations": [],
+    "overflow": false
+  },
+  {
+    "name": "composer-markdown-mobile",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "errors": [],
+    "violations": [],
+    "overflow": false
+  }
+]

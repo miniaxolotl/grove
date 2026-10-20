@@ -169,7 +169,7 @@ for (const path of [
   "/app",
   "/app/archive",
   "/app/projects",
-  "/app/connections",
+  "/app/settings/connections",
   "/app/settings",
 ]) {
   test(`${path} recovers from an unavailable service without a false empty or loading state`, async ({
@@ -218,7 +218,7 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
     "/app",
     "/app/projects",
     "/app/archive",
-    "/app/connections",
+    "/app/settings/connections",
     "/app/settings",
   ]) {
     await page.goto(`${base}${path}`);
@@ -227,9 +227,7 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
       await page.setViewportSize({ width, height: 900 });
       if (path !== "/app/archive") {
         await expect(
-          page
-            .getByRole("navigation", { name: "Notebook navigation" })
-            .locator('[aria-current="page"]'),
+          page.locator('.app-sidebar a[aria-current="page"]:visible'),
         ).toBeInViewport({ ratio: 1 });
       }
       expect(

@@ -89,6 +89,14 @@ configure the provider's documented transport appropriately; do not disable
 certificate verification. Pgvector extension/role creation needs owner privileges.
 
 API starts with `node dist/server.js`; worker with `node dist/worker.js`.
+Apply forward migration `20261020_009_conversations` before deploying the
+conversation-capable API/worker and website. It adds account-isolated conversation,
+turn and deletion-tombstone tables; existing notes are unchanged. Back up before the
+owner migration. Roll out API/worker before the website. Conversations use the
+configured generation provider and existing account budgets; the website allows
+180 seconds for a contextual reply. Retain conversation tombstones during recovery;
+the reconciliation tool removes deleted chats and invalidates restored proposals.
+
 Both use the same model configuration. Self-hosted local embeddings need a writable
 model-cache path and use CPU inference. Remote role configuration, encrypted settings
 and the Cloud DeepInfra/MiniMax defaults are documented in [models](models.md).
