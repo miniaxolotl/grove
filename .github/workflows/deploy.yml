@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to deploy (e.g., 0.3.1) — leave empty for dev deploy"
+        description: "Optional production version assertion; must match packages/api/package.json"
         required: false
         default: ""
 
@@ -32,11 +32,26 @@ jobs:
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          if [ -n "$REQUESTED_VERSION" ]; then
-            VERSION="$REQUESTED_VERSION"
-          elif [ "$GITHUB_REF_NAME" = "production" ]; then
-            VERSION=$(node -p "require('./packages/api/package.json').version")
-          fi
+          VERSION=""
+          case "$GITHUB_REF" in
+            refs/heads/production)
+              VERSION=$(node -p "require('./packages/api/package.json').version")
+              if [ -n "$REQUESTED_VERSION" ] && [ "$REQUESTED_VERSION" != "$VERSION" ]; then
+                echo "::error::Requested version must match the release promoted to production."
+                exit 1
+              fi
+              ;;
+            refs/heads/development)
+              if [ -n "$REQUESTED_VERSION" ]; then
+                echo "::error::Development publishes preview images; promote the release to production first."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Deployments follow feature branch -> development -> production."
+              exit 1
+              ;;
+          esac
 
           if [ -n "$VERSION" ]; then
             [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]

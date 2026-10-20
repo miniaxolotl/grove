@@ -140,11 +140,19 @@ cache is writable but ephemeral. The worker uses the same image/configuration wi
 
 ### Rollout and rollback
 
+The release path is **feature branch → development → production**. Merge feature
+PRs into `development`, complete the release/version PR there, and promote the
+checked development commit through a `development` → `production` PR. Use merge
+commits for promotion so the shared history is preserved.
+
 GitHub secret `DIGITALOCEAN_ACCESS_TOKEN` and variable `DIGITALOCEAN_APP_ID` are set
-on `miniaxolotl/grove`. After this hosting PR reaches `production`, the Deploy
-workflow publishes the image and rolls both components to the resulting digest.
-Development pushes publish preview images. Vercel follows the production branch.
-Database migrations remain an explicit owner-credential operation before rollout.
+on `miniaxolotl/grove`. Production pushes publish versioned images and roll both
+components to the resulting digest. Development pushes publish preview images;
+manual Deploy runs accept only these two branches, and a version assertion must
+match the package version on `production`. Vercel follows the production branch.
+Database migrations remain an explicit owner-credential operation before rollout;
+check the applied migration history before promotion rather than repeating a
+migration from an earlier rollout.
 
 For the one-command Cloud onboarding release, apply `20261019_004_connection_setup`
 before updating the API, then deploy the approval website, publish updated CLI/native
@@ -172,8 +180,9 @@ the production Clerk keys, and `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` /
 Private `/app` pages and BFF replies are uncached and omitted from indexing;
 analytics are mounted only in marketing.
 
-For manual Vercel deployments, build/upload a clean `git archive` snapshot rather
-than the operator worktree, which contains ignored private artifacts. Retrieve
+For manual Vercel deployments, build/upload a clean `git archive` snapshot of the
+promoted `production` commit rather than the operator worktree, which contains
+ignored private artifacts. Retrieve
 production environment only into that private staging directory. Deploy the API
 and worker first when website contracts change. Queue, retention, and Resend setup
 are documented in [background services](background-services.md).
