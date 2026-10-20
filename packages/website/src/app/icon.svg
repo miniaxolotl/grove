@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect width="64" height="64" rx="16" fill="#284c38"/>
-  <g transform="translate(7 4.5) scale(.5)" fill="#faf9f3">
-    <path d="M43 91V60C21 59 9 44 9 19C31 19 45 31 50 50C55 31 69 19 91 19C91 44 79 59 57 60V91Z"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title description"><title id="title">Grove / Forest / favicon</title><desc id="description">Grove / Forest / favicon</desc><g transform="translate(-11.69066667 -11.69066667) scale(0.08533333)"><svg x="128" y="128" width="768" height="768" viewBox="0 5 100 100"><path d="M43 91V60C21 59 9 44 9 19C31 19 45 31 50 50C55 31 69 19 91 19C91 44 79 59 57 60V91Z" fill="#284c38"/></svg></g></svg>

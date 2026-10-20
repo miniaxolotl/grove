@@ -1,6 +1,6 @@
 .grove-app,
 .connect-shell {
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-space-grotesk), Arial, sans-serif;
   font-size: 14px;
   font-optical-sizing: auto;
 }
@@ -458,6 +458,7 @@
   position: sticky;
   top: 16px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 .library-places > :is(button, a),

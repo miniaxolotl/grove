@@ -3,7 +3,7 @@ import { privacy } from "@/content/legal";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(
-  "Privacy policy — Grove",
+  "Privacy policy | Grove",
   privacy.summary,
   "/privacy",
 );

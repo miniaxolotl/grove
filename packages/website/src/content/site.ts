@@ -1,17 +1,17 @@
 export const positioning = {
-  title: "Grove — Good ideas. Room to grow.",
+  title: "Grove | Good ideas. Room to grow.",
   description:
-    "A private notebook for your notes, plans, and daily reflections. Find answers in your own words and discover how your ideas connect with Grove.",
+    "Your private notebook for notes, journals, and connected ideas. Search by meaning, follow connections, and give your AI agents the context you choose.",
   shareText:
     "A private notebook for your notes, plans, and everyday ideas. Good ideas deserve room to grow.",
   imageAlt:
-    "Grove — Good ideas. Room to grow. A private notebook for notes, plans, and everyday ideas.",
+    "Grove. Good ideas. Room to grow. A private notebook for notes, plans, and everyday ideas.",
 } as const;
 
 export const navigation = [
   { label: "Why Grove", href: "/#features" },
   { label: "How it works", href: "/#how-it-works" },
-  { label: "Get started", href: "/#install" },
+  { label: "For developers", href: "/#for-developers" },
 ];
 
 export const faqs = [

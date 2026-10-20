@@ -83,12 +83,24 @@ test("long project names remain inside destinations at every breakpoint", async 
       return {
         overflow: document.documentElement.scrollWidth > innerWidth,
         separated: places.right <= main.left || places.bottom <= main.top,
+        destinationsContained:
+          getComputedStyle(document.querySelector(".library-places")!)
+            .display !== "grid" ||
+          Array.from(
+            document.querySelectorAll(
+              ".library-places button, .library-places [data-destination]",
+            ),
+          ).every(
+            (element) =>
+              element.getBoundingClientRect().right <= places.right + 1,
+          ),
         font: getComputedStyle(document.querySelector("h1")!).fontFamily,
       };
     });
     expect(geometry.overflow).toBe(false);
     expect(geometry.separated).toBe(true);
-    expect(geometry.font.toLowerCase()).toContain("inter");
+    expect(geometry.destinationsContained).toBe(true);
+    expect(geometry.font.toLowerCase()).toContain("space grotesk");
     await page.screenshot({
       path: info.outputPath(`memory-library-${width}.png`),
       fullPage: true,

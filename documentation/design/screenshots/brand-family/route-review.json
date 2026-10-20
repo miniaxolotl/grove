@@ -1,0 +1,130 @@
+[
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/privacy",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/terms",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/missing-route",
+    "status": 404,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/install",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/self-host",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/sign-up",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "Chromium",
+    "width": 1440,
+    "route": "/brand-kit/index.html",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/privacy",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/terms",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/missing-route",
+    "status": 404,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/install",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/self-host",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/sign-up",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  },
+  {
+    "browser": "WebKit",
+    "width": 390,
+    "route": "/brand-kit/index.html",
+    "status": 200,
+    "violations": [],
+    "errors": []
+  }
+]
