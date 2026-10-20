@@ -1,13 +1,15 @@
 import type { Memory } from "@lib/shared/contracts";
 
-export const memoryTitle = (memory: Memory) =>
-  memory.enrichment?.title ||
-  memory.content
-    .trim()
-    .split("\n")[0]
-    .replace(/^#{1,6}\s+/, "")
-    .slice(0, 110) ||
-  "Untitled note";
+export const memoryTitle = (memory: Memory) => {
+  const firstLine = memory.content.trim().split("\n")[0];
+  const heading = firstLine.match(/^#{1,6}\s+(.+)/)?.[1].trim();
+  return (
+    heading?.slice(0, 110) ||
+    memory.enrichment?.title ||
+    firstLine.slice(0, 110) ||
+    "Untitled note"
+  );
+};
 
 export const noteKindLabel = (kind: Memory["kind"]) =>
   ({

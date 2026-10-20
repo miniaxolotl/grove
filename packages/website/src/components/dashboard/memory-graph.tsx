@@ -348,6 +348,11 @@ function Canvas({
         onPaneClick={() => onSelect(null)}
         nodesConnectable={false}
         edgesFocusable={false}
+        deleteKeyCode={null}
+        ariaLabelConfig={{
+          "node.a11yDescription.default":
+            "Press Enter to read this note. Use Tab to visit another note or a zoom control.",
+        }}
         fitView
         fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
         minZoom={0.15}

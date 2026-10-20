@@ -61,7 +61,15 @@ export function MemoryDetail({
   const locked = busy || actionBusy;
   const firstHeading = memory.content
     .trim()
-    .match(/^#{1,6}\s+(.+)(?:\n|$)/)?.[1];
+    .match(/^#{1,6}\s+(.+)(?:\n|$)/)?.[1]
+    .trim();
+  const readableContent =
+    fullPage && firstHeading === memoryTitle(memory)
+      ? memory.content
+          .trimStart()
+          .replace(/^#{1,6}[ \t]+[^\r\n]*(?:\r?\n|$)/, "")
+          .trimStart()
+      : memory.content;
   useEffect(() => {
     const controller = new AbortController();
     Promise.all(
@@ -186,13 +194,11 @@ export function MemoryDetail({
         </div>
         {(!fullPage || tab === "content") && (
           <>
-            {memory.enrichment?.title &&
-              firstHeading?.toLocaleLowerCase() !==
-                memory.enrichment.title.toLocaleLowerCase() && (
-                <h3 className="reader-title">{memory.enrichment.title}</h3>
-              )}
+            {!fullPage && !firstHeading && memory.enrichment?.title && (
+              <h3 className="reader-title">{memory.enrichment.title}</h3>
+            )}
             <div className="reader-copy">
-              <Markdown>{memory.content}</Markdown>
+              <Markdown>{readableContent}</Markdown>
             </div>
             <p className="reader-lifetime">
               {memory.expiresAt

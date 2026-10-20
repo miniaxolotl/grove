@@ -209,7 +209,7 @@
 }
 .revision-compare {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 14px;
   margin: 16px 0;
 }
@@ -799,6 +799,9 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 1200px) {
+  .full-page-reader {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .graph-layout.has-selection {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -815,9 +818,6 @@
   }
   .journal-guide {
     display: none;
-  }
-  .full-page-reader {
-    grid-template-columns: minmax(0, 1fr);
   }
   .memory-metadata dl {
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
