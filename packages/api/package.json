@@ -1,6 +1,6 @@
 {
   "name": "@miniaxolotl/grove-server",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "type": "module",
   "description": "Grove private PostgreSQL memory API and worker",
   "repository": {
