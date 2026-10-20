@@ -8,8 +8,9 @@ import {
 import { GroveError } from "@lib/shared/contracts";
 
 export async function startBridge(agent: AgentName = "cli") {
-  const client = await nodeClient(agent);
   const server = createMemoryMcp(async (tool, raw, signal) => {
+    // A running host picks up completed login and explicit endpoint/account switches.
+    const client = await nodeClient(agent);
     const input = { ...(raw as Record<string, unknown>) };
     if (tool === "remember")
       input.source = { ...(input.source as Record<string, unknown>), agent };

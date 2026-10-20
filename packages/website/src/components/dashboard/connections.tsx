@@ -1,10 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { KeyRound, Plug, Plus } from "lucide-react";
-import { capabilities, type Grant } from "@lib/shared/contracts";
+import {
+  capabilities,
+  type Grant,
+  type ConnectAttempt,
+} from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
+import { AgentSetup } from "@/components/installation";
 
 type Connection = Grant & {
   id: string;
@@ -12,6 +18,7 @@ type Connection = Grant & {
   revokedAt: string | null;
   createdAt: string;
   lastUsedAt: string | null;
+  setup?: ConnectAttempt | null;
 };
 export function Connections({ origin }: { origin: string }) {
   const [items, setItems] = useState<Connection[]>([]);
@@ -38,7 +45,14 @@ export function Connections({ origin }: { origin: string }) {
       api<Project[]>("/projects", undefined, undefined, controller.signal),
     ])
       .then(([connections, list]) => {
-        setItems(connections);
+        setItems(
+          connections.map((item) =>
+            item.setup?.status === "pending" &&
+            Date.parse(item.setup.expiresAt) <= Date.now()
+              ? { ...item, setup: { ...item.setup, status: "expired" } }
+              : item,
+          ),
+        );
         setProjects(list);
       })
       .catch((e) => {
@@ -80,22 +94,13 @@ export function Connections({ origin }: { origin: string }) {
           </h2>
         </div>
         <p className="mt-3 text-sm leading-7 text-muted">
-          Install the Grove CLI, then connect OpenCode, Claude Code, or Codex.
-          Browser sign-in creates a pending connection below; approve its scope
-          here.
+          Choose OpenCode, Claude Code, or Codex and run its connection command.
+          Sign in and choose its access in the browser. Setup finishes in your
+          terminal.
         </p>
-        <pre
-          tabIndex={0}
-          aria-label="Agent connection commands"
-          className="mt-4 overflow-x-auto rounded-lg bg-paper p-4 text-xs leading-7"
-        >
-          <code>{`npm install -g @miniaxolotl/grove\ngrove init --client opencode --url ${origin || "<API origin>"}`}</code>
-        </pre>
-        <p className="mt-3 text-xs text-muted">
-          Headless clients: create a scoped key and run{" "}
-          <code>grove login --client claude --key-stdin</code>. Keys are shown
-          once.
-        </p>
+        <div className="mt-4">
+          <AgentSetup origin={origin || undefined} headless />
+        </div>
       </section>
       {error && <LoadError message={error} retry={reload} />}
       {loading ? (
@@ -129,12 +134,21 @@ export function Connections({ origin }: { origin: string }) {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    className="app-button secondary"
-                    onClick={() => setSelected(item)}
-                  >
-                    {item.capabilities.length ? "Edit scope" : "Approve"}
-                  </button>
+                  {item.setup?.status === "pending" && !item.revokedAt ? (
+                    <Link
+                      className="app-button secondary"
+                      href={`/app/connect/${item.setup.id}`}
+                    >
+                      Continue setup
+                    </Link>
+                  ) : (
+                    <button
+                      className="app-button secondary"
+                      onClick={() => setSelected(item)}
+                    >
+                      {item.capabilities.length ? "Edit scope" : "Approve"}
+                    </button>
+                  )}
                   {!item.revokedAt && (
                     <button
                       className="app-button danger"

@@ -263,12 +263,15 @@ export function MemoryLibrary({
           </p>
           {!archive && !filtered && (
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <button className="app-button" onClick={() => setSelected("new")}>
-                Save your first memory
-              </button>
-              <Link href="/app/connections" className="app-button secondary">
+              <Link href="/app/connections" className="app-button">
                 Connect an agent <ArrowUpRight size={14} />
               </Link>
+              <button
+                className="app-button secondary"
+                onClick={() => setSelected("new")}
+              >
+                Save your first memory
+              </button>
             </div>
           )}
         </section>

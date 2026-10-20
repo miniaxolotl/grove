@@ -16,23 +16,25 @@ and non-owner runtime roles enforcing row-level security.
 
 ## Connect an agent
 
-Connect to hosted Grove:
+Connect to **Grove Cloud**, from your project directory (Node 22+ and your agent installed):
 
 ```sh
-npm install -g @miniaxolotl/grove
-grove init --client opencode --url https://api.usegrove.cloud
-grove status --client opencode --json
+npx @miniaxolotl/grove connect
 ```
 
-Use `--client claude` or `--client codex` for those clients. Complete browser sign-in,
-then approve the connection's capabilities and memory scope in **Connections**.
+Grove detects your installed agent or lets you choose. You can also specify
+`connect opencode`, `connect claude` or `connect codex`. Create an account or sign in
+in the browser, then approve access. Grove links your current project, verifies
+access and configures the integration. Keep the terminal open and follow its
+agent-specific activation step.
+Run the same command to resume interrupted setup.
 Named, revocable API keys also support headless clients. Credentials stay in your
 user configuration; plugins and hooks use the same connection. Ordinary agent
 credentials cannot manage your account or issue other credentials.
 
-The published PostgreSQL packages replace the legacy Qdrant server/plugins:
-CLI/OpenCode **0.5.0**, server/Claude/Codex **1.0.0**. Self-hosted users can
-substitute their own API origin in the commands above.
+**Grove Open Source** runs on your infrastructure. Add `--url https://YOUR-GROVE-API`
+to connect to your own deployment. See the [rollout requirements](documentation/cloud-onboarding.md#rollout)
+for the release introducing `connect`; earlier CLI releases use `grove init`.
 
 ## Host Grove
 

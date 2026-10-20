@@ -1,3 +1,33 @@
+.connect-shell {
+  min-height: 100vh;
+  background: #f7f6f0;
+}
+.connect-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 640px;
+  margin: auto;
+  padding: 16px 20px;
+}
+.connect-content {
+  padding: 8px 16px 32px;
+}
+.connect-content .connect-page-heading {
+  margin-bottom: 18px;
+}
+.connect-content .connect-page-heading h1 {
+  margin-top: 0;
+  font-size: clamp(30px, 5vw, 42px);
+}
+.connect-content .connect-page-heading p:last-child {
+  margin-top: 8px;
+}
+.connect-content .connect-form {
+  padding: 20px;
+  gap: 16px;
+}
 .grove-app {
   min-height: 100vh;
   display: grid;

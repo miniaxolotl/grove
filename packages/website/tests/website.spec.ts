@@ -13,9 +13,9 @@ test("serves the product story, installation, and FAQ without JavaScript", async
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "New session.Same context.",
   );
-  await expect(page.getByLabel("npm setup", { exact: true })).toContainText(
-    "grove init --client opencode",
-  );
+  await expect(
+    page.getByLabel("OpenCode connection command", { exact: true }),
+  ).toContainText("grove connect opencode");
   await page.getByText("Where does my data go?", { exact: true }).click();
   await expect(
     page.getByText(
@@ -56,46 +56,69 @@ test("memory examples and comparison work with keyboard navigation", async ({
   ).toContainText("I’ll use Vitest");
 });
 
-test("installation switches methods and copies the complete setup", async ({
+test("Cloud setup selects the right agent and keeps self-hosting on its own page", async ({
   page,
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/install");
-  await page
-    .getByRole("tab", { name: "npm Hosted · Recommended", exact: true })
-    .click();
-  await expect(page.getByLabel("npm setup", { exact: true })).toContainText(
-    "grove init --client opencode",
-  );
-  await page
-    .getByRole("button", { name: "Copy npm setup", exact: true })
-    .click();
-  const copied = await page.evaluate(() => navigator.clipboard.readText());
-  expect(copied).toContain("npm install -g @miniaxolotl/grove");
-  expect(copied).toContain("grove init");
-  expect(copied).toContain("grove status");
-  await page.getByRole("tab", { name: "Docker Compose", exact: true }).click();
-  await expect(page.getByLabel("Docker setup", { exact: true })).toContainText(
-    "docker compose up -d",
-  );
-  await page.getByRole("tab", { name: "Claude Code", exact: true }).click();
+  for (const [label, client] of [
+    ["OpenCode", "opencode"],
+    ["Claude Code", "claude"],
+    ["Codex", "codex"],
+  ]) {
+    await page.getByRole("tab", { name: label, exact: true }).click();
+    await expect(
+      page.getByLabel(`${label} connection command`, { exact: true }),
+    ).toHaveText(`npx @miniaxolotl/grove connect ${client}`);
+    await page
+      .getByRole("button", {
+        name: `Copy ${label} connection command`,
+        exact: true,
+      })
+      .click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      `npx @miniaxolotl/grove connect ${client}`,
+    );
+  }
   await expect(
-    page.getByLabel("Claude Code setup", { exact: true }),
-  ).toContainText("grove init --client claude");
-  await page.getByRole("tab", { name: "Codex", exact: true }).click();
-  await expect(page.getByLabel("Codex setup", { exact: true })).toContainText(
-    "grove init --client codex",
-  );
+    page.getByText("docker compose up -d", { exact: false }),
+  ).toHaveCount(0);
   await page.getByRole("tab", { name: "Other MCP clients" }).click();
   await expect(
     page.getByLabel("Streamable HTTP endpoint", { exact: true }),
   ).toHaveText("https://api.usegrove.cloud/mcp");
-  await page.getByRole("tab", { name: "OpenCode", exact: true }).click();
-  const config = JSON.parse(
-    (await page.getByLabel("opencode.json", { exact: true }).textContent())!,
-  );
-  expect(config.plugins).toContain("@miniaxolotl/grove-opencode-plugin");
+  await page.getByRole("link", { name: "Install Grove Open Source" }).click();
+  await expect(page).toHaveURL(/\/self-host$/);
+  await expect(
+    page.getByLabel("Self-hosted Docker setup", { exact: true }),
+  ).toContainText("docker compose up -d");
+  await expect(
+    page.getByLabel("Connect to your server", { exact: true }),
+  ).toContainText("--url https://grove-api.example.com");
+  await page.goto("/install");
+  await page.getByRole("tab", { name: "Claude Code", exact: true }).click();
+  await page.goto("/");
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: "Get started", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/install$/);
+  await expect(
+    page.getByRole("tab", { name: "Claude Code", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByLabel("Claude Code connection command", { exact: true }),
+  ).toContainText("grove connect claude");
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("Storage full", "QuotaExceededError");
+    };
+  });
+  await page.getByRole("tab", { name: "Codex", exact: true }).click();
+  await expect(
+    page.getByLabel("Codex connection command", { exact: true }),
+  ).toContainText("grove connect codex");
 });
 
 test("the public library preview supports keyboard exploration without account mutations", async ({
@@ -183,7 +206,9 @@ test("native sharing cancellation is quiet and clipboard failure remains usable"
   await expect(
     page.getByRole("button", { name: "Share a little Grove" }),
   ).toBeEnabled();
-  await page.getByRole("button", { name: "Copy npm install command" }).click();
+  await page
+    .getByRole("button", { name: "Copy Cloud connection command" })
+    .click();
   await expect(
     page.getByText("Select the text below to copy manually."),
   ).toBeVisible();

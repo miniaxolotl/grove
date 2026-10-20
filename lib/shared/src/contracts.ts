@@ -124,6 +124,33 @@ export const grantSchema = z
 export const connectionSchema = grantSchema.extend({
   clientId: z.string().min(1).max(500),
 });
+export const agentSchema = z.enum(["opencode", "claude", "codex"]);
+export const agentNames = {
+  opencode: "OpenCode",
+  claude: "Claude Code",
+  codex: "Codex",
+} as const;
+export const connectSchema = z
+  .object({
+    agent: agentSchema,
+    project: projectSchema.nullable(),
+  })
+  .strict();
+export const approveConnectSchema = grantSchema.extend({
+  currentProject: z.boolean().default(true),
+});
+export type ConnectInput = z.infer<typeof connectSchema>;
+export type ConnectApproval = z.infer<typeof approveConnectSchema>;
+export type ConnectAttempt = ConnectInput & {
+  id: string;
+  connectionId: string;
+  clientId: string | null;
+  status: "pending" | "approved" | "cancelled" | "expired";
+  expiresAt: string;
+  projectId: string | null;
+  grant: Grant;
+};
+export type ConnectResponse = ConnectAttempt & { approvalUrl: string };
 export const memorySchema = z.object({
   id: uuidSchema,
   projectId: uuidSchema.nullable(),
