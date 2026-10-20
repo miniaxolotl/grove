@@ -4,7 +4,7 @@
 
 - Next.js website: **https://usegrove.cloud** on Vercel, production Clerk and an authenticated BFF.
 - Hono API: **https://api.usegrove.cloud**, REST `/v1`, MCP `/mcp` on DigitalOcean App Platform.
-- Worker: separate process for leased embeddings, retention and account deletion.
+- Worker: leased processing, organization, retention, account deletion, and transactional mail.
 - Neon PostgreSQL 17 + pgvector 0.8.0: migrations and non-owner runtime roles.
 
 Production is deployed in New York, near Neon's AWS US East 1 database.
@@ -14,7 +14,8 @@ The published Node 24 image runs both components. Compose remains available for
 self-hosting with pgvector 0.8.2. See [delivery evidence](delivery.md).
 
 `usegrove.one`, `usegrove.ca`, `grovenote.app` and the four `www` names redirect
-with HTTP 308 to `usegrove.cloud`. Porkbun hosts DNS; Vercel handles these redirects.
+with HTTP 308 to `usegrove.cloud`. Cloudflare hosts `usegrove.cloud` DNS; Porkbun
+remains its registrar and hosts the other redirect domains. Vercel handles redirects.
 
 ## Clerk
 
@@ -78,10 +79,11 @@ configure the provider's documented transport appropriately; do not disable
 certificate verification. Pgvector extension/role creation needs owner privileges.
 
 API starts with `node dist/server.js`; worker with `node dist/worker.js`.
-Both use the same model profile and a writable model-cache path. The image uses
-CPU inference; it neither patches SDK dependencies nor downloads CUDA providers.
-`EMBEDDING_MODE=disabled` explicitly selects lexical-only operation. The local
-profile never silently falls back to another provider or dimension.
+Both use the same model configuration. Self-hosted local embeddings need a writable
+model-cache path and use CPU inference. Remote role configuration, encrypted settings
+and the Cloud DeepInfra/MiniMax defaults are documented in [models](models.md).
+`EMBEDDING_MODE=disabled` explicitly selects lexical-only operation. A profile never
+silently falls back to another provider or dimension.
 
 Readiness waits for database-role checks and embedding initialization. Configure
 at least 180 seconds of initial startup time for first model download. Health
@@ -112,6 +114,7 @@ app. Initial provisioning needs:
 | `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Matching production instance keys                                |
 | `CLERK_WEBHOOK_SIGNING_SECRET`              | Actual Svix endpoint signing secret                              |
 | `CURSOR_SECRET`                             | Shared random value, at least 32 characters                      |
+| `DEEPINFRA_API_KEY`, `MINIMAX_API_KEY`      | Server-only credentials for the Cloud inference roles            |
 | `API_ORIGIN`, `SITE_URL`, `CLERK_ISSUER`    | Optional overrides of the production origins above               |
 | `GROVE_IMAGE_DIGEST`                        | Optional SHA-256 override of the template's published image      |
 
@@ -126,22 +129,30 @@ node --env-file=.env.digitalocean.local --env-file=.env.neon.local \
 ```
 
 The script never sends migration-owner credentials. Database URLs, Clerk secrets
-and the cursor key are `SECRET`/`RUN_TIME` values. The API and worker receive only
+and inference/cursor keys are `SECRET`/`RUN_TIME` values. The API and worker receive only
 their own database login. `DATABASE_SSL=require` verifies certificates. These
 providers communicate over authenticated public TLS, not a shared private VPC.
 
 The API uses readiness `/health/ready`, liveness `/health/live`, and a 180-second
-startup allowance. Model cache is writable but ephemeral; restarts may download
-the fixed model again. The worker uses the same image/profile with
+startup allowance. Cloud inference uses remote providers; self-hosted local model
+cache is writable but ephemeral. The worker uses the same image/configuration with
 `node dist/worker.js`. App Platform edge caching is disabled for REST/MCP.
 
 ### Rollout and rollback
 
+The release path is **feature branch → development → production**. Merge feature
+PRs into `development`, complete the release/version PR there, and promote the
+checked development commit through a `development` → `production` PR. Use merge
+commits for promotion so the shared history is preserved.
+
 GitHub secret `DIGITALOCEAN_ACCESS_TOKEN` and variable `DIGITALOCEAN_APP_ID` are set
-on `miniaxolotl/grove`. After this hosting PR reaches `production`, the Deploy
-workflow publishes the image and rolls both components to the resulting digest.
-Development pushes publish preview images. Vercel follows the production branch.
-Database migrations remain an explicit owner-credential operation before rollout.
+on `miniaxolotl/grove`. Production pushes publish versioned images and roll both
+components to the resulting digest. Development pushes publish preview images;
+manual Deploy runs accept only these two branches, and a version assertion must
+match the package version on `production`. Vercel follows the production branch.
+Database migrations remain an explicit owner-credential operation before rollout;
+check the applied migration history before promotion rather than repeating a
+migration from an earlier rollout.
 
 For the one-command Cloud onboarding release, apply `20261019_004_connection_setup`
 before updating the API, then deploy the approval website, publish updated CLI/native
@@ -168,6 +179,13 @@ the production Clerk keys, and `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` /
 `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`. Public keys are included at build time.
 Private `/app` pages and BFF replies are uncached and omitted from indexing;
 analytics are mounted only in marketing.
+
+For manual Vercel deployments, build/upload a clean `git archive` snapshot of the
+promoted `production` commit rather than the operator worktree, which contains
+ignored private artifacts. Retrieve
+production environment only into that private staging directory. Deploy the API
+and worker first when website contracts change. Queue, retention, and Resend setup
+are documented in [background services](background-services.md).
 
 ### Operating checks
 

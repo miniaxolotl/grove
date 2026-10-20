@@ -1,0 +1,88 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { createDatabase, type Knex } from "@lib/database";
+import { MemoryService } from "@lib/memory";
+import { readServerEnvironment } from "@lib/environment";
+import { ModelRegistry, modelProfiles } from "../../packages/api/src/models.ts";
+
+export async function modelDataCounts(db: Knex) {
+  const counts: Record<string, number> = {};
+  for (const table of [
+    "memories",
+    "memory_revisions",
+    "memory_embeddings",
+    "memory_enrichments",
+    "memory_briefs",
+    "jobs",
+  ])
+    counts[table] = Number(
+      (await db(table).count("* as count").first())?.count ?? 0,
+    );
+  return counts;
+}
+export async function resetModelData(db: Knex) {
+  return db.transaction(async (trx) => {
+    await trx.raw("SELECT pg_advisory_xact_lock(68142019)");
+    // Serialize with writes and worker completion, which lock the account first.
+    await trx("accounts").orderBy("id").forUpdate().select("id");
+    const before = await modelDataCounts(trx);
+    await trx.raw(
+      "INSERT INTO deleted_memories(account_id,id) SELECT account_id,id FROM memories ON CONFLICT DO NOTHING",
+    );
+    await trx("jobs").delete();
+    await trx("memory_briefs").delete();
+    await trx("memories").delete();
+    await trx("memory_operations").delete();
+    await trx("accounts").increment("contentVersion", 1);
+    return { before, after: await modelDataCounts(trx) };
+  });
+}
+async function main() {
+  const action = process.argv[2];
+  if (!["status", "reindex", "reset"].includes(action))
+    throw new Error("Use models.ts status|reindex|reset");
+  const url = process.env.MIGRATION_DATABASE_URL;
+  if (!url) throw new Error("MIGRATION_DATABASE_URL is required");
+  const db = createDatabase(url, {
+    ssl: process.env.DATABASE_SSL === "require",
+    max: 2,
+  });
+  try {
+    if (action === "status")
+      console.log(JSON.stringify(await modelDataCounts(db)));
+    else if (action === "reset")
+      console.log(JSON.stringify(await resetModelData(db)));
+    else {
+      const env = readServerEnvironment();
+      const registry = new ModelRegistry(
+        db,
+        env,
+        new MemoryService(db, env.CURSOR_SECRET),
+      );
+      const { config } = await registry.load();
+      const profiles = modelProfiles(config);
+      await db.transaction(async (trx) => {
+        await trx.raw("SELECT pg_advisory_xact_lock(68142019)");
+        await trx("accounts").orderBy("id").forUpdate().select("id");
+        await trx.raw("SELECT grove_reprocess(?, ?, ?)", [
+          profiles.embedding,
+          profiles.decision,
+          profiles.generation,
+        ]);
+      });
+      console.log(JSON.stringify({ profiles, ...(await modelDataCounts(db)) }));
+    }
+  } finally {
+    await db.destroy();
+  }
+}
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+)
+  main().catch(() => {
+    console.error(
+      "Model operation failed. Check the command, database owner connection, encryption key and model configuration.",
+    );
+    process.exitCode = 1;
+  });

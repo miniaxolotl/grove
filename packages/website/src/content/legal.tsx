@@ -40,8 +40,8 @@ export const privacy: LegalDocument = {
             <li>
               <strong>Memory content:</strong> text you or your agents save,
               preferences, decisions, facts, solutions, task handoffs, project
-              identities, tags, revisions, timestamps, and archive/deletion
-              state.
+              identities, tags, generated summaries, revisions, timestamps, and
+              archive/deletion state.
             </li>
             <li>
               <strong>Search information:</strong> recall queries and the memory
@@ -127,9 +127,10 @@ export const privacy: LegalDocument = {
             hosted PostgreSQL and recovery history; DigitalOcean for API and
             worker hosting; Vercel for the website and website analytics; and
             Porkbun for domain/DNS services. These providers process information
-            needed to perform their roles. Hosted embeddings are currently
-            computed by the Grove worker using a local model, rather than by
-            sending memory text to an external embedding API.
+            needed to perform their roles. Grove Cloud uses DeepInfra to process
+            query and memory text for embeddings and classification, and MiniMax
+            to generate titles, tags, and source-linked summaries from selected
+            memories. You can disable organization and summaries in Settings.
           </p>
           <p>
             Authorized support and operations personnel may access information

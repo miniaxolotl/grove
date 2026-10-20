@@ -28,7 +28,7 @@ export function createMemoryMcp(execute: ToolExecutor) {
       name: "remember",
       schema: rememberSchema,
       description:
-        "Save a concise durable memory, or correct one by id and expectedVersion. Reuse operationId when retrying. Handoffs require taskId and expire after 30 days (purged after 90).",
+        "Save a concise durable memory, or correct one by id and expectedVersion. Set autoKind=true to let the configured decision model select a durable kind; otherwise the supplied kind is preserved. Reuse operationId when retrying. Handoffs require taskId and expire after 30 days (purged after 90).",
     },
     {
       name: "recall",
@@ -40,7 +40,7 @@ export function createMemoryMcp(execute: ToolExecutor) {
       name: "memories",
       schema: listSchema,
       description:
-        "Inspect memories with IDs, current versions, provenance, status filters and cursor pagination. Use the returned version for corrections/deletion.",
+        "Inspect memories with IDs, current versions, provenance, generated titles/tags/relationships, status and tag filters, hybrid text/semantic search and cursor pagination. Use the returned version for corrections/deletion.",
     },
     {
       name: "forget",

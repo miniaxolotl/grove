@@ -25,9 +25,17 @@ import {
 } from "@lib/shared/contracts";
 import { ConnectionSetup, type MemoryService } from "@lib/memory";
 import type { Authentication } from "./auth.ts";
+import {
+  askSchema,
+  briefRequestSchema,
+  modelUpdateSchema,
+} from "@lib/shared/models";
+import type { ModelRegistry } from "./models.ts";
+import { InferenceError } from "@lib/ai";
 
 export type AppDependencies = {
   memories: MemoryService;
+  models?: ModelRegistry;
   auth: Pick<Authentication, "principal">;
   origin: string;
   siteUrl: string;
@@ -74,13 +82,19 @@ export function createApp(deps: AppDependencies) {
     const detail =
       error instanceof GroveError
         ? error
-        : error instanceof ZodError || error instanceof SyntaxError
-          ? new GroveError("invalid_request", "Check the request fields", 400)
-          : new GroveError(
-              "unavailable",
-              "Grove is temporarily unavailable",
+        : error instanceof InferenceError
+          ? new GroveError(
+              error.code,
+              `Model request failed (${error.code})`,
               503,
-            );
+            )
+          : error instanceof ZodError || error instanceof SyntaxError
+            ? new GroveError("invalid_request", "Check the request fields", 400)
+            : new GroveError(
+                "unavailable",
+                "Grove is temporarily unavailable",
+                503,
+              );
     if (detail.status === 401)
       c.header(
         "WWW-Authenticate",
@@ -180,6 +194,7 @@ export function createApp(deps: AppDependencies) {
     if (origin && origin !== deps.siteUrl && origin !== deps.origin)
       throw new GroveError("forbidden", "Origin is not allowed", 403);
     c.set("principal", await deps.auth.principal(c.req.raw));
+    await deps.models?.refresh();
     await next();
   };
   app.use("/v1/*", async (c, next) => {
@@ -253,6 +268,81 @@ export function createApp(deps: AppDependencies) {
   });
   app.get("/v1/projects", async (c) =>
     c.json({ success: true, data: await service.projects(c.get("principal")) }),
+  );
+  app.post("/v1/briefs", async (c) =>
+    c.json({
+      success: true,
+      data: await service.brief(
+        c.get("principal"),
+        await body(c, briefRequestSchema),
+      ),
+    }),
+  );
+  app.post("/v1/briefs/refresh", async (c) =>
+    c.json({
+      success: true,
+      data: await service.brief(
+        c.get("principal"),
+        await body(c, briefRequestSchema),
+        true,
+      ),
+    }),
+  );
+  app.get("/v1/models", async (c) => {
+    await service.access(c.get("principal"), "admin", async () => {});
+    if (!deps.models)
+      throw new GroveError(
+        "unavailable",
+        "Model settings are not available",
+        503,
+      );
+    return c.json({
+      success: true,
+      data: deps.models.describe(c.get("principal")),
+    });
+  });
+  app.patch("/v1/models", async (c) => {
+    const input = await body(c, modelUpdateSchema);
+    if (!deps.models)
+      throw new GroveError(
+        "unavailable",
+        "Model settings are not available",
+        503,
+      );
+    await deps.models.save(c.get("principal"), input);
+    await deps.models.refresh();
+    return c.json({
+      success: true,
+      data: deps.models.describe(c.get("principal")),
+    });
+  });
+  app.post("/v1/models/test", async (c) => {
+    const input = await body(
+      c,
+      z
+        .object({ role: z.enum(["embedding", "decision", "generation"]) })
+        .strict(),
+    );
+    if (!deps.models)
+      throw new GroveError(
+        "unavailable",
+        "Model settings are not available",
+        503,
+      );
+    await service.access(c.get("principal"), "admin", async () => {
+      deps.models!.assertEditor(c.get("principal"));
+    });
+    const result = await deps.models.test(
+      input.role,
+      c.get("principal").accountId,
+    );
+    await service.access(c.get("principal"), "admin", async () => {
+      deps.models!.assertEditor(c.get("principal"));
+    });
+    return c.json({ success: true, data: result });
+  });
+  app.get("/v1/account/usage", async (c) =>
+    c.json({ success: true, data: await service.usage(c.get("principal")) }),
   );
   app.post("/v1/projects", async (c) =>
     c.json({
@@ -330,6 +420,20 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/memories/:id/reprocess", async (c) => {
+    const input = await body(
+      c,
+      z.object({ expectedVersion: z.number().int().positive() }).strict(),
+    );
+    return c.json({
+      success: true,
+      data: await service.retryProcessing(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        input.expectedVersion,
+      ),
+    });
+  });
   for (const action of ["archive", "restore"] as const)
     app.post(`/v1/memories/:id/${action}`, async (c) =>
       c.json({
@@ -357,6 +461,17 @@ export function createApp(deps: AppDependencies) {
       data: await service.recall(
         c.get("principal"),
         await body(c, recallSchema),
+        c.req.raw.signal,
+      ),
+    }),
+  );
+  app.post("/v1/ask", async (c) =>
+    c.json({
+      success: true,
+      data: await service.ask(
+        c.get("principal"),
+        await body(c, askSchema),
+        c.req.raw.signal,
       ),
     }),
   );
@@ -419,7 +534,12 @@ export function createApp(deps: AppDependencies) {
         await body(
           c,
           z
-            .object({ captureEnabled: z.boolean(), recallEnabled: z.boolean() })
+            .object({
+              captureEnabled: z.boolean(),
+              recallEnabled: z.boolean(),
+              organizeEnabled: z.boolean().optional(),
+              summariesEnabled: z.boolean().optional(),
+            })
             .strict(),
         ),
       ),
@@ -455,11 +575,15 @@ export function createApp(deps: AppDependencies) {
   app.all("/mcp", async (c) => {
     const principal = c.get("principal");
     await service.me(principal);
-    const execute = async (tool: ToolName, value: unknown) => {
+    const execute = async (
+      tool: ToolName,
+      value: unknown,
+      signal?: AbortSignal,
+    ) => {
       if (tool === "remember")
         return service.remember(principal, rememberSchema.parse(value));
       if (tool === "recall")
-        return service.recall(principal, recallSchema.parse(value));
+        return service.recall(principal, recallSchema.parse(value), signal);
       if (tool === "memories")
         return service.list(principal, listSchema.parse(value));
       return service.forget(principal, forgetSchema.parse(value));

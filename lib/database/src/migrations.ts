@@ -1,5 +1,8 @@
 import type { Knex } from "knex";
 import { hardening, identityState } from "./hardening.ts";
+import { modelProviders } from "./model-migration.ts";
+import { memoryLifetimes } from "./lifetime-migration.ts";
+import { backgroundServices } from "./background-migration.ts";
 
 export const migrations = [
   {
@@ -209,6 +212,9 @@ export const migrations = [
       throw new Error("Use a forward migration");
     },
   },
+  modelProviders,
+  memoryLifetimes,
+  backgroundServices,
 ];
 
 export const migrationSource: Knex.MigrationSource<

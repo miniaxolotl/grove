@@ -1,8 +1,8 @@
-import { MemoryLibrary } from "@/components/dashboard/memory-library";
+import { MemoryInspector } from "@/components/dashboard/memory-inspector";
 export default async function MemoryPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  return <MemoryLibrary initialId={(await params).id} />;
+  return <MemoryInspector fullPage id={(await params).id} />;
 }

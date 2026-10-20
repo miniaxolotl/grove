@@ -18,6 +18,8 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "providerDeletedAt",
       "captureEnabled",
       "recallEnabled",
+      "organizeEnabled",
+      "summariesEnabled",
       "contentVersion",
     );
     const subjects = await source("subject_authority").select("*");
@@ -61,6 +63,11 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       });
       await target("api_keys").delete();
       await target("memory_operations").delete();
+      await target("memory_enrichments").delete();
+      await target("memory_briefs").delete();
+      await target("jobs").delete();
+      // Recovery must not replay old account emails or notifications from grant invalidation.
+      await target("transactional_emails").delete();
       let purgedMemories = 0;
       let blockedAccounts = 0;
       const restoredIds = new Set(existing.map((row) => row.id));
@@ -89,9 +96,12 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
               : current.providerDeletedAt,
             captureEnabled: current.captureEnabled,
             recallEnabled: current.recallEnabled,
+            organizeEnabled: current.organizeEnabled,
+            summariesEnabled: current.summariesEnabled,
             contentVersion: Math.max(current.contentVersion, 1) + 1,
           });
         if (gone) {
+          await target("inference_usage").where({ accountId: row.id }).delete();
           purgedMemories += await target("memories")
             .where({ accountId: row.id })
             .delete();

@@ -22,21 +22,23 @@
     "@clerk/backend": "3.25.0",
     "@hono/node-server": "^1.19.0",
     "@huggingface/transformers": "~3.0.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "amqplib": "^2.2.0",
+    "hono": "4.13.13",
+    "jose": "^6.1.0",
     "knex": "3.3.0",
     "objection": "3.1.5",
     "pg": "8.16.3",
-    "@modelcontextprotocol/sdk": "1.32.1",
-    "hono": "4.13.13",
-    "jose": "^6.1.0",
     "svix": "^1.80.0",
     "zod": "~4.1.8"
   },
   "devDependencies": {
+    "@lib/ai": "workspace:*",
     "@lib/config": "workspace:*",
     "@lib/database": "workspace:*",
     "@lib/environment": "workspace:*",
+    "@lib/integration-core": "workspace:*",
     "@lib/memory": "workspace:*",
-    "@lib/shared": "workspace:*",
-    "@lib/integration-core": "workspace:*"
+    "@lib/shared": "workspace:*"
   }
 }

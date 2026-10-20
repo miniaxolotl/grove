@@ -1,5 +1,60 @@
 # Delivery evidence
 
+## Notebook, cited chat, and background services (20 October 2026 UTC)
+
+Implementation `f69b2c6` on PR #12 passed CI
+[39361151700](https://github.com/miniaxolotl/grove/actions/runs/39361151700):
+42 backend/provider/recovery tests, 43 browser/accessibility checks, five packed
+client checks, five deployment checks, lint, types, and production builds.
+Desktop and narrow-layout graph, chat, journal, editor, and history views were
+reviewed. The follow-up website polish preserves authored Markdown headings as
+note titles and keeps graph keyboard shortcuts non-destructive.
+
+The production rollout used a fresh 189,783-byte PostgreSQL custom backup with its
+table list verified while API and worker were paused. Forward migrations 006
+(independent note lifetimes) and 007 (background services) applied successfully.
+API and worker are active on DigitalOcean deployment
+`eefdf7be-e69c-4e08-90ef-b4d3d4c35b6f`, image
+`sha256:eb84093ac03338190289735a40c5bd5615efd85f050b06caa79080420b2d178c`.
+The initial notebook website deployment was
+`dpl_Brtpc5QCXLftT1ecmszEaWqwg1j9`, built from a clean tracked-file archive and
+promoted after the matching API/worker. `/health/ready` reports semantic enabled.
+
+Signed-in production verification used the owner's authorized browser and labelled
+demo notes. Temporary-note correction preserved its expiry and task reference;
+the journal example is permanent. Its original text was restored through the
+website as version 4, retaining the edited version and all earlier history. Ask
+Grove generated current, scoped citations
+and source search succeeded. The live graph showed two notes and one current
+relationship; zoom and keyboard reading worked. All nine current note vectors
+retain **4,096 dimensions**. Organization completed with no pending/failed jobs.
+
+CloudAMQP TLS publish/confirm/consume and reconnect were exercised with opaque
+synthetic IDs. The deployed worker dispatched and delivered both connection-event
+emails on their first attempt; Resend confirms **Delivered** for both. The
+verification connection is revoked. Sender `notifications@mail.usegrove.cloud`
+uses the verified mail domain and a domain-restricted sending key. Click tracking
+uses `links.mail.usegrove.cloud`; open tracking is disabled. Cloudflare is now
+authoritative for `usegrove.cloud`; API/Clerk/mail CNAMEs are DNS-only.
+
+User guide: [workspace](workspace.md). Operations:
+[background services](background-services.md). Private live IDs, snapshots,
+backups, and final deployment metadata are in the operator's excluded inventory.
+
+## Configurable models (19 October 2026)
+
+The model-provider feature is stacked on cloud-onboarding #11. Local verification:
+32 contract/provider tests, 24 browser/accessibility tests, 4 packed-artifact tests,
+and 5 DigitalOcean configuration tests passed. Root/website type checks, lint,
+builds, Docker image build and a non-owner container readiness smoke check passed.
+The new browser screens were inspected visually. Full 4,096-dimensional storage,
+hybrid retrieval, source invalidation and profile cutovers use disposable pgvector
+fixtures; HTTP fixtures exercise DeepInfra/MiniMax request and response contracts.
+Live provider calls and production activation subsequently passed; see
+[model configuration and rollout](models.md).
+
+## Memory consolidation baseline
+
 Verified during 18–19 October 2026 on `feat/memory-consolidation`, based on
 `development` at `b8c1b3d`. This is a breaking replacement of the legacy service.
 

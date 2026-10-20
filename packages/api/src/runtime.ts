@@ -1,7 +1,7 @@
 import { createDatabase, closeDatabase, probeDatabase } from "@lib/database";
 import { readServerEnvironment } from "@lib/environment";
 import { MemoryService } from "@lib/memory";
-import { createLocalEmbedder } from "./embedding.ts";
+import { ModelRegistry } from "./models.ts";
 
 export async function createRuntime() {
   const env = readServerEnvironment();
@@ -10,14 +10,20 @@ export async function createRuntime() {
   });
   try {
     await probeDatabase(db);
-    const embedder =
-      env.EMBEDDING_MODE === "local"
-        ? await createLocalEmbedder(env.EMBEDDING_CACHE)
-        : undefined;
+    const memories = new MemoryService(
+      db,
+      env.CURSOR_SECRET,
+      undefined,
+      {},
+      env.AI_DAILY_REQUEST_LIMIT,
+    );
+    const models = new ModelRegistry(db, env, memories);
+    await models.refresh();
     return {
       env,
       db,
-      memories: new MemoryService(db, env.CURSOR_SECRET, embedder),
+      memories,
+      models,
       close: () => closeDatabase(db),
     };
   } catch (error) {

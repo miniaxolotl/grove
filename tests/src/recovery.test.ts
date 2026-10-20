@@ -63,6 +63,11 @@ test("isolated restore replays current deletions and revocations without changin
           source: {},
         },
       ]);
+      await db("embedding_profiles").insert({
+        id: "fixture",
+        model: "fixture",
+        dimensions: 384,
+      });
       for (const [id, accountId] of [
         [forgotten, a],
         [erasedAccountMemory, b],
@@ -81,7 +86,12 @@ test("isolated restore replays current deletions and revocations without changin
           profile: "fixture",
           embedding: JSON.stringify(Array(384).fill(0)),
         });
-        await db("jobs").insert({ accountId, memoryId: id, version: 1 });
+        await db("jobs").insert({
+          accountId,
+          memoryId: id,
+          version: 1,
+          target: id,
+        });
         await db("memory_operations").insert({
           accountId,
           id: randomUUID(),
@@ -108,13 +118,11 @@ test("isolated restore replays current deletions and revocations without changin
     await source("memories")
       .whereIn("id", [forgotten, erasedAccountMemory])
       .delete();
-    await source("accounts")
-      .where({ id: b })
-      .update({
-        status: "deleted",
-        deletedAt: source.fn.now(),
-        providerDeletedAt: source.fn.now(),
-      });
+    await source("accounts").where({ id: b }).update({
+      status: "deleted",
+      deletedAt: source.fn.now(),
+      providerDeletedAt: source.fn.now(),
+    });
     await source("accounts").where({ id: a }).update({ captureEnabled: false });
     await source("subject_authority").insert({
       subject: "recovery_b",

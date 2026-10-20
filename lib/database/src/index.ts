@@ -83,6 +83,7 @@ export class MemoryModel extends Model {
   projectId!: string | null;
   content!: string;
   kind!: "preference" | "fact" | "decision" | "solution" | "handoff";
+  autoKind!: boolean;
   status!: "active" | "archived";
   version!: number;
   source!: {
@@ -98,6 +99,7 @@ export class MemoryModel extends Model {
     verification?: string;
   };
   taskId!: string | null;
+  retentionDays!: number | null;
   expiresAt!: Date | null;
   purgeAt!: Date | null;
   createdAt!: Date;

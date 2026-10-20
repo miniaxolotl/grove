@@ -47,9 +47,13 @@ export function createAppSpec(env) {
   httpsOrigin(siteUrl);
   httpsOrigin(issuer);
   const sharedSecrets = Object.fromEntries(
-    ["CLERK_SECRET_KEY", "CLERK_WEBHOOK_SIGNING_SECRET", "CURSOR_SECRET"].map(
-      (key) => [key, required(env, key)],
-    ),
+    [
+      "CLERK_SECRET_KEY",
+      "CLERK_WEBHOOK_SIGNING_SECRET",
+      "CURSOR_SECRET",
+      "DEEPINFRA_API_KEY",
+      "MINIMAX_API_KEY",
+    ].map((key) => [key, required(env, key)]),
   );
   assert.match(
     sharedSecrets.CLERK_SECRET_KEY,
@@ -78,8 +82,9 @@ export function createAppSpec(env) {
     SITE_URL: siteUrl,
     CLERK_ISSUER: issuer,
     CLERK_PUBLISHABLE_KEY: publishableKey,
-    EMBEDDING_MODE: "local",
-    EMBEDDING_CACHE: "/app/data/models",
+    GROVE_EDITION: "cloud",
+    AI_DAILY_REQUEST_LIMIT: env.AI_DAILY_REQUEST_LIMIT ?? "2000",
+    AI_CONCURRENCY: env.AI_CONCURRENCY ?? "4",
   };
   for (const [component, databaseKey, role] of [
     [spec.services[0], "GROVE_API_DATABASE_URL", "grove_api"],

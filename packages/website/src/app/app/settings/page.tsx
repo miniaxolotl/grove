@@ -1,14 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useClerk } from "@clerk/nextjs";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { LoadError } from "@/components/dashboard/load-error";
 import { api, errorMessage } from "@/lib/dashboard-api";
+import { PageHeading } from "@/components/dashboard/ui/page-heading";
 
 type Settings = {
   captureEnabled: boolean;
   recallEnabled: boolean;
+  organizeEnabled: boolean;
+  summariesEnabled: boolean;
   accountId: string;
 };
 export default function SettingsPage() {
@@ -38,10 +42,12 @@ export default function SettingsPage() {
         {
           captureEnabled: settings.captureEnabled,
           recallEnabled: settings.recallEnabled,
+          organizeEnabled: settings.organizeEnabled,
+          summariesEnabled: settings.summariesEnabled,
         },
         "PATCH",
       );
-      setNotice("Memory preferences saved.");
+      setNotice("Preferences saved.");
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -50,15 +56,10 @@ export default function SettingsPage() {
   }
   return (
     <>
-      <div className="app-page-heading">
-        <div>
-          <p className="eyebrow">MAKE YOURSELF AT HOME</p>
-          <h1>
-            Your settings<span className="text-leaf">.</span>
-          </h1>
-          <p>Useful context, with you in control.</p>
-        </div>
-      </div>
+      <PageHeading
+        title="Settings"
+        description="Make Grove feel like your own."
+      />
       {error && !settings ? (
         <LoadError
           message={error}
@@ -81,7 +82,7 @@ export default function SettingsPage() {
         <section className="app-panel">
           <h2 className="flex items-center gap-3 font-editorial text-2xl">
             <SlidersHorizontal size={19} />
-            Memory preferences
+            Your preferences
           </h2>
           {settings ? (
             <form
@@ -102,7 +103,7 @@ export default function SettingsPage() {
                     })
                   }
                 />
-                Automatically recall bounded context at task start
+                Let connected agents find useful notes when starting work
               </label>
               <label className="check">
                 <input
@@ -115,12 +116,37 @@ export default function SettingsPage() {
                     })
                   }
                 />
-                Allow agent-requested capture of confirmed context
+                Let connected agents save confirmed details
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={settings.organizeEnabled ?? true}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      organizeEnabled: e.target.checked,
+                    })
+                  }
+                />
+                Help organize my notes and find related ideas
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={settings.summariesEnabled ?? true}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      summariesEnabled: e.target.checked,
+                    })
+                  }
+                />
+                Create notebook summaries and answers in Ask Grove
               </label>
               <p className="text-xs leading-6 text-muted">
-                Hooks never upload transcripts. Explicit saves remain available
-                when automatic capture is paused. Use GROVE_PRIVATE=1 or grove
-                pause locally to stop automatic memory activity.
+                You can always write and edit notes yourself. Connected agents
+                only use the notebooks and permissions you’ve approved.
               </p>
               <button className="app-button w-fit" disabled={busy}>
                 Save preferences
@@ -134,14 +160,24 @@ export default function SettingsPage() {
             </p>
           )}
         </section>
+        <section className="app-panel">
+          <h2 className="font-editorial text-2xl">Search and organization</h2>
+          <p className="mt-3 text-sm leading-7 text-muted">
+            See how Grove finds notes, connects ideas, and prepares summaries.
+          </p>
+          <Link
+            className="app-button secondary mt-5"
+            href="/app/settings/models"
+          >
+            Model settings
+          </Link>
+        </section>
         <ConnectedAccounts />
         <section className="app-panel">
-          <h2 className="font-editorial text-2xl">
-            Take your memories with you.
-          </h2>
+          <h2 className="font-editorial text-2xl">Take your notes with you</h2>
           <p className="mt-3 text-sm leading-7 text-muted">
-            Download an NDJSON export of your memories, archived items, and
-            revisions.
+            Download your notes, archived pages, and earlier versions in an
+            NDJSON file.
           </p>
           <a
             className="app-button secondary mt-5"
@@ -149,15 +185,15 @@ export default function SettingsPage() {
             download
           >
             <Download size={15} />
-            Export memories
+            Export notes
           </a>
         </section>
         <section className="app-panel">
           <h2 className="font-editorial text-2xl">Delete your Grove account</h2>
           <p className="mt-3 text-sm leading-7 text-muted">
-            Access is revoked immediately. Your memories, revisions, embeddings,
-            projects, connections, and Clerk identity are queued for permanent
-            removal. This cannot be undone.
+            Access ends immediately. Your notes, history, notebooks,
+            connections, and sign-in account will be permanently removed. This
+            cannot be undone.
           </p>
           <form
             className="app-form mt-5"
