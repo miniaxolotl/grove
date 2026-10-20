@@ -23,11 +23,11 @@ export function Brand({ light = false }: { light?: boolean }) {
       className="inline-flex shrink-0 items-center transition-opacity hover:opacity-70"
     >
       <Image
-        src={light ? "/brand/grove-logo-ivory.svg" : "/brand/grove-logo.svg"}
+        src={`/brand-kit/identity/${light ? "inverse" : "primary"}/logos/horizontal.svg`}
         alt=""
-        width={154}
-        height={28}
-        className="h-6 w-auto sm:h-7"
+        width={176}
+        height={44}
+        className="h-9 w-auto sm:h-11"
         unoptimized
       />
     </Link>

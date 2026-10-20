@@ -1,0 +1,66 @@
+[
+  {
+    "id": "01-forest",
+    "name": "Forest",
+    "background": "#faf9f3",
+    "symbol": "#284c38",
+    "wordmark": "#284c38",
+    "note": "The selected Sprout palette, forest on ivory."
+  },
+  {
+    "id": "02-canopy",
+    "name": "Canopy",
+    "background": "#284c38",
+    "symbol": "#faf9f3",
+    "wordmark": "#faf9f3",
+    "note": "The approved reversed identity on forest."
+  },
+  {
+    "id": "03-sage",
+    "name": "Sage",
+    "background": "#e1e8d7",
+    "symbol": "#426644",
+    "wordmark": "#233c2c",
+    "note": "Soft, organic green for everyday use."
+  },
+  {
+    "id": "04-ochre",
+    "name": "Ochre",
+    "background": "#efe4c9",
+    "symbol": "#80602f",
+    "wordmark": "#3e3827",
+    "note": "Warm woodland gold and deep brown."
+  },
+  {
+    "id": "05-slate",
+    "name": "Slate",
+    "background": "#2d4141",
+    "symbol": "#c5e0cc",
+    "wordmark": "#f7f7ee",
+    "note": "Cool forest slate, mint and ivory."
+  },
+  {
+    "id": "06-chalk",
+    "name": "Chalk",
+    "background": "#edf0ef",
+    "symbol": "#4d6970",
+    "wordmark": "#293e45",
+    "note": "A quiet blue-grey alternative for technical contexts."
+  },
+  {
+    "id": "07-black",
+    "name": "Black",
+    "background": "#ffffff",
+    "symbol": "#000000",
+    "wordmark": "#000000",
+    "note": "Single-colour reproduction on white or a light surface."
+  },
+  {
+    "id": "08-white",
+    "name": "White",
+    "background": "#000000",
+    "symbol": "#ffffff",
+    "wordmark": "#ffffff",
+    "note": "White artwork for dark surfaces; transparent logo exports."
+  }
+]

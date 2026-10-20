@@ -2,9 +2,11 @@
 
 Grove marketing and the Clerk-authenticated memory library, in private workspace package `website`.
 
-Primary URL: <https://usegrove.cloud>. A developer tool by Bramble Labs Inc.
-Grove and Burrow share warm ivory surfaces, DM Sans with Instrument Serif accents,
-terminal previews, and direct installation paths; Grove uses green product accents.
+Primary URL: <https://usegrove.cloud>. A private notebook and connected-agent memory
+tool by Bramble Labs Inc. Grove uses Space Grotesk and JetBrains Mono with forest,
+paper and pale green. [The design kit](design-kit/README.md) includes approved assets,
+tokens, licences and a visual specimen at `/brand-kit/index.html`. Notebook signup
+is `/sign-up`; agent setup is `/install`.
 Their product-family footer links to Bramble Labs, Fern, Burrow, and Grove.
 Vercel Web Analytics is included only in the public marketing layout.
 Vercel Speed Insights is mounted alongside it only when `VERCEL_ENV=production`.

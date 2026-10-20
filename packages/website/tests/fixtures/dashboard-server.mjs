@@ -43,7 +43,19 @@ const result = await build({
 const css = (await readdir(join(root, ".next/static/chunks"))).filter((file) =>
   file.endsWith(".css"),
 );
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Grove dashboard fixture</title>${css.map((file) => `<link rel="stylesheet" href="/_next/static/chunks/${file}">`).join("")}<style>@font-face{font-family:DM Sans;src:url('/fonts/sans.woff2')}@font-face{font-family:Instrument Serif;src:url('/fonts/serif.woff2')}@font-face{font-family:Inter;src:url('/fonts/inter.woff2');font-weight:100 900}body{--font-dm-sans:'DM Sans';--font-instrument-serif:'Instrument Serif';--font-inter:'Inter'}</style></head><body><div id="root"></div><script type="module" src="/fixture.js"></script></body></html>`;
+const fonts = [
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Space Grotesk",
+    file: `space-grotesk-${weight}.woff2`,
+    weight,
+  })),
+  ...[400, 500].map((weight) => ({
+    family: "JetBrains Mono",
+    file: `jetbrains-mono-${weight}.woff2`,
+    weight,
+  })),
+];
+const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Grove dashboard fixture</title>${css.map((file) => `<link rel="stylesheet" href="/_next/static/chunks/${file}">`).join("")}<style>${fonts.map(({ family, file, weight }) => `@font-face{font-family:'${family}';src:url('/fonts/${file}');font-weight:${weight}}`).join("")}body{--font-space-grotesk:'Space Grotesk';--font-jetbrains-mono:'JetBrains Mono'}</style></head><body><div id="root"></div><script type="module" src="/fixture.js"></script></body></html>`;
 createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   try {
@@ -64,19 +76,23 @@ createServer(async (request, response) => {
       return;
     }
     if (path.startsWith("/fonts/")) {
-      const file = path.endsWith("inter.woff2")
-        ? "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
-        : path.endsWith("sans.woff2")
-          ? "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2"
-          : "@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff2";
+      const file = fonts.find(({ file }) => path === `/fonts/${file}`)?.file;
+      if (!file) throw new Error();
       response
         .writeHead(200, { "Content-Type": "font/woff2" })
-        .end(await readFile(join(root, "node_modules", file)));
+        .end(await readFile(join(root, "public/brand-kit/fonts", file)));
       return;
     }
-    if (path.startsWith("/brand/") && path.endsWith(".svg")) {
+    if (
+      (path.startsWith("/brand/") || path.startsWith("/brand-kit/")) &&
+      path.endsWith(".svg")
+    ) {
       const file = resolve(root, "public", path.slice(1));
-      if (!file.startsWith(join(root, "public/brand/"))) throw new Error();
+      if (
+        !file.startsWith(join(root, "public/brand/")) &&
+        !file.startsWith(join(root, "public/brand-kit/"))
+      )
+        throw new Error();
       response
         .writeHead(200, { "Content-Type": "image/svg+xml" })
         .end(await readFile(file));

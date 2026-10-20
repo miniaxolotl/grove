@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import localFont from "next/font/local";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { AuthSetup } from "@/components/auth-setup";
 import "./dashboard.css";
@@ -9,17 +8,9 @@ import "./editor.css";
 import "./controls.css";
 import "./notebooks.css";
 
-const inter = localFont({
-  src: "../../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
-  variable: "--font-inter",
-  weight: "100 900",
-  display: "swap",
-  adjustFontFallback: "Arial",
-});
-
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Your notebook — Grove",
+  title: "Your notebook | Grove",
   robots: { index: false, follow: false },
 };
 export default async function AppLayout({
@@ -38,9 +29,5 @@ export default async function AppLayout({
     );
   const session = await auth();
   if (!session.userId) redirect("/sign-in");
-  return (
-    <div className={inter.variable}>
-      <DashboardShell key={session.userId}>{children}</DashboardShell>
-    </div>
-  );
+  return <DashboardShell key={session.userId}>{children}</DashboardShell>;
 }
