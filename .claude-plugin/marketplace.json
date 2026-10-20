@@ -1,6 +1,8 @@
 {
   "name": "grove",
-  "owner": { "name": "Bramble Labs Inc." },
+  "owner": {
+    "name": "Bramble Labs Inc."
+  },
   "metadata": {
     "description": "Private memory for everyday agent conversations and tasks."
   },
@@ -10,7 +12,7 @@
       "source": {
         "source": "npm",
         "package": "@miniaxolotl/grove-claude-plugin",
-        "version": "1.0.0"
+        "version": "1.1.0"
       },
       "description": "Private memory across your agents"
     }
