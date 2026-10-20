@@ -1,9 +1,10 @@
-import { readFile, mkdtemp, readdir, rm, mkdir } from "node:fs/promises";
+import { readFile, mkdtemp, rm, mkdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import process from "node:process";
+import { packArtifact } from "./release/pack.mjs";
 import {
   assertRepository,
   registryIntegrity,
@@ -47,15 +48,7 @@ try {
       );
     const integrity = registryIntegrity(`${pkg.name}@${pkg.version}`);
     const destination = join(directory, name);
-    await mkdir(destination);
-    execFileSync("pnpm", ["pack", "--pack-destination", destination], {
-      cwd: path,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const archive = join(
-      destination,
-      (await readdir(destination)).find((file) => file.endsWith(".tgz")),
-    );
+    const archive = packArtifact(path, destination);
     const digest = `sha512-${createHash("sha512")
       .update(await readFile(archive))
       .digest("base64")}`;

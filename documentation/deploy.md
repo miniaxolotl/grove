@@ -279,6 +279,10 @@ declare the GitHub repository used by npm provenance. After each upload, integri
 readback allows 60 attempts five seconds apart for asynchronous npm processing;
 conflicting bytes and provider errors fail immediately. Use
 `node scripts/publish.mjs --dry-run` to check the release without publishing.
+`scripts/release/pack.mjs` canonicalizes the resolved package manifest before final
+packing, because pnpm's asynchronous workspace-range resolution can reorder keys.
+Consumer artifact tests exercise these exact final tarballs. Retry still requires
+byte-for-byte registry integrity; metadata ordering never excuses a mismatch.
 
 The PostgreSQL migration release is tracked in
 [PR #4](https://github.com/miniaxolotl/grove/pull/4): CLI and OpenCode **0.5.0**,

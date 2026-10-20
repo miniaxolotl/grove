@@ -40,10 +40,18 @@ before(async () => {
   for (const name of packages) {
     const target = join(directory, name);
     await mkdir(target);
-    await exec("pnpm", ["pack", "--pack-destination", target], {
-      cwd: join(root, "packages", name),
-      maxBuffer: 1024 * 1024,
-    });
+    await exec(
+      process.execPath,
+      [
+        join(root, "scripts/release/pack.mjs"),
+        join(root, "packages", name),
+        target,
+      ],
+      {
+        cwd: root,
+        maxBuffer: 1024 * 1024,
+      },
+    );
     const file = (await readdir(target)).find((entry) =>
       entry.endsWith(".tgz"),
     )!;
@@ -314,17 +322,15 @@ test("a running packed bridge picks up first login and an explicit origin switch
   const other = createServer((request, response) => {
     assert.equal(request.headers.authorization, "Bearer other-origin-key");
     if (request.url === "/v1/recall") recalls++;
-    response
-      .setHeader("Content-Type", "application/json")
-      .end(
-        JSON.stringify({
-          success: true,
-          data:
-            request.url === "/v1/me"
-              ? { accountId, capabilities: ["memory:read"] }
-              : { items: [], mode: "profile", contentVersion: 0 },
-        }),
-      );
+    response.setHeader("Content-Type", "application/json").end(
+      JSON.stringify({
+        success: true,
+        data:
+          request.url === "/v1/me"
+            ? { accountId, capabilities: ["memory:read"] }
+            : { items: [], mode: "profile", contentVersion: 0 },
+      }),
+    );
   });
   await new Promise<void>((done) => other.listen(0, "127.0.0.1", done));
   const client = new Client({ name: "live-login-fixture", version: "1" });
