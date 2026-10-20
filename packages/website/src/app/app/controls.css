@@ -79,7 +79,7 @@
     0 2px 6px #25372009;
   transform-origin: var(--radix-select-content-transform-origin);
   animation: select-in 130ms ease-out;
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-space-grotesk), Arial, sans-serif;
   font-size: 12px;
   line-height: 1.5;
 }

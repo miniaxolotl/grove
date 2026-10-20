@@ -253,7 +253,7 @@ test("social metadata, crawler routes, and generated images are usable", async (
   );
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
-    "Grove — Good ideas. Room to grow.",
+    "Grove | Good ideas. Room to grow.",
   );
   const schema = JSON.parse(
     (await page.locator('script[type="application/ld+json"]').textContent())!,
@@ -273,7 +273,7 @@ test("social metadata, crawler routes, and generated images are usable", async (
   expect(image.headers()["content-type"]).toContain("image/png");
   const png = await image.body();
   expect(png.readUInt32BE(16)).toBe(1200);
-  expect(png.readUInt32BE(20)).toBe(630);
+  expect(png.readUInt32BE(20)).toBe(628);
   expect((await request.get("/apple-icon")).ok()).toBe(true);
   expect(await (await request.get("/sitemap.xml")).text()).toContain(
     `${siteURL}/install`,

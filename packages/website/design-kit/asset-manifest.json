@@ -1,0 +1,155 @@
+{
+  "collection": "04",
+  "assets": [
+    {
+      "file": "public/brand-kit/fonts/space-grotesk-400.woff2",
+      "source": "identity-library/grove/typography/fonts/space-grotesk-400.woff2",
+      "sha256": "7546c4440653f45704ded2b5a46b9991fcdbe6641b6b2f47ddc9452413b402b7"
+    },
+    {
+      "file": "public/brand-kit/fonts/space-grotesk-500.woff2",
+      "source": "identity-library/grove/typography/fonts/space-grotesk-500.woff2",
+      "sha256": "46417e73371b07f7dfb88ff703850495be5438193ee3eb03e7663acf4eec95ae"
+    },
+    {
+      "file": "public/brand-kit/fonts/space-grotesk-600.woff2",
+      "source": "identity-library/grove/typography/fonts/space-grotesk-600.woff2",
+      "sha256": "96670f6b434e574139181e2466a544784d3888f76c97a79ed3b55e1f1d87bbfc"
+    },
+    {
+      "file": "public/brand-kit/fonts/space-grotesk-700.woff2",
+      "source": "identity-library/grove/typography/fonts/space-grotesk-700.woff2",
+      "sha256": "4edd18ebe1e9a66eb62b360b21e0287e0c3b6313109f6ef1936b1141bd30320c"
+    },
+    {
+      "file": "public/brand-kit/fonts/jetbrains-mono-400.woff2",
+      "source": "identity-library/grove/typography/fonts/jetbrains-mono-400.woff2",
+      "sha256": "9e42661694104d8ee962e2a7c136c9149f60f79d3ee044a581b6a8d2163797a0"
+    },
+    {
+      "file": "public/brand-kit/fonts/jetbrains-mono-500.woff2",
+      "source": "identity-library/grove/typography/fonts/jetbrains-mono-500.woff2",
+      "sha256": "dfe1946b2c2f6499ac40f1917dd5d43307ff672ff9c4487605a9dd7758081ce3"
+    },
+    {
+      "file": "public/brand-kit/licenses/space-grotesk-OFL.txt",
+      "source": "identity-library/grove/typography/licenses/space-grotesk-OFL.txt",
+      "sha256": "c6dec685825f73b18c20926fddc65e8315642e12986f15db0699170940a09efc"
+    },
+    {
+      "file": "public/brand-kit/licenses/jetbrains-mono-OFL.txt",
+      "source": "identity-library/grove/typography/licenses/jetbrains-mono-OFL.txt",
+      "sha256": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d"
+    },
+    {
+      "file": "public/brand-kit/licenses/space-grotesk-LICENSE.txt",
+      "source": "identity-library/grove/01-forest/licenses/space-grotesk-LICENSE.txt",
+      "sha256": "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943"
+    },
+    {
+      "file": "public/brand-kit/licenses/dm-sans-LICENSE.txt",
+      "source": "identity-library/grove/01-forest/licenses/dm-sans-LICENSE.txt",
+      "sha256": "6fbd040a29c2037a765dfb9f2561e9965b5c95c6dcb5dce516089d63d5f17af7"
+    },
+    {
+      "file": "public/brand-kit/identity/primary/logos/horizontal.svg",
+      "source": "identity-library/grove/01-forest/logos/horizontal.svg",
+      "sha256": "3a151e6ad3d0da5c3099af0f35b6e954336a4bc6b9522ac4970cd75d82911c3a"
+    },
+    {
+      "file": "public/brand-kit/identity/primary/logos/domain.svg",
+      "source": "identity-library/grove/01-forest/logos/domain.svg",
+      "sha256": "58bfdebbf6d082f8c18f51f243045a50d46cc2bea97f37dc6f2c15e403b97623"
+    },
+    {
+      "file": "public/brand-kit/identity/primary/wordmarks/wordmark.svg",
+      "source": "identity-library/grove/01-forest/wordmarks/wordmark.svg",
+      "sha256": "980591138413fd9bf040bf4c6f66d98b7ae3339886464aca86c0d08bbd29d786"
+    },
+    {
+      "file": "public/brand-kit/identity/primary/symbols/symbol.svg",
+      "source": "identity-library/grove/01-forest/symbols/symbol.svg",
+      "sha256": "5f7108f0ba8ab46432fbad81d3ce2a434ab9e12ac22eea0d2a02412bd502f6fd"
+    },
+    {
+      "file": "public/brand-kit/identity/inverse/logos/horizontal.svg",
+      "source": "identity-library/grove/08-white/logos/horizontal.svg",
+      "sha256": "598a5fe98e3888c4c1f992773ecb6496c18cf490670b64e5894d92de15168457"
+    },
+    {
+      "file": "public/brand-kit/identity/inverse/logos/domain.svg",
+      "source": "identity-library/grove/08-white/logos/domain.svg",
+      "sha256": "6964a4b50f5ad12dd67a4f5581e21ad8329e0d9c3ecc3bf0c46c6a67d868056e"
+    },
+    {
+      "file": "public/brand-kit/identity/inverse/wordmarks/wordmark.svg",
+      "source": "identity-library/grove/08-white/wordmarks/wordmark.svg",
+      "sha256": "4fb64461331e9d98ed3ac6a4949715dcb95c312015d5dab3d7ca5eea6ab594e9"
+    },
+    {
+      "file": "public/brand-kit/identity/inverse/symbols/symbol.svg",
+      "source": "identity-library/grove/08-white/symbols/symbol.svg",
+      "sha256": "23143295d475f0129437f2e0c229f8bcec630c672fe5b736cf99899181467faa"
+    },
+    {
+      "file": "public/brand-kit/icons/favicon.svg",
+      "source": "identity-library/grove/01-forest/icons/favicon.svg",
+      "sha256": "59a29715cfebc5db2202737e62c286752de29e6e740fc20c678e5bb15751c9d6"
+    },
+    {
+      "file": "public/brand-kit/icons/favicon.ico",
+      "source": "identity-library/grove/01-forest/icons/favicon.ico",
+      "sha256": "8a079d887fb0c18d8a5918eece56f0d9cf14dc627ba05d5b1e37c697185e22fe"
+    },
+    {
+      "file": "public/brand-kit/icons/apple-touch-icon-180.png",
+      "source": "identity-library/grove/01-forest/icons/apple-touch-icon-180.png",
+      "sha256": "7095e8c0284b3dbff81964388889e8beffb2afa53a80c977c74c9a7d2a047bd9"
+    },
+    {
+      "file": "public/brand-kit/icons/icon-192.png",
+      "source": "identity-library/grove/01-forest/icons/icon-192.png",
+      "sha256": "cf5ffdb6c5afaac7695a508f4f82913fd80d7bbd39df1c1c58c0f3a300789af2"
+    },
+    {
+      "file": "public/brand-kit/icons/icon-512.png",
+      "source": "identity-library/grove/01-forest/icons/icon-512.png",
+      "sha256": "cf98b8250619ad8aa67cb83f81a3cfdfa0bff733509b55437c99b3f1d5fe58ee"
+    },
+    {
+      "file": "public/brand-kit/palettes.json",
+      "source": "identity-library/grove/palettes.json",
+      "sha256": "acbd74afc897b04aeacfb4426b3bf7aa1e9a876a161c83bbab3f526dc2224c19"
+    },
+    {
+      "file": "public/brand-kit/typography.json",
+      "source": "identity-library/grove/typography/tokens.json",
+      "sha256": "468c3f499e5e24cb6834a8221d4b5b98a71e36d67489802a4775cc6b7c56f5ae"
+    },
+    {
+      "file": "src/app/icon.svg",
+      "source": "identity-library/grove/01-forest/icons/favicon.svg",
+      "sha256": "59a29715cfebc5db2202737e62c286752de29e6e740fc20c678e5bb15751c9d6"
+    },
+    {
+      "file": "src/app/favicon.ico",
+      "source": "identity-library/grove/01-forest/icons/favicon.ico",
+      "sha256": "8a079d887fb0c18d8a5918eece56f0d9cf14dc627ba05d5b1e37c697185e22fe"
+    },
+    {
+      "file": "public/brand-kit/images/social.png",
+      "source": "grove/social/01-keep-the-context-landscape-1200x628.png",
+      "sha256": "459f2ca1e025aabdb57e48f6eab991358db42672216644831d163acb1fc157c2"
+    },
+    {
+      "file": "public/brand-kit/images/banner.png",
+      "source": "grove/display-banners/grove-display-970x250.png",
+      "sha256": "b0fc09e5d2db3299dfa458a8a3e06d32de350a952a69efd8b0d6a842dd6eed05"
+    },
+    {
+      "file": "design-kit/grove.pdf",
+      "source": "guidelines/grove.pdf",
+      "sha256": "35bdcccbc24cdc1f3238f2290fe046fa7a9e224091c236b4862aafaa465ccf0a"
+    }
+  ]
+}
