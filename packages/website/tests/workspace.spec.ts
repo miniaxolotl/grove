@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
+import { chooseOption } from "./fixtures/select";
 import {
   listSchema,
   projectSchema,
@@ -14,6 +15,8 @@ const project = {
   id: "00000000-0000-4000-a000-000000000010",
   name: "Website redesign",
   identity: "git:github.com/example/website",
+  parentId: null as string | null,
+  version: 1,
 };
 const note: Memory = {
   id: "00000000-0000-4000-a000-000000000011",
@@ -134,13 +137,15 @@ test("search debounces automatically and source, date, and lifetime refine all r
   ).toHaveLength(count);
   await expect(page.locator(".memory-open")).toHaveCount(1);
   await page.getByRole("button", { name: /^Filters/ }).click();
-  await page
-    .getByRole("combobox", { name: "Source", exact: true })
-    .selectOption("website");
-  await page.getByLabel("Last updated").selectOption("7");
-  await page
-    .getByRole("combobox", { name: "Keep for", exact: true })
-    .selectOption("ephemeral");
+  await chooseOption(
+    page.getByRole("combobox", { name: "Source", exact: true }),
+    "website",
+  );
+  await chooseOption(page.getByLabel("Last updated"), "7");
+  await chooseOption(
+    page.getByRole("combobox", { name: "Keep for", exact: true }),
+    "ephemeral",
+  );
   await expect(page.locator(".memory-open")).toHaveCount(1);
   expect(
     state.calls.filter((call) => call.path === "/memories/search").at(-1)?.body,
@@ -203,7 +208,9 @@ test("personal prompts save explicit preferences and the editor exposes independ
       "# Communication\n\nStart with a short answer, then show an example.",
     );
   await dialog.getByText("Note options", { exact: true }).click();
-  await expect(dialog.getByLabel("Keep this note")).toHaveValue("permanent");
+  await expect(dialog.getByLabel("Keep this note")).toHaveText(
+    "Until I remove it",
+  );
   await expect(
     dialog.getByLabel("Let Grove choose the note type"),
   ).not.toBeChecked();
@@ -223,14 +230,15 @@ test("personal prompts save explicit preferences and the editor exposes independ
   await expect(
     page.locator(".memory-open").filter({ hasText: "Communication" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "New note", exact: true }).click();
-  await dialog
+  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await page
     .getByLabel("What should stay with you?")
     .fill("Temporary review context");
-  await dialog.getByText("Note options", { exact: true }).click();
-  await dialog.getByLabel("Keep this note").selectOption("ephemeral");
-  await dialog.getByLabel("Expires after").selectOption("7");
-  await dialog.getByRole("button", { name: "Save note", exact: true }).click();
+  await page.getByRole("button", { name: "Note properties" }).click();
+  await page.getByText("Note options", { exact: true }).click();
+  await chooseOption(page.getByLabel("Keep this note"), "ephemeral");
+  await chooseOption(page.getByLabel("Expires after"), "7");
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
   expect(
     state.calls.filter((call) => call.path === "/memories").at(-1)?.body
       .retentionDays,
@@ -271,10 +279,29 @@ async function fixture(page: Page, initial = [note, handoff]) {
     if (path === "/projects") {
       if (request.method() === "POST") {
         const input = projectSchema.parse(body);
-        const created = { id: crypto.randomUUID(), ...input };
+        const created = {
+          id: crypto.randomUUID(),
+          ...input,
+          parentId: input.parentId ?? null,
+          version: 1,
+        };
         projects.push(created);
         data = created;
       } else data = projects;
+    } else if (path.startsWith("/projects/")) {
+      const input = projectSchema.parse(body);
+      const current = projects.find((p) => p.id === path.split("/")[2]);
+      if (current) {
+        if (
+          input.expectedVersion !== undefined &&
+          input.expectedVersion !== current.version
+        )
+          return conflict();
+        current.name = input.name;
+        if (input.parentId !== undefined) current.parentId = input.parentId;
+        current.version++;
+      }
+      data = current;
     } else if (path === "/memories/search") {
       const input = listSchema.parse(body);
       const matching = [...records.values()].filter(
@@ -493,14 +520,16 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
         .analyze()
     ).violations,
   ).toEqual([]);
-  await page
-    .getByRole("combobox", { name: "Graph relationships" })
-    .selectOption("duplicate");
+  await chooseOption(
+    page.getByRole("combobox", { name: "Graph relationships" }),
+    "duplicate",
+  );
   await expect(page.locator(".react-flow__node")).toHaveCount(0);
   await expect(page.getByText("No matching connections here.")).toBeVisible();
-  await page
-    .getByRole("combobox", { name: "Graph relationships" })
-    .selectOption("conflicting");
+  await chooseOption(
+    page.getByRole("combobox", { name: "Graph relationships" }),
+    "conflicting",
+  );
   await expect(page.locator(".react-flow__edge")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -546,9 +575,10 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
     });
   });
   await page.goto(`${base}/app/ask`);
-  await page
-    .getByRole("combobox", { name: "Look in notebook" })
-    .selectOption(project.id);
+  await chooseOption(
+    page.getByRole("combobox", { name: "Look in notebook" }),
+    project.id,
+  );
   await page.getByLabel("Include personal notes").uncheck();
   const question = page.getByLabel("Ask about your notes");
   await question.fill("How should I give feedback?");
@@ -619,16 +649,19 @@ test("a journal entry is an editable personal note, with options kept secondary"
 }, info) => {
   const state = await fixture(page, []);
   await page.goto(`${base}/app/journal`);
-  await page.getByRole("button", { name: "New entry", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("What should stay with you?")).toHaveValue(
+  await page.getByRole("link", { name: "New entry", exact: true }).click();
+  const editor = page.locator(".note-editor-full");
+  await editor.getByRole("button", { name: "Markdown", exact: true }).click();
+  await expect(editor.getByLabel("What should stay with you?")).toHaveText(
     /^# .+/,
   );
-  await expect(dialog.getByLabel("Keep this note")).not.toBeVisible();
-  await dialog
+  await expect(editor.getByLabel("Keep this note")).not.toBeVisible();
+  await editor
     .getByLabel("What should stay with you?")
     .fill("# A quiet afternoon\n\nA long walk and a new idea.");
-  await dialog.getByRole("button", { name: "Save note" }).click();
+  await editor.getByRole("button", { name: "Save note" }).click();
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  await page.getByRole("button", { name: "Back to notes" }).click();
   await expect(page.locator(".journal-entry")).toContainText(
     "A quiet afternoon",
   );
@@ -664,7 +697,7 @@ test("a changed note preserves the draft for review and restoring history create
 }, info) => {
   const state = await fixture(page, [note]);
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Edit note", exact: true }).click();
+  await page.getByRole("link", { name: "Edit note", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("# My revised note\n\nA reviewed replacement.");
@@ -677,13 +710,15 @@ test("a changed note preserves the draft for review and restoring history create
   await expect(
     page.getByRole("region", { name: "Review newer version" }),
   ).toContainText("An agent corrected this");
-  await expect(page.getByLabel("What should stay with you?")).toHaveValue(
+  await expect(page.getByLabel("What should stay with you?")).toHaveText(
     /A reviewed replacement/,
   );
   await page
     .getByRole("button", { name: "Keep my draft to replace it" })
     .click();
   await page.getByRole("button", { name: "Save note" }).click();
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  await page.goto(`${base}/app/memories/${note.id}`);
   await expect(page.locator(".reader-copy")).toContainText(
     "A reviewed replacement",
   );
@@ -736,11 +771,20 @@ test("reading and Markdown editing keep agent references behind details, with fo
   await editor.fill("A useful note");
   await editor.selectText();
   await dialog.getByRole("button", { name: "Bold", exact: true }).click();
-  await expect(editor).toHaveValue("**A useful note**");
+  await expect(editor).toHaveText("**A useful note**");
   await editor.press("Control+z");
-  await expect(editor).toHaveValue("A useful note");
-  await editor.press("Control+Shift+z");
-  await expect(editor).toHaveValue("**A useful note**");
+  await expect(editor).toHaveText("A useful note");
+  await editor.press("Control+Shift+Z");
+  await expect(editor).toHaveText("**A useful note**");
+  await dialog.getByRole("button", { name: "Expand editor" }).click();
+  await expect(dialog.locator(".note-editor-full")).toBeVisible();
+  await editor.press("Control+z");
+  await expect(editor).toHaveText("A useful note");
+  await dialog
+    .getByRole("button", { name: "Return to compact editor" })
+    .click();
+  await editor.press("Control+Shift+Z");
+  await expect(editor).toHaveText("**A useful note**");
   await editor.fill(
     `${note.content}\n\n<script>alert('test')</script>\n\n[Unsafe](javascript:alert(1))\n\n![External image](https://images.example/pixel)`,
   );
@@ -776,6 +820,151 @@ test("reading and Markdown editing keep agent references behind details, with fo
   ).toBeVisible();
 });
 
+test("full-page writing keeps formatting, outline, focus and repeated keyboard saves in one document", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, [note]);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(`${base}/app/memories/${note.id}/edit`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await expect(page.locator(".cm-note-h1")).toContainText("Review preferences");
+  const content =
+    "# A calmer page\n\n## Next steps\n\nA thought worth keeping.\n\n## A small idea\n\nTake a walk.";
+  await editor.fill(content);
+  await page.getByRole("button", { name: "Markdown", exact: true }).click();
+  await expect(editor).toContainText("## Next steps");
+  await page.getByRole("button", { name: "Write", exact: true }).click();
+  await page.getByRole("button", { name: "Note outline", exact: true }).click();
+  await page
+    .getByRole("complementary", { name: "Note outline" })
+    .getByRole("button", { name: "Next steps" })
+    .click();
+  await expect(editor).toBeFocused();
+  await page.getByRole("button", { name: "Focus mode", exact: true }).click();
+  await expect(page.locator(".app-sidebar")).not.toBeVisible();
+  await editor.press("Escape");
+  await expect(page.locator(".app-sidebar")).toBeVisible();
+  await editor.press("Control+s");
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  expect(state.records.get(note.id)?.content).toBe(content);
+  expect(state.records.get(note.id)?.source).toEqual(note.source);
+  await editor.fill(`${content}\n\nBring a notebook.\n\n`);
+  await editor.press("Control+s");
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  expect(state.records.get(note.id)?.version).toBe(3);
+  expect(state.records.get(note.id)?.content).toBe(
+    `${content}\n\nBring a notebook.`,
+  );
+  expect(
+    state.calls
+      .filter((call) => call.path === "/memories")
+      .map((call) => call.body.expectedVersion),
+  ).toEqual([1, 2]);
+  await page.screenshot({
+    path: info.outputPath("full-page-editor-desktop.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 320, height: 900 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.screenshot({
+    path: info.outputPath("full-page-editor-mobile.png"),
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+
+test("full-page drafts survive app navigation and still detect changes to their original version", async ({
+  page,
+}) => {
+  const state = await fixture(page, [note]);
+  await page.goto(`${base}/app/memories/${note.id}/edit`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("My unfinished thought.");
+  await page
+    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("link", { name: "Notes", exact: true })
+    .click();
+  state.records.set(note.id, {
+    ...note,
+    version: 2,
+    content: "An agent’s newer copy.",
+  });
+  await page.locator(".memory-open").first().click();
+  await page.getByRole("link", { name: "Open note page" }).click();
+  await page.getByRole("link", { name: "Edit note", exact: true }).click();
+  await expect(editor).toHaveText("My unfinished thought.");
+  await editor.press("Control+s");
+  await expect(
+    page.getByRole("region", { name: "Review newer version" }),
+  ).toContainText("An agent’s newer copy.");
+  expect(
+    state.calls.filter((call) => call.path === "/memories").at(-1)?.body
+      .expectedVersion,
+  ).toBe(1);
+  await page.getByRole("button", { name: "Use saved version" }).click();
+  await expect(editor).toHaveText("An agent’s newer copy.");
+  await expect(
+    page.getByRole("button", { name: "Save note", exact: true }),
+  ).toBeDisabled();
+});
+
+test("returning to a draft during its first save follows that save without duplicating the note", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = false;
+  await page.route("**/api/grove/memories", async (route) => {
+    started = true;
+    await held;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/notes/new`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("A thought saved once.");
+  await editor.press("Control+s");
+  await expect.poll(() => started).toBe(true);
+  await page
+    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("link", { name: "Notes", exact: true })
+    .click();
+  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await expect(page.locator(".note-save-status")).toHaveText("Saving…");
+  await expect(editor).not.toBeEditable();
+  release();
+  await expect(page).toHaveURL(/\/memories\/[^/]+\/edit$/);
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  await editor.fill("A thought saved once, then refined.");
+  await editor.press("Control+s");
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  expect(state.records.size).toBe(1);
+  expect([...state.records.values()][0]).toMatchObject({
+    content: "A thought saved once, then refined.",
+    version: 2,
+  });
+});
+
 test("combined project, kind, topic and query filters stay in POST bodies and clear independently", async ({
   page,
 }) => {
@@ -783,12 +972,14 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
   await page.goto(`${base}/app`);
   await expect(page.locator(".memory-open")).toHaveCount(2);
   await page.getByRole("button", { name: "Filters", exact: true }).click();
-  await page
-    .getByRole("combobox", { name: "Notebook", exact: true })
-    .selectOption(project.id);
-  await page
-    .getByRole("combobox", { name: "Note type" })
-    .selectOption("handoff");
+  await chooseOption(
+    page.getByRole("combobox", { name: "Notebook", exact: true }),
+    project.id,
+  );
+  await chooseOption(
+    page.getByRole("combobox", { name: "Note type" }),
+    "handoff",
+  );
   await page.getByLabel("Topic tag").fill("frontend");
   await page.getByRole("button", { name: "Apply tag" }).click();
   await page.getByLabel("Search notes").fill("keyboard access");
@@ -814,9 +1005,10 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
-  await page
-    .getByRole("combobox", { name: "Notebook", exact: true })
-    .selectOption("personal");
+  await chooseOption(
+    page.getByRole("combobox", { name: "Notebook", exact: true }),
+    "personal",
+  );
   await expect(page.locator(".memory-open")).toHaveCount(1);
   await expect(page.locator(".memory-open")).toContainText(
     "Review preferences",
@@ -853,9 +1045,10 @@ test("pagination discards an old scope response after filters change", async ({
   await page.getByRole("button", { name: "Load more", exact: true }).click();
   await started.promise;
   await page.getByRole("button", { name: "Filters", exact: true }).click();
-  await page
-    .getByRole("combobox", { name: "Notebook", exact: true })
-    .selectOption(project.id);
+  await chooseOption(
+    page.getByRole("combobox", { name: "Notebook", exact: true }),
+    project.id,
+  );
   await expect(page.locator(".memory-open")).toHaveCount(1);
   gate.resolve();
   await expect(page.locator(".memory-open")).toContainText("Launch checklist");
@@ -985,15 +1178,16 @@ test("save retries retain their operation and draft, and dialogs stay open while
     }
     await route.fallback();
   });
-  await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "New note", exact: true }).click();
+  await page.goto(`${base}/app/profile`);
+  await page.getByRole("button", { name: /^Communication/ }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("# Release handoff\n\nReady for review.");
   await page.getByText("Note options", { exact: true }).click();
-  await page
-    .getByRole("combobox", { name: "Note type", exact: true })
-    .selectOption("handoff");
+  await chooseOption(
+    page.getByRole("combobox", { name: "Note type", exact: true }),
+    "handoff",
+  );
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Close dialog" }),
@@ -1021,10 +1215,15 @@ test("named workspaces browse scoped memories and handoffs without manual agent 
     .getByRole("button", { name: "Save notebook", exact: true })
     .click();
   await expect(
-    page.getByRole("link", { name: /Research notes/ }),
+    page
+      .locator(".notebook-manager")
+      .getByRole("link", { name: /Research notes/ }),
   ).toBeVisible();
   expect(state.projects.at(-1)?.identity).toMatch(/^workspace:/);
-  await page.getByRole("link", { name: /Website redesign/ }).click();
+  await page
+    .locator(".notebook-manager")
+    .getByRole("link", { name: /Website redesign/ })
+    .click();
   await expect(
     page.getByRole("heading", { name: project.name, exact: true }),
   ).toBeVisible();
@@ -1065,6 +1264,249 @@ test("named workspaces browse scoped memories and handoffs without manual agent 
       path: info.outputPath(`handoffs-${width}.png`),
       fullPage: true,
     });
+  }
+});
+
+test("nested notebooks share paths, create and move controls, and preserve note scope", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app/projects`);
+  const manager = page.getByRole("region", { name: "Notebook organization" });
+  await manager
+    .getByRole("button", { name: `Add sub-notebook to ${project.name}` })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("combobox", { name: "Parent notebook" }),
+  ).toHaveText(project.name);
+  await dialog.getByLabel("Notebook name").fill("Research");
+  await dialog.getByRole("button", { name: "Save notebook" }).click();
+  await expect(dialog).toHaveCount(0);
+  const child = state.projects.find((p) => p.name === "Research")!;
+  expect(child.parentId).toBe(project.id);
+  await manager
+    .getByRole("button", { name: "Add sub-notebook to Research" })
+    .click();
+  await dialog.getByLabel("Notebook name").fill("Interviews");
+  await expect(
+    dialog.getByRole("combobox", { name: "Parent notebook" }),
+  ).toHaveText(`${project.name} / Research`);
+  await dialog.getByRole("button", { name: "Save notebook" }).click();
+  await expect(dialog).toHaveCount(0);
+  await manager
+    .getByRole("button", { name: `Collapse ${project.name}` })
+    .click();
+  await expect(
+    manager.getByRole("link", { name: "Research", exact: true }),
+  ).toBeHidden();
+  await manager
+    .getByRole("button", { name: `Expand ${project.name}` })
+    .press("Enter");
+  await expect(
+    manager.getByRole("link", { name: "Interviews", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("nested-notebooks-desktop.png"),
+    fullPage: true,
+  });
+
+  await manager
+    .getByRole("button", { name: "Move Research", exact: true })
+    .click();
+  await dialog.getByRole("combobox", { name: "Parent notebook" }).click();
+  await expect(
+    page.getByRole("option").filter({ hasText: "Research" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("option").filter({ hasText: "Interviews" }),
+  ).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("combobox", { name: "Parent notebook" }),
+  ).toBeFocused();
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "Parent notebook" }),
+    "",
+  );
+  await dialog.getByRole("button", { name: "Save notebook" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(child.parentId).toBeNull();
+  expect(state.projects.find((p) => p.name === "Interviews")?.parentId).toBe(
+    child.id,
+  );
+  await page.reload();
+  await manager.getByRole("link", { name: "Research", exact: true }).click();
+  await expect(
+    page.getByRole("navigation", { name: "Notebook path" }),
+  ).toHaveText("NotebooksResearch");
+  await expect(
+    page.getByRole("region", { name: "Sub-notebooks" }),
+  ).toContainText("Interviews");
+  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "What should stay with you?" })
+    .fill("# Interview notes\n\nLeave room for a surprising answer.");
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  expect(
+    [...state.records.values()].find((p) =>
+      p.content.startsWith("# Interview notes"),
+    )?.projectId,
+  ).toBe(child.id);
+  await page
+    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("link", { name: "Notebooks", exact: true })
+    .click();
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect(
+    manager.getByRole("link", { name: "Interviews", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.screenshot({
+    path: info.outputPath("nested-notebooks-mobile.png"),
+    fullPage: true,
+  });
+});
+
+test("shared dropdowns support keyboard selection, typeahead, modal dismissal and narrow touch layouts", async ({
+  page,
+}, info) => {
+  await fixture(page);
+  await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  const source = page.getByRole("combobox", { name: "Source", exact: true });
+  await source.focus();
+  await source.press("Enter");
+  await page.keyboard.press("End");
+  await page.keyboard.press("Home");
+  await expect(
+    page.getByRole("option", { name: "Any source", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("i");
+  await expect(
+    page.getByRole("option", { name: "Import", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(source).toHaveText("Import");
+  await expect(source).toBeFocused();
+  await chooseOption(source, "website");
+  await source.press("Enter");
+  await expect(page.getByRole("option", { selected: true })).toHaveAttribute(
+    "data-value",
+    "website",
+  );
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.screenshot({
+    path: info.outputPath("dropdown-desktop.png"),
+    fullPage: true,
+  });
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("link", { name: "Notebooks", exact: true })
+    .click();
+  await page.getByRole("button", { name: "New notebook", exact: true }).click();
+  await page.setViewportSize({ width: 320, height: 900 });
+  const dialog = page.getByRole("dialog");
+  const parent = dialog.getByRole("combobox", { name: "Parent notebook" });
+  await parent.click();
+  await page.keyboard.press("End");
+  await expect(
+    page.getByRole("option", { name: project.name, exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(parent).toHaveText(project.name);
+  await parent.click();
+  await page.screenshot({
+    path: info.outputPath("dropdown-mobile-dialog.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(parent).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+});
+
+test("long notebook menus scroll on touch without snapping back to the selected item", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    reducedMotion: "reduce",
+  });
+  try {
+    const page = await context.newPage();
+    const state = await fixture(page);
+    state.projects.push(
+      ...Array.from({ length: 20 }, (_, n) => ({
+        ...project,
+        id: crypto.randomUUID(),
+        name: `Notebook ${String(n).padStart(2, "0")}`,
+        identity: `workspace:${n}`,
+      })),
+    );
+    await page.goto(`${base}/app/notes/new?notebook=${project.id}`);
+    await page.getByRole("button", { name: "Note properties" }).tap();
+    const picker = page.getByRole("combobox", {
+      name: "Notebook",
+      exact: true,
+    });
+    await picker.tap();
+    await expect(
+      page.getByRole("option", { name: project.name, exact: true }),
+    ).toBeFocused();
+    // Reaching the first item used to mount a scroll control that refocused the
+    // selected last item, making the top choices impossible to tap.
+    await page
+      .getByRole("option", { name: "Personal", exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.getByRole("option", { name: "Personal", exact: true }).tap();
+    await expect(picker).toHaveText("Personal");
+    await expect(picker).toBeFocused();
+    await picker.tap();
+    await page
+      .getByRole("option", { name: project.name, exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.getByRole("option", { name: project.name, exact: true }).tap();
+    await expect(picker).toHaveText(project.name);
+    await expect(picker).toBeFocused();
+    await expect(page.locator("[inert]")).toHaveCount(0);
+  } finally {
+    await context.close();
   }
 });
 
@@ -1130,9 +1572,10 @@ test("touch swipe only reveals actions, cancellation stays quiet, and keyboard a
     .focus();
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Move", exact: true }).click();
-  await page
-    .getByRole("combobox", { name: "Destination", exact: true })
-    .selectOption(project.id);
+  await chooseOption(
+    page.getByRole("combobox", { name: "Destination", exact: true }),
+    project.id,
+  );
   await page.getByRole("button", { name: "Move here" }).click();
   await expect(page.locator(".workspace-notice")).toContainText("1 note moved");
 });

@@ -36,7 +36,7 @@ export async function api<T>(
     );
   return result.data;
 }
-export type Project = { id: string; name: string; identity: string };
+export type { Notebook as Project } from "@lib/shared/contracts";
 export const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message

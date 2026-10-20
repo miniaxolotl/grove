@@ -115,10 +115,20 @@ export const forgetSchema = z
       .max(50),
   })
   .strict();
+export type Notebook = {
+  id: string;
+  name: string;
+  identity: string;
+  // Optional while older clients/servers roll forward to nested notebooks.
+  parentId?: string | null;
+  version?: number;
+};
 export const projectSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     identity: z.string().trim().min(1).max(500),
+    parentId: uuidSchema.nullable().optional(),
+    expectedVersion: z.number().int().positive().optional(),
   })
   .strict();
 export const grantSchema = z

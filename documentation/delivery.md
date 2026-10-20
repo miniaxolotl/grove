@@ -1,5 +1,34 @@
 # Delivery evidence
 
+## Full-page writing and nested notebooks (20 October 2026 UTC)
+
+New notes and Journal entries open a full-page CodeMirror writing space with live
+Markdown, source/preview modes, shared formatting tools, undo/redo, outline,
+properties and focus mode. Explicit Save and keyboard saving keep the document
+open. Account-scoped drafts retain their original revision, retry operation and
+in-flight save during navigation; concurrent changes still require review.
+
+Notebooks have persistent parent relationships, expandable navigation, path-aware
+pickers/breadcrumbs, and shared create/rename/move controls. Same-account foreign
+keys and serialized mutations prevent invalid parents and concurrent cycles.
+Notebook revisions fence stale changes. Hierarchy does not grant access to child
+notebooks or disclose hidden ancestors. Notes retain their history and lifetimes
+when notebooks move. Apply migration `20261020_008_nested_notebooks` before API
+rollout as documented in [deploy.md](deploy.md).
+
+Shared Select, NotebookSelect, NotebookTree, NotebookBreadcrumbs, NotebookDialog
+and NotebooksProvider components serve the editor, library, organization and
+settings. Dropdowns support typeahead, arrows, Home/End, touch scrolling, checked
+choices, modal focus restoration and reduced motion.
+
+All 44 database/provider/auth/recovery tests, five packed artifact tests, and 49
+browser/accessibility scenarios pass. Root and website lint/types/build checks
+pass. Visual review covers 320–1920px writing layouts, long-note scrolling with visible Save,
+desktop and touch notebook organization, and long menus inside/outside dialogs.
+Thirteen screenshots and geometry checks report no application errors, horizontal
+overflow or WCAG A/AA violations. Menus animate position/scale while keeping text
+fully opaque, so their contrast remains readable throughout the transition.
+
 ## Consumer-facing Grove website (20 October 2026 UTC)
 
 The public site leads with “Good ideas. Room to grow.” and a private notebook

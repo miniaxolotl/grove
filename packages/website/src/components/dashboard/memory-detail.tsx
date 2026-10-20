@@ -215,14 +215,23 @@ export function MemoryDetail({
           </>
         )}
         <div className="reader-toolbar">
-          <button
-            className="app-button"
-            disabled={locked}
-            onClick={() => setEditing(true)}
-          >
-            <Pencil size={15} />
-            Edit note
-          </button>
+          {fullPage ? (
+            <Link
+              className="app-button"
+              href={`/app/memories/${memory.id}/edit`}
+            >
+              <Pencil size={15} /> Edit note
+            </Link>
+          ) : (
+            <button
+              className="app-button"
+              disabled={locked}
+              onClick={() => setEditing(true)}
+            >
+              <Pencil size={15} />
+              Edit note
+            </button>
+          )}
           <button
             className="app-button secondary"
             disabled={locked}

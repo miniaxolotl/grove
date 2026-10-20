@@ -3,6 +3,7 @@ import { hardening, identityState } from "./hardening.ts";
 import { modelProviders } from "./model-migration.ts";
 import { memoryLifetimes } from "./lifetime-migration.ts";
 import { backgroundServices } from "./background-migration.ts";
+import { nestedNotebooks } from "./notebook-migration.ts";
 
 export const migrations = [
   {
@@ -215,6 +216,7 @@ export const migrations = [
   modelProviders,
   memoryLifetimes,
   backgroundServices,
+  nestedNotebooks,
 ];
 
 export const migrationSource: Knex.MigrationSource<

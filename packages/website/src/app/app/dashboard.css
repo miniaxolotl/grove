@@ -460,7 +460,8 @@
   display: grid;
   gap: 2px;
 }
-.library-places > :is(button, a) {
+.library-places > :is(button, a),
+.library-places [data-destination] {
   min-width: 0;
   max-width: 100%;
   display: flex;
@@ -478,21 +479,24 @@
     box-shadow 180ms ease,
     transform 180ms ease;
 }
-.library-places > :is(button, a) span {
+.library-places > :is(button, a) span,
+.library-places [data-destination] span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.library-places > :is(button, a) svg {
+.library-places > :is(button, a) svg,
+.library-places [data-destination] svg {
   flex-shrink: 0;
 }
+.library-places [data-destination]:hover,
 .library-places > :is(button, a):hover,
-.library-places > button[aria-pressed="true"],
-.library-places > a[aria-current] {
+.library-places button[aria-pressed="true"],
+.library-places a[aria-current] {
   background: #eceee7;
   color: var(--color-forest);
 }
-.library-places > :is(button, a)[data-drop-active] {
+.library-places [data-drop-active] {
   border: 1px solid #84917f;
   background: #e6ece1;
   box-shadow: 0 0 0 3px #253e3114;

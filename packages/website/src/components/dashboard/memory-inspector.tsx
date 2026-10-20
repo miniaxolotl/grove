@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { api, errorMessage } from "@/lib/dashboard-api";
+import { useNotebooks } from "./notebooks-provider";
+import { NotebookSelect } from "./notebook-select";
 import {
   isInactive,
   memoryTitle,
@@ -30,7 +32,7 @@ export function MemoryInspector({
 }) {
   const router = useRouter();
   const [memory, setMemory] = useState<Memory>();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { projects } = useNotebooks();
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -40,14 +42,10 @@ export function MemoryInspector({
   const operations = useRef(new Map<string, string>());
   useEffect(() => {
     const controller = new AbortController();
-    Promise.all([
-      api<Memory>(`/memories/${id}`, undefined, undefined, controller.signal),
-      api<Project[]>("/projects", undefined, undefined, controller.signal),
-    ])
-      .then(([record, list]) => {
+    api<Memory>(`/memories/${id}`, undefined, undefined, controller.signal)
+      .then((record) => {
         if (!controller.signal.aborted) {
           setMemory(record);
-          setProjects(list);
           setError("");
         }
       })
@@ -126,20 +124,14 @@ export function MemoryInspector({
             }}
           >
             <h2>Move note</h2>
-            <label>
-              Destination
-              <select
-                value={destination}
-                onChange={(event) => setDestination(event.target.value)}
-              >
-                <option value="personal">Personal</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <NotebookSelect
+              label="Destination"
+              value={destination}
+              onValueChange={setDestination}
+              projects={projects}
+              leading={[{ value: "personal", label: "Personal" }]}
+              disabled={busy}
+            />
             <p className="text-sm text-muted">
               Connected agents with access to this notebook can read this note.
             </p>

@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import type { AskRequest, AskResult } from "@lib/shared/models";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { api, errorMessage } from "@/lib/dashboard-api";
+import { useNotebooks } from "./notebooks-provider";
+import { NotebookSelect } from "./notebook-select";
 import {
   memoryExcerpt,
   memoryTitle,
@@ -38,8 +40,7 @@ export function AskGrove({
   projectId?: string | null;
   embedded?: boolean;
 }) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectError, setProjectError] = useState("");
+  const { projects, error: projectError } = useNotebooks();
   const [scope, setScope] = useState(
     projectId === undefined ? "all" : (projectId ?? "personal"),
   );
@@ -68,15 +69,6 @@ export function AskGrove({
     includePersonal,
   };
   const searchKey = JSON.stringify({ search, scope, includePersonal });
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Project[]>("/projects", undefined, undefined, controller.signal)
-      .then(setProjects)
-      .catch((error) => {
-        if (!controller.signal.aborted) setProjectError(errorMessage(error));
-      });
-    return () => controller.abort();
-  }, []);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "instant", block: "nearest" });
@@ -225,25 +217,20 @@ export function AskGrove({
           />
           <div className="ask-scope">
             {projectId === undefined ? (
-              <label>
-                Look in
-                <select
-                  aria-label="Look in notebook"
-                  value={scope}
-                  onChange={(event) => {
-                    reset();
-                    setScope(event.target.value);
-                  }}
-                >
-                  <option value="all">All notes</option>
-                  <option value="personal">Personal</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <NotebookSelect
+                label="Look in"
+                projects={projects}
+                aria-label="Look in notebook"
+                value={scope}
+                onValueChange={(value) => {
+                  reset();
+                  setScope(value);
+                }}
+                leading={[
+                  { value: "all", label: "All notes" },
+                  { value: "personal", label: "Personal" },
+                ]}
+              />
             ) : (
               <span>
                 {projectId

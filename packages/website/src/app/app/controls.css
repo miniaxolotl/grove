@@ -1,0 +1,190 @@
+.app-select-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.app-select-field > label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #56635a;
+}
+.app-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid #dce2d9;
+  border-radius: 7px;
+  background: #fff;
+  color: #293a30;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  box-shadow: 0 1px 2px #192f1605;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    border-color 120ms,
+    box-shadow 120ms;
+}
+.app-select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-select-trigger > svg {
+  flex-shrink: 0;
+  color: #6a786c;
+  transition: transform 140ms;
+}
+.app-select-trigger:hover {
+  border-color: #9ba995;
+  background: #fafcf8;
+}
+.app-select-trigger[data-state="open"] {
+  border-color: #6f865d;
+  box-shadow: 0 0 0 3px #768e5a18;
+}
+.app-select-trigger[data-state="open"] > svg {
+  transform: rotate(180deg);
+}
+.app-select-trigger:focus-visible {
+  outline: 2px solid #557044;
+  outline-offset: 3px;
+}
+.app-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.app-select-content {
+  z-index: 100;
+  box-sizing: border-box;
+  min-width: var(--radix-select-trigger-width);
+  max-width: min(440px, calc(100vw - 24px));
+  max-height: min(340px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  padding: 4px;
+  border: 1px solid #dce2d9;
+  border-radius: 10px;
+  background: #fff;
+  color: #293a30;
+  box-shadow:
+    0 8px 28px #25372016,
+    0 2px 6px #25372009;
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: select-in 130ms ease-out;
+  font-family: var(--font-inter), Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.app-select-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 36px;
+  padding: 8px 30px 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.app-select-option[data-state="checked"] {
+  color: #355522;
+  background: #f1f5ed;
+  font-weight: 500;
+}
+.app-select-option[data-highlighted] {
+  background: #e8efdf;
+  color: #253c18;
+}
+.app-select-option[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.app-select-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.app-select-description {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #626e66;
+}
+.app-select-check {
+  position: absolute;
+  right: 9px;
+  display: flex;
+}
+.app-select-viewport {
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-width: thin !important;
+  scrollbar-color: #bdc8b3 transparent;
+}
+.app-select-viewport[data-radix-select-viewport]::-webkit-scrollbar {
+  display: block;
+  width: 5px;
+}
+.app-select-viewport::-webkit-scrollbar-thumb {
+  background: #bdc8b3;
+  border-radius: 4px;
+}
+.library-sort.app-select-field {
+  flex-direction: row;
+  align-items: center;
+}
+.library-sort .app-select-trigger {
+  width: auto;
+  min-height: 30px;
+  padding-block: 5px;
+}
+.graph-toolbar .app-select-field {
+  max-width: 200px;
+}
+.graph-toolbar .app-select-trigger {
+  background: #1e2b29;
+  border-color: #41504a;
+  color: #e3ece1;
+}
+.ask-scope .app-select-field {
+  width: 200px;
+  max-width: 100%;
+}
+@keyframes select-in {
+  from {
+    transform: translateY(-3px) scale(0.98);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (pointer: coarse) {
+  .app-select-trigger,
+  .app-select-option {
+    min-height: 44px;
+    font-size: 14px;
+  }
+}
+@media (max-width: 600px) {
+  .library-sort .app-select-trigger {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-select-trigger,
+  .app-select-trigger > svg {
+    transition: none;
+  }
+  .app-select-content {
+    animation: none;
+  }
+}

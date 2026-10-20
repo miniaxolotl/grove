@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import {
   useEffect,
   useMemo,
@@ -350,24 +351,21 @@ export default function MemoryGraph({
           </div>
         </div>
         <div className="graph-tools">
-          <label>
-            <span className="sr-only">Show</span>
-            <select
-              aria-label="Graph relationships"
-              value={relationship}
-              onChange={(event) => {
-                setRelationship(event.target.value);
-                setSelected(null);
-              }}
-            >
-              <option value="">All connections</option>
-              {Object.entries(labels).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            aria-label="Graph relationships"
+            value={relationship}
+            onValueChange={(value) => {
+              setRelationship(value);
+              setSelected(null);
+            }}
+            options={[
+              { value: "", label: "All connections" },
+              ...Object.entries(labels).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            ]}
+          />
           <button
             type="button"
             className="graph-tool-button"

@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import { useEffect, useState } from "react";
 import type {
   ModelConfig,
@@ -137,63 +138,63 @@ export function ModelSettings() {
                 className="mt-5 space-y-4"
               >
                 <legend className="sr-only">{role} provider settings</legend>
-                <label>
-                  Provider
-                  <select
-                    value={config[role].provider}
-                    onChange={(e) => {
-                      const provider = e.target.value;
-                      if (role === "embedding")
-                        change(
-                          role,
-                          provider === "local"
-                            ? {
-                                provider,
-                                model: "Xenova/all-MiniLM-L6-v2",
-                                dimensions: 384,
-                                queryPrefix: "",
-                                documentPrefix: "",
-                                distanceThreshold: 0.45,
-                              }
-                            : {
-                                provider:
-                                  provider as ModelConfig["embedding"]["provider"],
-                              },
-                        );
-                      else if (role === "decision")
-                        change(role, {
-                          provider:
-                            provider as ModelConfig["decision"]["provider"],
-                        });
-                      else
-                        change(role, {
-                          provider:
-                            provider as ModelConfig["generation"]["provider"],
-                          reasoningEffort:
-                            provider === "openai-compatible" ? "omit" : "low",
-                        });
-                    }}
-                  >
-                    <option value="disabled">Disabled</option>
-                    {role === "embedding" ? (
-                      <>
-                        <option value="local">Local MiniLM</option>
-                        <option value="openai-compatible">
-                          OpenAI-compatible API
-                        </option>
-                      </>
-                    ) : role === "decision" ? (
-                      <option value="system-one">System One / DeepInfra</option>
-                    ) : (
-                      <>
-                        <option value="minimax">MiniMax</option>
-                        <option value="openai-compatible">
-                          OpenAI-compatible API
-                        </option>
-                      </>
-                    )}
-                  </select>
-                </label>
+                <Select
+                  label="Provider"
+                  disabled={!settings.editable || busy}
+                  value={config[role].provider}
+                  onValueChange={(provider) => {
+                    if (role === "embedding")
+                      change(
+                        role,
+                        provider === "local"
+                          ? {
+                              provider,
+                              model: "Xenova/all-MiniLM-L6-v2",
+                              dimensions: 384,
+                              queryPrefix: "",
+                              documentPrefix: "",
+                              distanceThreshold: 0.45,
+                            }
+                          : {
+                              provider:
+                                provider as ModelConfig["embedding"]["provider"],
+                            },
+                      );
+                    else if (role === "decision")
+                      change(role, {
+                        provider:
+                          provider as ModelConfig["decision"]["provider"],
+                      });
+                    else
+                      change(role, {
+                        provider:
+                          provider as ModelConfig["generation"]["provider"],
+                        reasoningEffort:
+                          provider === "openai-compatible" ? "omit" : "low",
+                      });
+                  }}
+                  options={[
+                    { value: "disabled", label: "Disabled" },
+                    ...(role === "decision"
+                      ? [
+                          {
+                            value: "system-one",
+                            label: "System One / DeepInfra",
+                          },
+                        ]
+                      : [
+                          {
+                            value: role === "embedding" ? "local" : "minimax",
+                            label:
+                              role === "embedding" ? "Local MiniLM" : "MiniMax",
+                          },
+                          {
+                            value: "openai-compatible",
+                            label: "OpenAI-compatible API",
+                          },
+                        ]),
+                  ]}
+                />
                 {config[role].provider !== "disabled" && (
                   <>
                     <label>
@@ -332,56 +333,56 @@ export function ModelSettings() {
                       </>
                     )}
                     {role === "decision" && (
-                      <label>
-                        Endpoint path
-                        <select
-                          value={config.decision.path}
-                          onChange={(e) =>
-                            change(role, {
-                              path: e.target
-                                .value as ModelConfig["decision"]["path"],
-                            })
-                          }
-                        >
-                          <option>/decisions</option>
-                          <option>/systemone</option>
-                        </select>
-                      </label>
+                      <Select
+                        label="Endpoint path"
+                        disabled={!settings.editable || busy}
+                        value={config.decision.path}
+                        onValueChange={(value) =>
+                          change(role, {
+                            path: value as ModelConfig["decision"]["path"],
+                          })
+                        }
+                        options={["/decisions", "/systemone"].map((value) => ({
+                          value,
+                          label: value,
+                        }))}
+                      />
                     )}
                     {role === "generation" && (
                       <>
-                        <label>
-                          Structured output
-                          <select
-                            value={config.generation.outputFormat}
-                            onChange={(e) =>
-                              change(role, {
-                                outputFormat: e.target
-                                  .value as ModelConfig["generation"]["outputFormat"],
-                              })
-                            }
-                          >
-                            <option value="tool">Function call</option>
-                            <option value="json-schema">JSON schema</option>
-                            <option value="json">JSON object</option>
-                          </select>
-                        </label>
-                        <label>
-                          Reasoning effort
-                          <select
-                            value={config.generation.reasoningEffort}
-                            onChange={(e) =>
-                              change(role, {
-                                reasoningEffort: e.target
-                                  .value as ModelConfig["generation"]["reasoningEffort"],
-                              })
-                            }
-                          >
-                            {["low", "medium", "high", "omit"].map((v) => (
-                              <option key={v}>{v}</option>
-                            ))}
-                          </select>
-                        </label>
+                        <Select
+                          label="Structured output"
+                          disabled={!settings.editable || busy}
+                          value={config.generation.outputFormat}
+                          onValueChange={(value) =>
+                            change(role, {
+                              outputFormat:
+                                value as ModelConfig["generation"]["outputFormat"],
+                            })
+                          }
+                          options={[
+                            { value: "tool", label: "Function call" },
+                            { value: "json-schema", label: "JSON schema" },
+                            { value: "json", label: "JSON object" },
+                          ]}
+                        />
+                        <Select
+                          label="Reasoning effort"
+                          disabled={!settings.editable || busy}
+                          value={config.generation.reasoningEffort}
+                          onValueChange={(value) =>
+                            change(role, {
+                              reasoningEffort:
+                                value as ModelConfig["generation"]["reasoningEffort"],
+                            })
+                          }
+                          options={["low", "medium", "high", "omit"].map(
+                            (value) => ({
+                              value,
+                              label: value[0].toUpperCase() + value.slice(1),
+                            }),
+                          )}
+                        />
                         <label>
                           Maximum output tokens
                           <input
