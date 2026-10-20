@@ -14,6 +14,8 @@ import { AgentSetup } from "@/components/installation";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
+import { useNotebooks } from "./notebooks-provider";
+import { notebookOptions } from "@/lib/notebooks";
 
 type Connection = Grant & {
   id: string;
@@ -25,7 +27,7 @@ type Connection = Grant & {
 };
 export function Connections({ origin }: { origin: string }) {
   const [items, setItems] = useState<Connection[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { projects } = useNotebooks();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -38,16 +40,9 @@ export function Connections({ origin }: { origin: string }) {
   };
   useEffect(() => {
     const controller = new AbortController();
-    Promise.all([
-      api<Connection[]>(
-        "/connections",
-        undefined,
-        undefined,
-        controller.signal,
-      ),
-      api<Project[]>("/projects", undefined, undefined, controller.signal),
-    ])
-      .then(([connections, list]) => {
+    api<Connection[]>("/connections", undefined, undefined, controller.signal)
+      .then((connections) => {
+        if (controller.signal.aborted) return;
         setItems(
           connections.map((item) =>
             item.setup?.status === "pending" &&
@@ -56,7 +51,6 @@ export function Connections({ origin }: { origin: string }) {
               : item,
           ),
         );
-        setProjects(list);
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(errorMessage(e));
@@ -341,20 +335,20 @@ function GrantForm({
           All current and future projects
         </label>
         {!allProjects &&
-          projects.map((project) => (
-            <label key={project.id} className="check">
+          notebookOptions(projects).map((project) => (
+            <label key={project.value} className="check">
               <input
                 type="checkbox"
-                checked={projectIds.includes(project.id)}
+                checked={projectIds.includes(project.value)}
                 onChange={(e) =>
                   setProjectIds((current) =>
                     e.target.checked
-                      ? [...current, project.id]
-                      : current.filter((id) => id !== project.id),
+                      ? [...current, project.value]
+                      : current.filter((id) => id !== project.value),
                   )
                 }
               />
-              {project.name}
+              {project.label}
             </label>
           ))}
       </fieldset>

@@ -1,6 +1,5 @@
 import { ArrowUpRight, Plus } from "lucide-react";
 import { faqs } from "@/content/site";
-import { site } from "@/lib/site";
 
 export function FAQ() {
   return (
@@ -18,14 +17,13 @@ export function FAQ() {
             <em>Dig a little deeper.</em>
           </h2>
           <p className="mt-5 max-w-xs text-sm leading-7 text-muted">
-            Everything you need to know before giving your agent a longer
-            memory.
+            A few things you might want to know before making yourself at home.
           </p>
           <a
-            href={`${site.github}/issues`}
+            href="mailto:grove@mawa.dev"
             className="mt-5 inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
           >
-            Ask a question on GitHub <ArrowUpRight size={14} />
+            Ask us a question <ArrowUpRight size={14} />
           </a>
         </div>
         <div className="border-t border-line">

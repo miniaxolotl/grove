@@ -1,58 +1,42 @@
 "use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Folder, Plus, ArrowRight, Pencil } from "lucide-react";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
-import { Dialog } from "@/components/dashboard/dialog";
+import { useState } from "react";
+import { Folder, Plus, Pencil, FolderInput } from "lucide-react";
 import { LoadError } from "@/components/dashboard/load-error";
-import { ProjectForm } from "@/components/dashboard/project-form";
+import {
+  NotebookDialog,
+  type NotebookAction,
+} from "@/components/dashboard/notebook-dialog";
+import { NotebookTree } from "@/components/dashboard/notebook-tree";
+import { useNotebooks } from "@/components/dashboard/notebooks-provider";
 import { PageHeading } from "@/components/dashboard/ui/page-heading";
 import { Button, IconButton } from "@/components/dashboard/ui/button";
 import { SearchField } from "@/components/dashboard/ui/search-field";
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { projects, loading, error, reload } = useNotebooks();
   const [query, setQuery] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Project | "new" | null>(null);
-  const [refresh, setRefresh] = useState(0);
-  function reload() {
-    setLoading(true);
-    setError("");
-    setRefresh((v) => v + 1);
-  }
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Project[]>("/projects", undefined, undefined, controller.signal)
-      .then((list) => {
-        if (!controller.signal.aborted) setProjects(list);
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [refresh]);
-  const visible = projects
-    .filter((project) =>
-      project.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const [action, setAction] = useState<NotebookAction | null>(null);
+  const [notice, setNotice] = useState("");
+  const matches = projects.filter((p) =>
+    p.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  );
   return (
     <>
       <PageHeading
         title="Notebooks"
-        description="Give your ideas a place to grow."
+        description="A place for every idea. Nest notebooks to make it your own."
         actions={
-          <Button onClick={() => setSelected("new")}>
+          <Button onClick={() => setAction({})}>
             <Plus size={16} />
             New notebook
           </Button>
         }
       />
+      {notice && (
+        <p role="status" className="app-notice">
+          {notice}
+        </p>
+      )}
       {projects.length > 0 && (
         <div className="project-toolbar">
           <SearchField
@@ -63,7 +47,7 @@ export default function ProjectsPage() {
             placeholder="Find a notebook…"
           />
           <span>
-            {visible.length} {visible.length === 1 ? "notebook" : "notebooks"}
+            {matches.length} {matches.length === 1 ? "notebook" : "notebooks"}
           </span>
         </div>
       )}
@@ -72,7 +56,7 @@ export default function ProjectsPage() {
         <p role="status" className="library-loading">
           Opening your notebooks…
         </p>
-      ) : !visible.length && !error ? (
+      ) : !matches.length && !error ? (
         <div className="app-empty">
           <Folder className="mx-auto mb-4" size={28} strokeWidth={1.4} />
           <h2 className="font-editorial text-3xl">
@@ -84,53 +68,55 @@ export default function ProjectsPage() {
               : "Start a notebook for a project, a topic, or whatever’s on your mind."}
           </p>
           {!query && (
-            <button
-              className="app-button mt-6"
-              onClick={() => setSelected("new")}
-            >
+            <Button className="mt-6" onClick={() => setAction({})}>
               Create your first notebook
-            </button>
+            </Button>
           )}
         </div>
       ) : (
-        <ul className="project-list">
-          {visible.map((project) => (
-            <li key={project.id}>
-              <Link
-                className="project-link"
-                href={`/app/projects/${project.id}`}
-              >
-                <span className="project-symbol">
-                  <Folder size={22} strokeWidth={1.4} />
-                </span>
-                <span>
-                  <strong>{project.name}</strong>
-                </span>
-                <ArrowRight size={17} />
-              </Link>
-              <IconButton
-                label={`Rename ${project.name}`}
-                onClick={() => setSelected(project)}
-              >
-                <Pencil size={16} />
-              </IconButton>
-            </li>
-          ))}
-        </ul>
-      )}
-      {selected && (
-        <Dialog
-          title={selected === "new" ? "New notebook" : "Rename notebook"}
-          close={() => setSelected(null)}
+        <section
+          className="notebook-manager"
+          aria-label="Notebook organization"
         >
-          <ProjectForm
-            project={selected === "new" ? undefined : selected}
-            done={() => {
-              setSelected(null);
-              reload();
-            }}
+          <NotebookTree
+            projects={projects}
+            query={query}
+            defaultExpanded
+            actions={(project) => (
+              <>
+                <IconButton
+                  label={`Add sub-notebook to ${project.name}`}
+                  onClick={() => setAction({ parentId: project.id })}
+                >
+                  <Plus size={16} />
+                </IconButton>
+                <IconButton
+                  label={`Rename ${project.name}`}
+                  onClick={() => setAction({ project })}
+                >
+                  <Pencil size={15} />
+                </IconButton>
+                <IconButton
+                  label={`Move ${project.name}`}
+                  onClick={() => setAction({ project, move: true })}
+                >
+                  <FolderInput size={16} />
+                </IconButton>
+              </>
+            )}
           />
-        </Dialog>
+          <p className="notebook-organization-hint">
+            Open a notebook to see its notes. Use + to add a sub-notebook, or
+            move one to a new home.
+          </p>
+        </section>
+      )}
+      {action && (
+        <NotebookDialog
+          action={action}
+          close={() => setAction(null)}
+          onSaved={() => setNotice("Notebook saved.")}
+        />
       )}
     </>
   );

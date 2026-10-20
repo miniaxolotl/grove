@@ -9,8 +9,6 @@ import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { PageHeading } from "./ui/page-heading";
 import { SearchField } from "./ui/search-field";
 import { Button } from "./ui/button";
-import { Dialog } from "./dialog";
-import { MemoryEditor } from "./memory-editor";
 import { MemoryInspector } from "./memory-inspector";
 import { LoadError } from "./load-error";
 
@@ -24,7 +22,6 @@ export function Journal() {
   }>();
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
-  const [writing, setWriting] = useState(false);
   const [more, setMore] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const key = `${search}:${refresh}`;
@@ -65,22 +62,16 @@ export function Journal() {
     const date = dateLabel(note.createdAt);
     groups.set(date, [...(groups.get(date) ?? []), note]);
   }
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
   return (
     <>
       <PageHeading
         title="Journal"
-        description="A page for your day. A place to come back to."
+        description="Daily notes and reflections."
         actions={
-          <Button onClick={() => setWriting(true)}>
+          <Link className="app-button" href="/app/notes/new?from=journal">
             <Plus size={16} />
             New entry
-          </Button>
+          </Link>
         }
       />
       <div className="journal-layout">
@@ -116,9 +107,12 @@ export function Journal() {
                   : "A thought, a small win, or something you want to return to."}
               </p>
               {!search && (
-                <Button variant="secondary" onClick={() => setWriting(true)}>
+                <Link
+                  className="app-button secondary"
+                  href="/app/notes/new?from=journal"
+                >
                   Write your first entry
-                </Button>
+                </Link>
               )}
             </div>
           )}
@@ -187,9 +181,9 @@ export function Journal() {
             })}
           </h2>
           <p>What’s on your mind?</p>
-          <button className="text-button" onClick={() => setWriting(true)}>
+          <Link className="text-button" href="/app/notes/new?from=journal">
             Open a fresh page <ArrowUpRight size={14} />
-          </button>
+          </Link>
           <div>
             <p>Your personal notes, in the order you wrote them.</p>
             <Link href="/app/profile">
@@ -198,21 +192,6 @@ export function Journal() {
           </div>
         </aside>
       </div>
-      {writing && (
-        <Dialog title="New journal entry" panel close={() => setWriting(false)}>
-          <MemoryEditor
-            projects={[]}
-            personal
-            initialKind="fact"
-            initialContent={`# ${today}\n\n`}
-            done={() => {
-              setWriting(false);
-              setRefresh((value) => value + 1);
-            }}
-            cancel={() => setWriting(false)}
-          />
-        </Dialog>
-      )}
       {selected && (
         <MemoryInspector
           id={selected}

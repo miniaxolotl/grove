@@ -148,48 +148,52 @@ export function MemoryRow({
               </span>
             )}
           </button>
-          <div className="memory-meta">
-            {memory.kind !== "fact" && (
-              <span>
-                {memory.kind === "handoff"
-                  ? "Progress"
-                  : memory.kind === "solution"
-                    ? "How-to"
-                    : memory.kind}
+          <div className="memory-row-details">
+            <div className="memory-meta">
+              {memory.kind !== "fact" && (
+                <span className="memory-kind">
+                  {memory.kind === "handoff"
+                    ? "Progress"
+                    : memory.kind === "solution"
+                      ? "How-to"
+                      : memory.kind}
+                </span>
+              )}
+              {memory.expiresAt && (
+                <span>Until {dateLabel(memory.expiresAt)}</span>
+              )}
+              <span className="memory-notebook" title={projectName}>
+                {projectName}
               </span>
-            )}
-            {memory.expiresAt && (
-              <span>Until {dateLabel(memory.expiresAt)}</span>
-            )}
-            <span>{projectName}</span>
-            <time dateTime={memory.updatedAt}>
-              {dateLabel(memory.updatedAt)}
-            </time>
-            {(memory.indexing === "pending" ||
-              memory.enrichment?.status === "pending") && (
-              <span>Organizing…</span>
-            )}
-            {(memory.indexing === "failed" ||
-              memory.enrichment?.status === "failed") && (
-              <span>Needs attention</span>
-            )}
-          </div>
-          {!!memory.enrichment?.tags.length && (
-            <div className="memory-tags">
-              {memory.enrichment.tags.slice(0, 3).map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => onTag(tag)}
-                  aria-label={`Filter by ${tag}`}
-                >
-                  {tag}
-                </button>
-              ))}
-              {memory.enrichment.tags.length > 3 && (
-                <span>+{memory.enrichment.tags.length - 3}</span>
+              <time dateTime={memory.updatedAt}>
+                {dateLabel(memory.updatedAt)}
+              </time>
+              {(memory.indexing === "pending" ||
+                memory.enrichment?.status === "pending") && (
+                <span>Organizing…</span>
+              )}
+              {(memory.indexing === "failed" ||
+                memory.enrichment?.status === "failed") && (
+                <span>Needs attention</span>
               )}
             </div>
-          )}
+            {!!memory.enrichment?.tags.length && (
+              <div className="memory-tags">
+                {memory.enrichment.tags.slice(0, 3).map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => onTag(tag)}
+                    aria-label={`Filter by ${tag}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+                {memory.enrichment.tags.length > 3 && (
+                  <span>+{memory.enrichment.tags.length - 3}</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="row-controls">
           <IconButton

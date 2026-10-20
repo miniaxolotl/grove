@@ -231,6 +231,183 @@ test("scoped keys cannot cross projects, widen grants or administer accounts; re
   );
 });
 
+test("nested notebooks preserve identity and scope, reject cycles and cross-account parents", async () => {
+  const create = (principal: Principal, name: string, parentId?: string) =>
+    service.project(principal, {
+      name,
+      identity: `workspace:${randomUUID()}`,
+      parentId,
+    });
+  const root = await create(a, "Home");
+  const child = await create(a, "Garden", root.id);
+  const leaf = await create(a, "Spring", child.id);
+  const other = await create(b, "Other account");
+  const note = await service.remember(
+    a,
+    input("Plant herbs in spring.", { projectId: leaf.id }),
+  );
+  assert.equal(child.parentId, root.id);
+  assert.equal(
+    (await service.projects(a)).find((p) => p.id === leaf.id)?.parentId,
+    child.id,
+  );
+  await assert.rejects(create(a, "Wrong owner", other.id), {
+    code: "not_found",
+  });
+  await assert.rejects(
+    service.project(a, { ...root, parentId: root.id }, root.id),
+    { code: "invalid_request" },
+  );
+  await assert.rejects(
+    service.project(a, { ...root, parentId: leaf.id }, root.id),
+    { code: "invalid_request" },
+  );
+  await assert.rejects(
+    service.project(b, { ...child, parentId: other.id }, child.id),
+    { code: "not_found" },
+  );
+  await assert.rejects(
+    tenant(db, a.accountId, (trx) =>
+      trx("projects").where({ id: child.id }).update({ parentId: other.id }),
+    ),
+    /projects_parent_owner/,
+  );
+
+  const issued = await service.grant(
+    a,
+    {
+      name: "Only Garden",
+      capabilities: ["memory:read", "memory:write"],
+      personal: false,
+      allProjects: false,
+      projectIds: [child.id],
+    },
+    { key: true },
+  );
+  const key = await auth.principal(
+    new Request("http://localhost", {
+      headers: { authorization: `Bearer ${issued.secret}` },
+    }),
+  );
+  const visible = await service.projects(key);
+  assert.equal(visible.length, 1);
+  assert.equal(visible[0].id, child.id);
+  assert.equal(
+    visible[0].parentId,
+    null,
+    "ungranted ancestor reference stays private",
+  );
+  await assert.rejects(service.get(key, note.id), { code: "not_found" });
+  await assert.rejects(
+    service.project(key, { ...child, parentId: leaf.id }, child.id),
+    { code: "forbidden" },
+  );
+  const renamed = await service.project(
+    key,
+    { name: "Garden ideas", identity: "cannot-replace-identity" },
+    child.id,
+  );
+  assert.equal(renamed.identity, child.identity);
+  assert.equal(renamed.parentId, null);
+  assert.equal(
+    (await service.projects(a)).find((p) => p.id === child.id)?.parentId,
+    root.id,
+    "legacy rename leaves nesting intact",
+  );
+  await assert.rejects(
+    service.project(
+      a,
+      { ...child, parentId: null, expectedVersion: 1 },
+      child.id,
+    ),
+    { code: "version_conflict" },
+  );
+  const moved = await service.project(
+    a,
+    { ...child, parentId: null, expectedVersion: renamed.version },
+    child.id,
+  );
+  assert.equal(moved.parentId, null);
+  assert.equal(
+    (await service.projects(a)).find((p) => p.id === leaf.id)?.parentId,
+    child.id,
+  );
+  assert.deepEqual(
+    await service.get(a, note.id),
+    note,
+    "moving a notebook retains notes, versions, lifetimes and provenance",
+  );
+  await assert.rejects(service.get(key, note.id), { code: "not_found" });
+
+  const response = await app.request("/v1/projects", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer alice",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      name: "Reading",
+      identity: `workspace:${randomUUID()}`,
+      parentId: root.id,
+    }),
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).data.parentId, root.id);
+});
+
+test("simultaneous notebook moves cannot create a cycle or overwrite a newer version", async () => {
+  const left = await service.project(a, {
+    name: "Left",
+    identity: `workspace:${randomUUID()}`,
+  });
+  const right = await service.project(a, {
+    name: "Right",
+    identity: `workspace:${randomUUID()}`,
+  });
+  const moves = await Promise.allSettled([
+    service.project(
+      a,
+      { ...left, parentId: right.id, expectedVersion: 1 },
+      left.id,
+    ),
+    service.project(
+      a,
+      { ...right, parentId: left.id, expectedVersion: 1 },
+      right.id,
+    ),
+  ]);
+  assert.equal(
+    moves.filter((result) => result.status === "fulfilled").length,
+    1,
+  );
+  const rows = await service.projects(a);
+  assert(
+    !(
+      rows.find((p) => p.id === left.id)?.parentId === right.id &&
+      rows.find((p) => p.id === right.id)?.parentId === left.id
+    ),
+  );
+  const current = rows.find((p) => p.id === left.id)!;
+  const edits = await Promise.allSettled([
+    service.project(
+      a,
+      { ...left, name: "One", expectedVersion: current.version },
+      left.id,
+    ),
+    service.project(
+      a,
+      { ...left, name: "Two", expectedVersion: current.version },
+      left.id,
+    ),
+  ]);
+  assert.equal(
+    edits.filter((result) => result.status === "fulfilled").length,
+    1,
+  );
+  const rejected = edits.find((result) => result.status === "rejected");
+  assert.equal(rejected?.reason.code, "version_conflict");
+});
+
 test("bounded pagination cursors bind account/filter and recall does not fill irrelevant matches", async () => {
   for (let i = 0; i < 3; i++)
     await service.remember(a, input(`Pagination unique fact ${i}`));

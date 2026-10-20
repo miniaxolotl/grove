@@ -14,49 +14,54 @@ import { Tabs } from "@/components/tabs";
 
 const examples = [
   {
-    value: "decisions",
-    label: "Your decisions",
-    tag: "architecture",
+    value: "plans",
+    label: "Travel plans",
+    tag: "a little adventure",
+    notebook: "Japan trip",
+    title: "Stay in Kyoto",
     saved:
-      "Use PostgreSQL for billing. We need reliable transactions, and the team already knows it.",
-    prompt: "Let’s build the billing service. Which database are we using?",
-    query: "billing database",
+      "Stay in Kyoto for four nights. A small guesthouse near the river, with time for gardens and neighborhood cafés.",
+    prompt: "Where did I want to stay in Kyoto?",
+    query: "Your Kyoto plans",
     response:
-      "PostgreSQL. You chose it for reliable transactions and the team’s familiarity. Let’s build on that decision.",
+      "You’re looking for a small guesthouse near the river, for four nights. You wanted time to explore gardens and neighborhood cafés.",
     without:
-      "Do you have a preferred database? We could explore PostgreSQL, MySQL, or MongoDB…",
+      "There isn’t a saved note about your Kyoto plans yet. Add the details you’d like to come back to.",
   },
   {
     value: "preferences",
-    label: "Your preferences",
-    tag: "conventions",
+    label: "Everyday preferences",
+    tag: "the little things",
+    notebook: "About me",
+    title: "Weeknight dinners",
     saved:
-      "Keep tests beside the source files. Use Vitest and name test files *.test.ts.",
-    prompt: "Can you add tests for this new utility?",
-    query: "test conventions",
+      "I prefer simple vegetarian dinners: one pan, little prep, and plenty of leftovers.",
+    prompt: "What makes a good weeknight dinner for me?",
+    query: "Your dinner preferences",
     response:
-      "I’ll use Vitest and place a .test.ts file beside the utility, following your project’s testing convention.",
+      "Something vegetarian, made in one pan, with minimal prep and enough leftovers for another day.",
     without:
-      "Which testing framework would you like? And where should I put the tests?",
+      "There isn’t a saved note about your dinner preferences yet. Add what works for you, so it’s easy to find next time.",
   },
   {
-    value: "fixes",
-    label: "Your hard-won fixes",
-    tag: "debugging",
+    value: "ideas",
+    label: "Creative projects",
+    tag: "a fresh start",
+    notebook: "Weekend projects",
+    title: "A tiny balcony garden",
     saved:
-      "The auth callback failed behind the proxy. Forwarding the original host header fixed the redirect URL.",
-    prompt:
-      "The auth redirect broke after the proxy change. Have we seen this?",
-    query: "auth proxy redirect fix",
+      "Start a small balcony garden with mint and rosemary. Use the corner with afternoon sun. Keep the first weekend simple: two pots and good soil.",
+    prompt: "What was my plan for the balcony?",
+    query: "Your garden idea",
     response:
-      "Yes. Last time the proxy dropped the original host header. Forwarding it fixed the callback URL. Let’s check that first.",
+      "Start with mint and rosemary in the sunny corner. For the first weekend, you planned to get two pots and good soil.",
     without:
-      "Let’s start from the beginning. Can you describe your authentication setup?",
+      "There isn’t a saved note about the balcony yet. Capture your idea now, and you can pick it up later.",
   },
 ];
 
 export function MemoryDemo() {
-  const [selected, setSelected] = useState("decisions");
+  const [selected, setSelected] = useState("plans");
   const [withGrove, setWithGrove] = useState(true);
 
   return (
@@ -66,15 +71,15 @@ export function MemoryDemo() {
       aria-labelledby="demo-heading"
     >
       <div className="mb-10 text-center">
-        <p className="eyebrow">SOUND FAMILIAR?</p>
+        <p className="eyebrow">MEET ASK GROVE</p>
         <h2 id="demo-heading" className="section-heading mt-4">
-          You already explained this.
+          You had a thought.
           <br />
-          <em>Let’s keep it that way.</em>
+          <em>Here it is again.</em>
         </h2>
         <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-muted">
-          The architecture decision. The coding convention. The bug that took
-          all afternoon. Give your agent something to come back to.
+          Ask a question in your own words. Grove finds the details you saved
+          and links its answer back to your notes.
         </p>
       </div>
 
@@ -82,12 +87,12 @@ export function MemoryDemo() {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4 sm:px-7">
           <Tabs
             id="memory-example"
-            label="Choose a memory example"
+            label="Choose a notebook example"
             options={examples}
             value={selected}
             onChange={setSelected}
           />
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-muted">
+          <span className="flex items-center gap-1.5 text-[11px] text-muted">
             <Sparkles size={12} /> Interactive example
           </span>
         </div>
@@ -102,8 +107,12 @@ export function MemoryDemo() {
             className="demo-panel"
           >
             <div className="demo-memory">
-              <span className="eyebrow text-leaf">01 / A PREVIOUS SESSION</span>
-              <div className="memory-note">
+              <span className="eyebrow text-leaf">A NOTE YOU SAVED</span>
+              <div
+                className="memory-note"
+                id={`example-note-${example.value}`}
+                tabIndex={-1}
+              >
                 <div className="mb-5 flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-leaf">
                     <Check size={13} /> Saved to Grove
@@ -113,30 +122,33 @@ export function MemoryDemo() {
                     className="size-2 rounded-full bg-[#d3cbb3] shadow-inner"
                   />
                 </div>
-                <p className="font-editorial text-[25px] leading-[1.3] text-forest">
+                <h3 className="mb-3 text-base font-medium">{example.title}</h3>
+                <p className="font-editorial text-[23px] leading-[1.4] text-forest">
                   “{example.saved}”
                 </p>
-                <div className="mt-7 flex flex-wrap gap-2 font-mono text-[9px] text-muted">
+                <div className="mt-6 flex flex-wrap gap-2 text-[10px] text-muted">
                   <span className="rounded bg-sage px-2 py-1">
-                    project: my-app
+                    {example.notebook}
                   </span>
                   <span className="rounded border border-line px-2 py-1">
-                    #{example.tag}
+                    {example.tag}
                   </span>
                 </div>
               </div>
               <p className="mt-5 flex items-center gap-2 text-xs text-muted">
-                <ArrowDown size={13} className="text-leaf" /> The chat ends. The
-                memory stays.
+                <ArrowDown size={13} className="text-leaf" /> A little detail,
+                ready when you need it.
               </p>
             </div>
 
             <div className="min-w-0 px-5 py-7 sm:p-8 lg:p-10">
               <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
-                <span className="eyebrow text-leaf">02 / A FRESH START</span>
+                <span className="eyebrow text-leaf">
+                  WHEN YOU COME BACK TO IT
+                </span>
                 <div
                   className="inline-flex rounded-full border border-line bg-paper p-1"
-                  aria-label="Compare agent responses"
+                  aria-label="Compare answers with and without a saved note"
                 >
                   <button
                     type="button"
@@ -144,7 +156,7 @@ export function MemoryDemo() {
                     onClick={() => setWithGrove(false)}
                     className={`comparison-button ${!withGrove ? "comparison-active" : ""}`}
                   >
-                    Without
+                    No saved note
                   </button>
                   <button
                     type="button"
@@ -152,7 +164,7 @@ export function MemoryDemo() {
                     onClick={() => setWithGrove(true)}
                     className={`comparison-button ${withGrove ? "comparison-active" : ""}`}
                   >
-                    With Grove
+                    With a note
                   </button>
                 </div>
               </div>
@@ -172,10 +184,10 @@ export function MemoryDemo() {
               >
                 {withGrove ? (
                   <>
-                    <div className="mb-5 ml-10 flex items-start gap-2 rounded-md border border-line bg-sage/40 px-3 py-2.5 font-mono text-[10px] leading-5 text-leaf">
+                    <div className="mb-5 ml-10 flex items-start gap-2 rounded-md border border-line bg-sage/40 px-3 py-2.5 text-[11px] leading-5 text-leaf">
                       <Search size={12} className="mt-1 shrink-0" />
                       <span>
-                        recall{" "}
+                        Found in{" "}
                         <span className="text-muted">“{example.query}”</span>
                       </span>
                     </div>
@@ -185,11 +197,18 @@ export function MemoryDemo() {
                       </span>
                       <div>
                         <span className="text-[11px] font-medium text-leaf">
-                          Your agent, with context
+                          Ask Grove
                         </span>
                         <p className="mt-1 text-sm leading-7">
                           {example.response}
                         </p>
+                        <a
+                          href={`#example-note-${example.value}`}
+                          className="demo-source"
+                          aria-label={`View note: ${example.title}`}
+                        >
+                          1 · {example.title}
+                        </a>
                       </div>
                     </div>
                   </>
@@ -200,9 +219,7 @@ export function MemoryDemo() {
                       className="mt-1 shrink-0 text-muted"
                     />
                     <div>
-                      <span className="text-[11px] text-muted">
-                        Your agent, starting over
-                      </span>
+                      <span className="text-[11px] text-muted">Ask Grove</span>
                       <p className="mt-2 text-sm leading-7 text-muted">
                         {example.without}
                       </p>
@@ -215,14 +232,14 @@ export function MemoryDemo() {
         ))}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4 sm:px-7">
           <p className="max-w-xl text-[10px] leading-relaxed text-muted">
-            Illustrative workflow, not a live agent. Your agent uses Grove’s
-            tools to save and retrieve context.
+            Example notes and answers. Your own answers come from the notes you
+            save.
           </p>
           <a
             href="#install"
             className="inline-flex min-h-9 items-center gap-2 text-xs font-medium text-forest hover:underline"
           >
-            Make it your workflow <ArrowUpRight size={14} />
+            Make space for your ideas <ArrowUpRight size={14} />
           </a>
         </div>
       </div>

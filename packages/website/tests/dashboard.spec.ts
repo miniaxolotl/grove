@@ -76,7 +76,9 @@ async function fixture(
     else if (path === "/memories/delete") {
       memories = [];
       data = { results: [{ outcome: "deleted" }] };
-    } else if (path === "/me")
+    } else if (path.startsWith("/memories/"))
+      data = memories.find((memory) => memory.id === path.split("/")[2]);
+    else if (path === "/me")
       data = {
         accountId: "fixture-user",
         captureEnabled: true,
@@ -91,7 +93,7 @@ test("memory editor reports persistence failures and retains the draft", async (
 }) => {
   await fixture(page, [], true);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "New note", exact: true }).click();
+  await page.getByRole("link", { name: "New note", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("Keep this draft on failure.");
@@ -99,10 +101,10 @@ test("memory editor reports persistence failures and retains the draft", async (
   await expect(page.getByRole("alert")).toContainText(
     "temporarily unavailable",
   );
-  await expect(page.getByLabel("What should stay with you?")).toHaveValue(
+  await expect(page.getByLabel("What should stay with you?")).toHaveText(
     "Keep this draft on failure.",
   );
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.locator(".note-editor-full")).toBeVisible();
   await expect(page.getByText("Note saved.", { exact: false })).toHaveCount(0);
 });
 
@@ -111,12 +113,13 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
 }) => {
   await fixture(page, []);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Write your first note" }).click();
+  await page.getByRole("link", { name: "Write your first note" }).click();
   await page.getByLabel("What should stay with you?").fill(sample.content);
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Note saved" }),
-  ).toContainText("Note saved");
+    page.getByRole("status").filter({ hasText: "Saved" }),
+  ).toContainText("Saved");
+  await page.getByRole("button", { name: "Back to notes" }).click();
   await page.getByRole("button", { name: /^I prefer concise/ }).click();
   await page.getByRole("button", { name: "Edit note", exact: true }).click();
   await page
@@ -222,6 +225,13 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     for (const width of [320, 1440]) {
       await page.setViewportSize({ width, height: 900 });
+      if (path !== "/app/archive") {
+        await expect(
+          page
+            .getByRole("navigation", { name: "Notebook navigation" })
+            .locator('[aria-current="page"]'),
+        ).toBeInViewport({ ratio: 1 });
+      }
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= window.innerWidth,

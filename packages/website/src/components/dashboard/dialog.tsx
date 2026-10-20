@@ -26,7 +26,7 @@ export function Dialog({
     element.showModal();
     element
       .querySelector<HTMLElement>(
-        "textarea, input:not([type=checkbox]), select",
+        "[contenteditable=true], textarea, input:not([type=checkbox]), [role=combobox]",
       )
       ?.focus();
     return () => {
@@ -44,7 +44,7 @@ export function Dialog({
       aria-label={title}
       className={`app-dialog${panel ? " app-detail-panel" : ""}`}
     >
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="dialog-heading mb-6 flex items-center justify-between gap-4">
         <h2 className="font-editorial text-3xl">{title}</h2>
         <button
           disabled={locked}
