@@ -38,7 +38,13 @@ export function packArtifact(source, destination) {
       name.endsWith(".tgz"),
     );
     assert.equal(files.length, 1);
-    execFileSync("tar", ["-xzf", join(directory, files[0]), "-C", directory]);
+    execFileSync("tar", [
+      "--same-permissions",
+      "-xzf",
+      join(directory, files[0]),
+      "-C",
+      directory,
+    ]);
     const unpacked = join(directory, "package");
     const manifest = join(unpacked, "package.json");
     writeFileSync(
