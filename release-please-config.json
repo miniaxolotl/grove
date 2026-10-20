@@ -1,67 +1,67 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "node",
-  "include-component-in-tag": true,
+  "include-component-in-tag": false,
   "include-v-in-tag": true,
+  "bootstrap-sha": "0526bf70ffba15a400d0e670c8ac6160f01e5ef5",
   "packages": {
-    "packages/api": {
-      "release-type": "node",
-      "component": "grove-server",
-      "package-name": "@miniaxolotl/grove-server"
-    },
-    "packages/grove-claude-plugin": {
-      "release-type": "node",
-      "component": "grove-claude-plugin",
-      "package-name": "@miniaxolotl/grove-claude-plugin",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[0].source.version"
-        }
-      ]
-    },
-    "packages/grove-codex-plugin": {
-      "release-type": "node",
-      "component": "grove-codex-plugin",
-      "package-name": "@miniaxolotl/grove-codex-plugin",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.agents/plugins/marketplace.json",
-          "jsonpath": "$.plugins[0].source.version"
-        }
-      ]
-    },
-    "packages/mcp": {
-      "release-type": "node",
+    ".": {
       "component": "grove",
-      "package-name": "@miniaxolotl/grove"
-    },
-    "packages/grove-opencode-plugin": {
-      "release-type": "node",
-      "component": "grove-opencode-plugin",
-      "package-name": "@miniaxolotl/grove-opencode-plugin"
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "packages/api/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/mcp/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/grove-opencode-plugin/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/grove-claude-plugin/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/grove-codex-plugin/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/grove-claude-plugin/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/grove-codex-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[0].source.version"
+        },
+        {
+          "type": "json",
+          "path": ".agents/plugins/marketplace.json",
+          "jsonpath": "$.plugins[0].source.version"
+        }
+      ]
     }
   },
   "changelog-sections": [
     { "type": "feat", "section": "Features" },
+    { "type": "feature", "section": "Features" },
     { "type": "fix", "section": "Bug Fixes" },
     { "type": "perf", "section": "Performance Improvements" },
-    { "type": "docs", "section": "Documentation" },
-    { "type": "refactor", "section": "Code Refactoring" },
-    { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
-    { "type": "ci", "section": "CI/CD", "hidden": true }
-  ],
-  "separate-pull-requests": false
+    { "type": "revert", "section": "Reverts" }
+  ]
 }

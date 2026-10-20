@@ -1,46 +1,37 @@
-name: Release
-
+name: Source Release
 on:
   push:
-    branches: [development, production]
+    branches: [development]
   workflow_dispatch:
-
 permissions:
   contents: write
   pull-requests: write
-
+  actions: write
+concurrency:
+  group: release-please-development
+  cancel-in-progress: false
 jobs:
   release-please:
-    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/development'
-    outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
+    runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0; release-please 17.6.0
         id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
+          target-branch: development
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-
-  publish-npm:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/production'
-    steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+        if: steps.release.outputs.prs_created == 'true'
         with:
-          node-version: 24
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
-
-      - run: pnpm check-types
-      - run: pnpm test:artifacts
-      - name: Publish complete artifacts
-        run: node scripts/publish.mjs
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        if: steps.release.outputs.prs_created == 'true'
+        with: { node-version: 24 }
+      - name: Explicit CI dispatch for token-authored release PRs
+        if: steps.release.outputs.prs_created == 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PRS: ${{ steps.release.outputs.prs }}
+        run: node scripts/release/dispatch-ci.mjs
