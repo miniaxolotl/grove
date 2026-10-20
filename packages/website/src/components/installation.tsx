@@ -66,7 +66,7 @@ export function AgentSetup({
           <p className="mt-3 text-xs leading-6 text-muted">
             {value === "mcp"
               ? "Add this remote MCP server in your client, sign in with OAuth, then approve its access in Grove Connections. Named API keys are also available for headless clients."
-              : `Run this inside your project with ${agentNames[value as ConnectInput["agent"]]} installed and Node.js 22+. The command downloads Grove, opens account creation or sign-in, and finishes setup automatically after you approve access.`}
+              : `Run this inside your project with ${agentNames[value as ConnectInput["agent"]]} installed and Node.js 24+. The command downloads Grove, opens account creation or sign-in, and finishes setup automatically after you approve access.`}
           </p>
         </div>
       ))}

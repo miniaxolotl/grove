@@ -29,9 +29,9 @@ const result = await build({
           resolveDir: root,
           contents:
             args.path === "next/link"
-              ? 'import React from "react"; export default function Link(props) { return <a {...props}/> }'
+              ? 'export { FixtureLink as default } from "./tests/fixtures/navigation";'
               : args.path === "next/navigation"
-                ? "export const usePathname = () => window.location.pathname; export const useRouter = () => ({push: path => window.location.assign(path)});"
+                ? 'export { usePathname, useRouter } from "./tests/fixtures/navigation";'
                 : args.path === "next/image"
                   ? 'import React from "react"; export default function Image({unoptimized, ...props}) { return <img {...props}/> }'
                   : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',

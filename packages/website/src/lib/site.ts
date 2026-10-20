@@ -1,4 +1,5 @@
 import "server-only";
+import { positioning } from "@/content/site";
 
 const origin = new URL(
   process.env.SITE_URL ||
@@ -14,9 +15,7 @@ if (!["http:", "https:"].includes(origin.protocol)) {
 export const site = {
   name: "Grove",
   creator: "Bramble Labs Inc.",
-  title: "Grove — New session. Same context.",
-  description:
-    "Private memory across your AI agents. Remember useful preferences, decisions and task context, then browse, correct and archive it in your Grove.",
+  ...positioning,
   url: origin.origin,
   github: "https://github.com/miniaxolotl/grove",
   npm: "https://www.npmjs.com/package/@miniaxolotl/grove",

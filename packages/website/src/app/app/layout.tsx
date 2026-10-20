@@ -5,6 +5,9 @@ import { DashboardShell } from "@/components/dashboard/shell";
 import { AuthSetup } from "@/components/auth-setup";
 import "./dashboard.css";
 import "./exploration.css";
+import "./editor.css";
+import "./controls.css";
+import "./notebooks.css";
 
 const inter = localFont({
   src: "../../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",

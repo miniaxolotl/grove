@@ -1,3 +1,13 @@
+export const positioning = {
+  title: "Grove — Good ideas. Room to grow.",
+  description:
+    "A private notebook for your notes, plans, and daily reflections. Find answers in your own words and discover how your ideas connect with Grove.",
+  shareText:
+    "A private notebook for your notes, plans, and everyday ideas. Good ideas deserve room to grow.",
+  imageAlt:
+    "Grove — Good ideas. Room to grow. A private notebook for notes, plans, and everyday ideas.",
+} as const;
+
 export const navigation = [
   { label: "Why Grove", href: "/#features" },
   { label: "How it works", href: "/#how-it-works" },
@@ -8,36 +18,36 @@ export const faqs = [
   {
     question: "What exactly is Grove?",
     answer:
-      "Grove is private memory for everyday agent conversations and tasks. Keep preferences, confirmed decisions, useful facts, verified solutions, and short task handoffs. Four tools and a memory library help you pick up where you left off.",
+      "Grove is a private notebook for the things on your mind: everyday notes, plans, ideas, and journal entries. Organize them into notebooks, find them in your own words, and explore how they connect.",
   },
   {
-    question: "Which agents can use it?",
+    question: "Do I need to connect an AI tool?",
     answer:
-      "Grove includes packages for OpenCode V2, Claude Code, and Codex. Each uses an authenticated API connection. Other MCP clients can use the remote endpoint or the packaged stdio bridge. Hook support depends on the client; explicit memory tools are always available.",
+      "No. You can write notes, keep a journal, search, and use Ask Grove right in your browser. Connecting an outside AI tool is optional. If you use OpenCode, Claude Code, or Codex, you can connect it and choose which notebooks it can access.",
   },
   {
-    question: "Does it remember everything automatically?",
+    question: "Where do Ask Grove’s answers come from?",
     answer:
-      "Grove keeps concise, useful context through explicit tool calls. Optional hooks retrieve a small profile at task start; they never upload raw conversations or tool logs. Pause automatic memory locally or in Settings. You can inspect every saved memory in your library.",
+      "Ask Grove uses the notes you’ve saved in the notebooks you choose. Its answers link back to those notes so you can see where a detail came from. Asking a question doesn’t add or change your notes.",
   },
   {
-    question: "Where does my data go?",
+    question: "Is my notebook private?",
     answer:
-      "Memories are stored in private PostgreSQL behind Grove’s authenticated API. Account ownership and database row security keep users separated. Embeddings run on the Grove server by default. Your AI client receives the context you recall and follows its own data settings. Server-side search is not end-to-end encryption.",
+      "Your notes belong to your account. You choose which connected AI tools can access them and can turn that access off at any time. Grove uses service providers to store notes and provide search and answers. Our Privacy Policy explains how your information is handled.",
   },
   {
-    question: "Is Grove free?",
+    question: "Can I change my mind about a note?",
     answer:
-      "Grove is open source under the MIT license. Self-hosting uses your own compute, PostgreSQL storage, and Clerk configuration. Hosting and identity providers may have their own costs.",
+      "Of course. Edit a note, compare earlier versions, or restore an earlier version when you need it. You can also archive notes to set them aside, bring them back later, or delete them permanently.",
   },
   {
     question: "What do I need to get started?",
     answer:
-      "Create an account on your Grove deployment, install the CLI with Node.js 22 or newer, and run grove init for your agent. Browser sign-in or a scoped API key connects the agent. Self-hosting uses Docker Compose, PostgreSQL with pgvector, and a dedicated Clerk application.",
+      "Just create an account and open Grove in your browser. Start with a note or a journal entry, then make notebooks for the things you care about. You don’t need to install anything to use the notebook.",
   },
   {
-    question: "Can I organize or remove memories?",
+    question: "Can I take my notes with me?",
     answer:
-      "Yes. Browse personal and project memories, correct them with revision history, archive them reversibly, or delete them permanently. Durable memories stay until changed or deleted. Temporary handoffs leave recall after 30 days and are purged after 90 days. Each agent gets only its approved scope.",
+      "Yes. You can export your notes, archived notes, and earlier versions from Settings. Grove is also open source, with a separate self-hosting guide for people who prefer to run it themselves.",
   },
 ];

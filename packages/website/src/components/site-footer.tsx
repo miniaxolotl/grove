@@ -7,8 +7,7 @@ import { ShareSite } from "@/components/share-site";
 import { site } from "@/lib/site";
 
 export function SiteFooter() {
-  const shareText =
-    "New session. Same context. Private memory across your AI agents with Grove.";
+  const shareText = site.shareText;
 
   return (
     <footer className="border-t border-line bg-paper">
@@ -17,11 +16,12 @@ export function SiteFooter() {
           <div>
             <Brand />
             <p className="mt-4 max-w-60 text-xs leading-6 text-muted">
-              Persistent memory for AI agents.
-              <br />A developer tool by Bramble Labs Inc.
+              A private notebook for your notes, plans, and everyday ideas.
+              <br />
+              Made with care by Bramble Labs Inc.
             </p>
-            <p className="mt-5 font-mono text-[10px] text-leaf">
-              OPEN SOURCE. PRIVATE. YOURS.
+            <p className="mt-5 text-[11px] text-leaf">
+              Good ideas. Room to grow.
             </p>
           </div>
           <nav aria-label="Resources">
@@ -29,23 +29,23 @@ export function SiteFooter() {
             <Link href="/#features" className="footer-link">
               Why Grove
             </Link>
-            <Link href="/install" className="footer-link">
-              Installation guide
+            <Link href="/app" className="footer-link">
+              Your notebook
             </Link>
-            <a href={site.docs} className="footer-link">
-              Tool reference <ArrowUpRight size={12} />
-            </a>
-            <a href={site.pluginDocs} className="footer-link">
-              OpenCode plugin <ArrowUpRight size={12} />
-            </a>
+            <Link href="/install" className="footer-link">
+              Connect AI tools
+            </Link>
+            <Link href="/self-host" className="footer-link">
+              Self-host Grove
+            </Link>
           </nav>
           <div>
-            <p className="eyebrow mb-3">COMMUNITY</p>
+            <p className="eyebrow mb-3">STAY IN TOUCH</p>
+            <a href="mailto:grove@mawa.dev" className="footer-link">
+              Say hello <ArrowUpRight size={12} />
+            </a>
             <a href={site.github} className="footer-link">
               <Github size={14} /> GitHub <ArrowUpRight size={12} />
-            </a>
-            <a href={site.npm} className="footer-link">
-              npm package <ArrowUpRight size={12} />
             </a>
             <ShareSite url={site.url} />
             <div className="mt-1 flex flex-wrap gap-x-4">

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/miniaxolotl/grove/compare/v1.2.3...v1.3.0) (2026-10-20)
+
+
+### Features
+
+* add polished notebook workspace and consumer website ([#28](https://github.com/miniaxolotl/grove/issues/28)) ([4e5d0f7](https://github.com/miniaxolotl/grove/commit/4e5d0f70cdb9d410fcaf32a96e6c43ae274a7a72))
+
 ## [1.2.3](https://github.com/miniaxolotl/grove/compare/v1.2.2...v1.2.3) (2026-10-20)
 
 

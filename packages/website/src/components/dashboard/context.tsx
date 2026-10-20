@@ -1,13 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Plus, Pencil, ArrowLeft } from "lucide-react";
+import { Plus, Pencil, FolderInput } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { BriefPanel } from "./brief";
 import { MemoryLibrary } from "./memory-library";
 import { MemoryEditor } from "./memory-editor";
-import { ProjectForm } from "./project-form";
+import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
+import { useNotebooks } from "./notebooks-provider";
+import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
+import { NotebookTree } from "./notebook-tree";
 import { Handoffs } from "./handoffs";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
@@ -23,31 +25,14 @@ export function MemoryContext({
   projectId?: string | null;
 }) {
   const [view, setView] = useState(projectId ? "memories" : "context");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(!!projectId);
-  const [error, setError] = useState("");
+  const { projects, loading, error, reload } = useNotebooks();
   const [create, setCreate] = useState<Memory["kind"] | null>(null);
   const [prompt, setPrompt] = useState<ContextPrompt | null>(null);
-  const [rename, setRename] = useState(false);
+  const [notebookAction, setNotebookAction] = useState<NotebookAction | null>(
+    null,
+  );
   const [refresh, setRefresh] = useState(0);
   const [notice, setNotice] = useState("");
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Project[]>("/projects", undefined, undefined, controller.signal)
-      .then((list) => {
-        if (!controller.signal.aborted) {
-          setProjects(list);
-          setError("");
-        }
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [refresh]);
   const project = projects.find((p) => p.id === projectId);
   if (loading) return <p role="status">Opening notebook…</p>;
   if (projectId && !project)
@@ -56,7 +41,7 @@ export function MemoryContext({
         <h1 className="font-editorial text-4xl">Notebook unavailable</h1>
         <LoadError
           message={error || "This notebook could not be found in your account."}
-          retry={() => setRefresh((v) => v + 1)}
+          retry={reload}
         />
         <Link href="/app/projects" className="app-button secondary">
           Back to notebooks
@@ -66,10 +51,7 @@ export function MemoryContext({
   return (
     <>
       {projectId && (
-        <Link href="/app/projects" className="workspace-back">
-          <ArrowLeft size={15} />
-          Notebooks
-        </Link>
+        <NotebookBreadcrumbs projects={projects} id={projectId} current />
       )}
       <PageHeading
         title={project?.name ?? "About me"}
@@ -79,23 +61,44 @@ export function MemoryContext({
             : "The little things that make your notebook yours."
         }
         actions={
-          view !== "memories" && (
+          (project || view !== "memories") && (
             <>
               {project && (
-                <Button variant="secondary" onClick={() => setRename(true)}>
-                  <Pencil size={15} />
-                  Rename
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setNotebookAction({ project })}
+                  >
+                    <Pencil size={15} />
+                    Rename
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setNotebookAction({ project, move: true })}
+                  >
+                    <FolderInput size={15} />
+                    Move
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setNotebookAction({ parentId: project.id })}
+                  >
+                    <Plus size={15} />
+                    Sub-notebook
+                  </Button>
+                </>
+              )}
+              {view !== "memories" && (
+                <Button
+                  onClick={() => {
+                    setPrompt(null);
+                    setCreate(project ? "fact" : "preference");
+                  }}
+                >
+                  <Plus size={16} />
+                  {project ? "New note" : "Add a little about me"}
                 </Button>
               )}
-              <Button
-                onClick={() => {
-                  setPrompt(null);
-                  setCreate(project ? "fact" : "preference");
-                }}
-              >
-                <Plus size={16} />
-                {project ? "New note" : "Add a little about me"}
-              </Button>
             </>
           )
         }
@@ -105,9 +108,7 @@ export function MemoryContext({
           {notice}
         </p>
       )}
-      {error && (
-        <LoadError message={error} retry={() => setRefresh((v) => v + 1)} />
-      )}
+      {error && <LoadError message={error} retry={reload} />}
       <nav className="workspace-tabs" aria-label="Workspace views">
         {(project
           ? [
@@ -131,6 +132,14 @@ export function MemoryContext({
           </button>
         ))}
       </nav>
+      {project && projects.some((p) => p.parentId === project.id) && (
+        <section className="sub-notebooks" aria-label="Sub-notebooks">
+          <h2>Sub-notebooks</h2>
+          <NotebookTree
+            projects={projects.filter((p) => p.parentId === project.id)}
+          />
+        </section>
+      )}
       {view === "context" && (
         <div className="context-layout">
           <BriefPanel key={refresh} projectId={projectId} />
@@ -243,16 +252,11 @@ export function MemoryContext({
           />
         </Dialog>
       )}
-      {rename && project && (
-        <Dialog title="Rename notebook" close={() => setRename(false)}>
-          <ProjectForm
-            project={project}
-            done={() => {
-              setRename(false);
-              setRefresh((v) => v + 1);
-            }}
-          />
-        </Dialog>
+      {notebookAction && (
+        <NotebookDialog
+          action={notebookAction}
+          close={() => setNotebookAction(null)}
+        />
       )}
     </>
   );

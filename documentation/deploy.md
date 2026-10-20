@@ -171,6 +171,15 @@ Database migrations remain an explicit owner-credential operation before rollout
 check the applied migration history before promotion rather than repeating a
 migration from an earlier rollout.
 
+The nested-notebook feature requires forward migration
+`20261020_008_nested_notebooks` before deploying its API. It adds nullable parent
+references and revision counters to existing projects, with same-account foreign
+keys. Existing notebooks begin at the top level, and existing notes/grants are
+unchanged. Apply with the migration owner, then roll out the matching API/worker
+before the website. Older clients may omit `parentId` and `expectedVersion`; a
+legacy rename preserves nesting. The migration does not require data backfill or
+provider reindexing, and is not automatically rolled back.
+
 For the one-command Cloud onboarding release, apply `20261019_004_connection_setup`
 before updating the API, then deploy the approval website, publish updated CLI/native
 packages and verify the install commands. The website and npm release must be

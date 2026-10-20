@@ -36,7 +36,7 @@ export default async function InstallPage() {
       </div>
       <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-y border-line py-5 text-xs text-leaf">
         <span className="flex items-center gap-2">
-          <Terminal size={14} /> Node.js 22+
+          <Terminal size={14} /> Node.js 24+
         </span>
         <span className="flex items-center gap-2">
           <BookOpen size={14} /> An MCP-compatible client

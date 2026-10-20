@@ -1,11 +1,5 @@
-import {
-  ArrowDown,
-  ArrowRight,
-  Database,
-  Network,
-  Terminal,
-} from "lucide-react";
-import { GroveMark } from "@/components/brand";
+import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
 export function HowItWorks() {
   return (
@@ -18,85 +12,57 @@ export function HowItWorks() {
       <div className="page-container section-space relative">
         <div className="section-intro">
           <div>
-            <p className="eyebrow text-lime/75">SIMPLE ARCHITECTURE</p>
+            <p className="eyebrow text-lime/75">START SMALL. MAKE IT YOURS.</p>
             <h2 id="how-heading" className="section-heading mt-4">
-              Your agent calls the tools.
+              A few words.
               <br />
-              <em className="text-lime!">Grove keeps the context.</em>
+              <em className="text-lime!">A little more clarity.</em>
             </h2>
           </div>
           <p className="text-paper/65!">
-            A focused MCP server between your agent and a persistent store.
-            Explicit tool calls. Local embeddings. Durable storage.
+            No perfect system to set up. Just open your notebook and start with
+            what’s on your mind.
           </p>
         </div>
 
-        <div className="architecture-strip">
-          <div>
-            <Terminal size={25} strokeWidth={1.4} />
-            <span>Your AI agent</span>
-            <small>OpenCode, Claude, or Codex</small>
-          </div>
-          <span className="architecture-arrow">
-            <span>MCP TOOLS</span>
-            <ArrowRight size={32} strokeWidth={1} className="hidden sm:block" />
-            <ArrowDown size={23} strokeWidth={1} className="sm:hidden" />
-          </span>
-          <div className="architecture-grove">
-            <GroveMark className="size-10" />
-            <span>Grove</span>
-            <small>Authenticated private memory</small>
-          </div>
-          <span className="architecture-arrow">
-            <span>PERSISTENT STORAGE</span>
-            <ArrowRight size={32} strokeWidth={1} className="hidden sm:block" />
-            <ArrowDown size={23} strokeWidth={1} className="sm:hidden" />
-          </span>
-          <div>
-            <Database size={25} strokeWidth={1.4} />
-            <span>PostgreSQL</span>
-            <small>Account-owned rows + pgvector</small>
-          </div>
-        </div>
-
-        <div className="mt-14 grid gap-8 md:grid-cols-3 md:gap-10">
+        <ol className="getting-started-steps">
           {[
             {
               number: "01",
-              title: "Save the useful things.",
+              title: "Open a little space.",
               description:
-                "Your agent calls remember to save a preference, confirmed decision, useful fact, verified solution, or short handoff. Choose personal or project scope.",
+                "Create your account and open Grove in your browser. Your notebook is ready for a first thought.",
             },
             {
               number: "02",
-              title: "Keep it private.",
+              title: "Keep what matters.",
               description:
-                "Grove saves the memory transactionally in PostgreSQL and indexes its current revision. Only your account and approved connections can access it.",
+                "Write a note, make a plan, or add a journal entry. Give related ideas a notebook of their own.",
             },
             {
               number: "03",
-              title: "Pick up where you left off.",
+              title: "Find your next thought.",
               description:
-                "In a later session, your agent searches by meaning and uses the relevant memories as context. Less repetition. More forward motion.",
+                "Search in your own words, ask Grove a question, or explore the connections between your notes.",
             },
           ].map(({ number, title, description }) => (
-            <div key={number} className="border-t border-paper/15 pt-5">
-              <span className="font-mono text-[11px] text-lime/65">
-                {number}
-              </span>
+            <li key={number}>
+              <span className="getting-started-number">{number}</span>
               <h3 className="mt-4 text-lg font-medium tracking-tight">
                 {title}
               </h3>
               <p className="mt-3 text-[13px] leading-7 text-paper/65">
                 {description}
               </p>
-            </div>
+            </li>
           ))}
+        </ol>
+        <div className="optional-connection">
+          <p>Use AI tools? They can work with your notebook, too.</p>
+          <Link href="/install">
+            Connect your AI tools <ArrowUpRight size={14} />
+          </Link>
         </div>
-        <p className="mt-10 flex items-center justify-center gap-2 text-center text-[11px] text-paper/70">
-          <Network size={14} className="shrink-0" /> Local embeddings by
-          default. One authenticated API for your website and agents.
-        </p>
       </div>
     </section>
   );

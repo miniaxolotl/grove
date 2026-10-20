@@ -40,6 +40,7 @@ import {
   type RecallResult,
   type Remember,
   type Page,
+  type Notebook,
 } from "@lib/shared/contracts";
 
 export { ConnectionSetup } from "./connect.ts";
@@ -1076,48 +1077,126 @@ export class MemoryService {
   async projects(principal: Principal) {
     return this.access(principal, "memory:read", async ({ trx, grant }) => {
       const q = trx("projects")
-        .select("id", "name", "identity", "createdAt")
+        .select("id", "name", "identity", "parentId", "version", "createdAt")
         .orderBy("name")
         .limit(100);
       if (grant && !grant.allProjects) q.whereIn("id", grant.projectIds);
-      return q;
+      const rows = await q;
+      // Hierarchy is navigation, never inherited authorization or disclosure.
+      return rows.map((row) => ({
+        ...row,
+        parentId:
+          grant &&
+          !grant.allProjects &&
+          !grant.projectIds.includes(row.parentId)
+            ? null
+            : row.parentId,
+      }));
     });
   }
   async project(
     principal: Principal,
-    input: { name: string; identity: string },
+    input: {
+      name: string;
+      identity: string;
+      parentId?: string | null;
+      expectedVersion?: number;
+    },
     id?: string,
   ) {
     return this.access(
       principal,
       "memory:write",
       async ({ trx, account, grant }) => {
+        // access() holds the account's write lock. Concurrent hierarchy mutations
+        // therefore see each other's committed parents before checking for cycles.
+        const fields = ["id", "name", "identity", "parentId", "version"];
+        const present = (row: Notebook): Notebook => ({
+          ...row,
+          parentId:
+            grant &&
+            !grant.allProjects &&
+            !grant.projectIds.includes(row.parentId ?? "")
+              ? null
+              : row.parentId,
+        });
         if (id) {
           this.scope(grant, id);
+          const existing = await trx("projects").where({ id }).first();
+          if (!existing)
+            throw new GroveError("not_found", "Notebook not found", 404);
+          if (
+            input.expectedVersion !== undefined &&
+            existing.version !== input.expectedVersion
+          )
+            throw new GroveError(
+              "version_conflict",
+              "This notebook changed. Reopen its settings to review the latest version.",
+              409,
+            );
+          if (input.parentId) {
+            this.scope(grant, input.parentId);
+            const projects = await trx("projects").select("id", "parentId");
+            const parents = new Map<string, string | null>(
+              projects.map((p) => [p.id, p.parentId]),
+            );
+            if (!parents.has(input.parentId))
+              throw new GroveError(
+                "not_found",
+                "Parent notebook not found",
+                404,
+              );
+            const seen = new Set([id]);
+            let parent: string | null = input.parentId;
+            while (parent) {
+              if (seen.has(parent))
+                throw new GroveError(
+                  "invalid_request",
+                  "A notebook cannot be placed inside itself or its sub-notebooks.",
+                );
+              seen.add(parent);
+              parent = parents.get(parent) ?? null;
+            }
+          }
           const [row] = await trx("projects")
             .where({ id })
-            .update({ name: input.name })
-            .returning(["id", "name", "identity"]);
-          if (!row) throw new GroveError("not_found", "Project not found", 404);
-          return row;
+            .update({
+              name: input.name,
+              ...(input.parentId !== undefined
+                ? { parentId: input.parentId }
+                : {}),
+              version: trx.raw("version + 1"),
+            })
+            .returning(fields);
+          return present(row);
         }
         const existing = await trx("projects")
           .where({ identity: input.identity })
           .first();
         if (existing) {
           this.scope(grant, existing.id);
-          return existing;
+          return present(existing);
         }
         if (grant && !grant.allProjects) throw forbidden();
+        if (
+          input.parentId &&
+          !(await trx("projects").where({ id: input.parentId }).first())
+        )
+          throw new GroveError("not_found", "Parent notebook not found", 404);
         const total = await trx("projects").count("id as count").first();
         if (Number(total?.count) >= policy.maxProjects)
           throw new GroveError("project_limit", "Project limit reached", 429);
         const [row] = await trx("projects")
-          .insert({ ...input, accountId: account.id })
+          .insert({
+            name: input.name,
+            identity: input.identity,
+            parentId: input.parentId ?? null,
+            accountId: account.id,
+          })
           .onConflict(["accountId", "identity"])
           .merge({ name: input.name })
-          .returning(["id", "name", "identity"]);
-        return row;
+          .returning(fields);
+        return present(row);
       },
     );
   }

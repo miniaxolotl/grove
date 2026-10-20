@@ -16,7 +16,7 @@ import {
   Network,
 } from "lucide-react";
 import type { Memory, Page } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { api, errorMessage } from "@/lib/dashboard-api";
 import { isInactive, memoryTitle, moveMemoryInput } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
@@ -26,8 +26,11 @@ import { MemoryDetail } from "./memory-detail";
 import { MemoryDrag, MemoryDestination } from "./memory-drag";
 import { LibraryFilterBar, initialFilters } from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
-import { Button } from "./ui/button";
 import { SegmentedControl } from "./ui/segmented-control";
+import { Select } from "./ui/select";
+import { NotebookSelect } from "./notebook-select";
+import { NotebookTree } from "./notebook-tree";
+import { useNotebooks } from "./notebooks-provider";
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
   loading: () => (
@@ -60,7 +63,11 @@ export function MemoryLibrary({
   const [view, setView] = useState(initialView);
   const [loadedItems, setItems] = useState<Memory[]>([]);
   const [resultKey, setResultKey] = useState("");
-  const [projects, setProjects] = useState<Project[]>([]);
+  const {
+    projects,
+    error: notebookError,
+    reload: reloadNotebooks,
+  } = useNotebooks();
   const [filters, setFilters] = useState(() => ({
     ...initialFilters(archive),
     kind: initialKind,
@@ -131,33 +138,29 @@ export function MemoryLibrary({
   useEffect(() => {
     const request = new AbortController();
     controller.current = request;
-    Promise.all([
-      api<Page<Memory>>(
-        "/memories/search",
-        {
-          query: search || undefined,
-          projectId: scopedProject,
-          kind: kind || undefined,
-          tag: tag || undefined,
-          status,
-          sourceAgent: sourceAgent || undefined,
-          updatedAfter: updatedAfter || undefined,
-          sort,
-          lifetime: lifetime || undefined,
-        },
-        undefined,
-        request.signal,
-      ),
-      api<Project[]>("/projects", undefined, undefined, request.signal),
-    ])
-      .then(([page, list]) => {
+    api<Page<Memory>>(
+      "/memories/search",
+      {
+        query: search || undefined,
+        projectId: scopedProject,
+        kind: kind || undefined,
+        tag: tag || undefined,
+        status,
+        sourceAgent: sourceAgent || undefined,
+        updatedAfter: updatedAfter || undefined,
+        sort,
+        lifetime: lifetime || undefined,
+      },
+      undefined,
+      request.signal,
+    )
+      .then((page) => {
         if (request.signal.aborted) return;
         setError("");
         setChecked([]);
         setItems(page.items);
         setNext(page.nextCursor);
         setSearchMode(page.searchMode);
-        setProjects(list);
       })
       .catch((e) => {
         if (!request.signal.aborted) {
@@ -372,17 +375,20 @@ export function MemoryLibrary({
           title={title}
           description={
             archive
-              ? "Set aside for now. Bring a note back whenever you need it."
+              ? "Notes set aside. Restore them whenever you need."
               : initialView === "graph"
                 ? "See how your ideas connect."
-                : "A place for ideas, plans, and things worth keeping."
+                : "Your notes, organized and connected."
           }
           actions={
             !archive && (
-              <Button disabled={busy} onClick={() => setSelected("new")}>
+              <Link
+                className="app-button"
+                href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+              >
                 <Plus size={16} />
                 New note
-              </Button>
+              </Link>
             )
           }
         />
@@ -390,14 +396,13 @@ export function MemoryLibrary({
       {embedded && (
         <div className="embedded-library-actions">
           <span>Your notes, together.</span>
-          <Button
-            variant="secondary"
-            disabled={busy}
-            onClick={() => setSelected("new")}
+          <Link
+            className="app-button secondary"
+            href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
           >
             <Plus size={16} />
             New note
-          </Button>
+          </Link>
         </div>
       )}
       <MemoryDrag
@@ -433,21 +438,31 @@ export function MemoryLibrary({
               <span>Notebooks</span>
               <Link href="/app/projects">Manage</Link>
             </div>
-            {projects.map((p) => (
-              <MemoryDestination
-                key={p.id}
-                href={embedded ? `/app/projects/${p.id}` : undefined}
-                id={p.id}
-                name={p.name}
-                active={embedded ? fixedProject === p.id : project === p.id}
-                busy={busy}
-                onClick={() => {
-                  if (!embedded) setFilters({ ...filters, project: p.id });
-                }}
-              >
-                <Folder size={16} />
-              </MemoryDestination>
-            ))}
+            <NotebookTree
+              projects={projects}
+              selectedId={embedded ? fixedProject : project}
+              defaultExpanded
+              renderItem={(p) => (
+                <MemoryDestination
+                  key={p.id}
+                  href={embedded ? `/app/projects/${p.id}` : undefined}
+                  id={p.id}
+                  name={p.name}
+                  active={embedded ? fixedProject === p.id : project === p.id}
+                  busy={busy}
+                  onClick={() => {
+                    if (!embedded) setFilters({ ...filters, project: p.id });
+                  }}
+                >
+                  <Folder size={16} />
+                </MemoryDestination>
+              )}
+            />
+            {notebookError && (
+              <button className="text-button" onClick={reloadNotebooks}>
+                Retry notebooks
+              </button>
+            )}
             <p className="places-hint">Drag a note into a notebook.</p>
           </aside>
           <div className="library-main">
@@ -499,22 +514,24 @@ export function MemoryLibrary({
                   ]}
                 />
               )}
-              <label className="library-sort">
-                Sort
-                <select
+              {view === "list" && (
+                <Select
+                  className="library-sort"
+                  label="Sort"
                   aria-label="Sort notes"
                   value={sort}
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     setFilters({
                       ...filters,
-                      sort: e.target.value as typeof sort,
+                      sort: value as typeof sort,
                     })
                   }
-                >
-                  <option value="updated_desc">Recently updated</option>
-                  <option value="updated_asc">Oldest updated</option>
-                </select>
-              </label>
+                  options={[
+                    { value: "updated_desc", label: "Recently updated" },
+                    { value: "updated_asc", label: "Oldest updated" },
+                  ]}
+                />
+              )}
             </div>
             {view === "list" && selectedItems.length > 0 && (
               <div
@@ -608,12 +625,12 @@ export function MemoryLibrary({
                 </p>
                 {!archive && !filtered && (
                   <div className="mt-6 flex flex-wrap justify-center gap-3">
-                    <button
+                    <Link
                       className="app-button"
-                      onClick={() => setSelected("new")}
+                      href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
                     >
                       Write your first note
-                    </button>
+                    </Link>
                     <Link
                       href="/app/connections"
                       className="app-button secondary"
@@ -791,20 +808,14 @@ export function MemoryLibrary({
             <p className="text-sm leading-7 text-muted">
               Choose a notebook. Your note and its history stay together.
             </p>
-            <label>
-              Destination
-              <select
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-              >
-                <option value="personal">Personal</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <NotebookSelect
+              label="Destination"
+              value={destination}
+              onValueChange={setDestination}
+              projects={projects}
+              leading={[{ value: "personal", label: "Personal" }]}
+              disabled={busy}
+            />
             <p className="text-xs text-muted">
               Connected agents with access to this notebook can read these
               notes.

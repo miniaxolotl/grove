@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "./ui/select";
+import { NotebookSelect } from "./notebook-select";
 import {
   useId,
   useRef,
@@ -164,82 +166,60 @@ export function LibraryFilterBar({
           }}
         >
           {fixedProject === undefined && (
-            <label>
-              Notebook
-              <select
-                value={value.project}
-                onChange={(e) => update({ project: e.target.value })}
-              >
-                <option value="all">All notebooks</option>
-                <option value="personal">Personal</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <NotebookSelect
+              label="Notebook"
+              value={value.project}
+              onValueChange={(project) => update({ project })}
+              projects={projects}
+              leading={[
+                { value: "all", label: "All notebooks" },
+                { value: "personal", label: "Personal" },
+              ]}
+            />
           )}
-          <label>
-            Note type
-            <select
-              value={value.kind}
-              onChange={(e) =>
-                update({ kind: e.target.value as Memory["kind"] })
-              }
-            >
-              {kindOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Keep for
-            <select
-              value={value.lifetime}
-              onChange={(e) => update({ lifetime: e.target.value })}
-            >
-              <option value="">Any duration</option>
-              <option value="permanent">Until I remove it</option>
-              <option value="ephemeral">A limited time</option>
-            </select>
-          </label>
-          <label>
-            Source
-            <select
-              value={value.sourceAgent}
-              onChange={(e) => update({ sourceAgent: e.target.value })}
-            >
-              {sources.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Last updated
-            <select
-              value={value.period}
-              onChange={(e) =>
-                update({
-                  period: e.target.value,
-                  updatedAfter: e.target.value
-                    ? new Date(
-                        Date.now() - Number(e.target.value) * 86400000,
-                      ).toISOString()
-                    : "",
-                })
-              }
-            >
-              <option value="">Any time</option>
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-            </select>
-          </label>
+          <Select
+            label="Note type"
+            value={value.kind}
+            onValueChange={(kind) => update({ kind: kind as Memory["kind"] })}
+            options={kindOptions}
+          />
+          <Select
+            label="Keep for"
+            value={value.lifetime}
+            onValueChange={(lifetime) => update({ lifetime })}
+            options={[
+              { value: "", label: "Any duration" },
+              { value: "permanent", label: "Until I remove it" },
+              { value: "ephemeral", label: "A limited time" },
+            ]}
+          />
+          <Select
+            label="Source"
+            value={value.sourceAgent}
+            onValueChange={(sourceAgent) => update({ sourceAgent })}
+            options={sources.map(([value, label]) => ({ value, label }))}
+          />
+          <Select
+            label="Last updated"
+            value={value.period}
+            onValueChange={(period) =>
+              update({
+                period,
+                updatedAfter: period
+                  ? new Date(
+                      Date.now() - Number(period) * 86400000,
+                    ).toISOString()
+                  : "",
+              })
+            }
+            options={[
+              { value: "", label: "Any time" },
+              ...[7, 30, 90].map((days) => ({
+                value: String(days),
+                label: `Last ${days} days`,
+              })),
+            ]}
+          />
           <label>
             Topic tag
             <input
@@ -264,16 +244,15 @@ export function LibraryFilterBar({
             Apply tag
           </Button>
           {archive && (
-            <label>
-              Archive status
-              <select
-                value={value.status}
-                onChange={(e) => update({ status: e.target.value })}
-              >
-                <option value="archived">Archived</option>
-                <option value="expired">Expired notes</option>
-              </select>
-            </label>
+            <Select
+              label="Archive status"
+              value={value.status}
+              onValueChange={(status) => update({ status })}
+              options={[
+                { value: "archived", label: "Archived" },
+                { value: "expired", label: "Expired notes" },
+              ]}
+            />
           )}
           {topics.length > 0 && (
             <div className="topic-suggestions">

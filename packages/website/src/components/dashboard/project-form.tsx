@@ -1,17 +1,31 @@
 "use client";
 import { useRef, useState } from "react";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import {
+  api,
+  DashboardApiError,
+  errorMessage,
+  type Project,
+} from "@/lib/dashboard-api";
 import { useDialogBusy } from "./dialog";
+import { NotebookSelect } from "./notebook-select";
+import { useNotebooks } from "./notebooks-provider";
+import { LoadError } from "./load-error";
 
 export function ProjectForm({
   project,
+  parentId: initialParent,
   done,
 }: {
   project?: Project;
+  parentId?: string;
   done: () => void;
 }) {
   const [name, setName] = useState(project?.name ?? "");
   const [identity, setIdentity] = useState(project?.identity ?? "");
+  const [parentId, setParentId] = useState(
+    project?.parentId ?? initialParent ?? "",
+  );
+  const notebooks = useNotebooks();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const generated = useRef("");
@@ -27,17 +41,22 @@ export function ProjectForm({
         setError("");
         generated.current ||= `workspace:${crypto.randomUUID()}`;
         try {
-          await api(
+          const saved = await api<Project>(
             project ? `/projects/${project.id}` : "/projects",
             {
               name: name.trim(),
               identity: identity.trim() || generated.current,
+              parentId: parentId || null,
+              ...(project?.version ? { expectedVersion: project.version } : {}),
             },
             project ? "PATCH" : "POST",
           );
+          notebooks.saved(saved);
           done();
         } catch (e) {
           setError(errorMessage(e));
+          if (e instanceof DashboardApiError && e.code === "version_conflict")
+            notebooks.reload();
         } finally {
           setBusy(false);
           setDialogBusy(false);
@@ -56,6 +75,28 @@ export function ProjectForm({
           placeholder="A new idea"
         />
       </label>
+      <NotebookSelect
+        label="Parent notebook"
+        value={parentId}
+        onValueChange={setParentId}
+        projects={notebooks.projects}
+        exclude={project?.id}
+        leading={[
+          {
+            value: "",
+            label: "Top level",
+            description: "Keep this notebook at the root",
+          },
+        ]}
+        disabled={busy || notebooks.loading || !!notebooks.error}
+      />
+      {notebooks.error && (
+        <LoadError message={notebooks.error} retry={notebooks.reload} />
+      )}
+      <p className="text-xs leading-6 text-muted">
+        Nest notebooks to keep related ideas together. Each notebook keeps its
+        own agent access.
+      </p>
       {!project && (
         <p className="text-sm leading-7 text-muted">
           A home for related notes, decisions, and work in progress. You can
@@ -87,7 +128,12 @@ export function ProjectForm({
           {error}
         </p>
       )}
-      <button disabled={busy || !name.trim()} className="app-button">
+      <button
+        disabled={
+          busy || !name.trim() || notebooks.loading || !!notebooks.error
+        }
+        className="app-button"
+      >
         {busy ? "Saving…" : "Save notebook"}
       </button>
     </form>
