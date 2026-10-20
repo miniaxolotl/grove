@@ -56,7 +56,7 @@ production PR. Do not deploy a moving development head or alter a released tag.
 
 ## Verification
 
-The 60-case browser suite includes eleven observability cases using the real SDKs and
+The 66-case browser suite includes eleven observability cases using the real SDKs and
 local ingestion sinks: actual errors, streamed spans, metrics and logs; recursively
 decoded replay; independent browser privacy signals; cross-tab opt-out/identity
 reset; provider outages; clipboard outcomes; and a persistent-layout workspace

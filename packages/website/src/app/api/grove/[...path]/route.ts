@@ -2,8 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { type NextRequest } from "next/server";
 import { site } from "@/lib/site";
 
+export const maxDuration = 180;
+
 const allowed =
-  /^(me|ask|models(?:\/test)?|briefs(?:\/refresh)?|projects(?:\/[0-9a-f-]+)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions|archive|restore|reprocess))?))?|recall|connect\/[0-9a-f-]+(?:\/(?:approve|cancel))?|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete|usage))$/;
+  /^(me|ask|conversations(?:\/[0-9a-f-]+(?:\/turns(?:\/[0-9a-f-]+\/(?:apply|undo))?)?)?|models(?:\/test)?|briefs(?:\/refresh)?|projects(?:\/[0-9a-f-]+)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions|archive|restore|reprocess))?))?|recall|connect\/[0-9a-f-]+(?:\/(?:approve|cancel))?|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete|usage))$/;
 async function forward(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -45,7 +47,11 @@ async function forward(
     const content = request.method === "GET" ? undefined : await request.text();
     if (content && Buffer.byteLength(content) > 128 * 1024)
       return fail(413, "Request body is too large");
-    const upstream = await fetch(`${origin.origin}/v1/${path}`, {
+    const target = new URL(`/v1/${path}`, origin.origin);
+    const after = request.nextUrl.searchParams.get("after");
+    if (path === "conversations" && after)
+      target.searchParams.set("after", after);
+    const upstream = await fetch(target, {
       method: request.method,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -57,7 +63,11 @@ async function forward(
       signal: AbortSignal.any([
         request.signal,
         AbortSignal.timeout(
-          path === "account/export" || path === "ask" ? 60000 : 15000,
+          /^conversations\/[0-9a-f-]+\/turns$/.test(path)
+            ? 175000
+            : path === "account/export" || path === "ask"
+              ? 60000
+              : 15000,
         ),
       ]),
     });

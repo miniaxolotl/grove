@@ -18,7 +18,7 @@ export function ProjectForm({
 }: {
   project?: Project;
   parentId?: string;
-  done: () => void;
+  done: (project: Project) => void;
 }) {
   const [name, setName] = useState(project?.name ?? "");
   const [identity, setIdentity] = useState(project?.identity ?? "");
@@ -52,7 +52,7 @@ export function ProjectForm({
             project ? "PATCH" : "POST",
           );
           notebooks.saved(saved);
-          done();
+          done(saved);
         } catch (e) {
           setError(errorMessage(e));
           if (e instanceof DashboardApiError && e.code === "version_conflict")

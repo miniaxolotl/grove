@@ -336,10 +336,14 @@ test.describe("remote controls and private workspace", () => {
       });
     });
     await page.goto(`${dashboard}/?telemetry_fixture=1`);
-    await page.getByRole("heading", { name: "Public fixture" }).click();
     await expect
       .poll(
-        () => telemetry.events.some((event) => event.event === "$snapshot"),
+        async () => {
+          // The recorder loads asynchronously after the flag/config response;
+          // keep interacting until it can observe activity and upload a batch.
+          await page.getByRole("heading", { name: "Public fixture" }).click();
+          return telemetry.events.some((event) => event.event === "$snapshot");
+        },
         { timeout: 20000 },
       )
       .toBe(true);
@@ -348,7 +352,9 @@ test.describe("remote controls and private workspace", () => {
       page.getByText("PRIVATE_NOTE_CONTENT", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Save note fixture" }).click();
-    await expect(page.getByRole("status")).toHaveText("Saved");
+    await expect(
+      page.getByRole("status").filter({ hasText: /^Saved$/ }),
+    ).toBeVisible();
     await expect
       .poll(
         () =>

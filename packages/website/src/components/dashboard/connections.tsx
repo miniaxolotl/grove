@@ -16,6 +16,7 @@ import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { useNotebooks } from "./notebooks-provider";
 import { notebookOptions } from "@/lib/notebooks";
+import { SettingsNavigation } from "./settings-navigation";
 
 type Connection = Grant & {
   id: string;
@@ -74,20 +75,27 @@ export function Connections({ origin }: { origin: string }) {
         title="Connections"
         description="Choose what each agent can read, remember, and forget."
       />
-      <section className="app-panel mb-8">
-        <div className="flex items-center gap-3">
-          <Plug size={20} />
-          <h2 className="font-editorial text-2xl">Connect an agent</h2>
-        </div>
-        <p className="mt-3 text-sm leading-7 text-muted">
-          Browser sign-in (OAuth) is recommended. Choose your agent, run its
-          connection command, and approve its access. No key to copy; access can
-          be changed or revoked here.
-        </p>
-        <div className="mt-4">
-          <AgentSetup origin={origin || undefined} />
-        </div>
-      </section>
+      <SettingsNavigation />
+      <details className="connection-setup" open={!items.length}>
+        <summary>
+          <Plug size={17} />
+          Connect an agent
+        </summary>
+        <section className="app-panel">
+          <div className="flex items-center gap-3">
+            <Plug size={20} />
+            <h2 className="font-editorial text-2xl">Connect an agent</h2>
+          </div>
+          <p className="mt-3 text-sm leading-7 text-muted">
+            Browser sign-in (OAuth) is recommended. Choose your agent, run its
+            connection command, and approve its access. No key to copy; access
+            can be changed or revoked here.
+          </p>
+          <div className="mt-4">
+            <AgentSetup origin={origin || undefined} />
+          </div>
+        </section>
+      </details>
       <Disclosure
         title="Advanced: API keys & headless clients"
         className="connection-advanced"

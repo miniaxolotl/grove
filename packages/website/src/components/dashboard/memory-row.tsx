@@ -11,6 +11,7 @@ import {
 import type { Memory } from "@lib/shared/contracts";
 import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
 import { Button, IconButton } from "./ui/button";
+import { useWorkspaceDrag, type WorkspaceDragItem } from "./memory-drag";
 
 export function MemoryRow({
   memory,
@@ -22,6 +23,7 @@ export function MemoryRow({
   onMove,
   onArchive,
   onTag,
+  selectedItems,
 }: {
   memory: Memory;
   projectName: string;
@@ -32,9 +34,20 @@ export function MemoryRow({
   onMove: () => void;
   onArchive: () => void;
   onTag: (tag: string) => void;
+  selectedItems: Memory[];
 }) {
+  const workspace = useWorkspaceDrag();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } =
-    useDraggable({ id: memory.id, disabled: busy });
+    useDraggable({
+      id: memory.id,
+      data: {
+        item: {
+          kind: "notes",
+          items: selected ? selectedItems : [memory],
+        } satisfies WorkspaceDragItem,
+      },
+      disabled: busy || workspace.busy,
+    });
   const [actions, setActions] = useState(false);
   const [offset, setOffset] = useState(0);
   const pointer = useRef<{

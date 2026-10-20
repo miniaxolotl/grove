@@ -3,16 +3,24 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Memory } from "@lib/shared/contracts";
 
-export type NoteDraft = {
+export type NoteValues = {
   content: string;
-  base?: Memory;
   kind: Memory["kind"];
   retention: string;
   autoKind: boolean;
   projectId: string;
+};
+export type NoteDraft = NoteValues & {
+  base?: Memory;
   task: string;
-  pending: { fingerprint: string; operationId: string } | null;
+  pending: {
+    fingerprint: string;
+    operationId: string;
+    input?: Record<string, unknown>;
+  } | null;
   saving?: Promise<Memory>;
+  submitted?: NoteValues;
+  error?: string;
 };
 
 const Drafts = createContext<Map<string, NoteDraft> | null>(null);

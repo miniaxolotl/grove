@@ -75,7 +75,6 @@ export function ModelSettings() {
           <h1>
             {settings?.editable ? "Model settings" : "Search & organization"}
           </h1>
-          <p>How Grove makes your saved context easier to find and use.</p>
         </div>
       </div>
       {error && (
@@ -93,7 +92,7 @@ export function ModelSettings() {
         </p>
       )}
       {!config || !settings ? (
-        !error && <p role="status">Loading model settings…</p>
+        !error && <p role="status">Loading settings…</p>
       ) : !settings.editable ? (
         <ProviderOverview settings={settings} />
       ) : (
@@ -434,7 +433,7 @@ export function ModelSettings() {
           )}
         </form>
       )}
-      {usage && (
+      {settings?.editable && usage && (
         <section className="app-panel mt-6 max-w-3xl">
           <h2 className="font-editorial text-2xl">Usage today</h2>
           <p className="mt-3 text-sm text-muted">
