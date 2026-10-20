@@ -20,6 +20,13 @@ self-hosting with pgvector 0.8.2. See [delivery evidence](delivery.md).
 with HTTP 308 to `usegrove.cloud`. Cloudflare hosts `usegrove.cloud` DNS; Porkbun
 remains its registrar and hosts the other redirect domains. Vercel handles redirects.
 
+Keep Cloudflare **Email Address Obfuscation** (`email_obfuscation`) **off** for
+`usegrove.cloud`. Its HTML rewriting changes server-rendered contact-email text
+before React hydration and causes error 418 on the legal pages. Public support
+emails must remain ordinary, readable mail links. After changing edge settings,
+review `/privacy` and `/terms` in a real browser and check for hydration errors;
+local Next.js tests do not exercise Cloudflare transformations.
+
 ## Clerk
 
 Grove application `app_3KtGcnwE2Yg0P34l9PVij7LnOTS` has separate development and
