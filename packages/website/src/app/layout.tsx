@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import localFont from "next/font/local";
 import { site } from "@/lib/site";
+import { WebsiteTelemetry } from "@/components/website-telemetry";
 import "./globals.css";
 import "./brand-family.css";
 
@@ -83,6 +84,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body id="top" className={`${space.variable} ${mono.variable}`}>
+        <WebsiteTelemetry />
         <a href="#main" className="skip-link">
           Skip to content
         </a>
