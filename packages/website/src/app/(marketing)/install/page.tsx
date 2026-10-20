@@ -6,7 +6,7 @@ import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
 
 export const metadata = pageMetadata(
-  "Connect to Grove Cloud — Give your agent a memory",
+  "Connect to Grove Cloud | Give your agent a memory",
   "Connect OpenCode, Claude Code, or Codex to Grove Cloud with one command. Sign in, choose access, and carry your context across sessions.",
   "/install",
 );

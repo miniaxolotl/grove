@@ -3,7 +3,7 @@ import { terms } from "@/content/legal";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(
-  "Terms & conditions — Grove",
+  "Terms & conditions | Grove",
   terms.summary,
   "/terms",
 );

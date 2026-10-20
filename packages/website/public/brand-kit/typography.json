@@ -1,0 +1,43 @@
+{
+  "brand": "Grove",
+  "families": {
+    "display": "Space Grotesk",
+    "body": "Space Grotesk",
+    "code": "JetBrains Mono"
+  },
+  "weights": {
+    "display": 600,
+    "heading": 600,
+    "body": 400,
+    "label": 500
+  },
+  "scale": {
+    "display": {
+      "minRem": 2.5,
+      "maxRem": 5,
+      "lineHeight": 1.08,
+      "letterSpacing": "-0.035em"
+    },
+    "heading": {
+      "minRem": 1.75,
+      "maxRem": 2.5,
+      "lineHeight": 1.2
+    },
+    "body": {
+      "rem": 1,
+      "lineHeight": 1.6,
+      "maxWidth": "65ch"
+    },
+    "label": {
+      "rem": 0.875,
+      "lineHeight": 1.4
+    },
+    "caption": {
+      "rem": 0.75,
+      "lineHeight": 1.5
+    }
+  },
+  "emphasis": "space-grotesk-500",
+  "character": "Structured. Thoughtful. Forward-looking.",
+  "rationale": "Space Grotesk’s distinctive, measured shapes suit a tool for connecting and retaining context. It continues the selected GROVE lettering naturally; JetBrains Mono gives code, record identifiers and memory metadata a precise supporting voice."
+}

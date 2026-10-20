@@ -16,6 +16,7 @@ import { HowItWorks } from "@/components/how-it-works";
 import { MemoryDemo } from "@/components/memory-demo";
 import { MemoryPreview } from "@/components/memory-preview";
 import { LibraryPreview } from "@/components/library-preview";
+import { AgentStory } from "@/components/agent-story";
 import { StructuredData } from "@/components/structured-data";
 import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
@@ -42,7 +43,7 @@ export default async function HomePage() {
           </h1>
           <p className="mt-6 max-w-[420px] text-[15px] leading-[1.85] text-muted sm:text-base">
             A thought, a plan, a little thing worth keeping. Bring them together
-            in Grove — a private notebook that helps you find what matters and
+            in Grove, a private notebook that helps you find what matters and
             see how your ideas connect.
           </p>
           <p className="mt-3 text-xs leading-6 text-muted">
@@ -125,6 +126,7 @@ export default async function HomePage() {
       <Features />
       <MemoryDemo />
       <HowItWorks />
+      <AgentStory />
 
       <FAQ />
 
