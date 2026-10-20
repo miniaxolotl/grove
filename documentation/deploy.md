@@ -274,7 +274,10 @@ Publication to npm is on the `production` branch through `scripts/publish.mjs`,
 after build/type/artifact checks. CI also
 checks PostgreSQL/RLS, HTTP/MCP, website and image build on pull requests.
 The publisher preflights all tarballs against registry integrity before the first
-upload, rejecting changed contents under an existing version. Use
+upload, rejecting changed contents under an existing version. Every package must
+declare the GitHub repository used by npm provenance. After each upload, integrity
+readback allows 60 attempts five seconds apart for asynchronous npm processing;
+conflicting bytes and provider errors fail immediately. Use
 `node scripts/publish.mjs --dry-run` to check the release without publishing.
 
 The PostgreSQL migration release is tracked in

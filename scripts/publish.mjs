@@ -4,6 +4,11 @@ import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import process from "node:process";
+import {
+  assertRepository,
+  registryIntegrity,
+  waitForPublication,
+} from "./release/publication.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const dryRun = process.argv.includes("--dry-run");
@@ -35,24 +40,12 @@ try {
   ]) {
     const path = join(root, "packages", name);
     const pkg = JSON.parse(await readFile(join(path, "package.json"), "utf8"));
+    assertRepository(pkg);
     if (pkg.version !== version)
       throw new Error(
         `${pkg.name} must share the product release version ${version}`,
       );
-    let integrity;
-    try {
-      integrity = execFileSync(
-        "npm",
-        ["view", `${pkg.name}@${pkg.version}`, "dist.integrity"],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-      ).trim();
-      if (!integrity)
-        throw new Error(
-          `Registry integrity missing for ${pkg.name}@${pkg.version}`,
-        );
-    } catch (error) {
-      if (!String(error.stderr).includes("E404")) throw error;
-    }
+    const integrity = registryIntegrity(`${pkg.name}@${pkg.version}`);
     const destination = join(directory, name);
     await mkdir(destination);
     execFileSync("pnpm", ["pack", "--pack-destination", destination], {
@@ -71,11 +64,15 @@ try {
         `${pkg.name}@${pkg.version} is already published with different contents. Merge a new version release before publishing.`,
       );
     if (!integrity)
-      pending.push({ archive, name: `${pkg.name}@${pkg.version}` });
+      pending.push({
+        archive,
+        name: `${pkg.name}@${pkg.version}`,
+        integrity: digest,
+      });
   }
   for (const pkg of pending) {
     if (dryRun) process.stdout.write(`Would publish ${pkg.name}\n`);
-    else
+    else {
       execFileSync(
         "npm",
         [
@@ -88,6 +85,8 @@ try {
         ],
         { stdio: "inherit" },
       );
+      await waitForPublication(pkg);
+    }
   }
 } finally {
   await rm(directory, { recursive: true, force: true });
