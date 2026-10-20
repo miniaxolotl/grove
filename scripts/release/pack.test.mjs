@@ -12,7 +12,8 @@ import process from "node:process";
 import test from "node:test";
 import { packArtifact } from "./pack.mjs";
 
-test("packed bytes are reproducible across manifest key order and output paths, while content changes remain detectable", () => {
+test("packed bytes are reproducible across manifest order, umask and output paths, while content changes remain detectable", () => {
+  const originalUmask = process.umask(0o022);
   const directory = mkdtempSync(
     join(process.env.CI ? tmpdir() : "/tmp/opencode", "grove-pack-test-"),
   );
@@ -29,6 +30,7 @@ test("packed bytes are reproducible across manifest key order and output paths, 
     };
     writeFileSync(file, JSON.stringify(pkg));
     const first = readFileSync(packArtifact(source, join(directory, "first")));
+    process.umask(0o077);
     writeFileSync(
       file,
       JSON.stringify({ ...pkg, devDependencies: { a: "2.0.0", z: "1.0.0" } }),
@@ -43,6 +45,7 @@ test("packed bytes are reproducible across manifest key order and output paths, 
       first,
     );
   } finally {
+    process.umask(originalUmask);
     rmSync(directory, { recursive: true, force: true });
   }
 });
