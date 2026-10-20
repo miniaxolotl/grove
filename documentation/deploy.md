@@ -140,16 +140,30 @@ cache is writable but ephemeral. The worker uses the same image/configuration wi
 
 ### Rollout and rollback
 
-The release path is **feature branch → development → production**. Merge feature
-PRs into `development`, complete the release/version PR there, and promote the
-checked development commit through a `development` → `production` PR. Use merge
-commits for promotion so the shared history is preserved.
+The release path is **feature PR → development → frozen release PR → production**.
+Merge the Release Please PR into development, wait for source CI and the immutable
+`vX.Y.Z` release, then dispatch **Select Release Candidate** on development with
+that tag. It opens `promote/production/vX.Y.Z`, labelled and assigned to
+`miniaxolotl`. Its tree/source/upstream/tooling and CI identity are frozen; later
+development commits never enter that PR. Use merge commits for promotion.
+
+Both core branches require strict GitHub Actions **CI Gate**, PR/conversation
+protection and no bypass. Production permits merge commits only. Release tags and
+frozen refs reject updates/deletion. Auto-merge may wait for these requirements.
+Candidate selection is operator-triggered; ordinary pushes never authorize it.
+Bot-created PRs receive explicit CI dispatch using `GITHUB_TOKEN`. Promotion CI
+also verifies the operator-triggered workflow's candidate artifact. Records expire
+after 90 days; rerun the original selection run to refresh its evidence.
 
 GitHub secret `DIGITALOCEAN_ACCESS_TOKEN` and variable `DIGITALOCEAN_APP_ID` are set
-on `miniaxolotl/grove`. Production pushes publish versioned images and roll both
-components to the resulting digest. Development pushes publish preview images;
-manual Deploy runs accept only these two branches, and a version assertion must
-match the package version on `production`. Vercel follows the production branch.
+on `miniaxolotl/grove`. **Deploy** admits only production and waits for independent
+full CI before resolving the tag's source SHA/tree separately from the production
+merge SHA. Missing DigitalOcean configuration fails before publication. It checks
+every npm tarball, publishes coordinated packages and immutable images, then rolls
+both API/worker components to the verified digest and checks readiness.
+Development runs validation and Release Please only. Vercel's production branch is
+production; preview deployments are disabled and its ignore command skips all other
+refs. Existing preview resources are retained pending a separate retirement choice.
 Database migrations remain an explicit owner-credential operation before rollout;
 check the applied migration history before promotion rather than repeating a
 migration from an earlier rollout.
@@ -250,9 +264,14 @@ restore; Neon in-place PITR and regional disaster recovery were not exercised.
 
 `pnpm build` prebuilds API, CLI, OpenCode and native Claude/Codex executables.
 `pnpm test:artifacts` packs each package and tests it away from the source tree.
-Marketplace manifests carry pinned versions; release-please updates package and
-plugin manifest versions together. Publication to npm is on the `production`
-branch through `scripts/publish.mjs`, after build/type/artifact checks. CI also
+Because the CLI and shared libraries are bundled into multiple artifacts,
+Release Please uses one root version/changelog and updates all five package,
+native plugin and marketplace versions together, including shared-only changes.
+Both `feat` and `feature` are recognized. The first coordinated release is 1.2.0;
+the root 1.1.0 ledger establishes its migration baseline without republishing old
+components. Historical component changelogs and tags remain historical evidence.
+Publication to npm is on the `production` branch through `scripts/publish.mjs`,
+after build/type/artifact checks. CI also
 checks PostgreSQL/RLS, HTTP/MCP, website and image build on pull requests.
 The publisher preflights all tarballs against registry integrity before the first
 upload, rejecting changed contents under an existing version. Use
@@ -262,11 +281,17 @@ The PostgreSQL migration release is tracked in
 [PR #4](https://github.com/miniaxolotl/grove/pull/4): CLI and OpenCode **0.5.0**,
 with the new server, Claude and Codex packages at **1.0.0**. Native manifests and
 marketplace pins match their npm package versions. The one-time `release-as`
-overrides are retired with the explicit version updates. In release-please,
-extra-file paths are package-relative; root marketplace paths need a leading `/`.
+overrides were retired with the explicit version updates. The new single-root
+release configuration uses root-relative explicit JSON updaters for every pin.
 
 Review versions and marketplace pins, require green release PR checks, then merge
 into `development` to create GitHub releases. Promote that release to `production`
 to publish npm artifacts and versioned container images. Verify registry versions,
 integrity and installation after publication. Package publication and live data
 migration are separate rollout steps.
+
+For a failed publication, rerun Deploy on the same current production commit.
+Identical registry artifacts and immutable source images are reused; conflicting
+bytes fail and require a new version. Do not overwrite versions or silently move
+a frozen head. Reconcile target divergence into development and select a new
+release. Local image helpers build only `grove:local`; public pushes use Deploy.
