@@ -173,9 +173,29 @@ credentials and synthetic source text:
   ID/revision citations through the production pay-as-you-go generation adapter,
   with low reasoning and structured tool output.
 
-These checks establish provider compatibility. Production schema migration,
-feature-image rollout, stored-vector verification and lifecycle checks remain the
-coordinated release steps described above.
+The user-authorized production account check subsequently completed on 2026-10-19
+(2026-10-20 UTC), using the combined stack at `1188e6c`:
+
+- API and worker were paused, runtime database sessions drained, and migrations
+  `004` and `005` applied. Both components now use the same digest-pinned feature
+  image; the matching website is promoted at `https://usegrove.cloud`.
+- Six labelled demo memories were created through the signed-in account. All
+  current stored vectors have 4,096 dimensions and unit norm within float32
+  tolerance. All organization jobs completed, including opt-in preference
+  classification, explicit handoff preservation, and a duplicate relationship.
+- The paraphrase “How should feedback on pull requests be written?” retrieved
+  the sample review convention through hybrid recall in 817 ms end to end and
+  through hybrid library search. Query-free task recall included cached context.
+- Personal, project and task briefs are ready with exact, scope-correct source
+  citations. Editing the sample checkpoint hid the previous brief immediately;
+  regenerated context reflects Wednesday at 14:00 UTC and cites revision 2.
+- The final account queue is empty with no failed jobs. Cloud model settings show
+  the configured providers and full dimensions while returning masked keys.
+
+Combined-stack [CI](https://github.com/miniaxolotl/grove/actions/runs/39343596438)
+and the [release-image build](https://github.com/miniaxolotl/grove/actions/runs/39343613175)
+passed. PR #12 remains stacked on #11 for review; this verification did not merge
+either PR or publish new npm package versions.
 
 Provider references: [DeepInfra embeddings](https://docs.deepinfra.com/api-reference/embeddings/openai-embeddings.md),
 [System One](https://docs.deepinfra.com/api-reference/decisions/systemone.md),
