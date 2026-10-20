@@ -88,6 +88,10 @@ services:
     environment:
       <<: *runtime
       DATABASE_URL: postgresql://grove_jobs:${WORKER_DATABASE_PASSWORD}@postgres:5432/grove
+      AMQP_URL: ${AMQP_URL:-}
+      ORGANIZATION_INTERVAL_SECONDS: ${ORGANIZATION_INTERVAL_SECONDS:-900}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-notifications@mail.usegrove.cloud}
     volumes: [worker-models:/app/data/models]
     depends_on:
       migrate: { condition: service_completed_successfully }

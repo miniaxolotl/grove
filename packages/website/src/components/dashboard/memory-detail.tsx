@@ -9,6 +9,7 @@ import {
   FolderInput,
   Archive,
   ArchiveRestore,
+  ArrowUpRight,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
@@ -16,6 +17,8 @@ import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
 import { Markdown } from "./markdown";
 import { MemoryEditor } from "./memory-editor";
 import { useDialogBusy } from "./dialog";
+import { SegmentedControl } from "./ui/segmented-control";
+import { RevisionCompare } from "./revision-compare";
 
 export function MemoryDetail({
   memory,
@@ -26,6 +29,8 @@ export function MemoryDetail({
   onPrevious,
   onNext,
   busy: actionBusy,
+  fullPage = false,
+  onDeleted,
 }: {
   memory: Memory;
   projects: Project[];
@@ -35,7 +40,13 @@ export function MemoryDetail({
   onPrevious?: () => void;
   onNext?: () => void;
   busy: boolean;
+  fullPage?: boolean;
+  onDeleted?: () => void;
 }) {
+  const [tab, setTab] = useState<"content" | "connections" | "history">(
+    "content",
+  );
+  const [compare, setCompare] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -68,7 +79,7 @@ export function MemoryDetail({
             ),
           ] as const;
         } catch {
-          return [id, "Related memory"] as const;
+          return [id, "Linked note"] as const;
         }
       }),
     ).then((entries) => {
@@ -103,270 +114,408 @@ export function MemoryDetail({
         projects={projects}
         cancel={() => setEditing(false)}
         done={() =>
-          onSaved("Memory saved. Context will update in the background.")
+          onSaved(
+            "Note saved. Grove is updating its connections and summaries.",
+          )
         }
       />
     );
   return (
-    <article className="memory-reader">
-      <div className="reader-navigation">
-        <span>
-          {memory.kind === "handoff" ? "Task handoff" : memory.kind} ·{" "}
-          {projects.find((p) => p.id === memory.projectId)?.name ?? "Personal"}
-        </span>
-        <div>
-          <button
-            className="app-icon"
-            disabled={!onPrevious || locked}
-            onClick={onPrevious}
-            aria-label="Previous memory"
-          >
-            <ArrowLeft size={17} />
-          </button>
-          <button
-            className="app-icon"
-            disabled={!onNext || locked}
-            onClick={onNext}
-            aria-label="Next memory"
-          >
-            <ArrowRight size={17} />
-          </button>
-        </div>
-      </div>
-      {memory.enrichment?.title &&
-        firstHeading?.toLocaleLowerCase() !==
-          memory.enrichment.title.toLocaleLowerCase() && (
-          <h3 className="reader-title">{memory.enrichment.title}</h3>
+    <article className={`memory-reader${fullPage ? " full-page-reader" : ""}`}>
+      <div className="reader-main">
+        {fullPage && (
+          <SegmentedControl
+            label="Note sections"
+            value={tab}
+            onChange={(value) => {
+              setTab(value);
+              if (value === "history" && !history)
+                void run(async () =>
+                  setHistory(await api(`/memories/${memory.id}/revisions`)),
+                );
+            }}
+            options={[
+              { value: "content", label: "Page" },
+              {
+                value: "connections",
+                label: `Linked notes (${memory.enrichment?.relationships.length ?? 0})`,
+              },
+              { value: "history", label: "History" },
+            ]}
+          />
         )}
-      <div className="reader-copy">
-        <Markdown>{memory.content}</Markdown>
-      </div>
-      {!!memory.enrichment?.tags.length && (
-        <div className="reader-tags">
-          {memory.enrichment.tags.map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
-        </div>
-      )}
-      <div className="reader-toolbar">
-        <button
-          className="app-button"
-          disabled={locked}
-          onClick={() => setEditing(true)}
-        >
-          <Pencil size={15} />
-          Edit memory
-        </button>
-        <button
-          className="app-button secondary"
-          disabled={locked}
-          onClick={onMove}
-        >
-          <FolderInput size={15} />
-          Move
-        </button>
-        <button
-          className="app-button secondary"
-          disabled={locked}
-          onClick={onArchive}
-        >
-          {isInactive(memory) ? (
-            <ArchiveRestore size={15} />
-          ) : (
-            <Archive size={15} />
+        <div className="reader-navigation">
+          <span>
+            {memory.kind === "handoff"
+              ? "Progress note"
+              : memory.kind === "fact"
+                ? "Note"
+                : memory.kind}{" "}
+            ·{" "}
+            {projects.find((p) => p.id === memory.projectId)?.name ??
+              "Personal"}
+          </span>
+          {!fullPage && (
+            <div>
+              <Link
+                className="app-icon"
+                aria-label="Open note page"
+                title="Open full page"
+                href={`/app/memories/${memory.id}`}
+              >
+                <ArrowUpRight size={17} />
+              </Link>
+              <button
+                className="app-icon"
+                disabled={!onPrevious || locked}
+                onClick={onPrevious}
+                aria-label="Previous note"
+              >
+                <ArrowLeft size={17} />
+              </button>
+              <button
+                className="app-icon"
+                disabled={!onNext || locked}
+                onClick={onNext}
+                aria-label="Next note"
+              >
+                <ArrowRight size={17} />
+              </button>
+            </div>
           )}
-          {isInactive(memory) ? "Restore" : "Archive"}
-        </button>
-        <button
-          className="app-button secondary"
-          disabled={locked}
-          onClick={() =>
-            run(async () => {
-              await navigator.clipboard.writeText(memory.content);
-              setNotice("Markdown copied.");
-            })
-          }
-        >
-          <Copy size={15} />
-          Copy
-        </button>
-      </div>
-      {error && (
-        <p role="alert" className="app-error">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p role="status" className="text-sm text-muted">
-          {notice}
-        </p>
-      )}
-      {!!memory.enrichment?.relationships.length && (
-        <section className="reader-section">
-          <h3>Related memories</h3>
-          <ul className="related-memories">
-            {memory.enrichment.relationships.map((relation) => (
-              <li key={relation.id}>
-                <Link href={`/app/memories/${relation.id}`}>
-                  {related[relation.id] ?? "Related memory"}
-                </Link>
-                <span>
-                  {relation.relationship === "complementary"
-                    ? "Related"
-                    : relation.relationship === "conflicting"
-                      ? "May conflict"
-                      : "Possible duplicate"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <section className="reader-section">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3>History</h3>
+        </div>
+        {(!fullPage || tab === "content") && (
+          <>
+            {memory.enrichment?.title &&
+              firstHeading?.toLocaleLowerCase() !==
+                memory.enrichment.title.toLocaleLowerCase() && (
+                <h3 className="reader-title">{memory.enrichment.title}</h3>
+              )}
+            <div className="reader-copy">
+              <Markdown>{memory.content}</Markdown>
+            </div>
+            <p className="reader-lifetime">
+              {memory.expiresAt
+                ? `Kept until ${dateLabel(memory.expiresAt)}${memory.purgeAt ? ` · can be restored until ${dateLabel(memory.purgeAt)}` : ""}`
+                : "Kept until you remove it"}
+            </p>
+            {!!memory.enrichment?.tags.length && (
+              <div className="reader-tags">
+                {memory.enrichment.tags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        <div className="reader-toolbar">
           <button
-            className="text-button"
+            className="app-button"
             disabled={locked}
-            onClick={() =>
-              run(async () =>
-                setHistory(await api(`/memories/${memory.id}/revisions`)),
-              )
-            }
+            onClick={() => setEditing(true)}
           >
-            Revision history
+            <Pencil size={15} />
+            Edit note
           </button>
-        </div>
-        <p className="mt-2 text-xs text-muted">
-          Updated {dateLabel(memory.updatedAt)} · revision {memory.version} ·
-          saved from {memory.source.agent}
-        </p>
-        {history && (
-          <ol className="revision-list">
-            {history.map((revision) => (
-              <li key={revision.version}>
-                <div className="flex flex-wrap justify-between gap-2 text-xs text-muted">
-                  <span>
-                    Revision {revision.version}
-                    {revision.version === memory.version ? " · Current" : ""}
-                  </span>
-                  <span>{dateLabel(revision.createdAt)}</span>
-                </div>
-                <Markdown>{revision.content}</Markdown>
-                {revision.version !== memory.version && (
-                  <button
-                    className="text-button"
-                    disabled={locked}
-                    onClick={() =>
-                      run(async () => {
-                        await mutate(`/memories/${memory.id}/restore`, {
-                          expectedVersion: memory.version,
-                          revision: revision.version,
-                        });
-                        onSaved("Revision restored as a new version.");
-                      })
-                    }
-                  >
-                    Restore as a new revision
-                  </button>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-      <details className="agent-details">
-        <summary>Agent details</summary>
-        <dl>
-          <dt>Memory reference</dt>
-          <dd>{memory.id}</dd>
-          {memory.taskId && (
-            <>
-              <dt>Task reference</dt>
-              <dd>{memory.taskId}</dd>
-            </>
-          )}
-          <dt>Search index</dt>
-          <dd>{memory.indexing}</dd>
-          <dt>Organization</dt>
-          <dd>{memory.enrichment?.status ?? "disabled"}</dd>
-          {memory.source.verification && (
-            <>
-              <dt>Verification</dt>
-              <dd>{memory.source.verification}</dd>
-            </>
-          )}
-          {memory.expiresAt && (
-            <>
-              <dt>Leaves recall</dt>
-              <dd>{dateLabel(memory.expiresAt)}</dd>
-            </>
-          )}
-          {memory.purgeAt && (
-            <>
-              <dt>Removed permanently</dt>
-              <dd>{dateLabel(memory.purgeAt)}</dd>
-            </>
-          )}
-        </dl>
-        <p>
-          References let agents return to the same memory or handoff. You can
-          use the title and project to find it here.
-        </p>
-        {!isInactive(memory) && (
           <button
-            className="text-button"
+            className="app-button secondary"
+            disabled={locked}
+            onClick={onMove}
+          >
+            <FolderInput size={15} />
+            Move
+          </button>
+          <button
+            className="app-button secondary"
+            disabled={locked}
+            onClick={onArchive}
+          >
+            {isInactive(memory) ? (
+              <ArchiveRestore size={15} />
+            ) : (
+              <Archive size={15} />
+            )}
+            {isInactive(memory) ? "Restore" : "Archive"}
+          </button>
+          <button
+            className="app-button secondary"
             disabled={locked}
             onClick={() =>
               run(async () => {
-                await api(`/memories/${memory.id}/reprocess`, {
-                  expectedVersion: memory.version,
-                });
-                onSaved("Memory queued for processing.");
+                await navigator.clipboard.writeText(memory.content);
+                setNotice("Markdown copied.");
               })
             }
           >
-            Retry processing
+            <Copy size={15} />
+            Copy
           </button>
+        </div>
+        {error && (
+          <p role="alert" className="app-error">
+            {error}
+          </p>
         )}
-      </details>
-      <details className="agent-details">
-        <summary>Delete memory</summary>
-        <p>Permanently removes this memory and its revisions.</p>
-        {!confirmDelete ? (
-          <button
-            className="app-button danger"
-            onClick={() => setConfirmDelete(true)}
-          >
-            Delete permanently
-          </button>
-        ) : (
-          <div className="flex flex-wrap gap-3">
+        {notice && (
+          <p role="status" className="text-sm text-muted">
+            {notice}
+          </p>
+        )}
+        {(!fullPage || tab === "connections") &&
+          !!memory.enrichment?.relationships.length && (
+            <section className="reader-section">
+              <h3>Linked notes</h3>
+              <ul className="related-memories">
+                {memory.enrichment.relationships.map((relation) => (
+                  <li key={relation.id}>
+                    <Link href={`/app/memories/${relation.id}`}>
+                      {related[relation.id] ?? "Related note"}
+                    </Link>
+                    <span>
+                      {relation.relationship === "complementary"
+                        ? "Related"
+                        : relation.relationship === "conflicting"
+                          ? "May conflict"
+                          : "Possible duplicate"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        {fullPage &&
+          tab === "connections" &&
+          !memory.enrichment?.relationships.length && (
+            <div className="reader-section">
+              <h3>No linked notes yet</h3>
+              <p>
+                Connections appear as Grove finds related ideas in this
+                notebook.
+              </p>
+            </div>
+          )}
+        {(!fullPage || tab === "history") && (
+          <section className="reader-section">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3>History</h3>
+              <button
+                className="text-button"
+                disabled={locked}
+                onClick={() =>
+                  run(async () =>
+                    setHistory(await api(`/memories/${memory.id}/revisions`)),
+                  )
+                }
+              >
+                Revision history
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-muted">
+              Updated {dateLabel(memory.updatedAt)} · revision {memory.version}{" "}
+              · saved from {memory.source.agent}
+            </p>
+            {history && (
+              <ol className="revision-list">
+                {history.map((revision) => (
+                  <li key={revision.version}>
+                    <div className="flex flex-wrap justify-between gap-2 text-xs text-muted">
+                      <span>
+                        Revision {revision.version}
+                        {revision.version === memory.version
+                          ? " · Current"
+                          : ""}
+                      </span>
+                      <span>{dateLabel(revision.createdAt)}</span>
+                    </div>
+                    {compare === revision.version ? (
+                      <RevisionCompare
+                        before={revision.content}
+                        after={memory.content}
+                        beforeLabel={`Version ${revision.version}`}
+                        afterLabel={`Current · version ${memory.version}`}
+                      />
+                    ) : (
+                      <Markdown>{revision.content}</Markdown>
+                    )}
+                    {revision.version !== memory.version && (
+                      <button
+                        className="text-button mr-4"
+                        onClick={() =>
+                          setCompare(
+                            compare === revision.version
+                              ? null
+                              : revision.version,
+                          )
+                        }
+                      >
+                        {compare === revision.version
+                          ? "Close comparison"
+                          : "Compare with current"}
+                      </button>
+                    )}
+                    {revision.version !== memory.version && (
+                      <button
+                        className="text-button"
+                        disabled={locked}
+                        onClick={() =>
+                          run(async () => {
+                            await mutate(`/memories/${memory.id}/restore`, {
+                              expectedVersion: memory.version,
+                              revision: revision.version,
+                            });
+                            onSaved("Revision restored as a new version.");
+                          })
+                        }
+                      >
+                        Restore as a new revision
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        )}
+        <details className="agent-details">
+          <summary>Agent details</summary>
+          <dl>
+            <dt>Note reference</dt>
+            <dd>{memory.id}</dd>
+            {memory.taskId && (
+              <>
+                <dt>Task reference</dt>
+                <dd>{memory.taskId}</dd>
+              </>
+            )}
+            <dt>Search index</dt>
+            <dd>{memory.indexing}</dd>
+            <dt>Organization</dt>
+            <dd>{memory.enrichment?.status ?? "disabled"}</dd>
+            {memory.source.verification && (
+              <>
+                <dt>Verification</dt>
+                <dd>{memory.source.verification}</dd>
+              </>
+            )}
+            {memory.expiresAt && (
+              <>
+                <dt>Leaves recall</dt>
+                <dd>{dateLabel(memory.expiresAt)}</dd>
+              </>
+            )}
+            {memory.purgeAt && (
+              <>
+                <dt>Removed permanently</dt>
+                <dd>{dateLabel(memory.purgeAt)}</dd>
+              </>
+            )}
+          </dl>
+          <p>
+            References help connected agents return to the same note. You can
+            find it here by its title and notebook.
+          </p>
+          {!isInactive(memory) && (
             <button
-              className="app-button danger"
+              className="text-button"
               disabled={locked}
               onClick={() =>
                 run(async () => {
-                  const result = (await mutate("/memories/delete", {
-                    items: [{ id: memory.id, expectedVersion: memory.version }],
-                  })) as { results: { outcome: string }[] };
-                  if (result.results[0]?.outcome !== "deleted")
-                    throw new Error("Memory changed; reload before deleting.");
-                  onSaved("Memory permanently deleted.");
+                  await api(`/memories/${memory.id}/reprocess`, {
+                    expectedVersion: memory.version,
+                  });
+                  onSaved("Grove will organize this note again.");
                 })
               }
             >
-              Delete this memory
+              Retry processing
             </button>
+          )}
+        </details>
+        <details className="agent-details">
+          <summary>Delete note</summary>
+          <p>Permanently removes this note and its history.</p>
+          {!confirmDelete ? (
             <button
-              className="app-button secondary"
-              onClick={() => setConfirmDelete(false)}
+              className="app-button danger"
+              onClick={() => setConfirmDelete(true)}
             >
-              Cancel
+              Delete permanently
             </button>
-          </div>
-        )}
-      </details>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              <button
+                className="app-button danger"
+                disabled={locked}
+                onClick={() =>
+                  run(async () => {
+                    const result = (await mutate("/memories/delete", {
+                      items: [
+                        { id: memory.id, expectedVersion: memory.version },
+                      ],
+                    })) as { results: { outcome: string }[] };
+                    if (result.results[0]?.outcome !== "deleted")
+                      throw new Error(
+                        "This note changed. Reload it before deleting.",
+                      );
+                    if (onDeleted) onDeleted();
+                    else onSaved("Note permanently deleted.");
+                  })
+                }
+              >
+                Delete this note
+              </button>
+              <button
+                className="app-button secondary"
+                onClick={() => setConfirmDelete(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </details>
+      </div>
+      {fullPage && (
+        <aside className="memory-metadata" aria-label="Note information">
+          <h2>Details</h2>
+          <dl>
+            <dt>Notebook</dt>
+            <dd>
+              {projects.find((project) => project.id === memory.projectId)
+                ?.name ?? "Personal"}
+            </dd>
+            <dt>Saved from</dt>
+            <dd>
+              {memory.source.agent === "website"
+                ? "Written by you"
+                : memory.source.agent}
+            </dd>
+            <dt>Created</dt>
+            <dd>{dateLabel(memory.createdAt)}</dd>
+            <dt>Updated</dt>
+            <dd>{dateLabel(memory.updatedAt)}</dd>
+            <dt>Version</dt>
+            <dd>{memory.version}</dd>
+            <dt>Keep for</dt>
+            <dd>
+              {memory.expiresAt
+                ? `${memory.retentionDays ?? 30} days`
+                : "Until you remove it"}
+            </dd>
+            {memory.expiresAt && (
+              <>
+                <dt>Kept until</dt>
+                <dd>{dateLabel(memory.expiresAt)}</dd>
+              </>
+            )}
+          </dl>
+          {memory.source.verification && (
+            <section>
+              <h3>Verification</h3>
+              <p>{memory.source.verification}</p>
+            </section>
+          )}
+        </aside>
+      )}
     </article>
   );
 }

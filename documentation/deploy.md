@@ -4,7 +4,7 @@
 
 - Next.js website: **https://usegrove.cloud** on Vercel, production Clerk and an authenticated BFF.
 - Hono API: **https://api.usegrove.cloud**, REST `/v1`, MCP `/mcp` on DigitalOcean App Platform.
-- Worker: separate process for leased embeddings, retention and account deletion.
+- Worker: leased processing, organization, retention, account deletion, and transactional mail.
 - Neon PostgreSQL 17 + pgvector 0.8.0: migrations and non-owner runtime roles.
 
 Production is deployed in New York, near Neon's AWS US East 1 database.
@@ -14,7 +14,8 @@ The published Node 24 image runs both components. Compose remains available for
 self-hosting with pgvector 0.8.2. See [delivery evidence](delivery.md).
 
 `usegrove.one`, `usegrove.ca`, `grovenote.app` and the four `www` names redirect
-with HTTP 308 to `usegrove.cloud`. Porkbun hosts DNS; Vercel handles these redirects.
+with HTTP 308 to `usegrove.cloud`. Cloudflare hosts `usegrove.cloud` DNS; Porkbun
+remains its registrar and hosts the other redirect domains. Vercel handles redirects.
 
 ## Clerk
 
@@ -170,6 +171,12 @@ the production Clerk keys, and `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` /
 `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`. Public keys are included at build time.
 Private `/app` pages and BFF replies are uncached and omitted from indexing;
 analytics are mounted only in marketing.
+
+For manual Vercel deployments, build/upload a clean `git archive` snapshot rather
+than the operator worktree, which contains ignored private artifacts. Retrieve
+production environment only into that private staging directory. Deploy the API
+and worker first when website contracts change. Queue, retention, and Resend setup
+are documented in [background services](background-services.md).
 
 ### Operating checks
 

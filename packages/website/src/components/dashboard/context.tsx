@@ -11,17 +11,23 @@ import { ProjectForm } from "./project-form";
 import { Handoffs } from "./handoffs";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
+import { PageHeading } from "./ui/page-heading";
+import { Button } from "./ui/button";
+import { Disclosure } from "./ui/disclosure";
+import { PersonalOptions, type ContextPrompt } from "./personal-options";
+import { AskGrove } from "./ask-grove";
 
 export function MemoryContext({
   projectId = null,
 }: {
   projectId?: string | null;
 }) {
-  const [view, setView] = useState("context");
+  const [view, setView] = useState(projectId ? "memories" : "context");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(!!projectId);
   const [error, setError] = useState("");
   const [create, setCreate] = useState<Memory["kind"] | null>(null);
+  const [prompt, setPrompt] = useState<ContextPrompt | null>(null);
   const [rename, setRename] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [notice, setNotice] = useState("");
@@ -43,17 +49,17 @@ export function MemoryContext({
     return () => controller.abort();
   }, [refresh]);
   const project = projects.find((p) => p.id === projectId);
-  if (loading) return <p role="status">Opening project…</p>;
+  if (loading) return <p role="status">Opening notebook…</p>;
   if (projectId && !project)
     return (
       <>
-        <h1 className="font-editorial text-4xl">Project unavailable</h1>
+        <h1 className="font-editorial text-4xl">Notebook unavailable</h1>
         <LoadError
-          message={error || "This project could not be found in your account."}
+          message={error || "This notebook could not be found in your account."}
           retry={() => setRefresh((v) => v + 1)}
         />
         <Link href="/app/projects" className="app-button secondary">
-          Back to projects
+          Back to notebooks
         </Link>
       </>
     );
@@ -62,34 +68,38 @@ export function MemoryContext({
       {projectId && (
         <Link href="/app/projects" className="workspace-back">
           <ArrowLeft size={15} />
-          Projects
+          Notebooks
         </Link>
       )}
-      <div className="app-page-heading">
-        <div>
-          <h1>{project?.name ?? "Personal context"}</h1>
-          <p>
-            {project
-              ? "Your notes, decisions, and next steps in one place."
-              : "Preferences and useful facts that travel with you across projects."}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {project && (
-            <button
-              className="app-button secondary"
-              onClick={() => setRename(true)}
-            >
-              <Pencil size={15} />
-              Rename
-            </button>
-          )}
-          <button className="app-button" onClick={() => setCreate("fact")}>
-            <Plus size={16} />
-            Add memory
-          </button>
-        </div>
-      </div>
+      <PageHeading
+        title={project?.name ?? "About me"}
+        description={
+          project
+            ? "A home for your notes and ideas."
+            : "The little things that make your notebook yours."
+        }
+        actions={
+          view !== "memories" && (
+            <>
+              {project && (
+                <Button variant="secondary" onClick={() => setRename(true)}>
+                  <Pencil size={15} />
+                  Rename
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  setPrompt(null);
+                  setCreate(project ? "fact" : "preference");
+                }}
+              >
+                <Plus size={16} />
+                {project ? "New note" : "Add a little about me"}
+              </Button>
+            </>
+          )
+        }
+      />
       {notice && (
         <p role="status" className="app-notice">
           {notice}
@@ -99,11 +109,19 @@ export function MemoryContext({
         <LoadError message={error} retry={() => setRefresh((v) => v + 1)} />
       )}
       <nav className="workspace-tabs" aria-label="Workspace views">
-        {[
-          { id: "context", label: "Overview" },
-          { id: "memories", label: "Memories" },
-          { id: "handoffs", label: "Handoffs" },
-        ].map((tab) => (
+        {(project
+          ? [
+              { id: "memories", label: "Notes" },
+              { id: "context", label: "Summary" },
+              { id: "handoffs", label: "In progress" },
+              { id: "ask", label: "Ask Grove" },
+            ]
+          : [
+              { id: "context", label: "Overview" },
+              { id: "preferences", label: "Preferences" },
+              { id: "facts", label: "My notes" },
+            ]
+        ).map((tab) => (
           <button
             key={tab.id}
             aria-pressed={view === tab.id}
@@ -116,31 +134,68 @@ export function MemoryContext({
       {view === "context" && (
         <div className="context-layout">
           <BriefPanel key={refresh} projectId={projectId} />
-          <aside className="context-guide">
-            <h2>Make this context useful</h2>
-            <p>
-              Save decisions and conventions as memories. This overview brings
-              them together and links each point to its source.
-            </p>
-            <button className="text-button" onClick={() => setView("memories")}>
-              Browse source memories
-            </button>
-            <h3>Work in progress?</h3>
-            <p>
-              Keep a handoff for a task’s progress and next steps. Choose it by
-              title when you return.
-            </p>
-            <button className="text-button" onClick={() => setView("handoffs")}>
-              Browse handoffs
-            </button>
-            <Link href="/app/settings/models" className="context-how">
-              How search and summaries work
-            </Link>
-          </aside>
+          {project ? (
+            <aside className="context-guide">
+              <h2>The story so far</h2>
+              <p>
+                A short summary of your notebook, with links back to the notes.
+              </p>
+              <button
+                className="text-button"
+                onClick={() => setView("memories")}
+              >
+                Browse notes
+              </button>
+              <h3>Work in progress?</h3>
+              <p>Jot down where you left off, so it’s easy to return.</p>
+              <button
+                className="text-button"
+                onClick={() => setView("handoffs")}
+              >
+                See what’s in progress
+              </button>
+              <Link href="/app/settings/models" className="context-how">
+                How search and summaries work
+              </Link>
+            </aside>
+          ) : (
+            <div>
+              <PersonalOptions
+                onCreate={(value) => {
+                  setPrompt(value);
+                  setCreate(value.kind);
+                }}
+              />
+              <Disclosure title="Sharing with your agents">
+                <p>
+                  Choose which agents can read your personal notes in
+                  Connections.
+                </p>
+                <p>
+                  You can edit any note. This overview follows your changes.
+                </p>
+                <Link href="/app/connections" className="text-button">
+                  Manage agent access
+                </Link>
+              </Disclosure>
+            </div>
+          )}
         </div>
       )}
-      {view === "memories" && (
-        <MemoryLibrary key={refresh} embedded projectId={projectId} />
+      {["memories", "preferences", "facts", "graph"].includes(view) && (
+        <MemoryLibrary
+          key={`${refresh}:${view}`}
+          embedded
+          initialView={view === "graph" ? "graph" : "list"}
+          projectId={projectId}
+          initialKind={
+            view === "preferences"
+              ? "preference"
+              : view === "facts"
+                ? "fact"
+                : ""
+          }
+        />
       )}
       {view === "handoffs" && (
         <Handoffs
@@ -149,6 +204,7 @@ export function MemoryContext({
           onCreate={() => setCreate("handoff")}
         />
       )}
+      {view === "ask" && <AskGrove projectId={projectId} embedded />}
       {project && (
         <details className="agent-details project-agent-details">
           <summary>Agent details</summary>
@@ -168,24 +224,27 @@ export function MemoryContext({
       {create && (
         <Dialog
           panel
-          title={create === "handoff" ? "New handoff" : "New memory"}
+          title={create === "handoff" ? "Progress note" : "New note"}
           close={() => setCreate(null)}
         >
           <MemoryEditor
             projects={projects}
             projectId={projectId}
             initialKind={create}
+            initialContent={prompt ? `# ${prompt.title}\n\n` : ""}
+            guidance={prompt?.guidance}
+            personal={!projectId}
             cancel={() => setCreate(null)}
             done={() => {
               setCreate(null);
-              setNotice("Memory saved. Your context is updating.");
+              setNotice("Note saved.");
               setRefresh((v) => v + 1);
             }}
           />
         </Dialog>
       )}
       {rename && project && (
-        <Dialog title="Rename project" close={() => setRename(false)}>
+        <Dialog title="Rename notebook" close={() => setRename(false)}>
           <ProjectForm
             project={project}
             done={() => {

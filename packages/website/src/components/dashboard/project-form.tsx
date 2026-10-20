@@ -45,7 +45,7 @@ export function ProjectForm({
       }}
     >
       <label>
-        Project name
+        Notebook name
         <input
           autoFocus
           disabled={busy}
@@ -53,7 +53,7 @@ export function ProjectForm({
           maxLength={120}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Website redesign"
+          placeholder="A new idea"
         />
       </label>
       {!project && (
@@ -88,7 +88,7 @@ export function ProjectForm({
         </p>
       )}
       <button disabled={busy || !name.trim()} className="app-button">
-        {busy ? "Saving…" : "Save project"}
+        {busy ? "Saving…" : "Save notebook"}
       </button>
     </form>
   );

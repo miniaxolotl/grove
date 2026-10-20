@@ -99,6 +99,7 @@ export class MemoryModel extends Model {
     verification?: string;
   };
   taskId!: string | null;
+  retentionDays!: number | null;
   expiresAt!: Date | null;
   purgeAt!: Date | null;
   createdAt!: Date;

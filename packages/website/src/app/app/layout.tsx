@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { AuthSetup } from "@/components/auth-setup";
 import "./dashboard.css";
+import "./exploration.css";
 
 const inter = localFont({
   src: "../../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",

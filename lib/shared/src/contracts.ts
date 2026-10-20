@@ -40,6 +40,7 @@ export const rememberSchema = z
     autoKind: z.boolean().default(false),
     projectId: uuidSchema.nullable().default(null),
     taskId: z.string().min(1).max(128).optional(),
+    retentionDays: z.number().int().min(1).max(365).nullable().optional(),
     source: sourceSchema.default({ agent: "api" }),
   })
   .strict()
@@ -70,6 +71,10 @@ export const listSchema = z
     projectId: uuidSchema.nullable().optional(),
     kind: kindSchema.optional(),
     tag: z.string().trim().min(1).max(40).optional(),
+    sourceAgent: sourceSchema.shape.agent.removeDefault().optional(),
+    updatedAfter: z.iso.datetime().optional(),
+    sort: z.enum(["updated_desc", "updated_asc", "created_desc"]).optional(),
+    lifetime: z.enum(["permanent", "ephemeral"]).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
     cursor: z.string().max(2048).optional(),
@@ -166,6 +171,7 @@ export const memorySchema = z.object({
   version: z.number().int(),
   source: sourceSchema,
   taskId: z.string().nullable(),
+  retentionDays: z.number().int().nullable().optional(),
   expiresAt: z.string().nullable(),
   purgeAt: z.string().nullable(),
   createdAt: z.string(),

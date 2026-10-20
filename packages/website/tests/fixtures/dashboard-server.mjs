@@ -14,6 +14,7 @@ const result = await build({
   platform: "browser",
   format: "esm",
   jsx: "automatic",
+  loader: { ".css": "empty" }, // Production CSS is linked below, including lazy graph styles.
   tsconfig: join(root, "tsconfig.json"),
   plugins: [
     {
@@ -30,7 +31,7 @@ const result = await build({
             args.path === "next/link"
               ? 'import React from "react"; export default function Link(props) { return <a {...props}/> }'
               : args.path === "next/navigation"
-                ? "export const usePathname = () => window.location.pathname;"
+                ? "export const usePathname = () => window.location.pathname; export const useRouter = () => ({push: path => window.location.assign(path)});"
                 : args.path === "next/image"
                   ? 'import React from "react"; export default function Image({unoptimized, ...props}) { return <img {...props}/> }'
                   : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',

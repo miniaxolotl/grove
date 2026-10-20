@@ -1,5 +1,6 @@
 "use client";
-import { useRef, useState, type DragEvent } from "react";
+import { useRef, useState } from "react";
+import { useDraggable } from "@dnd-kit/core";
 import {
   Archive,
   ArchiveRestore,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
+import { Button, IconButton } from "./ui/button";
 
 export function MemoryRow({
   memory,
@@ -20,7 +22,6 @@ export function MemoryRow({
   onMove,
   onArchive,
   onTag,
-  onDrag,
 }: {
   memory: Memory;
   projectName: string;
@@ -31,8 +32,9 @@ export function MemoryRow({
   onMove: () => void;
   onArchive: () => void;
   onTag: (tag: string) => void;
-  onDrag: (event: DragEvent, memory: Memory) => void;
 }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } =
+    useDraggable({ id: memory.id, disabled: busy });
   const [actions, setActions] = useState(false);
   const [offset, setOffset] = useState(0);
   const pointer = useRef<{
@@ -48,7 +50,12 @@ export function MemoryRow({
     setOffset(0);
   }
   return (
-    <li className="memory-list-item" data-selected={selected || undefined}>
+    <li
+      ref={setNodeRef}
+      className="memory-list-item"
+      data-selected={selected || undefined}
+      data-dragging={isDragging || undefined}
+    >
       <div
         className="memory-row"
         style={{ transform: offset ? `translateX(${offset}px)` : undefined }}
@@ -57,7 +64,7 @@ export function MemoryRow({
           if (
             event.pointerType !== "touch" ||
             (event.target as HTMLElement).closest(
-              "input, a, .memory-actions, .memory-tags, .row-controls",
+              "input, a, .drag-handle, .memory-actions, .memory-tags, .row-controls",
             )
           )
             return;
@@ -116,15 +123,18 @@ export function MemoryRow({
             disabled={busy}
             onChange={onSelect}
           />
-          <span
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...listeners}
+            {...attributes}
             className="drag-handle"
-            draggable={!busy}
-            onDragStart={(event) => onDrag(event, memory)}
-            title="Drag to a project"
-            aria-hidden="true"
+            disabled={busy}
+            title="Drag to a notebook, or press Space to move"
+            aria-label={`Move ${title} with drag or keyboard`}
           >
             <GripVertical size={16} />
-          </span>
+          </button>
         </div>
         <div className="memory-row-content">
           <button className="memory-open" disabled={busy} onClick={onOpen}>
@@ -139,7 +149,18 @@ export function MemoryRow({
             )}
           </button>
           <div className="memory-meta">
-            <span>{memory.kind === "handoff" ? "Handoff" : memory.kind}</span>
+            {memory.kind !== "fact" && (
+              <span>
+                {memory.kind === "handoff"
+                  ? "Progress"
+                  : memory.kind === "solution"
+                    ? "How-to"
+                    : memory.kind}
+              </span>
+            )}
+            {memory.expiresAt && (
+              <span>Until {dateLabel(memory.expiresAt)}</span>
+            )}
             <span>{projectName}</span>
             <time dateTime={memory.updatedAt}>
               {dateLabel(memory.updatedAt)}
@@ -171,44 +192,32 @@ export function MemoryRow({
           )}
         </div>
         <div className="row-controls">
-          <button
-            className="app-icon"
+          <IconButton
             onClick={() => setActions(!actions)}
             aria-expanded={actions}
-            aria-label={`Actions for ${title}`}
+            label={`Actions for ${title}`}
           >
             <MoreHorizontal size={19} />
-          </button>
+          </IconButton>
         </div>
       </div>
       {actions && (
         <div className="memory-actions" aria-label={`Actions for ${title}`}>
-          <button
-            className="app-button secondary"
-            disabled={busy}
-            onClick={onMove}
-          >
+          <Button variant="secondary" disabled={busy} onClick={onMove}>
             <FolderInput size={15} />
             Move
-          </button>
-          <button
-            className="app-button secondary"
-            disabled={busy}
-            onClick={onArchive}
-          >
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={onArchive}>
             {isInactive(memory) ? (
               <ArchiveRestore size={15} />
             ) : (
               <Archive size={15} />
             )}
             {isInactive(memory) ? "Restore" : "Archive"}
-          </button>
-          <button
-            className="app-button secondary"
-            onClick={() => setActions(false)}
-          >
+          </Button>
+          <Button variant="secondary" onClick={() => setActions(false)}>
             Close actions
-          </button>
+          </Button>
         </div>
       )}
     </li>

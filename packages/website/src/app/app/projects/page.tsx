@@ -1,11 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Folder, Plus, ArrowUpRight, Search, Pencil } from "lucide-react";
+import { Folder, Plus, ArrowRight, Pencil } from "lucide-react";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "@/components/dashboard/dialog";
 import { LoadError } from "@/components/dashboard/load-error";
 import { ProjectForm } from "@/components/dashboard/project-form";
+import { PageHeading } from "@/components/dashboard/ui/page-heading";
+import { Button, IconButton } from "@/components/dashboard/ui/button";
+import { SearchField } from "@/components/dashboard/ui/search-field";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -33,57 +36,59 @@ export default function ProjectsPage() {
       });
     return () => controller.abort();
   }, [refresh]);
-  const visible = projects.filter((project) =>
-    project.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-  );
+  const visible = projects
+    .filter((project) =>
+      project.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <>
-      <div className="app-page-heading">
-        <div>
-          <h1>Projects</h1>
-          <p>
-            Keep the memories, decisions, and handoffs for each piece of work
-            together.
-          </p>
-        </div>
-        <button className="app-button" onClick={() => setSelected("new")}>
-          <Plus size={16} />
-          Add project
-        </button>
-      </div>
+      <PageHeading
+        title="Notebooks"
+        description="Give your ideas a place to grow."
+        actions={
+          <Button onClick={() => setSelected("new")}>
+            <Plus size={16} />
+            New notebook
+          </Button>
+        }
+      />
       {projects.length > 0 && (
-        <div className="project-search app-search">
-          <Search size={18} />
-          <input
-            aria-label="Filter projects"
+        <div className="project-toolbar">
+          <SearchField
+            className="project-search"
+            label="Find a notebook"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a project…"
+            onChange={setQuery}
+            placeholder="Find a notebook…"
           />
+          <span>
+            {visible.length} {visible.length === 1 ? "notebook" : "notebooks"}
+          </span>
         </div>
       )}
       {error && <LoadError message={error} retry={reload} />}
       {loading ? (
         <p role="status" className="library-loading">
-          Loading projects…
+          Opening your notebooks…
         </p>
       ) : !visible.length && !error ? (
         <div className="app-empty">
           <Folder className="mx-auto mb-4" size={28} strokeWidth={1.4} />
           <h2 className="font-editorial text-3xl">
-            {query ? "No matching projects." : "Give your work a home."}
+            {query ? "No matching notebooks." : "Give your ideas a home."}
           </h2>
           <p>
             {query
               ? "Try another name."
-              : "Create a project for whatever you’re working on. Your agents can use the same project, too."}
+              : "Start a notebook for a project, a topic, or whatever’s on your mind."}
           </p>
           {!query && (
             <button
               className="app-button mt-6"
               onClick={() => setSelected("new")}
             >
-              Create your first project
+              Create your first notebook
             </button>
           )}
         </div>
@@ -100,24 +105,22 @@ export default function ProjectsPage() {
                 </span>
                 <span>
                   <strong>{project.name}</strong>
-                  <span>Memories, context, and handoffs</span>
                 </span>
-                <ArrowUpRight size={17} />
+                <ArrowRight size={17} />
               </Link>
-              <button
-                className="app-icon"
-                aria-label={`Rename ${project.name}`}
+              <IconButton
+                label={`Rename ${project.name}`}
                 onClick={() => setSelected(project)}
               >
                 <Pencil size={16} />
-              </button>
+              </IconButton>
             </li>
           ))}
         </ul>
       )}
       {selected && (
         <Dialog
-          title={selected === "new" ? "Create a project" : "Rename project"}
+          title={selected === "new" ? "New notebook" : "Rename notebook"}
           close={() => setSelected(null)}
         >
           <ProjectForm

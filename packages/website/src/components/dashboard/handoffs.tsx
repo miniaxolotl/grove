@@ -1,12 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Plus, Search } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import type { Memory, Page } from "@lib/shared/contracts";
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { dateLabel, memoryTitle } from "@/lib/memory-display";
 import { BriefPanel } from "./brief";
 import { LoadError } from "./load-error";
+import { SearchField } from "./ui/search-field";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 export function Handoffs({
   projectId,
@@ -19,19 +21,18 @@ export function Handoffs({
   const [selected, setSelected] = useState<Memory | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
+  const search = useDebouncedValue(query.trim());
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const activeRequest = useRef<AbortController | null>(null);
-  function reload(searchText = search) {
+  function reload() {
     activeRequest.current?.abort();
     setLoading(true);
     setError("");
     setMemories([]);
     setSelected(null);
     setNext(null);
-    setSearch(searchText);
     setRefresh((value) => value + 1);
   }
   useEffect(() => {
@@ -67,47 +68,31 @@ export function Handoffs({
       <div className="workspace-section-heading">
         <div>
           <h2>Pick up where you left off</h2>
-          <p>
-            A handoff records a task’s progress, blockers, and next steps for
-            you and your agents.
-          </p>
+          <p>What’s done, what’s next, and where to begin again.</p>
         </div>
         <button className="app-button secondary" onClick={onCreate}>
           <Plus size={16} />
-          New handoff
+          New progress note
         </button>
       </div>
-      <form
-        className="app-search mb-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          reload(query.trim());
-        }}
-      >
-        <Search size={17} />
-        <input
-          aria-label="Search handoffs"
-          value={query}
-          maxLength={1000}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Find a task by its name or content…"
-        />
-        <button>Search</button>
-      </form>
+      <SearchField
+        className="mb-5"
+        label="Search progress notes"
+        value={query}
+        onChange={setQuery}
+        placeholder="Find a task by its name or content…"
+      />
       {error && <LoadError message={error} retry={() => reload()} />}
       {loading && !memories.length ? (
-        <p role="status">Loading handoffs…</p>
+        <p role="status">Opening your notes…</p>
       ) : !memories.length && !error ? (
         <div className="app-empty">
           <h3 className="font-editorial text-2xl">
-            {search ? "No matching handoffs." : "Leave a good starting point."}
+            {search ? "No matching notes." : "Leave a good starting point."}
           </h3>
-          <p>
-            Write down what’s done and what comes next. Grove keeps the task
-            reference for you.
-          </p>
+          <p>Write down what’s done and what comes next.</p>
           <button className="app-button mt-5" onClick={onCreate}>
-            Create a handoff
+            Write a progress note
           </button>
         </div>
       ) : (
@@ -165,7 +150,7 @@ export function Handoffs({
             }
           }}
         >
-          Load more handoffs
+          Earlier progress notes
         </button>
       )}
       {selected?.taskId && (
@@ -173,14 +158,14 @@ export function Handoffs({
           <div className="workspace-section-heading">
             <h3>{memoryTitle(selected)}</h3>
             <Link className="text-button" href={`/app/memories/${selected.id}`}>
-              Read or edit the handoff
+              Read or edit this note
             </Link>
           </div>
           <BriefPanel projectId={projectId} taskId={selected.taskId} />
         </div>
       )}
       <details className="agent-details mt-6">
-        <summary>How handoffs work</summary>
+        <summary>How this works with agents</summary>
         <p>
           The title is for you. A stable task reference lets agents update the
           same handoff across sessions instead of creating duplicates. Grove
@@ -188,8 +173,9 @@ export function Handoffs({
           details on the memory.
         </p>
         <p>
-          Handoffs stay in active recall for 30 days and are removed after 90.
-          Use an ordinary memory for something you want to keep.
+          Progress notes are kept for 30 days by default. In Note options,
+          choose a different duration or keep a note until you remove it.
+          Expired notes can be restored for 60 days.
         </p>
       </details>
     </section>

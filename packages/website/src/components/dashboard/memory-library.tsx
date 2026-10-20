@@ -1,17 +1,19 @@
 "use client";
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Plus,
-  Search,
   Archive,
   Folder,
   FolderInput,
-  SlidersHorizontal,
   X,
   Undo2,
   UserRound,
   BookOpen,
+  List,
+  Network,
 } from "lucide-react";
 import type { Memory, Page } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
@@ -21,36 +23,60 @@ import { LoadError } from "./load-error";
 import { MemoryRow } from "./memory-row";
 import { MemoryEditor } from "./memory-editor";
 import { MemoryDetail } from "./memory-detail";
+import { MemoryDrag, MemoryDestination } from "./memory-drag";
+import { LibraryFilterBar, initialFilters } from "./library-filters";
+import { PageHeading } from "./ui/page-heading";
+import { Button } from "./ui/button";
+import { SegmentedControl } from "./ui/segmented-control";
+const MemoryGraph = dynamic(() => import("./memory-graph"), {
+  ssr: false,
+  loading: () => (
+    <p role="status" className="library-loading">
+      Opening graph…
+    </p>
+  ),
+});
 
 type Action = "move" | "archive" | "restore";
 type Undo = { before: Memory; after: Memory; action: Action };
-const dragType = "application/x-grove-memories";
 
 export function MemoryLibrary({
   archive = false,
   initialId,
   projectId: fixedProject,
   embedded = false,
+  initialKind = "",
   onChanged,
+  initialView = "list",
 }: {
   archive?: boolean;
   initialId?: string;
   projectId?: string | null;
   embedded?: boolean;
+  initialKind?: string;
   onChanged?: () => void;
+  initialView?: "list" | "graph";
 }) {
+  const [view, setView] = useState(initialView);
   const [loadedItems, setItems] = useState<Memory[]>([]);
   const [resultKey, setResultKey] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  const [project, setProject] = useState("all");
-  const [kind, setKind] = useState("");
-  const [tag, setTag] = useState("");
-  const [tagDraft, setTagDraft] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState(() => ({
+    ...initialFilters(archive),
+    kind: initialKind,
+  }));
+  const {
+    search,
+    project,
+    kind,
+    tag,
+    status,
+    sourceAgent,
+    updatedAfter,
+    sort,
+    lifetime,
+  } = filters;
   const [searchMode, setSearchMode] = useState<string>();
-  const [status, setStatus] = useState(archive ? "archived" : "active");
   const [cursor, setNext] = useState<string | null>(null);
   const [fetching, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -64,11 +90,9 @@ export function MemoryLibrary({
   const [destination, setDestination] = useState("personal");
   const [busy, setBusy] = useState(false);
   const [undo, setUndo] = useState<Undo[]>([]);
-  const [over, setOver] = useState<string | null>(null);
-  const [dragged, setDragged] = useState<Memory[]>([]);
+  const [listRef] = useAutoAnimate<HTMLUListElement>({ duration: 200 });
   const requests = useRef(new Map<string, string>());
   const controller = useRef<AbortController | null>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
   const scopedProject =
     fixedProject !== undefined
       ? fixedProject
@@ -83,7 +107,10 @@ export function MemoryLibrary({
     kind,
     tag,
     status,
-    refresh,
+    sourceAgent,
+    updatedAfter,
+    sort,
+    lifetime,
   });
   const items = resultKey === requestKey ? loadedItems : [];
   const next = resultKey === requestKey ? cursor : null;
@@ -93,6 +120,9 @@ export function MemoryLibrary({
     search ||
     kind ||
     tag ||
+    sourceAgent ||
+    updatedAfter ||
+    lifetime ||
     (fixedProject === undefined && project !== "all") ||
     status !== (archive ? "archived" : "active")
   );
@@ -110,6 +140,10 @@ export function MemoryLibrary({
           kind: kind || undefined,
           tag: tag || undefined,
           status,
+          sourceAgent: sourceAgent || undefined,
+          updatedAfter: updatedAfter || undefined,
+          sort,
+          lifetime: lifetime || undefined,
         },
         undefined,
         request.signal,
@@ -139,7 +173,19 @@ export function MemoryLibrary({
         }
       });
     return () => request.abort();
-  }, [search, scopedProject, kind, tag, status, refresh, requestKey]);
+  }, [
+    search,
+    scopedProject,
+    kind,
+    tag,
+    status,
+    sourceAgent,
+    updatedAfter,
+    sort,
+    lifetime,
+    refresh,
+    requestKey,
+  ]);
   useEffect(() => {
     if (!initialId) return;
     const request = new AbortController();
@@ -152,28 +198,6 @@ export function MemoryLibrary({
       });
     return () => request.abort();
   }, [initialId]);
-  useEffect(() => {
-    function shortcut(event: KeyboardEvent) {
-      if (
-        event.key !== "/" ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        document.querySelector("dialog[open]")
-      )
-        return;
-      if (
-        (event.target as HTMLElement).closest(
-          "input, textarea, select, [contenteditable=true]",
-        )
-      )
-        return;
-      event.preventDefault();
-      searchInput.current?.focus();
-    }
-    document.addEventListener("keydown", shortcut);
-    return () => document.removeEventListener("keydown", shortcut);
-  }, []);
   function reload(message?: string) {
     setSelected(null);
     if (message) setNotice(message);
@@ -195,6 +219,10 @@ export function MemoryLibrary({
           tag: tag || undefined,
           status,
           cursor: next,
+          sourceAgent: sourceAgent || undefined,
+          updatedAfter: updatedAfter || undefined,
+          sort,
+          lifetime: lifetime || undefined,
         },
         undefined,
         request.signal,
@@ -242,7 +270,7 @@ export function MemoryLibrary({
       .slice(0, 50);
     if (!work.length) {
       setMoving(null);
-      setNotice("Already in this project.");
+      setNotice("Already in this notebook.");
       return;
     }
     setBusy(true);
@@ -282,7 +310,7 @@ export function MemoryLibrary({
           : "restored";
     setNotice(
       completed.length
-        ? `${completed.length} ${completed.length === 1 ? "memory" : "memories"} ${verb}.`
+        ? `${completed.length} ${completed.length === 1 ? "note" : "notes"} ${verb}.`
         : "",
     );
     reload();
@@ -328,494 +356,360 @@ export function MemoryLibrary({
     setMoving(memories);
     setDestination("personal");
   }
-  function startDrag(event: DragEvent, memory: Memory) {
-    if (busy) {
-      event.preventDefault();
-      return;
-    }
-    const records = checked.includes(memory.id) ? selectedItems : [memory];
-    setDragged(records);
-    event.dataTransfer.setData(
-      dragType,
-      JSON.stringify(records.map((m) => m.id)),
-    );
-    event.dataTransfer.effectAllowed = "move";
-  }
-  function dragOver(event: DragEvent, target: string) {
-    if (busy || !dragged.length || !event.dataTransfer.types.includes(dragType))
-      return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    setOver(target);
-  }
-  function drop(event: DragEvent, target: string) {
-    event.preventDefault();
-    setOver(null);
-    if (
-      busy ||
-      !dragged.length ||
-      event.dataTransfer.getData(dragType) !==
-        JSON.stringify(dragged.map((m) => m.id))
-    )
-      return;
-    const memories = dragged;
-    setDragged([]);
-    void perform(memories, "move", target === "personal" ? null : target);
-  }
-  const title = archive ? "Archive" : "Memories";
+  const title = archive
+    ? "Archive"
+    : initialView === "graph"
+      ? "Note graph"
+      : "Notes";
   const currentIndex =
     selected && selected !== "new"
       ? items.findIndex((m) => m.id === selected.id)
       : -1;
   return (
     <>
-      <div className={`app-page-heading${embedded ? " compact-heading" : ""}`}>
-        <div>
-          {embedded ? (
-            <h2 className="font-editorial text-3xl">{title}</h2>
-          ) : (
-            <h1>{title}</h1>
-          )}
-          <p>
-            {archive
-              ? "Saved outside active recall. Restore something whenever you need it."
-              : "Find what matters. Keep it in the right place."}
-          </p>
-        </div>
-        {!archive && (
-          <button
-            className="app-button"
+      {!embedded && (
+        <PageHeading
+          title={title}
+          description={
+            archive
+              ? "Set aside for now. Bring a note back whenever you need it."
+              : initialView === "graph"
+                ? "See how your ideas connect."
+                : "A place for ideas, plans, and things worth keeping."
+          }
+          actions={
+            !archive && (
+              <Button disabled={busy} onClick={() => setSelected("new")}>
+                <Plus size={16} />
+                New note
+              </Button>
+            )
+          }
+        />
+      )}
+      {embedded && (
+        <div className="embedded-library-actions">
+          <span>Your notes, together.</span>
+          <Button
+            variant="secondary"
             disabled={busy}
             onClick={() => setSelected("new")}
           >
             <Plus size={16} />
-            Add memory
-          </button>
-        )}
-      </div>
-      <div
-        className={`memory-workspace${embedded ? " embedded" : ""}`}
-        onDragEnd={() => {
-          setDragged([]);
-          setOver(null);
-        }}
+            New note
+          </Button>
+        </div>
+      )}
+      <MemoryDrag
+        items={items}
+        selected={checked}
+        busy={busy || loading}
+        onMove={(memories, target) => void perform(memories, "move", target)}
       >
-        {!embedded && (
-          <aside className="library-places" aria-label="Memory locations">
-            <button
-              aria-pressed={project === "all"}
-              onClick={() => setProject("all")}
-            >
-              <BookOpen size={16} />
-              All memories
-            </button>
-            <button
-              aria-pressed={project === "personal"}
-              onClick={() => setProject("personal")}
-              data-drop-active={over === "personal" || undefined}
-              onDragOver={(event) => dragOver(event, "personal")}
-              onDragLeave={() => setOver(null)}
-              onDrop={(event) => drop(event, "personal")}
+        <div className={`memory-workspace${embedded ? " embedded" : ""}`}>
+          <aside className="library-places" aria-label="Notebooks">
+            {!embedded && (
+              <button
+                aria-pressed={project === "all"}
+                onClick={() => setFilters({ ...filters, project: "all" })}
+              >
+                <BookOpen size={16} />
+                <span>All notes</span>
+              </button>
+            )}
+            <MemoryDestination
+              id="personal"
+              href={embedded ? "/app/profile" : undefined}
+              name="Personal"
+              active={embedded ? fixedProject === null : project === "personal"}
+              busy={busy}
+              onClick={() => {
+                if (!embedded) setFilters({ ...filters, project: "personal" });
+              }}
             >
               <UserRound size={16} />
-              Personal
-            </button>
+            </MemoryDestination>
             <div className="places-heading">
-              <span>Projects</span>
+              <span>Notebooks</span>
               <Link href="/app/projects">Manage</Link>
             </div>
             {projects.map((p) => (
-              <button
+              <MemoryDestination
                 key={p.id}
-                aria-pressed={project === p.id}
-                onClick={() => setProject(p.id)}
-                data-drop-active={over === p.id || undefined}
-                onDragOver={(event) => dragOver(event, p.id)}
-                onDragLeave={() => setOver(null)}
-                onDrop={(event) => drop(event, p.id)}
-              >
-                <Folder size={16} />
-                <span>{p.name}</span>
-              </button>
-            ))}
-            <p className="places-hint">
-              Drag a memory onto a project to move it. You can also select
-              memories and choose Move.
-            </p>
-          </aside>
-        )}
-        <div className="library-main">
-          <form
-            className="workspace-search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setSearch(query.trim());
-            }}
-          >
-            <div className="app-search">
-              <Search size={18} />
-              <input
-                ref={searchInput}
-                aria-label="Search memories"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by words or meaning…"
-                maxLength={1000}
-              />
-              <button type="submit">Search</button>
-            </div>
-            <button
-              type="button"
-              className="app-button secondary"
-              aria-expanded={showFilters}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <SlidersHorizontal size={16} />
-              Filters{kind || tag ? " · active" : ""}
-            </button>
-          </form>
-          {showFilters && (
-            <form
-              className="library-filters app-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setTag(tagDraft.trim());
-              }}
-            >
-              {fixedProject === undefined && (
-                <label>
-                  Project
-                  <select
-                    value={project}
-                    onChange={(e) => setProject(e.target.value)}
-                  >
-                    <option value="all">All projects</option>
-                    <option value="personal">Personal</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <label>
-                Memory kind
-                <select value={kind} onChange={(e) => setKind(e.target.value)}>
-                  <option value="">All kinds</option>
-                  {[
-                    "preference",
-                    "fact",
-                    "decision",
-                    "solution",
-                    "handoff",
-                  ].map((k) => (
-                    <option key={k} value={k}>
-                      {k === "handoff"
-                        ? "Task handoffs"
-                        : k[0].toUpperCase() + k.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Topic tag
-                <input
-                  value={tagDraft}
-                  maxLength={40}
-                  onChange={(e) => setTagDraft(e.target.value)}
-                  placeholder="e.g. architecture"
-                  list="memory-topics"
-                />
-                <datalist id="memory-topics">
-                  {[
-                    ...new Set(
-                      loadedItems.flatMap((m) => m.enrichment?.tags ?? []),
-                    ),
-                  ].map((t) => (
-                    <option key={t} value={t} />
-                  ))}
-                </datalist>
-              </label>
-              <button
-                className="app-button secondary apply-tag"
-                type="submit"
-                disabled={tagDraft.trim() === tag}
-              >
-                Apply tag
-              </button>
-              {archive && (
-                <label>
-                  Archive status
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                  >
-                    <option value="archived">Archived</option>
-                    <option value="expired">Expired handoffs</option>
-                  </select>
-                </label>
-              )}
-            </form>
-          )}
-          {filtered && (
-            <div className="filter-chips" aria-label="Active filters">
-              {search && (
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setQuery("");
-                  }}
-                  aria-label="Remove search filter"
-                >
-                  “{search}”<X size={13} />
-                </button>
-              )}
-              {fixedProject === undefined && project !== "all" && (
-                <button
-                  onClick={() => setProject("all")}
-                  aria-label="Remove project filter"
-                >
-                  {projects.find((p) => p.id === project)?.name ?? "Personal"}
-                  <X size={13} />
-                </button>
-              )}
-              {kind && (
-                <button
-                  onClick={() => setKind("")}
-                  aria-label="Remove kind filter"
-                >
-                  {kind}
-                  <X size={13} />
-                </button>
-              )}
-              {tag && (
-                <button
-                  onClick={() => {
-                    setTag("");
-                    setTagDraft("");
-                  }}
-                  aria-label="Remove tag filter"
-                >
-                  {tag}
-                  <X size={13} />
-                </button>
-              )}
-              {status === "expired" && (
-                <button
-                  onClick={() => setStatus("archived")}
-                  aria-label="Remove expired filter"
-                >
-                  Expired handoffs
-                  <X size={13} />
-                </button>
-              )}
-              <button
-                className="clear-filters"
+                href={embedded ? `/app/projects/${p.id}` : undefined}
+                id={p.id}
+                name={p.name}
+                active={embedded ? fixedProject === p.id : project === p.id}
+                busy={busy}
                 onClick={() => {
-                  setQuery("");
-                  setSearch("");
-                  setProject("all");
-                  setKind("");
-                  setTag("");
-                  setTagDraft("");
-                  setStatus(archive ? "archived" : "active");
+                  if (!embedded) setFilters({ ...filters, project: p.id });
                 }}
               >
-                Clear filters
-              </button>
-            </div>
-          )}
-          <div className="library-caption">
-            <span>
-              {items.length}
-              {next ? "+" : ""}{" "}
-              {items.length === 1 && !next ? "memory" : "memories"}
-              {searchMode && search
-                ? ` · ${searchMode === "hybrid" ? "Words + meaning" : "Matching words"}`
-                : ""}
-            </span>
-            <span className="library-shortcut">
-              Press / to search · swipe a row for actions
-            </span>
-          </div>
-          {selectedItems.length > 0 && (
-            <div
-              className="selection-toolbar"
-              role="group"
-              aria-label="Selected memories"
-            >
-              <strong>{selectedItems.length} selected</strong>
-              <button disabled={busy} onClick={() => startMove(selectedItems)}>
-                <FolderInput size={16} />
-                Move
-              </button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  void perform(selectedItems, archive ? "restore" : "archive")
-                }
-              >
-                <Archive size={16} />
-                {archive ? "Restore" : "Archive"}
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => setChecked([])}
-                aria-label="Clear selection"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {currentError && (
-            <LoadError
-              message={currentError}
-              retry={() => setRefresh((v) => v + 1)}
+                <Folder size={16} />
+              </MemoryDestination>
+            ))}
+            <p className="places-hint">Drag a note into a notebook.</p>
+          </aside>
+          <div className="library-main">
+            <LibraryFilterBar
+              value={filters}
+              onChange={setFilters}
+              projects={projects}
+              fixedProject={fixedProject}
+              archive={archive}
+              topics={[
+                ...new Set(
+                  items.flatMap((memory) => memory.enrichment?.tags ?? []),
+                ),
+              ]}
             />
-          )}
-          {detailError && (
-            <div className="app-error" role="alert">
-              {detailError}
-              <button
-                className="text-button ml-3"
-                onClick={() => setDetailError("")}
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {!!failures.length && (
-            <div className="app-error" role="alert">
-              <p>
-                Some memories could not be updated. The list below shows their
-                current state.
-              </p>
-              <ul>
-                {failures.map((failure, i) => (
-                  <li key={i}>{failure}</li>
-                ))}
-              </ul>
-              <button className="text-button" onClick={() => setFailures([])}>
-                Dismiss details
-              </button>
-            </div>
-          )}
-          {loading && !items.length ? (
-            <p role="status" className="library-loading">
-              Loading your memories…
-            </p>
-          ) : !items.length && !currentError ? (
-            <section className="app-empty">
-              <BookOpen size={26} className="mx-auto mb-4" strokeWidth={1.4} />
-              <h2 className="font-editorial text-3xl">
-                {filtered
-                  ? "Nothing here matches yet."
-                  : archive
-                    ? "Your archive is empty."
-                    : "Good things start small."}
-              </h2>
-              <p>
-                {filtered
-                  ? "Try a different phrase or clear a filter."
-                  : archive
-                    ? "Archived memories stay here until you restore or delete them."
-                    : "Save a useful note, or connect an agent to bring context into your conversations."}
-              </p>
-              {!archive && !filtered && (
-                <div className="mt-6 flex flex-wrap justify-center gap-3">
-                  <button
-                    className="app-button"
-                    onClick={() => setSelected("new")}
-                  >
-                    Save your first memory
-                  </button>
-                  <Link
-                    href="/app/connections"
-                    className="app-button secondary"
-                  >
-                    Connect an agent
-                  </Link>
-                </div>
+            <div className="library-caption">
+              <span>
+                {items.length}
+                {next ? "+" : ""}{" "}
+                {items.length === 1 && !next ? "note" : "notes"}
+                {searchMode && search
+                  ? ` · ${searchMode === "hybrid" ? "Words + meaning" : "Matching words"}`
+                  : ""}
+              </span>
+              {!archive && (
+                <SegmentedControl
+                  label="Note view"
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    {
+                      value: "list",
+                      label: (
+                        <>
+                          <List size={15} />
+                          List
+                        </>
+                      ),
+                    },
+                    {
+                      value: "graph",
+                      label: (
+                        <>
+                          <Network size={15} />
+                          Graph
+                        </>
+                      ),
+                    },
+                  ]}
+                />
               )}
-            </section>
-          ) : (
-            items.length > 0 && (
-              <div className="library-list">
-                <label className="select-loaded">
-                  <input
-                    type="checkbox"
-                    disabled={busy}
-                    checked={
-                      items.length > 0 &&
-                      items.slice(0, 50).every((m) => checked.includes(m.id))
-                    }
-                    onChange={(e) =>
-                      setChecked(
-                        e.target.checked
-                          ? items.slice(0, 50).map((m) => m.id)
-                          : [],
-                      )
-                    }
-                  />
-                  Select loaded memories{items.length > 50 ? " (first 50)" : ""}
-                </label>
+              <label className="library-sort">
+                Sort
+                <select
+                  aria-label="Sort notes"
+                  value={sort}
+                  onChange={(e) =>
+                    setFilters({
+                      ...filters,
+                      sort: e.target.value as typeof sort,
+                    })
+                  }
+                >
+                  <option value="updated_desc">Recently updated</option>
+                  <option value="updated_asc">Oldest updated</option>
+                </select>
+              </label>
+            </div>
+            {view === "list" && selectedItems.length > 0 && (
+              <div
+                className="selection-toolbar"
+                role="group"
+                aria-label="Selected notes"
+              >
+                <strong>{selectedItems.length} selected</strong>
+                <button
+                  disabled={busy}
+                  onClick={() => startMove(selectedItems)}
+                >
+                  <FolderInput size={16} />
+                  Move
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(selectedItems, archive ? "restore" : "archive")
+                  }
+                >
+                  <Archive size={16} />
+                  {archive ? "Restore" : "Archive"}
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => setChecked([])}
+                  aria-label="Clear selection"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {currentError && (
+              <LoadError
+                message={currentError}
+                retry={() => setRefresh((v) => v + 1)}
+              />
+            )}
+            {detailError && (
+              <div className="app-error" role="alert">
+                {detailError}
+                <button
+                  className="text-button ml-3"
+                  onClick={() => setDetailError("")}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+            {!!failures.length && (
+              <div className="app-error" role="alert">
+                <p>
+                  Some notes could not be updated. The list below shows their
+                  current state.
+                </p>
                 <ul>
-                  {items.map((memory) => (
-                    <MemoryRow
-                      key={memory.id}
-                      memory={memory}
-                      projectName={
-                        projects.find((p) => p.id === memory.projectId)?.name ??
-                        "Personal"
-                      }
-                      selected={checked.includes(memory.id)}
-                      busy={busy}
-                      onSelect={() =>
-                        setChecked((current) =>
-                          current.includes(memory.id)
-                            ? current.filter((id) => id !== memory.id)
-                            : current.length < 50
-                              ? [...current, memory.id]
-                              : current,
-                        )
-                      }
-                      onOpen={() => setSelected(memory)}
-                      onMove={() => startMove([memory])}
-                      onArchive={() =>
-                        void perform(
-                          [memory],
-                          isInactive(memory) ? "restore" : "archive",
-                        )
-                      }
-                      onTag={(value) => {
-                        setTag(value);
-                        setTagDraft(value);
-                        setShowFilters(true);
-                      }}
-                      onDrag={startDrag}
-                    />
+                  {failures.map((failure, i) => (
+                    <li key={i}>{failure}</li>
                   ))}
                 </ul>
+                <button className="text-button" onClick={() => setFailures([])}>
+                  Dismiss details
+                </button>
               </div>
-            )
-          )}
-          {next && (
-            <div className="mt-6 text-center">
-              <button
-                className="app-button secondary"
-                disabled={loading}
-                onClick={loadMore}
-              >
-                {loading ? "Loading…" : "Load more"}
-              </button>
-            </div>
-          )}
+            )}
+            {loading && !items.length ? (
+              <p role="status" className="library-loading">
+                Opening your notes…
+              </p>
+            ) : !items.length && !currentError ? (
+              <section className="app-empty">
+                <BookOpen
+                  size={26}
+                  className="mx-auto mb-4"
+                  strokeWidth={1.4}
+                />
+                <h2 className="font-editorial text-3xl">
+                  {filtered
+                    ? "Nothing here matches yet."
+                    : archive
+                      ? "Your archive is empty."
+                      : "Good things start small."}
+                </h2>
+                <p>
+                  {filtered
+                    ? "Try a different phrase or clear a filter."
+                    : archive
+                      ? "Archived notes stay here until you restore or delete them."
+                      : "Start with a thought, a plan, or something you want to remember."}
+                </p>
+                {!archive && !filtered && (
+                  <div className="mt-6 flex flex-wrap justify-center gap-3">
+                    <button
+                      className="app-button"
+                      onClick={() => setSelected("new")}
+                    >
+                      Write your first note
+                    </button>
+                    <Link
+                      href="/app/connections"
+                      className="app-button secondary"
+                    >
+                      Connect an agent
+                    </Link>
+                  </div>
+                )}
+              </section>
+            ) : (
+              items.length > 0 &&
+              (view === "graph" ? (
+                <MemoryGraph
+                  items={items}
+                  projects={projects}
+                  onOpen={setSelected}
+                />
+              ) : (
+                <div className="library-list">
+                  <label className="select-loaded">
+                    <input
+                      type="checkbox"
+                      disabled={busy}
+                      checked={
+                        items.length > 0 &&
+                        items.slice(0, 50).every((m) => checked.includes(m.id))
+                      }
+                      onChange={(e) =>
+                        setChecked(
+                          e.target.checked
+                            ? items.slice(0, 50).map((m) => m.id)
+                            : [],
+                        )
+                      }
+                    />
+                    Select these notes
+                    {items.length > 50 ? " (first 50)" : ""}
+                  </label>
+                  <ul ref={listRef}>
+                    {items.map((memory) => (
+                      <MemoryRow
+                        key={memory.id}
+                        memory={memory}
+                        projectName={
+                          projects.find((p) => p.id === memory.projectId)
+                            ?.name ?? "Personal"
+                        }
+                        selected={checked.includes(memory.id)}
+                        busy={busy}
+                        onSelect={() =>
+                          setChecked((current) =>
+                            current.includes(memory.id)
+                              ? current.filter((id) => id !== memory.id)
+                              : current.length < 50
+                                ? [...current, memory.id]
+                                : current,
+                          )
+                        }
+                        onOpen={() => setSelected(memory)}
+                        onMove={() => startMove([memory])}
+                        onArchive={() =>
+                          void perform(
+                            [memory],
+                            isInactive(memory) ? "restore" : "archive",
+                          )
+                        }
+                        onTag={(value) =>
+                          setFilters({ ...filters, tag: value })
+                        }
+                      />
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )}
+            {next && (
+              <div className="mt-6 text-center">
+                <button
+                  className="app-button secondary"
+                  disabled={loading}
+                  onClick={loadMore}
+                >
+                  {loading
+                    ? "Loading…"
+                    : view === "graph"
+                      ? "Expand graph"
+                      : "Load more"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </MemoryDrag>
       {(notice || busy) && (
         <div className="workspace-notice" role="status">
-          <span>{busy ? "Updating memories…" : notice}</span>
+          <span>{busy ? "Updating notes…" : notice}</span>
           {undo.length > 0 && (
             <button disabled={busy} onClick={undoLast}>
               <Undo2 size={16} />
@@ -838,7 +732,7 @@ export function MemoryLibrary({
         <Dialog
           key={selected === "new" ? "new" : selected.id}
           panel
-          title={selected === "new" ? "New memory" : "Memory details"}
+          title={selected === "new" ? "New note" : "Note"}
           busy={busy}
           close={() => setSelected(null)}
         >
@@ -847,11 +741,7 @@ export function MemoryLibrary({
               projects={projects}
               projectId={scopedProject ?? null}
               cancel={() => setSelected(null)}
-              done={() =>
-                reload(
-                  "Memory saved. Search and context will update in the background.",
-                )
-              }
+              done={() => reload("Note saved.")}
             />
           ) : (
             <MemoryDetail
@@ -883,7 +773,7 @@ export function MemoryLibrary({
       )}
       {moving && (
         <Dialog
-          title={`Move ${moving.length === 1 ? "memory" : `${moving.length} memories`}`}
+          title={`Move ${moving.length === 1 ? "note" : `${moving.length} notes`}`}
           close={() => setMoving(null)}
           busy={busy}
         >
@@ -899,8 +789,7 @@ export function MemoryLibrary({
             }}
           >
             <p className="text-sm leading-7 text-muted">
-              Choose where this context belongs. The memory and its history stay
-              together.
+              Choose a notebook. Your note and its history stay together.
             </p>
             <label>
               Destination
@@ -917,7 +806,8 @@ export function MemoryLibrary({
               </select>
             </label>
             <p className="text-xs text-muted">
-              Agents with access to the destination can recall these memories.
+              Connected agents with access to this notebook can read these
+              notes.
             </p>
             <button disabled={busy} className="app-button">
               {busy ? "Moving…" : "Move here"}

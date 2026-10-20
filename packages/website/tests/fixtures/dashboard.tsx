@@ -7,9 +7,18 @@ import Projects from "../../src/app/app/projects/page";
 import Settings from "../../src/app/app/settings/page";
 import { ModelSettings } from "../../src/components/dashboard/model-settings";
 import { MemoryContext } from "../../src/components/dashboard/context";
+import { AskGrove } from "../../src/components/dashboard/ask-grove";
+import { Journal } from "../../src/components/dashboard/journal";
+import { MemoryInspector } from "../../src/components/dashboard/memory-inspector";
 
 const path = window.location.pathname;
-const content = path.endsWith("/settings/models") ? (
+const content = path.endsWith("/ask") ? (
+  <AskGrove />
+) : path.endsWith("/journal") ? (
+  <Journal />
+) : path.startsWith("/app/memories/") ? (
+  <MemoryInspector fullPage id={path.split("/").at(-1)!} />
+) : path.endsWith("/settings/models") ? (
   <ModelSettings />
 ) : path.endsWith("/profile") ? (
   <MemoryContext />
@@ -26,6 +35,7 @@ const content = path.endsWith("/settings/models") ? (
 ) : (
   <MemoryLibrary
     archive={path.endsWith("/archive")}
+    initialView={path.endsWith("/graph") ? "graph" : "list"}
     initialId={
       path.startsWith("/app/memories/") ? path.split("/").at(-1) : undefined
     }

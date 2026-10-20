@@ -82,6 +82,21 @@ export const serverEnvironmentSchema = z.object({
     .max(1000000)
     .default(2000),
   AI_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+  AMQP_URL: z
+    .url()
+    .refine(
+      (value) => new URL(value).protocol === "amqps:",
+      "Use TLS for the job broker",
+    )
+    .optional(),
+  ORGANIZATION_INTERVAL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(86400)
+    .default(900),
+  RESEND_API_KEY: z.string().startsWith("re_").optional(),
+  EMAIL_FROM: z.string().email().default("notifications@mail.usegrove.cloud"),
   CURSOR_SECRET: z.string().min(32),
 });
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;

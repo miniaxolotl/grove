@@ -105,6 +105,41 @@ export type Enrichment = {
   profiles: string[];
 };
 
+export const askSchema = z
+  .object({
+    query: z.string().trim().min(1).max(1000),
+    projectId: z.uuid().nullable().optional(),
+    includePersonal: z.boolean().default(true),
+    mode: z.enum(["answer", "search"]).default("answer"),
+    previousQuestions: z
+      .array(z.string().trim().min(1).max(1000))
+      .max(4)
+      .default([]),
+  })
+  .strict();
+export const answerSchema = z
+  .object({
+    statements: z
+      .array(
+        z
+          .object({
+            text: z.string().trim().min(1).max(900),
+            sources: z.array(sourceRefSchema).min(1).max(8),
+          })
+          .strict(),
+      )
+      .max(8),
+    insufficient: z.boolean(),
+  })
+  .strict();
+export type AskRequest = z.infer<typeof askSchema>;
+export type AskResult = {
+  status: "ready" | "no_evidence" | "search" | "generation_disabled";
+  answer: z.infer<typeof answerSchema> | null;
+  sources: import("./contracts.ts").Memory[];
+  searchMode: "hybrid" | "lexical" | "profile";
+};
+
 // URLs are installation-admin configuration, never memory content or agent arguments.
 export const providerUrlSchema = z
   .url()

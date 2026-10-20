@@ -386,11 +386,15 @@ export async function runProcessingJob(
   db: Knex,
   providers: Providers,
   dailyLimit: number,
+  wantedId?: string,
 ): Promise<boolean> {
   const profiles = providerProfiles(providers);
   if (!profiles.length) return false;
   const job = camelRows<Job>(
-    await db.raw("SELECT * FROM grove_claim_job(?::text[])", [profiles]),
+    await db.raw("SELECT * FROM grove_claim_job(?::text[], ?::uuid)", [
+      profiles,
+      wantedId ?? null,
+    ]),
   )[0];
   if (!job) return false;
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };

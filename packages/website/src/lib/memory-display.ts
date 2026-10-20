@@ -7,7 +7,25 @@ export const memoryTitle = (memory: Memory) =>
     .split("\n")[0]
     .replace(/^#{1,6}\s+/, "")
     .slice(0, 110) ||
-  "Untitled memory";
+  "Untitled note";
+
+export const noteKindLabel = (kind: Memory["kind"]) =>
+  ({
+    fact: "Note",
+    preference: "Preference",
+    decision: "Decision",
+    solution: "How-to",
+    handoff: "Progress note",
+  })[kind];
+
+export const memoryExcerpt = (memory: Memory, length = 160) => {
+  const text = memory.content
+    .replace(/^#{1,6} .+\n+/, "")
+    .replace(/[#*`>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text;
+};
 
 export const isInactive = (memory: Memory) =>
   memory.status === "archived" ||
@@ -20,6 +38,7 @@ export const moveMemoryInput = (memory: Memory, projectId: string | null) => ({
   content: memory.content,
   kind: memory.kind,
   autoKind: memory.autoKind ?? false,
+  retentionDays: memory.retentionDays ?? (memory.expiresAt ? 30 : null),
   projectId,
   ...(memory.taskId ? { taskId: memory.taskId } : {}),
   source: memory.source,

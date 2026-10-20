@@ -25,7 +25,11 @@ import {
 } from "@lib/shared/contracts";
 import { ConnectionSetup, type MemoryService } from "@lib/memory";
 import type { Authentication } from "./auth.ts";
-import { briefRequestSchema, modelUpdateSchema } from "@lib/shared/models";
+import {
+  askSchema,
+  briefRequestSchema,
+  modelUpdateSchema,
+} from "@lib/shared/models";
 import type { ModelRegistry } from "./models.ts";
 import { InferenceError } from "@lib/ai";
 
@@ -457,6 +461,16 @@ export function createApp(deps: AppDependencies) {
       data: await service.recall(
         c.get("principal"),
         await body(c, recallSchema),
+        c.req.raw.signal,
+      ),
+    }),
+  );
+  app.post("/v1/ask", async (c) =>
+    c.json({
+      success: true,
+      data: await service.ask(
+        c.get("principal"),
+        await body(c, askSchema),
         c.req.raw.signal,
       ),
     }),

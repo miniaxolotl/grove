@@ -77,10 +77,10 @@ export function BriefPanel({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <h2 className="font-editorial text-2xl">
           {taskId
-            ? "Task handoff"
+            ? "Where you left off"
             : projectId
-              ? "Project brief"
-              : "Personal overview"}
+              ? "Notebook summary"
+              : "A little about you"}
         </h2>
         <span className="text-xs text-muted">
           {brief?.status === "ready"
@@ -103,13 +103,12 @@ export function BriefPanel({
       )}
       {!brief && !error && (
         <p className="mt-4 text-sm text-muted" role="status">
-          Loading context…
+          Opening your summary…
         </p>
       )}
       {brief?.status === "disabled" ? (
         <p className="mt-4 text-sm leading-7 text-muted">
-          Enable summaries in Settings and configure a generation model to build
-          source-linked context.
+          Summaries are turned off. You can enable them in Settings.
         </p>
       ) : brief?.content ? (
         <>
@@ -140,10 +139,10 @@ export function BriefPanel({
           ))}
           <p className="mt-6 text-xs leading-6 text-muted">
             Based on {brief.sourceCount} current{" "}
-            {brief.sourceCount === 1 ? "memory" : "memories"}
+            {brief.sourceCount === 1 ? "note" : "notes"}
             {brief.updatedAt ? ` · ${dateLabel(brief.updatedAt)}` : ""}.
             {brief.truncated
-              ? " This brief covers a bounded selection of recent memories."
+              ? " This summary covers your most recent notes."
               : ""}{" "}
             Review the linked sources for context.
           </p>
@@ -152,7 +151,7 @@ export function BriefPanel({
         brief && (
           <p role="status" className="mt-4 text-sm text-muted">
             {brief.status === "failed"
-              ? "Generation failed. Retry when the provider is available."
+              ? "This summary couldn’t be updated. Please try again."
               : "Updating this summary. You can keep working."}
           </p>
         )

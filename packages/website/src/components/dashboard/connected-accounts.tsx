@@ -26,7 +26,10 @@ export function ConnectedAccounts() {
           Loading connected accounts…
         </p>
       ) : accounts.length ? (
-        <ul className="mt-5 divide-y divide-line" aria-label="Connected accounts">
+        <ul
+          className="mt-5 divide-y divide-line"
+          aria-label="Connected accounts"
+        >
           {accounts.map((account) => (
             <li
               key={account.id}

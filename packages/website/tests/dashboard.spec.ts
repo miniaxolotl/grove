@@ -91,11 +91,11 @@ test("memory editor reports persistence failures and retains the draft", async (
 }) => {
   await fixture(page, [], true);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Add memory", exact: true }).click();
+  await page.getByRole("button", { name: "New note", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("Keep this draft on failure.");
-  await page.getByRole("button", { name: "Save memory", exact: true }).click();
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     "temporarily unavailable",
   );
@@ -103,9 +103,7 @@ test("memory editor reports persistence failures and retains the draft", async (
     "Keep this draft on failure.",
   );
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText("Memory saved.", { exact: false })).toHaveCount(
-    0,
-  );
+  await expect(page.getByText("Note saved.", { exact: false })).toHaveCount(0);
 });
 
 test("save, correct, inspect revisions, archive, restore and delete through the dashboard", async ({
@@ -113,18 +111,18 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
 }) => {
   await fixture(page, []);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Save your first memory" }).click();
+  await page.getByRole("button", { name: "Write your first note" }).click();
   await page.getByLabel("What should stay with you?").fill(sample.content);
-  await page.getByRole("button", { name: "Save memory", exact: true }).click();
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Memory saved" }),
-  ).toContainText("Search and context will update");
+    page.getByRole("status").filter({ hasText: "Note saved" }),
+  ).toContainText("Note saved");
   await page.getByRole("button", { name: /^I prefer concise/ }).click();
-  await page.getByRole("button", { name: "Edit memory", exact: true }).click();
+  await page.getByRole("button", { name: "Edit note", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("I prefer examples in TypeScript.");
-  await page.getByRole("button", { name: "Save memory", exact: true }).click();
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Revision history" }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();
@@ -135,9 +133,9 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
-  await page.getByText("Delete memory", { exact: true }).click();
+  await page.getByText("Delete note", { exact: true }).click();
   await page.getByRole("button", { name: "Delete permanently" }).click();
-  await page.getByRole("button", { name: "Delete this memory" }).click();
+  await page.getByRole("button", { name: "Delete this note" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "permanently deleted" }),
   ).toBeVisible();
@@ -150,16 +148,15 @@ test("a filtered empty library can return to all memories without losing the que
   await fixture(page);
   await page.goto(`${base}/app`);
   await page
-    .getByRole("textbox", { name: "Search memories" })
+    .getByRole("textbox", { name: "Search notes" })
     .fill("a missing memory");
-  await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page.getByText("Nothing here matches yet.")).toBeVisible();
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
-  await expect(
-    page.getByRole("textbox", { name: "Search memories" }),
-  ).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue(
+    "",
+  );
   await expect(
     page.getByRole("button", { name: /^I prefer concise/ }),
   ).toBeVisible();

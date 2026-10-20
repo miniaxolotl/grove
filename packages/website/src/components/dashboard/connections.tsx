@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { KeyRound, Plug, Plus } from "lucide-react";
+import { KeyRound, Plug } from "lucide-react";
 import {
   capabilities,
   type Grant,
@@ -11,6 +11,9 @@ import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { AgentSetup } from "@/components/installation";
+import { PageHeading } from "./ui/page-heading";
+import { Button } from "./ui/button";
+import { Disclosure } from "./ui/disclosure";
 
 type Connection = Grant & {
   id: string;
@@ -73,35 +76,42 @@ export function Connections({ origin }: { origin: string }) {
   }
   return (
     <>
-      <div className="app-page-heading">
-        <div>
-          <p className="eyebrow">SAME CONTEXT, ANY AGENT</p>
-          <h1>
-            Your connections<span className="text-leaf">.</span>
-          </h1>
-          <p>Choose what each agent can read, remember, and forget.</p>
-        </div>
-        <button className="app-button" onClick={() => setSelected("new")}>
-          <Plus size={16} />
-          Create API key
-        </button>
-      </div>
+      <PageHeading
+        title="Connections"
+        description="Choose what each agent can read, remember, and forget."
+      />
       <section className="app-panel mb-8">
         <div className="flex items-center gap-3">
           <Plug size={20} />
-          <h2 className="font-editorial text-2xl">
-            Bring an agent into your Grove.
-          </h2>
+          <h2 className="font-editorial text-2xl">Connect an agent</h2>
         </div>
         <p className="mt-3 text-sm leading-7 text-muted">
-          Choose OpenCode, Claude Code, or Codex and run its connection command.
-          Sign in and choose its access in the browser. Setup finishes in your
-          terminal.
+          Browser sign-in (OAuth) is recommended. Choose your agent, run its
+          connection command, and approve its access. No key to copy; access can
+          be changed or revoked here.
         </p>
         <div className="mt-4">
-          <AgentSetup origin={origin || undefined} headless />
+          <AgentSetup origin={origin || undefined} />
         </div>
       </section>
+      <Disclosure
+        title="Advanced: API keys & headless clients"
+        className="connection-advanced"
+      >
+        <p>
+          Use a named, scoped API key for automation or clients that cannot open
+          a browser. Both methods use the same memory permissions. Give each
+          integration its own key so you can revoke it independently.
+        </p>
+        <Button variant="secondary" onClick={() => setSelected("new")}>
+          <KeyRound size={16} />
+          Create API key
+        </Button>
+        <p>
+          For terminal setup, run <code>grove login --key-stdin</code> and
+          provide the key through standard input.
+        </p>
+      </Disclosure>
       {error && <LoadError message={error} retry={reload} />}
       {loading ? (
         <p role="status">Loading connections…</p>

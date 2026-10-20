@@ -43,6 +43,12 @@ Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope i
 Content is trimmed, 1–6,000 characters. `capture: "automatic"` is rejected when
 automatic capture is paused; explicit user-requested saves use `"explicit"`.
 
+`retentionDays` is nullable and independent of kind: `null` keeps the note until
+removed; 1–365 selects a temporary lifetime. New handoffs default to 30 days and
+other kinds to permanent. Omission on correction preserves retention and expiry.
+Changing retention restarts it; restore renews it. Expired notes are hidden from
+recall and retained for a 60-day restoration window before permanent deletion.
+
 Use a new UUID operation ID per mutation and keep it across retries. Reusing an ID
 with different arguments returns 409. Replaying a deleted save returns 410 and
 does not resurrect content. A correction race yields one success and one conflict.
@@ -78,6 +84,7 @@ Responses use `{success: true, data}` or
 | `POST /v1/memories/:id/archive`; `…/restore`                                      | `memory:write`, operation ID and current version                                 |
 | `POST /v1/memories/delete`                                                        | `memory:delete`                                                                  |
 | `POST /v1/recall`                                                                 | `memory:read`                                                                    |
+| `POST /v1/ask`                                                                    | Scoped `memory:read`; cited answer or source search                              |
 | `POST /v1/briefs`; `POST /v1/briefs/refresh`                                      | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
 | `POST /v1/memories/:id/reprocess`                                                 | Scoped `memory:write`; body `{expectedVersion}`                                  |
 | `GET /v1/models`; `GET /v1/account/usage`                                         | Website session; masked settings / account usage                                 |
@@ -94,6 +101,14 @@ account, connection, filters, and creation-time ceiling. Pagination is bounded,
 not a database snapshot of concurrent edits. `Idempotency-Key` may supply the body
 operation ID; conflicting identifiers are rejected. Restore can select an older
 revision and creates a new revision; `durable: true` promotes a handoff to a fact.
+
+Library filters also accept `sourceAgent`, `updatedAfter`, `lifetime`
+(`permanent`/`ephemeral`), and `sort` (`updated_desc`/`updated_asc`/`created_desc`).
+`POST /v1/ask` accepts `query`, optional `projectId`, `includePersonal`,
+`previousQuestions` (up to four), and `mode` (`answer`/`search`). Omitted project
+scope searches all authorized notebooks; null selects Personal. Replies include
+sources and a structured, exactly cited answer, or an explicit no-evidence/disabled
+status. Aborted requests cancel inference. No question or answer is stored as a note.
 
 ## Persistence and jobs
 

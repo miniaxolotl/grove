@@ -1,54 +1,66 @@
-# Your Grove workspace
+# Your Grove notebook
 
-The dashboard is built around reading and managing your context. References and
-processing metadata used by agents live under **Agent details**.
+Grove is a place for notes, ideas, and everyday writing. **Notes**, **Journal**,
+**Ask Grove**, **Notebooks**, and **About me** are the main destinations. Connected
+agents use the same notes and permissions; their references live in **Agent details**.
 
-## Memories
+## Write, find, and organize
 
-- Open a memory to read it. Choose **Edit memory** to write Markdown, with
-  formatting buttons, `Ctrl`/`Cmd` + `B` / `I`, undo/redo and a GFM preview.
-  Headings, links, lists, checklists, tables and code are rendered in the reader.
-- Press `/` to search by words or meaning. Combine project, kind and topic
-  filters, and remove them individually. Topic text applies on submit; search
-  text stays in request bodies rather than browser URLs.
-- Select up to 50 loaded memories to move, archive or restore. Desktop users can
-  drag the handle of a selected row onto a project or Personal. On touch screens,
-  swipe horizontally to reveal actions; scrolling and cancellation never mutate
-  a memory. Every action is also available with ordinary buttons and a keyboard.
-- Move and lifecycle operations use the memory's current version. **Undo** checks
-  the version produced by the original operation and refuses to overwrite a later
-  change. Partial failures identify the affected memories; successful changes
-  remain undoable. Restoring a handoff renews its active lifetime; undoing a restore
-  archives it again, rather than reinstating an old expiry date.
-- History, restoration as a new revision, permanent deletion and processing retry
-  remain available in the reader. Save failures retain the draft and operation
-  reference; in-flight saves keep the dialog open.
+- Open a note to read it in a drawer or on its own page. **Edit note** supports
+  Markdown, formatting buttons, `Ctrl`/`Cmd` + `B` / `I`, undo/redo, and preview.
+- Press `/` to search. Results update after a short pause as you type. Combine
+  notebook, note type, topic, source, updated date, and retention filters. Queries
+  stay in POST bodies. Sorting and filtering apply to the entire matching library.
+- Create a notebook with just a name. Its optional repository identity connects
+  it to an agent's project. Renaming preserves that reference.
+- Select up to 50 loaded notes to move, archive, or restore. Drag a handle into a
+  notebook, or press Space, choose a destination with the arrows, and press Space
+  again. Escape cancels. On touch screens, a swipe reveals ordinary action buttons;
+  a long press on the handle starts dragging.
+- **Undo** checks the version produced by the original action. It never overwrites
+  someone else's later edit. Partial failures identify the affected notes.
 
-## Projects and handoffs
+## Journal and personal notes
 
-Create a project with a name. The optional repository identity connects it to
-agents working in an existing repository; otherwise Grove generates a stable
-workspace reference. Rename a project without changing that reference.
+**Journal** groups personal notes written on the website by their creation date.
+**New entry** starts with today's date. Entries remain ordinary editable notes,
+available in search and Ask Grove. **About me** offers prompts for preferences and
+things you want Grove to know.
 
-Each project has **Overview**, **Memories** and **Handoffs** views. Personal context
-has the same views, scoped to personal memories. Pick handoffs by title or search
-their content. A new handoff receives its task reference automatically; editing
-or moving an existing handoff preserves its reference and source. Handoffs stay
-in active recall for 30 days and are purged after 90 days.
+Notebook pages open to Notes, with Summary, In progress, and Ask Grove views.
+Progress notes record where work stands. Agent task references are created
+automatically and preserved when a note is edited or moved.
 
-Overviews cite source memories and their revisions. Refreshes report background
-processing honestly and check for completion while the page is visible.
+## History and how long notes stay
 
-## Search and organization
+Ordinary notes stay until you remove them. Under **Note options**, any kind of note
+can instead be kept for 1–365 days. Progress notes default to 30 days. Editing or
+moving preserves the expiry date; changing the duration starts it again. Expired
+notes leave search and recall, and remain restorable for 60 more days before deletion.
+Restoring renews their duration. Archive is available in the footer.
 
-Cloud settings explain the results of the three provider roles: semantic search,
-automatic organization and source-linked summaries. Provider profiles and vector
-dimensions are expandable technical details. Self-hosted administrators retain
-the editable model configuration and diagnostics described in [models.md](models.md).
+**History** keeps readable versions, side-by-side comparison, and **Restore as a new
+revision**. A concurrent edit preserves your draft and presents the newer saved
+version for review. Replacing or restoring always creates another version.
 
-The interface uses self-hosted Inter for clear, professional headings and body
-text, with the [Sprout palette](design/grove-sprout.md), neutral selection states
-and no colored left-edge accents. Automated browser checks cover
-version conflicts, partial failures, pagination cancellation, filtering, Markdown,
-desktop drag/drop, native touch input, keyboard interaction and accessibility at
-320px and desktop widths.
+## Linked notes and Ask Grove
+
+Choose **Graph** within Notes to explore recorded related, duplicate, or conflicting
+ideas. It uses the loaded, current notes in the selected scope. Load earlier pages
+to expand it. Pan, zoom, select a note, or press Enter on a focused node to read it.
+
+**Ask Grove** answers from your notes with exact-version source links. Choose all
+notes, Personal, or a notebook; optionally include personal notes. **Search** finds
+source pages automatically as you type. Conversation stays in tab memory. Questions
+do not create notes. Stop or start a new conversation to cancel an answer. Changes
+to permissions, sources, settings, or model profiles during generation discard the
+answer. Opening a citation identifies when its note has since changed.
+
+Cloud settings explain semantic search, organization, and cited summaries.
+Self-hosted administrators retain configurable providers and diagnostics in
+[Model settings](models.md). Periodic organization repairs missing derived data
+without moving, merging, or rewriting notes.
+
+The interface uses self-hosted Inter and the [Sprout palette](design/grove-sprout.md).
+Browser checks cover narrow layouts, keyboard and native touch interaction, graph,
+cited chat, journal, history, concurrent edits, cancellation, and accessibility.

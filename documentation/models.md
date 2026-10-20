@@ -10,7 +10,8 @@ Grove Cloud uses deployment-managed providers:
 | Generation | MiniMax `MiniMax-M3.1-Flash`        | Low reasoning effort, 4,096 maximum completion tokens; validated structured results      |
 
 DeepInfra receives query/document text for embedding and source/candidate text for
-classification. MiniMax receives bounded source text for organization and summaries.
+classification. MiniMax receives bounded source text for organization, summaries,
+and Ask Grove questions (including up to four preceding questions).
 Cloud credentials are server-only. Use standard pay-as-you-go MiniMax API keys for
 the public service; a MiniMax coding subscription has separate eligibility and usage
 windows ([provider guidance](https://platform.minimax.io/docs/m-plan/usage-rules)).
@@ -85,18 +86,25 @@ these values explicitly for an existing installation.
 
 ## Organization, summaries and recall
 
-- `remember` accepts `autoKind: true` for durable memories. Explicit kinds are kept
-  by default. Handoff kind, stable task ID and 30/90-day expiry/purge remain explicit.
+- `remember` accepts `autoKind: true`. Explicit kinds are kept by default. Handoff
+  kind and stable task ID remain explicit. `retentionDays` is independent of kind;
+  handoffs default to 30 days, other notes to permanent, with a 60-day restore window.
 - Enrichment exposes a generated title, topic tags, suggested kind, salience, and up
   to five scoped duplicate/complementary/conflicting relationships. Classification
   never merges, deletes, or moves a memory. Salience provides a small ranking boost
   only after lexical/semantic relevance has selected candidates.
 - Library search combines text and vector matches with existing scope/status/kind/tag
   filters. `searchMode` reports hybrid or lexical degradation; pagination remains in
-  stable ID order. Agent recall uses reciprocal-rank fusion, bounded by 6,000 characters.
-- **Personal context** and each **Projects → project name** page show cited summaries.
-  Enter a stable task ID for a structured handoff. Each statement links to exact
-  source IDs/revisions. Check status or regenerate on demand.
+  stable ID order unless `updated_desc`, `updated_asc`, or `created_desc` is selected.
+  Timestamp cursors preserve microseconds. Agent recall uses reciprocal-rank fusion,
+  bounded by 6,000 characters.
+- **About me** and **Notebooks → notebook → Summary** show cited summaries.
+  **In progress** opens handoffs by title. Each statement links to exact source
+  IDs/revisions. Check status or regenerate on demand.
+- **Ask Grove** retrieves at most 12 current authorized notes within the same 6,000
+  character budget. Generation validates every citation and rechecks account,
+  grant, source revisions/expiry, settings, and provider profile before returning.
+  Search mode performs no generation; questions never implicitly save notes.
 - Workers use at most 80 recent sources / 24,000 source characters; `truncated`
   signals partial coverage. Model/prompt profiles and source revisions are retained.
   Corrections, moves, archive, deletion and expiry hide stale output immediately.
