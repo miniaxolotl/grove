@@ -76,12 +76,14 @@ for (const editable of [true, false])
     });
     await page.goto(`${base}/app/settings/models`);
     await expect(
-      page.getByRole("heading", { name: "Model settings." }),
+      page.getByRole("heading", {
+        name: editable ? "Model settings" : "Search & organization",
+      }),
     ).toBeVisible();
-    await expect(page.getByLabel("Dimensions", { exact: true })).toHaveValue(
-      "4096",
-    );
     if (editable) {
+      await expect(page.getByLabel("Dimensions", { exact: true })).toHaveValue(
+        "4096",
+      );
       await page
         .getByLabel("API key", { exact: true })
         .first()
@@ -101,14 +103,17 @@ for (const editable of [true, false])
         .click();
       await expect(page.getByRole("status")).toContainText("4096 dimensions");
     } else {
-      await expect(
-        page.getByLabel("Dimensions", { exact: true }),
-      ).toBeDisabled();
+      await expect(page.getByText(/4,096 dimensions/)).not.toBeVisible();
+      await page.getByText("Technical details", { exact: true }).click();
+      await expect(page.getByText(/4,096 dimensions/)).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Save model settings" }),
       ).toHaveCount(0);
       await expect(
-        page.getByText("Grove Cloud manages these providers for your account."),
+        page.getByText(
+          "Grove Cloud manages these providers for your account.",
+          { exact: false },
+        ),
       ).toBeVisible();
     }
     for (const width of [320, 1440]) {
@@ -138,6 +143,10 @@ test("source-linked personal context exposes current revision links and honest q
   let pending = false;
   const id = "00000000-0000-4000-8000-000000000001";
   await page.route("**/api/grove/**", async (route) => {
+    if (route.request().url().endsWith("/projects")) {
+      await route.fulfill({ json: { success: true, data: [] } });
+      return;
+    }
     if (route.request().url().endsWith("/refresh")) pending = true;
     await route.fulfill({
       json: {
@@ -187,9 +196,9 @@ test("source-linked personal context exposes current revision links and honest q
     path: testInfo.outputPath("personal-context.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Regenerate" }).click();
+  await page.getByRole("button", { name: "Refresh summary" }).click();
   await expect(
-    page.getByText("Context is queued for background processing."),
+    page.getByText("Updating this summary. You can keep working."),
   ).toBeVisible();
   await expect(
     page.getByText("Prefers concise explanations with examples."),

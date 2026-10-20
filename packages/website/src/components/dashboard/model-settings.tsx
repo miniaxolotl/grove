@@ -7,6 +7,7 @@ import type {
 } from "@lib/shared/models";
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { LoadError } from "./load-error";
+import { ProviderOverview } from "./provider-overview";
 
 type Usage = {
   dailyRequestLimit: number;
@@ -70,11 +71,10 @@ export function ModelSettings() {
     <>
       <div className="app-page-heading">
         <div>
-          <p className="eyebrow">THE MODELS BEHIND YOUR MEMORY</p>
           <h1>
-            Model settings<span className="text-leaf">.</span>
+            {settings?.editable ? "Model settings" : "Search & organization"}
           </h1>
-          <p>Search, organization, and source-linked context.</p>
+          <p>How Grove makes your saved context easier to find and use.</p>
         </div>
       </div>
       {error && (
@@ -93,6 +93,8 @@ export function ModelSettings() {
       )}
       {!config || !settings ? (
         !error && <p role="status">Loading model settings…</p>
+      ) : !settings.editable ? (
+        <ProviderOverview settings={settings} />
       ) : (
         <form
           className="app-form max-w-3xl"
@@ -433,20 +435,25 @@ export function ModelSettings() {
       )}
       {usage && (
         <section className="app-panel mt-6 max-w-3xl">
-          <h2 className="font-editorial text-2xl">Processing today</h2>
+          <h2 className="font-editorial text-2xl">Usage today</h2>
           <p className="mt-3 text-sm text-muted">
             {usage.today.reduce((n, row) => n + row.requests, 0)} /{" "}
-            {usage.dailyRequestLimit} requests reserved · {usage.failedJobs}{" "}
-            failed jobs
+            {usage.dailyRequestLimit} requests ·{" "}
+            {usage.failedJobs
+              ? `${usage.failedJobs} items need attention`
+              : "No processing issues"}
           </p>
-          <ul className="mt-4 space-y-2 text-sm">
-            {usage.today.map((row) => (
-              <li key={row.role} className="capitalize">
-                {row.role}: {row.requests} requests · {row.inputTokens} input /{" "}
-                {row.outputTokens} output tokens
-              </li>
-            ))}
-          </ul>
+          <details className="agent-details mt-4">
+            <summary>Processing details</summary>
+            <ul className="mt-4 space-y-2 text-sm">
+              {usage.today.map((row) => (
+                <li key={row.role} className="capitalize">
+                  {row.role}: {row.requests} requests · {row.inputTokens} input
+                  / {row.outputTokens} output tokens
+                </li>
+              ))}
+            </ul>
+          </details>
         </section>
       )}
     </>

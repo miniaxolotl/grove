@@ -1,26 +1,30 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Folder, Plus } from "lucide-react";
+import { Folder, Plus, ArrowUpRight, Search, Pencil } from "lucide-react";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "@/components/dashboard/dialog";
 import { LoadError } from "@/components/dashboard/load-error";
+import { ProjectForm } from "@/components/dashboard/project-form";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Project | "new" | null>(null);
   const [refresh, setRefresh] = useState(0);
-  const reload = () => {
-    setError("");
+  function reload() {
     setLoading(true);
-    setRefresh((value) => value + 1);
-  };
+    setError("");
+    setRefresh((v) => v + 1);
+  }
   useEffect(() => {
     const controller = new AbortController();
     api<Project[]>("/projects", undefined, undefined, controller.signal)
-      .then(setProjects)
+      .then((list) => {
+        if (!controller.signal.aborted) setProjects(list);
+      })
       .catch((e) => {
         if (!controller.signal.aborted) setError(errorMessage(e));
       })
@@ -29,16 +33,17 @@ export default function ProjectsPage() {
       });
     return () => controller.abort();
   }, [refresh]);
+  const visible = projects.filter((project) =>
+    project.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+  );
   return (
     <>
       <div className="app-page-heading">
         <div>
-          <p className="eyebrow">A PLACE FOR EACH THREAD</p>
-          <h1>
-            Your projects<span className="text-leaf">.</span>
-          </h1>
+          <h1>Projects</h1>
           <p>
-            One identity per repository, shared across agents and worktrees.
+            Keep the memories, decisions, and handoffs for each piece of work
+            together.
           </p>
         </div>
         <button className="app-button" onClick={() => setSelected("new")}>
@@ -46,47 +51,65 @@ export default function ProjectsPage() {
           Add project
         </button>
       </div>
+      {projects.length > 0 && (
+        <div className="project-search app-search">
+          <Search size={18} />
+          <input
+            aria-label="Filter projects"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a project…"
+          />
+        </div>
+      )}
       {error && <LoadError message={error} retry={reload} />}
       {loading ? (
-        <p role="status">Loading projects…</p>
-      ) : !projects.length && !error ? (
+        <p role="status" className="library-loading">
+          Loading projects…
+        </p>
+      ) : !visible.length && !error ? (
         <div className="app-empty">
-          <Folder className="mx-auto mb-4" size={28} strokeWidth={1.3} />
-          <h2 className="font-editorial text-3xl">Give your work a home.</h2>
-          <p className="mt-3 text-sm text-muted">
-            Create a project here, or let Grove setup identify your Git
-            repository.
+          <Folder className="mx-auto mb-4" size={28} strokeWidth={1.4} />
+          <h2 className="font-editorial text-3xl">
+            {query ? "No matching projects." : "Give your work a home."}
+          </h2>
+          <p>
+            {query
+              ? "Try another name."
+              : "Create a project for whatever you’re working on. Your agents can use the same project, too."}
           </p>
+          {!query && (
+            <button
+              className="app-button mt-6"
+              onClick={() => setSelected("new")}
+            >
+              Create your first project
+            </button>
+          )}
         </div>
       ) : (
-        <ul className="space-y-3">
-          {projects.map((project) => (
-            <li
-              key={project.id}
-              className="app-panel flex flex-wrap items-center gap-5"
-            >
-              <Folder size={22} strokeWidth={1.4} />
-              <div className="min-w-0 flex-1">
-                <h2 className="font-medium">
-                  <Link
-                    href={`/app/projects/${project.id}`}
-                    className="underline"
-                  >
-                    {project.name}
-                  </Link>
-                </h2>
-                <p className="mt-2 break-all font-mono text-xs text-muted">
-                  {project.identity}
-                </p>
-                <p className="mt-2 break-all text-[11px] text-muted">
-                  Project ID: {project.id}
-                </p>
-              </div>
+        <ul className="project-list">
+          {visible.map((project) => (
+            <li key={project.id}>
+              <Link
+                className="project-link"
+                href={`/app/projects/${project.id}`}
+              >
+                <span className="project-symbol">
+                  <Folder size={22} strokeWidth={1.4} />
+                </span>
+                <span>
+                  <strong>{project.name}</strong>
+                  <span>Memories, context, and handoffs</span>
+                </span>
+                <ArrowUpRight size={17} />
+              </Link>
               <button
-                className="app-button secondary"
+                className="app-icon"
+                aria-label={`Rename ${project.name}`}
                 onClick={() => setSelected(project)}
               >
-                Rename
+                <Pencil size={16} />
               </button>
             </li>
           ))}
@@ -107,73 +130,5 @@ export default function ProjectsPage() {
         </Dialog>
       )}
     </>
-  );
-}
-
-function ProjectForm({
-  project,
-  done,
-}: {
-  project?: Project;
-  done: () => void;
-}) {
-  const [name, setName] = useState(project?.name ?? "");
-  const [identity, setIdentity] = useState(project?.identity ?? "");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  return (
-    <form
-      className="app-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        setError("");
-        try {
-          await api(
-            project ? `/projects/${project.id}` : "/projects",
-            { name, identity },
-            project ? "PATCH" : "POST",
-          );
-          done();
-        } catch (err) {
-          setError(errorMessage(err));
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <label>
-        Name
-        <input
-          required
-          maxLength={120}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-      <label>
-        Stable repository identity
-        <input
-          required
-          disabled={!!project}
-          maxLength={500}
-          value={identity}
-          onChange={(e) => setIdentity(e.target.value)}
-          placeholder="git:github.com/owner/repository"
-        />
-        <small className="font-normal text-muted">
-          Use the same identity in every agent. Grove strips Git credentials and
-          .git suffixes during setup.
-        </small>
-      </label>
-      {error && (
-        <p className="app-error" role="alert">
-          {error}
-        </p>
-      )}
-      <button disabled={busy} className="app-button">
-        {busy ? "Saving…" : "Save project"}
-      </button>
-    </form>
   );
 }

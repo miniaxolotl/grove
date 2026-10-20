@@ -118,22 +118,24 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await page.getByRole("button", { name: "Save memory", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Memory saved" }),
-  ).toContainText("Semantic indexing: pending");
-  await page.getByRole("button", { name: /I prefer concise/ }).click();
+  ).toContainText("Search and context will update");
+  await page.getByRole("button", { name: /^I prefer concise/ }).click();
+  await page.getByRole("button", { name: "Edit memory", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("I prefer examples in TypeScript.");
   await page.getByRole("button", { name: "Save memory", exact: true }).click();
-  await page.getByRole("button", { name: /I prefer examples/ }).click();
+  await page.getByRole("button", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Revision history" }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Archive", exact: true }).click();
   await expect(page.getByText("Good things start small.")).toBeVisible();
   await page.goto(`${base}/app/archive`);
-  await page.getByRole("button", { name: /I prefer examples/ }).click();
+  await page.getByRole("button", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: /I prefer examples/ }).click();
+  await page.getByRole("button", { name: /^I prefer examples/ }).click();
+  await page.getByText("Delete memory", { exact: true }).click();
   await page.getByRole("button", { name: "Delete permanently" }).click();
   await page.getByRole("button", { name: "Delete this memory" }).click();
   await expect(
@@ -159,7 +161,7 @@ test("a filtered empty library can return to all memories without losing the que
     page.getByRole("textbox", { name: "Search memories" }),
   ).toHaveValue("");
   await expect(
-    page.getByRole("button", { name: /I prefer concise/ }),
+    page.getByRole("button", { name: /^I prefer concise/ }),
   ).toBeVisible();
 });
 
@@ -198,7 +200,7 @@ for (const path of [
     await expect(page.getByRole("alert")).toHaveCount(0);
     if (path === "/app")
       await expect(
-        page.getByRole("button", { name: /I prefer concise/ }),
+        page.getByRole("button", { name: /^I prefer concise/ }),
       ).toBeVisible();
     else if (path === "/app/settings")
       await expect(
@@ -242,8 +244,10 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
     }
   }
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: /I prefer concise/ }).click();
-  await expect(page.getByLabel("What should stay with you?")).toBeFocused();
+  await page.getByRole("button", { name: /^I prefer concise/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Close dialog" }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });

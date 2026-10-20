@@ -1,9 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import type { Brief } from "@lib/shared/models";
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { LoadError } from "./load-error";
+import { dateLabel } from "@/lib/memory-display";
 
 export function BriefPanel({
   projectId = null,
@@ -16,26 +18,79 @@ export function BriefPanel({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [check, setCheck] = useState(0);
+  const activeRequest = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    api<Brief>("/briefs", { projectId, taskId }, undefined, controller.signal)
-      .then(setBrief)
-      .catch((e) => {
+    activeRequest.current = controller;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const load = async () => {
+      try {
+        const value = await api<Brief>(
+          "/briefs",
+          { projectId, taskId },
+          undefined,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setBrief(value);
+        setError("");
+        if (value.status !== "pending") attempts = 0;
+        if (value.status === "pending" && ++attempts < 10)
+          timer = setTimeout(() => {
+            if (!document.hidden) void load();
+          }, 3000);
+      } catch (e) {
         if (!controller.signal.aborted) setError(errorMessage(e));
-      });
-    return () => controller.abort();
+      }
+    };
+    const resume = () => {
+      if (
+        !document.hidden &&
+        !controller.signal.aborted &&
+        attempts > 0 &&
+        attempts < 10
+      ) {
+        clearTimeout(timer);
+        void load();
+      }
+    };
+    document.addEventListener("visibilitychange", resume);
+    void load();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", resume);
+    };
   }, [projectId, taskId, check]);
+  const sources = [
+    ...new Set(
+      brief?.content?.sections.flatMap((section) =>
+        section.statements.flatMap((statement) =>
+          statement.sources.map((source) => source.id),
+        ),
+      ) ?? [],
+    ),
+  ];
   return (
-    <section className="app-panel">
+    <section className="brief-document">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <h2 className="font-editorial text-2xl">
           {taskId
             ? "Task handoff"
             : projectId
               ? "Project brief"
-              : "Personal profile"}
+              : "Personal overview"}
         </h2>
-        <span className="text-xs capitalize text-muted">{brief?.status}</span>
+        <span className="text-xs text-muted">
+          {brief?.status === "ready"
+            ? "Up to date"
+            : brief?.status === "pending"
+              ? "Updating"
+              : brief?.status === "failed"
+                ? "Needs attention"
+                : ""}
+        </span>
       </div>
       {error && (
         <LoadError
@@ -60,7 +115,7 @@ export function BriefPanel({
         <>
           <p className="mt-6 font-medium">{brief.content.title}</p>
           {brief.content.sections.map((section, i) => (
-            <div className="mt-6" key={i}>
+            <div className="brief-section" key={i}>
               <h3 className="text-sm font-semibold">{section.heading}</h3>
               <ul className="mt-3 space-y-4">
                 {section.statements.map((statement, j) => (
@@ -73,7 +128,7 @@ export function BriefPanel({
                           className="underline"
                           href={`/app/memories/${source.id}`}
                         >
-                          Source {source.id.slice(0, 8)} · revision{" "}
+                          Source {sources.indexOf(source.id) + 1} · revision{" "}
                           {source.version}
                         </Link>
                       ))}
@@ -84,11 +139,9 @@ export function BriefPanel({
             </div>
           ))}
           <p className="mt-6 text-xs leading-6 text-muted">
-            Generated from {brief.sourceCount} current memories
-            {brief.updatedAt
-              ? ` · ${new Date(brief.updatedAt).toLocaleString()}`
-              : ""}
-            .
+            Based on {brief.sourceCount} current{" "}
+            {brief.sourceCount === 1 ? "memory" : "memories"}
+            {brief.updatedAt ? ` · ${dateLabel(brief.updatedAt)}` : ""}.
             {brief.truncated
               ? " This brief covers a bounded selection of recent memories."
               : ""}{" "}
@@ -100,32 +153,36 @@ export function BriefPanel({
           <p role="status" className="mt-4 text-sm text-muted">
             {brief.status === "failed"
               ? "Generation failed. Retry when the provider is available."
-              : "Context is queued for background processing."}
+              : "Updating this summary. You can keep working."}
           </p>
         )
       )}
       {brief && brief.status !== "disabled" && (
         <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            className="app-button secondary"
-            disabled={busy}
-            onClick={() => {
-              setError("");
-              setCheck((n) => n + 1);
-            }}
-          >
-            Check status
-          </button>
+          {brief.status !== "ready" && (
+            <button
+              className="app-button secondary"
+              disabled={busy}
+              onClick={() => {
+                setError("");
+                setCheck((n) => n + 1);
+              }}
+            >
+              Check status
+            </button>
+          )}
           <button
             className="app-button secondary"
             disabled={busy}
             onClick={async () => {
+              activeRequest.current?.abort();
               setBusy(true);
               setError("");
               try {
                 setBrief(
                   await api<Brief>("/briefs/refresh", { projectId, taskId }),
                 );
+                setCheck((n) => n + 1);
               } catch (e) {
                 setError(errorMessage(e));
               } finally {
@@ -133,7 +190,8 @@ export function BriefPanel({
               }
             }}
           >
-            {busy ? "Queuing…" : "Regenerate"}
+            <RefreshCw size={14} />
+            {busy ? "Updating…" : "Refresh summary"}
           </button>
         </div>
       )}

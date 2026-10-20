@@ -84,13 +84,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto hidden pt-12 lg:block">
-          <div className="rounded-xl bg-sage/70 p-4">
-            <p className="font-editorial text-xl">
-              A little context goes a long way.
-            </p>
+          <div className="px-2">
             <Link
               href="/app/connections"
-              className="mt-3 inline-flex items-center gap-2 text-xs font-medium"
+              className="inline-flex min-h-11 items-center gap-2 text-xs font-medium"
             >
               Connect your agents <ArrowUpRight size={14} />
             </Link>
