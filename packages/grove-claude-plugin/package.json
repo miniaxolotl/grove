@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Grove private memory tools and skills for Claude Code",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/miniaxolotl/grove.git"
+  },
   "files": [
     ".claude-plugin",
     ".mcp.json",
