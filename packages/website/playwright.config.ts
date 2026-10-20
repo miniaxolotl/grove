@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = Number(process.env.WEBSITE_TEST_PORT || 3100);
+const port = Number(process.env.WEBSITE_TEST_PORT || 4372);
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
@@ -20,13 +20,13 @@ export default defineConfig({
     {
       command: `pnpm start --port ${port}`,
       url: baseURL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
     },
     {
       command: "node tests/fixtures/dashboard-server.mjs",
       url: `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30000,
     },
   ],

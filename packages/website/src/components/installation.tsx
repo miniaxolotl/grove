@@ -50,6 +50,7 @@ export function AgentSetup({
           className="mt-4"
         >
           <CodeBlock
+            installation
             title={
               value === "mcp"
                 ? "Streamable HTTP endpoint"
@@ -159,6 +160,8 @@ export function Installation() {
             Running your own infrastructure?{" "}
             <Link
               href="/self-host"
+              data-analytics-event="docs_link_clicked"
+              data-analytics-placement="install"
               className="text-leaf underline underline-offset-4"
             >
               Install Grove Open Source

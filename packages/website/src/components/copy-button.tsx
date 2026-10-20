@@ -2,13 +2,17 @@
 
 import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
+import { capture } from "@/lib/analytics";
+import { recordWebsiteOperation } from "@/lib/diagnostics";
 
 export function CopyButton({
   text,
   label = "Copy",
+  installation = false,
 }: {
   text: string;
   label?: string;
+  installation?: boolean;
 }) {
   const [status, setStatus] = useState<"idle" | "copied" | "error">("idle");
 
@@ -19,11 +23,23 @@ export function CopyButton({
   }, [status]);
 
   async function copy() {
+    const started = performance.now();
+    const operation = installation
+      ? "copy_install_command"
+      : "copy_example_command";
     try {
       await navigator.clipboard.writeText(text);
       setStatus("copied");
+      if (installation)
+        capture("install_command_copied", { placement: "install" });
+      recordWebsiteOperation(operation, "success", performance.now() - started);
     } catch {
       setStatus("error");
+      recordWebsiteOperation(
+        operation,
+        "unavailable",
+        performance.now() - started,
+      );
     }
   }
 
