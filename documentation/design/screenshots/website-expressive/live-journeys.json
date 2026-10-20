@@ -1,0 +1,27 @@
+[
+  {
+    "site": "grove",
+    "checks": [
+      "canonical URL",
+      "robots/sitemap",
+      "social image",
+      "footer policy links",
+      "section anchors",
+      "mobile navigation"
+    ],
+    "status": "passed"
+  },
+  {
+    "site": "grove",
+    "checks": [
+      "hosted setup clipboard",
+      "self-hosted setup",
+      "agent tabs",
+      "protected workspace sign-in redirect",
+      "mobile Clerk accessibility",
+      "unauthenticated API rejection"
+    ],
+    "status": "passed",
+    "providerLogin": "not performed; dashboard lifecycle validated using isolated fixtures"
+  }
+]

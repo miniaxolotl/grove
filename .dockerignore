@@ -6,6 +6,7 @@ data
 .env.*
 **/.env
 **/.env.*
+**/secrets.md
 !.env.example
 !**/.env.example
 .git

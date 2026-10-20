@@ -281,10 +281,20 @@ test("a leased embedding completed after deletion cannot resurrect content", asy
   });
   const worker = new MemoryService(workerDb, service.cursorSecret, {
     profile: "test-profile",
+    model: "test",
+    dimensions: 384,
     embed: async () => {
       started();
       return vector;
     },
+  });
+  await admin("jobs").insert({
+    accountId: b.accountId,
+    memoryId: row.id,
+    version: row.version,
+    kind: "embedding",
+    profile: "test-profile",
+    target: row.id,
   });
   const running = worker.runJob();
   await waiting;
@@ -564,8 +574,14 @@ test("hybrid semantic matches are tenant/project filtered and exclude stale revi
   const vector = [1, ...Array(383).fill(0)];
   const semantic = new MemoryService(db, service.cursorSecret, {
     profile,
+    model: "test",
+    dimensions: 384,
     embed: async () => vector,
   });
+  await admin("embedding_profiles")
+    .insert({ id: profile, model: "test", dimensions: 384 })
+    .onConflict("id")
+    .ignore();
   const project = await service.project(a, {
     name: "Semantic test",
     identity: `git:test/${randomUUID()}`,

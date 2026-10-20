@@ -43,6 +43,12 @@ Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope i
 Content is trimmed, 1–6,000 characters. `capture: "automatic"` is rejected when
 automatic capture is paused; explicit user-requested saves use `"explicit"`.
 
+`retentionDays` is nullable and independent of kind: `null` keeps the note until
+removed; 1–365 selects a temporary lifetime. New handoffs default to 30 days and
+other kinds to permanent. Omission on correction preserves retention and expiry.
+Changing retention restarts it; restore renews it. Expired notes are hidden from
+recall and retained for a 60-day restoration window before permanent deletion.
+
 Use a new UUID operation ID per mutation and keep it across retries. Reusing an ID
 with different arguments returns 409. Replaying a deleted save returns 410 and
 does not resurrect content. A correction race yields one success and one conflict.
@@ -64,22 +70,31 @@ No server content cache can outlive deletion or revocation.
 Responses use `{success: true, data}` or
 `{success: false, error: {code, message, requestId}}`. Export is NDJSON.
 
-| Routes                                                                            | Access                                                             |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `GET /v1/me`                                                                      | Authenticated identity/effective grant and settings                |
-| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                                | Approved scope; create needs all-project access or website session |
-| `POST /v1/memories`; `PATCH /v1/memories/:id`                                     | `memory:write`                                                     |
-| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id`            | `memory:read`                                                      |
-| `GET /v1/memories/:id/revisions`                                                  | `memory:read`, current scope                                       |
-| `POST /v1/memories/:id/archive`; `…/restore`                                      | `memory:write`, operation ID and current version                   |
-| `POST /v1/memories/delete`                                                        | `memory:delete`                                                    |
-| `POST /v1/recall`                                                                 | `memory:read`                                                      |
-| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`                  | Website session only                                               |
-| `POST /v1/keys`                                                                   | Website session only; secret returned once                         |
-| `POST /v1/logout`                                                                 | Revoke calling agent's connection                                  |
-| `PATCH /v1/account/settings`; `GET /v1/account/export`; `POST /v1/account/delete` | Website session only                                               |
-| `POST /v1/webhooks/clerk`                                                         | Svix signature, replay receipt and event ordering                  |
-| `GET /health/live`, `/health/ready`                                               | Public, content-free                                               |
+| Routes                                                                            | Access                                                                           |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `GET /v1/me`                                                                      | Authenticated identity/effective grant and settings                              |
+| `POST /v1/connect`                                                                | Agent starts/resumes its own connection request; API keys require existing scope |
+| `GET /v1/connect/:id`                                                             | Request's agent connection or owning website session                             |
+| `POST /v1/connect/:id/approve`                                                    | Owning website session; transactional project link and grant                     |
+| `POST /v1/connect/:id/cancel`                                                     | Request's agent connection or owning website session                             |
+| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                                | Approved scope; create needs all-project access or website session               |
+| `POST /v1/memories`; `PATCH /v1/memories/:id`                                     | `memory:write`                                                                   |
+| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id`            | `memory:read`                                                                    |
+| `GET /v1/memories/:id/revisions`                                                  | `memory:read`, current scope                                                     |
+| `POST /v1/memories/:id/archive`; `…/restore`                                      | `memory:write`, operation ID and current version                                 |
+| `POST /v1/memories/delete`                                                        | `memory:delete`                                                                  |
+| `POST /v1/recall`                                                                 | `memory:read`                                                                    |
+| `POST /v1/ask`                                                                    | Scoped `memory:read`; cited answer or source search                              |
+| `POST /v1/briefs`; `POST /v1/briefs/refresh`                                      | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
+| `POST /v1/memories/:id/reprocess`                                                 | Scoped `memory:write`; body `{expectedVersion}`                                  |
+| `GET /v1/models`; `GET /v1/account/usage`                                         | Website session; masked settings / account usage                                 |
+| `PATCH /v1/models`; `POST /v1/models/test`                                        | Configured self-hosted installation administrator only                           |
+| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`                  | Website session only                                                             |
+| `POST /v1/keys`                                                                   | Website session only; secret returned once                                       |
+| `POST /v1/logout`                                                                 | Revoke calling agent's connection                                                |
+| `PATCH /v1/account/settings`; `GET /v1/account/export`; `POST /v1/account/delete` | Website session only                                                             |
+| `POST /v1/webhooks/clerk`                                                         | Svix signature, replay receipt and event ordering                                |
+| `GET /health/live`, `/health/ready`                                               | Public, content-free                                                             |
 
 Use POST search so query text stays out of URLs. Cursors are signed and bound to
 account, connection, filters, and creation-time ceiling. Pagination is bounded,
@@ -87,7 +102,22 @@ not a database snapshot of concurrent edits. `Idempotency-Key` may supply the bo
 operation ID; conflicting identifiers are rejected. Restore can select an older
 revision and creates a new revision; `durable: true` promotes a handoff to a fact.
 
+Library filters also accept `sourceAgent`, `updatedAfter`, `lifetime`
+(`permanent`/`ephemeral`), and `sort` (`updated_desc`/`updated_asc`/`created_desc`).
+`POST /v1/ask` accepts `query`, optional `projectId`, `includePersonal`,
+`previousQuestions` (up to four), and `mode` (`answer`/`search`). Omitted project
+scope searches all authorized notebooks; null selects Personal. Replies include
+sources and a structured, exactly cited answer, or an explicit no-evidence/disabled
+status. Aborted requests cancel inference. No question or answer is stored as a note.
+
 ## Persistence and jobs
+
+Connection setup keeps one bounded JSON request on the existing RLS-protected
+connection row. Requests expire after ten minutes while pending. Request IDs alone
+authorize nothing; the account and OAuth/key connection are rechecked on every call.
+Approval defaults and protocol details are in [Cloud onboarding](cloud-onboarding.md).
+Manual grant edits and revocation invalidate outstanding requests; repeated approval
+returns its existing result without reapplying permissions.
 
 `lib/database` uses Knex/Objection/pg with explicit open/close and transaction-local
 tenant context. Ownership-aware foreign keys cover projects, memories, revisions,
@@ -98,9 +128,12 @@ narrow, fixed-search-path functions with public execution revoked.
 The worker claims jobs with `FOR UPDATE SKIP LOCKED`, a 120-second lease, revision
 identity, bounded retries and terminal failure. Completion rechecks the lease,
 account and current revision in one transaction. Deletion cascades prevent stale
-worker completion from restoring content. Model/profile: 384-dimensional
-`Xenova/all-MiniLM-L6-v2`, mean pooled and normalized. `disabled` embedding mode is
-explicitly lexical and reports it; it never substitutes a different model.
+worker completion from restoring content. Embedding profiles carry checked dimensions;
+Cloud uses full 4,096-dimensional Qwen vectors with scoped exact search. Self-hosted
+defaults to local MiniLM and can configure each inference role. `disabled` embedding
+mode is explicitly lexical. Classification and generation use revision-fenced jobs;
+source-linked artifacts obey the same scope and lifecycle. See [models](models.md)
+for provider settings, enrichment/brief contracts, quotas, reset and reindex operations.
 
 Account deletion first revokes access, then purges application content even during
 an identity-provider outage. Clerk deletion retries separately. Minimal subject and

@@ -14,13 +14,14 @@ const result = await build({
   platform: "browser",
   format: "esm",
   jsx: "automatic",
+  loader: { ".css": "empty" }, // Production CSS is linked below, including lazy graph styles.
   tsconfig: join(root, "tsconfig.json"),
   plugins: [
     {
       name: "fixture-host",
       setup(build) {
         build.onResolve(
-          { filter: /^(next\/(link|navigation)|@clerk\/nextjs)$/ },
+          { filter: /^(next\/(link|navigation|image)|@clerk\/nextjs)$/ },
           (args) => ({ path: args.path, namespace: "fixture" }),
         );
         build.onLoad({ filter: /.*/, namespace: "fixture" }, (args) => ({
@@ -30,8 +31,10 @@ const result = await build({
             args.path === "next/link"
               ? 'import React from "react"; export default function Link(props) { return <a {...props}/> }'
               : args.path === "next/navigation"
-                ? "export const usePathname = () => window.location.pathname;"
-                : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
+                ? "export const usePathname = () => window.location.pathname; export const useRouter = () => ({push: path => window.location.assign(path)});"
+                : args.path === "next/image"
+                  ? 'import React from "react"; export default function Image({unoptimized, ...props}) { return <img {...props}/> }'
+                  : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
         }));
       },
     },
@@ -40,7 +43,7 @@ const result = await build({
 const css = (await readdir(join(root, ".next/static/chunks"))).filter((file) =>
   file.endsWith(".css"),
 );
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Grove dashboard fixture</title>${css.map((file) => `<link rel="stylesheet" href="/_next/static/chunks/${file}">`).join("")}<style>@font-face{font-family:DM Sans;src:url('/fonts/sans.woff2')}@font-face{font-family:Instrument Serif;src:url('/fonts/serif.woff2')}body{--font-dm-sans:'DM Sans';--font-instrument-serif:'Instrument Serif'}</style></head><body><div id="root"></div><script type="module" src="/fixture.js"></script></body></html>`;
+const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Grove dashboard fixture</title>${css.map((file) => `<link rel="stylesheet" href="/_next/static/chunks/${file}">`).join("")}<style>@font-face{font-family:DM Sans;src:url('/fonts/sans.woff2')}@font-face{font-family:Instrument Serif;src:url('/fonts/serif.woff2')}@font-face{font-family:Inter;src:url('/fonts/inter.woff2');font-weight:100 900}body{--font-dm-sans:'DM Sans';--font-instrument-serif:'Instrument Serif';--font-inter:'Inter'}</style></head><body><div id="root"></div><script type="module" src="/fixture.js"></script></body></html>`;
 createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   try {
@@ -61,12 +64,22 @@ createServer(async (request, response) => {
       return;
     }
     if (path.startsWith("/fonts/")) {
-      const file = path.endsWith("sans.woff2")
-        ? "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2"
-        : "@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff2";
+      const file = path.endsWith("inter.woff2")
+        ? "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
+        : path.endsWith("sans.woff2")
+          ? "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2"
+          : "@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff2";
       response
         .writeHead(200, { "Content-Type": "font/woff2" })
         .end(await readFile(join(root, "node_modules", file)));
+      return;
+    }
+    if (path.startsWith("/brand/") && path.endsWith(".svg")) {
+      const file = resolve(root, "public", path.slice(1));
+      if (!file.startsWith(join(root, "public/brand/"))) throw new Error();
+      response
+        .writeHead(200, { "Content-Type": "image/svg+xml" })
+        .end(await readFile(file));
       return;
     }
     if (path.startsWith("/api/")) {

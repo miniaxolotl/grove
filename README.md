@@ -10,28 +10,36 @@ task handoffs. Browse, correct, archive, export, or delete them in your memory l
 **One database:** PostgreSQL, full-text search, and pgvector, with account-owned rows
 and non-owner runtime roles enforcing row-level security.
 
-[Website](https://grove-six-rosy.vercel.app) · [Tools/API](documentation/server.md) ·
+[Website](https://usegrove.cloud) · [Tools/API](documentation/server.md) ·
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Delivery evidence](documentation/delivery.md)
 
+Configurable [embedding, decision and generation providers](documentation/models.md)
+add semantic search, generated titles/tags, related memories, and source-linked
+personal profiles, project briefs and task handoffs. Cloud uses full 4,096-dimensional
+Qwen embeddings and Clef decisions on DeepInfra, with MiniMax M3.1 Flash generation.
+
 ## Connect an agent
 
-After the new packages are published and your Grove deployment is configured:
+Connect to **Grove Cloud**, from your project directory (Node 22+ and your agent installed):
 
 ```sh
-npm install -g @miniaxolotl/grove
-grove init --client opencode --url https://YOUR-GROVE-API
-grove status --client opencode --json
+npx @miniaxolotl/grove connect
 ```
 
-Use `--client claude` or `--client codex` for those clients. Complete browser sign-in,
-then approve the connection's capabilities and memory scope in **Connections**.
+Grove detects your installed agent or lets you choose. You can also specify
+`connect opencode`, `connect claude` or `connect codex`. Create an account or sign in
+in the browser, then approve access. Grove links your current project, verifies
+access and configures the integration. Keep the terminal open and follow its
+agent-specific activation step.
+Run the same command to resume interrupted setup.
 Named, revocable API keys also support headless clients. Credentials stay in your
 user configuration; plugins and hooks use the same connection. Ordinary agent
 credentials cannot manage your account or issue other credentials.
 
-The new packages are a breaking replacement for the legacy Qdrant server/plugins;
-the currently published versions do not contain this implementation.
+**Grove Open Source** runs on your infrastructure. Add `--url https://YOUR-GROVE-API`
+to connect to your own deployment. See the [rollout requirements](documentation/cloud-onboarding.md#rollout)
+for the release introducing `connect`; earlier CLI releases use `grove init`.
 
 ## Host Grove
 
@@ -48,7 +56,7 @@ curl --fail http://localhost:26080/health/ready
 Compose runs private pgvector PostgreSQL, forward-only migrations, a non-owner API,
 and a separate job worker. The database has no published port. Local embeddings
 initialize before readiness. See [deployment](documentation/deploy.md) for the
-website, TLS, OAuth resource settings, backups, and Railway configuration.
+website, TLS, OAuth resource settings, backups, and Neon/DigitalOcean configuration.
 
 ## Memory policy
 

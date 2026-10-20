@@ -13,6 +13,7 @@ import { join, resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer } from "node:http";
+import { createHash, randomUUID } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -281,3 +282,381 @@ test("setup is repeatable, preserves JSONC and other plugins, credentials are pr
     },
   );
 });
+
+test("a running packed bridge picks up first login and an explicit origin switch", async () => {
+  const home = await mkdtemp(join(directory, "live-login-"));
+  const executable = join(paths.get("mcp")!, "dist/cli.js");
+  const env = {
+    ...process.env,
+    GROVE_CONFIG_HOME: home,
+    GROVE_API_URL: "",
+    GROVE_API_KEY: "",
+  };
+  const login = (url: string, key: string) =>
+    new Promise<void>((done, fail) => {
+      const child = execFile(
+        process.execPath,
+        [
+          executable,
+          "login",
+          "--client",
+          "opencode",
+          "--url",
+          url,
+          "--key-stdin",
+        ],
+        { env },
+        (error) => (error ? fail(error) : done()),
+      );
+      child.stdin!.end(key);
+    });
+  let recalls = 0;
+  const other = createServer((request, response) => {
+    assert.equal(request.headers.authorization, "Bearer other-origin-key");
+    if (request.url === "/v1/recall") recalls++;
+    response
+      .setHeader("Content-Type", "application/json")
+      .end(
+        JSON.stringify({
+          success: true,
+          data:
+            request.url === "/v1/me"
+              ? { accountId, capabilities: ["memory:read"] }
+              : { items: [], mode: "profile", contentVersion: 0 },
+        }),
+      );
+  });
+  await new Promise<void>((done) => other.listen(0, "127.0.0.1", done));
+  const client = new Client({ name: "live-login-fixture", version: "1" });
+  try {
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [executable, "mcp", "--stdio", "--client", "opencode"],
+        env: { PATH: process.env.PATH!, GROVE_CONFIG_HOME: home },
+        stderr: "pipe",
+      }),
+    );
+    assert.match(
+      JSON.stringify(await client.callTool({ name: "recall", arguments: {} })),
+      /not_configured/,
+    );
+    await login(origin, "artifact-test-key");
+    assert.notEqual(
+      (await client.callTool({ name: "recall", arguments: {} })).isError,
+      true,
+    );
+    const oldRequests = requests.length;
+    await login(
+      `http://127.0.0.1:${(other.address() as { port: number }).port}`,
+      "other-origin-key",
+    );
+    assert.notEqual(
+      (await client.callTool({ name: "recall", arguments: {} })).isError,
+      true,
+    );
+    assert.equal(recalls, 1);
+    assert.equal(
+      requests.length,
+      oldRequests,
+      "The running bridge stopped using the old origin",
+    );
+  } finally {
+    await client.close();
+    await new Promise<void>((done) => other.close(() => done()));
+  }
+});
+
+test(
+  "packed Cloud connect completes PKCE, redirects the same browser to approval and resumes saved credentials",
+  { timeout: 30000 },
+  async () => {
+    const home = await mkdtemp(join(directory, "connect-"));
+    const bin = join(home, "bin");
+    await mkdir(bin);
+    await writeFile(join(bin, "opencode"), "#!/bin/sh\necho '2.0.fixture'\n", {
+      mode: 0o700,
+    });
+    const executable = join(paths.get("mcp")!, "dist/cli.js");
+    const id = randomUUID();
+    const connectionId = randomUUID();
+    const projectId = randomUUID();
+    let endpoint = "";
+    let approved = false;
+    let authorization: URL | undefined;
+    let registrations = 0;
+    let polls = 0;
+    const attempt = () => ({
+      id,
+      connectionId,
+      clientId: "fixture-public-client",
+      agent: "opencode",
+      status: approved ? "approved" : "pending",
+      project: { name: "Fixture", identity: "git:example.test/fixture/repo" },
+      projectId: approved ? projectId : null,
+      expiresAt: new Date(Date.now() + 600000).toISOString(),
+      grant: {
+        name: "OpenCode · Fixture",
+        capabilities: ["memory:read", "memory:write"],
+        personal: true,
+        allProjects: false,
+        projectIds: approved ? [projectId] : [],
+      },
+    });
+    const oauth = createServer(async (request, response) => {
+      const url = new URL(request.url!, endpoint);
+      let raw = "";
+      for await (const chunk of request) raw += chunk;
+      response.setHeader("Content-Type", "application/json");
+      const reply = (data: unknown) => response.end(JSON.stringify(data));
+      if (url.pathname.startsWith("/.well-known/oauth-protected-resource"))
+        return reply({
+          resource: `${endpoint}/mcp`,
+          authorization_servers: [endpoint],
+        });
+      if (url.pathname.startsWith("/.well-known/"))
+        return reply({
+          issuer: endpoint,
+          authorization_endpoint: `${endpoint}/authorize`,
+          token_endpoint: `${endpoint}/token`,
+          registration_endpoint: `${endpoint}/register`,
+          response_types_supported: ["code"],
+          grant_types_supported: ["authorization_code", "refresh_token"],
+          code_challenge_methods_supported: ["S256"],
+          token_endpoint_auth_methods_supported: ["none"],
+        });
+      if (url.pathname === "/register") {
+        registrations++;
+        return reply({
+          ...JSON.parse(raw),
+          client_id: "fixture-public-client",
+        });
+      }
+      if (url.pathname === "/authorize") {
+        authorization = url;
+        assert.equal(url.searchParams.get("code_challenge_method"), "S256");
+        assert.equal(url.searchParams.get("resource"), `${endpoint}/mcp`);
+        const callback = new URL(url.searchParams.get("redirect_uri")!);
+        callback.searchParams.set("code", "fixture-code");
+        callback.searchParams.set("state", url.searchParams.get("state")!);
+        response.writeHead(302, { Location: callback.href }).end();
+        return;
+      }
+      if (url.pathname === "/token") {
+        const body = new URLSearchParams(raw);
+        assert.equal(body.get("grant_type"), "authorization_code");
+        assert.equal(body.get("code"), "fixture-code");
+        assert.equal(
+          createHash("sha256")
+            .update(body.get("code_verifier")!)
+            .digest("base64url"),
+          authorization!.searchParams.get("code_challenge"),
+        );
+        return reply({
+          access_token: "fixture-access",
+          refresh_token: "fixture-refresh",
+          expires_in: 3600,
+          token_type: "Bearer",
+        });
+      }
+      if (url.pathname.startsWith("/v1/")) {
+        assert.equal(request.headers.authorization, "Bearer fixture-access");
+        if (url.pathname === "/v1/me")
+          return reply({
+            success: true,
+            data: {
+              accountId,
+              connectionId,
+              capabilities: approved ? ["memory:read", "memory:write"] : [],
+              grant: approved ? attempt().grant : null,
+            },
+          });
+        if (url.pathname === "/v1/connect") {
+          assert.deepEqual(JSON.parse(raw), {
+            agent: "opencode",
+            project: attempt().project,
+          });
+          return reply({
+            success: true,
+            data: {
+              ...attempt(),
+              approvalUrl: `${endpoint}/app/connect/${id}`,
+            },
+          });
+        }
+        if (url.pathname === `/v1/connect/${id}`) {
+          polls++;
+          return reply({ success: true, data: attempt() });
+        }
+        if (url.pathname === "/v1/recall") {
+          assert.equal(approved, true);
+          assert.equal(JSON.parse(raw).projectId, projectId);
+          return reply({
+            success: true,
+            data: { items: [], mode: "profile", contentVersion: 0 },
+          });
+        }
+      }
+      response.writeHead(404).end();
+    });
+    await new Promise<void>((done) => oauth.listen(0, "127.0.0.1", done));
+    endpoint = `http://127.0.0.1:${(oauth.address() as { port: number }).port}`;
+    const env = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+      GROVE_CONFIG_HOME: join(home, "store"),
+      XDG_CONFIG_HOME: join(home, "config"),
+      GROVE_API_URL: "",
+      GROVE_API_KEY: "",
+      GROVE_PROJECT_IDENTITY: "git:example.test/fixture/repo",
+      GROVE_PROJECT_NAME: "Fixture",
+    };
+    const args = [
+      executable,
+      "connect",
+      "opencode",
+      "--url",
+      endpoint,
+      "--no-browser",
+      "--json",
+    ];
+    let child: ReturnType<typeof execFile> | undefined;
+    const launch = () => {
+      let browser!: (url: string) => void;
+      const browserUrl = new Promise<string>((done) => {
+        browser = done;
+      });
+      const finished = new Promise<{ stdout: string; stderr: string }>(
+        (done, fail) => {
+          child = execFile(
+            process.execPath,
+            args,
+            { env, cwd: home, timeout: 20000 },
+            (error, stdout, stderr) =>
+              error
+                ? fail(Object.assign(error, { stdout, stderr }))
+                : done({ stdout, stderr }),
+          );
+          let stderr = "";
+          child.stderr!.on("data", (chunk) => {
+            stderr += chunk;
+            const found = stderr.match(/Continue in your browser: (\S+)/);
+            if (found) browser(found[1]);
+          });
+        },
+      );
+      void finished.catch(() => {});
+      return {
+        finished,
+        browserUrl: Promise.race([
+          browserUrl,
+          finished.then(() => {
+            throw new Error("CLI exited before authorization");
+          }),
+        ]),
+      };
+    };
+    try {
+      const first = launch();
+      const url = await first.browserUrl;
+      const consent = await fetch(url, { redirect: "manual" });
+      const callback = consent.headers.get("location")!;
+      const bad = new URL(callback);
+      bad.searchParams.set("state", "wrong");
+      assert.equal((await fetch(bad)).status, 400);
+      const continued = await fetch(callback, { redirect: "manual" });
+      assert.equal(continued.status, 303);
+      assert.equal(
+        continued.headers.get("location"),
+        `${endpoint}/app/connect/${id}`,
+      );
+      assert.equal(approved, false);
+      child!.kill("SIGTERM");
+      await assert.rejects(first.finished);
+      const pending = launch();
+      assert.equal(
+        await pending.browserUrl,
+        `${endpoint}/app/connect/${id}`,
+        "Interrupted setup reuses credentials and the pending approval",
+      );
+      approved = true;
+      const result = await pending.finished;
+      assert.equal(JSON.parse(result.stdout).status, "connected");
+      assert.equal(JSON.parse(result.stdout).projectId, projectId);
+      assert.equal(JSON.parse(result.stdout).restartRequired, false);
+      assert.equal(JSON.parse(result.stdout).hostVerified, false);
+      assert.match(JSON.parse(result.stdout).nextStep, /automatically/);
+      assert.equal(JSON.parse(result.stdout).recallVerified, true);
+      assert(polls > 0);
+      assert.doesNotMatch(
+        result.stdout + result.stderr,
+        /fixture-access|fixture-refresh/,
+      );
+      assert.match(
+        await readFile(
+          join(env.XDG_CONFIG_HOME, "opencode/opencode.jsonc"),
+          "utf8",
+        ),
+        /grove-opencode-plugin/,
+      );
+      const configPath = join(env.XDG_CONFIG_HOME, "opencode/opencode.jsonc");
+      const inode = (await stat(configPath)).ino;
+      const resumed = await exec(process.execPath, args, { env, cwd: home });
+      assert.equal(JSON.parse(resumed.stdout).status, "connected");
+      assert.doesNotMatch(resumed.stderr, /Continue in your browser/);
+      assert.equal(registrations, 1);
+      const configSource = await readFile(configPath, "utf8");
+      assert.equal(
+        (await stat(configPath)).ino,
+        inode,
+        "Ready integration setup does not rewrite configuration",
+      );
+      const detected = await exec(
+        process.execPath,
+        args.filter((arg) => arg !== "opencode"),
+        { env: { ...env, PATH: bin }, cwd: home },
+      );
+      assert.equal(JSON.parse(detected.stdout).agent, "opencode");
+      await writeFile(configPath, "{ invalid JSON");
+      await assert.rejects(
+        exec(process.execPath, args, { env, cwd: home }),
+        (error: unknown) => {
+          assert.equal(
+            JSON.parse((error as { stdout: string }).stdout).code,
+            "invalid_config",
+          );
+          return true;
+        },
+      );
+      await writeFile(configPath, configSource);
+      assert.equal(
+        JSON.parse(
+          (await exec(process.execPath, args, { env, cwd: home })).stdout,
+        ).status,
+        "connected",
+      );
+      assert.equal(
+        registrations,
+        1,
+        "Installer failure does not require sign-in or approval again",
+      );
+      await assert.rejects(
+        exec(process.execPath, [executable, "connect", "codex", "--json"], {
+          cwd: home,
+          env: { ...env, PATH: bin },
+        }),
+        (error: unknown) => {
+          assert.equal(
+            JSON.parse((error as { stdout: string }).stdout).code,
+            "client_missing",
+          );
+          return true;
+        },
+      );
+    } finally {
+      child?.kill();
+      oauth.closeAllConnections();
+      await new Promise<void>((done) => oauth.close(() => done()));
+    }
+  },
+);

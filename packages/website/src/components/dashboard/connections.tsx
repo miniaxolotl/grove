@@ -1,9 +1,19 @@
 "use client";
 import { useEffect, useState } from "react";
-import { KeyRound, Plug, Plus } from "lucide-react";
-import { capabilities, type Grant } from "@lib/shared/contracts";
+import Link from "next/link";
+import { KeyRound, Plug } from "lucide-react";
+import {
+  capabilities,
+  type Grant,
+  type ConnectAttempt,
+} from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
+import { LoadError } from "./load-error";
+import { AgentSetup } from "@/components/installation";
+import { PageHeading } from "./ui/page-heading";
+import { Button } from "./ui/button";
+import { Disclosure } from "./ui/disclosure";
 
 type Connection = Grant & {
   id: string;
@@ -11,6 +21,7 @@ type Connection = Grant & {
   revokedAt: string | null;
   createdAt: string;
   lastUsedAt: string | null;
+  setup?: ConnectAttempt | null;
 };
 export function Connections({ origin }: { origin: string }) {
   const [items, setItems] = useState<Connection[]>([]);
@@ -20,6 +31,11 @@ export function Connections({ origin }: { origin: string }) {
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Connection | "new" | null>(null);
   const [secret, setSecret] = useState("");
+  const reload = () => {
+    setError("");
+    setLoading(true);
+    setRefresh((value) => value + 1);
+  };
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
@@ -32,7 +48,14 @@ export function Connections({ origin }: { origin: string }) {
       api<Project[]>("/projects", undefined, undefined, controller.signal),
     ])
       .then(([connections, list]) => {
-        setItems(connections);
+        setItems(
+          connections.map((item) =>
+            item.setup?.status === "pending" &&
+            Date.parse(item.setup.expiresAt) <= Date.now()
+              ? { ...item, setup: { ...item.setup, status: "expired" } }
+              : item,
+          ),
+        );
         setProjects(list);
       })
       .catch((e) => {
@@ -46,55 +69,53 @@ export function Connections({ origin }: { origin: string }) {
   async function revoke(id: string) {
     try {
       await api(`/connections/${id}`, undefined, "DELETE");
-      setRefresh((v) => v + 1);
+      reload();
     } catch (e) {
       setError(errorMessage(e));
     }
   }
   return (
     <>
-      <div className="app-page-heading">
-        <div>
-          <p className="eyebrow">SAME CONTEXT, ANY AGENT</p>
-          <h1>
-            Your connections<span className="text-leaf">.</span>
-          </h1>
-          <p>Choose what each agent can read, remember, and forget.</p>
-        </div>
-        <button className="app-button" onClick={() => setSelected("new")}>
-          <Plus size={16} />
-          Create API key
-        </button>
-      </div>
+      <PageHeading
+        title="Connections"
+        description="Choose what each agent can read, remember, and forget."
+      />
       <section className="app-panel mb-8">
         <div className="flex items-center gap-3">
           <Plug size={20} />
-          <h2 className="font-editorial text-2xl">
-            Bring an agent into your Grove.
-          </h2>
+          <h2 className="font-editorial text-2xl">Connect an agent</h2>
         </div>
         <p className="mt-3 text-sm leading-7 text-muted">
-          Install the Grove CLI, then connect OpenCode, Claude Code, or Codex.
-          Browser sign-in creates a pending connection below; approve its scope
-          here.
+          Browser sign-in (OAuth) is recommended. Choose your agent, run its
+          connection command, and approve its access. No key to copy; access can
+          be changed or revoked here.
         </p>
-        <pre className="mt-4 overflow-x-auto rounded-lg bg-paper p-4 text-xs leading-7">
-          <code>{`npm install -g @miniaxolotl/grove\ngrove init --client opencode --url ${origin || "<API origin>"}`}</code>
-        </pre>
-        <p className="mt-3 text-xs text-muted">
-          Headless clients: create a scoped key and run{" "}
-          <code>grove login --client claude --key-stdin</code>. Keys are shown
-          once.
-        </p>
+        <div className="mt-4">
+          <AgentSetup origin={origin || undefined} />
+        </div>
       </section>
-      {error && (
-        <p role="alert" className="app-error">
-          {error}
+      <Disclosure
+        title="Advanced: API keys & headless clients"
+        className="connection-advanced"
+      >
+        <p>
+          Use a named, scoped API key for automation or clients that cannot open
+          a browser. Both methods use the same memory permissions. Give each
+          integration its own key so you can revoke it independently.
         </p>
-      )}
+        <Button variant="secondary" onClick={() => setSelected("new")}>
+          <KeyRound size={16} />
+          Create API key
+        </Button>
+        <p>
+          For terminal setup, run <code>grove login --key-stdin</code> and
+          provide the key through standard input.
+        </p>
+      </Disclosure>
+      {error && <LoadError message={error} retry={reload} />}
       {loading ? (
         <p role="status">Loading connections…</p>
-      ) : !items.length ? (
+      ) : !items.length && !error ? (
         <div className="app-empty">
           <KeyRound size={28} className="mx-auto mb-4" strokeWidth={1.3} />
           <h2 className="font-editorial text-3xl">
@@ -123,12 +144,21 @@ export function Connections({ origin }: { origin: string }) {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    className="app-button secondary"
-                    onClick={() => setSelected(item)}
-                  >
-                    {item.capabilities.length ? "Edit scope" : "Approve"}
-                  </button>
+                  {item.setup?.status === "pending" && !item.revokedAt ? (
+                    <Link
+                      className="app-button secondary"
+                      href={`/app/connect/${item.setup.id}`}
+                    >
+                      Continue setup
+                    </Link>
+                  ) : (
+                    <button
+                      className="app-button secondary"
+                      onClick={() => setSelected(item)}
+                    >
+                      {item.capabilities.length ? "Edit scope" : "Approve"}
+                    </button>
+                  )}
                   {!item.revokedAt && (
                     <button
                       className="app-button danger"
@@ -177,7 +207,7 @@ export function Connections({ origin }: { origin: string }) {
             done={(value) => {
               setSelected(null);
               setSecret(value ?? "");
-              setRefresh((v) => v + 1);
+              reload();
             }}
           />
         </Dialog>

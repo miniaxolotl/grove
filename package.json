@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/miniaxolotl/grove.git"
   },
-  "homepage": "https://grove-six-rosy.vercel.app",
+  "homepage": "https://usegrove.cloud",
   "keywords": [
     "mcp",
     "memory",
@@ -46,6 +46,7 @@
     "check-types": "tsc --noEmit",
     "test": "pnpm --filter @monorepo/tests test",
     "test:db:setup": "tsx scripts/database/test-bootstrap.ts",
+    "models": "tsx scripts/database/models.ts",
     "setup": "pnpm --filter @script/setup run setup",
     "services:up": "docker compose up -d",
     "services:down": "docker compose down",
@@ -58,14 +59,17 @@
   },
   "devDependencies": {
     "@lib/database": "workspace:*",
+    "@lib/environment": "workspace:*",
     "@lib/eslint-config": "workspace:*",
-    "@types/pg": "^8.15.0",
+    "@lib/memory": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
-    "esbuild": "~0.27.7",
-    "tsx": "~4.21.0",
-    "typescript": "~6.0.2",
+    "@types/amqplib": "^0.10.8",
     "@types/node": "~25.5.0",
+    "@types/pg": "^8.15.0",
+    "esbuild": "~0.27.7",
     "eslint": "~10.1.0",
-    "prettier": "~3.8.1"
+    "prettier": "~3.8.1",
+    "tsx": "~4.21.0",
+    "typescript": "~6.0.2"
   }
 }

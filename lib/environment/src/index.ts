@@ -35,11 +35,79 @@ export const serverEnvironmentSchema = z.object({
   CLERK_SECRET_KEY: z.string().startsWith("sk_"),
   CLERK_ISSUER: origin,
   CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1),
-  EMBEDDING_MODE: z.enum(["local", "disabled"]).default("local"),
+  GROVE_EDITION: z.enum(["self-hosted", "cloud"]).default("self-hosted"),
+  EMBEDDING_MODE: z.enum(["local", "remote", "disabled"]).optional(),
   EMBEDDING_CACHE: z.string().default("./data/models"),
+  EMBEDDING_URL: z.string().optional(),
+  EMBEDDING_MODEL: z.string().optional(),
+  EMBEDDING_API_KEY: z.string().optional(),
+  EMBEDDING_DIMENSIONS: z.coerce.number().int().min(32).max(16000).optional(),
+  EMBEDDING_QUERY_PREFIX: z.string().optional(),
+  EMBEDDING_DOCUMENT_PREFIX: z.string().optional(),
+  EMBEDDING_DISTANCE_THRESHOLD: z.coerce.number().min(0).max(2).optional(),
+  DECISION_PROVIDER: z.enum(["system-one", "disabled"]).default("disabled"),
+  DECISION_URL: z.string().optional(),
+  DECISION_MODEL: z.string().optional(),
+  DECISION_API_KEY: z.string().optional(),
+  DECISION_PATH: z.enum(["/decisions", "/systemone"]).default("/decisions"),
+  GENERATION_PROVIDER: z
+    .enum(["minimax", "openai-compatible", "disabled"])
+    .default("disabled"),
+  GENERATION_URL: z.string().optional(),
+  GENERATION_MODEL: z.string().optional(),
+  GENERATION_API_KEY: z.string().optional(),
+  GENERATION_OUTPUT_FORMAT: z
+    .enum(["tool", "json-schema", "json"])
+    .default("tool"),
+  GENERATION_REASONING_EFFORT: z
+    .enum(["low", "medium", "high", "omit"])
+    .default("low"),
+  GENERATION_MAX_OUTPUT_TOKENS: z.coerce
+    .number()
+    .int()
+    .min(256)
+    .max(16384)
+    .default(4096),
+  DEEPINFRA_API_KEY: z.string().optional(),
+  MINIMAX_API_KEY: z.string().optional(),
+  MODEL_ADMIN_SUBJECTS: z.string().default(""),
+  MODEL_SETTINGS_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i)
+    .optional(),
+  AI_DAILY_REQUEST_LIMIT: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(1000000)
+    .default(2000),
+  AI_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+  AMQP_URL: z
+    .url()
+    .refine(
+      (value) => new URL(value).protocol === "amqps:",
+      "Use TLS for the job broker",
+    )
+    .optional(),
+  ORGANIZATION_INTERVAL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(86400)
+    .default(900),
+  RESEND_API_KEY: z.string().startsWith("re_").optional(),
+  EMAIL_FROM: z.string().email().default("notifications@mail.usegrove.cloud"),
   CURSOR_SECRET: z.string().min(32),
 });
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 export function readServerEnvironment(env = process.env): ServerEnvironment {
-  return serverEnvironmentSchema.parse(env);
+  return serverEnvironmentSchema.parse(
+    Object.fromEntries(
+      Object.entries(env).filter(
+        ([key, value]) =>
+          value !== "" ||
+          ["EMBEDDING_QUERY_PREFIX", "EMBEDDING_DOCUMENT_PREFIX"].includes(key),
+      ),
+    ),
+  );
 }

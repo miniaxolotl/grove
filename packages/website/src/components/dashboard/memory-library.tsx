@@ -1,603 +1,819 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Plus,
-  Search,
-  ArrowUpRight,
-  Leaf,
   Archive,
-  Clock,
-  RefreshCw,
+  Folder,
+  FolderInput,
+  X,
+  Undo2,
+  UserRound,
+  BookOpen,
+  List,
+  Network,
 } from "lucide-react";
 import type { Memory, Page } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { isInactive, memoryTitle, moveMemoryInput } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
+import { LoadError } from "./load-error";
+import { MemoryRow } from "./memory-row";
+import { MemoryEditor } from "./memory-editor";
+import { MemoryDetail } from "./memory-detail";
+import { MemoryDrag, MemoryDestination } from "./memory-drag";
+import { LibraryFilterBar, initialFilters } from "./library-filters";
+import { PageHeading } from "./ui/page-heading";
+import { Button } from "./ui/button";
+import { SegmentedControl } from "./ui/segmented-control";
+const MemoryGraph = dynamic(() => import("./memory-graph"), {
+  ssr: false,
+  loading: () => (
+    <p role="status" className="library-loading">
+      Opening graph…
+    </p>
+  ),
+});
+
+type Action = "move" | "archive" | "restore";
+type Undo = { before: Memory; after: Memory; action: Action };
 
 export function MemoryLibrary({
   archive = false,
   initialId,
+  projectId: fixedProject,
+  embedded = false,
+  initialKind = "",
+  onChanged,
+  initialView = "list",
 }: {
   archive?: boolean;
   initialId?: string;
+  projectId?: string | null;
+  embedded?: boolean;
+  initialKind?: string;
+  onChanged?: () => void;
+  initialView?: "list" | "graph";
 }) {
-  const [items, setItems] = useState<Memory[]>([]);
+  const [view, setView] = useState(initialView);
+  const [loadedItems, setItems] = useState<Memory[]>([]);
+  const [resultKey, setResultKey] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  const [project, setProject] = useState("all");
-  const [kind, setKind] = useState("");
-  const [status, setStatus] = useState(archive ? "archived" : "active");
-  const [next, setNext] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState(() => ({
+    ...initialFilters(archive),
+    kind: initialKind,
+  }));
+  const {
+    search,
+    project,
+    kind,
+    tag,
+    status,
+    sourceAgent,
+    updatedAfter,
+    sort,
+    lifetime,
+  } = filters;
+  const [searchMode, setSearchMode] = useState<string>();
+  const [cursor, setNext] = useState<string | null>(null);
+  const [fetching, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [detailError, setDetailError] = useState("");
+  const [failures, setFailures] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Memory | "new" | null>(null);
-  const filters = {
-    query: search || undefined,
-    projectId:
-      project === "all" ? undefined : project === "personal" ? null : project,
-    kind: kind || undefined,
+  const [checked, setChecked] = useState<string[]>([]);
+  const [moving, setMoving] = useState<Memory[] | null>(null);
+  const [destination, setDestination] = useState("personal");
+  const [busy, setBusy] = useState(false);
+  const [undo, setUndo] = useState<Undo[]>([]);
+  const [listRef] = useAutoAnimate<HTMLUListElement>({ duration: 200 });
+  const requests = useRef(new Map<string, string>());
+  const controller = useRef<AbortController | null>(null);
+  const scopedProject =
+    fixedProject !== undefined
+      ? fixedProject
+      : project === "all"
+        ? undefined
+        : project === "personal"
+          ? null
+          : project;
+  const requestKey = JSON.stringify({
+    search,
+    project: scopedProject,
+    kind,
+    tag,
     status,
-  };
+    sourceAgent,
+    updatedAfter,
+    sort,
+    lifetime,
+  });
+  const items = resultKey === requestKey ? loadedItems : [];
+  const next = resultKey === requestKey ? cursor : null;
+  const loading = fetching || resultKey !== requestKey;
+  const currentError = resultKey === requestKey ? error : "";
+  const filtered = !!(
+    search ||
+    kind ||
+    tag ||
+    sourceAgent ||
+    updatedAfter ||
+    lifetime ||
+    (fixedProject === undefined && project !== "all") ||
+    status !== (archive ? "archived" : "active")
+  );
+  const selectedItems = items.filter((memory) => checked.includes(memory.id));
+
   useEffect(() => {
-    const controller = new AbortController();
-    async function load() {
-      setLoading(true);
-      setError("");
-      setItems([]);
-      setNext(null);
-      try {
-        const [page, projectList] = await Promise.all([
-          api<Page<Memory>>(
-            "/memories/search",
-            {
-              query: search || undefined,
-              projectId:
-                project === "all"
-                  ? undefined
-                  : project === "personal"
-                    ? null
-                    : project,
-              kind: kind || undefined,
-              status,
-            },
-            undefined,
-            controller.signal,
-          ),
-          api<Project[]>("/projects", undefined, undefined, controller.signal),
-        ]);
-        if (!controller.signal.aborted) {
-          setItems(page.items);
-          setNext(page.nextCursor);
-          setProjects(projectList);
+    const request = new AbortController();
+    controller.current = request;
+    Promise.all([
+      api<Page<Memory>>(
+        "/memories/search",
+        {
+          query: search || undefined,
+          projectId: scopedProject,
+          kind: kind || undefined,
+          tag: tag || undefined,
+          status,
+          sourceAgent: sourceAgent || undefined,
+          updatedAfter: updatedAfter || undefined,
+          sort,
+          lifetime: lifetime || undefined,
+        },
+        undefined,
+        request.signal,
+      ),
+      api<Project[]>("/projects", undefined, undefined, request.signal),
+    ])
+      .then(([page, list]) => {
+        if (request.signal.aborted) return;
+        setError("");
+        setChecked([]);
+        setItems(page.items);
+        setNext(page.nextCursor);
+        setSearchMode(page.searchMode);
+        setProjects(list);
+      })
+      .catch((e) => {
+        if (!request.signal.aborted) {
+          setError(errorMessage(e));
+          setItems([]);
+          setNext(null);
         }
-      } catch (e) {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [search, project, kind, status, refresh]);
+      })
+      .finally(() => {
+        if (!request.signal.aborted) {
+          setLoading(false);
+          setResultKey(requestKey);
+        }
+      });
+    return () => request.abort();
+  }, [
+    search,
+    scopedProject,
+    kind,
+    tag,
+    status,
+    sourceAgent,
+    updatedAfter,
+    sort,
+    lifetime,
+    refresh,
+    requestKey,
+  ]);
   useEffect(() => {
     if (!initialId) return;
-    const controller = new AbortController();
-    api<Memory>(
-      `/memories/${initialId}`,
-      undefined,
-      undefined,
-      controller.signal,
-    )
-      .then(setSelected)
+    const request = new AbortController();
+    api<Memory>(`/memories/${initialId}`, undefined, undefined, request.signal)
+      .then((memory) => {
+        if (!request.signal.aborted) setSelected(memory);
+      })
       .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
+        if (!request.signal.aborted) setDetailError(errorMessage(e));
       });
-    return () => controller.abort();
+    return () => request.abort();
   }, [initialId]);
-  const reload = (message: string) => {
+  function reload(message?: string) {
     setSelected(null);
-    setNotice(message);
+    if (message) setNotice(message);
     setRefresh((value) => value + 1);
-  };
+    onChanged?.();
+  }
   async function loadMore() {
+    const request = controller.current;
+    if (!request || loading || !next) return;
     setLoading(true);
+    setError("");
     try {
-      const page = await api<Page<Memory>>("/memories/search", {
-        ...filters,
-        cursor: next,
-      });
-      setItems((current) => [...current, ...page.items]);
-      setNext(page.nextCursor);
+      const page = await api<Page<Memory>>(
+        "/memories/search",
+        {
+          query: search || undefined,
+          projectId: scopedProject,
+          kind: kind || undefined,
+          tag: tag || undefined,
+          status,
+          cursor: next,
+          sourceAgent: sourceAgent || undefined,
+          updatedAfter: updatedAfter || undefined,
+          sort,
+          lifetime: lifetime || undefined,
+        },
+        undefined,
+        request.signal,
+      );
+      if (!request.signal.aborted) {
+        setItems((current) => [
+          ...current,
+          ...page.items.filter((m) => !current.some((old) => old.id === m.id)),
+        ]);
+        setNext(page.nextCursor);
+      }
     } catch (e) {
-      setError(errorMessage(e));
+      if (!request.signal.aborted) setError(errorMessage(e));
     } finally {
-      setLoading(false);
+      if (!request.signal.aborted) setLoading(false);
     }
   }
+  async function mutate(
+    memory: Memory,
+    action: Action,
+    target?: string | null,
+  ) {
+    const path =
+      action === "move" ? "/memories" : `/memories/${memory.id}/${action}`;
+    const body =
+      action === "move"
+        ? moveMemoryInput(memory, target ?? null)
+        : { expectedVersion: memory.version };
+    const fingerprint = JSON.stringify({ path, body });
+    if (!requests.current.has(fingerprint))
+      requests.current.set(fingerprint, crypto.randomUUID());
+    return api<Memory>(path, {
+      ...body,
+      operationId: requests.current.get(fingerprint),
+    });
+  }
+  async function perform(
+    memories: Memory[],
+    action: Action,
+    target?: string | null,
+  ) {
+    if (busy) return;
+    const work = memories
+      .filter((memory) => action !== "move" || memory.projectId !== target)
+      .slice(0, 50);
+    if (!work.length) {
+      setMoving(null);
+      setNotice("Already in this notebook.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setFailures([]);
+    setNotice("");
+    setUndo([]);
+    const completed: Undo[] = [];
+    const failures: string[] = [];
+    for (const memory of work) {
+      try {
+        completed.push({
+          before: memory,
+          // An idempotent retry may return a newer version written by an agent.
+          // Undo must still check the version produced by our own operation.
+          after: {
+            ...(await mutate(memory, action, target)),
+            version: memory.version + 1,
+          },
+          action,
+        });
+      } catch (e) {
+        failures.push(`${memoryTitle(memory)}: ${errorMessage(e)}`);
+      }
+    }
+    setBusy(false);
+    setMoving(null);
+    setSelected(null);
+    setChecked([]);
+    setUndo(completed);
+    setFailures(failures);
+    const verb =
+      action === "move"
+        ? "moved"
+        : action === "archive"
+          ? "archived"
+          : "restored";
+    setNotice(
+      completed.length
+        ? `${completed.length} ${completed.length === 1 ? "note" : "notes"} ${verb}.`
+        : "",
+    );
+    reload();
+    // Retain mutation failures separately from the following successful list read.
+    if (failures.length)
+      setNotice(
+        `${completed.length} ${verb}; ${failures.length} could not be ${verb}. See the details in the library.`,
+      );
+  }
+  async function undoLast() {
+    if (busy) return;
+    setBusy(true);
+    const remaining: Undo[] = [];
+    let message = "";
+    for (const record of undo) {
+      try {
+        await mutate(
+          record.after,
+          record.action === "move"
+            ? "move"
+            : record.action === "archive"
+              ? "restore"
+              : "archive",
+          record.before.projectId,
+        );
+      } catch (e) {
+        remaining.push(record);
+        message = errorMessage(e);
+      }
+    }
+    const count = undo.length - remaining.length;
+    setUndo(remaining);
+    setBusy(false);
+    reload(
+      remaining.length
+        ? `${count} undone. ${remaining.length} could not be undone: ${message}`
+        : "Change undone.",
+    );
+  }
+  function startMove(memories: Memory[]) {
+    if (busy || !memories.length) return;
+    setSelected(null);
+    setMoving(memories);
+    setDestination("personal");
+  }
+  const title = archive
+    ? "Archive"
+    : initialView === "graph"
+      ? "Note graph"
+      : "Notes";
+  const currentIndex =
+    selected && selected !== "new"
+      ? items.findIndex((m) => m.id === selected.id)
+      : -1;
   return (
     <>
-      <div className="app-page-heading">
-        <div>
-          <p className="eyebrow">
-            {archive ? "KEPT FOR LATER" : "CONTEXT THAT STAYS"}
-          </p>
-          <h1>
-            {archive ? "Your archive" : "Your memories"}
-            <span className="text-leaf">.</span>
-          </h1>
-          <p>
-            {archive
-              ? "Out of recall. Still yours to revisit, restore, or let go."
-              : "The useful things, remembered. Across projects, sessions, and agents."}
-          </p>
-        </div>
-        {!archive && (
-          <button className="app-button" onClick={() => setSelected("new")}>
-            <Plus size={16} />
-            Add memory
-          </button>
-        )}
-      </div>
-      {notice && (
-        <p role="status" className="app-notice">
-          {notice}
-        </p>
+      {!embedded && (
+        <PageHeading
+          title={title}
+          description={
+            archive
+              ? "Set aside for now. Bring a note back whenever you need it."
+              : initialView === "graph"
+                ? "See how your ideas connect."
+                : "A place for ideas, plans, and things worth keeping."
+          }
+          actions={
+            !archive && (
+              <Button disabled={busy} onClick={() => setSelected("new")}>
+                <Plus size={16} />
+                New note
+              </Button>
+            )
+          }
+        />
       )}
-      <form
-        className="app-toolbar"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSearch(query);
-        }}
-      >
-        <label className="app-search">
-          <Search size={18} />
-          <span className="sr-only">Search memories</span>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search your memories…"
-            maxLength={1000}
-          />
-          <button type="submit" className="text-xs font-medium">
-            Search
-          </button>
-        </label>
-        <label>
-          <span className="sr-only">Project</span>
-          <select value={project} onChange={(e) => setProject(e.target.value)}>
-            <option value="all">All projects</option>
-            <option value="personal">Personal</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Memory kind</span>
-          <select value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="">All kinds</option>
-            {["preference", "fact", "decision", "solution", "handoff"].map(
-              (value) => (
-                <option key={value}>{value}</option>
-              ),
-            )}
-          </select>
-        </label>
-        {archive && (
-          <label>
-            <span className="sr-only">Archive status</span>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="archived">Archived</option>
-              <option value="expired">Expired handoffs</option>
-            </select>
-          </label>
-        )}
-      </form>
-      {error && (
-        <div role="alert" className="app-error">
-          {error}
-          <button
-            onClick={() => setRefresh((value) => value + 1)}
-            className="ml-3 underline"
+      {embedded && (
+        <div className="embedded-library-actions">
+          <span>Your notes, together.</span>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => setSelected("new")}
           >
-            Retry
-          </button>
+            <Plus size={16} />
+            New note
+          </Button>
         </div>
       )}
-      <div className="mb-3 mt-7 flex items-center justify-between text-[10px] font-medium uppercase tracking-widest text-muted">
-        <span>
-          {archive ? "Saved outside active recall" : "Memory library"}
-        </span>
-        <span>{items.length} loaded</span>
-      </div>
-      {loading && !items.length ? (
-        <p role="status" className="app-empty">
-          Loading your memories…
-        </p>
-      ) : !items.length && !error ? (
-        <section className="app-empty">
-          <div className="mx-auto mb-5 grid size-14 place-items-center rounded-full bg-sage">
-            {archive ? (
-              <Archive size={24} strokeWidth={1.3} />
+      <MemoryDrag
+        items={items}
+        selected={checked}
+        busy={busy || loading}
+        onMove={(memories, target) => void perform(memories, "move", target)}
+      >
+        <div className={`memory-workspace${embedded ? " embedded" : ""}`}>
+          <aside className="library-places" aria-label="Notebooks">
+            {!embedded && (
+              <button
+                aria-pressed={project === "all"}
+                onClick={() => setFilters({ ...filters, project: "all" })}
+              >
+                <BookOpen size={16} />
+                <span>All notes</span>
+              </button>
+            )}
+            <MemoryDestination
+              id="personal"
+              href={embedded ? "/app/profile" : undefined}
+              name="Personal"
+              active={embedded ? fixedProject === null : project === "personal"}
+              busy={busy}
+              onClick={() => {
+                if (!embedded) setFilters({ ...filters, project: "personal" });
+              }}
+            >
+              <UserRound size={16} />
+            </MemoryDestination>
+            <div className="places-heading">
+              <span>Notebooks</span>
+              <Link href="/app/projects">Manage</Link>
+            </div>
+            {projects.map((p) => (
+              <MemoryDestination
+                key={p.id}
+                href={embedded ? `/app/projects/${p.id}` : undefined}
+                id={p.id}
+                name={p.name}
+                active={embedded ? fixedProject === p.id : project === p.id}
+                busy={busy}
+                onClick={() => {
+                  if (!embedded) setFilters({ ...filters, project: p.id });
+                }}
+              >
+                <Folder size={16} />
+              </MemoryDestination>
+            ))}
+            <p className="places-hint">Drag a note into a notebook.</p>
+          </aside>
+          <div className="library-main">
+            <LibraryFilterBar
+              value={filters}
+              onChange={setFilters}
+              projects={projects}
+              fixedProject={fixedProject}
+              archive={archive}
+              topics={[
+                ...new Set(
+                  items.flatMap((memory) => memory.enrichment?.tags ?? []),
+                ),
+              ]}
+            />
+            <div className="library-caption">
+              <span>
+                {items.length}
+                {next ? "+" : ""}{" "}
+                {items.length === 1 && !next ? "note" : "notes"}
+                {searchMode && search
+                  ? ` · ${searchMode === "hybrid" ? "Words + meaning" : "Matching words"}`
+                  : ""}
+              </span>
+              {!archive && (
+                <SegmentedControl
+                  label="Note view"
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    {
+                      value: "list",
+                      label: (
+                        <>
+                          <List size={15} />
+                          List
+                        </>
+                      ),
+                    },
+                    {
+                      value: "graph",
+                      label: (
+                        <>
+                          <Network size={15} />
+                          Graph
+                        </>
+                      ),
+                    },
+                  ]}
+                />
+              )}
+              <label className="library-sort">
+                Sort
+                <select
+                  aria-label="Sort notes"
+                  value={sort}
+                  onChange={(e) =>
+                    setFilters({
+                      ...filters,
+                      sort: e.target.value as typeof sort,
+                    })
+                  }
+                >
+                  <option value="updated_desc">Recently updated</option>
+                  <option value="updated_asc">Oldest updated</option>
+                </select>
+              </label>
+            </div>
+            {view === "list" && selectedItems.length > 0 && (
+              <div
+                className="selection-toolbar"
+                role="group"
+                aria-label="Selected notes"
+              >
+                <strong>{selectedItems.length} selected</strong>
+                <button
+                  disabled={busy}
+                  onClick={() => startMove(selectedItems)}
+                >
+                  <FolderInput size={16} />
+                  Move
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(selectedItems, archive ? "restore" : "archive")
+                  }
+                >
+                  <Archive size={16} />
+                  {archive ? "Restore" : "Archive"}
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => setChecked([])}
+                  aria-label="Clear selection"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {currentError && (
+              <LoadError
+                message={currentError}
+                retry={() => setRefresh((v) => v + 1)}
+              />
+            )}
+            {detailError && (
+              <div className="app-error" role="alert">
+                {detailError}
+                <button
+                  className="text-button ml-3"
+                  onClick={() => setDetailError("")}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+            {!!failures.length && (
+              <div className="app-error" role="alert">
+                <p>
+                  Some notes could not be updated. The list below shows their
+                  current state.
+                </p>
+                <ul>
+                  {failures.map((failure, i) => (
+                    <li key={i}>{failure}</li>
+                  ))}
+                </ul>
+                <button className="text-button" onClick={() => setFailures([])}>
+                  Dismiss details
+                </button>
+              </div>
+            )}
+            {loading && !items.length ? (
+              <p role="status" className="library-loading">
+                Opening your notes…
+              </p>
+            ) : !items.length && !currentError ? (
+              <section className="app-empty">
+                <BookOpen
+                  size={26}
+                  className="mx-auto mb-4"
+                  strokeWidth={1.4}
+                />
+                <h2 className="font-editorial text-3xl">
+                  {filtered
+                    ? "Nothing here matches yet."
+                    : archive
+                      ? "Your archive is empty."
+                      : "Good things start small."}
+                </h2>
+                <p>
+                  {filtered
+                    ? "Try a different phrase or clear a filter."
+                    : archive
+                      ? "Archived notes stay here until you restore or delete them."
+                      : "Start with a thought, a plan, or something you want to remember."}
+                </p>
+                {!archive && !filtered && (
+                  <div className="mt-6 flex flex-wrap justify-center gap-3">
+                    <button
+                      className="app-button"
+                      onClick={() => setSelected("new")}
+                    >
+                      Write your first note
+                    </button>
+                    <Link
+                      href="/app/connections"
+                      className="app-button secondary"
+                    >
+                      Connect an agent
+                    </Link>
+                  </div>
+                )}
+              </section>
             ) : (
-              <Leaf size={24} strokeWidth={1.3} />
+              items.length > 0 &&
+              (view === "graph" ? (
+                <MemoryGraph
+                  items={items}
+                  projects={projects}
+                  onOpen={setSelected}
+                />
+              ) : (
+                <div className="library-list">
+                  <label className="select-loaded">
+                    <input
+                      type="checkbox"
+                      disabled={busy}
+                      checked={
+                        items.length > 0 &&
+                        items.slice(0, 50).every((m) => checked.includes(m.id))
+                      }
+                      onChange={(e) =>
+                        setChecked(
+                          e.target.checked
+                            ? items.slice(0, 50).map((m) => m.id)
+                            : [],
+                        )
+                      }
+                    />
+                    Select these notes
+                    {items.length > 50 ? " (first 50)" : ""}
+                  </label>
+                  <ul ref={listRef}>
+                    {items.map((memory) => (
+                      <MemoryRow
+                        key={memory.id}
+                        memory={memory}
+                        projectName={
+                          projects.find((p) => p.id === memory.projectId)
+                            ?.name ?? "Personal"
+                        }
+                        selected={checked.includes(memory.id)}
+                        busy={busy}
+                        onSelect={() =>
+                          setChecked((current) =>
+                            current.includes(memory.id)
+                              ? current.filter((id) => id !== memory.id)
+                              : current.length < 50
+                                ? [...current, memory.id]
+                                : current,
+                          )
+                        }
+                        onOpen={() => setSelected(memory)}
+                        onMove={() => startMove([memory])}
+                        onArchive={() =>
+                          void perform(
+                            [memory],
+                            isInactive(memory) ? "restore" : "archive",
+                          )
+                        }
+                        onTag={(value) =>
+                          setFilters({ ...filters, tag: value })
+                        }
+                      />
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )}
+            {next && (
+              <div className="mt-6 text-center">
+                <button
+                  className="app-button secondary"
+                  disabled={loading}
+                  onClick={loadMore}
+                >
+                  {loading
+                    ? "Loading…"
+                    : view === "graph"
+                      ? "Expand graph"
+                      : "Load more"}
+                </button>
+              </div>
             )}
           </div>
-          <h2 className="font-editorial text-3xl">
-            {search
-              ? "Nothing here matches yet."
-              : archive
-                ? "A little room for later."
-                : "Good things start small."}
-          </h2>
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-muted">
-            {search
-              ? "Try a different word or adjust your filters."
-              : archive
-                ? "Archived memories stay here until you restore or delete them."
-                : "Save a preference, a decision, or something you learned. Your agents can pick up where you left off."}
-          </p>
-          {!archive && (
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <button className="app-button" onClick={() => setSelected("new")}>
-                Save your first memory
-              </button>
-              <Link href="/app/connections" className="app-button secondary">
-                Connect an agent <ArrowUpRight size={14} />
-              </Link>
-            </div>
+        </div>
+      </MemoryDrag>
+      {(notice || busy) && (
+        <div className="workspace-notice" role="status">
+          <span>{busy ? "Updating notes…" : notice}</span>
+          {undo.length > 0 && (
+            <button disabled={busy} onClick={undoLast}>
+              <Undo2 size={16} />
+              Undo
+            </button>
           )}
-        </section>
-      ) : (
-        <ul className="app-memory-list">
-          {items.map((memory) => (
-            <li key={memory.id}>
-              <button
-                className="app-memory-row"
-                onClick={() => setSelected(memory)}
-              >
-                <span className="memory-kind">{memory.kind}</span>
-                <span className="min-w-0">
-                  <span className="block whitespace-pre-wrap text-sm leading-7 line-clamp-2">
-                    {memory.content}
-                  </span>
-                  <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
-                    <span>
-                      {projects.find((p) => p.id === memory.projectId)?.name ??
-                        (memory.projectId ? "Project" : "Personal")}
-                    </span>
-                    <span>via {memory.source.agent}</span>
-                    <span>
-                      {new Date(memory.updatedAt).toLocaleDateString()}
-                    </span>
-                    {memory.kind === "handoff" && (
-                      <span className="inline-flex items-center gap-1">
-                        <Clock size={11} />
-                        Temporary
-                      </span>
-                    )}
-                    {memory.indexing !== "ready" && (
-                      <span>Semantic index {memory.indexing}</span>
-                    )}
-                  </span>
-                </span>
-                <ArrowUpRight className="text-muted" size={16} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {next && (
-        <div className="mt-6 text-center">
           <button
-            onClick={loadMore}
-            disabled={loading}
-            className="app-button secondary"
+            disabled={busy}
+            aria-label="Dismiss notification"
+            onClick={() => {
+              setNotice("");
+              setUndo([]);
+            }}
           >
-            <RefreshCw size={14} />
-            {loading ? "Loading…" : "Load more"}
+            <X size={16} />
           </button>
         </div>
       )}
       {selected && (
         <Dialog
-          title={selected === "new" ? "Plant a memory" : "Memory details"}
+          key={selected === "new" ? "new" : selected.id}
+          panel
+          title={selected === "new" ? "New note" : "Note"}
+          busy={busy}
           close={() => setSelected(null)}
         >
-          <MemoryEditor
-            memory={selected === "new" ? undefined : selected}
-            projects={projects}
-            done={reload}
-          />
-        </Dialog>
-      )}
-    </>
-  );
-}
-
-function MemoryEditor({
-  memory,
-  projects,
-  done,
-}: {
-  memory?: Memory;
-  projects: Project[];
-  done: (message: string) => void;
-}) {
-  const [content, setContent] = useState(memory?.content ?? "");
-  const [kind, setKind] = useState(memory?.kind ?? "fact");
-  const [projectId, setProjectId] = useState(memory?.projectId ?? "");
-  const [taskId, setTaskId] = useState(memory?.taskId ?? "");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [history, setHistory] = useState<
-    { version: number; content: string; createdAt: string }[]
-  >([]);
-  const pending = useRef<{ fingerprint: string; operationId: string } | null>(
-    null,
-  );
-  const operationId = (value: unknown) => {
-    const fingerprint = JSON.stringify(value);
-    if (pending.current?.fingerprint !== fingerprint)
-      pending.current = { fingerprint, operationId: crypto.randomUUID() };
-    return pending.current.operationId;
-  };
-  const execute = async (action: () => Promise<void>) => {
-    setBusy(true);
-    setError("");
-    try {
-      await action();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  async function save() {
-    const value = {
-      content,
-      kind,
-      projectId: projectId || null,
-      ...(kind === "handoff" ? { taskId } : {}),
-      source: { agent: "website" },
-      ...(memory ? { id: memory.id, expectedVersion: memory.version } : {}),
-    };
-    const saved = await api<Memory>("/memories", {
-      ...value,
-      operationId: operationId(value),
-    });
-    done(`Memory saved. Semantic indexing: ${saved.indexing}.`);
-  }
-  async function lifecycle(action: "archive" | "restore", revision?: number) {
-    const value = { expectedVersion: memory!.version, revision };
-    await api(`/memories/${memory!.id}/${action}`, {
-      ...value,
-      operationId: operationId({ action, ...value }),
-    });
-    done(
-      action === "archive"
-        ? "Memory moved to the archive."
-        : "Memory restored to active recall.",
-    );
-  }
-  const restore =
-    memory?.status === "archived" ||
-    (memory?.expiresAt && new Date(memory.expiresAt) < new Date());
-  return (
-    <>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void execute(save);
-        }}
-        className="app-form"
-      >
-        <label>
-          What should stay with you?
-          <textarea
-            rows={7}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-            maxLength={6000}
-            autoFocus
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-4">
-          <label>
-            Kind
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value as Memory["kind"])}
-            >
-              {["preference", "fact", "decision", "solution", "handoff"].map(
-                (value) => (
-                  <option key={value}>{value}</option>
-                ),
-              )}
-            </select>
-          </label>
-          <label>
-            Scope
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-            >
-              <option value="">Personal</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {kind === "handoff" && (
-          <label>
-            Stable task ID
-            <input
-              required
-              maxLength={128}
-              value={taskId}
-              onChange={(e) => setTaskId(e.target.value)}
+          {selected === "new" ? (
+            <MemoryEditor
+              projects={projects}
+              projectId={scopedProject ?? null}
+              cancel={() => setSelected(null)}
+              done={() => reload("Note saved.")}
             />
-            <small className="text-muted">
-              Active for 30 days; temporary content purged after 90.
-            </small>
-          </label>
-        )}
-        {error && (
-          <p role="alert" className="app-error">
-            {error}
-          </p>
-        )}
-        <button disabled={busy} className="app-button">
-          {busy ? "Saving…" : "Save memory"}
-        </button>
-      </form>
-      {memory && (
-        <div className="mt-8 border-t border-line pt-6">
-          <dl className="grid grid-cols-2 gap-3 text-xs text-muted">
-            <div>
-              <dt>Source</dt>
-              <dd className="mt-1 text-forest">
-                {memory.source.agent} · revision {memory.version}
-              </dd>
-            </div>
-            <div>
-              <dt>Saved</dt>
-              <dd className="mt-1 text-forest">
-                {new Date(memory.createdAt).toLocaleString()}
-              </dd>
-            </div>
-            {memory.expiresAt && (
-              <div>
-                <dt>Leaves recall</dt>
-                <dd>{new Date(memory.expiresAt).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {memory.purgeAt && (
-              <div>
-                <dt>Permanent purge</dt>
-                <dd>{new Date(memory.purgeAt).toLocaleDateString()}</dd>
-              </div>
-            )}
-          </dl>
-          {memory.source.verification && (
-            <p className="mt-4 text-sm">
-              Verification: {memory.source.verification}
-            </p>
-          )}
-          <p className="mt-4 break-all font-mono text-[10px] text-muted">
-            {memory.id}
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              className="app-button secondary"
-              disabled={busy}
-              onClick={() =>
-                execute(() => lifecycle(restore ? "restore" : "archive"))
-              }
-            >
-              {restore ? "Restore" : "Archive"}
-            </button>
-            <button
-              className="app-button secondary"
-              disabled={busy}
-              onClick={() =>
-                execute(async () =>
-                  setHistory(await api(`/memories/${memory.id}/revisions`)),
+          ) : (
+            <MemoryDetail
+              key={`${selected.id}:${selected.version}`}
+              memory={selected}
+              projects={projects}
+              busy={busy}
+              onSaved={reload}
+              onMove={() => startMove([selected])}
+              onArchive={() =>
+                void perform(
+                  [selected],
+                  isInactive(selected) ? "restore" : "archive",
                 )
               }
-            >
-              Revision history
-            </button>
-            <button
-              className="app-button danger"
-              disabled={busy}
-              onClick={() => setConfirmDelete(true)}
-            >
-              Delete permanently
-            </button>
-          </div>
-          {confirmDelete && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm">
-              <p>
-                This removes the memory and every revision. It cannot be undone.
-              </p>
-              <div className="mt-3 flex gap-3">
-                <button
-                  className="app-button danger"
-                  disabled={busy}
-                  onClick={() =>
-                    execute(async () => {
-                      const value = {
-                        items: [
-                          { id: memory.id, expectedVersion: memory.version },
-                        ],
-                      };
-                      const result = await api<{
-                        results: { outcome: string }[];
-                      }>("/memories/delete", {
-                        ...value,
-                        operationId: operationId(value),
-                      });
-                      if (result.results[0].outcome !== "deleted")
-                        throw new Error(
-                          "Memory changed; reload before deleting.",
-                        );
-                      done("Memory permanently deleted.");
-                    })
-                  }
-                >
-                  Delete this memory
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="app-button secondary"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+              onPrevious={
+                currentIndex > 0
+                  ? () => setSelected(items[currentIndex - 1])
+                  : undefined
+              }
+              onNext={
+                currentIndex >= 0 && currentIndex < items.length - 1
+                  ? () => setSelected(items[currentIndex + 1])
+                  : undefined
+              }
+            />
           )}
-          {history.length > 0 && (
-            <ol className="mt-6 space-y-4">
-              {history.map((revision) => (
-                <li
-                  key={revision.version}
-                  className="rounded-lg border border-line p-4"
-                >
-                  <p className="text-xs text-muted">
-                    Revision {revision.version} ·{" "}
-                    {new Date(revision.createdAt).toLocaleString()}
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7">
-                    {revision.content}
-                  </p>
-                  {revision.version !== memory.version && (
-                    <button
-                      disabled={busy}
-                      onClick={() =>
-                        execute(() => lifecycle("restore", revision.version))
-                      }
-                      className="mt-3 text-xs underline"
-                    >
-                      Restore as a new revision
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
+        </Dialog>
+      )}
+      {moving && (
+        <Dialog
+          title={`Move ${moving.length === 1 ? "note" : `${moving.length} notes`}`}
+          close={() => setMoving(null)}
+          busy={busy}
+        >
+          <form
+            className="app-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void perform(
+                moving,
+                "move",
+                destination === "personal" ? null : destination,
+              );
+            }}
+          >
+            <p className="text-sm leading-7 text-muted">
+              Choose a notebook. Your note and its history stay together.
+            </p>
+            <label>
+              Destination
+              <select
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+              >
+                <option value="personal">Personal</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-xs text-muted">
+              Connected agents with access to this notebook can read these
+              notes.
+            </p>
+            <button disabled={busy} className="app-button">
+              {busy ? "Moving…" : "Move here"}
+            </button>
+          </form>
+        </Dialog>
       )}
     </>
   );

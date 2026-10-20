@@ -1,12 +1,16 @@
 name: Deploy
 
+concurrency:
+  group: grove-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     branches: [development, production]
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to deploy (e.g., 0.3.1) — leave empty for dev deploy"
+        description: "Optional production version assertion; must match packages/api/package.json"
         required: false
         default: ""
 
@@ -25,30 +29,52 @@ jobs:
 
       - name: Resolve tags
         id: meta
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [ "${{ github.ref_name }}" = "production" ]; then
-            VERSION=$(node -p "require('./packages/api/package.json').version")
-          fi
+          VERSION=""
+          case "$GITHUB_REF" in
+            refs/heads/production)
+              VERSION=$(node -p "require('./packages/api/package.json').version")
+              if [ -n "$REQUESTED_VERSION" ] && [ "$REQUESTED_VERSION" != "$VERSION" ]; then
+                echo "::error::Requested version must match the release promoted to production."
+                exit 1
+              fi
+              ;;
+            refs/heads/development)
+              if [ -n "$REQUESTED_VERSION" ]; then
+                echo "::error::Development publishes preview images; promote the release to production first."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Deployments follow feature branch -> development -> production."
+              exit 1
+              ;;
+          esac
 
           if [ -n "$VERSION" ]; then
-            echo "TAGS<<EOF" >> $GITHUB_OUTPUT
-            echo "ghcr.io/miniaxolotl/grove:latest" >> $GITHUB_OUTPUT
-            echo "ghcr.io/miniaxolotl/grove:v${VERSION}" >> $GITHUB_OUTPUT
-            echo "miniaxolotl/grove:latest" >> $GITHUB_OUTPUT
-            echo "miniaxolotl/grove:v${VERSION}" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+            [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]
+            {
+              echo "TAGS<<EOF"
+              echo "ghcr.io/miniaxolotl/grove:latest"
+              echo "ghcr.io/miniaxolotl/grove:v${VERSION}"
+              echo "miniaxolotl/grove:latest"
+              echo "miniaxolotl/grove:v${VERSION}"
+              echo "EOF"
+              echo "VERSION=${VERSION}"
+            } >> "$GITHUB_OUTPUT"
           else
             PREVIEW_VERSION=$(node -p "require('./packages/api/package.json').version")
-            echo "TAGS<<EOF" >> $GITHUB_OUTPUT
-            echo "ghcr.io/miniaxolotl/grove:preview" >> $GITHUB_OUTPUT
-            echo "ghcr.io/miniaxolotl/grove:preview-v${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
-            echo "miniaxolotl/grove:preview" >> $GITHUB_OUTPUT
-            echo "miniaxolotl/grove:preview-v${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "VERSION=preview-v${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
+            {
+              echo "TAGS<<EOF"
+              echo "ghcr.io/miniaxolotl/grove:preview"
+              echo "ghcr.io/miniaxolotl/grove:preview-v${PREVIEW_VERSION}"
+              echo "miniaxolotl/grove:preview"
+              echo "miniaxolotl/grove:preview-v${PREVIEW_VERSION}"
+              echo "EOF"
+              echo "VERSION=preview-v${PREVIEW_VERSION}"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Docker Buildx
@@ -68,6 +94,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
+        id: image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -80,3 +107,11 @@ jobs:
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Roll out production API and worker
+        if: github.ref == 'refs/heads/production' && vars.DIGITALOCEAN_APP_ID != ''
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
+          GROVE_IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: node scripts/deploy-digitalocean.mjs --wait

@@ -22,17 +22,27 @@ export function MobileNavigation({ github }: { github: string }) {
     function onPointerDown(event: PointerEvent) {
       if (!container.current?.contains(event.target as Node)) setOpen(false);
     }
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const closeOnResize = () => setOpen(false);
 
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("pointerdown", onPointerDown);
+    desktop.addEventListener("change", closeOnResize);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown);
+      desktop.removeEventListener("change", closeOnResize);
     };
   }, [open]);
 
   return (
-    <div ref={container} className="md:hidden">
+    <div
+      ref={container}
+      className="md:hidden"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
       <button
         ref={toggle}
         type="button"
@@ -50,18 +60,20 @@ export function MobileNavigation({ github }: { github: string }) {
         hidden={!open}
         className="absolute inset-x-0 top-full border-b border-line bg-paper px-6 pb-6 pt-3 shadow-xl shadow-forest/5"
       >
-        {[...navigation, { label: "Documentation", href: "/install" }].map(
-          ({ label, href }) => (
-            <Link
-              key={label}
-              href={href}
-              onClick={() => setOpen(false)}
-              className="flex min-h-12 items-center border-b border-line text-sm hover:text-leaf"
-            >
-              {label}
-            </Link>
-          ),
-        )}
+        {[
+          ...navigation,
+          { label: "Documentation", href: "/install" },
+          { label: "Your Grove", href: "/app" },
+        ].map(({ label, href }) => (
+          <Link
+            key={label}
+            href={href}
+            onClick={() => setOpen(false)}
+            className="flex min-h-12 items-center border-b border-line text-sm hover:text-leaf"
+          >
+            {label}
+          </Link>
+        ))}
         <a
           href={github}
           className="mt-3 flex min-h-11 items-center gap-2 text-sm"

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/miniaxolotl/grove/compare/grove-codex-plugin-v1.0.0...grove-codex-plugin-v1.1.0) (2026-10-20)
+
+
+### Features
+
+* add guided Grove Cloud agent onboarding ([b3870d4](https://github.com/miniaxolotl/grove/commit/b3870d4cd3ddca934631972885a94e6b4fcec37b))
+* seamless Grove Cloud account and agent onboarding ([6f45c48](https://github.com/miniaxolotl/grove/commit/6f45c4842ceeed193232012a27fac5f9d769eabf))
+
 ## [1.0.0](https://github.com/miniaxolotl/grove/compare/grove-codex-plugin-v0.1.0...grove-codex-plugin-v1.0.0) (2026-10-19)
 
 

@@ -2,7 +2,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
-  Box,
   Check,
   CirclePlay,
   Code2,
@@ -21,6 +20,7 @@ import { HowItWorks } from "@/components/how-it-works";
 import { Installation } from "@/components/installation";
 import { MemoryDemo } from "@/components/memory-demo";
 import { MemoryPreview } from "@/components/memory-preview";
+import { LibraryPreview } from "@/components/library-preview";
 import { StructuredData } from "@/components/structured-data";
 import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
@@ -47,18 +47,19 @@ export default async function HomePage() {
             <em>Same context.</em>
           </h1>
           <p className="mt-6 max-w-[420px] text-[15px] leading-[1.85] text-muted sm:text-base">
-            Persistent memory for the agents you build with. Save decisions,
-            search by meaning, and connect project knowledge through{" "}
+            Stop re-explaining the way you work. Keep decisions, preferences,
+            and hard-won fixes with you across agents, projects, and sessions.
+            All in{" "}
             <span className="font-medium text-forest">
               one private memory account.
             </span>
           </p>
           <p className="mt-3 text-xs leading-6 text-muted">
-            Your stack. Your data. Context that survives the session.
+            Less starting over. More getting somewhere.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link href="/sign-up" className="button-primary">
-              Start remembering <ArrowRight size={16} />
+            <Link href="/install" className="button-primary">
+              Get started <ArrowRight size={16} />
             </Link>
             <a
               href="#memory-in-action"
@@ -69,23 +70,23 @@ export default async function HomePage() {
           </div>
           <div className="mt-6 flex w-fit max-w-full flex-wrap items-center gap-x-4 rounded-lg border border-line bg-white/40 px-3 py-0.5">
             <code className="min-w-0 py-2 font-mono text-[10px] text-muted sm:text-[11px]">
-              <span className="mr-2 select-none text-leaf">$</span>npm i -g
-              @miniaxolotl/grove
+              <span className="mr-2 select-none text-leaf">$</span>npx
+              @miniaxolotl/grove connect
             </code>
             <CopyButton
-              text="npm i -g @miniaxolotl/grove"
-              label="Copy npm install command"
+              text="npx @miniaxolotl/grove connect"
+              label="Copy Cloud connection command"
             />
           </div>
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted">
             <span className="inline-flex items-center gap-1.5">
-              <Check size={12} className="text-leaf" /> Free & open source
+              <Check size={12} className="text-leaf" /> Open source
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Check size={12} className="text-leaf" /> Your infrastructure
+              <Check size={12} className="text-leaf" /> Hosted or self-hosted
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Check size={12} className="text-leaf" /> Your memory
+              <Check size={12} className="text-leaf" /> Private to your account
             </span>
           </div>
         </div>
@@ -103,24 +104,24 @@ export default async function HomePage() {
           <div className="grid w-full grid-cols-2 gap-x-5 gap-y-6 sm:grid-cols-4 lg:w-auto lg:gap-x-12">
             {[
               {
-                icon: Network,
-                name: "MCP",
-                detail: "HTTP & stdio transport",
-              },
-              {
-                icon: Database,
-                name: "PostgreSQL",
-                detail: "Private, searchable memory",
-              },
-              {
-                icon: Box,
-                name: "ONNX",
-                detail: "Local embeddings by default",
+                icon: Code2,
+                name: "OpenCode",
+                detail: "Plugin + memory tools",
               },
               {
                 icon: Code2,
-                name: "OpenCode",
-                detail: "Optional agent plugin",
+                name: "Claude Code",
+                detail: "Tools + optional hooks",
+              },
+              {
+                icon: Database,
+                name: "Codex",
+                detail: "Your next task, with context",
+              },
+              {
+                icon: Network,
+                name: "MCP",
+                detail: "HTTP & stdio transport",
               },
             ].map(({ icon: Icon, name, detail }) => (
               <div key={name} className="flex items-center gap-3">
@@ -140,6 +141,7 @@ export default async function HomePage() {
       </section>
 
       <MemoryDemo />
+      <LibraryPreview />
       <Features />
       <HowItWorks />
 
@@ -175,8 +177,8 @@ export default async function HomePage() {
           <p className="flex items-start gap-3 text-xs leading-6 text-muted">
             <Sprout size={19} className="mt-0.5 shrink-0 text-leaf" />
             <span>
-              No Grove account or memory subscription. Run the server and
-              storage on infrastructure you control.
+              Start with hosted Grove, or run the API, worker, and PostgreSQL on
+              your own infrastructure. Your choice, the same four tools.
             </span>
           </p>
           <a
@@ -219,7 +221,7 @@ export default async function HomePage() {
               <Github size={15} /> Explore on GitHub <ArrowUpRight size={13} />
             </a>
             <span className="font-mono text-[9px] text-leaf">
-              OPEN SOURCE · SELF-HOSTED · MIT LICENSED
+              OPEN SOURCE · PRIVATE MEMORY · MIT LICENSED
             </span>
           </div>
         </div>

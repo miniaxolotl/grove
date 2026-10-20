@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.0](https://github.com/miniaxolotl/grove/compare/grove-server-v1.0.0...grove-server-v1.1.0) (2026-10-20)
+
+
+### Features
+
+* add configurable model providers and organized memory ([2dd2c90](https://github.com/miniaxolotl/grove/commit/2dd2c9019475449ae27c527dad1d5d59e80a3e69))
+* add guided Grove Cloud agent onboarding ([b3870d4](https://github.com/miniaxolotl/grove/commit/b3870d4cd3ddca934631972885a94e6b4fcec37b))
+* notebook workspace, cited chat and configurable models ([fb42885](https://github.com/miniaxolotl/grove/commit/fb4288528a492ade9aada20cf8f007da22f88f0a))
+* notebook, journal, cited chat and background services ([1912179](https://github.com/miniaxolotl/grove/commit/191217930113564db551baf5fbc8d1fde08d56d9))
+* seamless Grove Cloud account and agent onboarding ([6f45c48](https://github.com/miniaxolotl/grove/commit/6f45c4842ceeed193232012a27fac5f9d769eabf))
+
 ## [1.0.0](https://github.com/miniaxolotl/grove/compare/grove-server-v0.1.0...grove-server-v1.0.0) (2026-10-19)
 
 

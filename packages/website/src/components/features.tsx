@@ -14,7 +14,7 @@ export function Features() {
   return (
     <section
       id="features"
-      className="page-container section-space pt-4!"
+      className="page-container section-space"
       aria-labelledby="features-heading"
     >
       <div className="section-intro">
@@ -33,7 +33,7 @@ export function Features() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
-        <article className="feature-card bg-white/60">
+        <article className="feature-card bg-white/60" data-reveal>
           <span className="feature-icon">
             <Search size={20} />
           </span>
@@ -71,7 +71,7 @@ export function Features() {
           </div>
         </article>
 
-        <article className="feature-card bg-white/60">
+        <article className="feature-card bg-white/60" data-reveal>
           <span className="feature-icon">
             <GitBranch size={20} />
           </span>
@@ -124,7 +124,7 @@ export function Features() {
           </div>
         </article>
 
-        <article className="feature-card bg-white/60">
+        <article className="feature-card bg-white/60" data-reveal>
           <span className="feature-icon">
             <LockKeyhole size={20} />
           </span>
@@ -153,7 +153,7 @@ export function Features() {
           </div>
         </article>
 
-        <article className="feature-card bg-white/60">
+        <article className="feature-card bg-white/60" data-reveal>
           <span className="feature-icon">
             <Sprout size={20} />
           </span>

@@ -1,19 +1,33 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Folder, Plus } from "lucide-react";
+import Link from "next/link";
+import { Folder, Plus, ArrowRight, Pencil } from "lucide-react";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "@/components/dashboard/dialog";
+import { LoadError } from "@/components/dashboard/load-error";
+import { ProjectForm } from "@/components/dashboard/project-form";
+import { PageHeading } from "@/components/dashboard/ui/page-heading";
+import { Button, IconButton } from "@/components/dashboard/ui/button";
+import { SearchField } from "@/components/dashboard/ui/search-field";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Project | "new" | null>(null);
   const [refresh, setRefresh] = useState(0);
+  function reload() {
+    setLoading(true);
+    setError("");
+    setRefresh((v) => v + 1);
+  }
   useEffect(() => {
     const controller = new AbortController();
     api<Project[]>("/projects", undefined, undefined, controller.signal)
-      .then(setProjects)
+      .then((list) => {
+        if (!controller.signal.aborted) setProjects(list);
+      })
       .catch((e) => {
         if (!controller.signal.aborted) setError(errorMessage(e));
       })
@@ -22,148 +36,102 @@ export default function ProjectsPage() {
       });
     return () => controller.abort();
   }, [refresh]);
+  const visible = projects
+    .filter((project) =>
+      project.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <>
-      <div className="app-page-heading">
-        <div>
-          <p className="eyebrow">A PLACE FOR EACH THREAD</p>
-          <h1>
-            Your projects<span className="text-leaf">.</span>
-          </h1>
-          <p>
-            One identity per repository, shared across agents and worktrees.
-          </p>
+      <PageHeading
+        title="Notebooks"
+        description="Give your ideas a place to grow."
+        actions={
+          <Button onClick={() => setSelected("new")}>
+            <Plus size={16} />
+            New notebook
+          </Button>
+        }
+      />
+      {projects.length > 0 && (
+        <div className="project-toolbar">
+          <SearchField
+            className="project-search"
+            label="Find a notebook"
+            value={query}
+            onChange={setQuery}
+            placeholder="Find a notebook…"
+          />
+          <span>
+            {visible.length} {visible.length === 1 ? "notebook" : "notebooks"}
+          </span>
         </div>
-        <button className="app-button" onClick={() => setSelected("new")}>
-          <Plus size={16} />
-          Add project
-        </button>
-      </div>
-      {error && (
-        <p className="app-error" role="alert">
-          {error}
-        </p>
       )}
+      {error && <LoadError message={error} retry={reload} />}
       {loading ? (
-        <p role="status">Loading projects…</p>
-      ) : !projects.length ? (
+        <p role="status" className="library-loading">
+          Opening your notebooks…
+        </p>
+      ) : !visible.length && !error ? (
         <div className="app-empty">
-          <Folder className="mx-auto mb-4" size={28} strokeWidth={1.3} />
-          <h2 className="font-editorial text-3xl">Give your work a home.</h2>
-          <p className="mt-3 text-sm text-muted">
-            Create a project here, or let Grove setup identify your Git
-            repository.
+          <Folder className="mx-auto mb-4" size={28} strokeWidth={1.4} />
+          <h2 className="font-editorial text-3xl">
+            {query ? "No matching notebooks." : "Give your ideas a home."}
+          </h2>
+          <p>
+            {query
+              ? "Try another name."
+              : "Start a notebook for a project, a topic, or whatever’s on your mind."}
           </p>
+          {!query && (
+            <button
+              className="app-button mt-6"
+              onClick={() => setSelected("new")}
+            >
+              Create your first notebook
+            </button>
+          )}
         </div>
       ) : (
-        <ul className="space-y-3">
-          {projects.map((project) => (
-            <li
-              key={project.id}
-              className="app-panel flex flex-wrap items-center gap-5"
-            >
-              <Folder size={22} strokeWidth={1.4} />
-              <div className="min-w-0 flex-1">
-                <h2 className="font-medium">{project.name}</h2>
-                <p className="mt-2 break-all font-mono text-xs text-muted">
-                  {project.identity}
-                </p>
-                <p className="mt-2 break-all text-[11px] text-muted">
-                  Project ID: {project.id}
-                </p>
-              </div>
-              <button
-                className="app-button secondary"
+        <ul className="project-list">
+          {visible.map((project) => (
+            <li key={project.id}>
+              <Link
+                className="project-link"
+                href={`/app/projects/${project.id}`}
+              >
+                <span className="project-symbol">
+                  <Folder size={22} strokeWidth={1.4} />
+                </span>
+                <span>
+                  <strong>{project.name}</strong>
+                </span>
+                <ArrowRight size={17} />
+              </Link>
+              <IconButton
+                label={`Rename ${project.name}`}
                 onClick={() => setSelected(project)}
               >
-                Rename
-              </button>
+                <Pencil size={16} />
+              </IconButton>
             </li>
           ))}
         </ul>
       )}
       {selected && (
         <Dialog
-          title={selected === "new" ? "Create a project" : "Rename project"}
+          title={selected === "new" ? "New notebook" : "Rename notebook"}
           close={() => setSelected(null)}
         >
           <ProjectForm
             project={selected === "new" ? undefined : selected}
             done={() => {
               setSelected(null);
-              setRefresh((v) => v + 1);
+              reload();
             }}
           />
         </Dialog>
       )}
     </>
-  );
-}
-
-function ProjectForm({
-  project,
-  done,
-}: {
-  project?: Project;
-  done: () => void;
-}) {
-  const [name, setName] = useState(project?.name ?? "");
-  const [identity, setIdentity] = useState(project?.identity ?? "");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  return (
-    <form
-      className="app-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        setError("");
-        try {
-          await api(
-            project ? `/projects/${project.id}` : "/projects",
-            { name, identity },
-            project ? "PATCH" : "POST",
-          );
-          done();
-        } catch (err) {
-          setError(errorMessage(err));
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <label>
-        Name
-        <input
-          required
-          maxLength={120}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-      <label>
-        Stable repository identity
-        <input
-          required
-          disabled={!!project}
-          maxLength={500}
-          value={identity}
-          onChange={(e) => setIdentity(e.target.value)}
-          placeholder="git:github.com/owner/repository"
-        />
-        <small className="font-normal text-muted">
-          Use the same identity in every agent. Grove strips Git credentials and
-          .git suffixes during setup.
-        </small>
-      </label>
-      {error && (
-        <p className="app-error" role="alert">
-          {error}
-        </p>
-      )}
-      <button disabled={busy} className="app-button">
-        {busy ? "Saving…" : "Save project"}
-      </button>
-    </form>
   );
 }

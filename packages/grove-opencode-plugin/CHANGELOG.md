@@ -1,5 +1,13 @@
 # @miniaxolotl/grove-opencode-plugin
 
+## [0.6.0](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.5.0...grove-opencode-plugin-v0.6.0) (2026-10-20)
+
+
+### Features
+
+* seamless Grove Cloud account and agent onboarding ([6f45c48](https://github.com/miniaxolotl/grove/commit/6f45c4842ceeed193232012a27fac5f9d769eabf))
+* streamline account and agent onboarding ([fd139d3](https://github.com/miniaxolotl/grove/commit/fd139d34dac90bafeaba803730fa5630d6980b32))
+
 ## [0.5.0](https://github.com/miniaxolotl/grove/compare/grove-opencode-plugin-v0.3.2...grove-opencode-plugin-v0.5.0) (2026-10-19)
 
 

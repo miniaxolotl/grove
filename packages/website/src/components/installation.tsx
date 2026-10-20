@@ -1,165 +1,135 @@
 "use client";
 
-import {
-  ArrowDown,
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Sprout,
-} from "lucide-react";
-import { useState } from "react";
+import Link from "next/link";
+import { useId } from "react";
+import { ArrowDown, Check, Sprout } from "lucide-react";
+import { agentNames, type ConnectInput } from "@lib/shared/contracts";
 import { CodeBlock } from "@/components/code-block";
 import { Tabs } from "@/components/tabs";
+import { useSelectedAgent } from "@/lib/selected-agent";
 import {
-  dockerSetup,
+  connectCommand,
   firstMemory,
   mcpEndpoint,
-  npmSetup,
-  opencodeConfig,
   recallMemory,
 } from "@/content/install";
 
-const serverOptions = [
-  { value: "docker", label: "Docker Compose", badge: "Recommended" },
-  { value: "npm", label: "npm" },
-];
 const clientOptions = [
   { value: "opencode", label: "OpenCode" },
+  { value: "claude", label: "Claude Code" },
+  { value: "codex", label: "Codex" },
   { value: "mcp", label: "Other MCP clients" },
 ];
 
-export function Installation() {
-  const [server, setServer] = useState("docker");
-  const [client, setClient] = useState("opencode");
+export function AgentSetup({
+  origin,
+  headless = false,
+}: {
+  origin?: string;
+  headless?: boolean;
+}) {
+  const [client, setClient] = useSelectedAgent();
+  const id = useId();
+  return (
+    <div className="min-w-0">
+      <Tabs
+        id={id}
+        label="Choose your agent"
+        options={clientOptions}
+        value={client}
+        onChange={setClient}
+      />
+      {clientOptions.map(({ value, label }) => (
+        <div
+          key={value}
+          id={`${id}-panel-${value}`}
+          role="tabpanel"
+          aria-labelledby={`${id}-tab-${value}`}
+          hidden={client !== value}
+          tabIndex={0}
+          className="mt-4"
+        >
+          <CodeBlock
+            title={
+              value === "mcp"
+                ? "Streamable HTTP endpoint"
+                : `${label} connection command`
+            }
+            code={
+              value === "mcp"
+                ? origin
+                  ? `${origin}/mcp`
+                  : mcpEndpoint
+                : connectCommand(value as ConnectInput["agent"], origin)
+            }
+          />
+          <p className="mt-3 text-xs leading-6 text-muted">
+            {value === "mcp"
+              ? "Add this remote MCP server in your client, sign in with OAuth, then approve its access in Grove Connections. Named API keys are also available for headless clients."
+              : `Run this inside your project with ${agentNames[value as ConnectInput["agent"]]} installed and Node.js 22+. The command downloads Grove, opens account creation or sign-in, and finishes setup automatically after you approve access.`}
+          </p>
+        </div>
+      ))}
+      {headless && (
+        <details className="mt-4 text-xs leading-6 text-muted">
+          <summary className="cursor-pointer">
+            Use an API key for a headless client
+          </summary>
+          <p className="my-3">
+            Create a scoped key, then pass it through standard input. For a
+            supported agent, run its connect command afterward to configure the
+            integration with that key.
+          </p>
+          <CodeBlock
+            title="Headless login"
+            code={`npx @miniaxolotl/grove login --client ${client === "mcp" ? "cli" : client} --url ${origin || "https://api.usegrove.cloud"} --key-stdin`}
+          />
+        </details>
+      )}
+    </div>
+  );
+}
 
+export function Installation() {
   return (
     <ol className="installation-steps">
       <li className="installation-step">
         <div className="installation-copy">
           <span className="step-number">01</span>
-          <h3>Give your memories a home.</h3>
+          <h3>Choose your agent.</h3>
           <p>
-            Sign in to your Grove deployment and install the client with npm.
-            Self-hosting? Compose starts the API, worker, and private
-            PostgreSQL.
+            One command connects you to Grove Cloud. Bring the agent you already
+            work with.
           </p>
           <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] text-leaf">
-            <Check size={13} /> macOS, Linux, or Windows with Docker
+            <Check size={13} /> Browser sign-in · Project-aware setup
           </span>
         </div>
-        <div className="min-w-0">
-          <Tabs
-            id="server-setup"
-            label="Installation method"
-            options={serverOptions}
-            value={server}
-            onChange={setServer}
-          />
-          {serverOptions.map(({ value }) => (
-            <div
-              key={value}
-              id={`server-setup-panel-${value}`}
-              role="tabpanel"
-              aria-labelledby={`server-setup-tab-${value}`}
-              hidden={server !== value}
-              tabIndex={0}
-              className="mt-4"
-            >
-              <CodeBlock
-                title={value === "docker" ? "Docker setup" : "npm setup"}
-                code={value === "docker" ? dockerSetup : npmSetup}
-              />
-              <p className="mt-3 text-xs leading-6 text-muted">
-                {value === "docker"
-                  ? "Requires Git, Docker Compose, and a configured Grove Clerk application. Set the keys and generated passwords before starting. The first run downloads the local embedding model."
-                  : "Requires Node.js 22+. Replace the example origin with your Grove API. Use --client claude or --client codex for those agents. Approve the connection in your dashboard."}
-              </p>
-            </div>
-          ))}
-          <details className="mt-3 text-xs text-muted">
-            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 font-medium text-leaf">
-              Check that Grove is ready <ChevronDown size={13} />
-            </summary>
-            <div className="mt-2">
-              <CodeBlock
-                title="Readiness check"
-                code="curl --fail http://localhost:26080/health/ready"
-              />
-              <p className="mt-2 leading-6">
-                Wait for initialization to finish. The readiness endpoint
-                returns HTTP 200 after the database and configured embedding
-                model are ready.
-              </p>
-            </div>
-          </details>
-        </div>
+        <AgentSetup />
       </li>
-
       <li className="installation-step">
         <div className="installation-copy">
           <span className="step-number">02</span>
-          <h3>Make the connection.</h3>
+          <h3>Make yourself at home.</h3>
           <p>
-            Give your agent access to Grove’s MCP tools. Use the OpenCode
-            configuration, or connect your preferred MCP client.
+            Create an account or sign in with your preferred provider. Approve
+            access and return to your terminal.
           </p>
-          <a
-            className="mt-4 inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-leaf hover:underline"
-            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/server.md"
-          >
-            Client configuration reference <ArrowUpRight size={13} />
-          </a>
         </div>
-        <div className="min-w-0">
-          <Tabs
-            id="agent-setup"
-            label="MCP client"
-            options={clientOptions}
-            value={client}
-            onChange={setClient}
-          />
-          <div
-            id="agent-setup-panel-opencode"
-            role="tabpanel"
-            aria-labelledby="agent-setup-tab-opencode"
-            hidden={client !== "opencode"}
-            tabIndex={0}
-            className="mt-4"
-          >
-            <CodeBlock title="opencode.json" code={opencodeConfig} />
-            <p className="mt-3 text-xs leading-6 text-muted">
-              Grove init merges this entry into OpenCode V2 configuration. The
-              plugin adds four memory tools and bounded context recall. Run
-              grove project after approving project access to resolve the same
-              repository identity across agents and worktrees.
-            </p>
-          </div>
-          <div
-            id="agent-setup-panel-mcp"
-            role="tabpanel"
-            aria-labelledby="agent-setup-tab-mcp"
-            hidden={client !== "mcp"}
-            tabIndex={0}
-            className="mt-4"
-          >
-            <CodeBlock title="Streamable HTTP endpoint" code={mcpEndpoint} />
-            <p className="mt-3 text-xs leading-6 text-muted">
-              Add a remote MCP server named{" "}
-              <code className="inline-code">grove</code> with this URL and the
-              Streamable HTTP transport. Configuration fields vary by client.
-              Use your deployment’s API origin. Sign in with OAuth or provide a
-              named, scoped API key.
-            </p>
-            <p className="mt-3 text-xs leading-6 text-muted">
-              Prefer stdio? Install the npm package and configure your client to
-              launch <code className="inline-code">grove mcp --stdio</code>
-              after running grove login. The bridge and hooks share the same
-              Grove-managed connection.
-            </p>
-          </div>
+        <div className="rounded-xl border border-line bg-sage/40 p-6 text-sm leading-7">
+          <h4 className="font-medium">Your choices, remembered.</h4>
+          <p className="mt-3 text-muted">
+            Start with reading and saving personal memories and context for this
+            project. Customize access before connecting, or change it later in
+            Connections.
+          </p>
+          <p className="mt-3 text-muted">
+            Keep the terminal open while you approve. Grove finishes setup and
+            tells you how to load its tools. Interrupted? Run the same command
+            to resume.
+          </p>
         </div>
       </li>
-
       <li className="installation-step">
         <div className="installation-copy">
           <span className="step-number">
@@ -168,7 +138,7 @@ export function Installation() {
           <h3>Plant your first memory.</h3>
           <p>
             Ask your agent to save something worth keeping. Open a new session,
-            search for it, and pick up the thread.
+            recall it, and pick up the thread.
           </p>
         </div>
         <div className="min-w-0 space-y-3">
@@ -186,9 +156,14 @@ export function Installation() {
             light
           />
           <p className="pt-2 text-xs leading-6 text-muted">
-            Grove makes memory available through tools. Ask your agent to use
-            them, or add saving and recall instructions to your agent’s
-            workflow.
+            Running your own infrastructure?{" "}
+            <Link
+              href="/self-host"
+              className="text-leaf underline underline-offset-4"
+            >
+              Install Grove Open Source
+            </Link>
+            .
           </p>
         </div>
       </li>

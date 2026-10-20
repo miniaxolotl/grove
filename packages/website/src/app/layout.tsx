@@ -78,13 +78,29 @@ export default function RootLayout({
             signInUrl="/sign-in"
             signUpUrl="/sign-up"
             signInFallbackRedirectUrl="/app"
-            signUpFallbackRedirectUrl="/app"
+            signUpFallbackRedirectUrl="/app/connections"
             appearance={{
               variables: {
                 colorPrimary: "#326349",
-                colorBackground: "#f7f6f0",
+                colorPrimaryForeground: "#fffef9",
+                colorBackground: "#fffef9",
+                colorForeground: "#253e31",
+                colorMutedForeground: "#5d6962",
+                colorInput: "#ffffff",
+                colorInputForeground: "#253e31",
+                colorBorder: "#dce0d3",
+                colorDanger: "#833323",
+                colorRing: "#32634980",
+                colorModalBackdrop: "#15251bb3",
                 borderRadius: "0.75rem",
                 fontFamily: "var(--font-dm-sans)",
+              },
+              options: {
+                logoImageUrl: "/icon.svg",
+                logoLinkUrl: "/",
+                privacyPageUrl: "/privacy",
+                termsPageUrl: "/terms",
+                helpPageUrl: "mailto:grove@mawa.dev",
               },
             }}
           >

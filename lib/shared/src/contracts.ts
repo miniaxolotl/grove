@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Brief, Enrichment } from "./models.ts";
 
 export const capabilities = [
   "memory:read",
@@ -36,12 +37,16 @@ export const rememberSchema = z
     capture: z.enum(["explicit", "automatic"]).default("explicit"),
     archived: z.boolean().default(false),
     kind: kindSchema.default("fact"),
+    autoKind: z.boolean().default(false),
     projectId: uuidSchema.nullable().default(null),
     taskId: z.string().min(1).max(128).optional(),
+    retentionDays: z.number().int().min(1).max(365).nullable().optional(),
     source: sourceSchema.default({ agent: "api" }),
   })
   .strict()
   .superRefine((input, ctx) => {
+    if (input.autoKind && input.kind === "handoff")
+      ctx.addIssue({ code: "custom", message: "Handoff kind is explicit" });
     if (Boolean(input.id) !== Boolean(input.expectedVersion)) {
       ctx.addIssue({
         code: "custom",
@@ -65,6 +70,11 @@ export const listSchema = z
   .object({
     projectId: uuidSchema.nullable().optional(),
     kind: kindSchema.optional(),
+    tag: z.string().trim().min(1).max(40).optional(),
+    sourceAgent: sourceSchema.shape.agent.removeDefault().optional(),
+    updatedAfter: z.iso.datetime().optional(),
+    sort: z.enum(["updated_desc", "updated_asc", "created_desc"]).optional(),
+    lifetime: z.enum(["permanent", "ephemeral"]).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
     cursor: z.string().max(2048).optional(),
@@ -124,20 +134,50 @@ export const grantSchema = z
 export const connectionSchema = grantSchema.extend({
   clientId: z.string().min(1).max(500),
 });
+export const agentSchema = z.enum(["opencode", "claude", "codex"]);
+export const agentNames = {
+  opencode: "OpenCode",
+  claude: "Claude Code",
+  codex: "Codex",
+} as const;
+export const connectSchema = z
+  .object({
+    agent: agentSchema,
+    project: projectSchema.nullable(),
+  })
+  .strict();
+export const approveConnectSchema = grantSchema.extend({
+  currentProject: z.boolean().default(true),
+});
+export type ConnectInput = z.infer<typeof connectSchema>;
+export type ConnectApproval = z.infer<typeof approveConnectSchema>;
+export type ConnectAttempt = ConnectInput & {
+  id: string;
+  connectionId: string;
+  clientId: string | null;
+  status: "pending" | "approved" | "cancelled" | "expired";
+  expiresAt: string;
+  projectId: string | null;
+  grant: Grant;
+};
+export type ConnectResponse = ConnectAttempt & { approvalUrl: string };
 export const memorySchema = z.object({
   id: uuidSchema,
   projectId: uuidSchema.nullable(),
   content: z.string(),
   kind: kindSchema,
+  autoKind: z.boolean().optional(),
   status: z.enum(["active", "archived"]),
   version: z.number().int(),
   source: sourceSchema,
   taskId: z.string().nullable(),
+  retentionDays: z.number().int().nullable().optional(),
   expiresAt: z.string().nullable(),
   purgeAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  indexing: z.enum(["pending", "ready", "failed"]),
+  indexing: z.enum(["disabled", "pending", "ready", "failed"]),
+  enrichment: z.custom<Enrichment>().optional(),
 });
 export type Memory = z.infer<typeof memorySchema>;
 export type Remember = z.infer<typeof rememberSchema>;
@@ -154,11 +194,16 @@ export type Principal = {
   issuedAt?: number;
   capabilities: Capability[];
 };
-export type Page<T> = { items: T[]; nextCursor: string | null };
+export type Page<T> = {
+  items: T[];
+  nextCursor: string | null;
+  searchMode?: "hybrid" | "lexical";
+};
 export type RecallResult = {
   items: Memory[];
   mode: "hybrid" | "lexical" | "profile";
   contentVersion: number;
+  briefs?: Brief[];
 };
 export type ApiEnvelope<T> =
   | { success: true; data: T }

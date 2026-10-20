@@ -10,6 +10,9 @@ export async function createLocalEmbedder(cacheDir: string): Promise<Embedder> {
   });
   const embedder: Embedder = {
     profile: policy.embeddingProfile,
+    model: policy.embeddingModel,
+    dimensions: policy.embeddingDimensions,
+    distanceThreshold: 0.45,
     async embed(text) {
       const result = await model(text, { pooling: "mean", normalize: true });
       const vector = Array.from(result.data, Number);

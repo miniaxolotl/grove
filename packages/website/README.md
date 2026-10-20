@@ -2,11 +2,19 @@
 
 Grove marketing and the Clerk-authenticated memory library, in private workspace package `website`.
 
-Primary URL: <https://grove-six-rosy.vercel.app>. A developer tool by Bramble Labs Inc.
+Primary URL: <https://usegrove.cloud>. A developer tool by Bramble Labs Inc.
 Grove and Burrow share warm ivory surfaces, DM Sans with Instrument Serif accents,
 terminal previews, and direct installation paths; Grove uses green product accents.
 Their product-family footer links to Bramble Labs, Fern, Burrow, and Grove.
 Vercel Web Analytics is included only in the public marketing layout.
+Vercel Speed Insights is mounted alongside it only when `VERCEL_ENV=production`.
+It reports loading, responsiveness, and visual stability for `/`, `/install`,
+`/privacy`, and `/terms`; `beforeSend` removes query strings and fragments and
+drops all other paths. Auth pages and the private dashboard are excluded. Local
+and preview builds do not collect performance metrics. View results in the
+Vercel project's **Speed Insights** dashboard; the SDK uses Vercel's injected
+intake configuration without an extra key. Update `publicPaths` in
+`src/components/website-speed-insights.tsx` when adding public marketing pages.
 Website privacy information is linked at https://bramblelabs.co/privacy.
 
 ## Develop
@@ -26,7 +34,13 @@ private routes show a setup state and no memory data.
 
 ## Production
 
-Copy `packages/website/.env.example` to `packages/website/.env.local` and set `SITE_URL=https://grove-six-rosy.vercel.app` for production. This origin is used for canonical URLs, social sharing, Open Graph metadata, structured data, robots, and the sitemap. Vercel’s project production URL is used when `SITE_URL` is absent; the local development fallback is `http://localhost:3000`.
+Set `SITE_URL=https://usegrove.cloud`, `GROVE_API_URL=https://api.usegrove.cloud`,
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` in Vercel's production
+environment. Production builds follow the `production` branch; previews use
+separate environment settings. Redeploy after changing public Clerk keys.
+`SITE_URL` supplies canonical URLs, social metadata, robots and the sitemap.
+Vercel's project production URL is the fallback; local development uses
+`http://localhost:3000`. See the [hosting runbook](../../documentation/deploy.md).
 
 ```bash
 pnpm build:website

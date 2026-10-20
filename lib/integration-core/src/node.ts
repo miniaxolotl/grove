@@ -46,6 +46,7 @@ export type Credentials = {
 };
 type Config = {
   origin?: string;
+  origins?: Partial<Record<AgentName, string>>;
   accounts?: Record<string, Partial<Record<AgentName, string>>>;
   paused?: boolean;
   generation?: number;
@@ -186,15 +187,41 @@ export const updateConfig = (change: Partial<Pick<Config, "paused">>) =>
       generation: (config.generation ?? 0) + 1,
     });
   });
-export async function configuredOrigin(override?: string) {
+export async function configuredOrigin(
+  override?: string,
+  agent?: AgentName,
+  fallback?: string,
+) {
   const origin =
-    override ?? process.env.GROVE_API_URL ?? (await readConfig()).origin;
+    override ??
+    (process.env.GROVE_API_URL || undefined) ??
+    activeOrigin(await readConfig(), agent) ??
+    fallback;
   if (!origin)
     throw new GroveError(
       "not_configured",
       "Run grove init --url <your Grove API origin>",
     );
   return apiOrigin(origin);
+}
+function activeOrigin(config: Config, agent?: AgentName) {
+  return (agent && config.origins?.[agent]) || config.origin;
+}
+function pinOrigins(config: Config) {
+  config.origins ??= {};
+  // Preserve legacy selections before changing the global fallback.
+  for (const agent of ["cli", "opencode", "claude", "codex"] as const) {
+    if (config.origins[agent]) continue;
+    const origins = Object.keys(config.accounts ?? {}).filter(
+      (origin) => config.accounts?.[origin]?.[agent],
+    );
+    const selected = origins.includes(config.origin ?? "")
+      ? config.origin
+      : origins.length === 1
+        ? origins[0]
+        : undefined;
+    if (selected) config.origins[agent] = selected;
+  }
 }
 function credentialPath(origin: string, agent: AgentName, accountId: string) {
   return join(
@@ -239,6 +266,8 @@ export async function saveCredentials(value: Credentials) {
       value,
     );
     const config = await readConfig();
+    pinOrigins(config);
+    config.origins![value.agent] = value.origin;
     config.origin = value.origin;
     config.accounts ??= {};
     config.accounts[value.origin] = {
@@ -247,6 +276,31 @@ export async function saveCredentials(value: Credentials) {
     };
     config.generation = (config.generation ?? 0) + 1;
     await writeConfig(config);
+  });
+}
+/** Select an already authenticated origin without replacing possibly refreshed tokens. */
+export async function activateCredentials(
+  origin: string,
+  agent: AgentName,
+  accountId: string,
+) {
+  await withStoreLock(async () => {
+    const credentials = await loadCredentials(origin, agent);
+    if (credentials.accountId !== accountId)
+      throw new GroveError(
+        "account_changed",
+        "Grove account changed; run connect again",
+        409,
+      );
+    const config = await readConfig();
+    pinOrigins(config);
+    if (config.origin !== origin || config.origins![agent] !== origin)
+      await writeConfig({
+        ...config,
+        origins: { ...config.origins, [agent]: origin },
+        origin,
+        generation: (config.generation ?? 0) + 1,
+      });
   });
 }
 export async function clearCredentials(origin: string, agent: AgentName) {
@@ -393,7 +447,7 @@ export async function nodeClient(
   origin?: string,
   timeoutMs = 10000,
 ) {
-  const endpoint = await configuredOrigin(origin);
+  const endpoint = await configuredOrigin(origin, agent);
   return new ApiClient(
     endpoint,
     (signal) => bearer(endpoint, agent, signal),

@@ -91,11 +91,11 @@ test("memory editor reports persistence failures and retains the draft", async (
 }) => {
   await fixture(page, [], true);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Add memory", exact: true }).click();
+  await page.getByRole("button", { name: "New note", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("Keep this draft on failure.");
-  await page.getByRole("button", { name: "Save memory", exact: true }).click();
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     "temporarily unavailable",
   );
@@ -103,9 +103,7 @@ test("memory editor reports persistence failures and retains the draft", async (
     "Keep this draft on failure.",
   );
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText("Memory saved.", { exact: false })).toHaveCount(
-    0,
-  );
+  await expect(page.getByText("Note saved.", { exact: false })).toHaveCount(0);
 });
 
 test("save, correct, inspect revisions, archive, restore and delete through the dashboard", async ({
@@ -113,34 +111,101 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
 }) => {
   await fixture(page, []);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Save your first memory" }).click();
+  await page.getByRole("button", { name: "Write your first note" }).click();
   await page.getByLabel("What should stay with you?").fill(sample.content);
-  await page.getByRole("button", { name: "Save memory", exact: true }).click();
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Memory saved" }),
-  ).toContainText("Semantic indexing: pending");
-  await page.getByRole("button", { name: /I prefer concise/ }).click();
+    page.getByRole("status").filter({ hasText: "Note saved" }),
+  ).toContainText("Note saved");
+  await page.getByRole("button", { name: /^I prefer concise/ }).click();
+  await page.getByRole("button", { name: "Edit note", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("I prefer examples in TypeScript.");
-  await page.getByRole("button", { name: "Save memory", exact: true }).click();
-  await page.getByRole("button", { name: /I prefer examples/ }).click();
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await page.getByRole("button", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Revision history" }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Archive", exact: true }).click();
   await expect(page.getByText("Good things start small.")).toBeVisible();
   await page.goto(`${base}/app/archive`);
-  await page.getByRole("button", { name: /I prefer examples/ }).click();
+  await page.getByRole("button", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: /I prefer examples/ }).click();
+  await page.getByRole("button", { name: /^I prefer examples/ }).click();
+  await page.getByText("Delete note", { exact: true }).click();
   await page.getByRole("button", { name: "Delete permanently" }).click();
-  await page.getByRole("button", { name: "Delete this memory" }).click();
+  await page.getByRole("button", { name: "Delete this note" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "permanently deleted" }),
   ).toBeVisible();
   await expect(page.getByText("Good things start small.")).toBeVisible();
 });
+
+test("a filtered empty library can return to all memories without losing the query workflow", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto(`${base}/app`);
+  await page
+    .getByRole("textbox", { name: "Search notes" })
+    .fill("a missing memory");
+  await expect(page.getByText("Nothing here matches yet.")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue(
+    "",
+  );
+  await expect(
+    page.getByRole("button", { name: /^I prefer concise/ }),
+  ).toBeVisible();
+});
+
+for (const path of [
+  "/app",
+  "/app/archive",
+  "/app/projects",
+  "/app/connections",
+  "/app/settings",
+]) {
+  test(`${path} recovers from an unavailable service without a false empty or loading state`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    let unavailable = true;
+    await page.route("**/api/grove/**", async (route) => {
+      if (!unavailable) return route.fallback();
+      await route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: { code: "unavailable", message: "Temporarily unavailable" },
+        },
+      });
+    });
+    await page.goto(`${base}${path}`);
+    await expect(page.getByRole("alert")).toContainText(
+      "Temporarily unavailable",
+    );
+    await expect(page.locator(".app-empty")).toHaveCount(0);
+    await expect(
+      page.getByText(/Loading (memories|projects|connections|preferences)/),
+    ).toHaveCount(0);
+    unavailable = false;
+    await page.getByRole("button", { name: "Try loading again" }).click();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    if (path === "/app")
+      await expect(
+        page.getByRole("button", { name: /^I prefer concise/ }),
+      ).toBeVisible();
+    else if (path === "/app/settings")
+      await expect(
+        page.getByRole("button", { name: "Save preferences" }),
+      ).toBeVisible();
+    else await expect(page.locator(".app-empty")).toBeVisible();
+  });
+}
 
 test("dashboard navigation, narrow layouts and dialogs meet accessibility checks", async ({
   page,
@@ -162,22 +227,24 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
           () => document.documentElement.scrollWidth <= window.innerWidth,
         ),
       ).toBe(true);
+      const violations = (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations;
+      expect(
+        violations.map((v) => ({
+          id: v.id,
+          nodes: v.nodes.map((n) => n.target),
+        })),
+      ).toEqual([]);
     }
-    const violations = (
-      await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-        .analyze()
-    ).violations;
-    expect(
-      violations.map((v) => ({
-        id: v.id,
-        nodes: v.nodes.map((n) => n.target),
-      })),
-    ).toEqual([]);
   }
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: /I prefer concise/ }).click();
-  await expect(page.getByLabel("What should stay with you?")).toBeFocused();
+  await page.getByRole("button", { name: /^I prefer concise/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Close dialog" }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
