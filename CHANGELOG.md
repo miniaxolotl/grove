@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.3](https://github.com/miniaxolotl/grove/compare/v1.2.2...v1.2.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* **release:** align shared CI/CD workflows and reproducible packing ([7338cd0](https://github.com/miniaxolotl/grove/commit/7338cd06f03edc704bf56f2c2ffb4f1fb471c551))
+* **release:** preserve packed permissions across runner umasks ([a79667f](https://github.com/miniaxolotl/grove/commit/a79667f87daf408f60b151dfda2afa4552c99fc8))
+
 ## [1.2.2](https://github.com/miniaxolotl/grove/compare/v1.2.1...v1.2.2) (2026-10-20)
 
 
