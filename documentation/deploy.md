@@ -283,6 +283,8 @@ conflicting bytes and provider errors fail immediately. Use
 packing, because pnpm's asynchronous workspace-range resolution can reorder keys.
 Consumer artifact tests exercise these exact final tarballs. Retry still requires
 byte-for-byte registry integrity; metadata ordering never excuses a mismatch.
+Extraction preserves archive permissions, making retries independent of the
+operator's umask as well as the runner's.
 
 The PostgreSQL migration release is tracked in
 [PR #4](https://github.com/miniaxolotl/grove/pull/4): CLI and OpenCode **0.5.0**,
