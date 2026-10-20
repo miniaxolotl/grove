@@ -25,6 +25,9 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
     const subjects = await source("subject_authority").select("*");
     const sessions = await source("session_revocations").select("*");
     const deleted = await source("deleted_memories").select("*");
+    const deletedConversations = await source("deleted_conversations").select(
+      "*",
+    );
     const migrations = await source("knex_migrations")
       .orderBy("id")
       .pluck("name");
@@ -101,6 +104,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             contentVersion: Math.max(current.contentVersion, 1) + 1,
           });
         if (gone) {
+          await target("conversations").where({ accountId: row.id }).delete();
           await target("inference_usage").where({ accountId: row.id }).delete();
           purgedMemories += await target("memories")
             .where({ accountId: row.id })
@@ -139,6 +143,26 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
           .insert(row)
           .onConflict("id")
           .ignore();
+      for (const row of deletedConversations) {
+        if (!restoredIds.has(row.accountId)) continue;
+        await target("deleted_conversations")
+          .insert(row)
+          .onConflict(["accountId", "id"])
+          .ignore();
+        await target("conversations")
+          .where({ accountId: row.accountId, id: row.id })
+          .delete();
+      }
+      // Old proposals and in-flight replies cannot be replayed into restored data.
+      await target("conversation_turns").where({ status: "pending" }).update({
+        status: "failed",
+        error: "Reply interrupted. Please try again.",
+        leaseId: null,
+        leaseUntil: null,
+      });
+      await target.raw(
+        `UPDATE conversation_turns SET result = jsonb_set(result, '{proposal,status}', '"unavailable"'), undo = NULL WHERE result->'proposal' IS NOT NULL AND result->'proposal' <> 'null'::jsonb`,
+      );
       await target("jobs").update({ leaseId: null, leaseUntil: null });
       return {
         restoredAccounts: existing.length,

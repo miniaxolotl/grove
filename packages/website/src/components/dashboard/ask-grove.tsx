@@ -1,38 +1,62 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  ArrowUp,
   ArrowUpRight,
   BookOpen,
+  History,
   MessageSquare,
   Plus,
   Search,
   Sprout,
-  Square,
+  Trash2,
+  Undo2,
 } from "lucide-react";
-import type { AskRequest, AskResult } from "@lib/shared/models";
+import type { AskResult } from "@lib/shared/models";
+import type {
+  Conversation,
+  ConversationPage,
+  ConversationReply,
+  ConversationTurn,
+  ConversationTurnRequest,
+} from "@lib/shared/conversations";
 import type { Memory } from "@lib/shared/contracts";
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
-import {
-  memoryExcerpt,
-  memoryTitle,
-  noteKindLabel,
-} from "@/lib/memory-display";
+import { memoryExcerpt, memoryTitle } from "@/lib/memory-display";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 import { SegmentedControl } from "./ui/segmented-control";
 import { SearchField } from "./ui/search-field";
 import { MemoryInspector } from "./memory-inspector";
+import { useWorkspaceSearch } from "./workspace-search";
+import { AskComposer } from "./ask-composer";
+import { Dialog } from "./dialog";
+import { Markdown } from "./markdown";
+import { RevisionCompare } from "./revision-compare";
+import { useWorkspaceDrag } from "./memory-drag";
 
-type Turn = {
-  id: string;
-  question: string;
-  result?: AskResult;
-  error?: string;
-};
+function reconcileReply(
+  chat: Conversation,
+  unconfirmed?: ConversationTurn,
+): Conversation {
+  if (!unconfirmed || chat.turns.some((turn) => turn.id === unconfirmed.id))
+    return chat;
+  return {
+    ...chat,
+    turns: [
+      ...chat.turns,
+      {
+        ...unconfirmed,
+        status: "failed",
+        error: "This message wasn’t confirmed. Try again to finish sending it.",
+      },
+    ],
+  };
+}
+
 export function AskGrove({
   projectId,
   embedded = false,
@@ -40,16 +64,47 @@ export function AskGrove({
   projectId?: string | null;
   embedded?: boolean;
 }) {
+  const workspace = useWorkspaceSearch();
+  const sessions = workspace?.sessions;
+  const consumeQuestion = workspace?.setQuestion;
+  const sessionKey = `ask:${projectId === undefined ? "global" : (projectId ?? "personal")}`;
+  const [session] = useState(() => sessions?.get(sessionKey));
   const { projects, error: projectError } = useNotebooks();
+  const { refresh: refreshNotes } = useWorkspaceDrag();
   const [scope, setScope] = useState(
-    projectId === undefined ? "all" : (projectId ?? "personal"),
+    session?.scope ??
+      (projectId === undefined ? "all" : (projectId ?? "personal")),
   );
-  const [includePersonal, setPersonal] = useState(true);
-  const [mode, setMode] = useState<AskRequest["mode"]>("answer");
-  const [draft, setDraft] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [includePersonal, setPersonal] = useState(
+    session?.includePersonal ?? false,
+  );
+  const [mode, setMode] = useState<"answer" | "search">(
+    workspace?.question ? "answer" : (session?.mode ?? "answer"),
+  );
+  const [draft, setDraft] = useState(
+    workspace?.question || session?.draft || "",
+  );
+  const [handoff, setHandoff] = useState(workspace?.question);
+  if (workspace?.question !== handoff) {
+    setHandoff(workspace?.question);
+    if (workspace?.question) {
+      setDraft(workspace.question);
+      setMode("answer");
+    }
+  }
+  const [conversationId, setConversationId] = useState(session?.conversationId);
+  const [conversation, setConversation] = useState<Conversation>();
+  const [unconfirmed, setUnconfirmed] = useState(session?.unconfirmed);
+  const [loading, setLoading] = useState(!!session?.conversationId);
   const [pending, setPending] = useState(false);
-  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<ConversationPage>();
+  const [historyError, setHistoryError] = useState("");
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [deleting, setDeleting] = useState<string>();
+  const [actionBusy, setActionBusy] = useState<string>();
+  const [query, setQuery] = useState(session?.query ?? "");
   const search = useDebouncedValue(query.trim());
   const [searchState, setSearch] = useState<{
     key: string;
@@ -61,28 +116,79 @@ export function AskGrove({
     "id" | "version"
   > | null>(null);
   const request = useRef<AbortController | null>(null);
-  const input = useRef<HTMLTextAreaElement>(null);
+  const running = useRef(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const creation = useRef<string | undefined>(session?.conversationId);
   const filter = {
     projectId:
       scope === "all" ? undefined : scope === "personal" ? null : scope,
     includePersonal,
   };
   const searchKey = JSON.stringify({ search, scope, includePersonal });
+  useEffect(() => {
+    consumeQuestion?.("");
+  }, [consumeQuestion, workspace?.question]);
+  useEffect(() => {
+    sessions?.set(sessionKey, {
+      scope,
+      includePersonal,
+      mode,
+      draft,
+      query,
+      conversationId,
+      unconfirmed,
+    });
+  }, [
+    sessions,
+    sessionKey,
+    scope,
+    includePersonal,
+    mode,
+    draft,
+    query,
+    conversationId,
+    unconfirmed,
+  ]);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "instant", block: "nearest" });
-  }, [turns, pending]);
+    if (!session?.conversationId) return;
+    const controller = new AbortController();
+    request.current = controller;
+    void api<Conversation>(
+      `/conversations/${session.conversationId}`,
+      undefined,
+      undefined,
+      controller.signal,
+    )
+      .then((chat) => {
+        if (!controller.signal.aborted) {
+          setConversation(reconcileReply(chat, session.unconfirmed));
+          if (chat.turns.some((turn) => turn.id === session.unconfirmed?.id))
+            setUnconfirmed(undefined);
+        }
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(errorMessage(e));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [session]);
+  useEffect(() => {
+    if (conversation?.turns.length)
+      bottom.current?.scrollIntoView({ behavior: "instant", block: "nearest" });
+  }, [conversation, pending]);
   useEffect(() => {
     if (mode !== "search" || !search) return;
     const controller = new AbortController();
-    api<AskResult>(
+    void api<AskResult>(
       "/ask",
       {
         query: search,
         projectId:
           scope === "all" ? undefined : scope === "personal" ? null : scope,
-        includePersonal,
+        includePersonal: scope === "all" || includePersonal,
         mode: "search",
       },
       undefined,
@@ -91,97 +197,246 @@ export function AskGrove({
       .then((result) => {
         if (!controller.signal.aborted) setSearch({ key: searchKey, result });
       })
-      .catch((error) => {
+      .catch((e) => {
         if (!controller.signal.aborted)
-          setSearch({ key: searchKey, error: errorMessage(error) });
+          setSearch({ key: searchKey, error: errorMessage(e) });
       });
     return () => controller.abort();
   }, [mode, search, scope, includePersonal, searchKey]);
-  function reset() {
+  function reset(clearDraft = true) {
     request.current?.abort();
     request.current = null;
+    running.current = false;
+    creation.current = undefined;
+    setConversationId(undefined);
+    setConversation(undefined);
+    setUnconfirmed(undefined);
     setPending(false);
-    setTurns([]);
-    setDraft("");
+    setLoading(false);
+    setError("");
     setSelected(null);
+    if (clearDraft) setDraft("");
   }
   function stop() {
     request.current?.abort();
     request.current = null;
+    running.current = false;
     setPending(false);
-    setTurns((current) =>
-      current.map((turn) =>
-        turn.result || turn.error
-          ? turn
-          : {
-              ...turn,
-              error: "Answer stopped. You can try this question again.",
-            },
-      ),
+    setConversation(
+      (chat) =>
+        chat && {
+          ...chat,
+          turns: chat.turns.map((turn) =>
+            turn.status === "pending"
+              ? {
+                  ...turn,
+                  status: "failed",
+                  error: "Reply stopped. Try again when you’re ready.",
+                }
+              : turn,
+          ),
+        },
     );
   }
-  async function ask(question = draft.trim(), retryId?: string) {
-    if (!question || pending) return;
-    const id = retryId ?? crypto.randomUUID();
-    const previousQuestions = (
-      retryId
-        ? turns.slice(
-            0,
-            turns.findIndex((turn) => turn.id === retryId),
-          )
-        : turns
-    )
-      .slice(-4)
-      .map((turn) => turn.question);
+  async function openChat(id: string) {
+    if (actionBusy) return;
+    request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
-    setPending(true);
-    setDraft("");
-    setTurns((current) =>
-      retryId
-        ? current.map((turn) => (turn.id === id ? { id, question } : turn))
-        : [...current, { id, question }],
-    );
+    setLoading(true);
+    setPending(false);
+    running.current = false;
+    setError("");
     try {
-      const result = await api<AskResult>(
-        "/ask",
-        { ...filter, query: question, previousQuestions, mode: "answer" },
+      const chat = await api<Conversation>(
+        `/conversations/${id}`,
+        undefined,
         undefined,
         controller.signal,
       );
-      if (!controller.signal.aborted)
-        setTurns((current) =>
-          current.map((turn) => (turn.id === id ? { ...turn, result } : turn)),
+      if (controller.signal.aborted) return;
+      setConversation(
+        reconcileReply(chat, id === conversationId ? unconfirmed : undefined),
+      );
+      if (
+        id !== conversationId ||
+        chat.turns.some((turn) => turn.id === unconfirmed?.id)
+      )
+        setUnconfirmed(undefined);
+      setConversationId(id);
+      creation.current = id;
+      setScope(
+        chat.scope.projectId === undefined
+          ? "all"
+          : (chat.scope.projectId ?? "personal"),
+      );
+      setPersonal(chat.scope.includePersonal);
+      setMode("answer");
+      setHistoryOpen(false);
+    } catch (e) {
+      if (!controller.signal.aborted) setError(errorMessage(e));
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }
+  async function loadHistory(after?: string) {
+    if (historyBusy) return;
+    setHistoryBusy(true);
+    setHistoryError("");
+    try {
+      const page = await api<ConversationPage>(
+        `/conversations${after ? `?after=${after}` : ""}`,
+      );
+      setHistory((old) => ({
+        ...page,
+        items: after
+          ? [...(old?.items ?? []), ...page.items].filter(
+              (chat, index, all) =>
+                all.findIndex((c) => c.id === chat.id) === index,
+            )
+          : page.items,
+      }));
+    } catch (e) {
+      setHistoryError(errorMessage(e));
+    } finally {
+      setHistoryBusy(false);
+    }
+  }
+  async function ask(format: "plain" | "markdown", retry?: ConversationTurn) {
+    const question = retry?.question ?? draft.trim();
+    if (!question || running.current || loading || actionBusy) return;
+    running.current = true;
+    setPending(true);
+    setError("");
+    const controller = new AbortController();
+    request.current = controller;
+    const input: ConversationTurnRequest = {
+      id: retry?.id ?? crypto.randomUUID(),
+      query: question,
+      format: retry?.format ?? format,
+      expectedVersion: retry?.expectedVersion ?? conversation?.version ?? 0,
+    };
+    try {
+      let chat = conversation;
+      if (!chat) {
+        creation.current ??= crypto.randomUUID();
+        chat = await api<Conversation>(
+          "/conversations",
+          { id: creation.current, ...filter },
+          undefined,
+          controller.signal,
         );
-    } catch (error) {
-      if (!controller.signal.aborted)
-        setTurns((current) =>
-          current.map((turn) =>
-            turn.id === id ? { ...turn, error: errorMessage(error) } : turn,
-          ),
+        if (controller.signal.aborted) return;
+        setConversationId(chat.id);
+      }
+      const id = chat.id;
+      const turn: ConversationTurn = {
+        id: input.id,
+        question,
+        format: input.format,
+        expectedVersion: input.expectedVersion,
+        status: "pending",
+        result: null,
+        error: null,
+        createdAt: new Date().toISOString(),
+      };
+      setUnconfirmed(turn);
+      setConversation({
+        ...chat,
+        version: input.expectedVersion + 1,
+        turns: retry
+          ? chat.turns.map((t) => (t.id === retry.id ? turn : t))
+          : [...chat.turns, turn],
+      });
+      if (!retry) setDraft("");
+      const result = await api<Conversation>(
+        `/conversations/${id}/turns`,
+        input,
+        undefined,
+        controller.signal,
+      );
+      if (!controller.signal.aborted) {
+        setConversation(result);
+        setUnconfirmed(undefined);
+      }
+    } catch (e) {
+      if (!controller.signal.aborted) {
+        const message = errorMessage(e);
+        setError(message);
+        setConversation(
+          (chat) =>
+            chat && {
+              ...chat,
+              turns: chat.turns.map((turn) =>
+                turn.id === input.id
+                  ? { ...turn, status: "failed", error: message }
+                  : turn,
+              ),
+            },
         );
+      }
     } finally {
       if (request.current === controller) {
+        running.current = false;
         setPending(false);
         request.current = null;
-        input.current?.focus();
       }
     }
   }
+  async function apply(turn: ConversationTurn, undo = false) {
+    if (!conversation || running.current || actionBusy) return;
+    setActionBusy(turn.id);
+    setError("");
+    try {
+      setConversation(
+        await api<Conversation>(
+          `/conversations/${conversation.id}/turns/${turn.id}/${undo ? "undo" : "apply"}`,
+          {},
+        ),
+      );
+      refreshNotes();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setActionBusy(undefined);
+    }
+  }
   const visibleSearch =
-    searchState?.key === searchKey ? searchState : undefined;
-  const sourceCount = turns.at(-1)?.result?.sources.length;
+    search === query.trim() && searchState?.key === searchKey
+      ? searchState
+      : undefined;
+  const historyButton = (
+    <Button
+      variant="secondary"
+      aria-label="History"
+      disabled={!!actionBusy}
+      onClick={() => {
+        setHistoryOpen(true);
+        void loadHistory();
+      }}
+    >
+      <History size={15} />
+      <span>History</span>
+    </Button>
+  );
   return (
     <>
       {!embedded && (
         <PageHeading
           title="Ask Grove"
-          description="Find an answer in your own notes."
           actions={
-            <Button variant="secondary" onClick={reset}>
-              <Plus size={15} />
-              New conversation
-            </Button>
+            <div className="ask-page-actions">
+              {historyButton}
+              <Button
+                variant="secondary"
+                aria-label="New conversation"
+                disabled={!!actionBusy}
+                onClick={() => reset()}
+              >
+                <Plus size={15} />
+                <span>New conversation</span>
+              </Button>
+            </div>
           }
         />
       )}
@@ -190,10 +445,7 @@ export function AskGrove({
           <SegmentedControl
             label="Console mode"
             value={mode}
-            onChange={(value) => {
-              stop();
-              setMode(value);
-            }}
+            onChange={(value) => setMode(value)}
             options={[
               {
                 value: "answer",
@@ -218,12 +470,12 @@ export function AskGrove({
           <div className="ask-scope">
             {projectId === undefined ? (
               <NotebookSelect
-                label="Look in"
                 projects={projects}
                 aria-label="Look in notebook"
                 value={scope}
+                disabled={!!actionBusy}
                 onValueChange={(value) => {
-                  reset();
+                  reset(false);
                   setScope(value);
                 }}
                 leading={[
@@ -233,20 +485,18 @@ export function AskGrove({
               />
             ) : (
               <span>
-                {projectId
-                  ? (projects.find((project) => project.id === projectId)
-                      ?.name ?? "This notebook")
-                  : "Personal"}
+                {projects.find((p) => p.id === projectId)?.name ?? "Personal"}
               </span>
             )}
-            {scope !== "personal" && scope !== "all" && (
+            {scope !== "all" && scope !== "personal" && (
               <label className="ask-personal">
                 <input
                   type="checkbox"
                   checked={includePersonal}
-                  onChange={(event) => {
-                    reset();
-                    setPersonal(event.target.checked);
+                  disabled={!!actionBusy}
+                  onChange={(e) => {
+                    reset(false);
+                    setPersonal(e.target.checked);
                   }}
                 />
                 Include personal notes
@@ -254,18 +504,14 @@ export function AskGrove({
             )}
           </div>
           {embedded && (
-            <button
-              className="app-icon"
-              aria-label="New conversation"
-              onClick={reset}
-            >
-              <Plus size={18} />
-            </button>
+            <Link className="text-button" href="/app/ask">
+              All conversations
+            </Link>
           )}
         </div>
         {projectError && (
           <p role="alert" className="app-error">
-            Notebooks could not load. {projectError}
+            {projectError}
           </p>
         )}
         {mode === "answer" ? (
@@ -277,29 +523,21 @@ export function AskGrove({
               aria-live="polite"
               aria-relevant="additions text"
             >
-              {!turns.length ? (
+              {loading ? (
+                <p role="status">Opening conversation…</p>
+              ) : !conversation?.turns.length ? (
                 <div className="ask-welcome">
                   <span className="ask-mark">
                     <Sprout size={28} strokeWidth={1.4} />
                   </span>
-                  <h2>Make sense of what you know.</h2>
-                  <p>
-                    Revisit a decision, connect a few ideas, or pick up where
-                    you left off.
-                  </p>
+                  <h2>What’s on your mind?</h2>
                   <div className="ask-suggestions">
                     {[
-                      "What decisions have I made recently?",
+                      "Find my recent plans",
+                      "Help me tidy up my notes",
                       "What should I work on next?",
-                      "How do I prefer to work?",
                     ].map((question) => (
-                      <button
-                        key={question}
-                        onClick={() => {
-                          setDraft(question);
-                          input.current?.focus();
-                        }}
-                      >
+                      <button key={question} onClick={() => setDraft(question)}>
                         <span>{question}</span>
                         <ArrowUpRight size={15} />
                       </button>
@@ -307,11 +545,15 @@ export function AskGrove({
                   </div>
                 </div>
               ) : (
-                turns.map((turn) => (
+                conversation.turns.map((turn, index) => (
                   <section className="ask-turn" key={turn.id}>
                     <div className="ask-question">
                       <span>You</span>
-                      <p>{turn.question}</p>
+                      {turn.format === "markdown" ? (
+                        <Markdown>{turn.question}</Markdown>
+                      ) : (
+                        <p>{turn.question}</p>
+                      )}
                     </div>
                     <div className="ask-answer">
                       <div className="ask-answer-label">
@@ -319,24 +561,43 @@ export function AskGrove({
                         Grove
                       </div>
                       {turn.result && (
-                        <Answer result={turn.result} onOpen={setSelected} />
+                        <Answer
+                          result={turn.result}
+                          onOpen={setSelected}
+                          busy={pending || !!actionBusy}
+                          onApply={() => void apply(turn)}
+                          onUndo={() => void apply(turn, true)}
+                        />
                       )}
-                      {turn.error && (
-                        <div className="ask-error" role="alert">
-                          <p>{turn.error}</p>
-                          <button
-                            className="text-button"
-                            disabled={pending}
-                            onClick={() => void ask(turn.question, turn.id)}
-                          >
-                            Try again
-                          </button>
-                        </div>
-                      )}
-                      {!turn.result && !turn.error && (
+                      {turn.status === "pending" && pending && (
                         <p className="ask-pending" role="status">
                           Looking through your notes…
                         </p>
+                      )}
+                      {(turn.status === "failed" ||
+                        (turn.status === "pending" && !pending)) && (
+                        <div className="ask-error">
+                          <p>
+                            {turn.error ||
+                              "This reply is still in progress. Reopen the conversation to check it."}
+                          </p>
+                          {index === conversation.turns.length - 1 && (
+                            <button
+                              className="text-button"
+                              disabled={pending || !!actionBusy}
+                              onClick={() => void ask(turn.format, turn)}
+                            >
+                              Try again
+                            </button>
+                          )}
+                          <button
+                            className="text-button"
+                            disabled={pending || !!actionBusy}
+                            onClick={() => void openChat(conversation.id)}
+                          >
+                            Reload conversation
+                          </button>
+                        </div>
                       )}
                     </div>
                   </section>
@@ -344,64 +605,27 @@ export function AskGrove({
               )}
               <div ref={bottom} />
             </div>
-            <form
-              className="ask-composer"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void ask();
-              }}
-            >
-              <label className="sr-only" htmlFor="ask-question">
-                Ask about your notes
-              </label>
-              <textarea
-                ref={input}
-                id="ask-question"
-                value={draft}
-                maxLength={1000}
-                rows={2}
-                placeholder="Ask about your notes…"
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault();
-                    void ask();
-                  }
-                }}
-              />
-              <div className="ask-composer-footer">
-                <span>
-                  {sourceCount === undefined
-                    ? "Answers include links to their sources"
-                    : `${sourceCount} ${sourceCount === 1 ? "source" : "sources"} in the latest response`}
-                </span>
-                {pending ? (
+            {error && (
+              <p className="app-error ask-action-error" role="alert">
+                {error}
+                {conversationId && !pending && (
                   <button
-                    type="button"
-                    className="ask-send"
-                    aria-label="Stop answer"
-                    onClick={stop}
+                    className="text-button"
+                    onClick={() => void openChat(conversationId)}
                   >
-                    <Square size={15} />
-                  </button>
-                ) : (
-                  <button
-                    className="ask-send"
-                    aria-label="Send question"
-                    disabled={!draft.trim()}
-                  >
-                    <ArrowUp size={18} />
+                    Reload
                   </button>
                 )}
-              </div>
-            </form>
-            <p className="ask-privacy">
-              Just a conversation. Your notes stay as you wrote them.
-            </p>
+              </p>
+            )}
+            <AskComposer
+              value={draft}
+              onChange={setDraft}
+              onSend={(format) => void ask(format)}
+              onStop={stop}
+              pending={pending}
+              disabled={loading || !!actionBusy}
+            />
           </>
         ) : (
           <div className="ask-search">
@@ -411,26 +635,20 @@ export function AskGrove({
               onChange={setQuery}
               placeholder="Find a decision, detail, or idea…"
             />
-            <p className="ask-search-caption">Find the pages behind an idea.</p>
             {!search ? (
-              <div className="ask-search-empty">
-                <Search size={24} />
-                <h2>Find your way back.</h2>
-                <p>A few words are all you need.</p>
-              </div>
+              <p className="ask-search-empty">
+                Find a note by its words or an idea.
+              </p>
             ) : !visibleSearch ? (
-              <p role="status">Searching your notes…</p>
+              <p role="status">Searching…</p>
             ) : visibleSearch.error ? (
-              <p className="app-error" role="alert">
+              <p role="alert" className="app-error">
                 {visibleSearch.error}
               </p>
             ) : (
               <>
                 <p className="ask-result-count">
-                  {visibleSearch.result!.sources.length} results ·{" "}
-                  {visibleSearch.result!.searchMode === "hybrid"
-                    ? "Words + meaning"
-                    : "Matching words"}
+                  {visibleSearch.result!.sources.length} notes found
                 </p>
                 <SourceList
                   sources={visibleSearch.result!.sources}
@@ -453,56 +671,237 @@ export function AskGrove({
           close={() => setSelected(null)}
         />
       )}
+      {historyOpen && (
+        <Dialog
+          title="Conversations"
+          close={() => {
+            setHistoryOpen(false);
+            setDeleting(undefined);
+          }}
+          busy={historyBusy || loading}
+        >
+          <div className="ask-history">
+            {historyError && (
+              <p role="alert" className="app-error">
+                {historyError}
+                <button
+                  className="text-button"
+                  onClick={() => void loadHistory()}
+                >
+                  Retry
+                </button>
+              </p>
+            )}
+            {history?.items.map((chat) => (
+              <div key={chat.id} className="ask-history-item">
+                <button
+                  disabled={loading}
+                  onClick={() => void openChat(chat.id)}
+                >
+                  <strong>{chat.title}</strong>
+                  <small>
+                    {chat.scope.projectId === undefined
+                      ? "All notes"
+                      : (projects.find((p) => p.id === chat.scope.projectId)
+                          ?.name ?? "Personal")}{" "}
+                    · {new Date(chat.updatedAt).toLocaleDateString()}
+                  </small>
+                </button>
+                <button
+                  className="app-icon"
+                  aria-label={`Delete conversation ${chat.title}`}
+                  onClick={() =>
+                    setDeleting(deleting === chat.id ? undefined : chat.id)
+                  }
+                >
+                  <Trash2 size={15} />
+                </button>
+                {deleting === chat.id && (
+                  <div className="ask-delete">
+                    <span>Delete this conversation?</span>
+                    <button
+                      className="text-button"
+                      disabled={historyBusy}
+                      onClick={async () => {
+                        setHistoryBusy(true);
+                        setHistoryError("");
+                        try {
+                          await api(
+                            `/conversations/${chat.id}`,
+                            undefined,
+                            "DELETE",
+                          );
+                          setHistory(
+                            (old) =>
+                              old && {
+                                ...old,
+                                items: old.items.filter(
+                                  (c) => c.id !== chat.id,
+                                ),
+                              },
+                          );
+                          if (conversationId === chat.id) reset();
+                          setDeleting(undefined);
+                        } catch (e) {
+                          setHistoryError(errorMessage(e));
+                        } finally {
+                          setHistoryBusy(false);
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      className="text-button"
+                      onClick={() => setDeleting(undefined)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+            {historyBusy && <p role="status">Loading…</p>}
+            {history && !history.items.length && (
+              <p className="ask-search-empty">
+                Your conversations will appear here.
+              </p>
+            )}
+            {history?.nextCursor && (
+              <Button
+                variant="secondary"
+                disabled={historyBusy}
+                onClick={() => void loadHistory(history.nextCursor!)}
+              >
+                More conversations
+              </Button>
+            )}
+          </div>
+        </Dialog>
+      )}
     </>
   );
 }
+
 function Answer({
   result,
   onOpen,
+  onApply,
+  onUndo,
+  busy,
 }: {
-  result: AskResult;
+  result: ConversationReply;
   onOpen: (source: Pick<Memory, "id" | "version">) => void;
+  onApply: () => void;
+  onUndo: () => void;
+  busy: boolean;
 }) {
+  const proposal = result.proposal;
+  const target = result.sources.find((s) => s.id === proposal?.target?.id);
   return (
     <>
-      {result.answer?.statements.map((statement, index) => (
+      {result.message && <p className="ask-statement">{result.message}</p>}
+      {result.statements.map((statement, index) => (
         <p className="ask-statement" key={index}>
           {statement.text}
-          {statement.sources.map((ref) => (
-            <button
-              key={ref.id}
-              className="ask-citation"
-              aria-label={`Read source ${result.sources.findIndex((source) => source.id === ref.id) + 1}`}
-              title={memoryTitle(
-                result.sources.find((source) => source.id === ref.id)!,
-              )}
-              onClick={() => onOpen(ref)}
-            >
-              {result.sources.findIndex((source) => source.id === ref.id) + 1}
-            </button>
-          ))}
+          {statement.sources.map((reference) => {
+            const source = result.sources.find((s) => s.id === reference.id);
+            return source ? (
+              <button
+                key={reference.id}
+                className="ask-citation"
+                aria-label={`Read source ${result.sources.indexOf(source) + 1}`}
+                title={memoryTitle(source)}
+                onClick={() => onOpen(reference)}
+              >
+                {result.sources.indexOf(source) + 1}
+              </button>
+            ) : (
+              <small key={reference.id} className="ask-answer-note">
+                {" "}
+                (note unavailable)
+              </small>
+            );
+          })}
         </p>
       ))}
-      {result.status === "no_evidence" && (
-        <p>
-          I couldn’t find enough in your notes to answer that. Try a more
-          specific question or another notebook.
-        </p>
-      )}
-      {result.status === "generation_disabled" && (
-        <p>Answers are turned off in Settings. Here are the notes I found.</p>
-      )}
-      {result.status === "ready" && result.answer?.insufficient && (
-        <p className="ask-answer-note">
-          The saved context only answers part of this question.
-        </p>
+      {proposal && (
+        <section className="ask-proposal" aria-label="Proposed note changes">
+          <h3>
+            {proposal.kind === "create"
+              ? "New note"
+              : proposal.kind === "merge"
+                ? "Merge notes"
+                : "Edit note"}
+            {target && <span> · {memoryTitle(target)}</span>}
+          </h3>
+          {proposal.kind === "merge" && (
+            <p>
+              {proposal.sources.length} notes combined. Originals move to
+              Archive.
+            </p>
+          )}
+          {proposal.status === "proposed" && (
+            <>
+              <details>
+                <summary>Review changes</summary>
+                <RevisionCompare
+                  before={target?.content ?? ""}
+                  after={proposal.content}
+                  beforeLabel="Current note"
+                  afterLabel="Proposed note"
+                />
+              </details>
+              <div className="ask-proposal-preview">
+                <Markdown>{proposal.content}</Markdown>
+              </div>
+              <Button disabled={busy} onClick={onApply}>
+                {proposal.kind === "create"
+                  ? "Save note"
+                  : proposal.kind === "merge"
+                    ? "Merge notes"
+                    : "Apply edit"}
+              </Button>
+            </>
+          )}
+          {proposal.status === "applied" && (
+            <div className="ask-applied">
+              <span>Saved</span>
+              <button disabled={busy} className="text-button" onClick={onUndo}>
+                <Undo2 size={14} />
+                Undo
+              </button>
+              {proposal.applied?.find(
+                (r) =>
+                  r.id === proposal.target?.id || proposal.kind === "create",
+              ) && (
+                <Link
+                  className="text-button"
+                  href={`/app/memories/${proposal.target?.id ?? proposal.applied[0].id}`}
+                >
+                  Open note
+                  <ArrowUpRight size={14} />
+                </Link>
+              )}
+            </div>
+          )}
+          {proposal.status === "undone" && <p>Change undone.</p>}
+          {proposal.status === "unavailable" && (
+            <p>
+              A source note is no longer available. Ask Grove for a new preview.
+            </p>
+          )}
+        </section>
       )}
       {!!result.sources.length && (
-        <details className="ask-sources">
+        <details
+          className="ask-sources"
+          open={!result.statements.length && !proposal}
+        >
           <summary>
             <BookOpen size={14} />
             {result.sources.length}{" "}
-            {result.sources.length === 1 ? "note" : "notes"} consulted
+            {result.sources.length === 1 ? "note" : "notes"}
           </summary>
           <SourceList sources={result.sources} onOpen={onOpen} />
         </details>
@@ -526,9 +925,6 @@ function SourceList({
             <span>
               <strong>{memoryTitle(source)}</strong>
               <p>{memoryExcerpt(source)}</p>
-              <small>
-                {noteKindLabel(source.kind)} · version {source.version}
-              </small>
             </span>
             <ArrowUpRight size={15} />
           </button>

@@ -11,7 +11,12 @@ import {
 export type InferenceOptions = {
   signal?: AbortSignal;
   onUsage?: (usage: Usage) => void;
-  context?: { question: string; previousQuestions: string[] };
+  context?: {
+    question: string;
+    previousQuestions: string[];
+    conversation?: unknown[];
+    intent?: string;
+  };
 };
 export type Embedder = {
   profile: string;

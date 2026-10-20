@@ -20,6 +20,13 @@ self-hosting with pgvector 0.8.2. See [delivery evidence](delivery.md).
 with HTTP 308 to `usegrove.cloud`. Cloudflare hosts `usegrove.cloud` DNS; Porkbun
 remains its registrar and hosts the other redirect domains. Vercel handles redirects.
 
+Keep Cloudflare **Email Address Obfuscation** (`email_obfuscation`) **off** for
+`usegrove.cloud`. Its HTML rewriting changes server-rendered contact-email text
+before React hydration and causes error 418 on the legal pages. Public support
+emails must remain ordinary, readable mail links. After changing edge settings,
+review `/privacy` and `/terms` in a real browser and check for hydration errors;
+local Next.js tests do not exercise Cloudflare transformations.
+
 ## Clerk
 
 Grove application `app_3KtGcnwE2Yg0P34l9PVij7LnOTS` has separate development and
@@ -82,6 +89,14 @@ configure the provider's documented transport appropriately; do not disable
 certificate verification. Pgvector extension/role creation needs owner privileges.
 
 API starts with `node dist/server.js`; worker with `node dist/worker.js`.
+Apply forward migration `20261020_009_conversations` before deploying the
+conversation-capable API/worker and website. It adds account-isolated conversation,
+turn and deletion-tombstone tables; existing notes are unchanged. Back up before the
+owner migration. Roll out API/worker before the website. Conversations use the
+configured generation provider and existing account budgets; the website allows
+180 seconds for a contextual reply. Retain conversation tombstones during recovery;
+the reconciliation tool removes deleted chats and invalidates restored proposals.
+
 Both use the same model configuration. Self-hosted local embeddings need a writable
 model-cache path and use CPU inference. Remote role configuration, encrypted settings
 and the Cloud DeepInfra/MiniMax defaults are documented in [models](models.md).

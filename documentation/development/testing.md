@@ -28,6 +28,8 @@ docker build -t grove-memory:test .
 The recovery test creates two uniquely named disposable `_test` databases using
 the test migration role, then removes them. That role needs `CREATEDB`. It verifies
 post-snapshot deletions/revocations, restored credential invalidation and RLS.
+Conversation recovery also replays deleted-chat tombstones and invalidates
+restored in-flight replies, note-change previews and undo records.
 The DigitalOcean tests verify runtime-secret isolation and image-only rollouts;
 `--propose` additionally validates a real spec with the provider without deploying.
 
@@ -35,6 +37,9 @@ The contract suite uses real pgvector, migrations, **non-owner API/worker roles*
 real HTTP requests and the official MCP transport. It covers cross-account access,
 scoped keys/OAuth grants, signed JWT validation, replay/version conflicts,
 archive/restore/deletion, worker races, handoff retention and account tombstones.
+Conversation cases cover contextual references, tenant/session-only history,
+version-fenced atomic merge/apply/undo, retry identities, cancellation and
+authorization/settings changes during inference, pagination and export.
 Identity fixtures do not replace required live Clerk sign-in/OAuth tests.
 
 Artifact tests pack all distributables and execute them in isolated directories,
@@ -47,6 +52,9 @@ Website browser tests cover public routes, accessibility, keyboard navigation,
 installation copy and metadata. Dashboard fixture tests use the real components
 with a test-only HTTP fixture, separate from production routes. Live account tests
 must verify sign-up → save → dashboard → MCP → second-account denial and logout.
+Workspace cases exercise autosave with newer typing and uncertain first responses,
+keyboard notebook nesting, global search, outside dismissal, durable conversation
+reopening and edit previews, and the auto-growing plain/Markdown composer.
 
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/miniaxolotl/grove/compare/v1.4.0...v1.5.0) (2026-10-20)
+
+
+### Features
+
+* **workspace:** streamline writing and add contextual conversations ([#35](https://github.com/miniaxolotl/grove/issues/35)) ([d6d1b0e](https://github.com/miniaxolotl/grove/commit/d6d1b0e7f11059f684da38d83d54379d747cf9ab))
+
 ## [1.4.0](https://github.com/miniaxolotl/grove/compare/v1.3.0...v1.4.0) (2026-10-20)
 
 

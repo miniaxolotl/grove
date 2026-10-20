@@ -1,4 +1,4 @@
-import { Connections } from "@/components/dashboard/connections";
+import { redirect } from "next/navigation";
 export default function ConnectionsPage() {
-  return <Connections origin={process.env.GROVE_API_URL ?? ""} />;
+  redirect("/app/settings/connections");
 }

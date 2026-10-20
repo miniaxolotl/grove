@@ -35,14 +35,14 @@
   margin-left: auto;
 }
 .memory-graph {
-  --graph-surface: #111c20;
-  --graph-line: #ffffff14;
-  --graph-muted: #a0b4b8;
-  --graph-text: #e0eae8;
-  color-scheme: dark;
+  --graph-surface: #ffffff;
+  --graph-line: var(--color-line);
+  --graph-muted: var(--color-muted);
+  --graph-text: var(--color-forest);
+  color-scheme: light;
   overflow: hidden;
-  border: 1px solid #283638;
-  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
   background: var(--graph-surface);
   color: var(--graph-text);
 }
@@ -66,7 +66,7 @@
   max-height: 100%;
 }
 .memory-graph :is(button, select, a):focus-visible {
-  outline: 2px solid #a8d99c;
+  outline: 2px solid #557044;
   outline-offset: 3px;
 }
 .graph-toolbar {
@@ -75,7 +75,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px 16px;
-  padding: 12px 14px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--graph-line);
   font-size: 12px;
 }
@@ -89,9 +89,9 @@
   place-items: center;
   width: 34px;
   height: 34px;
-  color: #a8d99c;
-  background: #a8d99c0d;
-  border: 1px solid #a8d99c21;
+  color: #426b37;
+  background: var(--color-sage);
+  border: 1px solid var(--color-line);
   border-radius: 8px;
 }
 .graph-heading strong {
@@ -142,13 +142,13 @@
   color: var(--graph-muted);
 }
 .graph-tool-button[aria-pressed="true"] {
-  border-color: #a8d99c33;
-  background: #a8d99c0c;
-  color: #c6e5be;
+  border-color: #cad6c3;
+  background: var(--color-sage);
+  color: #355522;
 }
 .graph-tool-button:hover:not(:disabled) {
-  background: #ffffff0c;
-  color: #fff;
+  background: var(--color-sage);
+  color: var(--graph-text);
 }
 .graph-tool-button:disabled {
   opacity: 0.4;
@@ -163,11 +163,9 @@
 }
 .graph-canvas {
   min-width: 0;
-  height: clamp(360px, calc(100dvh - 340px), 640px);
+  height: clamp(360px, calc(100dvh - 270px), 860px);
   position: relative;
-  background:
-    radial-gradient(ellipse at 28% 38%, #36564826, transparent 55%),
-    radial-gradient(ellipse at 78% 70%, #434c7822, transparent 50%), #0e181c;
+  background: #f8faf6;
 }
 .graph-flow {
   width: 100%;
@@ -365,10 +363,9 @@
   height: var(--graph-node-size);
   border-radius: 50%;
   background: var(--graph-node-color);
-  border: 1px solid #ffffff5c;
-  box-shadow:
-    0 0 10px color-mix(in srgb, var(--graph-node-color) 45%, transparent),
-    0 0 28px color-mix(in srgb, var(--graph-node-color) 16%, transparent);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--graph-node-color) 40%, transparent);
   transition:
     box-shadow 180ms ease,
     transform 180ms ease;
@@ -381,7 +378,7 @@
   border-radius: 50%;
 }
 .is-unlinked .graph-node-core {
-  background: color-mix(in srgb, var(--graph-node-color) 45%, #19272b);
+  background: color-mix(in srgb, var(--graph-node-color) 70%, #fff);
   box-shadow: 0 0 12px
     color-mix(in srgb, var(--graph-node-color) 15%, transparent);
 }
@@ -397,8 +394,8 @@
   transition: opacity 150ms ease;
   padding: 0 4px;
   text-shadow:
-    0 1px 5px #0e181c,
-    0 0 10px #0e181c;
+    0 1px 5px #f8faf6,
+    0 0 10px #f8faf6;
 }
 .has-title .graph-node-label {
   opacity: 1;
@@ -439,7 +436,7 @@
     0 0 36px color-mix(in srgb, var(--graph-node-color) 25%, transparent);
 }
 .memory-graph .react-flow__node:focus-visible {
-  outline: 2px solid #a8d99c;
+  outline: 2px solid #557044;
   outline-offset: 3px;
 }
 .memory-graph .react-flow__handle {
@@ -494,27 +491,27 @@
 }
 .memory-graph .react-flow__controls {
   overflow: hidden;
-  border: 1px solid #344347;
+  border: 1px solid var(--graph-line);
   border-radius: 7px;
   box-shadow: 0 3px 12px #0002;
 }
 .memory-graph .react-flow__controls-button {
   width: 32px;
   height: 32px;
-  border-color: #344347;
+  border-color: var(--graph-line);
   color: var(--graph-text);
   fill: currentColor;
-  background: #1b292e;
+  background: #fff;
 }
 .memory-graph .react-flow__controls-button:hover {
-  background: #2a3c3e;
+  background: var(--color-sage);
 }
 .memory-graph .react-flow__controls-button:focus-visible {
   outline-offset: -3px;
 }
 .memory-graph .react-flow__attribution {
   font-size: 9px;
-  background: #111c20d9;
+  background: #ffffffe6;
   color: var(--graph-muted);
 }
 .memory-graph .react-flow__attribution a {
@@ -534,7 +531,7 @@
   min-width: 0;
   border-left: 1px solid var(--graph-line);
   padding: 10px 16px 16px;
-  max-height: clamp(360px, calc(100dvh - 340px), 640px);
+  max-height: clamp(360px, calc(100dvh - 270px), 860px);
   overflow-y: auto;
 }
 .graph-inspector-heading {
@@ -564,15 +561,15 @@
   border-radius: 6px;
 }
 .graph-inspector .app-icon:hover {
-  background: #ffffff0c;
+  background: var(--color-sage);
 }
 .graph-inspector .app-button {
   width: 100%;
   min-height: 34px;
   padding: 6px 10px;
-  background: #a8d99c12;
-  border-color: #a8d99c36;
-  color: #c6e5be;
+  background: #fff;
+  border-color: var(--color-line);
+  color: var(--color-forest);
   font-size: 11px;
 }
 .graph-inspector-notebook {
@@ -735,11 +732,11 @@
   height: 15px;
 }
 .ask-conversation {
-  min-height: 300px;
-  max-height: 62vh;
+  min-height: 240px;
+  max-height: calc(100dvh - 340px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 24px max(20px, calc((100% - 780px) / 2));
+  padding: 18px max(16px, calc((100% - 1000px) / 2));
   scroll-padding: 28px;
 }
 .ask-welcome {
@@ -890,7 +887,7 @@
   align-items: start;
   width: 100%;
   gap: 12px;
-  padding: 15px;
+  padding: 10px 12px;
   border: 1px solid var(--color-line);
   border-radius: 9px;
   background: #fafbf7;
@@ -931,9 +928,9 @@
   margin-top: 3px;
 }
 .ask-composer {
-  max-width: 800px;
-  margin: 8px auto 0;
-  width: calc(100% - 48px);
+  max-width: 1000px;
+  margin: 8px auto 14px;
+  width: calc(100% - 32px);
   padding: 12px 14px 10px;
   border: 1px solid #c7d1c0;
   border-radius: 8px;

@@ -18,6 +18,7 @@ export function Dialog({
   busy?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdropPress = useRef(false);
   const [saving, setSaving] = useState(false);
   const locked = busy || saving;
   useEffect(() => {
@@ -37,6 +38,32 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
+      onPointerDown={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        backdropPress.current =
+          event.target === event.currentTarget &&
+          (event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom);
+      }}
+      onPointerUp={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (
+          !locked &&
+          backdropPress.current &&
+          event.target === event.currentTarget &&
+          (event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom)
+        )
+          close();
+        backdropPress.current = false;
+      }}
+      onPointerCancel={() => {
+        backdropPress.current = false;
+      }}
       onCancel={(event) => {
         event.preventDefault();
         if (!locked) close();

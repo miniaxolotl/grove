@@ -85,6 +85,8 @@ Responses use `{success: true, data}` or
 | `POST /v1/memories/delete`                                                        | `memory:delete`                                                                  |
 | `POST /v1/recall`                                                                 | `memory:read`                                                                    |
 | `POST /v1/ask`                                                                    | Scoped `memory:read`; cited answer or source search                              |
+| `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`                | Owning website session only; saved chat history                                  |
+| `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`             | Owning website session only; contextual replies and previewed note changes       |
 | `POST /v1/briefs`; `POST /v1/briefs/refresh`                                      | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
 | `POST /v1/memories/:id/reprocess`                                                 | Scoped `memory:write`; body `{expectedVersion}`                                  |
 | `GET /v1/models`; `GET /v1/account/usage`                                         | Website session; masked settings / account usage                                 |
@@ -109,6 +111,23 @@ Library filters also accept `sourceAgent`, `updatedAfter`, `lifetime`
 scope searches all authorized notebooks; null selects Personal. Replies include
 sources and a structured, exactly cited answer, or an explicit no-evidence/disabled
 status. Aborted requests cancel inference. No question or answer is stored as a note.
+
+The website's **Ask** mode uses durable conversations. Create with a client UUID,
+optional `projectId` and `includePersonal`. Submit turns with a client UUID, `query`
+(up to 6,000 characters), `format` (`plain`/`markdown`), and `expectedVersion` from
+the conversation. Retries reuse the same body/UUID; changed payloads conflict.
+`GET /v1/conversations?after=<last-id>` returns 30 recent conversations per page.
+The cursor identifies an account-owned row; it contains no query text. History
+pagination reflects concurrent activity rather than a frozen snapshot.
+
+Reference resolution uses the latest eight completed turns, then retrieves current
+scoped evidence. Replies cite exact revisions and can propose one explicit create,
+edit or merge. `apply` and `undo` take `{}` and atomically fence every affected
+note version; merges archive other originals. Generation runs outside transactions,
+with final account/session, provider/settings and source checks. A conversation is
+limited to 100 turns with five-minute attempt leases. Deleted conversations retain
+only deletion tombstones; account deletion purges conversation content, and account
+exports include saved history. Migration 009 and restore rules are in [deploy](deploy.md).
 
 ## Persistence and jobs
 
