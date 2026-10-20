@@ -1,7 +1,8 @@
 name: CI
+
 on:
   push:
-    branches: [production, development]
+    branches: [development, production]
   pull_request:
     branches: [development, production]
   workflow_dispatch:
@@ -10,6 +11,10 @@ on:
         description: Frozen promotion PR number (omit for source CI)
         type: string
         default: ""
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.merge_group.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -20,35 +25,46 @@ jobs:
   promotion:
     name: Promotion Admission
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
-        with: { node-version: 24 }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+      - name: Lint GitHub Actions workflows
+        run: bash scripts/ci/run-actionlint.sh
       - run: node --test scripts/release/promotion.test.mjs
       - run: node scripts/release/promotion.mjs admit
         env:
           GH_TOKEN: ${{ github.token }}
 
-  gate:
+  ci-gate:
     name: CI Gate
     if: always()
     needs: [promotion, website, contracts, image]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - env:
           RESULTS: ${{ toJSON(needs) }}
         run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
 
   website:
+    name: Website
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: pnpm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0; pnpm 10
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint:website
       - run: pnpm check-types:website
@@ -57,7 +73,9 @@ jobs:
       - run: pnpm test:website
 
   contracts:
+    name: TypeScript Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       TEST_MIGRATION_DATABASE_URL: postgresql://postgres:grove_test@127.0.0.1:5432/grove_test
       TEST_DATABASE_URL: postgresql://grove_api:grove_disposable_api@127.0.0.1:5432/grove_test
@@ -71,10 +89,14 @@ jobs:
           --health-cmd "pg_isready -U postgres -d grove_test"
           --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: pnpm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0; pnpm 10
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: node --test tests/digitalocean.test.mjs
@@ -86,11 +108,15 @@ jobs:
       - run: pnpm test:artifacts
 
   image:
+    name: Container Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: false
