@@ -402,8 +402,6 @@ export function MemoryDetail({
                 <dd>{memory.taskId}</dd>
               </>
             )}
-            <dt>Search index</dt>
-            <dd>{memory.indexing}</dd>
             <dt>Organization</dt>
             <dd>{memory.enrichment?.status ?? "disabled"}</dd>
             {memory.source.verification && (
@@ -508,8 +506,6 @@ export function MemoryDetail({
             <dd>{dateLabel(memory.createdAt)}</dd>
             <dt>Updated</dt>
             <dd>{dateLabel(memory.updatedAt)}</dd>
-            <dt>Version</dt>
-            <dd>{memory.version}</dd>
             <dt>Keep for</dt>
             <dd>
               {memory.expiresAt

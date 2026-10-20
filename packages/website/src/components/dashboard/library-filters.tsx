@@ -12,6 +12,7 @@ import {
 import { SlidersHorizontal } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import type { Project } from "@/lib/dashboard-api";
+import { notebookPath } from "@/lib/notebooks";
 import { Button } from "./ui/button";
 import { SearchField } from "./ui/search-field";
 import { FilterChip } from "./ui/filter-chip";
@@ -92,7 +93,7 @@ export function LibraryFilterBar({
     return () => clearTimeout(timer);
   }, [query, onChange]);
   const update = (patch: Partial<LibraryFilters>) =>
-    onChange({ ...value, ...patch });
+    onChange((current) => ({ ...current, ...patch }));
   const active = [
     value.search,
     fixedProject === undefined && value.project !== "all",
@@ -136,8 +137,21 @@ export function LibraryFilterBar({
           inputRef={input}
           value={query}
           onChange={setQuery}
-          placeholder="Find a note…"
+          placeholder="Search words or describe an idea…"
         />
+        {fixedProject === undefined && (
+          <NotebookSelect
+            aria-label="Notebook"
+            className="filter-notebook"
+            value={value.project}
+            onValueChange={(project) => update({ project })}
+            projects={projects}
+            leading={[
+              { value: "all", label: "All notebooks" },
+              { value: "personal", label: "Personal" },
+            ]}
+          />
+        )}
         <Button
           variant="secondary"
           aria-expanded={expanded}
@@ -165,18 +179,6 @@ export function LibraryFilterBar({
             update({ tag: tag.trim() });
           }}
         >
-          {fixedProject === undefined && (
-            <NotebookSelect
-              label="Notebook"
-              value={value.project}
-              onValueChange={(project) => update({ project })}
-              projects={projects}
-              leading={[
-                { value: "all", label: "All notebooks" },
-                { value: "personal", label: "Personal" },
-              ]}
-            />
-          )}
           <Select
             label="Note type"
             value={value.kind}
@@ -300,7 +302,9 @@ export function LibraryFilterBar({
               label="project"
               onRemove={() => update({ project: "all" })}
             >
-              {projects.find((p) => p.id === value.project)?.name ?? "Personal"}
+              {notebookPath(projects, value.project)
+                .map((p) => p.name)
+                .join(" / ") || "Personal"}
             </FilterChip>
           )}
           {value.kind && (

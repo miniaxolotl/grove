@@ -11,6 +11,7 @@ import { useNotebooks } from "@/components/dashboard/notebooks-provider";
 import { PageHeading } from "@/components/dashboard/ui/page-heading";
 import { Button, IconButton } from "@/components/dashboard/ui/button";
 import { SearchField } from "@/components/dashboard/ui/search-field";
+import { NotebookDropTarget } from "@/components/dashboard/memory-drag";
 
 export default function ProjectsPage() {
   const { projects, loading, error, reload } = useNotebooks();
@@ -24,7 +25,7 @@ export default function ProjectsPage() {
     <>
       <PageHeading
         title="Notebooks"
-        description="A place for every idea. Nest notebooks to make it your own."
+        description={`${projects.length} notebooks`}
         actions={
           <Button onClick={() => setAction({})}>
             <Plus size={16} />
@@ -78,6 +79,7 @@ export default function ProjectsPage() {
           className="notebook-manager"
           aria-label="Notebook organization"
         >
+          <NotebookDropTarget projectId={null} name="Top level" root />
           <NotebookTree
             projects={projects}
             query={query}
@@ -106,8 +108,7 @@ export default function ProjectsPage() {
             )}
           />
           <p className="notebook-organization-hint">
-            Open a notebook to see its notes. Use + to add a sub-notebook, or
-            move one to a new home.
+            Drag notebooks to nest them. Drop at Top level to unnest.
           </p>
         </section>
       )}

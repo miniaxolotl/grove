@@ -151,9 +151,9 @@
   max-width: 200px;
 }
 .graph-toolbar .app-select-trigger {
-  background: #1e2b29;
-  border-color: #41504a;
-  color: #e3ece1;
+  background: #fff;
+  border-color: var(--color-line);
+  color: var(--color-forest);
 }
 .ask-scope .app-select-field {
   width: 200px;

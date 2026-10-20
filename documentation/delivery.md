@@ -1,5 +1,64 @@
 # Delivery evidence
 
+## Workspace polish and contextual conversations (20 October 2026 UTC)
+
+The workspace now has one notebook tree with nested note links, shared pointer/
+keyboard/touch move destinations, notebook nesting and version-fenced undo. Compact
+filters, global Ctrl/Cmd+K search, a light graph and grouped Settings share the same
+workspace chrome. Full-page writing is wider, autosaves after a pause and has
+full-viewport focus mode. Save retries preserve their original operation and newer
+typing; clicking outside dismisses idle dialogs and drawers.
+
+Ask Grove stores account-isolated conversations and resolves contextual note
+references before retrieving current evidence. Explicit create/edit/merge requests
+produce reviewable previews with atomic apply and version-fenced undo. Merges keep
+originals in Archive. History deletion, account export/deletion and restore
+reconciliation include conversations. The auto-growing composer has plain and
+Markdown modes, optional formatting/preview, native undo, selection preservation,
+IME-aware shortcuts and touch-friendly sending.
+
+Local verification passes root/website lint and types, production builds, all five
+packed artifact checks, the 44 existing database/provider/auth/recovery scenarios
+and seven conversation scenarios. All 55 Chromium browser/accessibility cases pass;
+three compatible touch WebKit scenarios pass in the Playwright Ubuntu container.
+[Screenshots and visual results](design/screenshots/frontend-polish/README.md)
+cover the workspace, focus, both input modes, mobile composition, Settings and graph.
+
+Before deployment, apply forward migration `20261020_009_conversations` using the
+owner procedure in [deploy.md](deploy.md), then roll out API/worker before website.
+This evidence records local verification; production activation is a separate release.
+
+## Collection 04 website release (20 October 2026 UTC)
+
+[Website #31](https://github.com/miniaxolotl/grove/pull/31) delivers Space Grotesk
+and JetBrains Mono, approved Sprout artwork, the notebook-first story, connected
+agent guidance and a licensed repository-local design kit. The strengthened
+long-notebook regression also verifies sidebar destinations stay inside their
+column. [Screenshots and local verification](design/screenshots/brand-family/README.md)
+record desktop Chromium, mobile WebKit and the isolated notebook fixture.
+
+[Release #32](https://github.com/miniaxolotl/grove/pull/32) published **v1.4.0**
+from `ae1bd49c286866242da46c3adaabdbfe5acd238a`. Full independent source
+[CI 39491456785](https://github.com/miniaxolotl/grove/actions/runs/39491456785)
+passes, including all 49 browser cases. Frozen
+[production #33](https://github.com/miniaxolotl/grove/pull/33) merged as
+`987923fd2ed3129b04e981e211943adf272afe34`; its tree
+`5bbdf17ffaa0979fc6f431717cf27eda76be045a` equals the released source tree.
+
+Vercel deployment `dpl_FxRBUQDYnnwryudWMt6hdBw7HWt2` is READY on that production
+commit. The live review at **20:39 UTC** verifies all 27 approved public asset
+SHA-256 hashes, canonical/social metadata and home, privacy, terms, install and
+self-host pages at 1440px and 390px. There are no document-overflow, browser-error
+or automated WCAG A/AA findings. The visual kit is available at
+<https://usegrove.cloud/brand-kit/index.html>.
+
+The initial production review caught React hydration error 418 on both legal
+pages. Cloudflare's default email obfuscation rewrote their public contact-email
+HTML before React loaded. Setting `email_obfuscation` to `off` for the Grove zone
+at **20:33:18 UTC** fixed the provider-side transformation. Readback confirms the
+setting and the complete live review passes afterward. Local builds were unaffected.
+Keep this setting disabled as described in [hosting](deploy.md#topology).
+
 ## Full-page writing and nested notebooks (20 October 2026 UTC)
 
 New notes and Journal entries open a full-page CodeMirror writing space with live

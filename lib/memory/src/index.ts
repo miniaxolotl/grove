@@ -16,6 +16,7 @@ import {
   type ModelProfiles,
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
+import { Conversations } from "./conversations.ts";
 import {
   briefFor,
   budgetedInference,
@@ -86,6 +87,7 @@ export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export class MemoryService {
+  readonly conversations: Conversations;
   providers: Providers;
   jobProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>;
   get embedder() {
@@ -99,6 +101,11 @@ export class MemoryService {
     readonly dailyRequestLimit = 2000,
   ) {
     this.providers = { ...providers, embedding: embedder };
+    this.conversations = new Conversations(
+      this,
+      this.present.bind(this),
+      this.revise.bind(this),
+    );
   }
 
   async access<T>(
@@ -1458,6 +1465,7 @@ export class MemoryService {
           .forUpdate()
           .first();
         if (current.status === "deleting" || current.status === "deleted") {
+          await trx("conversations").delete();
           await trx("transactional_emails").delete();
           await trx("jobs").delete();
           await trx("memory_briefs").delete();

@@ -10,20 +10,22 @@ agents use the same notes and permissions; their references live in **Agent deta
   writing space. **Write** styles Markdown as you work; **Markdown** shows its
   source and **Preview** shows the reading view. Use the shared formatting toolbar,
   undo/redo, heading outline, and focus mode (Escape exits focus).
-- Save with **Save note** or `Ctrl`/`Cmd` + `S`; the editor stays open and reports
-  saved/unsaved state. Formatting supports `Ctrl`/`Cmd` + `B`, `I`, and `K`.
+- Full-page notes save automatically after a short pause. **Save note** or
+  `Ctrl`/`Cmd` + `S` saves immediately. Formatting supports `Ctrl`/`Cmd` + `B`, `I`, and `K`.
   Drawer editors can expand without losing their selection or undo history.
 - Full-page drafts stay in account-scoped memory while navigating Grove, including
-  their original revision and retry ID. They are not autosaved or stored on disk;
-  reload/close prompts while drafts remain. Saving still checks concurrent changes.
+  their original revision and retry ID. Unsaved drafts are not stored on disk;
+  reload/close prompts while drafts remain. Saving checks concurrent changes and
+  preserves typing that happens during a request.
   Reopening a draft during a save follows the same request rather than creating
   another note.
   **Read note and history** opens the reader and earlier revisions.
-- Press `/` to search. Results update after a short pause as you type. Combine
+- Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
+  Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
   stay in POST bodies. Sorting and filtering apply to the entire matching library.
-- Create a notebook with just a name. Use **+** beside a notebook to create a
-  sub-notebook; expand/collapse the tree in the sidebar or Notebooks. Search retains
+- Create a notebook with just a name. Its action menu includes **New sub-notebook**;
+  expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
   matching notebooks' ancestors so you can see where they belong.
 - **Rename** and **Move** share notebook settings. Choose a **Parent notebook**
   or **Top level** to reorganize it; sub-notebooks move with their parent. Breadcrumbs
@@ -35,13 +37,16 @@ agents use the same notes and permissions; their references live in **Agent deta
 - Select up to 50 loaded notes to move, archive, or restore. Drag a handle into a
   notebook, or press Space, choose a destination with the arrows, and press Space
   again. Escape cancels. On touch screens, a swipe reveals ordinary action buttons;
-  a long press on the handle starts dragging.
+  a long press on the handle starts dragging and reveals notebook destinations.
+  Notebook handles also support drag or keyboard nesting; hover over a collapsed
+  destination to expand it. Focus mode fills the viewport and hides secondary tools.
 - **Undo** checks the version produced by the original action. It never overwrites
   someone else's later edit. Partial failures identify the affected notes.
 
 Dropdowns share keyboard, touch and focus behavior across filters, notebook choices,
-note properties and model settings. Use arrows, Home/End or typeahead, Enter to
+note properties and settings. Use arrows, Home/End or typeahead, Enter to
 choose, and Escape to dismiss; inside a dialog, the first Escape closes the menu.
+Clicking outside a dialog or drawer dismisses it unless a change is being saved.
 
 ## Journal and personal notes
 
@@ -72,18 +77,26 @@ Choose **Graph** within Notes to explore recorded related, duplicate, or conflic
 ideas. It uses the loaded, current notes in the selected scope. Load earlier pages
 to expand it. Pan, zoom, select a note, or press Enter on a focused node to read it.
 
-**Ask Grove** answers from your notes with exact-version source links. Choose all
-notes, Personal, or a notebook; optionally include personal notes. **Search** finds
-source pages automatically as you type. Conversation stays in tab memory. Questions
-do not create notes. Stop or start a new conversation to cancel an answer. Changes
-to permissions, sources, settings, or model profiles during generation discard the
-answer. Opening a citation identifies when its note has since changed.
+**Ask Grove** finds, explains and helps change your notes. Follow-ups such as
+“shorten that note” use the conversation's context. Choose all notes, Personal, or
+a notebook; optionally include personal notes. **Search** finds pages as you type.
+Source links open the cited note and identify when it has since changed.
 
-Cloud settings explain semantic search, organization, and cited summaries.
-Self-hosted administrators retain configurable providers and diagnostics in
-[Model settings](models.md). Periodic organization repairs missing derived data
-without moving, merging, or rewriting notes.
+Use **History** to reopen or delete saved conversations across visits. Changing the
+scope starts a new conversation. Stop cancels the current reply; interrupted replies
+can be retried. Explicit edit, create and merge requests show a preview with **Apply**
+and version-checked **Undo**. Merges archive the originals and keep earlier revisions.
+If a note changes after the preview, ask for an updated preview before applying it.
 
-The interface uses self-hosted Inter and the [Sprout palette](design/grove-sprout.md).
+The message box grows with your writing. The formatting toggle reveals Markdown tools and a
+preview; switching modes keeps your text and selection. Plain text uses Enter to send
+and Shift+Enter for a new line. Markdown uses Enter for new lines and Ctrl/Cmd+Enter
+to send. The send button works in either mode, including touch keyboards.
+
+**Settings** groups Preferences, Account, Connections and Your data. Export includes
+notes, revisions and conversations. Self-hosted administrators retain provider
+configuration at [Model settings](models.md).
+
+The interface uses self-hosted Space Grotesk and the [Sprout palette](design/grove-sprout.md).
 Browser checks cover narrow layouts, keyboard and native touch interaction, graph,
 cited chat, journal, history, concurrent edits, cancellation, and accessibility.

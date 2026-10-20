@@ -4,6 +4,7 @@ import { modelProviders } from "./model-migration.ts";
 import { memoryLifetimes } from "./lifetime-migration.ts";
 import { backgroundServices } from "./background-migration.ts";
 import { nestedNotebooks } from "./notebook-migration.ts";
+import { conversations } from "./conversation-migration.ts";
 
 export const migrations = [
   {
@@ -217,6 +218,7 @@ export const migrations = [
   memoryLifetimes,
   backgroundServices,
   nestedNotebooks,
+  conversations,
 ];
 
 export const migrationSource: Knex.MigrationSource<

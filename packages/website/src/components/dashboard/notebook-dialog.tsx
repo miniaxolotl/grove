@@ -14,7 +14,7 @@ export function NotebookDialog({
 }: {
   action: NotebookAction;
   close: () => void;
-  onSaved?: () => void;
+  onSaved?: (project: Project) => void;
 }) {
   return (
     <Dialog
@@ -32,9 +32,9 @@ export function NotebookDialog({
       <ProjectForm
         project={action.project}
         parentId={action.parentId}
-        done={() => {
+        done={(project) => {
           close();
-          onSaved?.();
+          onSaved?.(project);
         }}
       />
     </Dialog>

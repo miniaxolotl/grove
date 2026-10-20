@@ -13,6 +13,8 @@ import { AskGrove } from "../../src/components/dashboard/ask-grove";
 import { Journal } from "../../src/components/dashboard/journal";
 import { MemoryInspector } from "../../src/components/dashboard/memory-inspector";
 import { NoteEditorPage } from "../../src/components/dashboard/note-editor-page";
+import { SettingsPanel } from "../../src/components/dashboard/settings-panel";
+import { SettingsNavigation } from "../../src/components/dashboard/settings-navigation";
 
 function DashboardFixture() {
   const location = useLocation();
@@ -36,7 +38,14 @@ function DashboardFixture() {
     ) : path.startsWith("/app/memories/") ? (
       <MemoryInspector fullPage id={path.split("/").at(-1)!} />
     ) : path.endsWith("/settings/models") ? (
-      <ModelSettings />
+      <>
+        <SettingsNavigation />
+        <ModelSettings />
+      </>
+    ) : path.endsWith("/settings/account") ? (
+      <SettingsPanel section="account" />
+    ) : path.endsWith("/settings/data") ? (
+      <SettingsPanel section="data" />
     ) : path.endsWith("/profile") ? (
       <MemoryContext />
     ) : path.startsWith("/app/projects/") ? (
@@ -51,6 +60,7 @@ function DashboardFixture() {
       <Settings />
     ) : (
       <MemoryLibrary
+        initialProject={query.get("notebook") || undefined}
         archive={path.endsWith("/archive")}
         initialView={path.endsWith("/graph") ? "graph" : "list"}
         initialId={
