@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/miniaxolotl/grove/compare/v1.3.0...v1.4.0) (2026-10-20)
+
+
+### Features
+
+* **website:** unite Grove notebooks and agent memory with brand kit ([#31](https://github.com/miniaxolotl/grove/issues/31)) ([273f8d3](https://github.com/miniaxolotl/grove/commit/273f8d352896fb78513e8a87d70a98639f40eed4))
+
 ## [1.3.0](https://github.com/miniaxolotl/grove/compare/v1.2.3...v1.3.0) (2026-10-20)
 
 
