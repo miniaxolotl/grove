@@ -32,6 +32,10 @@ import {
 } from "@lib/shared/models";
 import type { ModelRegistry } from "./models.ts";
 import { InferenceError } from "@lib/ai";
+import {
+  conversationCreateSchema,
+  conversationTurnSchema,
+} from "@lib/shared/conversations";
 
 export type AppDependencies = {
   memories: MemoryService;
@@ -465,6 +469,66 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.get("/v1/conversations", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.list(
+        c.get("principal"),
+        z.uuid().optional().parse(c.req.query("after")),
+      ),
+    }),
+  );
+  app.post("/v1/conversations", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.create(
+        c.get("principal"),
+        await body(c, conversationCreateSchema),
+      ),
+    }),
+  );
+  app.get("/v1/conversations/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.delete("/v1/conversations/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.remove(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.post("/v1/conversations/:id/turns", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.turn(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, conversationTurnSchema),
+        c.req.raw.signal,
+      ),
+    }),
+  );
+  app.post("/v1/conversations/:id/turns/:turnId/:action", async (c) => {
+    const action = z.enum(["apply", "undo"]).parse(c.req.param("action"));
+    await body(c, z.object({}).strict());
+    return c.json({
+      success: true,
+      data: await service.conversations.apply(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        uuidSchema.parse(c.req.param("turnId")),
+        action === "undo",
+      ),
+    });
+  });
   app.post("/v1/ask", async (c) =>
     c.json({
       success: true,
@@ -569,6 +633,23 @@ export function createApp(deps: AppDependencies) {
         for (const memory of page) await stream.writeln(JSON.stringify(memory));
         if (page.length < 50) break;
         page = await service.exportPage(principal, page.at(-1)!.id);
+      }
+      let chats = await service.conversations.exportPage(principal);
+      while (!stream.aborted) {
+        for (const chat of chats) {
+          if (stream.aborted) break;
+          await stream.writeln(
+            JSON.stringify({
+              type: "conversation",
+              ...chat,
+            }),
+          );
+        }
+        if (chats.length < 10) break;
+        chats = await service.conversations.exportPage(
+          principal,
+          chats.at(-1)!.id,
+        );
       }
     });
   });

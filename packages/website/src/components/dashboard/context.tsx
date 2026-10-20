@@ -18,6 +18,7 @@ import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { AskGrove } from "./ask-grove";
+import { ActionMenu } from "./ui/action-menu";
 
 export function MemoryContext({
   projectId = null,
@@ -57,7 +58,7 @@ export function MemoryContext({
         title={project?.name ?? "About me"}
         description={
           project
-            ? "A home for your notes and ideas."
+            ? undefined
             : "The little things that make your notebook yours."
         }
         actions={
@@ -65,30 +66,41 @@ export function MemoryContext({
             <>
               {project && (
                 <>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setNotebookAction({ project })}
+                  <Link
+                    className="app-button"
+                    href={`/app/notes/new?notebook=${project.id}`}
                   >
-                    <Pencil size={15} />
-                    Rename
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setNotebookAction({ project, move: true })}
-                  >
-                    <FolderInput size={15} />
-                    Move
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setNotebookAction({ parentId: project.id })}
-                  >
-                    <Plus size={15} />
-                    Sub-notebook
-                  </Button>
+                    <Plus size={16} />
+                    New note
+                  </Link>
+                  <ActionMenu label="Notebook options">
+                    <Button
+                      variant="secondary"
+                      onClick={() => setNotebookAction({ project })}
+                    >
+                      <Pencil size={15} />
+                      Rename
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setNotebookAction({ project, move: true })}
+                    >
+                      <FolderInput size={15} />
+                      Move
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        setNotebookAction({ parentId: project.id })
+                      }
+                    >
+                      <Plus size={15} />
+                      Sub-notebook
+                    </Button>
+                  </ActionMenu>
                 </>
               )}
-              {view !== "memories" && (
+              {!project && view !== "memories" && (
                 <Button
                   onClick={() => {
                     setPrompt(null);
@@ -132,14 +144,16 @@ export function MemoryContext({
           </button>
         ))}
       </nav>
-      {project && projects.some((p) => p.parentId === project.id) && (
-        <section className="sub-notebooks" aria-label="Sub-notebooks">
-          <h2>Sub-notebooks</h2>
-          <NotebookTree
-            projects={projects.filter((p) => p.parentId === project.id)}
-          />
-        </section>
-      )}
+      {project &&
+        view === "memories" &&
+        projects.some((p) => p.parentId === project.id) && (
+          <section className="sub-notebooks" aria-label="Sub-notebooks">
+            <h2>Sub-notebooks</h2>
+            <NotebookTree
+              projects={projects.filter((p) => p.parentId === project.id)}
+            />
+          </section>
+        )}
       {view === "context" && (
         <div className="context-layout">
           <BriefPanel key={refresh} projectId={projectId} />
@@ -163,9 +177,6 @@ export function MemoryContext({
               >
                 See what’s in progress
               </button>
-              <Link href="/app/settings/models" className="context-how">
-                How search and summaries work
-              </Link>
             </aside>
           ) : (
             <div>
@@ -183,7 +194,7 @@ export function MemoryContext({
                 <p>
                   You can edit any note. This overview follows your changes.
                 </p>
-                <Link href="/app/connections" className="text-button">
+                <Link href="/app/settings/connections" className="text-button">
                   Manage agent access
                 </Link>
               </Disclosure>
@@ -195,6 +206,7 @@ export function MemoryContext({
         <MemoryLibrary
           key={`${refresh}:${view}`}
           embedded
+          showCreate={!project}
           initialView={view === "graph" ? "graph" : "list"}
           projectId={projectId}
           initialKind={
