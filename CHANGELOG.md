@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/miniaxolotl/grove/compare/v1.2.1...v1.2.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **release:** make published package archives reproducible ([#22](https://github.com/miniaxolotl/grove/issues/22)) ([85aab35](https://github.com/miniaxolotl/grove/commit/85aab351679ff9522b746a4a999ef2b8a0357fc0))
+
 ## [1.2.1](https://github.com/miniaxolotl/grove/compare/v1.2.0...v1.2.1) (2026-10-20)
 
 
