@@ -46,8 +46,9 @@ automatic organization and source-linked summaries. Provider profiles and vector
 dimensions are expandable technical details. Self-hosted administrators retain
 the editable model configuration and diagnostics described in [models.md](models.md).
 
-The interface follows the [Sprout design](design/grove-sprout.md), using neutral
-selection states and no colored left-edge accents. Automated browser checks cover
+The interface uses self-hosted Inter for clear, professional headings and body
+text, with the [Sprout palette](design/grove-sprout.md), neutral selection states
+and no colored left-edge accents. Automated browser checks cover
 version conflicts, partial failures, pagination cancellation, filtering, Markdown,
 desktop drag/drop, native touch input, keyboard interaction and accessibility at
 320px and desktop widths.

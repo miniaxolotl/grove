@@ -1,3 +1,20 @@
+.grove-app,
+.connect-shell {
+  font-family: var(--font-inter), Arial, sans-serif;
+  font-size: 14px;
+  font-optical-sizing: auto;
+}
+.grove-app .font-editorial,
+.connect-shell .font-editorial {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.grove-app em,
+.connect-shell em {
+  font-family: inherit;
+  color: inherit;
+}
 .connect-shell {
   min-height: 100vh;
   background: #f7f6f0;
@@ -54,7 +71,7 @@
   padding: 13px 14px;
   border-radius: 10px;
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
   min-height: 48px;
   transition: background 0.15s;
@@ -90,15 +107,16 @@
   margin-bottom: 34px;
 }
 .app-page-heading h1 {
-  font-family: var(--font-instrument-serif), Georgia, serif;
-  font-size: clamp(36px, 4vw, 48px);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: clamp(30px, 3.2vw, 38px);
   margin-top: 0;
   letter-spacing: -0.025em;
   line-height: 1.15;
 }
 .app-page-heading p:last-child {
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.8;
   margin-top: 14px;
 }
@@ -113,7 +131,7 @@
   border-radius: 9px;
   background: var(--color-forest);
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   transition:
     opacity 0.15s,
@@ -164,7 +182,7 @@
   outline: none;
   background: transparent;
   height: 48px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .app-search:focus-within {
   outline: 2px solid var(--color-leaf);
@@ -237,7 +255,7 @@
   min-width: 0;
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 .app-form textarea {
@@ -368,7 +386,7 @@
   text-align: left;
   border: 1px solid transparent;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-muted);
 }
 .library-places > button span {
@@ -392,7 +410,7 @@
   display: flex;
   justify-content: space-between;
   padding: 24px 12px 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-muted);
 }
 .places-heading a {
@@ -400,7 +418,7 @@
   text-underline-offset: 3px;
 }
 .places-hint {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--color-muted);
   padding: 20px 12px;
@@ -413,7 +431,7 @@
   min-width: 0;
 }
 .workspace-search .app-search button {
-  font-size: 12px;
+  font-size: 13px;
 }
 .library-filters {
   display: grid;
@@ -461,7 +479,7 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-muted);
   margin: 22px 0 12px;
 }
@@ -477,7 +495,7 @@
   padding: 10px 19px;
   min-height: 46px;
   border-bottom: 1px solid var(--color-line);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-muted);
 }
 .select-loaded input,
@@ -540,7 +558,7 @@
 }
 .memory-title {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   line-height: 1.7;
 }
@@ -549,7 +567,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-muted);
   line-height: 1.8;
   margin-top: 4px;
@@ -560,7 +578,7 @@
   gap: 5px 12px;
   margin-top: 7px;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .memory-meta > span:first-child {
   text-transform: capitalize;
@@ -576,7 +594,7 @@
   flex-wrap: wrap;
   gap: 3px 8px;
   margin-top: 9px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--color-muted);
 }
 .memory-tags button {
@@ -596,7 +614,7 @@
 }
 .memory-actions .app-button {
   min-height: 38px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .selection-toolbar {
   position: sticky;
@@ -693,7 +711,7 @@
   border-bottom: 1px solid var(--color-line);
 }
 .app-detail-panel > div:first-child h2 {
-  font-size: 26px;
+  font-size: 22px;
 }
 .reader-navigation {
   display: flex;
@@ -713,8 +731,10 @@
   cursor: default;
 }
 .reader-title {
-  font-family: var(--font-instrument-serif), Georgia, serif;
-  font-size: 30px;
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   line-height: 1.3;
   margin: 18px 0 24px;
   overflow-wrap: anywhere;
@@ -726,7 +746,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-muted);
   margin: 12px 0 24px;
 }
@@ -793,7 +813,7 @@
 .agent-details {
   padding: 18px 0;
   border-top: 1px solid var(--color-line);
-  font-size: 12px;
+  font-size: 13px;
 }
 .agent-details summary {
   cursor: pointer;
@@ -827,7 +847,7 @@
   margin-top: 16px;
 }
 .memory-markdown {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.85;
   overflow-wrap: anywhere;
 }
@@ -844,8 +864,9 @@
 }
 .memory-markdown h3 {
   font-size: 24px;
-  font-family: var(--font-instrument-serif), Georgia, serif;
-  font-weight: 400;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 .memory-markdown h4 {
   font-size: 18px;
@@ -939,7 +960,7 @@
   border-radius: 7px;
 }
 .segmented-control button {
-  font-size: 11px;
+  font-size: 12px;
   padding: 7px 12px;
   min-height: 32px;
   border-radius: 4px;
@@ -982,7 +1003,7 @@
   min-height: 310px;
   padding: 22px;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.85;
   resize: vertical;
 }
@@ -996,7 +1017,7 @@
   flex-wrap: wrap;
   gap: 6px;
   padding: 10px 16px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--color-muted);
   border-top: 1px solid var(--color-line);
 }
@@ -1090,7 +1111,7 @@
 .context-guide {
   padding-top: 10px;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
 }
 .context-guide h2,
@@ -1144,8 +1165,10 @@
   margin-bottom: 22px;
 }
 .workspace-section-heading h2 {
-  font-family: var(--font-instrument-serif), Georgia, serif;
-  font-size: 28px;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 .workspace-section-heading h3 {
   font-size: 16px;
@@ -1191,7 +1214,7 @@
 }
 .handoff-list button > span > span {
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .provider-overview {
   max-width: 880px;
@@ -1214,8 +1237,10 @@
   margin-top: 4px;
 }
 .provider-roles h2 {
-  font-family: var(--font-instrument-serif), Georgia, serif;
-  font-size: 28px;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 .provider-roles p {
   font-size: 14px;
@@ -1251,8 +1276,10 @@
   margin: 14px 0 28px;
 }
 .provider-workflow h2 {
-  font-family: var(--font-instrument-serif), Georgia, serif;
-  font-size: 26px;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 .provider-workflow ol {
   display: grid;
@@ -1338,7 +1365,7 @@
     width: 32px;
   }
   .memory-title {
-    font-size: 14px;
+    font-size: 15px;
   }
   .drag-handle {
     display: none;
