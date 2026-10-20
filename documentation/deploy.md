@@ -1,5 +1,8 @@
 # Hosting and releases
 
+Shared workflow names, action pins, runtime and evidence conventions follow the
+[cross-repository CI/CD baseline](pipeline-conventions.md).
+
 ## Topology
 
 - Next.js website: **https://usegrove.cloud** on Vercel, production Clerk and an authenticated BFF.

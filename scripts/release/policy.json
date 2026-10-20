@@ -3,5 +3,11 @@
   "operator": "miniaxolotl",
   "label": "enhancement",
   "branches": ["development", "production"],
-  "ciJobs": ["website", "contracts", "image", "Promotion Admission", "CI Gate"]
+  "ciJobs": [
+    "Website",
+    "TypeScript Tests",
+    "Container Build",
+    "Promotion Admission",
+    "CI Gate"
+  ]
 }

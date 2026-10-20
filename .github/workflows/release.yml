@@ -4,16 +4,19 @@ on:
     branches: [development]
   workflow_dispatch:
 permissions:
-  contents: write
-  pull-requests: write
-  actions: write
+  contents: read
 concurrency:
   group: release-please-development
   cancel-in-progress: false
 jobs:
   release-please:
-    if: github.ref == 'refs/heads/development'
+    if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/development' && github.ref_protected == true
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0; release-please 17.6.0
         id: release
@@ -22,13 +25,15 @@ jobs:
           target-branch: development
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.release.outputs.prs_created == 'true'
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.release.outputs.prs_created == 'true'
-        with: { node-version: 24 }
+        with:
+          node-version: "24.21.0"
       - name: Explicit CI dispatch for token-authored release PRs
         if: steps.release.outputs.prs_created == 'true'
         env:
