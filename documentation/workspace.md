@@ -6,19 +6,42 @@ agents use the same notes and permissions; their references live in **Agent deta
 
 ## Write, find, and organize
 
-- Open a note to read it in a drawer or on its own page. **Edit note** supports
-  Markdown, formatting buttons, `Ctrl`/`Cmd` + `B` / `I`, undo/redo, and preview.
+- **New note**, **New entry**, and a note page's **Edit note** open a full-page
+  writing space. **Write** styles Markdown as you work; **Markdown** shows its
+  source and **Preview** shows the reading view. Use the shared formatting toolbar,
+  undo/redo, heading outline, and focus mode (Escape exits focus).
+- Save with **Save note** or `Ctrl`/`Cmd` + `S`; the editor stays open and reports
+  saved/unsaved state. Formatting supports `Ctrl`/`Cmd` + `B`, `I`, and `K`.
+  Drawer editors can expand without losing their selection or undo history.
+- Full-page drafts stay in account-scoped memory while navigating Grove, including
+  their original revision and retry ID. They are not autosaved or stored on disk;
+  reload/close prompts while drafts remain. Saving still checks concurrent changes.
+  Reopening a draft during a save follows the same request rather than creating
+  another note.
+  **Read note and history** opens the reader and earlier revisions.
 - Press `/` to search. Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
   stay in POST bodies. Sorting and filtering apply to the entire matching library.
-- Create a notebook with just a name. Its optional repository identity connects
-  it to an agent's project. Renaming preserves that reference.
+- Create a notebook with just a name. Use **+** beside a notebook to create a
+  sub-notebook; expand/collapse the tree in the sidebar or Notebooks. Search retains
+  matching notebooks' ancestors so you can see where they belong.
+- **Rename** and **Move** share notebook settings. Choose a **Parent notebook**
+  or **Top level** to reorganize it; sub-notebooks move with their parent. Breadcrumbs
+  and notebook dropdowns show the full path. A notebook cannot move into itself or
+  its descendants. Concurrent changes require reopening settings to review them.
+- Each notebook keeps its own access scope: parent access does not include children.
+  Notes/search/Ask Grove stay scoped to the chosen notebook. Moving a notebook
+  preserves its notes, revisions, retention, and stable agent/repository references.
 - Select up to 50 loaded notes to move, archive, or restore. Drag a handle into a
   notebook, or press Space, choose a destination with the arrows, and press Space
   again. Escape cancels. On touch screens, a swipe reveals ordinary action buttons;
   a long press on the handle starts dragging.
 - **Undo** checks the version produced by the original action. It never overwrites
   someone else's later edit. Partial failures identify the affected notes.
+
+Dropdowns share keyboard, touch and focus behavior across filters, notebook choices,
+note properties and model settings. Use arrows, Home/End or typeahead, Enter to
+choose, and Escape to dismiss; inside a dialog, the first Escape closes the menu.
 
 ## Journal and personal notes
 

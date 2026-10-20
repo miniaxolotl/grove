@@ -1,5 +1,23 @@
 "use client";
-import { useId, useRef, useState } from "react";
+
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Compartment, EditorState, Transaction } from "@codemirror/state";
+import {
+  EditorView,
+  drawSelection,
+  keymap,
+  placeholder as editorPlaceholder,
+} from "@codemirror/view";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  redo,
+  undo,
+} from "@codemirror/commands";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { tags } from "@lezer/highlight";
 import {
   Bold,
   Italic,
@@ -8,106 +26,180 @@ import {
   ListChecks,
   Code,
   Link as LinkIcon,
+  Quote,
+  Undo2,
+  Redo2,
+  ListTree,
 } from "lucide-react";
 import { Markdown } from "./markdown";
+import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
+import { SegmentedControl } from "./ui/segmented-control";
+import { IconButton } from "./ui/button";
+
+const highlighting = HighlightStyle.define([
+  { tag: tags.heading, class: "cm-note-heading-text" },
+  { tag: tags.strong, class: "cm-note-strong" },
+  { tag: tags.emphasis, class: "cm-note-emphasis" },
+  { tag: tags.monospace, class: "cm-note-code" },
+  { tag: [tags.link, tags.url], class: "cm-note-link" },
+  { tag: tags.processingInstruction, class: "cm-note-marker" },
+  { tag: tags.strikethrough, class: "cm-note-strike" },
+]);
 
 export function MarkdownEditor({
   value,
   onChange,
   placeholder,
+  disabled = false,
+  fullPage = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
+  fullPage?: boolean;
 }) {
   const id = useId();
-  const field = useRef<HTMLTextAreaElement>(null);
-  const [preview, setPreview] = useState(false);
-  const history = useRef({
-    entries: [{ value, start: value.length, end: value.length }],
-    index: 0,
+  const host = useRef<HTMLDivElement>(null);
+  const view = useRef<EditorView | null>(null);
+  const initial = useRef({ value, placeholder });
+  const change = useRef(onChange);
+  const compartments = useRef({
+    mode: new Compartment(),
+    editable: new Compartment(),
   });
-  function change(next: string, start: number, end: number) {
-    if (next === value || next.length > 6000) return;
-    const state = history.current;
-    state.entries = [
-      ...state.entries.slice(0, state.index + 1),
-      { value: next, start, end },
-    ].slice(-100);
-    state.index = state.entries.length - 1;
-    onChange(next);
-  }
-  function undo(redo: boolean) {
-    const state = history.current;
-    const index = state.index + (redo ? 1 : -1);
-    const entry = state.entries[index];
-    if (!entry) return;
-    state.index = index;
-    onChange(entry.value);
-    requestAnimationFrame(() =>
-      field.current?.setSelectionRange(entry.start, entry.end),
-    );
-  }
-  function format(
-    before: string,
-    after = "",
-    fallback = "text",
-    lines = false,
-  ) {
-    const input = field.current;
-    if (!input) return;
-    const start = lines
-      ? value.lastIndexOf("\n", Math.max(0, input.selectionStart - 1)) + 1
-      : input.selectionStart;
-    const lineEnd = value.indexOf("\n", input.selectionEnd);
-    const end = lines
-      ? lineEnd === -1
-        ? value.length
-        : lineEnd
-      : input.selectionEnd;
-    const selected = value.slice(start, end) || fallback;
-    const text = lines
-      ? selected
-          .split("\n")
-          .map((line) => before + line)
-          .join("\n")
-      : before + selected + after;
-    const next = value.slice(0, start) + text + value.slice(end);
-    if (next.length > 6000) return;
-    history.current.entries[history.current.index] = {
-      value,
-      start: input.selectionStart,
-      end: input.selectionEnd,
-    };
-    change(next, start + before.length, start + text.length - after.length);
-    requestAnimationFrame(() => {
-      input.focus();
-      input.setSelectionRange(
-        start + before.length,
-        start + text.length - after.length,
-      );
+  const [mode, setMode] = useState<"live" | "source" | "preview">("live");
+  const [outline, setOutline] = useState(false);
+  const [limit, setLimit] = useState(false);
+  useEffect(() => {
+    change.current = onChange;
+  }, [onChange]);
+  useEffect(() => {
+    const editor = new EditorView({
+      parent: host.current!,
+      state: EditorState.create({
+        doc: initial.current.value,
+        selection: { anchor: initial.current.value.length },
+        extensions: [
+          history(),
+          drawSelection(),
+          EditorView.lineWrapping,
+          markdown({ base: markdownLanguage, completeHTMLTags: false }),
+          syntaxHighlighting(highlighting),
+          compartments.current.mode.of(liveMarkdown),
+          compartments.current.editable.of([]),
+          editorPlaceholder(initial.current.placeholder ?? "Start writing…"),
+          EditorView.contentAttributes.of({
+            id,
+            "aria-label": "What should stay with you?",
+            "aria-describedby": `${id}-help`,
+            spellcheck: "true",
+            autocapitalize: "sentences",
+          }),
+          keymap.of([
+            { key: "Mod-Shift-z", run: redo, preventDefault: true },
+            { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
+            { key: "Mod-i", run: (view) => wrapSelection(view, "_") },
+            {
+              key: "Mod-k",
+              run: (view) =>
+                wrapSelection(view, "[", "](https://example.com)", "link text"),
+            },
+            ...historyKeymap,
+            ...defaultKeymap,
+          ]),
+          EditorState.transactionFilter.of((transaction) => {
+            if (
+              transaction.docChanged &&
+              transaction.newDoc.length > 6000 &&
+              transaction.newDoc.length > transaction.startState.doc.length
+            ) {
+              queueMicrotask(() => setLimit(true));
+              return [];
+            }
+            return transaction;
+          }),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              setLimit(false);
+              change.current(update.state.doc.toString());
+            }
+          }),
+        ],
+      }),
     });
+    view.current = editor;
+    editor.focus();
+    return () => {
+      editor.destroy();
+      view.current = null;
+    };
+  }, [id]);
+  useEffect(() => {
+    const editor = view.current;
+    if (editor && editor.state.doc.toString() !== value) {
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: value },
+        annotations: Transaction.addToHistory.of(false),
+      });
+    }
+  }, [value]);
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: [
+        compartments.current.mode.reconfigure(
+          mode === "live" ? liveMarkdown : [],
+        ),
+        compartments.current.editable.reconfigure([
+          EditorState.readOnly.of(disabled),
+          EditorView.editable.of(!disabled),
+        ]),
+      ],
+    });
+    view.current?.requestMeasure();
+  }, [mode, disabled, fullPage]);
+  const headings = useMemo(() => {
+    const result: { title: string; from: number; level: number }[] = [];
+    markdownLanguage.parser.parse(value).iterate({
+      enter(node) {
+        const match = /^(?:ATX|Setext)Heading([1-6])$/.exec(node.name);
+        if (match)
+          result.push({
+            title: value
+              .slice(node.from, node.to)
+              .split("\n")[0]
+              .replace(/^#+\s*/, "")
+              .replace(/\s+#+$/, ""),
+            from: node.from,
+            level: Number(match[1]),
+          });
+      },
+    });
+    return result;
+  }, [value]);
+  function command(run: (editor: EditorView) => unknown) {
+    if (view.current && !disabled) {
+      run(view.current);
+      view.current.focus();
+    }
   }
   return (
-    <div className="markdown-editor">
+    <div
+      className={`markdown-editor live-editor${fullPage ? " page-writing" : ""}`}
+      data-mode={mode}
+    >
       <div className="editor-heading">
-        <label htmlFor={id}>What should stay with you?</label>
-        <div className="segmented-control" aria-label="Editor mode">
-          <button
-            type="button"
-            aria-pressed={!preview}
-            onClick={() => setPreview(false)}
-          >
-            Write
-          </button>
-          <button
-            type="button"
-            aria-pressed={preview}
-            onClick={() => setPreview(true)}
-          >
-            Preview
-          </button>
-        </div>
+        <span id={`${id}-label`}>Your words</span>
+        <SegmentedControl
+          label="Editor mode"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "live", label: "Write" },
+            { value: "source", label: "Markdown" },
+            { value: "preview", label: "Preview" },
+          ]}
+        />
       </div>
       <div className="editor-surface">
         <div
@@ -116,98 +208,151 @@ export function MarkdownEditor({
           aria-label="Markdown formatting"
         >
           {[
-            { name: "Bold", icon: Bold, before: "**", after: "**" },
-            { name: "Italic", icon: Italic, before: "_", after: "_" },
-            { name: "Heading", icon: Heading2, before: "## ", lines: true },
-            { name: "Bullet list", icon: List, before: "- ", lines: true },
+            { name: "Undo", icon: Undo2, run: undo },
+            { name: "Redo", icon: Redo2, run: redo },
+            {
+              name: "Heading",
+              icon: Heading2,
+              run: (v: EditorView) => prefixLines(v, "## "),
+            },
+            {
+              name: "Bold",
+              icon: Bold,
+              run: (v: EditorView) => wrapSelection(v, "**"),
+            },
+            {
+              name: "Italic",
+              icon: Italic,
+              run: (v: EditorView) => wrapSelection(v, "_"),
+            },
+            {
+              name: "Bullet list",
+              icon: List,
+              run: (v: EditorView) => prefixLines(v, "- "),
+            },
             {
               name: "Checklist",
               icon: ListChecks,
-              before: "- [ ] ",
-              lines: true,
+              run: (v: EditorView) => prefixLines(v, "- [ ] "),
             },
-            { name: "Code", icon: Code, before: "`", after: "`" },
+            {
+              name: "Quote",
+              icon: Quote,
+              run: (v: EditorView) => prefixLines(v, "> "),
+            },
+            {
+              name: "Code",
+              icon: Code,
+              run: (v: EditorView) => wrapSelection(v, "`"),
+            },
             {
               name: "Link",
               icon: LinkIcon,
-              before: "[",
-              after: "](https://example.com)",
+              run: (v: EditorView) =>
+                wrapSelection(v, "[", "](https://example.com)", "link text"),
             },
-          ].map(({ name, icon: Icon, before, after, lines }) => (
-            <button
+          ].map(({ name, icon: Icon, run }) => (
+            <IconButton
               key={name}
-              type="button"
-              className="app-icon"
-              aria-label={name}
-              title={name}
-              disabled={preview}
-              onClick={() =>
-                format(
-                  before,
-                  after,
-                  name === "Heading" ? "Heading" : "text",
-                  lines,
-                )
-              }
+              label={name}
+              disabled={disabled || mode === "preview"}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => command(run)}
             >
               <Icon size={16} />
-            </button>
+            </IconButton>
           ))}
-          <span className="ml-auto text-xs text-muted">Markdown</span>
+          <button
+            type="button"
+            className="app-icon editor-outline-toggle"
+            aria-label="Note outline"
+            title="Note outline"
+            aria-expanded={outline}
+            onClick={() => setOutline(!outline)}
+          >
+            <ListTree size={16} />
+          </button>
         </div>
-        {/* Keep the writing surface mounted so switching preview retains selection. */}
-        <textarea
-          id={id}
-          ref={field}
-          hidden={preview}
-          rows={11}
-          required
-          value={value}
-          maxLength={6000}
-          autoFocus
-          placeholder={placeholder}
-          onChange={(e) =>
-            change(
-              e.target.value,
-              e.target.selectionStart,
-              e.target.selectionEnd,
-            )
-          }
-          onKeyDown={(e) => {
-            if (
-              (e.metaKey || e.ctrlKey) &&
-              ["z", "y"].includes(e.key.toLowerCase())
-            ) {
-              e.preventDefault();
-              undo(e.shiftKey || e.key.toLowerCase() === "y");
-              return;
-            }
-            if (
-              (e.metaKey || e.ctrlKey) &&
-              ["b", "i"].includes(e.key.toLowerCase())
-            ) {
-              e.preventDefault();
-              const mark = e.key.toLowerCase() === "b" ? "**" : "_";
-              format(mark, mark);
-            }
-          }}
-        />
-        {preview && (
-          <div className="editor-preview" aria-label="Markdown preview">
-            {value ? (
-              <Markdown>{value}</Markdown>
-            ) : (
-              <p className="text-muted">
-                Your formatted note will appear here.
-              </p>
+        <div className={`writing-layout${outline ? " with-outline" : ""}`}>
+          <div className="writing-paper">
+            <div
+              ref={host}
+              hidden={mode === "preview"}
+              className="codemirror-host"
+            />
+            {mode === "preview" && (
+              <div className="editor-preview" aria-label="Markdown preview">
+                {value ? (
+                  <Markdown>{value}</Markdown>
+                ) : (
+                  <p className="text-muted">
+                    Your formatted note will appear here.
+                  </p>
+                )}
+              </div>
             )}
           </div>
-        )}
-        <div className="editor-footer">
-          <span>Headings, lists, links, and code</span>
-          <span>{value.length.toLocaleString()} / 6,000</span>
+          {outline && (
+            <aside className="writing-outline" aria-label="Note outline">
+              <h2>On this page</h2>
+              {headings.length ? (
+                <ul>
+                  {headings.map((heading) => (
+                    <li key={heading.from}>
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        style={{
+                          paddingLeft: Math.min(heading.level - 1, 3) * 12,
+                        }}
+                        onClick={() => {
+                          setMode("live");
+                          requestAnimationFrame(() =>
+                            command((editor) =>
+                              editor.dispatch({
+                                selection: { anchor: heading.from },
+                                effects: EditorView.scrollIntoView(
+                                  heading.from,
+                                  { y: "center" },
+                                ),
+                              }),
+                            ),
+                          );
+                        }}
+                      >
+                        {heading.title || "Untitled heading"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>Add a heading to find your way around.</p>
+              )}
+            </aside>
+          )}
+        </div>
+        <div className="editor-footer" id={`${id}-help`}>
+          <span>
+            {mode === "live"
+              ? "Live Markdown · select text to format"
+              : mode === "source"
+                ? "Markdown source"
+                : "Reading preview"}
+          </span>
+          <span>
+            {value.trim()
+              ? value.trim().split(/\s+/).length.toLocaleString()
+              : 0}{" "}
+            words · {value.length.toLocaleString()} / 6,000
+          </span>
         </div>
       </div>
+      {limit && (
+        <p role="alert" className="app-error">
+          That change would exceed 6,000 characters. Your existing text is
+          unchanged.
+        </p>
+      )}
     </div>
   );
 }

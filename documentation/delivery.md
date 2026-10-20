@@ -1,5 +1,72 @@
 # Delivery evidence
 
+## Full-page writing and nested notebooks (20 October 2026 UTC)
+
+New notes and Journal entries open a full-page CodeMirror writing space with live
+Markdown, source/preview modes, shared formatting tools, undo/redo, outline,
+properties and focus mode. Explicit Save and keyboard saving keep the document
+open. Account-scoped drafts retain their original revision, retry operation and
+in-flight save during navigation; concurrent changes still require review.
+
+Notebooks have persistent parent relationships, expandable navigation, path-aware
+pickers/breadcrumbs, and shared create/rename/move controls. Same-account foreign
+keys and serialized mutations prevent invalid parents and concurrent cycles.
+Notebook revisions fence stale changes. Hierarchy does not grant access to child
+notebooks or disclose hidden ancestors. Notes retain their history and lifetimes
+when notebooks move. Apply migration `20261020_008_nested_notebooks` before API
+rollout as documented in [deploy.md](deploy.md).
+
+Shared Select, NotebookSelect, NotebookTree, NotebookBreadcrumbs, NotebookDialog
+and NotebooksProvider components serve the editor, library, organization and
+settings. Dropdowns support typeahead, arrows, Home/End, touch scrolling, checked
+choices, modal focus restoration and reduced motion.
+
+All 44 database/provider/auth/recovery tests, five packed artifact tests, and 49
+browser/accessibility scenarios pass. Root and website lint/types/build checks
+pass. Visual review covers 320–1920px writing layouts, long-note scrolling with visible Save,
+desktop and touch notebook organization, and long menus inside/outside dialogs.
+Thirteen screenshots and geometry checks report no application errors, horizontal
+overflow or WCAG A/AA violations. Menus animate position/scale while keeping text
+fully opaque, so their contrast remains readable throughout the transition.
+
+## Consumer-facing Grove website (20 October 2026 UTC)
+
+The public site leads with “Good ideas. Room to grow.” and a private notebook
+for everyday notes, plans, journaling and connected ideas. Notebook previews,
+Ask Grove examples with source links, FAQs, navigation, account-entry copy and
+social/search metadata share this positioning. The main call to action opens
+browser sign-up; new accounts default to Notes. Optional AI-tool connections and
+self-hosting remain accessible from the public site.
+
+Root and website lint/types/build, five packed artifact checks and all 43 website
+browser/accessibility checks pass. Public checks cover the no-JavaScript story
+and sign-up path, keyboard notebook/demo navigation, source-note links, sharing,
+metadata, installation, mobile navigation and WCAG A/AA accessibility.
+Visual review covers desktop and touch notebook/journal/graph/Ask Grove previews,
+the generated sharing image, and 320–1920px layouts without horizontal overflow.
+The touch review reports no application errors or accessibility violations.
+
+## Constellation graph and compact workspace (20 October 2026 UTC)
+
+The Notes graph uses notebook-colored stars, connection-count sizing, curved
+relationship lines, and hover/keyboard/selection neighborhood highlighting.
+Titles stay readable while zooming; title visibility, full-screen exploration,
+touch instructions, and reduced-motion behavior are supported. Connections still
+require a loaded note in the same notebook at the referenced current version.
+
+The workspace has slimmer navigation and headers, compact note metadata/tags,
+quieter neutral surfaces, and tighter filters, Journal, Ask Grove, and readers.
+Mobile navigation scrolls horizontally and reveals the active page; touch
+controls retain larger targets.
+
+Local verification covers root and website lint/types/build, all five packed
+artifact tests, and all 43 website browser/accessibility checks. Expanded graph
+coverage exercises title toggling, neighborhood highlighting, reduced motion,
+keyboard reading, full-screen reading, and stale/cross-notebook exclusions.
+Visual review includes a 30-note/42-connection fixture, sparse graphs, selection,
+full screen, desktop and touch layouts, and 320–2320px workspace breakpoints.
+The populated touch graph reports no browser errors or accessibility violations.
+
 ## Notebook, cited chat, and background services (20 October 2026 UTC)
 
 Implementation `f69b2c6` on PR #12 passed CI

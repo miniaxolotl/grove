@@ -10,7 +10,7 @@ export function pageMetadata(
     url: `${site.url}/opengraph-image`,
     width: 1200,
     height: 630,
-    alt: "Grove — New session. Same context. Self-hosted memory for your AI agents.",
+    alt: site.imageAlt,
   };
 
   return {

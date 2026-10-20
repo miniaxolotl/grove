@@ -2,6 +2,7 @@
 
 import { Check, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { positioning } from "@/content/site";
 
 export function ShareSite({ url }: { url: string }) {
   const [status, setStatus] = useState<"idle" | "copied" | "fallback">("idle");
@@ -19,8 +20,8 @@ export function ShareSite({ url }: { url: string }) {
       if (navigator.share) {
         try {
           await navigator.share({
-            title: "Grove — New session. Same context.",
-            text: "A little memory for your AI agent. Open source, self-hosted, and yours to grow.",
+            title: positioning.title,
+            text: positioning.shareText,
             url,
           });
           setStatus("idle");

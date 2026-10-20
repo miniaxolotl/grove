@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 
 const siteURL = new URL(process.env.SITE_URL || "http://localhost:3000").origin;
 
-test("serves the product story, installation, and FAQ without JavaScript", async ({
+test("serves the notebook story, signup links, and FAQ without JavaScript", async ({
   browser,
   baseURL,
 }) => {
@@ -11,49 +11,65 @@ test("serves the product story, installation, and FAQ without JavaScript", async
   const page = await context.newPage();
   await page.goto(baseURL!);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "New session.Same context.",
+    "Good ideas.Room to grow.",
   );
   await expect(
-    page.getByLabel("OpenCode connection command", { exact: true }),
-  ).toContainText("grove connect opencode");
-  await page.getByText("Where does my data go?", { exact: true }).click();
+    page.getByRole("link", { name: "Start your notebook" }).first(),
+  ).toHaveAttribute("href", "/sign-up");
   await expect(
-    page.getByText(
-      "Memories are stored in private PostgreSQL behind Grove’s authenticated API.",
-      { exact: false },
-    ),
+    page.getByRole("heading", { name: "A slower Saturday" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Open the installation guide" }).click();
+  await page.getByText("Is my notebook private?", { exact: true }).click();
+  await expect(
+    page.getByText("Your notes belong to your account.", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Connect your AI tools" }).click();
   await expect(page).toHaveURL(/\/install$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "agent’s memory",
   );
+  await expect(
+    page.getByLabel("OpenCode connection command", { exact: true }),
+  ).toContainText("grove connect opencode");
+  await page.goto(baseURL!);
+  await page.getByRole("link", { name: "Start your notebook" }).first().click();
+  await expect(page).toHaveURL(/\/sign-up$/);
   await context.close();
 });
 
-test("memory examples and comparison work with keyboard navigation", async ({
+test("Ask Grove examples, comparison and source notes work with keyboard navigation", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("tab", { name: "Your decisions" }).focus();
+  await page.getByRole("tab", { name: "Travel plans" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(
-    page.getByRole("tab", { name: "Your preferences" }),
+    page.getByRole("tab", { name: "Everyday preferences" }),
   ).toBeFocused();
   await expect(
-    page.getByRole("tab", { name: "Your preferences" }),
+    page.getByRole("tab", { name: "Everyday preferences" }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(
-    page.getByRole("tabpanel", { name: "Your preferences" }),
-  ).toContainText("I’ll use Vitest");
-  await page.getByRole("button", { name: "Without", exact: true }).click();
+    page.getByRole("tabpanel", { name: "Everyday preferences" }),
+  ).toContainText("Something vegetarian, made in one pan");
+  await page
+    .getByRole("button", { name: "No saved note", exact: true })
+    .click();
   await expect(
-    page.getByRole("tabpanel", { name: "Your preferences" }),
-  ).toContainText("Which testing framework would you like?");
-  await page.getByRole("button", { name: "With Grove", exact: true }).click();
+    page.getByRole("tabpanel", { name: "Everyday preferences" }),
+  ).toContainText(
+    "There isn’t a saved note about your dinner preferences yet.",
+  );
+  await page.getByRole("button", { name: "With a note", exact: true }).click();
   await expect(
-    page.getByRole("tabpanel", { name: "Your preferences" }),
-  ).toContainText("I’ll use Vitest");
+    page.getByRole("tabpanel", { name: "Everyday preferences" }),
+  ).toContainText("Something vegetarian, made in one pan");
+  await page
+    .getByRole("link", { name: "View note: Weeknight dinners" })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#example-note-preferences$/);
+  await expect(page.locator("#example-note-preferences")).toBeInViewport();
 });
 
 test("Cloud setup selects the right agent and keeps self-hosting on its own page", async ({
@@ -101,7 +117,7 @@ test("Cloud setup selects the right agent and keeps self-hosting on its own page
   await page.goto("/");
   await page
     .getByRole("main")
-    .getByRole("link", { name: "Get started", exact: true })
+    .getByRole("link", { name: "Connect your AI tools", exact: true })
     .click();
   await expect(page).toHaveURL(/\/install$/);
   await expect(
@@ -130,18 +146,22 @@ test("the public library preview supports keyboard exploration without account m
       writes.push(request.url());
   });
   await page.goto("/");
-  await page.getByRole("tab", { name: "Memories", exact: true }).focus();
+  await page.getByRole("tab", { name: "Notes", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(
-    page.getByRole("tab", { name: "Connections", exact: true }),
+    page.getByRole("tab", { name: "Journal", exact: true }),
   ).toBeFocused();
   await expect(
-    page.getByRole("tabpanel", { name: "Connections", exact: true }),
-  ).toContainText("Project-scoped connection");
+    page.getByRole("tabpanel", { name: "Journal", exact: true }),
+  ).toContainText("A small win");
   await page.keyboard.press("End");
   await expect(
-    page.getByRole("tabpanel", { name: "Archive", exact: true }),
-  ).toContainText("Kept out of active recall");
+    page.getByRole("tabpanel", { name: "Graph", exact: true }).getByRole("img"),
+  ).toHaveAccessibleName(/connections between a balcony garden/);
+  await page.keyboard.press("Home");
+  await expect(
+    page.getByRole("tabpanel", { name: "Notes", exact: true }),
+  ).toContainText("A tiny balcony garden");
   expect(writes).toEqual([]);
 });
 
@@ -206,8 +226,12 @@ test("native sharing cancellation is quiet and clipboard failure remains usable"
   await expect(
     page.getByRole("button", { name: "Share a little Grove" }),
   ).toBeEnabled();
+  await page.goto("/install");
   await page
-    .getByRole("button", { name: "Copy Cloud connection command" })
+    .getByRole("button", {
+      name: "Copy OpenCode connection command",
+      exact: true,
+    })
     .click();
   await expect(
     page.getByText("Select the text below to copy manually."),
@@ -229,16 +253,20 @@ test("social metadata, crawler routes, and generated images are usable", async (
   );
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
-    "Grove — New session. Same context.",
+    "Grove — Good ideas. Room to grow.",
   );
   const schema = JSON.parse(
     (await page.locator('script[type="application/ld+json"]').textContent())!,
   );
-  expect(
-    schema["@graph"].some(
-      (item: { "@type": string }) => item["@type"] === "SoftwareApplication",
-    ),
-  ).toBe(true);
+  const application = schema["@graph"].find(
+    (item: { "@type": string }) => item["@type"] === "SoftwareApplication",
+  );
+  expect(application.applicationCategory).toBe("ProductivityApplication");
+  expect(application.installUrl).toBe(`${siteURL}/sign-up`);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    /private notebook/,
+  );
 
   const image = await request.get("/opengraph-image");
   expect(image.ok()).toBe(true);

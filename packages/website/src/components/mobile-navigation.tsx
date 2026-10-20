@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { navigation } from "@/content/site";
 
-export function MobileNavigation({ github }: { github: string }) {
+export function MobileNavigation() {
   const [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -62,7 +62,7 @@ export function MobileNavigation({ github }: { github: string }) {
       >
         {[
           ...navigation,
-          { label: "Documentation", href: "/install" },
+          { label: "Connect AI tools", href: "/install" },
           { label: "Your Grove", href: "/app" },
         ].map(({ label, href }) => (
           <Link
@@ -74,12 +74,13 @@ export function MobileNavigation({ github }: { github: string }) {
             {label}
           </Link>
         ))}
-        <a
-          href={github}
-          className="mt-3 flex min-h-11 items-center gap-2 text-sm"
+        <Link
+          href="/sign-up"
+          className="button-primary mt-4 w-full"
+          onClick={() => setOpen(false)}
         >
-          Explore on GitHub <ArrowUpRight size={15} />
-        </a>
+          Start your notebook <ArrowUpRight size={15} />
+        </Link>
       </nav>
     </div>
   );

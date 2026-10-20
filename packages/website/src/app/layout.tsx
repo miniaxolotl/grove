@@ -38,15 +38,14 @@ export const metadata: Metadata = {
   authors: [{ name: site.creator }],
   creator: site.creator,
   publisher: site.creator,
-  category: "technology",
+  category: "productivity",
   keywords: [
-    "AI memory",
-    "MCP server",
-    "self-hosted",
-    "semantic search",
-    "private memory",
-    "PostgreSQL",
-    "agent memory",
+    "private notebook",
+    "note taking",
+    "personal journal",
+    "connected notes",
+    "organize ideas",
+    "AI note search",
     "Grove",
   ],
   robots: {
@@ -78,7 +77,7 @@ export default function RootLayout({
             signInUrl="/sign-in"
             signUpUrl="/sign-up"
             signInFallbackRedirectUrl="/app"
-            signUpFallbackRedirectUrl="/app/connections"
+            signUpFallbackRedirectUrl="/app"
             appearance={{
               variables: {
                 colorPrimary: "#326349",

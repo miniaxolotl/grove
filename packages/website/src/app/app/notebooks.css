@@ -1,0 +1,230 @@
+.notebook-explorer {
+  min-height: 0;
+  margin-top: 24px;
+  overflow-y: auto;
+  padding: 0 2px 8px;
+  scrollbar-width: thin;
+}
+.notebook-explorer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-left: 8px;
+  color: #59664f;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.notebook-explorer-heading .app-icon {
+  min-height: 28px;
+  width: 28px;
+}
+.notebook-tree-message {
+  margin: 8px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #626e66;
+}
+.notebook-tree-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.notebook-tree-list .notebook-tree-list {
+  margin-left: min(14px, 2vw);
+  border-left: 1px solid #dce3d6;
+  padding-left: 3px;
+}
+.notebook-tree-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 1px;
+  border-radius: 6px;
+}
+.notebook-tree-row:hover {
+  background: #e7eddf80;
+}
+.notebook-tree-row[data-current] {
+  background: #e1e9d8;
+}
+.notebook-tree-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  min-height: 33px;
+  padding: 5px 4px;
+  font-size: 11px;
+  color: #46533d;
+}
+.notebook-tree-link > svg {
+  flex-shrink: 0;
+  color: #78866a;
+}
+.notebook-tree-link > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notebook-disclosure.app-icon,
+.notebook-disclosure-spacer {
+  flex: 0 0 22px;
+  width: 22px;
+  min-height: 28px;
+  padding: 2px;
+}
+.notebook-disclosure > svg {
+  transition: transform 130ms;
+}
+.notebook-disclosure[aria-expanded="true"] > svg {
+  transform: rotate(90deg);
+}
+.notebook-manager {
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+.notebook-manager .notebook-tree-link {
+  min-height: 52px;
+  padding-inline: 7px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.notebook-manager .notebook-tree-link > svg {
+  width: 19px;
+  height: 19px;
+  margin-right: 5px;
+}
+.notebook-manager .notebook-tree-list .notebook-tree-list {
+  margin-left: 24px;
+  padding-left: 8px;
+}
+.notebook-tree-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 3px;
+  padding-right: 6px;
+}
+.notebook-tree .notebook-tree-list[data-deep] {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+.notebook-tree-actions .app-icon {
+  min-height: 32px;
+  width: 32px;
+}
+.notebook-organization-hint {
+  color: #626e66;
+  border-top: 1px solid var(--color-line);
+  font-size: 12px;
+  margin-top: 12px;
+  padding: 16px 10px 2px;
+  line-height: 1.8;
+}
+.notebook-breadcrumbs {
+  min-width: 0;
+  margin-bottom: 12px;
+  font-size: 11px;
+  color: #626e66;
+}
+.notebook-breadcrumbs ol,
+.notebook-breadcrumbs li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.notebook-breadcrumbs ol {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.notebook-breadcrumbs li > svg {
+  flex-shrink: 0;
+}
+.notebook-breadcrumbs li > a,
+.notebook-breadcrumbs li > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+.notebook-breadcrumbs a:hover {
+  color: #344f25;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.note-editor-location .notebook-breadcrumbs {
+  margin: 0 0 2px;
+  font-size: 10px;
+}
+.note-editor-location .notebook-breadcrumbs ol {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.sub-notebooks {
+  margin: 0 0 24px;
+}
+.sub-notebooks > h2 {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.sub-notebooks .notebook-tree-link {
+  font-size: 12px;
+}
+.library-places .notebook-tree-row > [data-destination] {
+  min-width: 0;
+  flex: 1;
+}
+@media (max-width: 1023px) {
+  .notebook-explorer {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .notebook-manager {
+    padding: 6px;
+  }
+  .notebook-manager .notebook-tree-link {
+    font-size: 12px;
+  }
+  .notebook-manager .notebook-tree-list .notebook-tree-list {
+    margin-left: 10px;
+    padding-left: 2px;
+  }
+  .notebook-tree-actions {
+    gap: 0;
+    padding-right: 0;
+  }
+  .notebook-tree-actions .app-icon {
+    width: 30px;
+  }
+  .notebook-breadcrumbs li > a,
+  .notebook-breadcrumbs li > span {
+    max-width: 175px;
+  }
+}
+@media (pointer: coarse) {
+  .notebook-tree-link,
+  .notebook-tree-actions .app-icon,
+  .notebook-disclosure.app-icon {
+    min-height: 44px;
+  }
+  .notebook-tree-actions .app-icon {
+    width: 36px;
+  }
+  .notebook-disclosure.app-icon {
+    flex-basis: 30px;
+    width: 30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notebook-disclosure > svg {
+    transition: none;
+  }
+}
