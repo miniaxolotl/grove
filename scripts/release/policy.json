@@ -1,0 +1,7 @@
+{
+  "repository": "miniaxolotl/grove",
+  "operator": "miniaxolotl",
+  "label": "enhancement",
+  "branches": ["development", "production"],
+  "ciJobs": ["website", "contracts", "image", "Promotion Admission", "CI Gate"]
+}
