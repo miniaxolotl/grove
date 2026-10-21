@@ -170,6 +170,81 @@ test("touch hit areas are separate and menus scroll within a short viewport", as
   }
 });
 
+test("mobile note controls leave room to read and retain selection for touch formatting", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await fixture(page, [note]);
+    await page.goto(`${base}/app`);
+    await page.locator(".memory-open").tap();
+    const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+    await expect(
+      drawer.getByRole("button", { name: "Close dialog", exact: true }),
+    ).toHaveCount(1);
+    expect(
+      (await drawer.locator(".writing-layout").boundingBox())!.y,
+    ).toBeLessThanOrEqual(176);
+    expect(
+      await page.evaluate(
+        () => (document.activeElement as HTMLElement)?.isContentEditable,
+      ),
+    ).toBe(false);
+    await page.screenshot({
+      path: info.outputPath("compact-reader-mobile.png"),
+    });
+    await drawer.getByRole("button", { name: "Edit note", exact: true }).tap();
+    const editor = drawer.getByRole("textbox", {
+      name: "What should stay with you?",
+    });
+    await editor.fill("A soft landing");
+    await editor.press("Home");
+    for (let i = 0; i < 6; i++) await editor.press("Shift+ArrowRight");
+    await drawer.getByRole("button", { name: "Bold", exact: true }).tap();
+    await expect(editor).toHaveText("**A soft** landing");
+    await drawer.getByRole("button", { name: "Undo", exact: true }).tap();
+    await expect(editor).toHaveText("A soft landing");
+    await page.setViewportSize({ width: 390, height: 480 });
+    await expect(
+      drawer.getByRole("button", { name: "Save note", exact: true }),
+    ).toBeInViewport();
+    await drawer.getByRole("button", { name: "Preview", exact: true }).tap();
+    await drawer
+      .getByRole("button", { name: "Note actions", exact: true })
+      .tap();
+    await page
+      .getByRole("button", { name: "Note properties", exact: true })
+      .tap();
+    await expect(
+      drawer.getByRole("combobox", { name: "Notebook", exact: true }),
+    ).toBeVisible();
+    expect(
+      await drawer.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await drawer
+      .getByRole("button", { name: "Note actions", exact: true })
+      .tap();
+    await page
+      .getByRole("button", { name: "Hide note properties", exact: true })
+      .tap();
+    await page.setViewportSize({ width: 320, height: 750 });
+    expect(
+      await drawer.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    expect(
+      (await drawer.locator(".writing-layout").boundingBox())!.height,
+    ).toBeGreaterThan(400);
+    await page.screenshot({ path: info.outputPath("compact-reader-320.png") });
+  } finally {
+    await context.close();
+  }
+});
+
 test("one wide note workspace preserves editor history, toggles with shortcuts and gives non-reflowing feedback", async ({
   page,
 }, info) => {

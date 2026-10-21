@@ -174,6 +174,13 @@ html:has(.grove-app) {
 .note-save-button > svg {
   display: none;
 }
+.note-mobile-actions,
+.action-menu > .note-mobile-menu-item {
+  display: none;
+}
+.app-detail-panel:has(.note-workspace) > .dialog-heading {
+  display: none;
+}
 .note-workspace .writing-paper {
   max-width: 960px;
 }
@@ -1059,6 +1066,67 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 600px) {
+  .note-editor-full .note-editor-bar {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+    grid-template-rows: auto auto;
+    gap: 0 4px;
+    padding: 8px 12px;
+  }
+  .note-editor-bar > .note-back {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  .note-editor-bar .note-editor-location {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    padding: 0;
+  }
+  .note-editor-bar > .note-save-status {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    white-space: normal;
+  }
+  .note-editor-bar > .note-save-button {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    width: 44px;
+    padding: 8px;
+  }
+  .note-editor-bar > button[popovertarget],
+  .note-mobile-actions {
+    grid-column: 4;
+    grid-row: 1 / 3;
+  }
+  .note-mobile-actions,
+  .action-menu > .note-mobile-menu-item {
+    display: flex;
+  }
+  .note-editor-bar .app-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .note-editor-bar > .note-secondary-control {
+    display: none;
+  }
+  .note-editor-bar > .editor-focus-toggle[aria-pressed="true"] {
+    display: inline-flex;
+    grid-column: 1 / -1;
+    width: auto;
+  }
+  .note-save-button > svg {
+    display: block;
+  }
+  .note-save-button > span,
+  .live-editor:not([data-mode="preview"]) .editor-heading > span {
+    display: none;
+  }
+  .live-editor .mode-toggle,
+  .live-editor .segmented-control button {
+    min-height: 44px;
+  }
   .ask-page-actions .app-button {
     padding: 8px;
     width: 36px;
