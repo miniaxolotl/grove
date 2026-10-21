@@ -25,6 +25,9 @@ test("public note is readable signed out, safe, responsive and not indexed", asy
   ).toBeVisible();
   await expect(page.getByText("Keep the useful details.")).toBeVisible();
   await expect(
+    page.getByRole("heading", { name: "Next steps", level: 2 }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("link", { name: "Private note", exact: true }),
   ).toHaveCount(0);
   await expect(
@@ -65,6 +68,28 @@ test("public note is readable signed out, safe, responsive and not indexed", asy
       fullPage: true,
     });
   }
+});
+
+test.describe("server-rendered sharing", () => {
+  test.use({ javaScriptEnabled: false });
+  test("long saved headings remain complete without JavaScript", async ({
+    page,
+    request,
+  }) => {
+    const key = token("F");
+    const heading = `${"A long heading worth keeping in full ".repeat(5)}THE_END`;
+    await request.post(`${fixture}/_fixture/${key}`, {
+      data: {
+        title: heading.slice(0, 110),
+        content: `# ${heading}\n\nSaved text remains readable.`,
+      },
+    });
+    await page.goto(`/s/${key}`);
+    await expect(
+      page.getByRole("heading", { name: heading, exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("Saved text remains readable.")).toBeVisible();
+  });
 });
 
 test("shared notebook supports bounded navigation and protects outside references", async ({
@@ -136,11 +161,18 @@ test("missing links and temporary upstream failures have distinct recoverable st
     page.getByRole("heading", { name: "This link is unavailable" }),
   ).toBeVisible();
   const key = token("D");
-  await request.post(`${fixture}/_fixture/${key}`, { data: { failed: true } });
-  await page.goto(`/s/${key}`);
-  await expect(
-    page.getByRole("heading", { name: "Could not open this link" }),
-  ).toBeVisible();
+  for (const failure of ["failed", "malformed", "invalidSchema"]) {
+    await request.post(`${fixture}/_fixture/${key}`, {
+      data: { [failure]: true },
+    });
+    await page.goto(`/s/${key}`);
+    await expect(
+      page.getByRole("heading", { name: "Could not open this link" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("UPSTREAM_PRIVATE_CONTENT_CANARY", { exact: true }),
+    ).toHaveCount(0);
+  }
   await request.post(`${fixture}/_fixture/${key}`, { data: {} });
   await page.getByRole("link", { name: "Try again" }).click();
   await expect(

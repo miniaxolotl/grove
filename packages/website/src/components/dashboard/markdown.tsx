@@ -56,9 +56,9 @@ export function Markdown({
           h1: ({ children }) =>
             shared ? <h2>{children}</h2> : <h3>{children}</h3>,
           h2: ({ children }) =>
-            shared ? <h3>{children}</h3> : <h4>{children}</h4>,
+            shared ? <h2>{children}</h2> : <h4>{children}</h4>,
           h3: ({ children }) =>
-            shared ? <h4>{children}</h4> : <h5>{children}</h5>,
+            shared ? <h3>{children}</h3> : <h5>{children}</h5>,
           // Notes do not make third-party image requests just by being opened.
           img: ({ src, alt }) =>
             typeof src === "string" && link(src) ? (

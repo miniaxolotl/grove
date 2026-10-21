@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createDatabase, tenant } from "@lib/database";
 import { MemoryService, Sharing, sessionPrincipal } from "@lib/memory";
 import {
@@ -475,6 +475,203 @@ const save = (
     principal,
     rememberSchema.parse({ operationId: randomUUID(), content, projectId }),
   );
+
+test("concurrent rotation/revocation and an in-flight read cannot revive a completed revocation", async () => {
+  const note = await save(alice);
+  const state = await enable({ kind: "note", id: note.id });
+  const changes = await Promise.allSettled(
+    ["rotate", "revoke"].map((action) =>
+      sharing.change(alice, state.direct!.id, action as "rotate" | "revoke", {
+        operationId: randomUUID(),
+        expectedVersion: 1,
+      }),
+    ),
+  );
+  assert.equal(changes.filter((item) => item.status === "fulfilled").length, 1);
+  assert.equal(changes.filter((item) => item.status === "rejected").length, 1);
+  await assert.rejects(sharing.read(secret(state)), { code: "not_found" });
+  const current = await sharing.get(alice, { kind: "note", id: note.id });
+  const live = current.direct!.active
+    ? current
+    : await sharing.enable(
+        alice,
+        { kind: "note", id: note.id },
+        shareEnableSchema.parse({
+          operationId: randomUUID(),
+          expectedVersion: current.direct!.version,
+          expectedTargetVersion: note.version,
+        }),
+      );
+  const reader = await db.transaction();
+  try {
+    const { rows } = await reader.raw(
+      "SELECT grove_public_share(?, 'root', NULL, NULL, NULL, NULL, 30) AS value",
+      [createHash("sha256").update(secret(live)).digest("hex")],
+    );
+    assert.equal(rows[0].value.note.id, note.id);
+    const revoking = sharing.change(alice, live.direct!.id, "revoke", {
+      operationId: randomUUID(),
+      expectedVersion: live.direct!.version,
+    });
+    await reader.commit();
+    await revoking;
+    await assert.rejects(sharing.read(secret(live)), { code: "not_found" });
+  } finally {
+    if (!reader.isCompleted()) await reader.rollback();
+  }
+});
+
+test("scope narrowing, moving notes and outside cursors never grant extra access", async () => {
+  const root = await notebook("Scope root");
+  const child = await notebook("Scope child", root.id);
+  const elsewhere = await notebook("Elsewhere");
+  const note = await save(alice, "# Mobile note", child.id);
+  const state = await enable({ kind: "notebook", id: root.id }, 1, true);
+  const direct = await enable({ kind: "note", id: note.id });
+  assert.equal(
+    (await sharing.read(secret(state), "note", note.id)).note!.id,
+    note.id,
+  );
+  await sharing.change(alice, state.direct!.id, "scope", {
+    operationId: randomUUID(),
+    expectedVersion: 1,
+    includeDescendants: false,
+  });
+  await assert.rejects(sharing.read(secret(state), "note", note.id), {
+    code: "not_found",
+  });
+  await assert.rejects(sharing.read(secret(state), "notebook", child.id), {
+    code: "not_found",
+  });
+  const moved = await service.remember(
+    alice,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      id: note.id,
+      expectedVersion: 1,
+      content: note.content,
+      projectId: root.id,
+    }),
+  );
+  assert.equal(
+    (await sharing.read(secret(state), "note", note.id)).note!.id,
+    note.id,
+  );
+  await service.remember(
+    alice,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      id: note.id,
+      expectedVersion: moved.version,
+      content: note.content,
+      projectId: elsewhere.id,
+    }),
+  );
+  await assert.rejects(sharing.read(secret(state), "note", note.id), {
+    code: "not_found",
+  });
+  assert.equal((await sharing.read(secret(direct))).note!.id, note.id);
+});
+
+test("security-definer readers cannot be shadowed with temporary relations", async () => {
+  const note = await save(alice);
+  const state = await enable({ kind: "note", id: note.id });
+  await db.transaction(async (trx) => {
+    await trx.raw("CREATE TEMP TABLE public_shares (id uuid) ON COMMIT DROP");
+    await trx.raw("CREATE TEMP TABLE accounts (id uuid) ON COMMIT DROP");
+    await trx.raw("CREATE TEMP TABLE memories (id uuid) ON COMMIT DROP");
+    const { rows } = await trx.raw(
+      "SELECT grove_public_share(?, 'root', NULL, NULL, NULL, NULL, 30) AS value",
+      [createHash("sha256").update(secret(state)).digest("hex")],
+    );
+    assert.equal(rows[0].value.note.id, note.id);
+  });
+});
+
+test("account deletion purges sharing records and rate state using the worker role", async () => {
+  const workerUrl = process.env.TEST_WORKER_DATABASE_URL;
+  assert(workerUrl, "Use a disposable worker connection");
+  const workerDb = createDatabase(workerUrl);
+  try {
+    const subject = `user_sharing_delete_${randomUUID()}`;
+    const { rows } = await db.raw("SELECT * FROM grove_account(?)", [subject]);
+    const principal = sessionPrincipal(rows[0].id, subject);
+    const note = await save(principal);
+    const state = await sharing.enable(
+      principal,
+      { kind: "note", id: note.id },
+      shareEnableSchema.parse({
+        operationId: randomUUID(),
+        expectedVersion: 0,
+        expectedTargetVersion: 1,
+      }),
+    );
+    await sharing.read(secret(state));
+    assert.equal(
+      (await admin("public_share_rates").where({ bucket: state.direct!.id }))
+        .length,
+      1,
+    );
+    await service.deleteAccount(principal);
+    await assert.rejects(sharing.read(secret(state)), { code: "not_found" });
+    await new MemoryService(workerDb, service.cursorSecret).maintenance(
+      async () => {},
+    );
+    for (const table of ["public_shares", "public_share_operations"])
+      assert.equal(
+        (await admin(table).where({ accountId: principal.accountId })).length,
+        0,
+      );
+    assert.equal(
+      (await admin("public_share_rates").where({ bucket: state.direct!.id }))
+        .length,
+      0,
+    );
+  } finally {
+    await workerDb.destroy();
+  }
+});
+
+test("invalid public tokens consume a shared budget without charging the owner", async () => {
+  const note = await save(alice);
+  const before = await admin("rate_buckets")
+    .where({ accountId: alice.accountId })
+    .select("*");
+  await admin.raw(
+    "INSERT INTO public_share_rates(bucket, minute, count) VALUES('global', date_trunc('minute', now()), 1200) ON CONFLICT(bucket, minute) DO UPDATE SET count = 1200",
+  );
+  try {
+    const app = createApp({
+      memories: service,
+      shareLinkKey: "ab".repeat(32),
+      auth: {
+        async principal() {
+          return alice;
+        },
+      },
+      origin: "https://api.example.test",
+      siteUrl: "https://grove.example.test",
+      issuer: "https://clerk.example.test",
+      webhookSecret: "unused",
+      ready: async () => {},
+    });
+    const response = await app.request("/public/shares/not-a-capability");
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get("retry-after"), "60");
+    assert.deepEqual(
+      await admin("rate_buckets")
+        .where({ accountId: alice.accountId })
+        .select("*"),
+      before,
+    );
+    assert.equal(
+      (await sharing.get(alice, { kind: "note", id: note.id })).target.id,
+      note.id,
+    );
+  } finally {
+    await admin("public_share_rates").where({ bucket: "global" }).delete();
+  }
+});
 
 test("share storage enforces tenant isolation, same-owner targets and explicit target shape", async () => {
   const mine = await save(alice);

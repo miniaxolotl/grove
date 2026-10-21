@@ -14,7 +14,7 @@ export async function readPublicShare(
     (kind !== "root" && !uuidSchema.safeParse(id).success)
   )
     notFound();
-  if (!process.env.GROVE_API_URL)
+  if (!process.env.GROVE_API_URL || !URL.canParse(process.env.GROVE_API_URL))
     throw new Error("Shared content is temporarily unavailable");
   const origin = new URL(process.env.GROVE_API_URL);
   if (
@@ -35,7 +35,7 @@ export async function readPublicShare(
     origin,
   );
   if (cursor) {
-    if (cursor.length > 2048)
+    if (typeof cursor !== "string" || cursor.length > 2048)
       throw new Error("Reload the shared notebook to continue");
     url.searchParams.set("cursor", cursor);
   }
@@ -43,12 +43,19 @@ export async function readPublicShare(
     cache: "no-store",
     redirect: "error",
     signal: AbortSignal.timeout(15000),
+  }).catch(() => {
+    // Native network errors can contain the capability-bearing request URL.
+    throw new Error("Shared content is temporarily unavailable");
   });
   if (response.status === 404) notFound();
   if (!response.ok)
     throw new Error("Shared content is temporarily unavailable");
-  const result = await response.json();
-  if (!result.success)
+  try {
+    const result = await response.json();
+    if (!result.success) throw new Error();
+    return publicShareSchema.parse(result.data);
+  } catch {
+    // JSON/validation errors must not log upstream content or response snippets.
     throw new Error("Shared content is temporarily unavailable");
-  return publicShareSchema.parse(result.data);
+  }
 }

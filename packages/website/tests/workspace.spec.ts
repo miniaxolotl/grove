@@ -867,6 +867,9 @@ test("notebook sharing entry points preserve scope and refresh conflicting setti
   );
   await dialog.getByRole("button", { name: "Save sharing settings" }).click();
   await expect(dialog.getByLabel("Current link")).toHaveValue(url);
+  await expect(
+    dialog.getByRole("button", { name: "Close dialog" }),
+  ).toBeEnabled();
   await page.keyboard.press("Escape");
   await page
     .locator(".app-sidebar")

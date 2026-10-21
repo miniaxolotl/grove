@@ -29,9 +29,19 @@ export const publicSharing = {
         bucket text NOT NULL, minute timestamptz NOT NULL, count integer NOT NULL,
         PRIMARY KEY(bucket, minute)
       );
+      CREATE INDEX public_share_rates_expiry ON public_share_rates(minute);
       REVOKE ALL ON public_share_rates FROM PUBLIC;
+      CREATE FUNCTION grove_share_cleanup() RETURNS trigger
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+      BEGIN
+        DELETE FROM public_share_rates WHERE bucket = OLD.id::text;
+        RETURN OLD;
+      END $$;
+      REVOKE ALL ON FUNCTION grove_share_cleanup() FROM PUBLIC;
+      CREATE TRIGGER public_share_cleanup AFTER DELETE ON public_shares
+        FOR EACH ROW EXECUTE FUNCTION grove_share_cleanup();
       CREATE FUNCTION grove_share_admit(bucket_name text) RETURNS boolean
-        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
       DECLARE hits integer;
       BEGIN
         IF bucket_name <> 'global' AND bucket_name !~ '^[0-9a-f-]{36}$' THEN RETURN false; END IF;
@@ -64,12 +74,12 @@ export const publicSharing = {
       CREATE FUNCTION grove_public_share(
         secret_digest text, requested_kind text, requested_id uuid,
         after_id uuid, cursor_share uuid, cursor_version integer, page_size integer
-      ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+      ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
       DECLARE link public_shares; owner_id uuid; permitted uuid[]; selected uuid;
         root_name text; notebook_name text; note memories; result jsonb; page jsonb; children jsonb;
       BEGIN
         IF page_size IS NULL OR page_size < 1 OR page_size > 100
-          OR requested_kind NOT IN ('root', 'note', 'notebook') THEN RETURN NULL; END IF;
+          OR requested_kind IS NULL OR requested_kind NOT IN ('root', 'note', 'notebook') THEN RETURN NULL; END IF;
         SELECT account_id INTO owner_id FROM public_shares WHERE token_digest = secret_digest AND revoked_at IS NULL;
         IF owner_id IS NULL THEN RETURN NULL; END IF;
         -- Match the service's lock order. Revocation, moves and deletion all take
@@ -110,7 +120,7 @@ export const publicSharing = {
           SELECT coalesce(jsonb_agg(m.id), '[]'::jsonb) INTO page FROM memories m
             WHERE m.account_id = owner_id AND (m.id = link.memory_id OR m.project_id = ANY(permitted))
               AND m.status = 'active' AND (m.expires_at IS NULL OR m.expires_at > now())
-              AND m.id::text IN (SELECT lower(matches[1]) FROM regexp_matches(note.content,
+              AND m.id IN (SELECT matches[1]::uuid FROM regexp_matches(note.content,
                 '/app/memories/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})', 'g') AS matches);
           RETURN result || jsonb_build_object('note', jsonb_build_object('id', note.id,
             'title', left(regexp_replace(split_part(trim(note.content), E'\\n', 1), '^#{1,6}\\s+', ''), 110),

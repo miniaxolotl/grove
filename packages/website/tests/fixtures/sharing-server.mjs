@@ -35,6 +35,15 @@ createServer(async (req, res) => {
   if (state.revoked || token === `gsh_${"Z".repeat(43)}` || id === ids.private)
     return send(res, 404, { success: false });
   if (state.failed) return send(res, 503, { success: false });
+  if (state.malformed)
+    return res
+      .writeHead(200, { "Content-Type": "application/json" })
+      .end("UPSTREAM_PRIVATE_CONTENT_CANARY");
+  if (state.invalidSchema)
+    return send(res, 200, {
+      success: true,
+      data: { content: "UPSTREAM_PRIVATE_CONTENT_CANARY" },
+    });
   const book = token === `gsh_${"B".repeat(43)}`;
   if (!book && (kind === "notebooks" || (id && id !== ids.one)))
     return send(res, 404, { success: false });

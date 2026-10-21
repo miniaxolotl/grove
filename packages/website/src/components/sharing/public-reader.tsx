@@ -20,6 +20,13 @@ export function PublicReader({
 }) {
   const root = `/s/${token}`;
   const title = data.note?.title || data.notebook?.name || data.root.name;
+  const heading = data.note?.content.match(/^\s*#{1,6}\s+([^\n]*)(?:\n|$)/);
+  // Only remove an exact duplicate. The summary title may be truncated, while
+  // the reader must retain every character of the saved heading.
+  const content =
+    data.note && heading && heading[1] === data.note.title
+      ? data.note.content.slice(heading[0].length)
+      : (data.note?.content ?? "");
   return (
     <article className="shared-reader" data-shared-content data-private>
       {path !== root && data.kind === "notebook" && (
@@ -54,7 +61,7 @@ export function PublicReader({
             linkedNoteIds: data.note.linkedNoteIds,
           }}
         >
-          {data.note.content.replace(/^\s*#{1,6}\s+[^\n]*(?:\n|$)/, "")}
+          {content}
         </Markdown>
       ) : (
         <>
