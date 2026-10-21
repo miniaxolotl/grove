@@ -1,5 +1,31 @@
 # Delivery evidence
 
+## Explainable note and notebook connections (21 October 2026 UTC)
+
+Connections now carry a specific reason and verbatim, revision-checked excerpts.
+The reader and Notes graph share a canonical assessment, comparison and
+version-checked dismissal/Undo. Notebook context and the Notebooks graph explain
+shared threads with explicit source coverage; direct membership remains separate
+from sub-notebooks. Migration `20261021_010_relationship_evidence`, bounded worker
+backfill and review-state recovery are documented in [relationships](relationships.md).
+
+Verification includes real PostgreSQL/RLS, leased-worker races, uncited notebook
+invalidation, bounded retries/budgets, export/reindex/recovery, browser accessibility
+and responsive comparisons. The complete 78-case Chromium suite and three focused
+iPhone/WebKit cases pass. Packed artifacts, release/deployment contracts, workflow
+lint and the API container build pass. All 76 backend tests pass. Additional
+regressions cover discovery beyond 100 notebooks, retry after revised sources,
+deletion after a notebook move and batched legacy relationship reads.
+[Visual review](design/screenshots/note-relationships/README.md) records desktop,
+320px and notebook-graph captures.
+
+A live MiniMax run of 16 explicitly labelled synthetic cases passed all classifications
+and exact-source checks, including four abstentions. Earlier runs exposed false
+conflicts for superseded/tentative decisions and unsupported dependency directions;
+the final level-specific schemas and instructions address those findings. Incidental
+citations in abstentions are discarded; positive claims retain strict validation.
+This small corpus is a regression signal, not a general accuracy estimate.
+
 ## Google Search Console (21 October 2026 UTC)
 
 The `sc-domain:usegrove.cloud` property is DNS-verified. Google successfully

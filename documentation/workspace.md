@@ -115,6 +115,17 @@ Choose **Graph** within Notes to explore recorded related, duplicate, or conflic
 ideas. It uses the loaded, current notes in the selected scope. Load earlier pages
 to expand it. Pan, zoom, select a note, or press Enter on a focused node to read it.
 
+**Linked notes → Why this connection?** and graph edges share the same reason and
+current excerpts. **Compare notes** opens both originals read-only; **Dismiss
+suggestion** and version-checked **Undo dismissal** review the connection from
+either endpoint. Automatic note comparisons stay within their notebook or Unfiled.
+
+**Notebook options → Connected notebooks** and **Graph → Notebooks** explain how
+collections relate, with links to supporting notes and explicit **X of Y notes**
+coverage. A limited shared thread is distinguished from broad shared context.
+Sub-notebooks are assessed separately. See [connections](relationships.md) for
+evidence, processing, API and migration details.
+
 **Ask Grove** finds, explains and helps change your notes. Follow-ups such as
 “shorten that note” use the conversation's context. Choose all notes, Unfiled, or
 a notebook; optionally include unfiled notes. **Search** finds pages as you type.
@@ -134,7 +145,7 @@ to send. The send button works in either mode, including touch keyboards.
 **Settings** groups Preferences, Account, Connections, Search & organization and
 Your data under a persistent heading and navigation. Section content scrolls
 independently, keeping navigation in place. Export includes
-notes, revisions and conversations. Self-hosted administrators retain provider
+notes, revisions, conversations and relationship review state. Self-hosted administrators retain provider
 configuration at [Model settings](models.md).
 
 The interface uses self-hosted Space Grotesk and the [Sprout palette](design/grove-sprout.md).
