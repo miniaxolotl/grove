@@ -10,6 +10,10 @@ import {
 import type { Memory, MemoryList, Notebook, Page } from "@lib/shared/contracts";
 import type { Conversation } from "@lib/shared/conversations";
 import type { AskResult } from "@lib/shared/models";
+import type {
+  ConnectionPage,
+  ConnectionQuery,
+} from "@lib/shared/relationships";
 import { api, DashboardApiError } from "./dashboard-api";
 
 type Filters = Omit<MemoryList, "cursor">;
@@ -284,6 +288,40 @@ export class WorkspaceCache {
       gcTime: path === "/ask" ? 60_000 : 300_000,
     });
   }
+  relationships(
+    input: Omit<ConnectionQuery, "limit" | "includeDismissed" | "cursor"> &
+      Partial<Pick<ConnectionQuery, "limit" | "includeDismissed">>,
+  ) {
+    const filters = {
+      ...input,
+      endpointIds: input.endpointIds
+        ? [...new Set(input.endpointIds)].sort()
+        : undefined,
+      limit: input.limit ?? 30,
+      includeDismissed: input.includeDismissed ?? false,
+    };
+    return infiniteQueryOptions({
+      queryKey: workspaceKeys.resource("/relationships/search", filters),
+      initialPageParam: null as string | null,
+      queryFn: ({ pageParam, signal }) =>
+        this.read<ConnectionPage>(
+          "/relationships/search",
+          { ...filters, cursor: pageParam ?? undefined },
+          signal,
+        ),
+      getNextPageParam: (page: ConnectionPage) => page.nextCursor,
+      staleTime: 15_000,
+      refetchInterval: (query) => {
+        if (query.state.data?.pages[0]?.status !== "pending") {
+          this.pendingSince.delete(query);
+          return false;
+        }
+        const started = this.pendingSince.get(query) ?? Date.now();
+        this.pendingSince.set(query, started);
+        return Date.now() - started < 120_000 ? 15_000 : false;
+      },
+    });
+  }
   /** Subscribe while an imperative consumer waits; only the final departure cancels a shared read. */
   fetch<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     return this.observe(this.resource<T>(path, body), signal);
@@ -348,6 +386,8 @@ export class WorkspaceCache {
         change.scopes.includes((key as Filters).projectId!)
       );
     if (kind === "resource" && typeof key === "string") {
+      // Any source can add/remove a pair, including notebook coverage outside its excerpts.
+      if (key === "/relationships/search") return true;
       if (/^\/memories\/[^/]+\/revisions$/.test(key))
         return !change.ids || change.ids.includes(key.split("/")[2]);
       if (["/ask", "/briefs"].includes(key)) {
@@ -412,6 +452,28 @@ export class WorkspaceCache {
     for (const query of this.client
       .getQueryCache()
       .findAll({ queryKey: [...root, "resource"] })) {
+      if (query.queryKey[2] === "/relationships/search") {
+        const data = query.state.data as
+          | InfiniteData<ConnectionPage>
+          | undefined;
+        if (data)
+          this.client.setQueryData(
+            query.queryKey,
+            {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                items: page.items.filter(
+                  (item) =>
+                    item.level !== "notebook" &&
+                    !notes.has(item.from.id) &&
+                    !notes.has(item.to.id),
+                ),
+              })),
+            },
+            { updatedAt: query.state.dataUpdatedAt },
+          );
+      }
       if (query.queryKey[2] === "/ask") {
         const data = query.state.data as AskResult | undefined;
         if (data)
@@ -508,6 +570,7 @@ export class WorkspaceCache {
       verb === "GET" ||
       path === "/memories/search" ||
       path === "/briefs" ||
+      path === "/relationships/search" ||
       path === "/ask";
     if (read)
       return verb === "GET" && !path.startsWith("/memories/")
@@ -587,6 +650,11 @@ export class WorkspaceCache {
           );
         else this.invalidate({ resource: "/projects" });
         this.publish?.({ resource: "/projects" });
+        this.invalidate({ resource: "/relationships/search" });
+        this.publish?.({ resource: "/relationships/search" });
+      } else if (path.startsWith("/relationships/")) {
+        this.invalidate({ resource: "/relationships/search" });
+        this.publish?.({ resource: "/relationships/search" });
       } else if (path.startsWith("/conversations")) {
         const change = { resource: "/conversations" };
         void this.client.cancelQueries({
@@ -645,6 +713,9 @@ export class WorkspaceCache {
         } else if (path.startsWith("/projects")) {
           this.invalidate({ resource: "/projects" });
           this.publish?.({ resource: "/projects" });
+        } else if (path.startsWith("/relationships/")) {
+          this.invalidate({ resource: "/relationships/search" });
+          this.publish?.({ resource: "/relationships/search" });
         }
       }
       throw error;

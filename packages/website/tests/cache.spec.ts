@@ -87,6 +87,79 @@ test("list snapshots seed details without duplicate reads; scope and pagination 
   expect(requests[1]).toHaveProperty("projectId", null);
 });
 
+test("relationship pages normalize graph scopes and review invalidates only their resource family", async () => {
+  let reads = 0;
+  const cache = cacheWith(async (path) => {
+    if (path === "/relationships/search") {
+      reads++;
+      return { items: [], nextCursor: null, status: "ready" };
+    }
+    return {};
+  });
+  const options = cache.relationships({
+    level: "note",
+    endpointIds: ["b", "a"],
+  });
+  await cache.client.fetchInfiniteQuery(options);
+  await cache.client.fetchInfiniteQuery(
+    cache.relationships({
+      level: "note",
+      endpointIds: ["a", "b", "a"],
+      includeDismissed: false,
+      limit: 30,
+    }),
+  );
+  expect(reads).toBe(1);
+  cache.client.setQueryData(workspaceKeys.note(note.id), note);
+  await cache.api("/relationships/note/pair/review", { dismissed: true });
+  expect(cache.client.getQueryState(options.queryKey)?.isInvalidated).toBe(
+    true,
+  );
+  expect(
+    cache.client.getQueryState(workspaceKeys.note(note.id))?.isInvalidated,
+  ).toBe(false);
+});
+
+test("deleting a source removes cached connection evidence and fences a held old page", async () => {
+  const connection = {
+    level: "note",
+    from: { id: note.id },
+    to: { id: "other" },
+  };
+  const page = { items: [connection], nextCursor: null, status: "ready" };
+  const held = Promise.withResolvers<typeof page>();
+  let hold = false;
+  let signal: AbortSignal | undefined;
+  const cache = cacheWith(async (path, _body, _method, abort) => {
+    if (path === "/memories/delete")
+      return { results: [{ id: note.id, outcome: "deleted" }] };
+    if (hold) {
+      signal = abort;
+      return held.promise;
+    }
+    return page;
+  });
+  const options = cache.relationships({ level: "note", endpointId: note.id });
+  await cache.client.fetchInfiniteQuery(options);
+  hold = true;
+  await cache.client.invalidateQueries({
+    queryKey: options.queryKey,
+    refetchType: "none",
+  });
+  const pending = cache.client
+    .fetchInfiniteQuery(options)
+    .catch(() => undefined);
+  await cache.api("/memories/delete", {
+    items: [{ id: note.id, expectedVersion: 1 }],
+  });
+  expect(signal?.aborted).toBe(true);
+  held.resolve(page);
+  await pending;
+  expect(cache.client.getQueryData(options.queryKey)?.pages[0].items).toEqual(
+    [],
+  );
+});
+
 test("account teardown rejects a late successful save and clears every snapshot", async () => {
   const response = Promise.withResolvers<Memory>();
   const old = cacheWith(async () => response.promise);

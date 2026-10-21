@@ -448,7 +448,7 @@ test("notebook and note reads start independently and hidden mobile previews sta
   ).toHaveLength(2);
 });
 
-test("closed linked notes do no work, expansion bounds missing-title concurrency and reuses results", async ({
+test("closed linked notes stay idle and expanded connections reuse batched title pages", async ({
   page,
 }) => {
   const state = await fixture(page);
@@ -457,49 +457,65 @@ test("closed linked notes do no work, expansion bounds missing-title concurrency
     (_, index) =>
       `00000000-0000-4000-a000-${String(100 + index).padStart(12, "0")}`,
   );
-  state.note.enrichment = {
-    status: "ready",
-    title: "Cached thought",
-    tags: [],
-    profiles: [],
-    relationships: ids.map((id) => ({
-      id,
-      version: 1,
-      relationship: "complementary",
-    })),
-  };
-  let active = 0,
-    maximum = 0,
-    reads = 0;
+  const connections = ids.map((id) => ({
+    id,
+    level: "note",
+    type: "complementary",
+    reason: "Shared context",
+    basis: "additional_context",
+    direction: "both",
+    from: { id: note.id, title: "Cached thought" },
+    to: { id, title: `Linked ${id}` },
+    evidence: [],
+    coverage: {
+      from: { total: 1, examined: 1, supporting: 1 },
+      to: { total: 1, examined: 1, supporting: 1 },
+    },
+    breadth: "thread",
+    revision: "a".repeat(64),
+    reviewVersion: 0,
+    dismissed: false,
+    updatedAt: note.updatedAt,
+  }));
+  const reads: Record<string, unknown>[] = [];
   const release = Promise.withResolvers<void>();
-  await page.route("**/api/grove/memories/*", async (route) => {
-    const id = route.request().url().split("/").at(-1)!;
-    if (!ids.includes(id)) return route.fallback();
-    reads++;
-    active++;
-    maximum = Math.max(maximum, active);
+  await page.route("**/api/grove/relationships/search", async (route) => {
+    const input = route.request().postDataJSON();
+    reads.push(input);
     await release.promise;
     await route.fulfill({
-      json: { success: true, data: { ...note, id, content: `# Linked ${id}` } },
+      json: {
+        success: true,
+        data: {
+          items: input.cursor ? connections.slice(5) : connections.slice(0, 5),
+          nextCursor: input.cursor ? null : "next",
+          status: "ready",
+        },
+      },
     });
-    active--;
   });
   await page.goto(`${base}/app`);
   await page.locator(".memory-open").click();
   await expect(page.locator(".editor-preview")).toBeVisible();
-  expect(reads).toBe(0);
+  expect(reads).toHaveLength(0);
   await page.locator(".linked-notes summary").click();
-  await expect.poll(() => reads).toBe(4);
+  await expect.poll(() => reads.length).toBe(1);
+  expect(reads[0]).toMatchObject({ endpointId: note.id, limit: 5 });
   release.resolve();
-  await expect(page.locator(".related-memories a").last()).toHaveText(
+  await expect(page.locator(".connection-row")).toHaveCount(5);
+  await page.getByRole("button", { name: "More connections" }).click();
+  await expect(page.locator(".connection-row")).toHaveCount(9);
+  expect(reads).toHaveLength(2);
+  expect(reads[1].cursor).toBe("next");
+  await page.locator(".linked-notes summary").click();
+  await page.locator(".linked-notes summary").click();
+  await expect(page.locator(".connection-row").last()).toContainText(
     `Linked ${ids.at(-1)}`,
   );
-  expect(maximum).toBeLessThanOrEqual(4);
-  expect(reads).toBe(9);
-  await page.locator(".linked-notes summary").click();
-  await page.locator(".linked-notes summary").click();
-  await expect(page.locator(".related-memories a").last()).toBeVisible();
-  expect(reads).toBe(9);
+  expect(reads).toHaveLength(2);
+  expect(
+    state.reads.some((path) => ids.some((id) => path === `/memories/${id}`)),
+  ).toBe(false);
 });
 
 test("cross-tab changes revalidate the same account without broadcasting note content", async ({

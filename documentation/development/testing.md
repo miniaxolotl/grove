@@ -83,6 +83,30 @@ background reads preserve row geometry, selection and keyboard retry focus. The
 production runner checks stable drawer bounds across pending, failed and ready views
 at desktop and narrow mobile widths.
 
+Relationship checks use non-owner API/worker roles for pair uniqueness, symmetric
+reads, review replay, scoped grants, stale publication, budgets/retries, notebook
+batch resumption, uncited-source invalidation and deletion scrubbing. Recovery
+replays authoritative review state while invalidating explanations. Browser checks
+cover shared graph/context inspectors, exact excerpts, comparison focus return,
+dismissal/Undo and partial notebook coverage at 320px. The bounded synthetic
+live-provider runner is documented in [relationships](../relationships.md#quality-evaluation).
+
+Run the focused iPhone/WebKit checks after the website production build:
+
+```sh
+pnpm --filter website exec playwright test --config playwright.relationships-webkit.config.ts
+```
+
+On Linux hosts missing WebKit system libraries, run the same committed config in
+the Playwright image (from the worktree root):
+
+```sh
+docker run --rm --ipc=host --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD:$PWD" -w "$PWD/packages/website" \
+  mcr.microsoft.com/playwright:v1.64.1-noble \
+  node node_modules/@playwright/test/cli.js test --config playwright.relationships-webkit.config.ts
+```
+
 Gesture checks use trusted Chromium touch/pen events alongside mouse and keyboard:
 one-row swipe ownership, second-contact cancellation, handle activation, destination
 autoscroll, delayed notebook expansion, route interruption, pinch and modifier-wheel
@@ -93,6 +117,8 @@ copy feedback in the active dialog's shared notification stack.
 Graph guidance is checked with keyboard/touch disclosure and expanded focus
 wrapping; opening and closing it retains the graph's focal point. The touch move
 case covers the integrated destination/cancel panel and edge autoscroll.
+Expanded graph checks also open connection evidence from a focused edge, restore
+that edge on dismissal and include the connection-list disclosure in focus wrapping.
 
 After building production CSS, run the focused iPhone/WebKit set with:
 

@@ -12,7 +12,7 @@ import {
 import type { Memory } from "@lib/shared/contracts";
 import { errorMessage, type Project } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
-import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
+import { dateLabel, isInactive } from "@/lib/memory-display";
 import { isActiveSurface, isTyping } from "@/lib/workspace-keyboard";
 import { Markdown } from "./markdown";
 import { MemoryEditor } from "./memory-editor";
@@ -21,6 +21,7 @@ import { RevisionCompare } from "./revision-compare";
 import { ActionMenu } from "./ui/action-menu";
 import { useToast } from "./toasts";
 import { useWorkspaceCommands } from "./workspace-commands";
+import { ConnectionPanel } from "./connection-panel";
 import { NoteActions } from "./note-actions";
 
 export function MemoryDetail({
@@ -73,7 +74,6 @@ export function MemoryDetail({
     ? errorMessage(historyQuery.error)
     : "";
   const [relatedOpen, setRelatedOpen] = useState(false);
-  const [related, setRelated] = useState<Record<string, string>>({});
   const operations = useRef(new Map<string, string>());
   const setDialogBusy = useDialogBusy();
   const locked = busy || actionBusy || editorLocked;
@@ -82,29 +82,6 @@ export function MemoryDetail({
     const frame = requestAnimationFrame(() => setConfirmDelete(true));
     return () => cancelAnimationFrame(frame);
   }, [initialDelete]);
-  useEffect(() => {
-    if (!relatedOpen) return;
-    const controller = new AbortController();
-    const ids = (memory.enrichment?.relationships ?? []).map(({ id }) => id);
-    const titles: Record<string, string> = {};
-    // Four workers bound missing-title requests; cached note snapshots are reused.
-    Promise.all(
-      Array.from({ length: Math.min(4, ids.length) }, async () => {
-        while (ids.length && !controller.signal.aborted) {
-          const id = ids.shift()!;
-          try {
-            const note = await cache.fetchNote(id, controller.signal);
-            titles[id] = note ? memoryTitle(note) : "Linked note unavailable";
-          } catch {
-            titles[id] = "Linked note";
-          }
-        }
-      }),
-    ).then(() => {
-      if (!controller.signal.aborted) setRelated(titles);
-    });
-    return () => controller.abort();
-  }, [memory.enrichment?.relationships, relatedOpen, cache]);
   async function run(action: () => Promise<void>) {
     if (locked) return;
     setBusy(true);
@@ -375,29 +352,9 @@ export function MemoryDetail({
           className="linked-notes"
           onToggle={(event) => setRelatedOpen(event.currentTarget.open)}
         >
-          <summary>
-            Linked notes{" "}
-            <span>{memory.enrichment?.relationships.length ?? 0}</span>
-          </summary>
-          {memory.enrichment?.relationships.length ? (
-            <ul className="related-memories">
-              {memory.enrichment.relationships.map((relation) => (
-                <li key={relation.id}>
-                  <Link href={`/app/memories/${relation.id}`}>
-                    {related[relation.id] ?? "Related note"}
-                  </Link>
-                  <span>
-                    {relation.relationship === "complementary"
-                      ? "Related"
-                      : relation.relationship === "conflicting"
-                        ? "May conflict"
-                        : "Possible duplicate"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>Connections appear as Grove finds related ideas.</p>
+          <summary>Linked notes</summary>
+          {relatedOpen && (
+            <ConnectionPanel level="note" endpointId={memory.id} />
           )}
         </details>
       </MemoryEditor>
