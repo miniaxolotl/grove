@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { RedirectToSignIn, UserButton, useUser } from "@clerk/nextjs";
+import { RedirectToSignIn, UserButton, useUser, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
+import { WorkspaceCacheProvider } from "./workspace-cache";
 import { NotebooksProvider, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookExplorer } from "./notebook-explorer";
 import { setAccountBoundary } from "@/lib/analytics";
@@ -35,6 +36,7 @@ const links = [
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { user, isLoaded, isSignedIn } = useUser();
+  const { sessionId } = useAuth();
   const navigation = useRef<HTMLElement>(null);
   useEffect(() => {
     const nav = navigation.current;
@@ -82,137 +84,139 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </div>
     );
   return (
-    <ToastProvider key={user?.id}>
-      <NoteDraftsProvider>
-        <NotebooksProvider>
-          <WorkspaceCommands>
-            <WorkspaceDrag>
-              <WorkspaceSearch>
-                <div className="grove-app" data-private>
-                  <aside className="app-sidebar">
-                    <div className="app-sidebar-heading">
-                      <Brand href="/app" />
-                      <div className="lg:hidden">
-                        <UserButton />
+    <WorkspaceCacheProvider key={`${user?.id}:${sessionId}`} account={user!.id}>
+      <ToastProvider>
+        <NoteDraftsProvider>
+          <NotebooksProvider>
+            <WorkspaceCommands>
+              <WorkspaceDrag>
+                <WorkspaceSearch>
+                  <div className="grove-app" data-private>
+                    <aside className="app-sidebar">
+                      <div className="app-sidebar-heading">
+                        <Brand href="/app" />
+                        <div className="lg:hidden">
+                          <UserButton />
+                        </div>
                       </div>
-                    </div>
-                    <NewNoteLink />
-                    <WorkspaceSearchButton />
-                    <div className="workspace-utilities">
-                      <CommandMenuButton />
-                      <ShortcutHelpButton compact />
-                    </div>
-                    <nav
-                      ref={navigation}
-                      aria-label="Notebook navigation"
-                      className="app-navigation"
-                    >
-                      {links.map(({ href, name, icon: Icon }, index) => (
-                        <Link
-                          key={href}
-                          href={href}
-                          aria-current={
-                            (
-                              href === "/app"
-                                ? path === href ||
-                                  path === "/app/graph" ||
-                                  path.startsWith("/app/notes/") ||
-                                  path.startsWith("/app/memories/") ||
-                                  path.startsWith("/app/projects")
-                                : path.startsWith(href)
-                            )
-                              ? "page"
-                              : undefined
-                          }
-                          className={`app-nav${index > 1 ? " app-nav-secondary" : ""}`}
-                        >
-                          <Icon size={17} strokeWidth={1.6} />
-                          {name}
-                        </Link>
-                      ))}
-                    </nav>
-                    <NotebookExplorer />
-                    <div className="app-sidebar-footer">
-                      <nav aria-label="Workspace settings">
-                        {links.slice(2).map(({ href, name, icon: Icon }) => (
+                      <NewNoteLink />
+                      <WorkspaceSearchButton />
+                      <div className="workspace-utilities">
+                        <CommandMenuButton />
+                        <ShortcutHelpButton compact />
+                      </div>
+                      <nav
+                        ref={navigation}
+                        aria-label="Notebook navigation"
+                        className="app-navigation"
+                      >
+                        {links.map(({ href, name, icon: Icon }, index) => (
                           <Link
-                            className="app-nav"
                             key={href}
                             href={href}
                             aria-current={
-                              path.startsWith(href) ? "page" : undefined
+                              (
+                                href === "/app"
+                                  ? path === href ||
+                                    path === "/app/graph" ||
+                                    path.startsWith("/app/notes/") ||
+                                    path.startsWith("/app/memories/") ||
+                                    path.startsWith("/app/projects")
+                                  : path.startsWith(href)
+                              )
+                                ? "page"
+                                : undefined
                             }
+                            className={`app-nav${index > 1 ? " app-nav-secondary" : ""}`}
                           >
-                            <Icon size={16} />
+                            <Icon size={17} strokeWidth={1.6} />
                             {name}
                           </Link>
                         ))}
                       </nav>
-                      <div className="sidebar-account">
-                        <UserButton />
-                        <span className="truncate text-xs">
-                          {user?.firstName ?? "Your account"}
-                        </span>
+                      <NotebookExplorer />
+                      <div className="app-sidebar-footer">
+                        <nav aria-label="Workspace settings">
+                          {links.slice(2).map(({ href, name, icon: Icon }) => (
+                            <Link
+                              className="app-nav"
+                              key={href}
+                              href={href}
+                              aria-current={
+                                path.startsWith(href) ? "page" : undefined
+                              }
+                            >
+                              <Icon size={16} />
+                              {name}
+                            </Link>
+                          ))}
+                        </nav>
+                        <div className="sidebar-account">
+                          <UserButton />
+                          <span className="truncate text-xs">
+                            {user?.firstName ?? "Your account"}
+                          </span>
+                        </div>
                       </div>
+                    </aside>
+                    <div className="app-main">
+                      <header className="app-topbar">
+                        <span className="app-breadcrumb">
+                          <span>Your Grove</span>
+                          <span aria-hidden="true">/</span>
+                          <strong>
+                            {[
+                              ...links,
+                              { href: "/app/graph", name: "Note graph" },
+                              { href: "/app/profile", name: "About you" },
+                            ].find(({ href }) =>
+                              href === "/app"
+                                ? path === href ||
+                                  path.startsWith("/app/memories/") ||
+                                  path.startsWith("/app/notes/") ||
+                                  path.startsWith("/app/projects")
+                                : path.startsWith(href),
+                            )?.name ?? "Your notes"}
+                          </strong>
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="app-private-label">
+                            <LockKeyhole size={12} aria-hidden="true" /> Private
+                          </span>
+                        </div>
+                      </header>
+                      <main id="main" className="app-content" key={user?.id}>
+                        {children}
+                      </main>
+                      <footer className="app-footer">
+                        <span>Grove</span>
+                        <nav aria-label="Workspace help and policies">
+                          <ShortcutHelpButton />
+                          <TelemetryChoice />
+                          <Link
+                            href="/app/archive"
+                            aria-current={
+                              path === "/app/archive" ? "page" : undefined
+                            }
+                          >
+                            <Archive size={14} />
+                            Archive
+                          </Link>
+                          <Link href="/install">Setup guide</Link>
+                          <Link href="/privacy">Privacy</Link>
+                          <Link href="/terms">Terms</Link>
+                          <a href="mailto:grove@mawa.dev">Get help</a>
+                        </nav>
+                      </footer>
                     </div>
-                  </aside>
-                  <div className="app-main">
-                    <header className="app-topbar">
-                      <span className="app-breadcrumb">
-                        <span>Your Grove</span>
-                        <span aria-hidden="true">/</span>
-                        <strong>
-                          {[
-                            ...links,
-                            { href: "/app/graph", name: "Note graph" },
-                            { href: "/app/profile", name: "About you" },
-                          ].find(({ href }) =>
-                            href === "/app"
-                              ? path === href ||
-                                path.startsWith("/app/memories/") ||
-                                path.startsWith("/app/notes/") ||
-                                path.startsWith("/app/projects")
-                              : path.startsWith(href),
-                          )?.name ?? "Your notes"}
-                        </strong>
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="app-private-label">
-                          <LockKeyhole size={12} aria-hidden="true" /> Private
-                        </span>
-                      </div>
-                    </header>
-                    <main id="main" className="app-content" key={user?.id}>
-                      {children}
-                    </main>
-                    <footer className="app-footer">
-                      <span>Grove</span>
-                      <nav aria-label="Workspace help and policies">
-                        <ShortcutHelpButton />
-                        <TelemetryChoice />
-                        <Link
-                          href="/app/archive"
-                          aria-current={
-                            path === "/app/archive" ? "page" : undefined
-                          }
-                        >
-                          <Archive size={14} />
-                          Archive
-                        </Link>
-                        <Link href="/install">Setup guide</Link>
-                        <Link href="/privacy">Privacy</Link>
-                        <Link href="/terms">Terms</Link>
-                        <a href="mailto:grove@mawa.dev">Get help</a>
-                      </nav>
-                    </footer>
                   </div>
-                </div>
-              </WorkspaceSearch>
-            </WorkspaceDrag>
-          </WorkspaceCommands>
-        </NotebooksProvider>
-      </NoteDraftsProvider>
-    </ToastProvider>
+                </WorkspaceSearch>
+              </WorkspaceDrag>
+            </WorkspaceCommands>
+          </NotebooksProvider>
+        </NoteDraftsProvider>
+      </ToastProvider>
+    </WorkspaceCacheProvider>
   );
 }
 

@@ -47,7 +47,7 @@ const fixtureConfig = {
                   ? 'export { usePathname, useRouter } from "./tests/fixtures/navigation";'
                   : args.path === "next/image"
                     ? 'import React from "react"; export default function Image({unoptimized, ...props}) { return <img {...props}/> }'
-                    : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
+                    : 'export { useUser, useAuth, RedirectToSignIn, UserButton, useClerk } from "./tests/fixtures/workspace-account";',
         }));
       },
     },
