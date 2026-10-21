@@ -45,6 +45,8 @@ const mono = localFont({
   ],
   variable: "--font-jetbrains-mono",
   display: "swap",
+  // Notes uses the sans family; load these weights when code/UI text needs them.
+  preload: false,
   adjustFontFallback: false,
 });
 
