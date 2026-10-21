@@ -14,6 +14,7 @@ import { createGenerationProvider, type Providers, type Source } from "@lib/ai";
 import { generationConfigSchema } from "@lib/shared/models";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { createApp } from "../../packages/api/src/app.ts";
+import { withTelemetry, type TelemetrySink } from "@lib/telemetry/context";
 
 const url = process.env.TEST_MIGRATION_DATABASE_URL!;
 assert(
@@ -283,6 +284,35 @@ test("real tool transport completes greetings, retries invalid responses and nor
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+});
+
+test("chat conversions follow committed replies and applied creates, excluding failed or replayed turns", async () => {
+  const { service, principal, behavior, create } = await fixture();
+  const events: string[] = [];
+  const sink: TelemetrySink = {
+    capture(event) {
+      events.push(event);
+    },
+    operation() {},
+  };
+  await withTelemetry(sink, async () => {
+    behavior.intent = "create";
+    const chat = await create();
+    const input = turn("PRIVATE_CREATE");
+    behavior.fail = true;
+    await assert.rejects(service.conversations.turn(principal, chat.id, input));
+    assert.equal(events.filter((e) => e === "chat_completed").length, 0);
+    behavior.fail = false;
+    const reply = await service.conversations.turn(principal, chat.id, input);
+    await service.conversations.turn(principal, chat.id, input);
+    assert.equal(events.filter((e) => e === "chat_completed").length, 1);
+    assert.equal(events.filter((e) => e === "memory_created").length, 0);
+    const turnId = reply.turns[0]!.id;
+    await service.conversations.apply(principal, chat.id, turnId);
+    await service.conversations.apply(principal, chat.id, turnId);
+    await service.conversations.apply(principal, chat.id, turnId, true);
+    assert.equal(events.filter((e) => e === "memory_created").length, 1);
+  });
 });
 
 test("durable conversation context, exact source references, replay and tenant boundaries", async () => {

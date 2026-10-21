@@ -1,0 +1,16 @@
+{
+  "name": "@lib/telemetry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./context": "./src/context.ts",
+    "./preference": "./src/preference.ts"
+  },
+  "dependencies": {
+    "@sentry/core": "11.8.0",
+    "@sentry/node": "11.8.0",
+    "posthog-node": "5.56.2"
+  }
+}

@@ -1,5 +1,6 @@
 import { automaticContext, type AgentName } from "@lib/integration-core/node";
 import { memorySkill } from "@lib/integration-core";
+import { closeTelemetry } from "@lib/telemetry";
 
 let input = "";
 for await (const chunk of process.stdin) {
@@ -32,4 +33,6 @@ try {
     );
 } catch {
   /* Optional context must not stop normal agent work. */
+} finally {
+  await closeTelemetry(50);
 }

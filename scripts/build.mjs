@@ -1,5 +1,6 @@
 import { build } from "esbuild";
-import { readFile, mkdir, copyFile } from "node:fs/promises";
+import { readFile, mkdir, copyFile, writeFile } from "node:fs/promises";
+import { telemetryBuild } from "./release/telemetry-build.mjs";
 import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
 
@@ -34,6 +35,9 @@ for (const name of selected) {
       : name === "opencode"
         ? ["@opencode/plugin"]
         : [];
+  const component =
+    name === "api" ? "api" : name === "opencode" ? "opencode" : "cli";
+  const telemetry = telemetryBuild(process.env, pkg.version, component);
   await build({
     entryPoints: target.entries.map(
       (entry) => `${target.directory}/src/${entry}.ts`,
@@ -44,6 +48,7 @@ for (const name of selected) {
     mainFields: ["module", "main"],
     target: "node22",
     format: "esm",
+    define: { __GROVE_TELEMETRY__: JSON.stringify(telemetry) },
     sourcemap: true,
     banner: {
       js: 'import { createRequire as __groveCreateRequire } from "node:module"; const require = __groveCreateRequire(import.meta.url);',
@@ -51,6 +56,15 @@ for (const name of selected) {
     external: externals,
     logLevel: "info",
   });
+  await writeFile(
+    `${target.directory}/dist/telemetry-build.json`,
+    JSON.stringify({
+      enabled: telemetry.enabled,
+      revision: telemetry.revision,
+      version: telemetry.version,
+      component,
+    }) + "\n",
+  );
   if (name === "opencode")
     await copyFile(
       "packages/grove-claude-plugin/skills/memory/SKILL.md",
@@ -62,10 +76,11 @@ if (selected.includes("mcp")) {
     const directory = `packages/grove-${agent}-plugin/dist`;
     await mkdir(directory, { recursive: true });
     for (const entry of ["cli", "bridge", "hook"]) {
-      await copyFile(
-        `packages/mcp/dist/${entry}.js`,
-        `${directory}/${entry}.js`,
-      );
+      for (const extension of ["js", "js.map"])
+        await copyFile(
+          `packages/mcp/dist/${entry}.${extension}`,
+          `${directory}/${entry}.${extension}`,
+        );
     }
   }
 }

@@ -9,6 +9,7 @@
     "@lib/config": "workspace:*",
     "@lib/database": "workspace:*",
     "@lib/shared": "workspace:*",
+    "@lib/telemetry": "workspace:*",
     "knex": "3.3.0"
   }
 }

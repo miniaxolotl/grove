@@ -121,6 +121,7 @@ export class Authentication {
   constructor(
     private db: Knex,
     private verifier: TokenVerifier,
+    private workspaceCreated?: (account: string, request: Request) => void,
   ) {}
   async principal(request: Request): Promise<Principal> {
     const token = request.headers
@@ -152,9 +153,13 @@ export class Authentication {
       };
     }
     const identity = await this.verifier.verify(token);
-    const { rows } = await this.db.raw("SELECT * FROM grove_account(?)", [
-      identity.subject,
-    ]);
+    // grove_account inserts with created_at=now() under its subject lock. This
+    // single autocommit statement exposes whether this call created the workspace;
+    // existing/concurrent/retried lookups retain their earlier timestamp.
+    const { rows } = await this.db.raw(
+      'SELECT a.*, a.created_at = transaction_timestamp() AS "telemetryCreated" FROM grove_account(?) a',
+      [identity.subject],
+    );
     const account = rows[0];
     if (!account || account.status !== "active")
       throw new GroveError(
@@ -162,6 +167,13 @@ export class Authentication {
         "This account is unavailable",
         403,
       );
+    if (account.telemetryCreated) {
+      try {
+        this.workspaceCreated?.(account.id, request);
+      } catch {
+        /* Collection cannot affect authentication. */
+      }
+    }
     if (identity.type === "session")
       return {
         ...sessionPrincipal(account.id, identity.subject),

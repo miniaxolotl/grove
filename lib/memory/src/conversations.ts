@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { currentTelemetry } from "@lib/telemetry/context";
 import { MemoryModel, type Knex } from "@lib/database";
 import { InferenceError } from "@lib/ai";
 import { GroveError, type Memory, type Principal } from "@lib/shared/contracts";
@@ -243,6 +244,7 @@ export class Conversations {
     input: ConversationTurnRequest,
     signal?: AbortSignal,
   ): Promise<Conversation> {
+    const started = performance.now();
     const fingerprint = createHash("sha256")
       .update(JSON.stringify(input))
       .digest("hex");
@@ -498,7 +500,7 @@ export class Conversations {
           throw new InferenceError("generation_invalid_proposal", false);
       }
       signal?.throwIfAborted();
-      return await this.service.access(
+      const result = await this.service.access(
         principal,
         "admin",
         async ({ trx, account }) => {
@@ -550,6 +552,10 @@ export class Conversations {
           return this.read(trx, current);
         },
       );
+      currentTelemetry().capture("chat_completed", {
+        duration_ms: performance.now() - started,
+      });
+      return result;
     } catch (error) {
       const message =
         error instanceof GroveError
@@ -580,128 +586,136 @@ export class Conversations {
     turnId: string,
     undo = false,
   ): Promise<Conversation> {
-    return this.service.access(principal, "admin", async ({ trx, account }) => {
-      const conversation = await trx<ConversationRow>("conversations")
-        .where({ id })
-        .first();
-      const turn = await trx<TurnRow>("conversation_turns")
-        .where({ id: turnId, conversationId: id })
-        .first();
-      if (!conversation || !turn?.result?.proposal) throw missing();
-      const { result } = turn;
-      const proposal = result.proposal!;
-      if (undo ? proposal.status === "undone" : proposal.status === "applied")
-        return this.read(trx, conversation);
-      if (
-        undo
-          ? proposal.status !== "applied" || !turn.undo
-          : proposal.status !== "proposed"
-      )
-        throw conflict();
-      const pending = await trx("conversation_turns")
-        .where({ conversationId: id, status: "pending" })
-        .where("leaseUntil", ">", trx.fn.now())
-        .first("id");
-      if (pending)
-        throw new GroveError(
-          "conversation_busy",
-          "Wait for the current reply before changing notes.",
-          409,
-        );
-      const references = undo ? proposal.applied! : proposal.sources;
-      const rows = await MemoryModel.query(trx)
-        .whereIn(
-          "id",
-          references.map((s) => s.id),
-        )
-        .orderBy("id")
-        .forUpdate();
-      if (
-        references.some(
-          (s) =>
-            !rows.some(
-              (r) =>
-                same(r, s) &&
-                inScope(conversation.scope, r.projectId) &&
-                (undo ||
-                  (r.status === "active" &&
-                    (!r.expiresAt || new Date(r.expiresAt) > new Date()))),
-            ),
-        )
-      )
-        throw stale();
-      const originals: Undo = [];
-      const applied: SourceRef[] = [];
-      if (!undo && proposal.kind === "create") {
+    let created = false;
+    const result = await this.service.access(
+      principal,
+      "admin",
+      async ({ trx, account }) => {
+        const conversation = await trx<ConversationRow>("conversations")
+          .where({ id })
+          .first();
+        const turn = await trx<TurnRow>("conversation_turns")
+          .where({ id: turnId, conversationId: id })
+          .first();
+        if (!conversation || !turn?.result?.proposal) throw missing();
+        const { result } = turn;
+        const proposal = result.proposal!;
+        if (undo ? proposal.status === "undone" : proposal.status === "applied")
+          return this.read(trx, conversation);
         if (
-          conversation.scope.projectId &&
-          !(await trx("projects")
-            .where({ id: conversation.scope.projectId })
-            .first("id"))
+          undo
+            ? proposal.status !== "applied" || !turn.undo
+            : proposal.status !== "proposed"
+        )
+          throw conflict();
+        const pending = await trx("conversation_turns")
+          .where({ conversationId: id, status: "pending" })
+          .where("leaseUntil", ">", trx.fn.now())
+          .first("id");
+        if (pending)
+          throw new GroveError(
+            "conversation_busy",
+            "Wait for the current reply before changing notes.",
+            409,
+          );
+        const references = undo ? proposal.applied! : proposal.sources;
+        const rows = await MemoryModel.query(trx)
+          .whereIn(
+            "id",
+            references.map((s) => s.id),
+          )
+          .orderBy("id")
+          .forUpdate();
+        if (
+          references.some(
+            (s) =>
+              !rows.some(
+                (r) =>
+                  same(r, s) &&
+                  inScope(conversation.scope, r.projectId) &&
+                  (undo ||
+                    (r.status === "active" &&
+                      (!r.expiresAt || new Date(r.expiresAt) > new Date()))),
+              ),
+          )
         )
           throw stale();
-        const row = await MemoryModel.query(trx)
-          .insert({
-            accountId: account.id,
-            projectId: conversation.scope.projectId ?? null,
-            kind: "fact",
-            autoKind: false,
-            content: proposal.content,
-            source: { agent: "website" },
-          })
-          .returning("*");
-        originals.push({
-          id: row.id,
-          version: row.version,
-          content: row.content,
-          status: "archived",
-        });
-        await this.revise(trx, row);
-        applied.push(ref(row));
-      } else {
-        for (const old of rows) {
+        const originals: Undo = [];
+        const applied: SourceRef[] = [];
+        if (!undo && proposal.kind === "create") {
+          created = true;
+          if (
+            conversation.scope.projectId &&
+            !(await trx("projects")
+              .where({ id: conversation.scope.projectId })
+              .first("id"))
+          )
+            throw stale();
+          const row = await MemoryModel.query(trx)
+            .insert({
+              accountId: account.id,
+              projectId: conversation.scope.projectId ?? null,
+              kind: "fact",
+              autoKind: false,
+              content: proposal.content,
+              source: { agent: "website" },
+            })
+            .returning("*");
           originals.push({
-            id: old.id,
-            version: old.version,
-            content: old.content,
-            status: old.status,
-          });
-          const before = undo
-            ? turn.undo!.find((r) => r.id === old.id)!
-            : undefined;
-          const row = await MemoryModel.query(trx).patchAndFetchById(old.id, {
-            content: before
-              ? before.content
-              : old.id === proposal.target?.id
-                ? proposal.content
-                : old.content,
-            status: before
-              ? before.status
-              : old.id === proposal.target?.id
-                ? old.status
-                : "archived",
-            version: old.version + 1,
-            updatedAt: trx.fn.now(),
+            id: row.id,
+            version: row.version,
+            content: row.content,
+            status: "archived",
           });
           await this.revise(trx, row);
           applied.push(ref(row));
+        } else {
+          for (const old of rows) {
+            originals.push({
+              id: old.id,
+              version: old.version,
+              content: old.content,
+              status: old.status,
+            });
+            const before = undo
+              ? turn.undo!.find((r) => r.id === old.id)!
+              : undefined;
+            const row = await MemoryModel.query(trx).patchAndFetchById(old.id, {
+              content: before
+                ? before.content
+                : old.id === proposal.target?.id
+                  ? proposal.content
+                  : old.content,
+              status: before
+                ? before.status
+                : old.id === proposal.target?.id
+                  ? old.status
+                  : "archived",
+              version: old.version + 1,
+              updatedAt: trx.fn.now(),
+            });
+            await this.revise(trx, row);
+            applied.push(ref(row));
+          }
         }
-      }
-      result.proposal = {
-        ...proposal,
-        status: undo ? "undone" : "applied",
-        applied,
-      };
-      await trx("conversation_turns")
-        .where({ id: turnId })
-        .update({
-          result: JSON.stringify(result),
-          undo: undo ? null : JSON.stringify(originals),
-        });
-      await trx("conversations")
-        .where({ id })
-        .update({ updatedAt: trx.fn.now() });
-      return this.read(trx, conversation);
-    });
+        result.proposal = {
+          ...proposal,
+          status: undo ? "undone" : "applied",
+          applied,
+        };
+        await trx("conversation_turns")
+          .where({ id: turnId })
+          .update({
+            result: JSON.stringify(result),
+            undo: undo ? null : JSON.stringify(originals),
+          });
+        await trx("conversations")
+          .where({ id })
+          .update({ updatedAt: trx.fn.now() });
+        return this.read(trx, conversation);
+      },
+    );
+    if (created) currentTelemetry().capture("memory_created");
+    return result;
   }
 }
