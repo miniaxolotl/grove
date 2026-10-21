@@ -112,7 +112,7 @@ html:has(.grove-app) {
     max(12px, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   justify-content: center;
   max-height: 35dvh;
@@ -124,14 +124,14 @@ html:has(.grove-app) {
 .toast-region > .workspace-notice {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   max-width: min(560px, 100%);
-  padding: 10px 12px 10px 16px;
-  color: #263d30;
-  background: #f8fcf4;
-  border: 1px solid #b8c6ac;
-  border-radius: 10px;
-  box-shadow: 0 8px 32px #203d3020;
+  padding: 4px 6px 4px 14px;
+  color: var(--color-forest);
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  box-shadow: 0 3px 14px #203d3010;
   pointer-events: auto;
   font-size: 13px;
 }
@@ -197,6 +197,12 @@ html:has(.grove-app) {
 }
 .note-save-button > svg {
   display: none;
+}
+.note-save-button:disabled {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-muted);
+  opacity: 1;
 }
 .note-mobile-actions,
 .action-menu > .note-mobile-menu-item {
@@ -720,7 +726,7 @@ html:has(.grove-app) {
 .mobile-drop-tray {
   display: none;
 }
-.drag-cancel-target {
+.workspace-drop-surface {
   position: fixed;
   z-index: 46;
   bottom: calc(12px + env(safe-area-inset-bottom));
@@ -729,21 +735,29 @@ html:has(.grove-app) {
   margin-inline: auto;
   width: max-content;
   max-width: calc(100vw - 16px);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 3px 14px #203d3010;
+}
+.drag-cancel-target {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: 100%;
   min-height: 44px;
-  padding: 10px 16px;
-  border: 1px dashed #9ba993;
-  border-radius: 8px;
-  background: #f8faf6;
-  color: #33482d;
+  padding: 8px 12px;
+  border-radius: inherit;
+  color: var(--color-muted);
   font-size: 12px;
   white-space: nowrap;
 }
 .drag-cancel-target[data-drop-active] {
-  background: #e6efdc;
+  background: var(--color-sage);
+  color: var(--color-forest);
   outline: 2px solid #63834e;
+  outline-offset: -2px;
 }
 .memory-drag-preview,
 .workspace-notice {
@@ -1073,31 +1087,29 @@ html:has(.grove-app) {
   .app-sidebar-footer {
     display: none;
   }
+  .workspace-drop-surface {
+    inset: auto max(8px, env(safe-area-inset-right))
+      calc(8px + env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    width: auto;
+  }
   .mobile-drop-tray {
     display: block;
-    position: fixed;
-    z-index: 45;
-    inset: auto max(8px, env(safe-area-inset-right))
-      calc(64px + env(safe-area-inset-bottom))
-      max(8px, env(safe-area-inset-left));
-    padding: 10px;
-    border: 1px solid #bac8b1;
-    border-radius: 10px;
-    background: #f8faf6;
-    box-shadow: 0 4px 30px #253e3130;
+    padding: 10px 8px 4px;
   }
   .mobile-drop-tray > span {
+    display: block;
+    padding: 0 10px 6px;
     font-size: 11px;
-    color: #52634a;
+    color: var(--color-muted);
   }
   .mobile-drop-destinations {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
     max-height: 30dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding-top: 6px;
   }
   .mobile-drop-tray .notebook-drop-target {
     flex: 0 0 auto;
@@ -1105,6 +1117,15 @@ html:has(.grove-app) {
     min-height: 44px;
     overflow-wrap: anywhere;
     padding: 10px;
+    border: 1px solid transparent;
+    color: var(--color-forest);
+  }
+  .workspace-drop-surface .drag-cancel-target {
+    border-top: 1px solid var(--color-line);
+    border-radius: 0 0 7px 7px;
+  }
+  .drag-cancel-target kbd {
+    display: none;
   }
 }
 @media (max-width: 600px) {
