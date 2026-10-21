@@ -17,12 +17,7 @@ export function SiteFooter() {
           <div>
             <Brand />
             <p className="mt-4 max-w-60 text-xs leading-6 text-muted">
-              A private notebook for your notes, plans, and everyday ideas.
-              <br />
-              Made with care by Bramble Labs Inc.
-            </p>
-            <p className="mt-5 text-[11px] text-leaf">
-              Good ideas. Room to grow.
+              A private notebook for notes, plans and journal entries.
             </p>
           </div>
           <nav aria-label="Resources">

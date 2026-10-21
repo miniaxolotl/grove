@@ -17,24 +17,21 @@ export default function AuthLayout({
         </Link>
       </header>
       <main id="main" className="page-container auth-shell">
-        <aside className="auth-story" aria-label="A home for your ideas">
+        <aside className="auth-story" aria-label="About Grove">
           <span className="auth-sprout">
             <GroveMark className="size-16" />
           </span>
-          <p className="eyebrow">YOUR IDEAS HAVE A HOME HERE.</p>
+          <p className="eyebrow">YOUR PRIVATE NOTEBOOK</p>
           <h2>
-            Good to have
+            Welcome
             <br />
-            <em>you here.</em>
+            <em>to Grove.</em>
           </h2>
-          <p>
-            Your plans. Your little discoveries. The thought you want to come
-            back to. Give them a place to grow with you.
-          </p>
+          <p>Keep your notes, plans and journal in one place.</p>
           <ul>
             <li>
-              <Check size={15} aria-hidden="true" /> Notes, notebooks, and a
-              journal of your own
+              <Check size={15} aria-hidden="true" /> Organize pages into
+              notebooks
             </li>
             <li>
               <Check size={15} aria-hidden="true" /> Find answers and
@@ -49,7 +46,7 @@ export default function AuthLayout({
         <section className="auth-entry" aria-label="Grove account access">
           {children}
           <p className="auth-help">
-            Need a hand? <a href="mailto:grove@mawa.dev">Get in touch</a>
+            Need help? <a href="mailto:grove@mawa.dev">Get in touch</a>
           </p>
           <nav className="auth-policies" aria-label="Legal">
             <Link href="/privacy">Privacy policy</Link>

@@ -12,14 +12,14 @@ export function Features() {
     >
       <div className="section-intro">
         <div>
-          <p className="eyebrow">KEEP IT. FIND IT. USE IT.</p>
+          <p className="eyebrow">WHAT YOU CAN DO</p>
           <h2 id="features-heading" className="section-heading mt-4">
-            Less searching.
+            Write, organize
             <br />
-            <em>More remembering.</em>
+            <em>and find your notes.</em>
           </h2>
         </div>
-        <p>A place for the notes you want to come back to.</p>
+        <p>Keep a journal, search by meaning and explore related ideas.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
         <article className="feature-card bg-white/60" data-reveal>
@@ -57,10 +57,7 @@ export function Features() {
             <Network size={20} aria-hidden="true" />
           </span>
           <h3>See how ideas connect.</h3>
-          <p>
-            Explore related notes on a map. Follow a connection to the next
-            useful idea.
-          </p>
+          <p>View related notes on a map and open them to read more.</p>
           <IdeaMap />
         </article>
         <article className="feature-card bg-white/60" data-reveal>

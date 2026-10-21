@@ -48,9 +48,7 @@ export function ShareSite({ url }: { url: string }) {
         className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-forest hover:text-leaf disabled:opacity-50"
       >
         {status === "copied" ? <Check size={15} /> : <Share2 size={15} />}
-        {status === "copied"
-          ? "Link copied. Let it grow."
-          : "Share a little Grove"}
+        {status === "copied" ? "Link copied" : "Share Grove"}
       </button>
       <span role="status" className="sr-only">
         {status === "copied" ? "Grove link copied to your clipboard." : ""}

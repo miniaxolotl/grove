@@ -2,8 +2,7 @@ import type { LegalDocument } from "@/components/legal-page";
 
 export const privacy: LegalDocument = {
   title: "Privacy policy.",
-  summary:
-    "What Grove remembers, how it gets used, and the choices that stay yours.",
+  summary: "How Grove handles your notes and personal information.",
   sections: [
     {
       id: "scope",

@@ -73,7 +73,7 @@ export default async function HomePage() {
               <Check size={12} className="text-leaf" /> Open in your browser
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Check size={12} className="text-leaf" /> Your notes, your control
+              <Check size={12} className="text-leaf" /> Export your notes
             </span>
           </div>
         </div>
@@ -147,12 +147,10 @@ export default async function HomePage() {
               <GroveMark className="size-5" /> START WRITING
             </p>
             <h2 id="closing-heading" className="section-heading mt-5">
-              Your first note
-              <br />
-              <em>starts here.</em>
+              Start your <em>notebook.</em>
             </h2>
             <p className="mt-5 max-w-md text-sm leading-7 text-leaf">
-              Create an account. Save an idea. Find it when you need it.
+              Create an account and write your first note.
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-start gap-4 md:items-center">
@@ -163,30 +161,9 @@ export default async function HomePage() {
               href="/app"
               className="inline-flex min-h-11 items-center gap-2 text-xs text-forest hover:underline"
             >
-              Already a member? Open your notebook
+              Already have an account? Sign in
             </Link>
           </div>
-        </div>
-      </section>
-      <section
-        className="page-container media-kit"
-        aria-labelledby="materials-heading"
-      >
-        <div>
-          <p className="eyebrow">BRAND MATERIALS</p>
-          <h2 id="materials-heading">Share Grove</h2>
-          <p>Logos, artwork and a short description.</p>
-        </div>
-        <div className="media-kit-links">
-          <a href="/materials/grove-media-kit.zip" download>
-            Download media kit
-          </a>
-          <a href="/materials/about.txt" download>
-            About Grove
-          </a>
-          <a href="/brand-kit/identity/primary/logos/horizontal.svg" download>
-            Download logo
-          </a>
         </div>
       </section>
       <StructuredData />

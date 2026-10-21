@@ -17,8 +17,8 @@ export function AgentStory() {
             <em>Same context.</em>
           </h2>
           <p className="agent-story-copy">
-            Stop explaining the same decisions to your coding agent. Save useful
-            context and recall it in the next session.
+            Save project decisions and notes so your coding agent can use them
+            in later sessions.
           </p>
           <p className="agent-story-copy">
             Connect OpenCode, Claude Code or Codex. Choose which notebooks it
@@ -34,7 +34,7 @@ export function AgentStory() {
           </div>
         </div>
         <figure className="agent-terminal" data-reveal>
-          <p>ONE LIBRARY. YOUR TOOLS.</p>
+          <p>CONNECT YOUR AGENT</p>
           <code>$ npx @miniaxolotl/grove connect</code>
           <ol>
             <li>
@@ -47,17 +47,15 @@ export function AgentStory() {
             <li>
               <span>02</span>
               <div>
-                Choose its context
-                <small>Scope the connection to the notebooks it needs.</small>
+                Choose its notebooks
+                <small>Give it access to the notes it needs.</small>
               </div>
             </li>
             <li>
               <span>03</span>
               <div>
-                Pick up the thread
-                <small>
-                  Remember useful details and recall relevant notes.
-                </small>
+                Save and recall notes
+                <small>Use saved notes across sessions.</small>
               </div>
             </li>
           </ol>

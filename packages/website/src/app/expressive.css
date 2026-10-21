@@ -4,35 +4,6 @@
   height: auto;
   margin-block: 24px;
 }
-.media-kit {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding-block: 48px;
-}
-.media-kit h2 {
-  font-size: 26px;
-  margin-block: 12px;
-}
-.media-kit p {
-  font-size: 13px;
-  color: #536348;
-}
-.media-kit-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-}
-.media-kit-links a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  font-size: 13px;
-  text-decoration: underline;
-  text-underline-offset: 5px;
-}
 .recovery-mark {
   display: grid;
   place-items: center;
