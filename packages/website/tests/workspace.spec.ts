@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { chooseOption } from "./fixtures/select";
 import {
@@ -17,6 +17,11 @@ import {
 } from "@lib/shared/conversations";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
+async function readDownload(download: Download) {
+  const path = test.info().outputPath(download.suggestedFilename());
+  await download.saveAs(path);
+  return readFile(path);
+}
 const project = {
   id: "00000000-0000-4000-a000-000000000010",
   name: "Website redesign",
@@ -609,7 +614,7 @@ test("row deletion resolves a lost save with its original identity and keeps new
   await page
     .getByRole("button", { name: "Markdown (.md)", exact: true })
     .click();
-  expect(await readFile((await (await download).path())!, "utf8")).toBe(
+  expect((await readDownload(await download)).toString("utf8")).toBe(
     "A newer unsavable draft. ".repeat(300),
   );
 });
@@ -634,7 +639,7 @@ test("export downloads exact unsaved Markdown and preserves a denied clipboard f
     .click();
   const file = await download;
   expect(file.suggestedFilename()).toBe("note-CON.md");
-  expect(await readFile((await file.path())!, "utf8")).toBe(content);
+  expect((await readDownload(file)).toString("utf8")).toBe(content);
   await page.evaluate(() =>
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -691,14 +696,14 @@ test("row export reads current content and first-save routing retains the export
   await dialog
     .getByRole("button", { name: "Markdown (.md)", exact: true })
     .click();
-  expect(await readFile((await (await download).path())!, "utf8")).toBe(
+  expect((await readDownload(await download)).toString("utf8")).toBe(
     "# First save export",
   );
   const pdfDownload = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loading = getDocument({
-    data: new Uint8Array(await readFile((await (await pdfDownload).path())!)),
+    data: new Uint8Array(await readDownload(await pdfDownload)),
     verbosity: 0,
   });
   expect((await loading.promise).numPages).toBe(1);
@@ -783,7 +788,7 @@ test("PDF export contains paginated searchable Markdown with safe links and Unic
   await download.saveAs(info.outputPath("note.pdf"));
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loading = getDocument({
-    data: new Uint8Array(await readFile((await download.path())!)),
+    data: new Uint8Array(await readDownload(download)),
     verbosity: 0,
   });
   const pdf = await loading.promise;
@@ -869,7 +874,7 @@ Next: share the draft, gather a little feedback, and make one careful improvemen
   await file.saveAs(info.outputPath("focused-note.pdf"));
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loading = getDocument({
-    data: new Uint8Array(await readFile((await file.path())!)),
+    data: new Uint8Array(await readDownload(file)),
     verbosity: 0,
     fontExtraProperties: true,
   });
@@ -917,7 +922,7 @@ test("PDF code-font load failure leaves source downloads usable and supports ret
   await dialog
     .getByRole("button", { name: "Markdown (.md)", exact: true })
     .click();
-  expect(await readFile((await (await markdown).path())!, "utf8")).toContain(
+  expect((await readDownload(await markdown)).toString("utf8")).toContain(
     "const ready = true;",
   );
   await page.unroute("**/jetbrains-mono-regular.ttf");
@@ -961,7 +966,7 @@ test("PDF layout wraps long code and wide tables without clipped or missing cont
   await file.saveAs(info.outputPath("wide-table.pdf"));
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loading = getDocument({
-    data: new Uint8Array(await readFile((await file.path())!)),
+    data: new Uint8Array(await readDownload(file)),
     verbosity: 0,
   });
   const pdf = await loading.promise;
