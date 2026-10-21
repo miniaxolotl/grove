@@ -15,7 +15,25 @@ five relevant browser scenarios, 17 release/deployment contracts and workflow li
 These include stalled response bodies, silent bounded shutdown, host SDK isolation,
 concurrent first-workspace creation, commit/rollback/replay conversion semantics,
 chat apply/undo, model usage accounting and browser/API opt-out propagation.
-Its production ingestion and symbolication acceptance follows the new release.
+Release **1.7.0** from `e37635d483d0985c867e43e726964a5e147d5b57` is published
+and active on both API/worker components at
+`sha256:4fe7fc3a13c9767b96f65a8f947354f0e2b8fe3323c331734bcc4c96179309c5`.
+All five npm package integrities and native opt-out/rotation checks pass. Sentry
+event `bb43800afa03429d893c01a18e770f3a` resolves to
+`lib/integration-core/src/node.ts:189`. Both health endpoints return 200, including
+semantic readiness. PostHog indexes exact-release API/worker milestones, successful
+jobs, maintenance, recalls/chat and bounded model metadata. Sentry indexes
+exact-release worker maintenance/job and API request logs and accepts metrics.
+
+Live acceptance exposed `missing_dsc` rejection of the native streamed spans:
+Sentry v11's asynchronous buffer reads the current host client after Grove's
+private scope has ended. The send boundary now rebuilds the sampling header from
+the configured Grove project, release, rate and projected trace. It preserves
+buffering and opt-out checks and cannot copy another host's project or context.
+Actual SDK tests cover an absent host client and timer delivery with a second
+client active, as well as the existing queued opt-out test. Root lint/types/build,
+all **62 database/provider/SDK cases**, five artifacts and 17 release/deployment
+contracts pass. Exact-release span indexing remains the follow-up release gate.
 
 ## Service and developer-tool collection
 
@@ -47,8 +65,8 @@ server account-pseudonym salt never enter client builds.
 
 Production release uploads `grove-api@<source>`, `grove-cli@<source>` and
 `grove-opencode@<source>` source maps before publication. API and worker share
-Sentry `grove-api`; developer tools share `grove-cli`. PostHog project remains
-677268. Native/service production acceptance follows the coordinated release.
+Sentry `grove-api`; developer tools share `grove-cli`. PostHog project remains 677268. Native/service production readbacks are recorded above; the sampling-header
+repair requires a new coordinated release across all bundled consumers.
 
 ## Website and workspace
 
@@ -111,5 +129,6 @@ local ingestion sinks: actual errors, streamed spans, metrics and logs; recursiv
 decoded replay; independent browser privacy signals; cross-tab opt-out/identity
 reset; provider outages; clipboard outcomes; and a persistent-layout workspace
 fixture exercising account switches and private API bodies. The fixture does not
-change production authentication. Backend/CLI instrumentation and production
-provider acceptance are separate remaining slices.
+change production authentication. Native service acceptance additionally checks
+actual indexed spans, rather than treating an HTTP ingestion acknowledgement as
+proof that the provider accepted the payload.

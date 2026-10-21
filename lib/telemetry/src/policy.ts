@@ -1,4 +1,12 @@
-import type { ErrorEvent, Log, Metric, StreamedSpanJSON } from "@sentry/core";
+import {
+  dsnFromString,
+  type Envelope,
+  type ErrorEvent,
+  type Log,
+  type Metric,
+  type SerializedStreamedSpanContainer,
+  type StreamedSpanJSON,
+} from "@sentry/core";
 
 export const surfaces = [
   "api",
@@ -117,6 +125,51 @@ export const dataCollection = {
   frameContextLines: 0,
 };
 export type Identity = { surface: Surface; release: string; version: string };
+
+/** The v11 buffer reads the current global client at flush time, outside our
+ * private operation scope. Rebuild DSC from our own configuration and the already
+ * projected trace, never from the host agent's client or propagation context. */
+export function safeSpanEnvelope(
+  envelope: Envelope,
+  identity: Identity,
+  dsn: string,
+  sampleRate: number,
+): Envelope | null {
+  const spanItems = envelope[1].filter(([header]) => header.type === "span");
+  if (!spanItems.length) return envelope;
+  const payload = spanItems[0][1] as SerializedStreamedSpanContainer;
+  const traceId = payload.items?.[0]?.trace_id;
+  const publicKey = dsnFromString(dsn)?.publicKey;
+  if (
+    spanItems.length !== 1 ||
+    !traceId ||
+    !/^[a-f0-9]{32}$/.test(traceId) ||
+    !payload.items.every((span) => span.trace_id === traceId) ||
+    !publicKey ||
+    !Number.isFinite(sampleRate) ||
+    sampleRate <= 0 ||
+    sampleRate > 1
+  )
+    return null;
+  const operation = payload.items[0].name;
+  return [
+    {
+      ...envelope[0],
+      trace: {
+        trace_id: traceId,
+        public_key: publicKey,
+        release: identity.release,
+        environment: "production",
+        sampled: "true",
+        sample_rate: String(sampleRate),
+        transaction: (operations as readonly string[]).includes(operation)
+          ? operation
+          : "command_run",
+      },
+    },
+    envelope[1],
+  ] as Envelope;
+}
 const attributes = (identity: Identity, raw: Record<string, unknown> = {}) => ({
   ...projectProperties(raw),
   product: "grove",
