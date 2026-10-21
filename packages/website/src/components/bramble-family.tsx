@@ -24,7 +24,10 @@ const products = [
 export function BrambleFamily({ current }: { current: string }) {
   return (
     <div className="bramble-family">
-      <a className="bramble-family-company" href="https://bramblelabs.co">
+      <a
+        className="bramble-family-company"
+        href="https://bramblelabs.co?utm_source=grove&utm_medium=referral&utm_campaign=bramble_family"
+      >
         <svg
           width="30"
           height="30"
@@ -57,7 +60,13 @@ export function BrambleFamily({ current }: { current: string }) {
               <small>{product.detail}</small>
             </span>
           ) : (
-            <a key={product.id} href={product.url}>
+            <a
+              key={product.id}
+              href={`${product.url}?utm_source=grove&utm_medium=referral&utm_campaign=bramble_family`}
+              data-analytics-event="product_link_clicked"
+              data-analytics-product={product.id}
+              data-analytics-placement="footer"
+            >
               <strong>
                 {product.name}
                 <ArrowUpRight size={11} aria-hidden="true" />

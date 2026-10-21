@@ -125,12 +125,14 @@ export const privacy: LegalDocument = {
           <p>
             We use Clerk for sign-in, sessions, and account identity; Neon for
             hosted PostgreSQL and recovery history; DigitalOcean for API and
-            worker hosting; Vercel for the website and website analytics; and
-            Porkbun for domain/DNS services. These providers process information
-            needed to perform their roles. Grove Cloud uses DeepInfra to process
-            query and memory text for embeddings and classification, and MiniMax
-            to generate titles, tags, and source-linked summaries from selected
-            memories. You can disable organization and summaries in Settings.
+            worker hosting; Vercel for the website; PostHog for anonymous
+            product analytics and masked public-page replay; Sentry for
+            sanitized diagnostics; and Porkbun for domain/DNS services. These
+            providers process information needed to perform their roles. Grove
+            Cloud uses DeepInfra to process query and memory text for embeddings
+            and classification, and MiniMax to generate titles, tags, and
+            source-linked summaries from selected memories. You can disable
+            organization and summaries in Settings.
           </p>
           <p>
             Authorized support and operations personnel may access information
@@ -154,14 +156,28 @@ export const privacy: LegalDocument = {
       content: (
         <>
           <p>
-            The public marketing pages use Vercel Web Analytics for aggregate
-            visits, referrals, and broad device/region information. It does not
-            use tracking cookies. Vercel Speed Insights measures loading,
-            responsiveness, and visual stability on these public pages without
-            tracking cookies; its reported URLs exclude query strings and
-            fragments. Website analytics and performance monitoring are not
-            mounted in Grove’s private dashboard, and memory content is not sent
-            as marketing analytics.
+            Production pages use PostHog for explicit page views, installation
+            copies, referral links and bounded operation outcomes. A random
+            browser identity is stored locally, without account identification
+            or person profiles. Account changes reset it. URLs omit queries,
+            fragments and private route IDs. Sentry receives sanitized errors,
+            sampled traces, timing metrics and operation logs. Note text,
+            prompts, responses, credentials, clipboard contents, request bodies,
+            headers and email addresses are excluded. Browser identities are not
+            joined to CLI identities or other Bramble products.
+          </p>
+          <p>
+            PostHog samples 10% of public-page sessions for replay, retained for
+            30 days. Text and inputs are masked; images, media, iframes and
+            private regions are blocked. Recording is disabled on authenticated
+            and sign-in screens. Console logs and network bodies/headers are not
+            recorded. Both providers process data in the United States. Use
+            “Disable website telemetry” in the public or workspace footer to
+            stop browser collection and clear its analytics identity. Global
+            Privacy Control and Do Not Track also disable collection. Opt-out
+            does not erase data already received; contact us for privacy
+            requests. Hosted server diagnostics are managed separately and
+            contain no memory text.
           </p>
           <p>
             Authentication uses cookies or similar session storage needed to

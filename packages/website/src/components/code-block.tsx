@@ -5,10 +5,12 @@ export function CodeBlock({
   code,
   title,
   light = false,
+  installation = false,
 }: {
   code: string;
   title: string;
   light?: boolean;
+  installation?: boolean;
 }) {
   return (
     <div className={`code-block ${light ? "code-block-light" : ""}`}>
@@ -16,7 +18,11 @@ export function CodeBlock({
         <span className="flex items-center gap-2 font-mono text-[11px]">
           <Terminal size={13} /> {title}
         </span>
-        <CopyButton text={code} label={`Copy ${title}`} />
+        <CopyButton
+          text={code}
+          label={`Copy ${title}`}
+          installation={installation}
+        />
       </div>
       <pre
         tabIndex={0}

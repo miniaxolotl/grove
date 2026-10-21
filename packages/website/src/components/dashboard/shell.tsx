@@ -18,6 +18,8 @@ import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
 import { NotebooksProvider } from "./notebooks-provider";
 import { NotebookExplorer } from "./notebook-explorer";
+import { setAccountBoundary } from "@/lib/analytics";
+import { TelemetryChoice } from "@/components/website-telemetry";
 import { WorkspaceDrag } from "./memory-drag";
 import { WorkspaceSearch, WorkspaceSearchButton } from "./workspace-search";
 
@@ -48,6 +50,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     revealCurrent();
     return () => observer.disconnect();
   }, [path, isLoaded, isSignedIn]);
+  useEffect(() => {
+    if (isLoaded) setAccountBoundary(user?.id ?? null);
+  }, [isLoaded, user?.id]);
   if (!isLoaded)
     return (
       <main id="main" className="app-opening">
@@ -58,7 +63,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   if (!isSignedIn) return <RedirectToSignIn />;
   if (path.startsWith("/app/connect/"))
     return (
-      <div className="connect-shell">
+      <div className="connect-shell" data-private>
         <header className="connect-topbar">
           <Brand />
           <div className="flex items-center gap-3 text-xs text-muted">
@@ -70,6 +75,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <footer className="app-footer">
+          <TelemetryChoice />
           <Link href="/privacy">Your memories stay private</Link>
           <Link href="/app/settings/connections">Your connections</Link>
         </footer>
@@ -80,7 +86,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <NotebooksProvider>
         <WorkspaceDrag>
           <WorkspaceSearch>
-            <div className="grove-app">
+            <div className="grove-app" data-private>
               <aside className="app-sidebar">
                 <div className="app-sidebar-heading">
                   <Brand />
@@ -181,6 +187,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 <footer className="app-footer">
                   <span>Grove</span>
                   <nav aria-label="Workspace help and policies">
+                    <TelemetryChoice />
                     <Link
                       href="/app/archive"
                       aria-current={
