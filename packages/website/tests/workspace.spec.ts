@@ -2514,6 +2514,77 @@ test("long notebook menus scroll on touch without snapping back to the selected 
   }
 });
 
+test("row actions have one owner, Escape restores focus and an interrupted swipe never consumes the next tap", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    const state = await fixture(page);
+    await page.goto(`${base}/app`);
+    const buttons = page.locator(".row-controls button");
+    await buttons.first().tap();
+    await buttons.nth(1).tap();
+    await expect(
+      page.getByRole("button", { name: "Close actions", exact: true }),
+    ).toHaveCount(1);
+    await expect(buttons.nth(1)).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Escape");
+    await expect(buttons.nth(1)).toBeFocused();
+    const row = page.locator(".memory-row").last();
+    await row.scrollIntoViewIfNeeded();
+    const box = (await row.boundingBox())!;
+    const x = box.x + box.width - 90,
+      y = box.y + 30;
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ id: 1, x, y }],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ id: 1, x: x - 30, y }],
+    });
+    await expect(row).toHaveAttribute("data-swiping", "true");
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { id: 1, x: x - 30, y },
+        { id: 2, x: x - 70, y: y + 20 },
+      ],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { id: 1, x: x - 100, y },
+        { id: 2, x: x - 130, y: y + 20 },
+      ],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect(row).not.toHaveAttribute("data-swiping");
+    await expect(
+      page.getByRole("button", { name: "Close actions" }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+      0,
+    );
+    await row.locator(".memory-open").tap();
+    await expect(
+      page.getByRole("dialog", { name: "Note", exact: true }),
+    ).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
 test("touch swipe only reveals actions, cancellation stays quiet, and keyboard actions also work", async ({
   page,
   context,
