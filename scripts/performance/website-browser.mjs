@@ -1,7 +1,13 @@
 // Production Next routing + real Clerk development sign-in, deterministic API data.
 // PERF_CLERK_SECRET_KEY / PERF_USER_ID must identify a disposable development user.
+/* global fetch, window, PerformanceObserver */
+import process from "node:process";
+import console from "node:console";
+import { URL } from "node:url";
+import { setTimeout } from "node:timers";
+import { performance } from "node:perf_hooks";
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
 const require = createRequire(
@@ -95,6 +101,10 @@ await fixture(login, []);
 const signIn = await login.newPage();
 await signIn.goto(`${origin}/sign-in`);
 await signIn.waitForFunction(() => window.Clerk?.loaded);
+if (process.env.PERF_VERIFY_LAZY)
+  await expect(signIn.locator('input[name="identifier"]')).toBeVisible({
+    timeout: 15000,
+  });
 await signIn.evaluate(async (ticket) => {
   const result = await window.Clerk.client.signIn.create({
     strategy: "ticket",
@@ -109,15 +119,25 @@ await expect(signIn.locator(".memory-open").first()).toBeVisible();
 const storageState = await login.storageState();
 await login.close();
 const report = {
-  source: execFileSync("git", ["rev-parse", "HEAD"], {
-    encoding: "utf8",
-  }).trim(),
+  source:
+    process.env.PERF_SOURCE ||
+    execFileSync("git", ["rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim(),
+  buildId: (
+    await readFile(
+      process.env.PERF_BUILD_DIR
+        ? `${process.env.PERF_BUILD_DIR}/BUILD_ID`
+        : new URL("../../packages/website/.next/BUILD_ID", import.meta.url),
+      "utf8",
+    )
+  ).trim(),
   measuredAt: new Date().toISOString(),
   api: "intercepted, 100ms fixed delay; real development Clerk and production Next",
   profiles: {},
 };
 try {
-  for (const mobile of [false, true]) {
+  for (const mobile of process.env.PERF_ONLY_LAZY ? [] : [false, true]) {
     const runs = [];
     for (let run = 0; run < Number(process.env.PERF_RUNS || 10); run++) {
       const context = await browser.newContext({
@@ -173,12 +193,18 @@ try {
             bytes: e.encodedBodySize,
             duration: e.duration,
           })),
+        fonts: performance
+          .getEntriesByType("resource")
+          .filter((e) => new URL(e.name).pathname.endsWith(".woff2"))
+          .map((e) => ({
+            path: new URL(e.name).pathname,
+            bytes: e.encodedBodySize,
+            duration: e.duration,
+          })),
         heap: performance.memory?.usedJSHeapSize,
       }));
       const initialReads = reads.length;
-      await page
-        .locator('.app-nav[href="/app/settings"]:visible')
-        .click();
+      await page.locator('.app-nav[href="/app/settings"]:visible').click();
       await expect(
         page.getByRole("heading", { name: "Settings", exact: true }),
       ).toBeVisible();
@@ -194,13 +220,18 @@ try {
       await page.locator(".memory-open").first().click();
       await expect(page.getByLabel("Markdown preview")).toBeVisible();
       const drawer = performance.now() - drawerStart;
-      await page.getByRole("button", { name: "Edit note", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Edit note", exact: true })
+        .click();
       await expect(page.locator(".cm-editor")).toBeVisible();
       await page.screenshot({
         path: `${process.env.PERF_OUTPUT || "/tmp/opencode/grove-performance"}-${mobile ? "mobile" : "desktop"}.png`,
       });
       runs.push({ cold, warm, drawer, initialReads, repeatedReads, metrics });
-      await writeFile(`${process.env.PERF_OUTPUT || "/tmp/opencode/grove-performance"}-${mobile ? "mobile" : "desktop"}-runs.json`, `${JSON.stringify(runs, null, 2)}\n`);
+      await writeFile(
+        `${process.env.PERF_OUTPUT || "/tmp/opencode/grove-performance"}-${mobile ? "mobile" : "desktop"}-runs.json`,
+        `${JSON.stringify(runs, null, 2)}\n`,
+      );
       await context.close();
     }
     const p75 = (field) =>
@@ -211,6 +242,67 @@ try {
       p75: { cold: p75("cold"), warm: p75("warm"), drawer: p75("drawer") },
       runs,
     };
+  }
+  if (process.env.PERF_VERIFY_LAZY) {
+    assert(
+      process.env.PERF_BUNDLE_REPORT,
+      "PERF_BUNDLE_REPORT is required for chunk checks",
+    );
+    const bundles = JSON.parse(
+      await readFile(process.env.PERF_BUNDLE_REPORT, "utf8"),
+    );
+    const editor = bundles.routes["app/memories/[id]/page"].chunks.find(
+      (chunk) => chunk.containsEditor,
+    );
+    assert(
+      editor,
+      "An editor chunk is required for failure/recovery verification",
+    );
+    const context = await browser.newContext({
+      storageState,
+      viewport: { width: 1440, height: 1000 },
+    });
+    await fixture(context, []);
+    const page = await context.newPage();
+    await page.goto(`${origin}/app`);
+    await expect(page.locator(".memory-open").first()).toBeVisible();
+    await page.getByRole("button", { name: "Open user menu" }).last().click();
+    await expect(
+      page.getByRole("button", { name: "Sign out", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    const before = await page.evaluate(() =>
+      performance.getEntriesByType("resource").map((entry) => entry.name),
+    );
+    assert(
+      !before.some((url) => url.endsWith(editor.file)),
+      "The editor should not load before opening a note",
+    );
+    const chunk = `${origin}/_next/${editor.file}`;
+    await page.route(chunk, (route) => route.abort("failed"));
+    // Avoid hover/focus preloading so this checks an actual failed first open.
+    await page
+      .locator(".memory-open")
+      .first()
+      .evaluate((button) => button.click());
+    await expect(
+      page.getByRole("button", { name: "Try opening again" }),
+    ).toBeVisible();
+    await page.unroute(chunk);
+    await page.getByRole("button", { name: "Try opening again" }).click();
+    await expect(page.getByLabel("Markdown preview")).toBeVisible({
+      timeout: 15000,
+    });
+    await page.getByRole("button", { name: "Edit note", exact: true }).click();
+    await expect(page.locator(".cm-editor")).toBeVisible();
+    await context.close();
+    const anonymous = await browser.newContext();
+    const denial = await anonymous.request.get(`${origin}/api/grove/me`);
+    assert.equal(denial.status(), 401);
+    assert.equal(denial.headers()["cache-control"], "private, no-store");
+    await anonymous.close();
+    report.lazyRetry =
+      "Sign-in and account controls render; editor absent before open; failed chunk retried in place; anonymous BFF denied with private no-store";
   }
   await writeFile(
     `${process.env.PERF_OUTPUT || "/tmp/opencode/grove-performance"}.json`,
@@ -228,6 +320,7 @@ try {
       2,
     ),
   );
+  if (report.lazyRetry) console.log(report.lazyRetry);
 } finally {
   await browser.close();
 }

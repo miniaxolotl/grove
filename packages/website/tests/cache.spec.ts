@@ -353,10 +353,11 @@ test("reprocessing an old note polls from observation time and stops at its boun
     expect(interval(query)).toBe(false);
     cache.client.setQueryData(options.queryKey, note);
     expect(interval(query)).toBe(false);
-    cache.client.setQueryData<Memory | null>(options.queryKey, {
+    const pendingNote: Memory = {
       ...note,
       indexing: "pending",
-    });
+    };
+    cache.client.setQueryData(options.queryKey, pendingNote);
     expect(interval(query)).toBe(5000);
   } finally {
     Date.now = original;

@@ -73,6 +73,12 @@ positions, so browser actionability scrolling is not mistaken for layout reflow.
 Held-save cases also verify command availability, preview mode and modal return
 focus when a new note's first save changes the route while a menu remains open.
 
+Client-cache checks cover shared misses/cancellation, account and session teardown,
+fresh revisits, held reads and saves, draft/version conflicts, cross-tab metadata,
+expiry and bounded retention. See [cache ownership](client-cache.md) and
+[production performance measurements](../../scripts/performance/README.md) for the
+real Next/Clerk runner, deferred-chunk retry and CI bundle budget.
+
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.
 With an isolated `GROVE_CONFIG_HOME`, the API environment and Clerk development

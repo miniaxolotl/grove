@@ -1,13 +1,16 @@
 // Compare the production route entry sets, including shared runtime chunks.
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
+import process from "node:process";
+import console from "node:console";
 import { gzipSync } from "node:zlib";
 import { runInNewContext } from "node:vm";
 import { execFileSync } from "node:child_process";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const build = resolve(root, "packages/website/.next");
+const build =
+  process.env.PERF_BUILD_DIR || resolve(root, "packages/website/.next");
 const args = process.argv.slice(2);
 const option = (name) => args[args.indexOf(name) + 1];
 const manifest = JSON.parse(
@@ -21,10 +24,12 @@ const routes = [
   "(marketing)/page",
 ];
 const report = {
-  source: execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: root,
-    encoding: "utf8",
-  }).trim(),
+  source:
+    process.env.PERF_SOURCE ||
+    execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim(),
   buildId: (await readFile(`${build}/BUILD_ID`, "utf8")).trim(),
   builtAt: (await stat(`${build}/BUILD_ID`)).mtime.toISOString(),
   routes: {},
@@ -83,4 +88,27 @@ if (args.includes("--compare")) {
 }
 if (args.includes("--output"))
   await writeFile(option("--output"), `${JSON.stringify(report, null, 2)}\n`);
-console.log(JSON.stringify(report, null, 2));
+if (args.includes("--check")) {
+  const notes = report.routes["app/page"];
+  if (notes.gzip > 513351 || notes.chunks.some((chunk) => chunk.containsEditor))
+    throw new Error(
+      `Notes entry budget failed: ${notes.gzip} gzip bytes; editor must remain deferred (baseline 684469).`,
+    );
+}
+console.log(
+  JSON.stringify(
+    args.includes("--summary") || args.includes("--check")
+      ? {
+          ...report,
+          routes: Object.fromEntries(
+            Object.entries(report.routes).map(([route, data]) => [
+              route,
+              { gzip: data.gzip },
+            ]),
+          ),
+        }
+      : report,
+    null,
+    2,
+  ),
+);

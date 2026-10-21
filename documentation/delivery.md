@@ -1,5 +1,41 @@
 # Delivery evidence
 
+## Client caching and loading performance (21 October 2026 UTC)
+
+The workspace now shares account/session-owned, in-memory read snapshots. Durable
+changes reconcile affected notes, notebook lists, history, search, briefs and
+conversation views. Retained drafts keep their original versions and uncertain
+operation IDs; newer edits and later-version save replays require explicit review.
+Metadata-only cross-tab invalidation, visible refresh, bounded retention and expiry
+preserve freshness. The authenticated transport remains private and `no-store`.
+
+Notes defers the drawer/editor, notebook secondary views and collapsed linked-note
+title reads. Independent notebook/note reads start together. In-place chunk retry,
+intent preloading, hidden-mobile preview gating and demand-loaded monospace fonts
+reduce opening work. New list rows render at full contrast immediately.
+
+Notes-entry JavaScript is **684,469 → 454,146 gzip bytes (-33.6%)**; notebook entry
+is **695,542 → 456,830 (-34.3%)**. The first Settings→Notes round trip makes **2 → 1**
+application reads; subsequent fresh repeated visits make zero. CI enforces the
+513,351-byte Notes-entry ceiling and keeps editor code out of that entry. Exact
+paired p75 is **227→85ms** for desktop return-to-Notes and **7762→6141ms (-20.9%)**
+for mobile cold Notes. First drawer opening is slower (**437ms / 2291ms** desktop/
+mobile), and mobile return-to-Notes is **512→612ms**. Production-build timing,
+memory, long-task and layout evidence is recorded in
+[performance verification](../scripts/performance/README.md).
+
+All **97 Chromium** scenarios and **nine selected iPhone/WebKit** cases pass,
+including cache ownership/cancellation, late responses, expiry, drafts/conflicts,
+mutation retries, pagination, keyboard/focus, dragging, responsive accessibility and
+telemetry privacy. Real production Next/Clerk checks verify sign-in, account controls,
+deferred editor loading, failed-chunk recovery and anonymous private/no-store denial.
+Root lint/types/build, five artifact checks, website lint/types/production build,
+twelve release-script contracts and actionlint/ShellCheck pass. WebKit uses the
+Playwright 1.64.1 Noble browser container. Node is 24.21.0; pnpm is 10.33.0.
+
+See [cache ownership and integration](development/client-cache.md) when adding
+workspace actions or resource families. No schema migration is required.
+
 ## Google Search Console (21 October 2026 UTC)
 
 The `sc-domain:usegrove.cloud` property is DNS-verified. Google successfully
