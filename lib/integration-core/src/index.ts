@@ -33,6 +33,10 @@ export class ApiClient {
     origin: string,
     private bearer: (signal: AbortSignal) => Promise<string>,
     private timeoutMs = 10000,
+    private observe?: {
+      disabled: () => boolean;
+      completed: (started: number, outcome: "success" | "unavailable") => void;
+    },
   ) {
     this.origin = apiOrigin(origin);
   }
@@ -50,12 +54,15 @@ export class ApiClient {
       AbortSignal.timeout(this.timeoutMs),
       ...(options.signal ? [options.signal] : []),
     ]);
+    const started = performance.now();
+    let completed = false;
     try {
       const response = await fetch(`${this.origin}${path}`, {
         method: options.method ?? (options.body === undefined ? "GET" : "POST"),
         headers: {
           Authorization: `Bearer ${await this.bearer(signal)}`,
           "Content-Type": "application/json",
+          ...(this.observe?.disabled() ? { "X-Grove-Telemetry": "off" } : {}),
         },
         body:
           options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -78,6 +85,7 @@ export class ApiClient {
           "Invalid Grove API response",
           502,
         );
+      completed = true;
       return result.data;
     } catch (error) {
       if (error instanceof GroveError) throw error;
@@ -88,6 +96,12 @@ export class ApiClient {
           : "Grove could not be reached",
         503,
       );
+    } finally {
+      try {
+        this.observe?.completed(started, completed ? "success" : "unavailable");
+      } catch {
+        /* Optional diagnostics never change the API result. */
+      }
     }
   }
 }

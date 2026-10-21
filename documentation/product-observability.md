@@ -1,5 +1,38 @@
 # Product observability
 
+## Service and developer-tool collection
+
+`lib/telemetry` is shared by the API, worker, CLI, MCP bridge and agent adapters.
+Official production builds embed only public ingestion credentials and the admitted
+source SHA. Local, staging, CI and private-mode execution is inert. The server also
+requires `GROVE_TELEMETRY_ENABLED=true` at runtime. Upload credentials and the
+server account-pseudonym salt never enter client builds.
+
+- CLI preference: `grove telemetry status|disable|enable`, `GROVE_TELEMETRY=0`,
+  or `DO_NOT_TRACK=1`. The protected local identity is separate from credentials;
+  disabling or switching accounts invalidates running generations and queued sends.
+- Request opt-out travels through the authenticated BFF/CLI to the API. Browser,
+  installation and server account pseudonyms remain separate. Background operations
+  use an ephemeral service identity rather than account identifiers.
+- Workspace creation, notebook creation, new memory creation and completed chat
+  replies are emitted only after durable success. Idempotent repeats, edits,
+  rolled-back writes and denied requests do not produce creation conversions.
+- Provider/role/outcome/token/timing metadata is projected explicitly; no model
+  prompts, responses, embeddings, notebook names, Git origins, file paths, keys,
+  headers or bodies are collected. Custom model names are not sent.
+- Sentry clients are isolated from the host agent: no global handlers or context
+  strategy replacement. Error frames retain only emitted entrypoint filenames and
+  coordinates; exact-source maps resolve them privately. Operations emit sampled
+  spans, numeric metrics and fixed-message logs.
+- Queues are bounded at 128 records. Enqueue never waits for a provider; requests
+  time out, provider failures open a short drop window, and shutdown waits at most
+  550 ms (50 ms for optional context hooks). Every upload rechecks collection.
+
+Production release uploads `grove-api@<source>`, `grove-cli@<source>` and
+`grove-opencode@<source>` source maps before publication. API and worker share
+Sentry `grove-api`; developer tools share `grove-cli`. PostHog project remains
+677268. Native/service production acceptance follows the coordinated release.
+
 ## Website and workspace
 
 Production uses the US PostHog **Grove** project (`677268`) and Sentry

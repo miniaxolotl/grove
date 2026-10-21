@@ -1,4 +1,5 @@
 import { MemoryModel, camelRows, tenant, type Knex } from "@lib/database";
+import { currentTelemetry } from "@lib/telemetry/context";
 import {
   InferenceError,
   type Embedder,
@@ -397,6 +398,9 @@ export async function runProcessingJob(
     ]),
   )[0];
   if (!job) return false;
+  const started = performance.now();
+  let completed = false;
+  let failed = false;
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
   const role =
     job.kind === "embedding"
@@ -655,8 +659,10 @@ export async function runProcessingJob(
             "createdAt",
           ]);
       await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
+      completed = true;
     });
   } catch (error) {
+    failed = true;
     const code =
       error instanceof InferenceError ? error.code : "processing_unavailable";
     await tenant(db, job.accountId, async (trx) => {
@@ -677,6 +683,11 @@ export async function runProcessingJob(
         });
     });
   } finally {
+    currentTelemetry().operation(
+      "job_run",
+      started,
+      failed ? "unavailable" : completed ? "success" : "cancelled",
+    );
     await recordUsage(db, job.accountId, role, usage);
   }
   return true;

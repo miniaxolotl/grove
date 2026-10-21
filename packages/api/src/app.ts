@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { accountIdentity, type Reporter } from "@lib/telemetry";
+import {
+  requestCollectionAllowed,
+  withTelemetry,
+} from "@lib/telemetry/context";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
@@ -46,6 +51,7 @@ export type AppDependencies = {
   issuer: string;
   webhookSecret: string;
   ready: () => Promise<void>;
+  telemetry?: Pick<Reporter, "forIdentity" | "operation">;
 };
 type Environment = { Variables: { principal: Principal; requestId: string } };
 
@@ -57,7 +63,23 @@ export function createApp(deps: AppDependencies) {
     c.header("Cache-Control", "private, no-store");
     c.header("X-Content-Type-Options", "nosniff");
     c.header("Referrer-Policy", "no-referrer");
+    const started = performance.now();
     await next();
+    if (
+      requestCollectionAllowed(c.req.raw.headers) &&
+      !c.req.path.startsWith("/health/")
+    )
+      deps.telemetry?.operation(
+        "http_request",
+        started,
+        c.res.status >= 500
+          ? "error"
+          : c.res.status >= 400
+            ? "unavailable"
+            : "success",
+        undefined,
+        c.error,
+      );
   });
   app.use(
     "*",
@@ -78,6 +100,7 @@ export function createApp(deps: AppDependencies) {
         "Content-Type",
         "Idempotency-Key",
         "MCP-Protocol-Version",
+        "X-Grove-Telemetry",
       ],
       exposeHeaders: ["WWW-Authenticate", "X-Request-ID"],
     }),
@@ -199,7 +222,12 @@ export function createApp(deps: AppDependencies) {
       throw new GroveError("forbidden", "Origin is not allowed", 403);
     c.set("principal", await deps.auth.principal(c.req.raw));
     await deps.models?.refresh();
-    await next();
+    const sink = deps.telemetry?.forIdentity(
+      accountIdentity(c.get("principal").accountId),
+      requestCollectionAllowed(c.req.raw.headers),
+    );
+    if (sink) await withTelemetry(sink, next);
+    else await next();
   };
   app.use("/v1/*", async (c, next) => {
     if (c.req.path === "/v1/webhooks/clerk") return next();
