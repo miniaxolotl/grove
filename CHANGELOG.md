@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0](https://github.com/miniaxolotl/grove/compare/v1.6.0...v1.7.0) (2026-10-21)
+
+
+### Features
+
+* **telemetry:** instrument API, worker and developer tools ([#41](https://github.com/miniaxolotl/grove/issues/41)) ([2705bac](https://github.com/miniaxolotl/grove/commit/2705bacba2693b70c627832405805c01777d0885))
+
+
+### Bug Fixes
+
+* **workspace:** repair Ask Grove replies and simplify notes ([#43](https://github.com/miniaxolotl/grove/issues/43)) ([37fd896](https://github.com/miniaxolotl/grove/commit/37fd896087156aa8b4721134655d5a6afa803174))
+
 ## [1.6.0](https://github.com/miniaxolotl/grove/compare/v1.5.0...v1.6.0) (2026-10-20)
 
 
