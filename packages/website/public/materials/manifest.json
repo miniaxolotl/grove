@@ -1,0 +1,47 @@
+{
+  "collection": "05",
+  "brand": "grove",
+  "date": "2026-10-21",
+  "outputs": [
+    {
+      "file": "notebook.svg",
+      "sha256": "1725b60947b84e135a88f77e618b28e14216c2e4fc910fd363e8ac111ec7ec19",
+      "source": "Collection 05 / _source/artwork.mjs and _source/grove-notebook-art.mjs, plain-language website adaptation"
+    },
+    {
+      "file": "notebook.webp",
+      "sha256": "36f70eefce48de1938e1b5a382b20efbba3437e2b231d3a752683f9a18d3de38",
+      "source": "notebook.svg"
+    },
+    {
+      "file": "journal.svg",
+      "sha256": "0ea3620541773d99ad69f991ba6ee420b3c5184abd12c01e9a3e962012f3dd74",
+      "source": "Collection 05 / _source/artwork.mjs and _source/grove-notebook-art.mjs, plain-language website adaptation"
+    },
+    {
+      "file": "journal.webp",
+      "sha256": "0181a7c76653d8f642dd868ee2d9e6207b3ca528af8373314f24db89a6478563",
+      "source": "journal.svg"
+    },
+    {
+      "file": "note-search.svg",
+      "sha256": "c4dc7c70eca5e8b46a0c06361c08807c8c93f8768a2f9118fed82b27cff06564",
+      "source": "Collection 05 / _source/artwork.mjs and _source/grove-notebook-art.mjs, plain-language website adaptation"
+    },
+    {
+      "file": "note-search.webp",
+      "sha256": "020b3cd36051a1ea69ac68a608ee08eacc0608bce31dbd535cf642b9527a73df",
+      "source": "note-search.svg"
+    },
+    {
+      "file": "social.png",
+      "sha256": "5aaf2ee257568d8a6f3b0a09bb219386bdc416ee2830ef196828cb24e6833b94",
+      "source": "Collection 05 outlined identity, licensed brand type and website copy"
+    },
+    {
+      "file": "about.txt",
+      "sha256": "21340cd94065a729fdf65a6d71a098926a35c67b0c8779e80e750180e1a3dea1",
+      "source": "Collection 05 DESIGN-GUIDELINES.md and current-campaigns.mjs, plain-language adaptation"
+    }
+  ]
+}

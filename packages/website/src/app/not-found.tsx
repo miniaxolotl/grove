@@ -15,10 +15,10 @@ export default function NotFound() {
       <h1 className="section-heading mt-4">
         Nothing planted here.
         <br />
-        <em>Let’s head back.</em>
+        <em>Head back home.</em>
       </h1>
       <p className="mt-6 max-w-sm text-sm leading-7 text-muted">
-        This page doesn’t exist. There’s still plenty to discover back at Grove.
+        This page does not exist. Return to the homepage.
       </p>
       <Link href="/" className="button-primary mt-8">
         <ArrowLeft size={16} /> Back to Grove

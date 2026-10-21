@@ -1,5 +1,5 @@
 {
-  "collection": "04",
+  "collection": "05",
   "assets": [
     {
       "file": "public/brand-kit/fonts/space-grotesk-400.woff2",
@@ -138,8 +138,8 @@
     },
     {
       "file": "public/brand-kit/images/social.png",
-      "source": "grove/social/01-keep-the-context-landscape-1200x628.png",
-      "sha256": "459f2ca1e025aabdb57e48f6eab991358db42672216644831d163acb1fc157c2"
+      "source": "_source/export-websites-05.mjs",
+      "sha256": "5aaf2ee257568d8a6f3b0a09bb219386bdc416ee2830ef196828cb24e6833b94"
     },
     {
       "file": "public/brand-kit/images/banner.png",
