@@ -10,7 +10,7 @@ Grove Cloud uses deployment-managed providers:
 | Generation | MiniMax `MiniMax-M3.1-Flash`        | Low reasoning effort, 4,096 maximum completion tokens; validated structured results      |
 
 DeepInfra receives query/document text for embedding and source/candidate text for
-classification. MiniMax receives bounded source text for organization, summaries,
+classification. MiniMax receives bounded source text for organization, relationships, summaries,
 and Ask Grove conversations (including up to eight preceding completed turns).
 Cloud credentials are server-only. Use standard pay-as-you-go MiniMax API keys for
 the public service; a MiniMax coding subscription has separate eligibility and usage
@@ -90,7 +90,9 @@ these values explicitly for an existing installation.
   kind and stable task ID remain explicit. `retentionDays` is independent of kind;
   handoffs default to 30 days, other notes to permanent, with a 60-day restore window.
 - Enrichment exposes a generated title, topic tags, suggested kind, salience, and up
-  to five scoped duplicate/complementary/conflicting relationships. Classification
+  to 30 current symmetric duplicate/complementary/conflicting relationships, with
+  evidence-backed reasons. [Note and notebook connections](relationships.md) describes
+  grounded assessment, coverage, review, limits and migration. Classification
   never merges, deletes, or moves a memory. Salience provides a small ranking boost
   only after lexical/semantic relevance has selected candidates.
 - Library search combines text and vector matches with existing scope/status/kind/tag

@@ -20,13 +20,10 @@ Additional reviewed captures in the canonical execution plan cover scope options
 revocation, unavailable links and a long-name dialog at 320 × 568. Content remains
 inside the viewport and the dialog scrolls to its primary actions.
 
-The full 85-case Chromium suite passed, then all four sharing-control regressions
-passed after the final inline-feedback correction. Eight iPhone 13/WebKit scenarios
-passed using Playwright 1.64.1 Noble with Node 24.21.0. Automated WCAG 2A/AA/2.1AA,
+The integrated 113-case Chromium suite and 28 iPhone 13/WebKit scenarios pass using
+Playwright 1.64.1 Noble with Node 24.21.0. Automated WCAG 2A/AA/2.1AA,
 overflow, clipboard fallback, held-write/focus, conflict and revocation checks pass.
 
-The subsequent integration with gesture PR #58 retains these sharing surfaces and
-places the phone entry point in Note actions. Combined verification covers all 97
-Chromium cases and 16 iPhone/WebKit cases, including the compact mobile note header.
-Integration with note/notebook actions PR #61 subsequently passes all 110 Chromium
-and 25 iPhone/WebKit cases; sharing follows its common note/notebook action order.
+Integration with landed gesture #58, actions #61 and connections #60 retains these
+sharing surfaces and places the phone entry point in Note actions. Sharing follows
+the common note/notebook action order, including the compact mobile note header.

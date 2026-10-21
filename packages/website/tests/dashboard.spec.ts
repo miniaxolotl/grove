@@ -31,7 +31,9 @@ async function fixture(
     );
     const body = route.request().postDataJSON();
     let data: unknown = [];
-    if (path === "/memories/search")
+    if (path === "/relationships/search")
+      data = { items: [], nextCursor: null, status: "ready" };
+    else if (path === "/memories/search")
       data = {
         items: memories.filter(
           (memory) =>

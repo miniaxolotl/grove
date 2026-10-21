@@ -24,13 +24,13 @@ logo always returns to Notes.
   preserves typing that happens during a request.
   Reopening a draft during a save follows the same request rather than creating
   another note.
-   **History** opens earlier revisions without leaving the workspace.
-   **Linked notes** is a collapsed accordion below your writing. **Export** and
-   **Delete note…** are directly reachable in the toolbar, including focus mode.
-   **Note actions** orders Move, Export, revision history/properties, Archive or
-   Restore, then separated Delete. On phones it also holds focus mode and
-   previous/next controls. Save state stays visible; feedback does not move the page.
-   Save stays visually quiet until there are changes to save.
+  **History** opens earlier revisions without leaving the workspace.
+  **Linked notes** is a collapsed accordion below your writing. **Export** and
+  **Delete note…** are directly reachable in the toolbar, including focus mode.
+  **Note actions** orders Move, Export, revision history/properties, Archive or
+  Restore, then separated Delete. On phones it also holds focus mode and
+  previous/next controls. Save state stays visible; feedback does not move the page.
+  Save stays visually quiet until there are changes to save.
 - Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
@@ -40,30 +40,30 @@ logo always returns to Notes.
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
   matching notebooks' ancestors so you can see where they belong.
 - **Rename notebook** focuses the name; **Move notebook** focuses the destination
-   and preserves the name. Choose a **Parent notebook** or **Top level**;
-   sub-notebooks move with their parent. Breadcrumbs and dropdowns show full paths.
-   A notebook cannot move into itself or its descendants. Concurrent changes keep
-   your inputs and offer the current version for review. Unchanged actions are disabled.
-   Single-note moves start at their current notebook; mixed selections ask for a destination.
+  and preserves the name. Choose a **Parent notebook** or **Top level**;
+  sub-notebooks move with their parent. Breadcrumbs and dropdowns show full paths.
+  A notebook cannot move into itself or its descendants. Concurrent changes keep
+  your inputs and offer the current version for review. Unchanged actions are disabled.
+  Single-note moves start at their current notebook; mixed selections ask for a destination.
 - Agent grants keep each notebook's own scope: parent access does not include children.
   Notes/search/Ask Grove stay scoped to the chosen notebook. Moving a notebook
   preserves its notes, revisions, retention, and stable agent/repository references.
 - Select up to 50 loaded notes to move, archive, or restore. Drag a handle into a
   notebook, or press Space, choose a destination with the arrows, and press Space
-   again. Escape cancels. On touch screens, a horizontal swipe reveals ordinary
-   action buttons for one note at a time; vertical gestures scroll. A long press
-   on the handle starts dragging and reveals a scrollable list of destinations.
-   Hold near the list's edge to scroll, or release over **Drop here to cancel**
-   at the bottom of the same destination panel. The preview identifies the item;
-   the current destination is highlighted as you move.
-   Pens start from the same handles. Interrupted gestures do not move a note.
+  again. Escape cancels. On touch screens, a horizontal swipe reveals ordinary
+  action buttons for one note at a time; vertical gestures scroll. A long press
+  on the handle starts dragging and reveals a scrollable list of destinations.
+  Hold near the list's edge to scroll, or release over **Drop here to cancel**
+  at the bottom of the same destination panel. The preview identifies the item;
+  the current destination is highlighted as you move.
+  Pens start from the same handles. Interrupted gestures do not move a note.
   Notebook handles also support drag or keyboard nesting; hover over a collapsed
   destination to expand it. Focus mode fills the viewport and hides secondary tools.
 - **Undo** checks the version produced by the original action. It never overwrites
-   someone else's later edit. Partial failures identify the affected notes.
-   Move and bulk-action Undo stays available in the shared notification stack
-   alongside later copy feedback, including inside an open dialog. Compact neutral
-   confirmations sit at the lower right, clear of the chat composer.
+  someone else's later edit. Partial failures identify the affected notes.
+  Move and bulk-action Undo stays available in the shared notification stack
+  alongside later copy feedback, including inside an open dialog. Compact neutral
+  confirmations sit at the lower right, clear of the chat composer.
 
 Dropdowns share keyboard, touch and focus behavior across filters, notebook choices,
 note properties and settings. Use arrows, Home/End or typeahead, Enter to
@@ -188,6 +188,19 @@ leaves expanded exploration.
 returns from expanded exploration. Connection legends describe the visible edges;
 empty-state guidance stays below the canvas.
 
+Select a row in **Linked notes** or an edge in the graph for a compact explanation.
+Expand **Supporting notes** for current excerpts. **Compare notes** opens both
+originals read-only; **Dismiss suggestion** and version-checked **Undo dismissal**
+review the connection from either endpoint. Automatic note comparisons stay within
+their notebook or Unfiled.
+
+**Notebook options → Connected notebooks** and **Graph → Notebooks** explain how
+collections relate. Partial coverage is flagged in the summary; supporting notes
+include source links and explicit **X of Y notes** coverage. A limited shared thread
+is distinguished from broad shared context.
+Sub-notebooks are assessed separately. See [connections](relationships.md) for
+evidence, processing, API and migration details.
+
 **Ask Grove** finds, explains and helps change your notes. Follow-ups such as
 “shorten that note” use the conversation's context. Choose all notes, Unfiled, or
 a notebook; optionally include unfiled notes. **Search** finds pages as you type.
@@ -211,7 +224,7 @@ also resumes following.
 **Settings** groups Preferences, Account, Connections, Search & organization and
 Your data under a persistent heading and navigation. Section content scrolls
 independently, keeping navigation in place. Export includes
-notes, revisions and conversations. Self-hosted administrators retain provider
+notes, revisions, conversations and relationship review state. Self-hosted administrators retain provider
 configuration at [Model settings](models.md).
 
 The interface uses self-hosted Space Grotesk and the [Sprout palette](design/grove-sprout.md).
