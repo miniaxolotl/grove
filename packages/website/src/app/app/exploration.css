@@ -46,7 +46,7 @@
   background: var(--graph-surface);
   color: var(--graph-text);
 }
-.memory-graph:fullscreen {
+.memory-graph:is(:fullscreen, [data-expanded]) {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -54,15 +54,26 @@
   border: 0;
   border-radius: 0;
 }
-.memory-graph:fullscreen .graph-layout {
+.memory-graph[data-expanded]:not(:fullscreen) {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.memory-graph:not([data-expanded]) .react-flow__pane {
+  touch-action: pan-y pinch-zoom;
+}
+.memory-graph:is(:fullscreen, [data-expanded]) .graph-layout {
   flex: 1;
   min-height: 0;
 }
-.memory-graph:fullscreen .graph-canvas {
+.memory-graph:is(:fullscreen, [data-expanded]) .graph-canvas {
   height: 100%;
   min-height: 0;
 }
-.memory-graph:fullscreen .graph-inspector {
+.memory-graph:is(:fullscreen, [data-expanded]) .graph-inspector {
   max-height: 100%;
 }
 .memory-graph :is(button, select, a):focus-visible {
@@ -978,7 +989,7 @@
     border-top: 1px solid var(--graph-line);
     max-height: 320px;
   }
-  .memory-graph:fullscreen .graph-layout.has-selection {
+  .memory-graph:is(:fullscreen, [data-expanded]) .graph-layout.has-selection {
     grid-template-rows: minmax(0, 1fr) minmax(0, 240px);
   }
 }
@@ -1067,6 +1078,8 @@
   .graph-help-touch {
     display: block;
   }
+}
+@media (any-pointer: coarse) {
   .graph-tool-button,
   .graph-toolbar select,
   .memory-graph .react-flow__controls-button,

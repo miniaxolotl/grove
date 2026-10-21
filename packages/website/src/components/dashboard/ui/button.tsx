@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 
 export function Button({
   variant = "primary",
@@ -22,7 +22,10 @@ export function IconButton({
   className = "",
   type = "button",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  label: string;
+  ref?: Ref<HTMLButtonElement>;
+}) {
   return (
     <button
       type={type}

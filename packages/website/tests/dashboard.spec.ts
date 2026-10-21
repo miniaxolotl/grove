@@ -140,7 +140,10 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Note actions" }).click();
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Note actions", exact: true })
+    .getByRole("button", { name: "Delete note…", exact: true })
+    .click();
   await page.getByRole("button", { name: "Delete this note" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "permanently deleted" }),

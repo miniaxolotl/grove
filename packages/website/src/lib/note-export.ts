@@ -16,13 +16,13 @@ export function noteExportFilename(content: string, extension: "md" | "pdf") {
     .replace(/\s+/g, " ")
     .replace(/[. ]+$/g, "")
     .replace(/(?:\.(?:md|pdf))+$/i, "");
-  name = Array.from(name)
-    .slice(0, 80)
-    .join("")
-    .replace(/[. ]+$/g, "");
+  const characters = Array.from(name).slice(0, 80);
+  const encoder = new TextEncoder();
+  while (encoder.encode(characters.join("")).length > 180) characters.pop();
+  name = characters.join("").replace(/[. ]+$/g, "");
   if (!name || /^[-. ]+$/.test(name) || name === "Untitled note")
     name = "untitled-note";
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name))
+  if (/^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(name))
     name = `note-${name}`;
   return `${name}.${extension}`;
 }

@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -27,6 +27,7 @@ import { MemoryRow } from "./memory-row";
 import { MemoryEditor } from "./memory-editor";
 import { MemoryDetail } from "./memory-detail";
 import { useWorkspaceDrag } from "./memory-drag";
+import { WorkspaceNotice } from "./toasts";
 import {
   LibraryFilterBar,
   initialFilters,
@@ -107,7 +108,9 @@ export function MemoryLibrary({
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Memory | "new" | null>(null);
   const [deleting, setDeleting] = useState<Memory | null>(null);
+  const focusAfterDelete = useRef<string | null | undefined>(undefined);
   const [checked, setChecked] = useState<string[]>([]);
+  const [actionRow, setActionRow] = useState<string | null>(null);
   const [moving, setMoving] = useState<Memory[] | null>(null);
   const [destination, setDestination] = useState("personal");
   const [busy, setBusy] = useState(false);
@@ -135,7 +138,10 @@ export function MemoryLibrary({
     lifetime,
   });
   useSetCurrentNotebook(scopedProject);
-  const items = resultKey === requestKey ? loadedItems : [];
+  const items = useMemo(
+    () => (resultKey === requestKey ? loadedItems : []),
+    [resultKey, requestKey, loadedItems],
+  );
   const next = resultKey === requestKey ? cursor : null;
   const loading = fetching || resultKey !== requestKey;
   const currentError = resultKey === requestKey ? error : "";
@@ -385,22 +391,32 @@ export function MemoryLibrary({
   function deleted(memory: Memory) {
     const index = items.findIndex((item) => item.id === memory.id);
     const neighbor = items[index + 1] ?? items[index - 1];
+    focusAfterDelete.current = neighbor?.id ?? null;
     setDeleting(null);
     setChecked((checked) => checked.filter((id) => id !== memory.id));
     setItems((items) => items.filter((item) => item.id !== memory.id));
     reload();
-    requestAnimationFrame(() => {
-      const target = neighbor
-        ? document.querySelector<HTMLElement>(
-            `[data-note-id="${neighbor.id}"] .memory-open`,
-          )
-        : document.querySelector<HTMLElement>(".app-empty h2");
-      if (target) {
-        target.tabIndex = target.tabIndex < 0 ? -1 : target.tabIndex;
-        target.focus({ preventScroll: true });
-      }
-    });
   }
+  useEffect(() => {
+    if (focusAfterDelete.current === undefined || loading) return;
+    const id = focusAfterDelete.current;
+    const target =
+      (id
+        ? document.querySelector<HTMLElement>(
+            `[data-note-id="${id}"] .memory-open`,
+          )
+        : null) ??
+      document.querySelector<HTMLElement>(
+        ".library-main .memory-open, .library-main .app-empty h2",
+      );
+    if (!target) return;
+    const frame = requestAnimationFrame(() => {
+      target.tabIndex = target.tabIndex < 0 ? -1 : target.tabIndex;
+      target.focus({ preventScroll: true });
+      focusAfterDelete.current = undefined;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [items, loading]);
   const title = archive
     ? "Archive"
     : initialView === "graph"
@@ -611,6 +627,7 @@ export function MemoryLibrary({
             items.length > 0 &&
             (view === "graph" ? (
               <MemoryGraph
+                key={requestKey}
                 items={items}
                 projects={projects}
                 onOpen={setSelected}
@@ -649,6 +666,10 @@ export function MemoryLibrary({
                         )}
                       <MemoryRow
                         memory={memory}
+                        actions={actionRow === memory.id}
+                        setActions={(open) =>
+                          setActionRow(open ? memory.id : null)
+                        }
                         projectName={
                           projects.find((p) => p.id === memory.projectId)
                             ?.name ?? "Unfiled"
@@ -707,7 +728,7 @@ export function MemoryLibrary({
         </div>
       </div>
       {(notice || busy) && (
-        <div className="workspace-notice" role="status">
+        <WorkspaceNotice>
           <span>{busy ? "Updating notes…" : notice}</span>
           {undo.length > 0 && (
             <button disabled={busy} onClick={undoLast}>
@@ -725,7 +746,7 @@ export function MemoryLibrary({
           >
             <X size={16} />
           </button>
-        </div>
+        </WorkspaceNotice>
       )}
       {selected && (
         <Dialog

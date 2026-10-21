@@ -69,6 +69,297 @@ const handoff: Memory = {
   },
 };
 
+test("action menus follow the anchor and remain reachable in short resized viewports", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${base}/app`);
+  await page.locator(".memory-open").first().click();
+  const trigger = page.getByRole("button", {
+    name: "Note actions",
+    exact: true,
+  });
+  await trigger.focus();
+  await trigger.press("ArrowDown");
+  const menu = page.locator(".action-menu:popover-open");
+  await expect(menu.locator("button, a").first()).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(
+    menu.getByRole("button", { name: "Delete note…" }),
+  ).toBeFocused();
+  await page.setViewportSize({ width: 844, height: 260 });
+  await expect
+    .poll(async () => {
+      const box = (await menu.boundingBox())!;
+      return (
+        box.x >= 8 &&
+        box.y >= 8 &&
+        box.x + box.width <= 836 &&
+        box.y + box.height <= 252
+      );
+    })
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(
+    page.getByRole("dialog", { name: "Note", exact: true }),
+  ).toBeVisible();
+});
+
+test("touch hit areas are separate and menus scroll within a short viewport", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await fixture(page);
+    await page.goto(`${base}/app`);
+    await page.getByRole("button", { name: "Notebooks", exact: true }).tap();
+    for (const selector of [
+      ".row-checkbox",
+      ".memory-row .drag-handle",
+      ".notebook-disclosure",
+      ".notebook-drag-handle",
+      ".notebook-tree-actions .app-icon",
+      ".workspace-command-launcher",
+      ".workspace-utilities > .app-icon",
+    ]) {
+      const box = (await page.locator(selector).first().boundingBox())!;
+      expect(box.width, selector).toBeGreaterThanOrEqual(44);
+      expect(box.height, selector).toBeGreaterThanOrEqual(44);
+    }
+    const boxes = await page
+      .locator(".notebook-tree-row")
+      .first()
+      .locator(":scope > button, :scope > a, :scope > .notebook-tree-actions")
+      .evaluateAll((elements) =>
+        elements.map((el) => {
+          const rect = el.getBoundingClientRect();
+          return { left: rect.left, right: rect.right };
+        }),
+      );
+    for (let i = 1; i < boxes.length; i++)
+      expect(boxes[i].left).toBeGreaterThanOrEqual(boxes[i - 1].right);
+    await page.getByRole("button", { name: "Notebooks", exact: true }).tap();
+    await page.locator(".memory-open").first().tap();
+    await page.getByRole("button", { name: "Note actions", exact: true }).tap();
+    await page.setViewportSize({ width: 844, height: 220 });
+    const menu = page.locator(".action-menu:popover-open");
+    await expect
+      .poll(async () => {
+        const box = (await menu.boundingBox())!;
+        return (
+          box.x >= 8 &&
+          box.y >= 8 &&
+          box.x + box.width <= 836 &&
+          box.y + box.height <= 212
+        );
+      })
+      .toBe(true);
+    await menu.getByRole("button", { name: "Delete note…" }).tap();
+    await expect(
+      page.getByRole("dialog", { name: "Delete note?" }),
+    ).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test("open action menus stay inside the visual viewport at two-times browser pinch zoom", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await fixture(page, [note]);
+    await page.goto(`${base}/app`);
+    await page.locator(".memory-open").tap();
+    await page.getByRole("button", { name: "Note actions", exact: true }).tap();
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
+    const menu = page.locator(".action-menu:popover-open");
+    await expect
+      .poll(() =>
+        menu.evaluate((el) => {
+          const box = el.getBoundingClientRect(),
+            viewport = visualViewport!;
+          return (
+            viewport.scale === 2 &&
+            box.left >= viewport.offsetLeft + 8 &&
+            box.right <= viewport.offsetLeft + viewport.width - 8 &&
+            box.top >= viewport.offsetTop + 8 &&
+            box.bottom <= viewport.offsetTop + viewport.height - 8
+          );
+        }),
+      )
+      .toBe(true);
+    await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: "Note actions", exact: true }),
+    ).toBeFocused();
+  } finally {
+    await context.close();
+  }
+});
+
+test("mobile note controls leave room to read and retain selection for touch formatting", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await fixture(page, [note]);
+    await page.goto(`${base}/app`);
+    await page.locator(".memory-open").tap();
+    const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+    await expect(
+      drawer.getByRole("button", { name: "Close dialog", exact: true }),
+    ).toHaveCount(1);
+    expect(
+      (await drawer.locator(".writing-layout").boundingBox())!.y,
+    ).toBeLessThanOrEqual(176);
+    expect(
+      await page.evaluate(
+        () => (document.activeElement as HTMLElement)?.isContentEditable,
+      ),
+    ).toBe(false);
+    await page.screenshot({
+      path: info.outputPath("compact-reader-mobile.png"),
+    });
+    await drawer.getByRole("button", { name: "Edit note", exact: true }).tap();
+    const editor = drawer.getByRole("textbox", {
+      name: "What should stay with you?",
+    });
+    await editor.fill("A soft landing");
+    await editor.press("Home");
+    for (let i = 0; i < 6; i++) await editor.press("Shift+ArrowRight");
+    await drawer.getByRole("button", { name: "Bold", exact: true }).tap();
+    await expect(editor).toHaveText("**A soft** landing");
+    await drawer.getByRole("button", { name: "Undo", exact: true }).tap();
+    await expect(editor).toHaveText("A soft landing");
+    await page.setViewportSize({ width: 390, height: 480 });
+    await expect(
+      drawer.getByRole("button", { name: "Save note", exact: true }),
+    ).toBeInViewport();
+    await drawer.getByRole("button", { name: "Preview", exact: true }).tap();
+    await drawer
+      .getByRole("button", { name: "Note actions", exact: true })
+      .tap();
+    await page
+      .getByRole("button", { name: "Note properties", exact: true })
+      .tap();
+    await expect(
+      drawer.getByRole("combobox", { name: "Notebook", exact: true }),
+    ).toBeVisible();
+    expect(
+      await drawer.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await drawer
+      .getByRole("button", { name: "Note actions", exact: true })
+      .tap();
+    await page
+      .getByRole("button", { name: "Hide note properties", exact: true })
+      .tap();
+    await page.setViewportSize({ width: 320, height: 750 });
+    expect(
+      await drawer.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    expect(
+      (await drawer.locator(".writing-layout").boundingBox())!.height,
+    ).toBeGreaterThan(400);
+    await page.screenshot({ path: info.outputPath("compact-reader-320.png") });
+  } finally {
+    await context.close();
+  }
+});
+
+test("export and delete remain reachable across widths, focus mode and enlarged text", async ({
+  page,
+}, info) => {
+  await fixture(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(`${base}/app/memories/${note.id}`);
+  for (const width of [320, 390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const name of ["Export", "Delete note…"]) {
+      const control = page.getByRole("button", { name, exact: true });
+      await expect(control).toBeInViewport();
+      const bounds = (await control.boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(
+      await page
+        .locator(".note-editor-bar")
+        .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: info.outputPath("note-actions-390.png") });
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
+  const actions = page.getByRole("group", {
+    name: "Note actions",
+    exact: true,
+  });
+  const labels = await actions
+    .locator("button, a")
+    .filter({ visible: true })
+    .allTextContents();
+  expect(labels.indexOf("Move")).toBeLessThan(labels.indexOf("Export…"));
+  expect(labels.at(-1)).toBe("Delete note…");
+  await actions
+    .getByRole("button", { name: "Focus mode", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete note?" });
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Delete note…", exact: true }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
+  await page.screenshot({ path: info.outputPath("export-390.png") });
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Exit focus mode", exact: true })
+    .click();
+  await page.setViewportSize({ width: 320, height: 480 });
+  await page.addStyleTag({
+    content:
+      ".note-editor-bar { font-size: 200%; } .note-editor-bar button { font-size: 1em; }",
+  });
+  await expect(
+    page.getByRole("button", { name: "Export", exact: true }),
+  ).toBeInViewport();
+  expect(
+    await page
+      .locator(".note-editor-bar")
+      .evaluate((el) => el.scrollWidth <= el.clientWidth),
+  ).toBe(true);
+});
+
 test("one wide note workspace preserves editor history, toggles with shortcuts and gives non-reflowing feedback", async ({
   page,
 }, info) => {
@@ -178,6 +469,9 @@ test("visible row deletion confirms directly and rejects a stale revision", asyn
   expect(
     state.calls.filter((call) => call.path === "/memories/delete"),
   ).toHaveLength(0);
+  await row
+    .getByRole("button", { name: "Actions for Review preferences" })
+    .click();
   await row.getByRole("button", { name: "Delete note…", exact: true }).click();
   state.records.get(note.id)!.version++;
   await dialog.getByRole("button", { name: "Delete this note" }).click();
@@ -187,7 +481,10 @@ test("visible row deletion confirms directly and rejects a stale revision", asyn
   expect(state.records.has(note.id)).toBe(true);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    row.getByRole("button", { name: "Delete note…", exact: true }),
+    row.getByRole("button", {
+      name: "Actions for Review preferences",
+      exact: true,
+    }),
   ).toBeFocused();
 });
 
@@ -304,6 +601,9 @@ test("row deletion resolves a lost save with its original identity and keeps new
   expect(attempts).toHaveLength(2);
   expect(attempts[1]).toEqual(attempts[0]);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await row
+    .getByRole("button", { name: "Actions for Review preferences" })
+    .click();
   await row.getByRole("button", { name: "Export…", exact: true }).click();
   const download = page.waitForEvent("download");
   await page
@@ -469,7 +769,8 @@ test("PDF export contains paginated searchable Markdown with safe links and Unic
   const pending = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   const download = await pending;
-  expect(download.suggestedFilename()).toBe("Café review.pdf");
+  // WebKit normalizes spaces in download filenames to underscores.
+  expect(download.suggestedFilename()).toMatch(/^Café[ _]review\.pdf$/);
   await download.saveAs(info.outputPath("note.pdf"));
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loading = getDocument({
@@ -500,6 +801,68 @@ test("PDF export contains paginated searchable Markdown with safe links and Unic
   expect(links).toContain("https://example.com/guide");
   expect(external).toEqual([]);
   await expect(dialog).toContainText("Unicode codes");
+  await loading.destroy();
+});
+
+test("PDF layout wraps long code and wide tables without clipped or missing content", async ({
+  page,
+}, info) => {
+  const headers = Array.from(
+    { length: 8 },
+    (_, index) => `Column ${index + 1}`,
+  );
+  const content =
+    "# Layout review\n\n> A quoted **important** thought.\n\n---\n\n" +
+    "```text\n" +
+    "A_long_unbroken_line_".repeat(80) +
+    "\n```\n\n" +
+    headers.join(" | ") +
+    "\n" +
+    headers.map(() => "---").join(" | ") +
+    "\n" +
+    Array.from({ length: 35 }, (_, row) =>
+      headers
+        .map((_, col) => `Row${row + 1}Cell${col + 1}with_long_text`)
+        .join(" | "),
+    ).join("\n") +
+    "\n\nFinal layout marker.";
+  await fixture(page, [{ ...note, content }]);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  const file = await download;
+  await file.saveAs(info.outputPath("wide-table.pdf"));
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const loading = getDocument({
+    data: new Uint8Array(await readFile((await file.path())!)),
+    verbosity: 0,
+  });
+  const pdf = await loading.promise;
+  let text = "";
+  for (let index = 1; index <= pdf.numPages; index++) {
+    const sheet = await pdf.getPage(index);
+    const viewport = sheet.getViewport({ scale: 1 });
+    const items = (await sheet.getTextContent()).items.filter(
+      (item) => "str" in item,
+    );
+    expect(items.filter((item) => item.str.trim()).length).toBeGreaterThan(1);
+    for (const item of items) {
+      expect(item.transform[4]).toBeGreaterThanOrEqual(39);
+      expect(item.transform[4] + item.width).toBeLessThanOrEqual(
+        viewport.width - 38,
+      );
+      expect(item.transform[5]).toBeGreaterThan(10);
+      expect(item.transform[5]).toBeLessThan(viewport.height - 20);
+    }
+    text += items.map((item) => item.str).join("");
+  }
+  const normalized = text.replace(/[\s\u200b]/g, "");
+  expect(normalized).toContain("Finallayoutmarker.");
+  for (let row = 1; row <= 35; row++)
+    for (let col = 1; col <= 8; col++) {
+      expect(normalized).toContain(`Row${row}Cell${col}with_long_text`);
+    }
   await loading.destroy();
 });
 
@@ -536,6 +899,7 @@ test("browsing arrows and delete are scoped to notes and deletion still requires
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "Delete this note" }).click();
   await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toBeFocused();
   expect(
     await page.evaluate(() => document.documentElement.style.overflow),
   ).not.toBe("hidden");
@@ -549,6 +913,13 @@ test("browsing arrows and delete are scoped to notes and deletion still requires
   await search.press("Delete");
   await expect(search).toHaveValue("aunch");
   await expect(confirmation).toHaveCount(0);
+  await search.fill("");
+  await rows.first().focus();
+  await page.keyboard.press("Delete");
+  await confirmation.getByRole("button", { name: "Delete this note" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Good things start small." }),
+  ).toBeFocused();
 });
 
 test("commands and shortcut help work from notes, preserve focus, and create in the current notebook", async ({
@@ -1350,6 +1721,8 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   await page.getByRole("button", { name: "Clear graph selection" }).click();
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
+    // Resizing preserves the user's zoom. Fit is an intentional action.
+    await page.getByRole("button", { name: "Fit View", exact: true }).click();
     await expect
       .poll(() =>
         page.locator(".graph-node-core").evaluateAll(
@@ -1401,6 +1774,303 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   );
   await expect(page.locator(".react-flow__edge")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("graph selection and note revisions retain zoom while ordinary wheel input scrolls the page", async ({
+  page,
+}) => {
+  await fixture(page, [{ ...note, projectId: project.id }, handoff]);
+  await page.setViewportSize({ width: 1280, height: 650 });
+  await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  const viewport = page.locator(".react-flow__viewport");
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  const zoom = () =>
+    viewport.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+  const initial = await zoom();
+  await page.getByRole("button", { name: "Zoom In", exact: true }).click();
+  await expect.poll(zoom).toBeGreaterThan(initial);
+  const zoomed = await zoom();
+  await page.locator(`.react-flow__node[data-id="${note.id}"]`).click();
+  await expect(
+    page.getByRole("complementary", { name: "Selected note" }),
+  ).toBeVisible();
+  expect(await zoom()).toBeCloseTo(zoomed, 4);
+  await viewport.evaluate((el) => el.setAttribute("data-retained", "yes"));
+  await page.getByRole("button", { name: "Read note", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+  await drawer.getByRole("button", { name: "Edit note", exact: true }).click();
+  await drawer
+    .getByRole("textbox", { name: "What should stay with you?" })
+    .fill("# A revised idea\n\nThe same graph position.");
+  await page.keyboard.press("Control+s");
+  await expect(drawer.locator(".note-save-status")).toHaveText("Saved");
+  await page.keyboard.press("Escape");
+  await expect(viewport).toHaveAttribute("data-retained", "yes");
+  expect(await zoom()).toBeCloseTo(zoomed, 4);
+  const bounds = (await page.locator(".graph-canvas").boundingBox())!;
+  await page.mouse.move(bounds.x + 40, bounds.y + 80);
+  const before = await page.evaluate(() => scrollY);
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+  expect(await zoom()).toBeCloseTo(zoomed, 4);
+  await page.locator(".graph-canvas").scrollIntoViewIfNeeded();
+  const currentBounds = (await page.locator(".graph-canvas").boundingBox())!;
+  await page.mouse.move(currentBounds.x + 40, currentBounds.y + 80);
+  const pagePosition = await page.evaluate(() => scrollY);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -90);
+  await page.keyboard.up("Control");
+  await expect.poll(zoom).toBeGreaterThan(zoomed);
+  expect(await page.evaluate(() => scrollY)).toBe(pagePosition);
+});
+
+test("embedded touch graph yields to page scrolling and expanded fallback supports pan and focus return", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await page.addInitScript(() =>
+      Object.defineProperty(document, "fullscreenEnabled", { value: false }),
+    );
+    await fixture(page, [note, handoff]);
+    await page.goto(`${base}/app`);
+    await page.getByRole("button", { name: "Graph", exact: true }).tap();
+    const canvas = page.locator(".graph-canvas");
+    await canvas.scrollIntoViewIfNeeded();
+    await expect(page.locator(".react-flow__node")).toHaveCount(2);
+    const cdp = await context.newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd",
+      x = 0,
+      y = 0,
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y }],
+      });
+    const bounds = (await canvas.boundingBox())!;
+    const beforeScroll = await page.evaluate(() => scrollY);
+    const view = page.locator(".react-flow__viewport");
+    const beforeView = await view.getAttribute("style");
+    await touch("touchStart", bounds.x + 40, bounds.y + 220);
+    await touch("touchMove", bounds.x + 40, bounds.y + 100);
+    await touch("touchEnd");
+    await expect
+      .poll(() => page.evaluate(() => scrollY))
+      .toBeGreaterThan(beforeScroll);
+    await expect(view).toHaveAttribute("style", beforeView!);
+    const expand = page.getByRole("button", {
+      name: "Expand graph",
+      exact: true,
+    });
+    await expand.tap();
+    const expanded = page.getByRole("dialog", { name: "Linked notes graph" });
+    await expect(expanded).toBeInViewport();
+    await expect(
+      page.getByRole("button", { name: "Exit full screen", exact: true }),
+    ).toBeFocused();
+    const area = (await canvas.boundingBox())!;
+    const beforePan = await view.getAttribute("style");
+    await touch("touchStart", area.x + 30, area.y + 60);
+    await touch("touchMove", area.x + 120, area.y + 100);
+    await touch("touchEnd");
+    await expect(view).not.toHaveAttribute("style", beforePan!);
+    const scale = () =>
+      view.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+    const beforePinch = await scale();
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { id: 1, x: 160, y: 260 },
+        { id: 2, x: 230, y: 260 },
+      ],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { id: 1, x: 100, y: 260 },
+        { id: 2, x: 290, y: 260 },
+      ],
+    });
+    await touch("touchEnd");
+    await expect.poll(scale).toBeGreaterThan(beforePinch);
+    expect(await page.evaluate(() => visualViewport?.scale)).toBe(1);
+    const magnified = await scale();
+    await page.getByRole("button", { name: "Fit View", exact: true }).tap();
+    await expect.poll(scale).toBeLessThan(magnified);
+    const center = () =>
+      view.evaluate((el) => {
+        const transform = new DOMMatrix(getComputedStyle(el).transform);
+        const box = el.closest(".graph-flow")!.getBoundingClientRect();
+        return {
+          x: (box.width / 2 - transform.e) / transform.a,
+          y: (box.height / 2 - transform.f) / transform.a,
+        };
+      });
+    const focalPoint = await center();
+    await page.locator(`.react-flow__node[data-id="${note.id}"]`).tap();
+    await expect
+      .poll(async () => {
+        const current = await center();
+        return Math.hypot(current.x - focalPoint.x, current.y - focalPoint.y);
+      })
+      .toBeLessThan(2);
+    await page.screenshot({
+      path: info.outputPath("graph-touch-expanded.png"),
+    });
+    const read = page.getByRole("button", { name: "Read note", exact: true });
+    await read.tap();
+    await expect(
+      page.getByRole("dialog", { name: "Note", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(expanded).toBeVisible();
+    await expect(read).toBeFocused();
+    await page.getByRole("button", { name: "Clear graph selection" }).tap();
+    await page.keyboard.press("Escape");
+    await expect(expand).toBeFocused();
+    await expect(page.locator("[inert]")).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.style.overflow),
+    ).not.toBe("hidden");
+  } finally {
+    await context.close();
+  }
+});
+
+test("a reply and growing composer preserve older reading position until Latest reply is chosen", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const id = crypto.randomUUID();
+  state.chats.set(id, {
+    id,
+    title: "Reading thread",
+    scope: { includePersonal: true },
+    version: 12,
+    updatedAt: note.updatedAt,
+    turns: Array.from({ length: 12 }, (_, index) => ({
+      id: crypto.randomUUID(),
+      question: `Earlier question ${index}. Keep my place while I read.`,
+      format: "plain",
+      expectedVersion: index,
+      status: "ready",
+      error: null,
+      createdAt: note.createdAt,
+      result: {
+        message:
+          `Earlier answer ${index}. This is a useful saved explanation. `.repeat(
+            12,
+          ),
+        statements: [],
+        sources: [],
+        proposal: null,
+      },
+    })),
+  });
+  await page.goto(`${base}/app/ask`);
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page.getByRole("button", { name: /^Reading thread/ }).click();
+  const log = page.getByRole("log", { name: "Conversation" });
+  const input = page.getByRole("textbox", { name: "Ask about your notes" });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/grove/conversations/*/turns", async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await input.fill("A new question");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
+  await expect(
+    page.getByText("Looking through your notes…", { exact: true }),
+  ).toBeVisible();
+  await log.evaluate((el) => {
+    el.scrollTop = 20;
+  });
+  await expect(
+    page.getByRole("button", { name: "Latest reply" }),
+  ).toBeVisible();
+  const position = await log.evaluate((el) => el.scrollTop);
+  await log
+    .locator(".ask-question p")
+    .first()
+    .evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const selection = getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+  release();
+  await expect(log.locator(".ask-turn").last()).toContainText(
+    "Keep feedback specific",
+  );
+  expect(await log.evaluate((el) => el.scrollTop)).toBeCloseTo(position, 0);
+  expect(await page.evaluate(() => getSelection()?.toString())).toContain(
+    "Earlier question 0",
+  );
+  await input.fill("Another thought\n".repeat(8));
+  expect(await log.evaluate((el) => el.scrollTop)).toBeCloseTo(position, 0);
+  await page.getByRole("button", { name: "Latest reply" }).click();
+  await expect
+    .poll(() =>
+      log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight),
+    )
+    .toBeLessThan(2);
+  await expect(log).toBeFocused();
+  await expect(page.getByRole("button", { name: "Latest reply" })).toHaveCount(
+    0,
+  );
+});
+
+test("copy feedback shares the active dialog stack without replacing a version-fenced move Undo", async ({
+  page,
+  context,
+}, info) => {
+  const state = await fixture(page, [note]);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(`${base}/app`);
+  await page.locator(".memory-row .drag-handle").focus();
+  await page.keyboard.press("Space", { delay: 50 });
+  await expect(page.locator(".memory-drag-preview")).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.locator(`.notebook-explorer [data-destination="${project.id}"]`),
+  ).toHaveAttribute("data-drop-active", "true");
+  await page.keyboard.press("Space");
+  await expect(page.locator(".workspace-notice")).toContainText("1 note moved");
+  await page.locator(".memory-open").click();
+  const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+  await drawer.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByRole("button", { name: "Copy Markdown" }).click();
+  const notifications = drawer.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "Markdown copied",
+  );
+  await expect(notifications.locator(".workspace-notice")).toContainText(
+    "1 note moved",
+  );
+  const a = (await notifications.locator(".workspace-toast").boundingBox())!;
+  const b = (await notifications.locator(".workspace-notice").boundingBox())!;
+  expect(a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("feedback-stack-desktop.png"),
+  });
+  await notifications
+    .getByRole("button", { name: "Undo", exact: true })
+    .click();
+  await expect(notifications).toContainText("Change undone");
+  expect(state.records.get(note.id)?.projectId).toBeNull();
 });
 
 test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and discards cancelled answers", async ({
@@ -1713,6 +2383,13 @@ test("workspace search includes personal notes and dialogs light-dismiss only on
     includePersonal: true,
   });
   const box = (await dialog.boundingBox())!;
+  await page.mouse.click(2, 2, { button: "right" });
+  await expect(dialog).toBeVisible();
+  await page.mouse.move(2, 2);
+  await page.mouse.down();
+  await page.mouse.move(100, 2);
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
   await page.mouse.move(box.x + 30, box.y + 30);
   await page.mouse.down();
   await page.mouse.move(2, 2);
@@ -2451,6 +3128,7 @@ test("named workspaces browse scoped memories and handoffs without manual agent 
   await page.getByLabel("Notebook name").fill("Research notes");
   await expect(page.getByLabel("Repository identity")).not.toBeVisible();
   await page
+    .getByRole("dialog")
     .getByRole("button", { name: "Create notebook", exact: true })
     .click();
   await expect(
@@ -2778,6 +3456,7 @@ test("long notebook menus scroll on touch without snapping back to the selected 
       })),
     );
     await page.goto(`${base}/app/notes/new?notebook=${project.id}`);
+    await page.getByRole("button", { name: "Note actions", exact: true }).tap();
     await page.getByRole("button", { name: "Note properties" }).tap();
     const picker = page.getByRole("combobox", {
       name: "Notebook",
@@ -2803,6 +3482,278 @@ test("long notebook menus scroll on touch without snapping back to the selected 
     await expect(picker).toHaveText(project.name);
     await expect(picker).toBeFocused();
     await expect(page.locator("[inert]")).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
+test("mouse handles reveal collapsed destinations before one move", async ({
+  page,
+}) => {
+  const state = await fixture(page, [note]);
+  const child = {
+    ...project,
+    id: crypto.randomUUID(),
+    name: "Research",
+    parentId: project.id,
+  };
+  state.projects.push(child);
+  await page.goto(`${base}/app`);
+  const sidebar = page.getByRole("region", { name: "Your notebooks" });
+  const handle = page.locator(".memory-row .drag-handle");
+  const box = (await handle.boundingBox())!;
+  const parent = sidebar.locator(`[data-destination="${project.id}"]`);
+  const parentBox = (await parent.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    parentBox.x + parentBox.width / 2,
+    parentBox.y + parentBox.height / 2,
+    { steps: 8 },
+  );
+  await expect(page.locator(".memory-drag-preview")).toBeVisible();
+  await expect(
+    sidebar.getByRole("button", {
+      name: "Collapse Website redesign",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const target = sidebar.locator(`[data-destination="${child.id}"]`);
+  const targetBox = (await target.boundingBox())!;
+  await page.mouse.move(
+    targetBox.x + targetBox.width / 2,
+    targetBox.y + targetBox.height / 2,
+  );
+  await expect(target).toHaveAttribute("data-drop-active", "true");
+  await page.mouse.up();
+  await expect(page.locator(".workspace-notice")).toContainText("Research");
+  expect(state.records.get(note.id)?.projectId).toBe(child.id);
+  expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+    1,
+  );
+});
+
+test("touch handles activate deliberately, scroll destinations and cancel without a write", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    const state = await fixture(page, [note]);
+    state.projects.push(
+      ...Array.from({ length: 18 }, (_, index) => ({
+        ...project,
+        id: crypto.randomUUID(),
+        name: `Notebook ${String(index).padStart(2, "0")}`,
+      })),
+    );
+    await page.goto(`${base}/app`);
+    const handle = page.locator(".memory-row .drag-handle");
+    await handle.scrollIntoViewIfNeeded();
+    const cdp = await context.newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd" | "touchCancel",
+      x = 0,
+      y = 0,
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints:
+          type === "touchEnd" || type === "touchCancel" ? [] : [{ x, y }],
+      });
+    const pickUp = async () => {
+      const box = (await handle.boundingBox())!;
+      await touch("touchStart", box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page.locator(".memory-drag-preview")).toBeVisible();
+    };
+    await pickUp();
+    const contact = (await handle.boundingBox())!;
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        {
+          id: 0,
+          x: contact.x + contact.width / 2,
+          y: contact.y + contact.height / 2,
+        },
+        { id: 1, x: contact.x + 100, y: contact.y + 10 },
+      ],
+    });
+    await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+    await touch("touchEnd");
+    expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+      0,
+    );
+    await pickUp();
+    const tray = page.locator(".mobile-drop-destinations");
+    const bounds = (await tray.boundingBox())!;
+    await touch(
+      "touchMove",
+      bounds.x + bounds.width / 2,
+      bounds.y + bounds.height - 8,
+    );
+    await expect
+      .poll(() => tray.evaluate((el) => el.scrollTop))
+      .toBeGreaterThan(20);
+    const cancel = page.getByRole("button", { name: "Drop here to cancel" });
+    const cancelBox = (await cancel.boundingBox())!;
+    await touch(
+      "touchMove",
+      cancelBox.x + cancelBox.width / 2,
+      cancelBox.y + cancelBox.height / 2,
+    );
+    await expect(cancel).toHaveAttribute("data-drop-active", "true");
+    await page.screenshot({ path: info.outputPath("touch-destinations.png") });
+    await touch("touchEnd");
+    await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+    expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+      0,
+    );
+    await pickUp();
+    const destination = page.locator(
+      `.mobile-drop-tray [data-destination="${state.projects[1].id}"]`,
+    );
+    const target = (await destination.boundingBox())!;
+    await touch(
+      "touchMove",
+      target.x + target.width / 2,
+      target.y + target.height / 2,
+    );
+    await expect(destination).toHaveAttribute("data-drop-active", "true");
+    await touch("touchEnd");
+    await expect(page.locator(".workspace-notice")).toContainText(
+      "1 note moved",
+    );
+    expect(state.records.get(note.id)?.projectId).toBe(state.projects[1].id);
+    expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+      1,
+    );
+  } finally {
+    await context.close();
+  }
+});
+
+test("pen pickup cancels when its source disappears during navigation", async ({
+  page,
+  context,
+}) => {
+  const state = await fixture(page, [note]);
+  await page.goto(`${base}/app`);
+  const box = (await page.locator(".memory-row .drag-handle").boundingBox())!;
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    button: "left",
+    buttons: 1,
+    x: box.x + 10,
+    y: box.y + 10,
+    pointerType: "pen",
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    button: "left",
+    buttons: 1,
+    x: box.x + 30,
+    y: box.y + 10,
+    pointerType: "pen",
+  });
+  await expect(page.locator(".memory-drag-preview")).toBeVisible();
+  await page.evaluate(() => {
+    history.pushState(null, "", "/app/ask");
+    dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    button: "left",
+    buttons: 0,
+    x: box.x + 30,
+    y: box.y + 10,
+    pointerType: "pen",
+  });
+  expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+    0,
+  );
+});
+
+test("row actions have one owner, Escape restores focus and an interrupted swipe never consumes the next tap", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    const state = await fixture(page);
+    await page.goto(`${base}/app`);
+    const buttons = page.locator(".row-controls button");
+    await buttons.first().tap();
+    await buttons.nth(1).tap();
+    await expect(
+      page.getByRole("button", { name: "Close actions", exact: true }),
+    ).toHaveCount(1);
+    await expect(buttons.nth(1)).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Escape");
+    await expect(buttons.nth(1)).toBeFocused();
+    await buttons.nth(1).tap();
+    await page
+      .getByRole("group", { name: /^Actions for/ })
+      .getByRole("button", { name: "Move", exact: true })
+      .tap();
+    await expect(page.getByRole("dialog", { name: "Move note" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(buttons.nth(1)).toBeFocused();
+    const row = page.locator(".memory-row").last();
+    await row.scrollIntoViewIfNeeded();
+    const box = (await row.boundingBox())!;
+    const x = box.x + box.width - 90,
+      y = box.y + 30;
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ id: 1, x, y }],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ id: 1, x: x - 30, y }],
+    });
+    await expect(row).toHaveAttribute("data-swiping", "true");
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { id: 1, x: x - 30, y },
+        { id: 2, x: x - 70, y: y + 20 },
+      ],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { id: 1, x: x - 100, y },
+        { id: 2, x: x - 130, y: y + 20 },
+      ],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect(row).not.toHaveAttribute("data-swiping");
+    await expect(
+      page.getByRole("button", { name: "Close actions" }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+      0,
+    );
+    await row.locator(".memory-open").tap();
+    await expect(
+      page.getByRole("dialog", { name: "Note", exact: true }),
+    ).toBeVisible();
   } finally {
     await context.close();
   }

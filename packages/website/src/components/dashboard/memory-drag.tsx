@@ -2,16 +2,19 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useId,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
   MouseSensor,
   TouchSensor,
+  PointerSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -19,6 +22,7 @@ import {
   useDraggable,
   pointerWithin,
   type KeyboardCoordinateGetter,
+  type Modifier,
 } from "@dnd-kit/core";
 import { FolderInput, GripVertical, Undo2, X } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
@@ -26,6 +30,7 @@ import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { memoryTitle, moveMemoryInput } from "@/lib/memory-display";
 import { notebookPath, notebookOptions } from "@/lib/notebooks";
 import { useNotebooks } from "./notebooks-provider";
+import { WorkspaceNotice } from "./toasts";
 
 export type WorkspaceDragItem =
   | { kind: "notes"; items: Memory[] }
@@ -41,6 +46,104 @@ const Context = createContext<{
 }>({ active: null, busy: false, revision: 0, refresh: () => {} });
 export const useWorkspaceDrag = () => useContext(Context);
 
+type Destination =
+  | { kind: "notebook"; projectId: string | null; root: boolean; name: string }
+  | { kind: "cancel"; name: string };
+function validDestination(
+  item: WorkspaceDragItem,
+  destination: Destination,
+  projects: Project[],
+) {
+  if (
+    destination.kind !== "notebook" ||
+    (destination.projectId !== null &&
+      !projects.some((p) => p.id === destination.projectId))
+  )
+    return false;
+  return item.kind === "notebook"
+    ? (destination.projectId !== null || destination.root) &&
+        (item.project.parentId ?? null) !== destination.projectId &&
+        !notebookPath(projects, destination.projectId).some(
+          (p) => p.id === item.project.id,
+        )
+    : (destination.projectId !== null || !destination.root) &&
+        item.items.some((note) => note.projectId !== destination.projectId);
+}
+// Mouse/touch keep their tuned activation. Pens use their own primary-pointer path.
+class PenSensor extends PointerSensor {
+  static activators: typeof PointerSensor.activators =
+    PointerSensor.activators.map((activator) => ({
+      ...activator,
+      handler: (event, options) =>
+        event.nativeEvent.pointerType === "pen" &&
+        activator.handler(event, options),
+    }));
+}
+function cancelDrag() {
+  // dnd-kit sensors share Escape cancellation; use it for the visible cancel control.
+  document.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key: "Escape",
+      code: "Escape",
+      bubbles: true,
+    }),
+  );
+}
+const fingerOffset: Modifier = ({
+  transform,
+  activatorEvent,
+  activeNodeRect,
+  overlayNodeRect,
+  windowRect,
+}) => {
+  if (
+    activatorEvent?.type !== "touchstart" &&
+    (activatorEvent as PointerEvent | null)?.pointerType !== "pen"
+  )
+    return transform;
+  return {
+    ...transform,
+    y: transform.y - 64,
+    x:
+      activeNodeRect && overlayNodeRect && windowRect
+        ? Math.max(
+            8 - activeNodeRect.left,
+            Math.min(
+              transform.x,
+              windowRect.width -
+                overlayNodeRect.width -
+                activeNodeRect.left -
+                8,
+            ),
+          )
+        : transform.x,
+  };
+};
+function insideScrollClip(
+  node: HTMLElement | null,
+  point: { x: number; y: number },
+) {
+  for (
+    let parent = node?.parentElement;
+    parent;
+    parent = parent.parentElement
+  ) {
+    const style = getComputedStyle(parent);
+    const rect = parent.getBoundingClientRect();
+    if (
+      /(auto|scroll|hidden|clip)/.test(style.overflowY) &&
+      (point.y < rect.top || point.y > rect.bottom)
+    )
+      return false;
+    if (
+      /(auto|scroll|hidden|clip)/.test(style.overflowX) &&
+      (point.x < rect.left || point.x > rect.right)
+    )
+      return false;
+  }
+  return true;
+}
+
 const destinationCoordinates: KeyboardCoordinateGetter = (
   event,
   { context },
@@ -48,24 +151,58 @@ const destinationCoordinates: KeyboardCoordinateGetter = (
   if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(event.code))
     return;
   event.preventDefault();
-  const targets = context.droppableContainers.getEnabled().filter((target) => {
-    const rect = context.droppableRects.get(target.id);
-    return rect && rect.width > 0 && rect.height > 0;
-  });
+  const seen = new Set<string>();
+  const targets = context.droppableContainers
+    .getEnabled()
+    .filter((target) => target.node.current?.getClientRects().length)
+    .sort((a, b) =>
+      a.node.current!.compareDocumentPosition(b.node.current!) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+        ? -1
+        : 1,
+    )
+    .filter((target) => {
+      const destination: Destination | undefined =
+        target.data.current?.destination;
+      if (!destination) return false;
+      const key =
+        destination.kind === "cancel"
+          ? "cancel"
+          : `${destination.projectId}:${destination.root}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   if (!targets.length) return;
   const current = targets.findIndex((target) => target.id === context.over?.id);
   const step = event.code === "ArrowUp" || event.code === "ArrowLeft" ? -1 : 1;
-  const next = targets[(current + step + targets.length) % targets.length];
-  const rect = context.droppableRects.get(next.id)!;
+  const next =
+    targets[
+      current < 0
+        ? step > 0
+          ? 0
+          : targets.length - 1
+        : (current + step + targets.length) % targets.length
+    ];
+  const node = next.node.current!;
+  node.scrollIntoView({
+    block: "nearest",
+    inline: "nearest",
+    behavior: "instant",
+  });
+  const rect = node.getBoundingClientRect();
   return { x: rect.left + 4, y: rect.top + 4 };
 };
 
 /** One drag surface spans navigation, notes and notebook organization. */
 export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const notebooks = useNotebooks();
+  const path = usePathname();
+  const origin = useRef<{ path: string; source: Element | null } | null>(null);
   const [active, setActive] = useState<WorkspaceDragItem | null>(null);
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
+  const pickingUp = useRef(false);
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
   const [failures, setFailures] = useState<string[]>([]);
@@ -76,8 +213,34 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     useSensor(TouchSensor, {
       activationConstraint: { delay: 220, tolerance: 8 },
     }),
+    useSensor(PenSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: destinationCoordinates }),
   );
+  useEffect(() => {
+    const interrupt = () => {
+      if (pickingUp.current) cancelDrag();
+    };
+    // A second contact interrupts both long-press activation and an active drag.
+    document.addEventListener("pointerdown", interrupt, true);
+    window.addEventListener("blur", interrupt);
+    return () => {
+      document.removeEventListener("pointerdown", interrupt, true);
+      window.removeEventListener("blur", interrupt);
+    };
+  }, []);
+  useEffect(() => {
+    if (!active) return;
+    if (origin.current?.path !== path) {
+      cancelDrag();
+      return;
+    }
+    const checkSource = () => {
+      if (!origin.current?.source?.isConnected) cancelDrag();
+    };
+    const observer = new MutationObserver(checkSource);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [active, path]);
   async function moveNote(note: Memory, projectId: string | null) {
     const body = moveMemoryInput(note, projectId);
     const key = JSON.stringify(body);
@@ -203,15 +366,19 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     >
       <DndContext
         sensors={sensors}
-        collisionDetection={(args) =>
-          pointerWithin({
+        collisionDetection={(args) => {
+          const point = args.pointerCoordinates ?? {
+            x: args.collisionRect.left + 8,
+            y: args.collisionRect.top + 8,
+          };
+          return pointerWithin({
             ...args,
-            pointerCoordinates: args.pointerCoordinates ?? {
-              x: args.collisionRect.left + 8,
-              y: args.collisionRect.top + 8,
-            },
-          })
-        }
+            pointerCoordinates: point,
+            droppableContainers: args.droppableContainers.filter((target) =>
+              insideScrollClip(target.node.current, point),
+            ),
+          });
+        }}
         accessibility={{
           screenReaderInstructions: {
             draggable:
@@ -220,31 +387,62 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           announcements: {
             onDragStart: () => "Picked up. Choose a notebook. Escape cancels.",
             onDragOver: ({ over }) =>
-              over
-                ? `Move to ${over.data.current?.name}.`
-                : "Choose an available destination.",
+              over?.data.current?.destination?.kind === "cancel"
+                ? "Release to cancel the move."
+                : over
+                  ? `Move to ${over.data.current?.name}.`
+                  : "Choose an available destination.",
             onDragEnd: ({ over }) =>
-              over
+              over?.data.current?.destination?.kind === "notebook"
                 ? `Moving to ${over.data.current?.name}.`
                 : "Move cancelled.",
             onDragCancel: () => "Move cancelled.",
           },
         }}
-        onDragStart={({ active }) => {
-          if (!working.current) setActive(active.data.current?.item ?? null);
+        onDragPending={() => {
+          pickingUp.current = true;
         }}
-        onDragCancel={() => setActive(null)}
+        onDragAbort={() => {
+          pickingUp.current = false;
+        }}
+        onDragStart={({ active, activatorEvent }) => {
+          pickingUp.current = true;
+          if (!working.current) {
+            origin.current = {
+              path,
+              source:
+                activatorEvent.target instanceof Element
+                  ? activatorEvent.target
+                  : null,
+            };
+            setActive(active.data.current?.item ?? null);
+          }
+        }}
+        onDragCancel={() => {
+          pickingUp.current = false;
+          setActive(null);
+        }}
         onDragEnd={({ over }) => {
-          if (over && active && !working.current)
-            void move(active, over.data.current?.projectId ?? null);
+          pickingUp.current = false;
+          const destination: Destination | undefined =
+            over?.data.current?.destination;
+          if (
+            active &&
+            destination?.kind === "notebook" &&
+            !working.current &&
+            origin.current?.path === path &&
+            origin.current.source?.isConnected &&
+            validDestination(active, destination, notebooks.projects)
+          )
+            void move(active, destination.projectId);
           setActive(null);
         }}
       >
         {children}
         {active && (
           <div className="mobile-drop-tray" aria-label="Move destination">
-            <span>Drop into a notebook · Escape to cancel</span>
-            <div>
+            <span>Drop into a notebook</span>
+            <div className="mobile-drop-destinations">
               <NotebookDropTarget
                 projectId={null}
                 name={active.kind === "notebook" ? "Top level" : "Unfiled"}
@@ -260,7 +458,8 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             </div>
           </div>
         )}
-        <DragOverlay dropAnimation={null}>
+        {active && <CancelDropTarget />}
+        <DragOverlay dropAnimation={null} modifiers={[fingerOffset]}>
           {active && (
             <div className="memory-drag-preview">
               <FolderInput size={18} />
@@ -283,7 +482,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         </DragOverlay>
       </DndContext>
       {(notice || busy) && (
-        <div className="workspace-notice" role="status">
+        <WorkspaceNotice>
           <div>
             <span>{busy ? "Moving…" : notice}</span>
             {failures.length > 0 && (
@@ -311,7 +510,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           >
             <X size={16} />
           </button>
-        </div>
+        </WorkspaceNotice>
       )}
     </Context.Provider>
   );
@@ -328,20 +527,49 @@ export function useNotebookDrop(
   const invalid =
     !active ||
     busy ||
-    (active.kind === "notebook"
-      ? (!projectId && !root) ||
-        (active.project.parentId ?? null) === projectId ||
-        notebookPath(projects, projectId).some(
-          (p) => p.id === active.project.id,
-        )
-      : (!projectId && root) ||
-        active.items.every((note) => note.projectId === projectId));
+    !validDestination(
+      active,
+      { kind: "notebook", projectId, root, name },
+      projects,
+    );
   const drop = useDroppable({
     id,
-    data: { projectId, name },
+    data: {
+      name,
+      destination: {
+        kind: "notebook",
+        projectId,
+        root,
+        name,
+      } satisfies Destination,
+    },
     disabled: invalid,
   });
   return { ...drop, invalid, dragging: !!active };
+}
+
+function CancelDropTarget() {
+  const id = useId();
+  const { setNodeRef, isOver } = useDroppable({
+    id,
+    data: {
+      destination: {
+        kind: "cancel",
+        name: "Cancel move",
+      } satisfies Destination,
+    },
+  });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className="drag-cancel-target"
+      data-drop-active={isOver || undefined}
+      onClick={cancelDrag}
+    >
+      <X size={16} /> Drop here to cancel <kbd>Esc</kbd>
+    </button>
+  );
 }
 
 export function NotebookDropTarget({

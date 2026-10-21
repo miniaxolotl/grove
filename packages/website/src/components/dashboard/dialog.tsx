@@ -1,10 +1,9 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { lockPageScroll } from "./ui/overlay-focus";
 
 const DialogBusy = createContext<(busy: boolean) => void>(() => {});
-let scrollLocks = 0;
-let previousOverflow = "";
 export const useDialogBusy = () => useContext(DialogBusy);
 export function Dialog({
   title,
@@ -20,16 +19,16 @@ export function Dialog({
   busy?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const backdropPress = useRef(false);
+  const backdropPress = useRef<{ id: number; x: number; y: number } | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const locked = busy || saving;
   useEffect(() => {
     const element = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
     const focusKey = previous?.dataset.focusKey;
-    if (scrollLocks++ === 0)
-      previousOverflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     element.showModal();
     (
       element.querySelector<HTMLElement>("[data-autofocus]") ??
@@ -39,8 +38,7 @@ export function Dialog({
     )?.focus();
     return () => {
       element.close();
-      if (--scrollLocks === 0)
-        document.documentElement.style.overflow = previousOverflow;
+      unlock();
       const scope =
         [...document.querySelectorAll("dialog[open]")].at(-1) ?? document;
       const target = previous?.isConnected
@@ -59,17 +57,33 @@ export function Dialog({
       onPointerDown={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
         backdropPress.current =
+          event.isPrimary &&
+          event.button === 0 &&
           event.target === event.currentTarget &&
           (event.clientX < rect.left ||
             event.clientX > rect.right ||
             event.clientY < rect.top ||
-            event.clientY > rect.bottom);
+            event.clientY > rect.bottom)
+            ? { id: event.pointerId, x: event.clientX, y: event.clientY }
+            : null;
+      }}
+      onPointerMove={(event) => {
+        const start = backdropPress.current;
+        if (
+          start &&
+          (start.id !== event.pointerId ||
+            Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8)
+        )
+          backdropPress.current = null;
       }}
       onPointerUp={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
+        const start = backdropPress.current;
+        backdropPress.current = null;
         if (
           !locked &&
-          backdropPress.current &&
+          start?.id === event.pointerId &&
+          Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 8 &&
           event.target === event.currentTarget &&
           (event.clientX < rect.left ||
             event.clientX > rect.right ||
@@ -77,10 +91,12 @@ export function Dialog({
             event.clientY > rect.bottom)
         )
           close();
-        backdropPress.current = false;
       }}
       onPointerCancel={() => {
-        backdropPress.current = false;
+        backdropPress.current = null;
+      }}
+      onLostPointerCapture={() => {
+        backdropPress.current = null;
       }}
       onCancel={(event) => {
         event.preventDefault();

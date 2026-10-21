@@ -244,15 +244,48 @@ export function notePdfDocument(root: Root, title: string, origin: string) {
             margin: [8, 0, 0, 3],
           } satisfies Content,
         ]);
-      case "table":
+      case "table": {
+        const headings = node.children[0].children;
+        // Very wide tables are printed as labelled records instead of shrinking
+        // type or overflowing the page. Missing cells remain explicitly empty.
+        if (headings.length > 8)
+          return node.children.slice(1).flatMap(
+            (row, index) =>
+              [
+                { text: `Row ${index + 1}`, bold: true, margin: [0, 8, 0, 4] },
+                {
+                  table: {
+                    widths: [140, "*"],
+                    body: headings.map((heading, column) => [
+                      {
+                        text: inline(heading.children),
+                        bold: true,
+                        fillColor: "#edf2eb",
+                      },
+                      { text: inline(row.children[column]?.children ?? []) },
+                    ]),
+                  },
+                  layout: "lightHorizontalLines",
+                  margin: [0, 0, 0, 10],
+                },
+              ] satisfies Content[],
+          );
         return [
           {
             table: {
               headerRows: 1,
-              widths: node.children[0].children.map(() => "*"),
+              widths: headings.map(() => "*"),
               body: node.children.map((row, rowIndex) =>
-                row.children.map((cell, index) => ({
-                  text: inline(cell.children),
+                headings.map((_, index) => ({
+                  text: inline(row.children[index]?.children ?? []).map(
+                    (part) => ({
+                      ...part,
+                      text:
+                        typeof part.text === "string"
+                          ? part.text.replace(/\S{8}/gu, "$&\u200b")
+                          : part.text,
+                    }),
+                  ),
                   bold: rowIndex === 0,
                   fillColor: rowIndex === 0 ? "#edf2eb" : undefined,
                   alignment: node.align?.[index] ?? "left",
@@ -265,6 +298,7 @@ export function notePdfDocument(root: Root, title: string, origin: string) {
             margin: [0, 4, 0, 12],
           },
         ];
+      }
       default:
         return [];
     }

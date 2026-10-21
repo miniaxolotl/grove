@@ -735,13 +735,21 @@
   gap: 10px;
   align-items: start;
   padding: 10px 12px;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
   transition:
     background 150ms,
     transform 180ms ease;
 }
 .memory-row:hover {
   background: #f8faf6;
+}
+.memory-row[data-swiping] {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .memory-row {
+    transition: none;
+  }
 }
 .row-selection {
   display: grid;

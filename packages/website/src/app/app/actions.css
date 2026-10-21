@@ -30,6 +30,44 @@
   min-height: 160px;
   resize: vertical;
 }
+.note-editor-full.editor-focus .note-editor-bar > .note-delete-button,
+.note-editor-full.editor-focus .note-editor-bar > button[popovertarget] {
+  display: inline-flex;
+}
+@media (max-width: 600px) {
+  .note-editor-full .note-editor-bar {
+    padding-block: 6px;
+  }
+  .note-editor-bar .note-editor-location,
+  .note-editor-bar > .note-save-status {
+    grid-column: 2 / 4;
+  }
+  .note-editor-bar > .note-save-button {
+    grid-column: 4;
+  }
+  .note-editor-bar > .note-export-button {
+    grid-column: 1 / 3;
+    grid-row: 3;
+    justify-self: start;
+  }
+  .note-editor-bar > .note-delete-button {
+    grid-column: 3;
+    grid-row: 3;
+  }
+  .note-editor-bar > button[popovertarget],
+  .note-editor-bar > .note-mobile-actions {
+    grid-column: 4;
+    grid-row: 3;
+  }
+  .note-editor-bar > .editor-focus-toggle[aria-pressed="true"] {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    width: 44px;
+  }
+  .editor-focus-toggle > span {
+    display: none;
+  }
+}
 .action-menu > .action-danger:hover,
 .note-delete-button:hover {
   background: #fff0ec;
