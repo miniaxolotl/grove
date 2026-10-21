@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { gunzipSync } from "node:zlib";
-import { getClient, getGlobalScope } from "@sentry/core";
+import { getClient, getCurrentScope, getGlobalScope } from "@sentry/core";
+import { ServerRuntimeClient } from "@sentry/core/server";
 import { Reporter, type Configuration, type Properties } from "@lib/telemetry";
 import {
   identityAllowed,
@@ -14,7 +15,10 @@ import {
   setTelemetryEnabled,
 } from "@lib/telemetry/preference";
 
-async function sink(hang: boolean | "body" = false) {
+async function sink(
+  hang: boolean | "body" = false,
+  onRequest?: (request: { url: string; data: string }) => void,
+) {
   const requests: { url: string; data: string }[] = [];
   const server = createServer(async (request, response) => {
     const chunks: Buffer[] = [];
@@ -27,6 +31,7 @@ async function sink(hang: boolean | "body" = false) {
         : raw
       ).toString(),
     });
+    onRequest?.(requests.at(-1)!);
     if (!hang)
       response.writeHead(200, { "Content-Type": "application/json" }).end("{}");
     else if (hang === "body") {
@@ -129,6 +134,7 @@ test("real Node SDKs serialize only bounded metadata and preserve the host's SDK
       .flatMap((r) => {
         const lines = r.data.trim().split("\n");
         return Array.from({ length: (lines.length - 1) / 2 }, (_, i) => ({
+          headers: JSON.parse(lines[0]),
           type: JSON.parse(lines[1 + i * 2]).type,
           data: JSON.parse(lines[2 + i * 2]),
         }));
@@ -137,6 +143,16 @@ test("real Node SDKs serialize only bounded metadata and preserve the host's SDK
       new Set(envelopes.map((item) => item.type)),
       new Set(["event", "span", "log", "trace_metric"]),
     );
+    const span = envelopes.find((item) => item.type === "span")!;
+    assert.equal(
+      span.headers.trace?.public_key,
+      "00000000000000000000000000000000",
+      "Sentry rejects a streamed span without its own project's sampling context",
+    );
+    assert.equal(span.headers.trace.trace_id, span.data.items[0].trace_id);
+    assert.equal(span.headers.trace.release, `grove-cli@${"a".repeat(40)}`);
+    assert.equal(span.headers.trace.transaction, "command_run");
+    assert.equal(span.headers.trace.sample_rate, "1");
     assert.deepEqual(
       envelopes.find((item) => item.type === "event")?.data.exception.values[0]
         .stacktrace.frames,
@@ -162,6 +178,84 @@ test("real Node SDKs serialize only bounded metadata and preserve the host's SDK
   } finally {
     scope.setUser(null);
     scope.setExtra("transcript", undefined);
+    await endpoint.close();
+  }
+});
+
+test("timer-flushed spans retain Grove sampling provenance with another host client active", async () => {
+  let delivered!: () => void;
+  const received = new Promise<void>((resolve) => {
+    delivered = resolve;
+  });
+  const endpoint = await sink(false, (request) => {
+    if (
+      request.url.includes("envelope") &&
+      request.data.includes('"type":"span"')
+    )
+      delivered();
+  });
+  const scope = getCurrentScope();
+  const previous = scope.getClient();
+  const propagation = scope.getPropagationContext();
+  const host = new ServerRuntimeClient({
+    dsn: endpoint.config.dsn.replace(
+      "00000000000000000000000000000000",
+      "11111111111111111111111111111111",
+    ),
+    environment: "PRIVATE_HOST_ENVIRONMENT",
+    release: "PRIVATE_HOST_RELEASE",
+    integrations: [],
+    tracesSampleRate: 1,
+    stackParser: () => [],
+    transport: () => ({
+      send: async () => ({ statusCode: 200 }),
+      flush: async () => true,
+    }),
+  });
+  scope.setClient(host);
+  scope.setPropagationContext({
+    traceId: "f".repeat(32),
+    sampleRand: 0.01,
+    dsc: {
+      trace_id: "f".repeat(32),
+      public_key: "11111111111111111111111111111111",
+      transaction: "PRIVATE_HOST_TRANSACTION",
+    },
+  });
+  const reporter = new Reporter(endpoint.config);
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    reporter.operation("maintenance", performance.now() - 10, "success");
+    await Promise.race([
+      received,
+      new Promise((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("SDK timer did not deliver a span")),
+          8000,
+        );
+      }),
+    ]);
+    await reporter.close();
+    assert.equal(getClient(), host);
+    assert.equal(scope.getPropagationContext().traceId, "f".repeat(32));
+    assert.ok(!JSON.stringify(endpoint.requests).includes("PRIVATE"));
+    const request = endpoint.requests.find((r) =>
+      r.data.includes('"type":"span"'),
+    )!;
+    const lines = request.data.trim().split("\n");
+    const { trace } = JSON.parse(lines[0]);
+    assert.equal(trace.public_key, "00000000000000000000000000000000");
+    assert.equal(trace.release, `grove-cli@${"a".repeat(40)}`);
+    assert.equal(trace.environment, "production");
+    assert.equal(trace.transaction, "maintenance");
+    assert.equal(trace.trace_id, JSON.parse(lines[2]).items[0].trace_id);
+    assert.notEqual(trace.trace_id, "f".repeat(32));
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    scope.setClient(previous);
+    scope.setPropagationContext(propagation);
+    await reporter.close();
+    await host.close();
     await endpoint.close();
   }
 });
