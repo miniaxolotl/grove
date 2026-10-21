@@ -71,7 +71,7 @@ export function MemoryEditor({
   details?: ReactNode;
   children?: ReactNode;
   onLockChange?: (locked: boolean) => void;
-  done: (memory: Memory) => void;
+  done: (memory: Memory, view?: { preview: boolean }) => void;
   cancel: () => void;
 }) {
   const drafts = useNoteDrafts();
@@ -229,7 +229,7 @@ export function MemoryEditor({
         pending.current = null;
         submitted.current = undefined;
         refreshNotes();
-        done(saved);
+        done(saved, { preview });
       } catch (e) {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.error = errorMessage(e);

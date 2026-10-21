@@ -26,8 +26,8 @@ logo always returns to Notes.
   another note.
   **History** opens earlier revisions without leaving the workspace.
   **Linked notes** is a collapsed accordion below your writing. **Note actions**
-  holds Copy Markdown, Move, Archive and Delete. Copy/save confirmations appear as
-  toasts without moving the page.
+  holds Copy Markdown, Move, Archive and Delete. Action confirmations appear as
+  toasts without moving the page; autosave status stays in the toolbar.
 - Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
@@ -62,7 +62,8 @@ closing; background autosave retains its request and draft when you navigate awa
 
 Open **Commands** in the sidebar or press `Ctrl`/`Cmd` + `Shift` + `P`. Type an
 action, use Up/Down to choose, and Enter to run it. The menu includes actions for
-the current note. Escape returns focus to where you were. **Keyboard shortcuts**
+the current note, including after a new note's first save. Escape returns focus to
+where you were. **Keyboard shortcuts**
 in the sidebar/footer, or `Ctrl`/`Cmd` + `/`, opens the help menu.
 
 | Shortcut             | Action                                     |

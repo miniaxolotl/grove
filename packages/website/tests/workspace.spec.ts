@@ -266,6 +266,96 @@ test("commands and shortcut help work from notes, preserve focus, and create in 
   await expect(page).toHaveURL(`${base}/app/notes/new`);
 });
 
+test("an open command menu follows the first save and restores focus to the current editor", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  const started = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories", async (route) => {
+    started.resolve();
+    await response.promise;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/notes/new`);
+  // Apple editors reserve Ctrl+P for native Emacs-style cursor movement.
+  const mod = await page.evaluate(() =>
+    /Mac|iPhone|iPad/.test(navigator.platform + navigator.userAgent)
+      ? "Meta"
+      : "Control",
+  );
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("A thought saved while choosing a command.");
+  await editor.press(`${mod}+s`);
+  await started.promise;
+  await editor.press(`${mod}+Shift+p`);
+  const menu = page.getByRole("dialog", { name: "Command menu" });
+  const query = menu.getByRole("combobox", { name: "Search commands" });
+  await query.fill("history");
+  await expect(menu.getByRole("option")).toHaveCount(0);
+
+  response.resolve();
+  await expect(page).toHaveURL(/\/memories\/[^/]+\?mode=edit$/);
+  await expect(query).toBeFocused();
+  await expect(
+    menu.getByRole("option", { name: "Revision history", exact: true }),
+  ).toBeVisible();
+  await query.fill("focus");
+  await query.press("Enter");
+  await expect(menu).toHaveCount(0);
+  await expect(page.locator(".note-editor.editor-focus")).toBeVisible();
+  await expect(editor).toBeFocused();
+  await expect(editor).toHaveText("A thought saved while choosing a command.");
+  expect(state.records.size).toBe(1);
+  await editor.press("Escape");
+  await expect(page.locator(".note-editor.editor-focus")).toHaveCount(0);
+});
+
+test("first-save navigation retains preview and returns shortcut help to the current mode button", async ({
+  page,
+}) => {
+  await fixture(page, []);
+  const started = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories", async (route) => {
+    started.resolve();
+    await response.promise;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/notes/new`);
+  const mod = await page.evaluate(() =>
+    /Mac|iPhone|iPad/.test(navigator.platform + navigator.userAgent)
+      ? "Meta"
+      : "Control",
+  );
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("Reading while my first note saves.");
+  await editor.press(`${mod}+s`);
+  await started.promise;
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await page.keyboard.press(`${mod}+/`);
+  const help = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  await expect(help).toBeVisible();
+  await expect(help).toContainText(`${mod === "Meta" ? "⌘" : "Ctrl"} Shift P`);
+
+  response.resolve();
+  await expect(page).toHaveURL(/\/memories\/[^/]+\?mode=preview$/);
+  await expect(page.locator(".editor-preview")).toHaveText(
+    "Reading while my first note saves.",
+  );
+  await page.keyboard.press("Escape");
+  await expect(help).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Edit note", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press(`${mod}+e`);
+  await expect(editor).toBeFocused();
+});
+
 test("long notes scroll inside the workspace while the mode toggle and navigation stay reachable", async ({
   page,
 }) => {

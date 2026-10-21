@@ -17,12 +17,14 @@ consistent navigation and independently scrolling content.
 
 Verification on Node 24.21.0 / pnpm 10.33.0: root lint, types, build and all five
 packed-artifact checks pass; website lint, types and telemetry-enabled production
-build pass. All 73 Chromium browser scenarios pass, including privacy/telemetry
+build pass. All 75 Chromium browser scenarios pass, including privacy/telemetry
 regressions, draft recovery, version conflicts, keyboard commands, confirmation
-before deletion, mode switching, responsive geometry and accessibility. Three
-focused checks passed again after the final narrow-drawer correction. Five
-iPhone/WebKit checks pass for settings, notes, mode/scroll retention, mobile
-notebooks and touch-scrolling menus. [Visual review](design/screenshots/note-workspace/README.md)
+before deletion, mode switching, responsive geometry and accessibility. Hosted CI
+exposed a first-save focus race: the command registry now follows the mounted
+workspace, preview survives routing, and modal dismissal restores focus by a stable
+key. Deterministic held-save tests verify that transition. Seven iPhone/WebKit
+checks pass for settings, notes, mode/scroll retention, mobile notebooks, touch
+menus and the first-save regressions. [Visual review](design/screenshots/note-workspace/README.md)
 records the captures. No schema migration is required.
 
 ## Product observability 1.7.1 (21 October 2026 UTC)

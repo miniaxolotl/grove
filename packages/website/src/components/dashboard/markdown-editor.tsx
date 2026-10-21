@@ -111,6 +111,7 @@ export function MarkdownEditor({
           EditorView.contentAttributes.of({
             id,
             "aria-label": "What should stay with you?",
+            "data-focus-key": "note-editor",
             "aria-describedby": `${id}-help`,
             spellcheck: "true",
             autocapitalize: "sentences",
@@ -236,6 +237,7 @@ export function MarkdownEditor({
         <button
           type="button"
           className="app-button secondary mode-toggle"
+          data-focus-key="note-mode"
           title="Edit / preview (⌘ / Ctrl E)"
           aria-keyshortcuts="Control+e Meta+e"
           onClick={() => onPreviewChange?.(!preview)}

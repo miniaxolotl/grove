@@ -65,13 +65,19 @@ export function useWorkspaceCommands(
 export function WorkspaceCommands({ children }: { children: ReactNode }) {
   const router = useRouter();
   const notebook = useCurrentNotebook();
-  const registry = useRef(new Map<string, Registration>());
+  const [registry, setRegistry] = useState(
+    () => new Map<string, Registration>(),
+  );
   const register = useCallback((id: string, value?: Registration) => {
-    if (value) registry.current.set(id, value);
-    else registry.current.delete(id);
+    setRegistry((current) => {
+      const next = new Map(current);
+      if (value) next.set(id, value);
+      else next.delete(id);
+      return next;
+    });
   }, []);
   const [opened, setOpened] = useState<"commands" | "help">();
-  const [available, setAvailable] = useState<WorkspaceCommand[]>([]);
+  const [commandScope, setCommandScope] = useState<Element | null>(null);
   const global: WorkspaceCommand[] = [
     {
       id: "new",
@@ -114,17 +120,27 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
       run: () => setOpened("help"),
     },
   ];
-  const getCommands = () => [
-    ...[...registry.current.values()]
-      .filter(({ root }) => isActiveSurface(root.current))
+  const getCommands = (scope?: Element | null) => [
+    ...[...registry.values()]
+      .filter(({ root }) =>
+        scope === undefined
+          ? isActiveSurface(root.current)
+          : root.current?.isConnected &&
+            root.current.closest("dialog") === scope,
+      )
       .flatMap(({ commands }) => commands),
     ...global.filter(
       (command) =>
-        !document.querySelector("dialog[open]") || command.id === "help",
+        !(scope === undefined
+          ? document.querySelector("dialog[open]")
+          : scope) || command.id === "help",
     ),
   ];
   const open = (mode: "commands" | "help") => {
-    setAvailable(getCommands());
+    // Follow the underlying workspace if its first autosave changes the route.
+    setCommandScope(
+      [...document.querySelectorAll("dialog[open]")].at(-1) ?? null,
+    );
     setOpened(mode);
   };
   const handleKey = useEffectEvent((event: KeyboardEvent) => {
@@ -176,7 +192,10 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
     >
       {children}
       {opened === "commands" && (
-        <CommandMenu commands={available} close={() => setOpened(undefined)} />
+        <CommandMenu
+          commands={getCommands(commandScope)}
+          close={() => setOpened(undefined)}
+        />
       )}
       {opened === "help" && (
         <Dialog title="Keyboard shortcuts" close={() => setOpened(undefined)}>
@@ -225,7 +244,7 @@ const subscribePlatform = () => () => {};
 export function Shortcut({ children }: { children: string }) {
   const mac = useSyncExternalStore(
     subscribePlatform,
-    () => /Mac|iPhone|iPad/.test(navigator.platform),
+    () => /Mac|iPhone|iPad/.test(navigator.platform + navigator.userAgent),
     () => false,
   );
   return <kbd>{children.replaceAll("Mod", mac ? "⌘" : "Ctrl")}</kbd>;

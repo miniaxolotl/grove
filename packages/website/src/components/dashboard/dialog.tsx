@@ -26,6 +26,7 @@ export function Dialog({
   useEffect(() => {
     const element = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
+    const focusKey = previous?.dataset.focusKey;
     if (scrollLocks++ === 0)
       previousOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
@@ -39,7 +40,16 @@ export function Dialog({
       element.close();
       if (--scrollLocks === 0)
         document.documentElement.style.overflow = previousOverflow;
-      if (previous?.isConnected) previous.focus({ preventScroll: true });
+      const scope =
+        [...document.querySelectorAll("dialog[open]")].at(-1) ?? document;
+      const target = previous?.isConnected
+        ? previous
+        : focusKey
+          ? scope.querySelector<HTMLElement>(
+              `[data-focus-key="${CSS.escape(focusKey)}"]`,
+            )
+          : null;
+      target?.focus({ preventScroll: true });
     };
   }, []);
   return (

@@ -13,8 +13,9 @@ CSS and local fonts. Notes, notebooks and account details are synthetic.
 - [Revision comparison](revision-history.png), desktop Chromium: version-fenced
   history remains available from the same workspace.
 
-All 73 Chromium scenarios passed, followed by three focused checks after the
-scrollbar-gutter drawer correction. Five iPhone/WebKit scenarios passed: settings
+All 75 Chromium scenarios passed, including the scrollbar-gutter drawer correction
+and first-save modal focus/command regressions. Seven iPhone/WebKit scenarios passed: settings
 navigation and toast geometry, long-note scrolling and mode-position restoration,
-mobile notebook creation, formatting/history/preview, and long notebook menus.
+mobile notebook creation, formatting/history/preview, long notebook menus, and
+first-save command and shortcut-help focus/preview retention.
 Responsive captures and WCAG A/AA checks passed. These are browser captures.

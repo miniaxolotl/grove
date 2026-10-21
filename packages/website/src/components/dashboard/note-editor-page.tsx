@@ -48,9 +48,9 @@ export function NoteEditorPage({
               : "/app",
         )
       }
-      done={(memory) => {
+      done={(memory, view) => {
         router.replace(
-          `/app/memories/${memory.id}?mode=edit${journal ? "&from=journal" : ""}`,
+          `/app/memories/${memory.id}?mode=${view?.preview ? "preview" : "edit"}${journal ? "&from=journal" : ""}`,
           { scroll: false },
         );
       }}
