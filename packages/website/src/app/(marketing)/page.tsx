@@ -43,12 +43,11 @@ export default async function HomePage() {
             <em>Room to grow.</em>
           </h1>
           <p className="mt-6 max-w-[420px] text-[15px] leading-[1.85] text-muted sm:text-base">
-            A thought, a plan, a little thing worth keeping. Bring them together
-            in Grove, a private notebook that helps you find what matters and
-            see how your ideas connect.
+            Keep your notes, plans and journal in one private notebook. Find
+            them again, even when you forget the exact words.
           </p>
           <p className="mt-3 text-xs leading-6 text-muted">
-            Less searching. More space to think.
+            Write in your browser. No install needed.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
@@ -63,12 +62,12 @@ export default async function HomePage() {
               href="#your-library"
               className="inline-flex min-h-12 items-center gap-2 px-1 text-xs font-medium transition-colors hover:text-leaf"
             >
-              <CirclePlay size={19} strokeWidth={1.3} /> Take a look inside
+              <CirclePlay size={19} strokeWidth={1.3} /> Try the preview
             </a>
           </div>
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted">
             <span className="inline-flex items-center gap-1.5">
-              <Check size={12} className="text-leaf" /> Made for everyday life
+              <Check size={12} className="text-leaf" /> Notes and journals
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Check size={12} className="text-leaf" /> Open in your browser
@@ -87,19 +86,19 @@ export default async function HomePage() {
       >
         <div className="page-container flex flex-col items-center gap-6 py-6 lg:flex-row lg:justify-between">
           <p className="whitespace-nowrap text-[11px] font-medium text-muted">
-            A little space for it all
+            Your notes, in one place
           </p>
           <div className="grid w-full grid-cols-2 gap-x-5 gap-y-6 sm:grid-cols-4 lg:w-auto lg:gap-x-12">
             {[
               {
                 icon: BookOpen,
                 name: "Notes",
-                detail: "Keep a thought close",
+                detail: "Save an idea",
               },
               {
                 icon: NotebookPen,
                 name: "Journal",
-                detail: "Make room for your day",
+                detail: "Keep a daily record",
               },
               {
                 icon: MessageSquare,
@@ -109,7 +108,7 @@ export default async function HomePage() {
               {
                 icon: Network,
                 name: "Connections",
-                detail: "See ideas come together",
+                detail: "Explore related notes",
               },
             ].map(({ icon: Icon, name, detail }) => (
               <div key={name} className="flex items-center gap-3">
@@ -145,16 +144,15 @@ export default async function HomePage() {
         <div className="page-container relative flex flex-col items-start justify-between gap-8 py-16 sm:py-20 md:flex-row md:items-center lg:py-24">
           <div>
             <p className="eyebrow flex items-center gap-2">
-              <GroveMark className="size-5" /> SOMETHING GOOD STARTS HERE
+              <GroveMark className="size-5" /> START WRITING
             </p>
             <h2 id="closing-heading" className="section-heading mt-5">
-              Make room for
+              Your first note
               <br />
-              <em>your next idea.</em>
+              <em>starts here.</em>
             </h2>
             <p className="mt-5 max-w-md text-sm leading-7 text-leaf">
-              Start with a single note. A plan for the weekend. A thought you
-              don’t want to lose. Let the rest grow from there.
+              Create an account. Save an idea. Find it when you need it.
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-start gap-4 md:items-center">
@@ -165,9 +163,30 @@ export default async function HomePage() {
               href="/app"
               className="inline-flex min-h-11 items-center gap-2 text-xs text-forest hover:underline"
             >
-              Already have a Grove? Open your notebook
+              Already a member? Open your notebook
             </Link>
           </div>
+        </div>
+      </section>
+      <section
+        className="page-container media-kit"
+        aria-labelledby="materials-heading"
+      >
+        <div>
+          <p className="eyebrow">BRAND MATERIALS</p>
+          <h2 id="materials-heading">Share Grove</h2>
+          <p>Logos, artwork and a short description.</p>
+        </div>
+        <div className="media-kit-links">
+          <a href="/materials/grove-media-kit.zip" download>
+            Download media kit
+          </a>
+          <a href="/materials/about.txt" download>
+            About Grove
+          </a>
+          <a href="/brand-kit/identity/primary/logos/horizontal.svg" download>
+            Download logo
+          </a>
         </div>
       </section>
       <StructuredData />

@@ -2,7 +2,7 @@
 
 ## Verified delivery
 
-Website release **1.6.0** passed protected source CI, promotion #40 and live
+Initial website release **1.6.0** passed protected source CI, promotion #40 and live
 browser acceptance. PostHog indexes the exact production release, opt-out clears
 both tabs and only a fresh identity resumes collection. A sampled recording was
 decoded locally and read back from PostHog; private markers were absent and text
@@ -33,7 +33,51 @@ buffering and opt-out checks and cannot copy another host's project or context.
 Actual SDK tests cover an absent host client and timer delivery with a second
 client active, as well as the existing queued opt-out test. Root lint/types/build,
 all **62 database/provider/SDK cases**, five artifacts and 17 release/deployment
-contracts pass. Exact-release span indexing remains the follow-up release gate.
+contracts pass. The coordinated 1.7.1 release below passes exact-release span
+indexing.
+
+### Coordinated 1.7.1 acceptance — 21 October 2026 UTC
+
+Repair #45, Release Please #46 and frozen production #47 are merged. Immutable
+**v1.7.1** identifies source `d22d90bc2b2968ed3c296249297f732e7e17d358`; production
+is `bccc1f0bef6f1514229375d205608904bb987e8b`, with matching source tree
+`43ca5541136e627ae8888eddfaf8078875af4ab1`. Source CI 39547303448 and both frozen
+candidate runs 39547922113/39547918123 pass. Protected
+[Deploy 39548392395](https://github.com/miniaxolotl/grove/actions/runs/39548392395)
+successfully published all five packages and deployed API/worker. Registry
+SHA-1/SHA-512 and local SHA-256 checks pass, and all bundles embed the admitted
+source revision.
+
+Both services are ACTIVE on deployment `26298863-67e4-407b-9a6c-37ad0e45e562`,
+digest `sha256:f1cc152f102ee53b23a02ebf43e4faf5c27b711ffcf94f061eea3d6a4cdcdda9`.
+Liveness and semantic readiness return 200; runtime readback retains collection
+switches and the API-only secret salt. No migration was needed. The published
+Linux CLI preserves product configuration, sends no provider requests after
+durable opt-out, and rotates its anonymous identity on re-enable. PostHog indexes
+12 exact-release events, excluding the opted-out command; private markers are
+absent. Error `0bc1ca0ffda742c19c869634010e9758` resolves to original integration
+source without Sentry processing errors. The current Sentry **spans** dataset
+indexes CLI span `96f18b69500bcb6d` and API spans `981b1a4534164865` and
+`8962c5ffef45979d`, all attributed to the exact released source. The unchanged 10%
+sampler is exercised through ordinary commands and public metadata requests.
+Worker maintenance and API requests also reach PostHog; exact-release worker logs
+and service metrics are accepted. The native/service trace-delivery defect is
+resolved.
+
+The live 1.7.1 website passes cross-tab disable/re-enable and private-marker
+checks. PostHog indexes seven personless events for the actual production release.
+Sentry event `874818a2f8de4880b47824d7b9ce3318` resolves through the deployed source
+map to `packages/website/src/lib/diagnostics.ts:44`, without processing errors.
+API, CLI and OpenCode source releases each have an eight-file symbol bundle and
+both actual source commits. Explicit commit metadata was uploaded after readback:
+providerless SHA references alone do not import Git metadata.
+
+All **14 dashboard queries** execute successfully. The activation table counts
+distinct anonymous event identities by surface. Provider readback finds zero
+person profiles; reference-cohort counts are not authoritative for personless
+collection. The final controls retain 10%/30-day masked replay, no console or
+network content, enabled daily failure alerts and Monday reports. Experiments and
+milestone surveys remain drafts.
 
 ## Service and developer-tool collection
 
@@ -65,8 +109,9 @@ server account-pseudonym salt never enter client builds.
 
 Production release uploads `grove-api@<source>`, `grove-cli@<source>` and
 `grove-opencode@<source>` source maps before publication. API and worker share
-Sentry `grove-api`; developer tools share `grove-cli`. PostHog project remains 677268. Native/service production readbacks are recorded above; the sampling-header
-repair requires a new coordinated release across all bundled consumers.
+Sentry `grove-api`; developer tools share `grove-cli`. PostHog project remains
+**677268**. Native/service production readbacks are recorded above; the sampling-header
+repair is released across all five bundled consumers in 1.7.1.
 
 ## Website and workspace
 

@@ -21,7 +21,7 @@ export default function SelfHostPage() {
           <em>Your infrastructure.</em>
         </h1>
         <p className="mt-6 text-sm leading-7 text-muted">
-          Run Grove’s API, worker, and private PostgreSQL database with Docker
+          Run the Grove API, worker and private PostgreSQL database with Docker
           Compose. Configure a dedicated Clerk application and a website for
           sign-in and connection approval.
         </p>

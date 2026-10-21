@@ -1,11 +1,6 @@
-import {
-  ArrowUpRight,
-  Network,
-  LockKeyhole,
-  Search,
-  NotebookPen,
-} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, Network, LockKeyhole } from "lucide-react";
 import { IdeaMap } from "@/components/idea-map";
 
 export function Features() {
@@ -17,137 +12,79 @@ export function Features() {
     >
       <div className="section-intro">
         <div>
-          <p className="eyebrow">LESS TO JUGGLE. MORE TO DISCOVER.</p>
+          <p className="eyebrow">KEEP IT. FIND IT. USE IT.</p>
           <h2 id="features-heading" className="section-heading mt-4">
-            Keep the thought.
+            Less searching.
             <br />
-            <em>Find the possibility.</em>
+            <em>More remembering.</em>
           </h2>
         </div>
-        <p>
-          A calmer place for the things on your mind, with a little help finding
-          your way back to them.
-        </p>
+        <p>A place for the notes you want to come back to.</p>
       </div>
-
       <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
         <article className="feature-card bg-white/60" data-reveal>
-          <span className="feature-icon">
-            <Search size={20} />
-          </span>
-          <h3>
-            Remember the idea.
-            <br />
-            Find it in your own words.
-          </h3>
+          <h3>Search in your own words.</h3>
           <p>
-            You don’t have to remember the exact phrase. Describe what you’re
-            looking for, and Grove helps you find the note behind the thought.
+            Describe the idea. Grove finds related notes, even without an exact
+            keyword match.
           </p>
-          <div
-            className="search-illustration"
-            aria-label="Example search finding a saved travel plan"
-          >
-            <div className="flex items-center gap-2 border-b border-line px-4 py-3 text-xs text-muted">
-              <Search size={14} />
-              <span>That quiet place I wanted to stay?</span>
-              <span className="ml-auto rounded border border-line px-1.5 font-mono text-[9px]">
-                ↵
-              </span>
-            </div>
-            <div className="m-3 rounded-md border border-leaf/20 bg-sage/50 px-3 py-3">
-              <div className="mb-2 flex items-center justify-between text-[9px]">
-                <span className="text-leaf">FROM YOUR NOTES</span>
-                <span className="text-muted">Japan trip</span>
-              </div>
-              <p className="text-xs! leading-6! text-forest!">
-                A small guesthouse near the river in Kyoto. Four nights, with
-                time for gardens and neighborhood cafés.
-              </p>
-            </div>
-          </div>
+          <Image
+            className="campaign-illustration"
+            src="/materials/note-search.svg"
+            alt="Example: a search for a quiet place by the river finds a saved Kyoto guesthouse note."
+            width={900}
+            height={520}
+            sizes="(max-width: 767px) 100vw, 50vw"
+          />
         </article>
-
+        <article className="feature-card bg-white/60" data-reveal>
+          <h3>Make a note of your day.</h3>
+          <p>
+            Keep a journal beside your plans, lists and ideas. Organize them
+            into notebooks.
+          </p>
+          <Image
+            className="campaign-illustration"
+            src="/materials/journal.svg"
+            alt="Example journal entry with a walk, coffee with a friend and a thought to keep."
+            width={900}
+            height={520}
+            sizes="(max-width: 767px) 100vw, 50vw"
+          />
+        </article>
         <article className="feature-card bg-white/60" data-reveal>
           <span className="feature-icon">
-            <Network size={20} />
+            <Network size={20} aria-hidden="true" />
           </span>
-          <h3>
-            A new way to
-            <br />
-            see the bigger picture.
-          </h3>
+          <h3>See how ideas connect.</h3>
           <p>
-            Grove finds connections between related notes. Explore them as a map
-            of your ideas, and discover what you might want to think about next.
+            Explore related notes on a map. Follow a connection to the next
+            useful idea.
           </p>
           <IdeaMap />
         </article>
-
         <article className="feature-card bg-white/60" data-reveal>
           <span className="feature-icon">
-            <LockKeyhole size={20} />
+            <LockKeyhole size={20} aria-hidden="true" />
           </span>
-          <h3>
-            Your notebook.
-            <br />
-            Your say.
-          </h3>
+          <h3>Keep control of your notes.</h3>
           <p>
-            Change your mind, edit a detail, or bring an earlier version back.
-            Keep notes for as long as you need them, and export or delete them
-            when you choose.
+            Edit, restore earlier versions and export your notes. Choose which
+            connected tools can access them.
           </p>
-          <div className="mt-8 flex flex-wrap gap-2">
-            {["Private notebook", "Earlier versions", "Export your notes"].map(
-              (label) => (
-                <span
-                  key={label}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-leaf/20 px-3 py-1.5 text-[10px] text-leaf"
-                >
-                  <span className="size-1 rounded-full bg-leaf" />
-                  {label}
-                </span>
-              ),
-            )}
-          </div>
-        </article>
-
-        <article className="feature-card bg-white/60" data-reveal>
-          <span className="feature-icon">
-            <NotebookPen size={20} />
-          </span>
-          <h3>
-            A page for
-            <br />
-            what’s on your mind.
-          </h3>
+          <Link href="/sign-up" className="button-primary mt-7">
+            Start your notebook <ArrowRight size={16} aria-hidden="true" />
+          </Link>
           <p>
-            A small win. A fresh perspective. A day you want to remember. Your
-            journal keeps your own words together, ready to revisit whenever you
-            feel like it.
+            <Link href="/privacy" className="underline underline-offset-4">
+              Read our privacy policy
+            </Link>
           </p>
-          <div className="journal-illustration">
-            <span>Today</span>
-            <p>Made time for something I love. A good place to start.</p>
-            <small>Your words, in your own time.</small>
-          </div>
         </article>
       </div>
-      <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-y border-line py-5 text-xs">
-        <p className="text-muted">
-          <span className="font-medium text-forest">
-            A notebook that’s yours.
-          </span>{" "}
-          You choose what to keep and which connected tools can access it.
-        </p>
-        <Link
-          href="/privacy"
-          className="inline-flex min-h-8 items-center gap-2 font-medium text-forest hover:underline"
-        >
-          Read our privacy policy <ArrowUpRight size={14} />
-        </Link>
-      </div>
+      <p className="mt-5 text-xs text-muted">
+        Illustrated examples with sample notes.
+      </p>
     </section>
   );
 }

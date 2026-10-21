@@ -63,14 +63,12 @@ export function MemoryPreview() {
             <span>
               Take a walk by the river and visit the bookshop on Maple Street.
               Keep the rest of Saturday open.
-              <small>1 · A slower Saturday</small>
+              <small>1. A slower Saturday</small>
             </span>
           </div>
         </div>
       </div>
-      <figcaption>
-        An example Grove. Yours begins with your first note.
-      </figcaption>
+      <figcaption>Example notebook with sample notes.</figcaption>
     </figure>
   );
 }

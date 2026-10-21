@@ -1,5 +1,22 @@
 # Delivery evidence
 
+## Product observability 1.7.1 (21 October 2026 UTC)
+
+Repair #45, coordinated release #46 and frozen production #47 are merged.
+Immutable source `d22d90bc2b2968ed3c296249297f732e7e17d358` and production
+`bccc1f0bef6f1514229375d205608904bb987e8b` have equal trees. Protected
+[Deploy 39548392395](https://github.com/miniaxolotl/grove/actions/runs/39548392395)
+passes. All five npm artifacts verify their registry hashes and exact source;
+API/worker are ACTIVE on the manifest's immutable image, with healthy readiness
+and preserved runtime collection settings. No schema migration is required.
+
+Published CLI opt-out/configuration preservation/identity rotation, live browser
+cross-tab privacy, anonymous PostHog events and symbolicated native/browser errors
+pass. The repaired Sentry streamed spans are indexed for the exact CLI/API release,
+confirming the previous `missing_dsc` rejection is resolved. All 14 dashboard
+queries pass; replay remains masked at 10%/30 days. Full evidence and provider IDs
+are in [product observability](product-observability.md).
+
 ## Reliable replies and one notes workspace (21 October 2026 UTC)
 
 Production diagnostics and a synthetic request against MiniMax reproduced the

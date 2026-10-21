@@ -83,7 +83,7 @@ export const privacy: LegalDocument = {
             consent for optional processing, and legal obligations.
           </p>
           <p>
-            Grove’s tools save selected context rather than a continuous
+            Grove&apos;s tools save selected context rather than a continuous
             transcript of every conversation. Optional client hooks can retrieve
             a bounded profile or handoff. What is sent depends on the agent,
             tools, and configuration you choose.
@@ -172,10 +172,10 @@ export const privacy: LegalDocument = {
             private regions are blocked. Recording is disabled on authenticated
             and sign-in screens. Console logs and network bodies/headers are not
             recorded. Both providers process data in the United States. Use
-            “Disable website telemetry” in the public or workspace footer to
-            stop browser collection and clear its analytics identity. Global
-            Privacy Control and Do Not Track also disable collection. Opt-out
-            does not erase data already received; contact us for privacy
+            &quot;Disable website telemetry&quot; in the public or workspace
+            footer to stop browser collection and clear its analytics identity.
+            Global Privacy Control and Do Not Track also disable collection.
+            Opt-out does not erase data already received; contact us for privacy
             requests. Hosted server diagnostics are managed separately and
             contain no memory text.
           </p>
@@ -185,11 +185,12 @@ export const privacy: LegalDocument = {
             and sanitized diagnostics. A private random installation identity
             resets on account changes. Run <code>grove telemetry disable</code>
             or set <code>DO_NOT_TRACK=1</code> or <code>GROVE_TELEMETRY=0</code>
-            to disable collection. CI, private mode and development builds do not
-            collect. Browser and CLI opt-outs also accompany their API requests.
-            Hosted activation events use a server-keyed account pseudonym,
-            without linking it to browser or installation identities. Background
-            reliability metrics are aggregate, without account identifiers.
+            to disable collection. CI, private mode and development builds do
+            not collect. Browser and CLI opt-outs also accompany their API
+            requests. Hosted activation events use a server-keyed account
+            pseudonym, without linking it to browser or installation identities.
+            Background reliability metrics are aggregate, without account
+            identifiers.
           </p>
           <p>
             Authentication uses cookies or similar session storage needed to
@@ -281,7 +282,7 @@ export const privacy: LegalDocument = {
 export const terms: LegalDocument = {
   title: "Terms & conditions.",
   summary:
-    "A clear agreement for using Grove’s website, hosted memory service, and integrations.",
+    "Terms for using the Grove website, hosted memory service and integrations.",
   sections: [
     {
       id: "agreement",
@@ -290,8 +291,8 @@ export const terms: LegalDocument = {
         <>
           <p>
             These terms are between you and Bramble Labs Inc. and apply to
-            Grove’s website and hosted services. By using them, you agree to
-            these terms. If you use Grove for an organization, you must have
+            Grove&apos;s website and hosted services. By using them, you agree
+            to these terms. If you use Grove for an organization, you must have
             authority to accept on its behalf. You must be legally able to enter
             this agreement and obtain any parental or guardian permission
             required where you live.
@@ -336,15 +337,15 @@ export const terms: LegalDocument = {
             Provide accurate account information, protect credentials, review
             scopes before approving an agent, and revoke access you no longer
             need. You are responsible for activity you authorize, including an
-            agent’s saves, edits, or deletions. Tell us about suspected
+            agent&apos;s saves, edits, or deletions. Tell us about suspected
             unauthorized access at{" "}
             <a href="mailto:grove@mawa.dev">grove@mawa.dev</a>.
           </p>
           <p>
-            Do not use another person’s account or bypass account/project
+            Do not use another person&apos;s account or bypass account/project
             boundaries. Connecting a third-party agent authorizes the data
-            exchange needed for the scopes you approve; that service’s own terms
-            also apply.
+            exchange needed for the scopes you approve; that service&apos;s own
+            terms also apply.
           </p>
         </>
       ),
@@ -378,7 +379,7 @@ export const terms: LegalDocument = {
         <>
           <p>
             Use Grove lawfully. Do not upload unlawful or infringing material;
-            steal credentials; access another account’s memories; probe or
+            steal credentials; access another account&apos;s memories; probe or
             disrupt services without authorization; distribute malware; evade
             limits; send spam; or use the service to harm, defraud, or
             unlawfully monitor others.
@@ -397,8 +398,8 @@ export const terms: LegalDocument = {
       content: (
         <>
           <p>
-            Grove’s open-source components are provided under their published
-            licences. Those licences govern copying, modification, and
+            Grove&apos;s open-source components are provided under their
+            published licences. Those licences govern copying, modification, and
             distribution of the software; these terms govern access to our
             hosted service and website. They do not withdraw rights granted by
             an open-source licence.
