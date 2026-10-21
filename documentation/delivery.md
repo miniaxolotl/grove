@@ -1,5 +1,20 @@
 # Delivery evidence
 
+## Quieter connection UI (21 October 2026 UTC)
+
+Connection lists now use compact rows with a title, short reason and quiet category.
+Endpoint lists start with five results. A centered inspector keeps explanations and
+endpoint navigation visible, with excerpts and notebook coverage under **Supporting
+notes**. Partial coverage remains explicit; source revision labels and repetitive
+scope text are removed from the default view. Graph edges are quieter, and guides
+and accessible connection lists are available on demand.
+
+Root/website lint, typechecks and builds, all five packed-artifact checks, the full
+78-case Chromium suite and three iPhone/WebKit scenarios pass. Browser verification
+covers disclosure and keyboard access, retained editor state, comparison focus,
+dismissal/Undo, pagination and stale-source rejection. Updated desktop and 320px
+[captures](design/screenshots/note-relationships/README.md) record the refinement.
+
 ## Explainable note and notebook connections (21 October 2026 UTC)
 
 Connections now carry a specific reason and verbatim, revision-checked excerpts.
