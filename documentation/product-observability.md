@@ -1,5 +1,24 @@
 # Product observability
 
+## Google Search Console
+
+Verified on **21 October 2026 UTC**: the
+[usegrove.cloud Domain property](https://search.google.com/search-console?resource_id=sc-domain%3Ausegrove.cloud)
+reports **You are a verified owner**. The apex Cloudflare TXT record was read
+back through its API and public Google DNS. Keep that verification record in DNS
+to retain ownership; the account, exact record and private evidence are recorded
+in the original checkout's ignored `secrets.md`.
+
+Google processed [the production sitemap](https://usegrove.cloud/sitemap.xml)
+successfully on the same date: **Success**, **5 discovered pages**, zero videos.
+Both `/robots.txt` and `/sitemap.xml` return HTTP 200. The sitemap lists public
+marketing pages; robots excludes `/app`, `/api`, `/sign-in` and `/sign-up`.
+Discovered pages are not an indexed-page count; initial indexing and
+search-performance reports are collecting data. Use **Sitemaps** for processing
+errors, **Pages** for indexing, and **Performance** for search queries,
+impressions, clicks and position. Search Console complements PostHog acquisition
+and behavior reporting through Google's search data and DNS ownership verification.
+
 ## Verified delivery
 
 Initial website release **1.6.0** passed protected source CI, promotion #40 and live
