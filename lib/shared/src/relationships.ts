@@ -139,12 +139,12 @@ export const connectionReviewSchema = z
   .strict();
 export type ConnectionReview = z.infer<typeof connectionReviewSchema>;
 
-/** An abstention never publishes evidence; discard incidental model citations. */
+/** Abstentions cache only a checked state, without retaining derived source text. */
 export function normalizeRelationshipAssessment(
   value: RelationshipAssessment,
 ): RelationshipAssessment {
   return value.relationship === "unrelated"
-    ? { ...value, basis: "none", direction: "both", evidence: [] }
+    ? { ...value, reason: "", basis: "none", direction: "both", evidence: [] }
     : value;
 }
 

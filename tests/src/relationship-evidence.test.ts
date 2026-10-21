@@ -125,6 +125,7 @@ test("abstentions discard incidental citations without relaxing positive-evidenc
     relationship: "unrelated",
   });
   assert.deepEqual(groundRelationship(abstention, "note", [left], [right]), []);
+  assert.equal(abstention.reason, "");
   const positive = normalizeRelationshipAssessment({
     ...assessment,
     evidence: [{ ...assessment.evidence[0], quote: "Invented source passage" }],
