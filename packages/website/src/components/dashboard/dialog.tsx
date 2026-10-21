@@ -20,7 +20,9 @@ export function Dialog({
   busy?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const backdropPress = useRef(false);
+  const backdropPress = useRef<{ id: number; x: number; y: number } | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const locked = busy || saving;
   useEffect(() => {
@@ -58,17 +60,33 @@ export function Dialog({
       onPointerDown={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
         backdropPress.current =
+          event.isPrimary &&
+          event.button === 0 &&
           event.target === event.currentTarget &&
           (event.clientX < rect.left ||
             event.clientX > rect.right ||
             event.clientY < rect.top ||
-            event.clientY > rect.bottom);
+            event.clientY > rect.bottom)
+            ? { id: event.pointerId, x: event.clientX, y: event.clientY }
+            : null;
+      }}
+      onPointerMove={(event) => {
+        const start = backdropPress.current;
+        if (
+          start &&
+          (start.id !== event.pointerId ||
+            Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8)
+        )
+          backdropPress.current = null;
       }}
       onPointerUp={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
+        const start = backdropPress.current;
+        backdropPress.current = null;
         if (
           !locked &&
-          backdropPress.current &&
+          start?.id === event.pointerId &&
+          Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 8 &&
           event.target === event.currentTarget &&
           (event.clientX < rect.left ||
             event.clientX > rect.right ||
@@ -76,10 +94,12 @@ export function Dialog({
             event.clientY > rect.bottom)
         )
           close();
-        backdropPress.current = false;
       }}
       onPointerCancel={() => {
-        backdropPress.current = false;
+        backdropPress.current = null;
+      }}
+      onLostPointerCapture={() => {
+        backdropPress.current = null;
       }}
       onCancel={(event) => {
         event.preventDefault();

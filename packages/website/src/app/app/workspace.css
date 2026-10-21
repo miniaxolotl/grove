@@ -718,6 +718,8 @@ html:has(.grove-app) {
   inset: auto;
   width: 200px;
   margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px;
   border: 1px solid #dce2d9;
   border-radius: 8px;
@@ -1085,11 +1087,15 @@ html:has(.grove-app) {
     margin-top: 12px;
   }
 }
-@media (pointer: coarse) {
+/* A touch-capable laptop needs the same distinct hit areas as a phone. */
+@media (any-pointer: coarse) {
+  .grove-app {
+    --touch-target: 44px;
+  }
   .ask-composer .app-icon,
   .ask-composer .ask-send {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 44px;
+    min-height: 44px;
   }
   .ask-composer textarea {
     font-size: 16px;
@@ -1098,18 +1104,47 @@ html:has(.grove-app) {
   .notebook-pages a,
   .notebook-pages .drag-handle,
   .workspace-search-launcher,
+  .workspace-command-launcher,
   .settings-navigation a,
   .notebook-personal {
     min-height: 44px;
   }
   .notebook-drag-handle {
     opacity: 1;
-    min-height: 44px;
-    width: 24px;
-    flex-basis: 24px;
   }
-  .notebook-pages .drag-handle {
+  .notebook-pages .drag-handle,
+  .notebook-drag-handle,
+  .notebook-tree-row .notebook-disclosure,
+  .notebook-tree-row .notebook-disclosure-spacer,
+  .notebook-tree-actions .app-icon,
+  .notebook-explorer-heading .app-icon,
+  .workspace-utilities > .app-icon,
+  .editor-tools .app-icon {
     opacity: 1;
-    width: 26px;
+    flex: 0 0 var(--touch-target);
+    width: var(--touch-target);
+    min-height: var(--touch-target);
+    height: var(--touch-target);
+  }
+  .memory-row {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 6px;
+    padding-inline: 8px;
+  }
+  .row-selection {
+    gap: 0;
+    padding-top: 0;
+  }
+  .row-checkbox {
+    display: grid;
+    place-items: center;
+    width: var(--touch-target);
+    height: var(--touch-target);
+    cursor: pointer;
+  }
+  .row-selection .drag-handle,
+  .row-controls .app-icon {
+    width: var(--touch-target);
+    height: var(--touch-target);
   }
 }

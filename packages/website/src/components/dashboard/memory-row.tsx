@@ -131,13 +131,15 @@ export function MemoryRow({
         }}
       >
         <div className="row-selection">
-          <input
-            type="checkbox"
-            aria-label={`Select ${title}`}
-            checked={selected}
-            disabled={busy}
-            onChange={onSelect}
-          />
+          <label className="row-checkbox">
+            <input
+              type="checkbox"
+              aria-label={`Select ${title}`}
+              checked={selected}
+              disabled={busy}
+              onChange={onSelect}
+            />
+          </label>
           <button
             type="button"
             ref={setActivatorNodeRef}

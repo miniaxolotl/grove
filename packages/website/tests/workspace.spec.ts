@@ -68,6 +68,108 @@ const handoff: Memory = {
   },
 };
 
+test("action menus follow the anchor and remain reachable in short resized viewports", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${base}/app`);
+  await page.locator(".memory-open").first().click();
+  const trigger = page.getByRole("button", {
+    name: "Note actions",
+    exact: true,
+  });
+  await trigger.focus();
+  await trigger.press("ArrowDown");
+  const menu = page.locator(".action-menu:popover-open");
+  await expect(menu.locator("button").first()).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(
+    menu.getByRole("button", { name: "Delete note…" }),
+  ).toBeFocused();
+  await page.setViewportSize({ width: 844, height: 260 });
+  await expect
+    .poll(async () => {
+      const box = (await menu.boundingBox())!;
+      return (
+        box.x >= 8 &&
+        box.y >= 8 &&
+        box.x + box.width <= 836 &&
+        box.y + box.height <= 252
+      );
+    })
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(
+    page.getByRole("dialog", { name: "Note", exact: true }),
+  ).toBeVisible();
+});
+
+test("touch hit areas are separate and menus scroll within a short viewport", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await fixture(page);
+    await page.goto(`${base}/app`);
+    await page.getByRole("button", { name: "Notebooks", exact: true }).tap();
+    for (const selector of [
+      ".row-checkbox",
+      ".memory-row .drag-handle",
+      ".notebook-disclosure",
+      ".notebook-drag-handle",
+      ".notebook-tree-actions .app-icon",
+      ".workspace-command-launcher",
+      ".workspace-utilities > .app-icon",
+    ]) {
+      const box = (await page.locator(selector).first().boundingBox())!;
+      expect(box.width, selector).toBeGreaterThanOrEqual(44);
+      expect(box.height, selector).toBeGreaterThanOrEqual(44);
+    }
+    const boxes = await page
+      .locator(".notebook-tree-row")
+      .first()
+      .locator(":scope > button, :scope > a, :scope > .notebook-tree-actions")
+      .evaluateAll((elements) =>
+        elements.map((el) => {
+          const rect = el.getBoundingClientRect();
+          return { left: rect.left, right: rect.right };
+        }),
+      );
+    for (let i = 1; i < boxes.length; i++)
+      expect(boxes[i].left).toBeGreaterThanOrEqual(boxes[i - 1].right);
+    await page.getByRole("button", { name: "Notebooks", exact: true }).tap();
+    await page.locator(".memory-open").first().tap();
+    await page.getByRole("button", { name: "Note actions", exact: true }).tap();
+    await page.setViewportSize({ width: 844, height: 220 });
+    const menu = page.locator(".action-menu:popover-open");
+    await expect
+      .poll(async () => {
+        const box = (await menu.boundingBox())!;
+        return (
+          box.x >= 8 &&
+          box.y >= 8 &&
+          box.x + box.width <= 836 &&
+          box.y + box.height <= 212
+        );
+      })
+      .toBe(true);
+    await menu.getByRole("button", { name: "Delete note…" }).tap();
+    await expect(
+      page.getByRole("dialog", { name: "Delete note?" }),
+    ).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
 test("one wide note workspace preserves editor history, toggles with shortcuts and gives non-reflowing feedback", async ({
   page,
 }, info) => {
@@ -1368,6 +1470,13 @@ test("workspace search includes personal notes and dialogs light-dismiss only on
     includePersonal: true,
   });
   const box = (await dialog.boundingBox())!;
+  await page.mouse.click(2, 2, { button: "right" });
+  await expect(dialog).toBeVisible();
+  await page.mouse.move(2, 2);
+  await page.mouse.down();
+  await page.mouse.move(100, 2);
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
   await page.mouse.move(box.x + 30, box.y + 30);
   await page.mouse.down();
   await page.mouse.move(2, 2);
