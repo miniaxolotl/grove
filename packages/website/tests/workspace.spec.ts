@@ -813,6 +813,119 @@ test("PDF export contains paginated searchable Markdown with safe links and Unic
   await loading.destroy();
 });
 
+test("PDF produces a focused single-page note with embedded code and navigable headings", async ({
+  page,
+}, info) => {
+  const content = `# A quieter launch
+
+Make the first release easy to understand. **One useful workflow**, a clear next
+step, and enough space for the important details.
+
+## Keep the essentials
+
+- [x] Make the primary action easy to find
+- [ ] Review the copy at a narrow screen width
+- [ ] Leave room for the next iteration
+
+> The best interface gives the work room to breathe.
+
+## Delivery notes
+
+| Area | Decision |
+| --- | --- |
+| Writing | Keep the document at the center |
+| Feedback | Confirm the result without interrupting |
+| Export | Preserve the words and their structure |
+
+## A small implementation
+
+Use \`ready\` to keep the transition explicit.
+
+\`\`\`ts
+const release = {
+  name: "A quieter launch",
+  ready: true,
+};
+
+publish(release);
+\`\`\`
+
+Next: share the draft, gather a little feedback, and make one careful improvement.
+
+[Read the release notes](https://example.com/releases)
+`;
+  await fixture(page, [{ ...note, content }]);
+  const fonts: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("jetbrains-mono-regular.ttf"))
+      fonts.push(request.url());
+  });
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  expect(fonts).toEqual([]);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  const file = await download;
+  await file.saveAs(info.outputPath("focused-note.pdf"));
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const loading = getDocument({
+    data: new Uint8Array(await readFile((await file.path())!)),
+    verbosity: 0,
+    fontExtraProperties: true,
+  });
+  const pdf = await loading.promise;
+  expect(pdf.numPages).toBe(1);
+  const sheet = await pdf.getPage(1);
+  const items = (await sheet.getTextContent()).items.filter(
+    (item) => "str" in item,
+  );
+  const text = items.map((item) => item.str).join(" ");
+  expect(text).toContain("publish(release);");
+  expect(text).not.toContain("\u200b");
+  expect(text).not.toMatch(/\[x\]|\[ \]|1 \/ 1/);
+  await sheet.getOperatorList();
+  const code = items.find((item) => item.str.includes("publish(release)"))!;
+  expect(sheet.commonObjs.get(code.fontName).name).toContain("JetBrainsMono");
+  const headings = await pdf.getOutline();
+  expect(headings?.[0].title).toBe("A quieter launch");
+  expect(headings?.[0].items.map((item) => item.title)).toEqual([
+    "Keep the essentials",
+    "Delivery notes",
+    "A small implementation",
+  ]);
+  expect(fonts).toHaveLength(1);
+  await loading.destroy();
+});
+
+test("PDF code-font load failure leaves source downloads usable and supports retry", async ({
+  page,
+}) => {
+  await fixture(page, [
+    { ...note, content: "# Code sample\n\n```ts\nconst ready = true;\n```" },
+  ]);
+  await page.route("**/jetbrains-mono-regular.ttf", (route) =>
+    route.abort("failed"),
+  );
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
+  await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Could not prepare the PDF",
+  );
+  const markdown = page.waitForEvent("download");
+  await dialog
+    .getByRole("button", { name: "Markdown (.md)", exact: true })
+    .click();
+  expect(await readFile((await (await markdown).path())!, "utf8")).toContain(
+    "const ready = true;",
+  );
+  await page.unroute("**/jetbrains-mono-regular.ttf");
+  const download = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  expect((await download).suggestedFilename()).toMatch(/^Code[ _]sample\.pdf$/);
+});
+
 test("PDF layout wraps long code and wide tables without clipped or missing content", async ({
   page,
 }, info) => {
@@ -824,7 +937,7 @@ test("PDF layout wraps long code and wide tables without clipped or missing cont
     "# Layout review\n\n> A quoted **important** thought.\n\n---\n\n" +
     "```text\n" +
     "A_long_unbroken_line_".repeat(80) +
-    "\n```\n\n" +
+    "\n```\n\n## Detailed results\n\n" +
     headers.join(" | ") +
     "\n" +
     headers.map(() => "---").join(" | ") +
@@ -834,7 +947,11 @@ test("PDF layout wraps long code and wide tables without clipped or missing cont
         .map((_, col) => `Row${row + 1}Cell${col + 1}with_long_text`)
         .join(" | "),
     ).join("\n") +
-    "\n\nFinal layout marker.";
+    "\n\n## Large record\n\n| ID | Details |\n| --- | --- |\n| Record A | " +
+    "A long record must continue onto the next page without losing any text. ".repeat(
+      110,
+    ) +
+    "End of large record. |\n\nFinal layout marker.";
   await fixture(page, [{ ...note, content }]);
   await page.goto(`${base}/app/memories/${note.id}`);
   await page.getByRole("button", { name: "Export", exact: true }).click();
@@ -849,12 +966,18 @@ test("PDF layout wraps long code and wide tables without clipped or missing cont
   });
   const pdf = await loading.promise;
   let text = "";
+  const orientations: boolean[] = [];
   for (let index = 1; index <= pdf.numPages; index++) {
     const sheet = await pdf.getPage(index);
     const viewport = sheet.getViewport({ scale: 1 });
+    orientations.push(viewport.width > viewport.height);
     const items = (await sheet.getTextContent()).items.filter(
       (item) => "str" in item,
     );
+    if (items.some((item) => item.str === "Detailed results")) {
+      expect(viewport.width).toBeGreaterThan(viewport.height);
+      expect(items.map((item) => item.str).join("")).toContain("Row1Cell1");
+    }
     expect(items.filter((item) => item.str.trim()).length).toBeGreaterThan(1);
     for (const item of items) {
       expect(item.transform[4]).toBeGreaterThanOrEqual(39);
@@ -867,7 +990,12 @@ test("PDF layout wraps long code and wide tables without clipped or missing cont
     text += items.map((item) => item.str).join("");
   }
   const normalized = text.replace(/[\s\u200b]/g, "");
+  expect(orientations[0]).toBe(false);
+  expect(orientations.at(-1)).toBe(false);
+  expect(orientations).toContain(true);
+  expect(text).not.toContain("\u200b");
   expect(normalized).toContain("Finallayoutmarker.");
+  expect(normalized).toContain("Endoflargerecord.");
   for (let row = 1; row <= 35; row++)
     for (let col = 1; col <= 8; col++) {
       expect(normalized).toContain(`Row${row}Cell${col}with_long_text`);

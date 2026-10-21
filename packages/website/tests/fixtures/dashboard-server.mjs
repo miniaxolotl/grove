@@ -110,6 +110,12 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   try {
+    if (path === "/brand-kit/fonts/jetbrains-mono-regular.ttf") {
+      response
+        .writeHead(200, { "Content-Type": "font/ttf" })
+        .end(await readFile(join(root, "public", path)));
+      return;
+    }
     if (path === "/note-pdf.worker.ts") {
       response
         .writeHead(200, { "Content-Type": "application/javascript" })
