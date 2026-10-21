@@ -192,7 +192,7 @@ export function SettingsPanel({
                 download
               >
                 <Download size={15} />
-                Export notes
+                Export all account data
               </a>
             </section>
             <section className="app-panel">

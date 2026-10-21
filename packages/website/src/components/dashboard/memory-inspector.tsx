@@ -50,6 +50,8 @@ export function MemoryInspector({
   const current = query.data;
   async function mutate(action: "move" | "archive" | "restore") {
     if (!current || busy) return;
+    if (action === "move" && (current.projectId ?? "personal") === destination)
+      return;
     const body =
       action === "move"
         ? moveMemoryInput(
@@ -125,7 +127,12 @@ export function MemoryInspector({
               Connected agents with access to this notebook can read this note.
             </p>
             <div className="flex gap-3">
-              <Button type="submit" disabled={busy}>
+              <Button
+                type="submit"
+                disabled={
+                  busy || (current.projectId ?? "personal") === destination
+                }
+              >
                 Move here
               </Button>
               <Button
@@ -159,7 +166,15 @@ export function MemoryInspector({
             }
             onDeleted={() => {
               if (close) close();
-              else router.push("/app");
+              else
+                router.push(
+                  current.projectId &&
+                    projects.some((project) => project.id === current.projectId)
+                    ? `/app/projects/${current.projectId}`
+                    : isInactive(current)
+                      ? "/app/archive"
+                      : "/app",
+                );
             }}
             onArchive={() =>
               void mutate(isInactive(current) ? "restore" : "archive")

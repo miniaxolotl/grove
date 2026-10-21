@@ -55,6 +55,72 @@ cases, plus production drawer/auth/focus recovery at **1440, 390 and 320px**.
 See [cache ownership and integration](development/client-cache.md) when adding
 workspace actions or resource families. No schema migration is required.
 
+## Focused PDF exports (21 October 2026 UTC)
+
+The PDF refinement uses a monochrome type scale, a consistent portrait reading
+measure and compact list rhythm. Real task checkboxes, subtle quote/table rules,
+content-weighted columns and padded monospace code retain the note's structure.
+Only multi-page documents show a quiet folio. Section bookmarks aid navigation.
+Six-to-eight-column tables and their introductory headings occupy landscape
+sheets; prose returns to portrait. Ordinary rows stay together, while unusually
+tall cells can continue across pages. Text wraps at measured edges without
+injected zero-width spaces, and Markdown soft line endings flow naturally.
+
+Code uses pinned JetBrains Mono 2.304 TTF under its existing OFL attribution,
+requested from the same origin only for exports containing code. It is subset
+into the PDF; rare missing glyphs fall back to the embedded prose face. A failed
+font request leaves source export usable and can be retried. The production
+Turbopack worker was exercised with actual code: it produced a parsed one-page
+PDF with an embedded JetBrains Mono face and exactly one local font request.
+The renderer remains deferred (about 754KB gzip) and absent from initial Notes
+chunks.
+
+The updated [PDF captures](design/screenshots/note-notebook-actions/README.md)
+include an ordinary one-page note and a wide-table sheet. Browser checks inspect
+actual font embedding, bookmarks, selectable text, single-page output, table
+heading placement, mixed page orientations, every wide-table cell, oversized
+record continuation, content bounds and font-load recovery.
+
+Root lint/types/build and five artifact checks pass, as do website lint/types and
+the telemetry-enabled production build. The 100-case Chromium run found one
+ordinary table row split; after the row-keeping fix, all six export regressions
+pass. Six distinct iPhone/WebKit export scenarios pass as well, including a final
+repeat of the mixed-orientation/oversized-record case. Fresh single-page and
+seven-page stress PDFs were parsed and visually reviewed.
+
+## Note and notebook actions (21 October 2026 UTC)
+
+Notes expose Export and confirmed Delete directly in the toolbar and row actions.
+Deletion pauses autosave, settles active/uncertain saves with their original retry
+identity, checks the saved version and explicitly discards local edits. Cancel
+retains drafts; success focuses the next row or the empty-state heading. Notebook
+Create/Rename/Move use distinct controls, reject no-op moves and preserve inputs
+while reviewing a concurrent change.
+
+Export downloads exact UTF-8 Markdown, copies it with a selectable fallback, or
+generates a real paginated PDF. Local snapshots survive first-save routing and
+identify unsaved content. pdfmake 0.3.12 (MIT) embeds its bundled Roboto fonts in a
+cancellable worker; Markdown parsing is loaded on demand too. Images become links,
+raw HTML is ignored and unavailable glyphs get explicit Unicode codes. Renderer
+and fonts are absent from initial Notes chunks: the deferred worker is about
+753KB gzip; Notes client-reference chunks grew about 8KB gzip against the integrated
+gesture baseline. A production Turbopack worker was separately started and produced
+an `application/pdf` Blob successfully.
+
+Node 24.21.0 / pnpm 10.33.0: root lint/types/build and five artifact tests pass;
+website lint/types and telemetry-enabled production build pass; 98 Chromium tests
+pass, with five focused deletion checks repeated after the empty-state focus fix.
+Fourteen focused iPhone/WebKit scenarios pass (the PDF filename assertion accounts
+for WebKit replacing spaces with underscores). PDF checks parse selectable text,
+links, pagination and all 280 cells in a wide table, checking text bounds as well
+as real downloads. Deferred-load failure, cancellation, clipboard denial, stale
+versions and lost save responses are covered. Final focused PDF checks also ensure
+a title-only first-save snapshot produces one page rather than a blank leading page.
+
+[Reviewed captures](design/screenshots/note-notebook-actions/README.md) show the
+desktop/390px/320px reader, export chooser and PDF layouts. Physical-device download
+and clipboard behavior remains unqualified. The feature requires no schema migration.
+
 ## Gesture and interaction polish (21 October 2026 UTC)
 
 Native action menus measure, flip and clamp to the visual viewport; touch targets

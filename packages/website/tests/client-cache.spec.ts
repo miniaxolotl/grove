@@ -182,6 +182,59 @@ test("a save finishing after navigation publishes before returning to the note",
   expect(state.writes).toHaveLength(1);
 });
 
+test("row deletion retains conflict review when a save replay returns a later version", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const attempts: Record<string, unknown>[] = [];
+  await page.route("**/api/grove/memories", async (route) => {
+    attempts.push(route.request().postDataJSON());
+    if (attempts.length === 1) return route.abort("failed");
+    state.note = { ...note, version: 3, content: "# Agent revision" };
+    await route.fulfill({ json: { success: true, data: state.note } });
+  });
+  await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("Committed before connection loss");
+  await editor.press("Control+s");
+  await expect(page.locator(".note-save-status")).toContainText("Not saved");
+  const draft = "Retained newer draft. ".repeat(350);
+  await editor.fill(draft);
+  await navigate(page, "/app");
+  const row = page.locator(`[data-note-id="${note.id}"]`);
+  await row.getByRole("button", { name: "Actions for Cached thought" }).click();
+  await row.getByRole("button", { name: "Delete note…", exact: true }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Delete note?",
+    exact: true,
+  });
+  await dialog.getByRole("button", { name: "Retry pending save" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("changed elsewhere");
+  await expect(
+    dialog.getByRole("button", { name: "Delete note and discard draft" }),
+  ).toBeDisabled();
+  expect(attempts).toHaveLength(2);
+  expect(attempts[1]).toEqual(attempts[0]);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await row.getByRole("button", { name: "Actions for Agent revision" }).click();
+  await row.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("changed elsewhere");
+  await expect(
+    dialog.getByRole("button", { name: "Delete note and discard draft" }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await navigate(page, `/app/memories/${note.id}?mode=edit`);
+  await expect(editor).toHaveText(draft.trim());
+  await expect(page.locator(".revision-compare")).toContainText(
+    "Agent revision",
+  );
+  await editor.press("Control+s");
+  expect(attempts).toHaveLength(2);
+  expect(state.reads).not.toContain("/memories/delete");
+});
+
 test("held background revalidation keeps content and dirty conflict bases intact", async ({
   page,
 }) => {
