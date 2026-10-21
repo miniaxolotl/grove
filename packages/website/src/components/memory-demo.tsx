@@ -16,7 +16,7 @@ const examples = [
   {
     value: "plans",
     label: "Travel plans",
-    tag: "a little adventure",
+    tag: "travel",
     notebook: "Japan trip",
     title: "Stay in Kyoto",
     saved:
@@ -31,7 +31,7 @@ const examples = [
   {
     value: "preferences",
     label: "Everyday preferences",
-    tag: "the little things",
+    tag: "cooking",
     notebook: "About me",
     title: "Weeknight dinners",
     saved:
@@ -46,7 +46,7 @@ const examples = [
   {
     value: "ideas",
     label: "Creative projects",
-    tag: "a fresh start",
+    tag: "gardening",
     notebook: "Weekend projects",
     title: "A tiny balcony garden",
     saved:
@@ -73,9 +73,9 @@ export function MemoryDemo() {
       <div className="mb-10 text-center">
         <p className="eyebrow">MEET ASK GROVE</p>
         <h2 id="demo-heading" className="section-heading mt-4">
-          You had a thought.
+          Ask a question.
           <br />
-          <em>Here it is again.</em>
+          <em>Find it in your notes.</em>
         </h2>
         <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-muted">
           Ask a question in your own words. Grove finds the details you saved
@@ -136,16 +136,14 @@ export function MemoryDemo() {
                 </div>
               </div>
               <p className="mt-5 flex items-center gap-2 text-xs text-muted">
-                <ArrowDown size={13} className="text-leaf" /> A little detail,
-                ready when you need it.
+                <ArrowDown size={13} className="text-leaf" /> Ask Grove uses
+                this note to answer your question.
               </p>
             </div>
 
             <div className="min-w-0 px-5 py-7 sm:p-8 lg:p-10">
               <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
-                <span className="eyebrow text-leaf">
-                  WHEN YOU COME BACK TO IT
-                </span>
+                <span className="eyebrow text-leaf">ASK GROVE</span>
                 <div
                   className="inline-flex rounded-full border border-line bg-paper p-1"
                   aria-label="Compare answers with and without a saved note"
@@ -239,7 +237,7 @@ export function MemoryDemo() {
             href="#install"
             className="inline-flex min-h-9 items-center gap-2 text-xs font-medium text-forest hover:underline"
           >
-            Make space for your ideas <ArrowUpRight size={14} />
+            Start your notebook <ArrowUpRight size={14} />
           </a>
         </div>
       </div>

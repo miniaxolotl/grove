@@ -4,6 +4,20 @@ The website leads with a private notebook that makes saved notes easy to find.
 The main action is notebook signup. The developer section explains saved context
 across coding sessions and links to agent setup.
 
+## Copy follow-up
+
+The 21 October follow-up simplifies headings, FAQs, sharing feedback, footer,
+account-entry and installation copy. Public pages no longer promote brand
+materials or downloads. Notebook and agent demonstrations retain their example
+labels. The primary action remains notebook signup.
+
+Root lint/types/build and five artifact checks pass. The 68 browser scenarios
+pass across the initial run and the corrected copy-expectation rerun; all ten
+marketing cases pass on the final build. Website lint/types/build, 12 release
+contracts and workflow lint pass. Public-page reviews at 320/390/768/1440px
+include installation, self-hosting, account entry, legal and missing pages, with
+no overflow, accessibility violations or browser errors.
+
 ## Assets
 
 - Search and journal graphics use Collection 05 notebook artwork.

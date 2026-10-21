@@ -15,7 +15,7 @@ export const navigation = [
 
 export const faqs = [
   {
-    question: "What exactly is Grove?",
+    question: "What is Grove?",
     answer:
       "A private notebook for notes, plans and journal entries. Organize pages into notebooks, search by meaning and explore related ideas.",
   },
@@ -35,7 +35,7 @@ export const faqs = [
       "Your notes belong to your account. You choose which connected AI tools can access them and can turn that access off at any time. Grove uses service providers to store notes and provide search and answers. Our Privacy Policy explains how your information is handled.",
   },
   {
-    question: "Can I change my mind about a note?",
+    question: "Can I edit or delete a note?",
     answer:
       "Yes. Edit a note, restore an earlier version, archive it or delete it.",
   },

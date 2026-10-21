@@ -16,9 +16,9 @@ export default function SelfHostPage() {
       <div className="max-w-3xl">
         <p className="eyebrow">GROVE OPEN SOURCE</p>
         <h1 className="section-heading mt-5">
-          Your memory.
+          Run Grove
           <br />
-          <em>Your infrastructure.</em>
+          <em>on your own server.</em>
         </h1>
         <p className="mt-6 text-sm leading-7 text-muted">
           Run the Grove API, worker and private PostgreSQL database with Docker

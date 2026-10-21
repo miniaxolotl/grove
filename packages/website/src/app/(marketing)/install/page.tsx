@@ -6,8 +6,8 @@ import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
 
 export const metadata = pageMetadata(
-  "Connect to Grove Cloud | Give your agent a memory",
-  "Connect OpenCode, Claude Code, or Codex to Grove Cloud with one command. Sign in, choose access, and carry your context across sessions.",
+  "Connect your coding agent to Grove",
+  "Connect OpenCode, Claude Code or Codex to Grove. Sign in and choose which notebooks your agent can use across sessions.",
   "/install",
 );
 
@@ -25,13 +25,13 @@ export default async function InstallPage() {
       <div className="mt-9 max-w-2xl">
         <p className="eyebrow">CONNECT TO GROVE CLOUD</p>
         <h1 className="section-heading mt-4 text-[56px]! sm:text-[72px]!">
-          Give your agent
+          Connect your
           <br />
-          <em>a memory.</em>
+          <em>coding agent.</em>
         </h1>
         <p className="mt-6 max-w-lg text-sm leading-7 text-muted">
-          Choose your agent, run one command, and sign in. Grove takes care of
-          linking your project and setting up the connection.
+          Choose your agent, run the command and sign in. Then choose the
+          notebooks it can access.
         </p>
       </div>
       <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-y border-line py-5 text-xs text-leaf">
@@ -48,7 +48,7 @@ export default async function InstallPage() {
         aria-labelledby="next-heading"
       >
         <h2 id="next-heading" className="text-xl font-medium tracking-tight">
-          Ready to grow from here?
+          Documentation and self-hosting
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
           Explore the four memory tools, manage connections in your dashboard,
@@ -58,7 +58,7 @@ export default async function InstallPage() {
           {[
             { label: "Server & tool reference", href: site.docs },
             { label: "OpenCode plugin", href: site.pluginDocs },
-            { label: "Grove Open Source and Self-hosting", href: "/self-host" },
+            { label: "Self-host Grove", href: "/self-host" },
           ].map(({ label, href }) => (
             <a
               key={label}
