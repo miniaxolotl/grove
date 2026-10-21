@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useClerk } from "@clerk/nextjs";
+import Link from "next/link";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { LoadError } from "@/components/dashboard/load-error";
@@ -168,7 +169,20 @@ export function SettingsPanel({
             </section>
           </>
         )}
-        {section === "account" && <ConnectedAccounts />}
+        {section === "account" && (
+          <>
+            <section className="app-panel">
+              <h2 className="font-editorial text-2xl">About you</h2>
+              <p className="mt-3 text-sm text-muted">
+                Preferences and details you want Grove to remember.
+              </p>
+              <Link className="text-button mt-4" href="/app/profile">
+                Edit what Grove knows about you
+              </Link>
+            </section>
+            <ConnectedAccounts />
+          </>
+        )}
         {section === "data" && (
           <>
             <section className="app-panel">

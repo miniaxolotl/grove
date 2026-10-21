@@ -14,7 +14,7 @@ import { IdeaMap } from "@/components/idea-map";
 
 const views = [
   { value: "notes", label: "Notes" },
-  { value: "journal", label: "Journal" },
+  { value: "journal", label: "By date" },
   { value: "graph", label: "Graph" },
 ] as const;
 
@@ -46,7 +46,7 @@ export function LibraryPreview() {
             </li>
             <li>
               <NotebookPen size={17} aria-hidden="true" />
-              <span>Give daily thoughts a place in your journal</span>
+              <span>Start a dated note for whatever’s on your mind</span>
             </li>
             <li>
               <Network size={17} aria-hidden="true" />

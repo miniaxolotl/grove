@@ -11,7 +11,7 @@ Grove Cloud uses deployment-managed providers:
 
 DeepInfra receives query/document text for embedding and source/candidate text for
 classification. MiniMax receives bounded source text for organization, summaries,
-and Ask Grove questions (including up to four preceding questions).
+and Ask Grove conversations (including up to eight preceding completed turns).
 Cloud credentials are server-only. Use standard pay-as-you-go MiniMax API keys for
 the public service; a MiniMax coding subscription has separate eligibility and usage
 windows ([provider guidance](https://platform.minimax.io/docs/m-plan/usage-rules)).
@@ -98,13 +98,17 @@ these values explicitly for an existing installation.
   stable ID order unless `updated_desc`, `updated_asc`, or `created_desc` is selected.
   Timestamp cursors preserve microseconds. Agent recall uses reciprocal-rank fusion,
   bounded by 6,000 characters.
-- **About me** and **Notebooks → notebook → Summary** show cited summaries.
-  **In progress** opens handoffs by title. Each statement links to exact source
+- **Settings → Account → About you** and **Notebook options → Summarize notebook**
+  show cited summaries. **Progress notes** opens handoffs by title. Each statement links to exact source
   IDs/revisions. Check status or regenerate on demand.
 - **Ask Grove** retrieves at most 12 current authorized notes within the same 6,000
   character budget. Generation validates every citation and rechecks account,
   grant, source revisions/expiry, settings, and provider profile before returning.
   Search mode performs no generation; questions never implicitly save notes.
+  Conversation generation uses bounded `proposals` and `target` arrays so providers
+  can express absence without nullable-object ambiguity. Validated results become
+  the public single proposal (or `null`) contract. Incomplete actions remain errors;
+  Grove supplies preview-status wording and changes notes only after explicit Apply.
 - Workers use at most 80 recent sources / 24,000 source characters; `truncated`
   signals partial coverage. Model/prompt profiles and source revisions are retained.
   Corrections, moves, archive, deletion and expiry hide stale output immediately.

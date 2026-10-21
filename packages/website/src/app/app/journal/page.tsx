@@ -1,4 +1,4 @@
-import { Journal } from "@/components/dashboard/journal";
+import { redirect } from "next/navigation";
 export default function JournalPage() {
-  return <Journal />;
+  redirect("/app?sort=created_desc");
 }

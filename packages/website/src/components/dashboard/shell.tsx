@@ -5,18 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
-  Folder,
   Archive,
   Settings,
   Plus,
   LockKeyhole,
-  UserRound,
   MessageSquare,
-  NotebookPen,
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
-import { NotebooksProvider } from "./notebooks-provider";
+import { NotebooksProvider, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookExplorer } from "./notebook-explorer";
 import { setAccountBoundary } from "@/lib/analytics";
 import { TelemetryChoice } from "@/components/website-telemetry";
@@ -25,11 +22,8 @@ import { WorkspaceSearch, WorkspaceSearchButton } from "./workspace-search";
 
 const links = [
   { href: "/app", name: "Notes", icon: BookOpen },
-  { href: "/app/journal", name: "Journal", icon: NotebookPen },
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
-  { href: "/app/projects", name: "Notebooks", icon: Folder },
   { href: "/app/archive", name: "Archive", icon: Archive },
-  { href: "/app/profile", name: "About me", icon: UserRound },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -94,13 +88,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     <UserButton />
                   </div>
                 </div>
-                <Link
-                  className="app-button sidebar-create"
-                  href={`/app/notes/new${path.startsWith("/app/projects/") ? `?notebook=${encodeURIComponent(path.split("/")[3])}` : path === "/app/journal" ? "?from=journal" : ""}`}
-                >
-                  <Plus size={16} />
-                  Write a note
-                </Link>
+                <NewNoteLink />
                 <WorkspaceSearchButton />
                 <nav
                   ref={navigation}
@@ -117,13 +105,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             ? path === href ||
                               path === "/app/graph" ||
                               path.startsWith("/app/notes/") ||
-                              path.startsWith("/app/memories/")
+                              path.startsWith("/app/memories/") ||
+                              path.startsWith("/app/projects")
                             : path.startsWith(href)
                         )
                           ? "page"
                           : undefined
                       }
-                      className={`app-nav${index > 3 ? " app-nav-secondary" : ""}`}
+                      className={`app-nav${index > 1 ? " app-nav-secondary" : ""}`}
                     >
                       <Icon size={17} strokeWidth={1.6} />
                       {name}
@@ -133,7 +122,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 <NotebookExplorer />
                 <div className="app-sidebar-footer">
                   <nav aria-label="Workspace settings">
-                    {links.slice(4).map(({ href, name, icon: Icon }) => (
+                    {links.slice(2).map(({ href, name, icon: Icon }) => (
                       <Link
                         className="app-nav"
                         key={href}
@@ -163,21 +152,21 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     <strong>
                       {[
                         ...links,
-                        { href: "/app/archive", name: "Archive" },
                         { href: "/app/graph", name: "Note graph" },
+                        { href: "/app/profile", name: "About you" },
                       ].find(({ href }) =>
                         href === "/app"
                           ? path === href ||
                             path.startsWith("/app/memories/") ||
-                            path.startsWith("/app/notes/")
+                            path.startsWith("/app/notes/") ||
+                            path.startsWith("/app/projects")
                           : path.startsWith(href),
-                      )?.name ?? "Personal workspace"}
+                      )?.name ?? "Your notes"}
                     </strong>
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="app-private-label">
                       <LockKeyhole size={12} aria-hidden="true" /> Private
-                      notebook
                     </span>
                   </div>
                 </header>
@@ -209,5 +198,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </WorkspaceDrag>
       </NotebooksProvider>
     </NoteDraftsProvider>
+  );
+}
+
+function NewNoteLink() {
+  const notebook = useCurrentNotebook();
+  return (
+    <Link
+      className="app-button sidebar-create"
+      href={`/app/notes/new${notebook ? `?notebook=${encodeURIComponent(notebook)}` : ""}`}
+    >
+      <Plus size={16} /> New note
+    </Link>
   );
 }

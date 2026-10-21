@@ -1,10 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
-  Plus,
   Archive,
   FolderInput,
   X,
@@ -12,22 +11,32 @@ import {
   BookOpen,
   List,
   Network,
+  CalendarDays,
 } from "lucide-react";
 import type { Memory, Page } from "@lib/shared/contracts";
 import { api, errorMessage } from "@/lib/dashboard-api";
-import { isInactive, memoryTitle, moveMemoryInput } from "@/lib/memory-display";
+import {
+  dateLabel,
+  isInactive,
+  memoryTitle,
+  moveMemoryInput,
+} from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { MemoryRow } from "./memory-row";
 import { MemoryEditor } from "./memory-editor";
 import { MemoryDetail } from "./memory-detail";
 import { useWorkspaceDrag } from "./memory-drag";
-import { LibraryFilterBar, initialFilters } from "./library-filters";
+import {
+  LibraryFilterBar,
+  initialFilters,
+  type LibraryFilters,
+} from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
 import { SegmentedControl } from "./ui/segmented-control";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
-import { useNotebooks } from "./notebooks-provider";
+import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
   loading: () => (
@@ -49,7 +58,7 @@ export function MemoryLibrary({
   onChanged,
   initialView = "list",
   initialProject = "all",
-  showCreate = true,
+  initialSort = "updated_desc",
 }: {
   archive?: boolean;
   initialId?: string;
@@ -59,7 +68,7 @@ export function MemoryLibrary({
   onChanged?: () => void;
   initialView?: "list" | "graph";
   initialProject?: string;
-  showCreate?: boolean;
+  initialSort?: "updated_desc" | "created_desc";
 }) {
   const workspace = useWorkspaceDrag();
   const [view, setView] = useState(initialView);
@@ -70,10 +79,11 @@ export function MemoryLibrary({
     error: notebookError,
     reload: reloadNotebooks,
   } = useNotebooks();
-  const [filters, setFilters] = useState(() => ({
+  const [filters, setFilters] = useState<LibraryFilters>(() => ({
     ...initialFilters(archive),
     kind: initialKind,
     project: initialProject,
+    sort: initialSort,
   }));
   const {
     search,
@@ -122,6 +132,7 @@ export function MemoryLibrary({
     sort,
     lifetime,
   });
+  useSetCurrentNotebook(scopedProject);
   const items = resultKey === requestKey ? loadedItems : [];
   const next = resultKey === requestKey ? cursor : null;
   const loading = fetching || resultKey !== requestKey;
@@ -388,26 +399,15 @@ export function MemoryLibrary({
           actions={
             !archive && (
               <Link
-                className="app-button"
-                href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+                className="app-button secondary"
+                href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
               >
-                <Plus size={16} />
-                New note
+                <CalendarDays size={16} />
+                Today’s note
               </Link>
             )
           }
         />
-      )}
-      {embedded && showCreate && (
-        <div className="embedded-library-actions">
-          <Link
-            className="app-button secondary"
-            href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
-          >
-            <Plus size={16} />
-            New note
-          </Link>
-        </div>
       )}
       <div className={`memory-workspace${embedded ? " embedded" : ""}`}>
         <div className="library-main">
@@ -476,7 +476,7 @@ export function MemoryLibrary({
                 options={[
                   { value: "updated_desc", label: "Recently updated" },
                   { value: "updated_asc", label: "Oldest updated" },
-                  { value: "created_desc", label: "Recently created" },
+                  { value: "created_desc", label: "Date written" },
                 ]}
               />
             )}
@@ -611,36 +611,47 @@ export function MemoryLibrary({
                   {items.length > 50 ? " (first 50)" : ""}
                 </label>
                 <ul ref={listRef}>
-                  {items.map((memory) => (
-                    <MemoryRow
-                      key={memory.id}
-                      memory={memory}
-                      projectName={
-                        projects.find((p) => p.id === memory.projectId)?.name ??
-                        "Personal"
-                      }
-                      selected={checked.includes(memory.id)}
-                      selectedItems={selectedItems}
-                      busy={busy}
-                      onSelect={() =>
-                        setChecked((current) =>
-                          current.includes(memory.id)
-                            ? current.filter((id) => id !== memory.id)
-                            : current.length < 50
-                              ? [...current, memory.id]
-                              : current,
-                        )
-                      }
-                      onOpen={() => setSelected(memory)}
-                      onMove={() => startMove([memory])}
-                      onArchive={() =>
-                        void perform(
-                          [memory],
-                          isInactive(memory) ? "restore" : "archive",
-                        )
-                      }
-                      onTag={(value) => setFilters({ ...filters, tag: value })}
-                    />
+                  {items.map((memory, index) => (
+                    <Fragment key={memory.id}>
+                      {sort === "created_desc" &&
+                        (index === 0 ||
+                          dateLabel(memory.createdAt) !==
+                            dateLabel(items[index - 1].createdAt)) && (
+                          <li className="library-date">
+                            <h2>{dateLabel(memory.createdAt)}</h2>
+                          </li>
+                        )}
+                      <MemoryRow
+                        memory={memory}
+                        projectName={
+                          projects.find((p) => p.id === memory.projectId)
+                            ?.name ?? "Unfiled"
+                        }
+                        selected={checked.includes(memory.id)}
+                        selectedItems={selectedItems}
+                        busy={busy}
+                        onSelect={() =>
+                          setChecked((current) =>
+                            current.includes(memory.id)
+                              ? current.filter((id) => id !== memory.id)
+                              : current.length < 50
+                                ? [...current, memory.id]
+                                : current,
+                          )
+                        }
+                        onOpen={() => setSelected(memory)}
+                        onMove={() => startMove([memory])}
+                        onArchive={() =>
+                          void perform(
+                            [memory],
+                            isInactive(memory) ? "restore" : "archive",
+                          )
+                        }
+                        onTag={(value) =>
+                          setFilters({ ...filters, tag: value })
+                        }
+                      />
+                    </Fragment>
                   ))}
                 </ul>
               </div>
@@ -752,7 +763,7 @@ export function MemoryLibrary({
               value={destination}
               onValueChange={setDestination}
               projects={projects}
-              leading={[{ value: "personal", label: "Personal" }]}
+              leading={[{ value: "personal", label: "Unfiled" }]}
               disabled={busy}
             />
             <p className="text-xs text-muted">

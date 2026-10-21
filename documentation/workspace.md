@@ -1,15 +1,18 @@
 # Your Grove notebook
 
-Grove is a place for notes, ideas, and everyday writing. **Notes**, **Journal**,
-**Ask Grove**, **Notebooks**, and **About me** are the main destinations. Connected
-agents use the same notes and permissions; their references live in **Agent details**.
+Grove is a place for notes, ideas, and everyday writing. Start in **Notes** to write
+and organize, or **Ask Grove** to talk about your notes. Notebooks live in the sidebar;
+on a phone, tap **Notebooks** to browse them. Connected agents use the same notes and
+permissions; their references live in **Agent details**.
 
 ## Write, find, and organize
 
-- **New note**, **New entry**, and a note page's **Edit note** open a full-page
+- **New note**, **Today’s note**, and a note page's **Edit note** open the same full-page
   writing space. **Write** styles Markdown as you work; **Markdown** shows its
   source and **Preview** shows the reading view. Use the shared formatting toolbar,
   undo/redo, heading outline, and focus mode (Escape exits focus).
+  **New note** follows the notebook you are browsing, filtering, or editing.
+  Notes outside a notebook appear in **Unfiled**.
 - Full-page notes save automatically after a short pause. **Save note** or
   `Ctrl`/`Cmd` + `S` saves immediately. Formatting supports `Ctrl`/`Cmd` + `B`, `I`, and `K`.
   Drawer editors can expand without losing their selection or undo history.
@@ -24,7 +27,8 @@ agents use the same notes and permissions; their references live in **Agent deta
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
   stay in POST bodies. Sorting and filtering apply to the entire matching library.
-- Create a notebook with just a name. Its action menu includes **New sub-notebook**;
+- Create a notebook with the sidebar **+** and just a name. **Manage** opens all
+  notebook settings. Each notebook's action menu includes **New sub-notebook**;
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
   matching notebooks' ancestors so you can see where they belong.
 - **Rename** and **Move** share notebook settings. Choose a **Parent notebook**
@@ -48,16 +52,20 @@ note properties and settings. Use arrows, Home/End or typeahead, Enter to
 choose, and Escape to dismiss; inside a dialog, the first Escape closes the menu.
 Clicking outside a dialog or drawer dismisses it unless a change is being saved.
 
-## Journal and personal notes
+## Daily writing and personal details
 
-**Journal** groups personal notes written on the website by their creation date.
-**New entry** starts with today's date. Entries remain ordinary editable notes,
-available in search and Ask Grove. **About me** offers prompts for preferences and
-things you want Grove to know.
+**Today’s note** starts with today's date in your current notebook. It is an ordinary
+note, available in the same library, search and Ask Grove. Choose **Date written**
+under Sort to group all matching notes by day. Existing Journal links open this
+dated view. There is no separate journal to manage.
 
-Notebook pages open to Notes, with Summary, In progress, and Ask Grove views.
-Progress notes record where work stands. Agent task references are created
-automatically and preserved when a note is edited or moved.
+Notebook pages open directly to their notes. **Notebook options** offers **Ask about
+these notes**, **Summarize notebook** and **Progress notes**, alongside rename,
+move and sub-notebook creation. Progress notes record where work stands; their
+agent references survive edits and moves.
+
+**Settings → Account → About you** offers prompts for preferences and things you
+want Grove to know.
 
 ## History and how long notes stay
 
@@ -78,8 +86,8 @@ ideas. It uses the loaded, current notes in the selected scope. Load earlier pag
 to expand it. Pan, zoom, select a note, or press Enter on a focused node to read it.
 
 **Ask Grove** finds, explains and helps change your notes. Follow-ups such as
-“shorten that note” use the conversation's context. Choose all notes, Personal, or
-a notebook; optionally include personal notes. **Search** finds pages as you type.
+“shorten that note” use the conversation's context. Choose all notes, Unfiled, or
+a notebook; optionally include unfiled notes. **Search** finds pages as you type.
 Source links open the cited note and identify when it has since changed.
 
 Use **History** to reopen or delete saved conversations across visits. Changing the
@@ -99,4 +107,4 @@ configuration at [Model settings](models.md).
 
 The interface uses self-hosted Space Grotesk and the [Sprout palette](design/grove-sprout.md).
 Browser checks cover narrow layouts, keyboard and native touch interaction, graph,
-cited chat, journal, history, concurrent edits, cancellation, and accessibility.
+cited chat, dated writing, history, concurrent edits, cancellation, and accessibility.

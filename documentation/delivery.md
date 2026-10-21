@@ -1,5 +1,30 @@
 # Delivery evidence
 
+## Reliable replies and one notes workspace (21 October 2026 UTC)
+
+Production diagnostics and a synthetic request against MiniMax reproduced the
+greeting failure: the provider returned `proposal:{}` for a nullable object. The
+generation contract now represents optional actions and targets with bounded
+arrays, validates them strictly, then converts to the existing public proposal/null
+contract. Invalid actions stay retryable failures. Grove supplies preview wording,
+and Apply remains the only step that changes notes. Planner instructions extract
+topic keywords for text-only search and separate greetings from note requests.
+
+Notes is the main workspace, with a shared sidebar notebook tree and a mobile
+disclosure. Today’s note uses the same full-page editor in the selected notebook;
+Date written groups the library by day. Legacy Journal links open the dated view.
+New note follows filters and editor context. Notebook summaries, progress notes and
+scoped chat are contextual actions; personal details are under Settings → Account.
+[Visual review](design/screenshots/simple-notes/README.md) covers desktop and mobile.
+
+Root and website lint/types/builds, five packed artifacts, 52 database/provider
+scenarios, 67 Chromium browser/accessibility cases, 16 release/deployment contracts
+and actionlint/ShellCheck pass. A disposable PostgreSQL account using the actual
+MiniMax adapter also passes the original greeting, grounded note finding, and
+edit/create/merge previews without changing notes. No schema migration is needed.
+This records local/provider verification; production rollout follows the protected
+release path.
+
 ## Workspace polish and contextual conversations (20 October 2026 UTC)
 
 The workspace now has one notebook tree with nested note links, shared pointer/
