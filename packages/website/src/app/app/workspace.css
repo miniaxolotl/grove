@@ -202,6 +202,131 @@ html:has(.grove-app) {
   > .note-workspace {
   height: 100dvh;
 }
+.feature-placeholder {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: clamp(24px, 5vw, 56px);
+}
+.feature-placeholder-content {
+  width: min(100%, 896px);
+  margin-inline: auto;
+}
+.feature-placeholder-message {
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.feature-placeholder-message > svg {
+  margin-bottom: 16px;
+}
+.feature-placeholder-title {
+  color: var(--color-forest);
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.feature-placeholder-content > button {
+  margin-top: 20px;
+  min-height: 44px;
+}
+.feature-placeholder-lines {
+  display: grid;
+  gap: 28px;
+  margin-top: 32px;
+}
+.feature-placeholder-lines > div {
+  display: grid;
+  gap: 10px;
+}
+.feature-placeholder-lines i {
+  display: block;
+  height: 8px;
+  background: var(--color-line);
+  border-radius: 3px;
+}
+.feature-placeholder-lines i:last-child {
+  width: 72%;
+}
+.feature-placeholder-lines:not(.is-list) > div:nth-child(2) i:last-child {
+  width: 54%;
+}
+.library-placeholder {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 20px;
+}
+.library-placeholder .feature-placeholder-content {
+  width: 100%;
+}
+.library-placeholder .feature-placeholder-message > svg {
+  display: none;
+}
+.library-placeholder .feature-placeholder-title {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0;
+}
+.feature-placeholder-lines.is-list {
+  gap: 0;
+  margin: 16px -20px -20px;
+}
+.feature-placeholder-lines.is-list > div {
+  padding: 24px 20px;
+  border-top: 1px solid var(--color-line);
+}
+.feature-placeholder-lines.is-list i:first-child {
+  width: min(65%, 320px);
+}
+.feature-placeholder-lines.is-list i:last-child {
+  width: min(40%, 160px);
+  height: 6px;
+}
+.library-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-right: auto;
+  border-radius: 4px;
+}
+.library-sync {
+  display: inline-flex;
+  align-items: center;
+  width: 68px;
+  min-height: 44px;
+}
+.library-refreshing {
+  display: inline-flex;
+  padding: 8px;
+  visibility: hidden;
+  /* Reveal only a sustained refresh; cached navigation stays quiet. */
+  animation: reveal-library-sync 0s 350ms forwards;
+}
+@keyframes reveal-library-sync {
+  to {
+    visibility: visible;
+  }
+}
+.library-refresh-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 6px 8px;
+  color: var(--color-forest);
+  border-radius: 6px;
+}
+.library-refresh-retry:hover {
+  background: var(--color-sage);
+}
+@media (prefers-reduced-motion: reduce) {
+  .library-refreshing {
+    animation: none;
+    visibility: visible;
+  }
+}
 .live-editor .editor-heading {
   display: flex;
   gap: 12px;

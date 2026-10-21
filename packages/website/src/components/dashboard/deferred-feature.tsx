@@ -8,9 +8,15 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
+import { LoadingState } from "./loading-state";
 
 class FeatureBoundary extends Component<
-  { retry: () => void; children: ReactNode },
+  {
+    retry: () => void;
+    children: ReactNode;
+    label: string;
+    loadingClass: string;
+  },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -19,12 +25,12 @@ class FeatureBoundary extends Component<
   }
   render() {
     return this.state.failed ? (
-      <div className="app-error" role="alert">
-        This view could not be opened.{" "}
-        <button className="text-button" onClick={this.props.retry}>
-          Try opening again
-        </button>
-      </div>
+      <LoadingState
+        label={this.props.label}
+        className={this.props.loadingClass}
+        failed
+        retry={this.props.retry}
+      />
     ) : (
       this.props.children
     );
@@ -46,14 +52,12 @@ export function deferredFeature<P extends object>(
     return (
       <FeatureBoundary
         key={attempt}
+        label={label}
+        loadingClass={loadingClass}
         retry={() => setAttempt((value) => value + 1)}
       >
         <Suspense
-          fallback={
-            <p role="status" className={`library-loading ${loadingClass}`}>
-              {label}
-            </p>
-          }
+          fallback={<LoadingState label={label} className={loadingClass} />}
         >
           <Feature {...props} />
         </Suspense>

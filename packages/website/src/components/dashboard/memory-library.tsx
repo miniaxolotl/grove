@@ -12,6 +12,7 @@ import {
   List,
   Network,
   CalendarDays,
+  RefreshCw,
 } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
+import { LoadingState } from "./loading-state";
 import { MemoryRow } from "./memory-row";
 import { deferredFeature } from "./deferred-feature";
 import {
@@ -126,6 +128,7 @@ export function MemoryLibrary({
   const [busy, setBusy] = useState(false);
   const [undo, setUndo] = useState<Undo[]>([]);
   const requests = useRef(new Map<string, string>());
+  const summary = useRef<HTMLSpanElement>(null);
   const scopedProject =
     fixedProject !== undefined
       ? fixedProject
@@ -158,7 +161,10 @@ export function MemoryLibrary({
   const next = query.hasNextPage;
   const loading = query.isPending || query.isFetchingNextPage;
   const searchMode = query.data?.pages[0]?.searchMode;
-  const currentError = error || (query.error ? errorMessage(query.error) : "");
+  const readError = query.error ? errorMessage(query.error) : "";
+  const currentError = error || (!query.data ? readError : "");
+  const refreshing =
+    !!query.data && query.isFetching && !query.isFetchingNextPage;
   const filtered = !!(
     search ||
     kind ||
@@ -346,10 +352,55 @@ export function MemoryLibrary({
             ]}
           />
           <div className="library-caption">
-            <span>
-              {items.length}
-              {next ? "+" : ""} {items.length === 1 && !next ? "note" : "notes"}
-              {searchMode && search ? " found" : ""}
+            <span className="library-summary" ref={summary} tabIndex={-1}>
+              <span>
+                {query.data ? (
+                  <>
+                    {items.length}
+                    {next ? "+" : ""}{" "}
+                    {items.length === 1 && !next ? "note" : "notes"}
+                    {searchMode && search ? " found" : ""}
+                  </>
+                ) : (
+                  "Your notes"
+                )}
+              </span>
+              <span className="library-sync" role="status">
+                {query.data && readError ? (
+                  <>
+                    <span className="sr-only">
+                      {query.isFetchNextPageError
+                        ? "Couldn’t load more. Showing loaded notes."
+                        : "Couldn’t refresh. Showing saved notes."}
+                    </span>
+                    <button
+                      type="button"
+                      className="library-refresh-retry"
+                      aria-label={
+                        query.isFetchNextPageError
+                          ? "Retry loading more notes"
+                          : "Retry refreshing notes"
+                      }
+                      aria-busy={query.isFetching}
+                      disabled={query.isFetching}
+                      title={`Showing loaded notes. ${readError}`}
+                      onClick={() => {
+                        summary.current?.focus({ preventScroll: true });
+                        if (query.isFetchNextPageError)
+                          void query.fetchNextPage();
+                        else void query.refetch();
+                      }}
+                    >
+                      <RefreshCw size={14} aria-hidden="true" /> Retry
+                    </button>
+                  </>
+                ) : refreshing ? (
+                  <span className="library-refreshing">
+                    <RefreshCw size={14} aria-hidden="true" />
+                    <span className="sr-only">Refreshing notes…</span>
+                  </span>
+                ) : null}
+              </span>
             </span>
             {!archive && (
               <SegmentedControl
@@ -464,9 +515,11 @@ export function MemoryLibrary({
             </div>
           )}
           {loading && !items.length ? (
-            <p role="status" className="library-loading">
-              Opening your notes…
-            </p>
+            <LoadingState
+              label="Opening your notes…"
+              className="library-placeholder"
+              list
+            />
           ) : !items.length && !currentError ? (
             <section className="app-empty">
               <BookOpen size={26} className="mx-auto mb-4" strokeWidth={1.4} />
