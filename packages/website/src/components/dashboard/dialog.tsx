@@ -1,10 +1,9 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { lockPageScroll } from "./ui/overlay-focus";
 
 const DialogBusy = createContext<(busy: boolean) => void>(() => {});
-let scrollLocks = 0;
-let previousOverflow = "";
 export const useDialogBusy = () => useContext(DialogBusy);
 export function Dialog({
   title,
@@ -29,9 +28,7 @@ export function Dialog({
     const element = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
     const focusKey = previous?.dataset.focusKey;
-    if (scrollLocks++ === 0)
-      previousOverflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     element.showModal();
     element
       .querySelector<HTMLElement>(
@@ -40,8 +37,7 @@ export function Dialog({
       ?.focus();
     return () => {
       element.close();
-      if (--scrollLocks === 0)
-        document.documentElement.style.overflow = previousOverflow;
+      unlock();
       const scope =
         [...document.querySelectorAll("dialog[open]")].at(-1) ?? document;
       const target = previous?.isConnected

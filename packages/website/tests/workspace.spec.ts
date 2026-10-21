@@ -1107,6 +1107,8 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   await page.getByRole("button", { name: "Clear graph selection" }).click();
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
+    // Resizing preserves the user's zoom. Fit is an intentional action.
+    await page.getByRole("button", { name: "Fit View", exact: true }).click();
     await expect
       .poll(() =>
         page.locator(".graph-node-core").evaluateAll(
@@ -1158,6 +1160,113 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   );
   await expect(page.locator(".react-flow__edge")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("graph selection and note revisions retain zoom while ordinary wheel input scrolls the page", async ({
+  page,
+}) => {
+  await fixture(page, [{ ...note, projectId: project.id }, handoff]);
+  await page.setViewportSize({ width: 1280, height: 650 });
+  await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  const viewport = page.locator(".react-flow__viewport");
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  const zoom = () =>
+    viewport.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+  const initial = await zoom();
+  await page.getByRole("button", { name: "Zoom In", exact: true }).click();
+  await expect.poll(zoom).toBeGreaterThan(initial);
+  const zoomed = await zoom();
+  await page.locator(`.react-flow__node[data-id="${note.id}"]`).click();
+  await expect(
+    page.getByRole("complementary", { name: "Selected note" }),
+  ).toBeVisible();
+  expect(await zoom()).toBeCloseTo(zoomed, 4);
+  await viewport.evaluate((el) => el.setAttribute("data-retained", "yes"));
+  await page.getByRole("button", { name: "Read note", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+  await drawer.getByRole("button", { name: "Edit note", exact: true }).click();
+  await drawer
+    .getByRole("textbox", { name: "What should stay with you?" })
+    .fill("# A revised idea\n\nThe same graph position.");
+  await page.keyboard.press("Control+s");
+  await expect(drawer.locator(".note-save-status")).toHaveText("Saved");
+  await page.keyboard.press("Escape");
+  await expect(viewport).toHaveAttribute("data-retained", "yes");
+  expect(await zoom()).toBeCloseTo(zoomed, 4);
+  const bounds = (await page.locator(".graph-canvas").boundingBox())!;
+  await page.mouse.move(bounds.x + 40, bounds.y + 80);
+  const before = await page.evaluate(() => scrollY);
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+  expect(await zoom()).toBeCloseTo(zoomed, 4);
+});
+
+test("embedded touch graph yields to page scrolling and expanded fallback supports pan and focus return", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await page.addInitScript(() =>
+      Object.defineProperty(document, "fullscreenEnabled", { value: false }),
+    );
+    await fixture(page, [note, handoff]);
+    await page.goto(`${base}/app`);
+    await page.getByRole("button", { name: "Graph", exact: true }).tap();
+    const canvas = page.locator(".graph-canvas");
+    await canvas.scrollIntoViewIfNeeded();
+    await expect(page.locator(".react-flow__node")).toHaveCount(2);
+    const cdp = await context.newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd",
+      x = 0,
+      y = 0,
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y }],
+      });
+    const bounds = (await canvas.boundingBox())!;
+    const beforeScroll = await page.evaluate(() => scrollY);
+    const view = page.locator(".react-flow__viewport");
+    const beforeView = await view.getAttribute("style");
+    await touch("touchStart", bounds.x + 40, bounds.y + 220);
+    await touch("touchMove", bounds.x + 40, bounds.y + 100);
+    await touch("touchEnd");
+    await expect
+      .poll(() => page.evaluate(() => scrollY))
+      .toBeGreaterThan(beforeScroll);
+    await expect(view).toHaveAttribute("style", beforeView!);
+    const expand = page.getByRole("button", {
+      name: "Expand graph",
+      exact: true,
+    });
+    await expand.tap();
+    const expanded = page.getByRole("dialog", { name: "Linked notes graph" });
+    await expect(expanded).toBeInViewport();
+    await expect(
+      page.getByRole("button", { name: "Exit full screen", exact: true }),
+    ).toBeFocused();
+    const area = (await canvas.boundingBox())!;
+    const beforePan = await view.getAttribute("style");
+    await touch("touchStart", area.x + 30, area.y + 60);
+    await touch("touchMove", area.x + 120, area.y + 100);
+    await touch("touchEnd");
+    await expect(view).not.toHaveAttribute("style", beforePan!);
+    await page.keyboard.press("Escape");
+    await expect(expand).toBeFocused();
+    await expect(page.locator("[inert]")).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.style.overflow),
+    ).not.toBe("hidden");
+  } finally {
+    await context.close();
+  }
 });
 
 test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and discards cancelled answers", async ({

@@ -587,6 +587,7 @@ export function MemoryLibrary({
             items.length > 0 &&
             (view === "graph" ? (
               <MemoryGraph
+                key={requestKey}
                 items={items}
                 projects={projects}
                 onOpen={setSelected}
