@@ -212,6 +212,129 @@ test("held background revalidation keeps content and dirty conflict bases intact
   expect(state.writes).toHaveLength(0);
 });
 
+test("opening notes never presents a false empty count", async ({ page }) => {
+  await fixture(page);
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories/search", async (route) => {
+    await release.promise;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app`);
+  await expect(
+    page
+      .getByRole("status", { name: "" })
+      .filter({ hasText: "Opening your notes…" }),
+  ).toBeVisible();
+  await expect(page.locator(".library-summary")).toContainText("Your notes");
+  await expect(page.getByText("0 notes", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Good things start small.")).toHaveCount(0);
+  release.resolve();
+  await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+  await expect(page.locator(".library-summary")).toHaveText("1 note");
+});
+
+test("interrupted refresh keeps notes, selection and geometry with a keyboard retry", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto(`${base}/app`);
+  await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+  const row = page.locator(".memory-list-item");
+  const selection = row.getByRole("checkbox");
+  await selection.check();
+  const before = await row.boundingBox();
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories/search", async (route) => {
+    await release.promise;
+    await route.fulfill({
+      status: 503,
+      json: { success: false, error: { message: "Temporarily unavailable" } },
+    });
+  });
+  await invalidateNotes(page);
+  await expect(page.locator(".library-refreshing")).toBeVisible();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".library-refreshing")).toHaveCSS(
+    "animation-name",
+    "none",
+  );
+  await expect(page.locator(".library-refreshing")).toBeVisible();
+  await expect(row).toBeVisible();
+  await expect(selection).toBeChecked();
+  release.resolve();
+  const retry = page.getByRole("button", { name: "Retry refreshing notes" });
+  await expect(retry).toBeVisible();
+  expect((await row.boundingBox())?.y).toBe(before?.y);
+  await expect(selection).toBeChecked();
+  await page.unroute("**/api/grove/memories/search");
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await expect(retry).toHaveCount(0);
+  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(selection).toBeChecked();
+  expect((await row.boundingBox())?.y).toBe(before?.y);
+});
+
+test("an interrupted next page retries its cursor without replacing loaded notes", async ({
+  page,
+}) => {
+  await fixture(page);
+  const cursors: unknown[] = [];
+  let fail = true;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    const { cursor } = route.request().postDataJSON();
+    cursors.push(cursor ?? null);
+    if (cursor && fail) {
+      await route.fulfill({
+        status: 503,
+        json: { success: false, error: { message: "Temporarily unavailable" } },
+      });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: [
+            cursor
+              ? {
+                  ...note,
+                  id: "00000000-0000-4000-a000-000000000012",
+                  content: "# Next thought",
+                }
+              : note,
+          ],
+          nextCursor: cursor ? null : "next-page",
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app`);
+  const first = page.locator(".memory-list-item").first();
+  const selection = first.getByRole("checkbox");
+  await selection.check();
+  const loadMore = page.getByRole("button", { name: "Load more", exact: true });
+  await loadMore.scrollIntoViewIfNeeded();
+  const before = await first.boundingBox();
+  await loadMore.click();
+  const retry = page.getByRole("button", { name: "Retry loading more notes" });
+  await expect(retry).toBeVisible();
+  await expect(selection).toBeChecked();
+  expect((await first.boundingBox())?.y).toBe(before?.y);
+  fail = false;
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".memory-open")).toHaveText([
+    "Cached thought",
+    "Next thought",
+  ]);
+  expect(cursors.filter((cursor) => cursor === null)).toHaveLength(1);
+  expect(cursors.at(-1)).toBe("next-page");
+  await expect(selection).toBeChecked();
+  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(retry).toHaveCount(0);
+});
+
 test("a successful replay returning a later agent edit requires explicit review and retains the original draft", async ({
   page,
 }) => {

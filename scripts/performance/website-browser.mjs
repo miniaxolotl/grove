@@ -110,10 +110,18 @@ await signIn.evaluate(async (ticket) => {
     strategy: "ticket",
     ticket,
   });
-  if (result.status !== "complete")
+  // The mounted SignIn UI can activate the ticket and reset this mutable resource.
+  // Verify the intended active account below rather than relying on that race.
+  if (result.status !== "complete" && result.status !== null)
     throw new Error(`Sign-in: ${result.status}`);
-  await window.Clerk.setActive({ session: result.createdSessionId });
+  if (result.createdSessionId)
+    await window.Clerk.setActive({ session: result.createdSessionId });
 }, token);
+await signIn.waitForFunction(
+  (userId) => !!window.Clerk?.session && window.Clerk.user?.id === userId,
+  process.env.PERF_USER_ID,
+  { timeout: 15000 },
+);
 await signIn.goto(`${origin}/app`);
 await expect(signIn.locator(".memory-open").first()).toBeVisible();
 const storageState = await login.storageState();
@@ -258,9 +266,12 @@ try {
       editor,
       "An editor chunk is required for failure/recovery verification",
     );
+    const width = Number(process.env.PERF_VERIFY_WIDTH || 1440);
     const context = await browser.newContext({
       storageState,
-      viewport: { width: 1440, height: 1000 },
+      viewport: { width, height: width < 768 ? 844 : 1000 },
+      isMobile: width < 768,
+      hasTouch: width < 768,
     });
     await fixture(context, []);
     const page = await context.newPage();
@@ -279,20 +290,45 @@ try {
       "The editor should not load before opening a note",
     );
     const chunk = `${origin}/_next/${editor.file}`;
-    await page.route(chunk, (route) => route.abort("failed"));
+    const release = Promise.withResolvers();
+    await page.route(chunk, async (route) => {
+      await release.promise;
+      await route.abort("failed");
+    });
     // Avoid hover/focus preloading so this checks an actual failed first open.
     await page
       .locator(".memory-open")
       .first()
       .evaluate((button) => button.click());
+    const panel = page.getByRole("dialog", { name: "Note", exact: true });
+    await expect(panel.getByRole("status")).toContainText("Opening your note…");
+    const pendingBounds = await panel.boundingBox();
+    const close = panel.getByRole("button", {
+      name: "Close dialog",
+      exact: true,
+    });
+    await expect(close).toBeFocused();
+    release.resolve();
     await expect(
       page.getByRole("button", { name: "Try opening again" }),
     ).toBeVisible();
+    assert.deepEqual(
+      await panel.boundingBox(),
+      pendingBounds,
+      "Failure must preserve drawer geometry",
+    );
     await page.unroute(chunk);
-    await page.getByRole("button", { name: "Try opening again" }).click();
+    await page.getByRole("button", { name: "Try opening again" }).focus();
+    await page.keyboard.press("Enter");
     await expect(page.getByLabel("Markdown preview")).toBeVisible({
       timeout: 15000,
     });
+    assert.deepEqual(
+      await panel.boundingBox(),
+      pendingBounds,
+      "Ready content must preserve drawer geometry",
+    );
+    await expect(close).toBeFocused();
     await page.getByRole("button", { name: "Edit note", exact: true }).click();
     await expect(page.locator(".cm-editor")).toBeVisible();
     await context.close();
@@ -301,8 +337,7 @@ try {
     assert.equal(denial.status(), 401);
     assert.equal(denial.headers()["cache-control"], "private, no-store");
     await anonymous.close();
-    report.lazyRetry =
-      "Sign-in and account controls render; editor absent before open; failed chunk retried in place; anonymous BFF denied with private no-store";
+    report.lazyRetry = `Sign-in and account controls render; editor absent before open; held/failed/retried drawer keeps geometry and focus at ${width}px; anonymous BFF denied with private no-store`;
   }
   await writeFile(
     `${process.env.PERF_OUTPUT || "/tmp/opencode/grove-performance"}.json`,
