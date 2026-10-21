@@ -726,7 +726,7 @@ export function MemoryEditor({
       </form>
       {createNotebook && (
         <NotebookDialog
-          action={{}}
+          action={{ mode: "create" }}
           close={() => setCreateNotebook(false)}
           onSaved={(project) => setProjectId(project.id)}
         />

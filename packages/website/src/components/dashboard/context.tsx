@@ -3,8 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Plus,
-  Pencil,
-  FolderInput,
   CalendarDays,
   MessageSquare,
   AlignLeft,
@@ -28,6 +26,7 @@ import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { AskGrove } from "./ask-grove";
 import { ActionMenu } from "./ui/action-menu";
+import { NotebookActions } from "./notebook-actions";
 
 export function MemoryContext({
   projectId = null,
@@ -83,7 +82,14 @@ export function MemoryContext({
                     Today’s note
                   </Link>
                   <ActionMenu label="Notebook options">
-                    <button onClick={() => setView("ask")}>
+                    <NotebookActions
+                      project={project}
+                      onAction={setNotebookAction}
+                    />
+                    <button
+                      className="action-group-start"
+                      onClick={() => setView("ask")}
+                    >
                       <MessageSquare size={15} />
                       Ask about these notes
                     </button>
@@ -95,29 +101,6 @@ export function MemoryContext({
                       <ListTodo size={15} />
                       Progress notes
                     </button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setNotebookAction({ project })}
-                    >
-                      <Pencil size={15} />
-                      Rename
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setNotebookAction({ project, move: true })}
-                    >
-                      <FolderInput size={15} />
-                      Move
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        setNotebookAction({ parentId: project.id })
-                      }
-                    >
-                      <Plus size={15} />
-                      Sub-notebook
-                    </Button>
                   </ActionMenu>
                 </>
               )}

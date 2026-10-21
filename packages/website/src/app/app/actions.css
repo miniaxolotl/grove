@@ -1,0 +1,6 @@
+.action-menu > .action-group-start {
+  border-top: 1px solid var(--color-line);
+  border-radius: 0;
+  margin-top: 4px;
+  padding-top: 10px;
+}

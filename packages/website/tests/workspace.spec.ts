@@ -2106,7 +2106,7 @@ test("named workspaces browse scoped memories and handoffs without manual agent 
   await page.getByLabel("Notebook name").fill("Research notes");
   await expect(page.getByLabel("Repository identity")).not.toBeVisible();
   await page
-    .getByRole("button", { name: "Save notebook", exact: true })
+    .getByRole("button", { name: "Create notebook", exact: true })
     .click();
   await expect(
     page
@@ -2162,6 +2162,58 @@ test("named workspaces browse scoped memories and handoffs without manual agent 
   }
 });
 
+test("notebook rename preserves location and requires review of a concurrent change", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app/projects`);
+  await page
+    .getByRole("button", { name: `Rename ${project.name}`, exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Rename notebook",
+    exact: true,
+  });
+  const submit = dialog.getByRole("button", {
+    name: "Rename notebook",
+    exact: true,
+  });
+  await expect(dialog.getByRole("combobox")).toHaveCount(0);
+  await expect(dialog.getByLabel("Notebook name")).toBeFocused();
+  await expect(submit).toBeDisabled();
+  await dialog.getByLabel("Notebook name").fill(" My renamed notebook ");
+  state.projects[0].name = "Changed elsewhere";
+  state.projects[0].version++;
+  await submit.click();
+  await expect(dialog).toContainText("Changed elsewhere");
+  await expect(submit).toBeDisabled();
+  await expect(dialog.getByLabel("Notebook name")).toHaveValue(
+    " My renamed notebook ",
+  );
+  await dialog.getByRole("button", { name: "Use this version" }).click();
+  await submit.click();
+  await expect(dialog).toHaveCount(0);
+  expect(state.projects[0]).toMatchObject({
+    name: "My renamed notebook",
+    parentId: null,
+    identity: project.identity,
+    version: 3,
+  });
+  await page
+    .getByRole("button", { name: "Move My renamed notebook", exact: true })
+    .click();
+  const move = page.getByRole("dialog", { name: "Move notebook", exact: true });
+  await expect(move.getByLabel("Notebook name")).toHaveCount(0);
+  await expect(move.getByRole("combobox")).toBeFocused();
+  await expect(
+    move.getByRole("button", { name: "Move notebook", exact: true }),
+  ).toBeDisabled();
+  await move.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(
+    state.calls.filter((call) => call.path === `/projects/${project.id}`),
+  ).toHaveLength(2);
+});
+
 test("nested notebooks share paths, create and move controls, and preserve note scope", async ({
   page,
 }, info) => {
@@ -2176,7 +2228,9 @@ test("nested notebooks share paths, create and move controls, and preserve note 
     dialog.getByRole("combobox", { name: "Parent notebook" }),
   ).toHaveText(project.name);
   await dialog.getByLabel("Notebook name").fill("Research");
-  await dialog.getByRole("button", { name: "Save notebook" }).click();
+  await dialog
+    .getByRole("button", { name: "Create notebook", exact: true })
+    .click();
   await expect(dialog).toHaveCount(0);
   const child = state.projects.find((p) => p.name === "Research")!;
   expect(child.parentId).toBe(project.id);
@@ -2187,7 +2241,9 @@ test("nested notebooks share paths, create and move controls, and preserve note 
   await expect(
     dialog.getByRole("combobox", { name: "Parent notebook" }),
   ).toHaveText(`${project.name} / Research`);
-  await dialog.getByRole("button", { name: "Save notebook" }).click();
+  await dialog
+    .getByRole("button", { name: "Create notebook", exact: true })
+    .click();
   await expect(dialog).toHaveCount(0);
   await manager
     .getByRole("button", { name: `Collapse ${project.name}` })
@@ -2225,7 +2281,9 @@ test("nested notebooks share paths, create and move controls, and preserve note 
     dialog.getByRole("combobox", { name: "Parent notebook" }),
     "",
   );
-  await dialog.getByRole("button", { name: "Save notebook" }).click();
+  await dialog
+    .getByRole("button", { name: "Move notebook", exact: true })
+    .click();
   await expect(dialog).toHaveCount(0);
   expect(child.parentId).toBeNull();
   expect(state.projects.find((p) => p.name === "Interviews")?.parentId).toBe(
