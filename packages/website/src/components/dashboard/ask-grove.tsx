@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  ArrowDown,
   BookOpen,
   History,
   MessageSquare,
@@ -117,7 +118,9 @@ export function AskGrove({
   > | null>(null);
   const request = useRef<AbortController | null>(null);
   const running = useRef(false);
-  const bottom = useRef<HTMLDivElement>(null);
+  const conversationElement = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+  const [showLatest, setShowLatest] = useState(false);
   const creation = useRef<string | undefined>(session?.conversationId);
   const filter = {
     projectId:
@@ -175,10 +178,30 @@ export function AskGrove({
       });
     return () => controller.abort();
   }, [session]);
+  const followReply = useEffectEvent(() => {
+    const element = conversationElement.current;
+    if (!element || !conversation?.turns.length) return;
+    const selection = window.getSelection();
+    if (
+      selection &&
+      !selection.isCollapsed &&
+      element.contains(selection.anchorNode)
+    )
+      following.current = false;
+    if (following.current)
+      element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
+    else setShowLatest(true);
+  });
   useEffect(() => {
-    if (conversation?.turns.length)
-      bottom.current?.scrollIntoView({ behavior: "instant", block: "nearest" });
-  }, [conversation, pending]);
+    followReply();
+  }, [conversation, pending, mode]);
+  useEffect(() => {
+    const element = conversationElement.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => followReply());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [mode]);
   useEffect(() => {
     if (mode !== "search" || !search) return;
     const controller = new AbortController();
@@ -204,6 +227,8 @@ export function AskGrove({
     return () => controller.abort();
   }, [mode, search, scope, includePersonal, searchKey]);
   function reset(clearDraft = true) {
+    following.current = true;
+    setShowLatest(false);
     request.current?.abort();
     request.current = null;
     running.current = false;
@@ -240,6 +265,8 @@ export function AskGrove({
   }
   async function openChat(id: string) {
     if (actionBusy) return;
+    following.current = true;
+    setShowLatest(false);
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -305,6 +332,8 @@ export function AskGrove({
   async function ask(format: "plain" | "markdown", retry?: ConversationTurn) {
     const question = retry?.question ?? draft.trim();
     if (!question || running.current || loading || actionBusy) return;
+    following.current = true;
+    setShowLatest(false);
     running.current = true;
     setPending(true);
     setError("");
@@ -518,6 +547,18 @@ export function AskGrove({
           <>
             <div
               className="ask-conversation"
+              ref={conversationElement}
+              tabIndex={0}
+              onScroll={(event) => {
+                const element = event.currentTarget;
+                const near =
+                  element.scrollHeight -
+                    element.clientHeight -
+                    element.scrollTop <=
+                  64;
+                following.current = near;
+                setShowLatest(!near);
+              }}
               role="log"
               aria-label="Conversation"
               aria-live="polite"
@@ -603,8 +644,26 @@ export function AskGrove({
                   </section>
                 ))
               )}
-              <div ref={bottom} />
             </div>
+            {showLatest && (
+              <div className="ask-reading-controls">
+                <button
+                  type="button"
+                  className="ask-latest"
+                  onClick={() => {
+                    following.current = true;
+                    setShowLatest(false);
+                    conversationElement.current?.focus({ preventScroll: true });
+                    conversationElement.current?.scrollTo({
+                      top: conversationElement.current.scrollHeight,
+                      behavior: "instant",
+                    });
+                  }}
+                >
+                  <ArrowDown size={16} /> Latest reply
+                </button>
+              </div>
+            )}
             {error && (
               <p className="app-error ask-action-error" role="alert">
                 {error}

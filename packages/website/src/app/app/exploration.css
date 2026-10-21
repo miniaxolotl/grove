@@ -46,7 +46,7 @@
   background: var(--graph-surface);
   color: var(--graph-text);
 }
-.memory-graph:fullscreen {
+.memory-graph:is(:fullscreen, [data-expanded]) {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -54,15 +54,26 @@
   border: 0;
   border-radius: 0;
 }
-.memory-graph:fullscreen .graph-layout {
+.memory-graph[data-expanded]:not(:fullscreen) {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.memory-graph:not([data-expanded]) .react-flow__pane {
+  touch-action: pan-y pinch-zoom;
+}
+.memory-graph:is(:fullscreen, [data-expanded]) .graph-layout {
   flex: 1;
   min-height: 0;
 }
-.memory-graph:fullscreen .graph-canvas {
+.memory-graph:is(:fullscreen, [data-expanded]) .graph-canvas {
   height: 100%;
   min-height: 0;
 }
-.memory-graph:fullscreen .graph-inspector {
+.memory-graph:is(:fullscreen, [data-expanded]) .graph-inspector {
   max-height: 100%;
 }
 .memory-graph :is(button, select, a):focus-visible {
@@ -142,9 +153,8 @@
   color: var(--graph-muted);
 }
 .graph-tool-button[aria-pressed="true"] {
-  border-color: #cad6c3;
-  background: var(--color-sage);
-  color: #355522;
+  border-color: var(--graph-line);
+  color: var(--graph-text);
 }
 .graph-tool-button:hover:not(:disabled) {
   background: var(--color-sage);
@@ -407,14 +417,8 @@
   color: inherit;
 }
 .graph-hint {
-  position: absolute;
-  top: 20px;
-  left: 16px;
-  right: 16px;
-  text-align: center;
-  pointer-events: none;
   color: var(--graph-muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 .graph-inspector {
   min-width: 0;
@@ -537,15 +541,24 @@
   margin-left: auto;
 }
 .graph-footer {
-  padding: 8px 14px;
+  padding: 4px 12px;
   border-top: 1px solid var(--graph-line);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 12px;
   color: var(--graph-muted);
   font-size: 10px;
   line-height: 1.7;
+}
+.graph-help {
+  grid-column: 1 / -1;
+  padding: 8px 0;
+  border-top: 1px solid var(--graph-line);
+  font-size: 11px;
+}
+.graph-help p + p {
+  margin-top: 4px;
 }
 .graph-legend {
   display: flex;
@@ -978,7 +991,7 @@
     border-top: 1px solid var(--graph-line);
     max-height: 320px;
   }
-  .memory-graph:fullscreen .graph-layout.has-selection {
+  .memory-graph:is(:fullscreen, [data-expanded]) .graph-layout.has-selection {
     grid-template-rows: minmax(0, 1fr) minmax(0, 240px);
   }
 }
@@ -1016,14 +1029,30 @@
   .graph-toolbar {
     padding: 10px 12px;
   }
+  .graph-toolbar:has(.app-select-field) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
   .graph-toolbar label {
     flex: 1;
   }
   .graph-toolbar select {
     width: 100%;
   }
-  .graph-tools {
-    width: 100%;
+  .graph-tools:has(.app-select-field) {
+    display: contents;
+  }
+  .graph-tools:has(.app-select-field) > .graph-expand {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .graph-tools > .app-select-field {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .graph-tools:has(.app-select-field) > [aria-pressed] {
+    grid-column: 2;
+    grid-row: 2;
   }
   .graph-notebooks p {
     display: none;
@@ -1067,6 +1096,8 @@
   .graph-help-touch {
     display: block;
   }
+}
+@media (any-pointer: coarse) {
   .graph-tool-button,
   .graph-toolbar select,
   .memory-graph .react-flow__controls-button,

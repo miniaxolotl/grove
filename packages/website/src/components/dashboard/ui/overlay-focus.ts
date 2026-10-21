@@ -1,5 +1,18 @@
 // Track inert separately from an overlay library's aria-hidden bookkeeping.
 const locks = new WeakMap<HTMLElement, { count: number; original: boolean }>();
+let scrollLocks = 0;
+let previousOverflow = "";
+
+/** Nested dialogs and expanded canvases release only their own scroll lock. */
+export function lockPageScroll() {
+  if (scrollLocks++ === 0)
+    previousOverflow = document.documentElement.style.overflow;
+  document.documentElement.style.overflow = "hidden";
+  return () => {
+    if (--scrollLocks === 0)
+      document.documentElement.style.overflow = previousOverflow;
+  };
+}
 
 /** Disable background focus while a portalled modal control is mounted. */
 export function isolateOverlay(element: HTMLElement) {
