@@ -10,15 +10,10 @@ export function FAQ() {
     >
       <div className="page-container section-space grid gap-10 md:grid-cols-[0.8fr_1.2fr] md:gap-20">
         <div>
-          <p className="eyebrow">A FEW GOOD QUESTIONS</p>
+          <p className="eyebrow">QUESTIONS</p>
           <h2 id="faq-heading" className="section-heading mt-4">
-            Curious?
-            <br />
-            <em>Dig a little deeper.</em>
+            Common questions.
           </h2>
-          <p className="mt-5 max-w-xs text-sm leading-7 text-muted">
-            A few things you might want to know before making yourself at home.
-          </p>
           <a
             href="mailto:grove@mawa.dev"
             className="mt-5 inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"

@@ -98,10 +98,7 @@ export function Installation() {
         <div className="installation-copy">
           <span className="step-number">01</span>
           <h3>Choose your agent.</h3>
-          <p>
-            One command connects you to Grove Cloud. Bring the agent you already
-            work with.
-          </p>
+          <p>Connect OpenCode, Claude Code or Codex with one command.</p>
           <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] text-leaf">
             <Check size={13} /> Browser sign-in and project setup
           </span>
@@ -111,14 +108,14 @@ export function Installation() {
       <li className="installation-step">
         <div className="installation-copy">
           <span className="step-number">02</span>
-          <h3>Make yourself at home.</h3>
+          <h3>Sign in and approve access.</h3>
           <p>
             Create an account or sign in with your preferred provider. Approve
             access and return to your terminal.
           </p>
         </div>
         <div className="rounded-xl border border-line bg-sage/40 p-6 text-sm leading-7">
-          <h4 className="font-medium">Your choices, remembered.</h4>
+          <h4 className="font-medium">Choose what your agent can access.</h4>
           <p className="mt-3 text-muted">
             Start with reading and saving personal memories and context for this
             project. Customize access before connecting, or change it later in
@@ -136,10 +133,10 @@ export function Installation() {
           <span className="step-number">
             <Sprout size={18} />
           </span>
-          <h3>Plant your first memory.</h3>
+          <h3>Save your first note.</h3>
           <p>
-            Ask your agent to save something worth keeping. Open a new session,
-            recall it, and pick up the thread.
+            Ask your agent to save a note. Open a new session and ask it to
+            recall that note.
           </p>
         </div>
         <div className="min-w-0 space-y-3">

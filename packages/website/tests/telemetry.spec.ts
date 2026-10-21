@@ -303,7 +303,7 @@ test.describe("remote controls and private workspace", () => {
   }) => {
     await page.goto("/?token=REPLAY_SECRET#REPLAY_SECRET");
     await expect(
-      page.getByRole("link", { name: "Give your ideas a home", exact: true }),
+      page.getByRole("link", { name: "Save your first note", exact: true }),
     ).toBeVisible();
     await expect
       .poll(() =>
