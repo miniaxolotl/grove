@@ -28,6 +28,7 @@ import { LoadError } from "./load-error";
 import { LoadingState } from "./loading-state";
 import { MemoryRow } from "./memory-row";
 import { deferredFeature } from "./deferred-feature";
+import { WorkspaceNotice } from "./toasts";
 import {
   LibraryFilterBar,
   initialFilters,
@@ -123,6 +124,7 @@ export function MemoryLibrary({
   const detailError = detail.error ? errorMessage(detail.error) : "";
   const [deleting, setDeleting] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
+  const [actionRow, setActionRow] = useState<string | null>(null);
   const [moving, setMoving] = useState<Memory[] | null>(null);
   const [destination, setDestination] = useState("personal");
   const [busy, setBusy] = useState(false);
@@ -137,19 +139,18 @@ export function MemoryLibrary({
         : project === "personal"
           ? null
           : project;
-  const query = useInfiniteQuery(
-    cache.notes({
-      query: search,
-      projectId: scopedProject,
-      kind: (kind || undefined) as MemoryList["kind"],
-      tag: tag || undefined,
-      status: status as MemoryList["status"],
-      sourceAgent: (sourceAgent || undefined) as MemoryList["sourceAgent"],
-      updatedAfter: updatedAfter || undefined,
-      sort,
-      lifetime: (lifetime || undefined) as MemoryList["lifetime"],
-    }),
-  );
+  const noteOptions = cache.notes({
+    query: search,
+    projectId: scopedProject,
+    kind: (kind || undefined) as MemoryList["kind"],
+    tag: tag || undefined,
+    status: status as MemoryList["status"],
+    sourceAgent: (sourceAgent || undefined) as MemoryList["sourceAgent"],
+    updatedAfter: updatedAfter || undefined,
+    sort,
+    lifetime: (lifetime || undefined) as MemoryList["lifetime"],
+  });
+  const query = useInfiniteQuery(noteOptions);
   useSetCurrentNotebook(scopedProject);
   const items = [
     ...new Map(
@@ -558,6 +559,7 @@ export function MemoryLibrary({
             items.length > 0 &&
             (view === "graph" ? (
               <MemoryGraph
+                key={JSON.stringify(noteOptions.queryKey)}
                 items={items}
                 projects={projects}
                 onOpen={setSelected}
@@ -599,6 +601,10 @@ export function MemoryLibrary({
                           void loadDetail().catch(() => {});
                         }}
                         memory={memory}
+                        actions={actionRow === memory.id}
+                        setActions={(open) =>
+                          setActionRow(open ? memory.id : null)
+                        }
                         projectName={
                           projects.find((p) => p.id === memory.projectId)
                             ?.name ?? "Unfiled"
@@ -658,7 +664,7 @@ export function MemoryLibrary({
         </div>
       </div>
       {(notice || busy) && (
-        <div className="workspace-notice" role="status">
+        <WorkspaceNotice>
           <span>{busy ? "Updating notes…" : notice}</span>
           {undo.length > 0 && (
             <button disabled={busy} onClick={undoLast}>
@@ -676,7 +682,7 @@ export function MemoryLibrary({
           >
             <X size={16} />
           </button>
-        </div>
+        </WorkspaceNotice>
       )}
       {selected && (
         <Dialog

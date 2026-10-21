@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import {
   Archive,
@@ -12,6 +12,7 @@ import type { Memory } from "@lib/shared/contracts";
 import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
 import { Button, IconButton } from "./ui/button";
 import { useWorkspaceDrag, type WorkspaceDragItem } from "./memory-drag";
+import { useRowSwipe } from "./use-row-swipe";
 
 export function MemoryRow({
   memory,
@@ -26,6 +27,8 @@ export function MemoryRow({
   onArchive,
   onTag,
   selectedItems,
+  actions,
+  setActions,
 }: {
   memory: Memory;
   projectName: string;
@@ -39,6 +42,8 @@ export function MemoryRow({
   onArchive: () => void;
   onTag: (tag: string) => void;
   selectedItems: Memory[];
+  actions: boolean;
+  setActions: (open: boolean) => void;
 }) {
   const workspace = useWorkspaceDrag();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } =
@@ -52,94 +57,64 @@ export function MemoryRow({
       },
       disabled: busy || workspace.busy,
     });
-  const [actions, setActions] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const pointer = useRef<{
-    id: number;
-    x: number;
-    y: number;
-    horizontal: boolean;
-  } | null>(null);
-  const suppressClick = useRef(false);
+  const root = useRef<HTMLLIElement>(null);
+  const actionButton = useRef<HTMLButtonElement>(null);
+  const row = useRef<HTMLDivElement>(null);
+  const swipe = useRowSwipe(
+    row,
+    busy || workspace.busy || !!workspace.active,
+    () => setActions(true),
+  );
   const title = memoryTitle(memory);
-  function cancelGesture() {
-    pointer.current = null;
-    setOffset(0);
-  }
+  useEffect(() => {
+    if (!actions) return;
+    if (workspace.active) {
+      setActions(false);
+      return;
+    }
+    const outside = (event: MouseEvent) => {
+      if ((event.target as Element).closest(".row-controls")) return;
+      if (!root.current?.contains(event.target as Node)) setActions(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        document.querySelector("dialog[open], [popover]:popover-open")
+      )
+        return;
+      event.preventDefault();
+      setActions(false);
+      actionButton.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener("click", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("click", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [actions, setActions, workspace.active]);
   return (
     <li
-      ref={setNodeRef}
+      ref={(element) => {
+        root.current = element;
+        setNodeRef(element);
+      }}
       className="memory-list-item"
       data-selected={selected || undefined}
       data-dragging={isDragging || undefined}
     >
-      <div
-        className="memory-row"
-        style={{ transform: offset ? `translateX(${offset}px)` : undefined }}
-        onPointerDown={(event) => {
-          suppressClick.current = false;
-          if (
-            event.pointerType !== "touch" ||
-            (event.target as HTMLElement).closest(
-              "input, a, .drag-handle, .memory-actions, .memory-tags, .row-controls",
-            )
-          )
-            return;
-          pointer.current = {
-            id: event.pointerId,
-            x: event.clientX,
-            y: event.clientY,
-            horizontal: false,
-          };
-        }}
-        onPointerMove={(event) => {
-          const start = pointer.current;
-          if (!start || start.id !== event.pointerId) return;
-          const dx = event.clientX - start.x,
-            dy = event.clientY - start.y;
-          if (
-            !start.horizontal &&
-            Math.abs(dy) > 12 &&
-            Math.abs(dy) > Math.abs(dx)
-          ) {
-            cancelGesture();
-            return;
-          }
-          if (Math.abs(dx) > 16 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-            start.horizontal = true;
-            suppressClick.current = true;
-            event.currentTarget.setPointerCapture(event.pointerId);
-            setOffset(Math.max(-80, Math.min(80, dx * 0.5)));
-          }
-        }}
-        onPointerUp={(event) => {
-          const start = pointer.current;
-          if (start?.horizontal && Math.abs(event.clientX - start.x) > 64)
-            setActions(true);
-          cancelGesture();
-        }}
-        onPointerCancel={() => {
-          suppressClick.current = true;
-          cancelGesture();
-        }}
-        onClickCapture={(event) => {
-          if (suppressClick.current) {
-            suppressClick.current = false;
-            if (event.detail > 0) {
-              event.preventDefault();
-              event.stopPropagation();
-            }
-          }
-        }}
-      >
+      <div className="memory-row" ref={row} {...swipe}>
         <div className="row-selection">
-          <input
-            type="checkbox"
-            aria-label={`Select ${title}`}
-            checked={selected}
-            disabled={busy}
-            onChange={onSelect}
-          />
+          <label className="row-checkbox">
+            <input
+              type="checkbox"
+              aria-label={`Select ${title}`}
+              checked={selected}
+              disabled={busy}
+              onChange={onSelect}
+            />
+          </label>
           <button
             type="button"
             ref={setActivatorNodeRef}
@@ -261,6 +236,7 @@ export function MemoryRow({
         </div>
         <div className="row-controls">
           <IconButton
+            ref={actionButton}
             onClick={() => setActions(!actions)}
             aria-expanded={actions}
             label={`Actions for ${title}`}
@@ -270,12 +246,32 @@ export function MemoryRow({
         </div>
       </div>
       {actions && (
-        <div className="memory-actions" aria-label={`Actions for ${title}`}>
-          <Button variant="secondary" disabled={busy} onClick={onMove}>
+        <div
+          className="memory-actions"
+          role="group"
+          aria-label={`Actions for ${title}`}
+        >
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              actionButton.current?.focus({ preventScroll: true });
+              setActions(false);
+              onMove();
+            }}
+          >
             <FolderInput size={15} />
             Move
           </Button>
-          <Button variant="secondary" disabled={busy} onClick={onArchive}>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              actionButton.current?.focus({ preventScroll: true });
+              setActions(false);
+              onArchive();
+            }}
+          >
             {isInactive(memory) ? (
               <ArchiveRestore size={15} />
             ) : (
@@ -283,7 +279,13 @@ export function MemoryRow({
             )}
             {isInactive(memory) ? "Restore" : "Archive"}
           </Button>
-          <Button variant="secondary" onClick={() => setActions(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setActions(false);
+              actionButton.current?.focus({ preventScroll: true });
+            }}
+          >
             Close actions
           </Button>
         </div>

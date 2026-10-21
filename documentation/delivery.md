@@ -34,11 +34,13 @@ Root lint/types/build, five artifact checks, website lint/types/production build
 twelve release-script contracts and actionlint/ShellCheck pass. WebKit uses the
 Playwright 1.64.1 Noble browser container. Node is 24.21.0; pnpm is 10.33.0.
 
-The visual refinement keeps the drawer's width and header consistent through
+The visual refinement keeps the drawer's width consistent through
 loading, failure and successful retry. Static placeholders, an honest loading label
 and a reserved refresh/retry slot keep Notes calm while data arrives. Background
 failures preserve rows and selection; pagination retries its original cursor.
 Keyboard recovery retains focus and reduced-motion feedback stays static.
+With the merged gesture refinement, the ready compact toolbar takes keyboard focus
+from the temporary loading header.
 The follow-up passes **100 Chromium** scenarios, **eight selected iPhone/WebKit**
 cases and production drawer/auth/retry checks at **1440, 390 and 320px**. Required
 root/website checks and five artifacts pass. Notes entry is now **454,807 gzip
@@ -48,6 +50,48 @@ the performance verification linked above.
 
 See [cache ownership and integration](development/client-cache.md) when adding
 workspace actions or resource families. No schema migration is required.
+
+## Gesture and interaction polish (21 October 2026 UTC)
+
+Native action menus measure, flip and clamp to the visual viewport; touch targets
+reserve independent 44px areas. Backdrop dismissal requires an intentional primary
+press/release. Note swipes reveal one action strip, preserve page scrolling and
+cancel on capture loss or a second contact. Mouse, touch, pen and keyboard handles
+share validated destinations, a scrollable touch tray and visible cancellation.
+
+Graph selection, reading and same-scope note revisions retain zoom. Ordinary wheel
+input and embedded touch gestures scroll the page; modifier-wheel and expanded
+pinch zoom are deliberate. Expanded exploration has an in-app fallback, focus
+return and nested reader support. The phone note header consolidates secondary
+controls: the 390×844 reader begins at y=134 instead of y=280. Chat replies preserve
+older-message reading/selection, with an explicit Latest reply action. Move/bulk
+Undo and copy feedback share the active dialog's notification stack.
+
+The screenshot-review follow-up simplifies presentation: one mobile move panel
+contains destinations and cancellation, the smaller drag preview only identifies
+the item, saved controls are neutral, and compact success feedback sits at the
+lower right. Graph instructions are available through **Controls**, with explicit
+Expand/Done labels and only relevant legends. Empty-state guidance stays below
+the canvas. Independent touch targets and durable Undo remain available.
+The follow-up passes all 87 Chromium and eight iPhone/WebKit scenarios, with the
+three graph scenarios rechecked after the final 320px toolbar/accessible-label
+adjustments. All required static, build and artifact gates pass; six refreshed
+captures record the visual review.
+
+Node 24.21.0 / pnpm 10.33.0 verification passes root lint, types, build and all five
+packed-artifact checks; website lint, types and telemetry-enabled production build;
+87 Chromium browser/accessibility/privacy scenarios; eight focused iPhone/WebKit
+scenarios; and 25 memory/conversation database/API tests with non-owner roles in a
+new disposable PostgreSQL database. Tests cover trusted mouse/touch/pen input,
+second-contact interruption, autoscroll/hover expansion, 2× pinch-zoom menu bounds,
+graph pan/pinch and nested focus, mobile text formatting/Undo, held replies and
+version-fenced mutation Undo. The focused WebKit config is reproducible from
+[testing guidance](development/testing.md).
+
+[Reviewed captures](design/screenshots/gesture-polish/README.md) use synthetic notes
+and production CSS. Physical iOS/Android keyboards, OS selection handles,
+back-edge navigation and hybrid-device/trackpad/pen feel remain unverified. No
+schema migration is required; this records feature verification, not a release.
 
 ## Google Search Console (21 October 2026 UTC)
 

@@ -71,8 +71,9 @@ The two JetBrains Mono weights load on CSS demand, saving 79,396 preloaded font
 bytes on Notes. Space Grotesk retains its preloads and adjusted fallback metrics.
 
 Deferred views share a quiet `LoadingState`. Drawer loading, recovery and ready
-content use the same width/header treatment. Retry returns focus to the dialog's
-close control before replacing its button. Placeholders are static and decorative;
+content use the same width. Retry returns focus to the dialog's close control before
+replacing its button; the ready compact toolbar receives that focus as the temporary
+header retires. Placeholders are static and decorative;
 their short status labels remain available to assistive technology.
 
 The library presents a count only after receiving a snapshot. A sustained background

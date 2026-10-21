@@ -2,6 +2,7 @@
 import {
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -24,6 +25,7 @@ import {
 import { MarkdownEditor } from "./markdown-editor";
 import { useDialogBusy } from "./dialog";
 import { Button } from "./ui/button";
+import { ActionMenu } from "./ui/action-menu";
 import { RevisionCompare } from "./revision-compare";
 import { useNoteDrafts, type NoteValues } from "./note-drafts";
 import { Select } from "./ui/select";
@@ -66,7 +68,11 @@ export function MemoryEditor({
   draftKey?: string;
   initialPreview?: boolean;
   workspace?: boolean;
-  toolbar?: (state: { locked: boolean; content: string }) => ReactNode;
+  toolbar?: (state: {
+    locked: boolean;
+    content: string;
+    secondary: ReactNode;
+  }) => ReactNode;
   details?: ReactNode;
   children?: ReactNode;
   onLockChange?: (locked: boolean) => void;
@@ -75,6 +81,19 @@ export function MemoryEditor({
 }) {
   const drafts = useNoteDrafts();
   const root = useRef<HTMLFormElement>(null);
+  useLayoutEffect(() => {
+    // Carry deferred-shell focus into the compact toolbar when it becomes ready.
+    const heading = root.current
+      ?.closest("dialog")
+      ?.querySelector(".dialog-heading");
+    if (
+      heading?.contains(document.activeElement) &&
+      !heading.getClientRects().length
+    )
+      root.current
+        ?.querySelector<HTMLButtonElement>(".note-back")
+        ?.focus({ preventScroll: true });
+  }, []);
   const [preview, setPreview] = useState(initialPreview);
   const api = useWorkspaceApi();
   const [draft] = useState(() =>
@@ -441,11 +460,40 @@ export function MemoryEditor({
       type="submit"
       disabled={saveDisabled}
       className="note-save-button"
+      aria-label={busy ? "Saving note" : "Save note"}
       title={busy ? "Saving…" : "Save note (⌘ / Ctrl S)"}
     >
       <Save size={16} aria-hidden="true" />
       <span>{busy ? "Saving…" : "Save note"}</span>
     </Button>
+  );
+  const secondary = (
+    <>
+      <button
+        type="button"
+        className="note-mobile-menu-item"
+        onClick={() => setProperties(!properties)}
+      >
+        <PanelRight size={16} />{" "}
+        {properties ? "Hide note properties" : "Note properties"}
+      </button>
+      <button
+        type="button"
+        className="note-mobile-menu-item"
+        onClick={() => setFocused(!focused)}
+      >
+        <Focus size={16} /> {focused ? "Exit focus mode" : "Focus mode"}
+      </button>
+      {workspace && !fullPage && !expanded && (
+        <button
+          type="button"
+          className="note-mobile-menu-item"
+          onClick={() => setExpanded(true)}
+        >
+          <Maximize2 size={16} /> Expand editor
+        </button>
+      )}
+    </>
   );
   return (
     <>
@@ -477,9 +525,13 @@ export function MemoryEditor({
             <>
               <button
                 type="button"
-                className="app-icon"
+                className="app-icon note-back"
                 aria-label={
-                  expanded ? "Return to compact editor" : "Back to notes"
+                  expanded
+                    ? "Return to compact editor"
+                    : workspace && !fullPage
+                      ? "Close dialog"
+                      : "Back to notes"
                 }
                 title={expanded ? "Return to compact editor" : "Back to notes"}
                 disabled={busy && !autoSave}
@@ -520,10 +572,20 @@ export function MemoryEditor({
                   "Start a note"
                 )}
               </span>
-              {toolbar?.({ locked: busy || dirty || !!latest, content })}
+              {toolbar ? (
+                toolbar({
+                  locked: busy || dirty || !!latest,
+                  content,
+                  secondary,
+                })
+              ) : (
+                <span className="note-mobile-actions">
+                  <ActionMenu label="Note actions">{secondary}</ActionMenu>
+                </span>
+              )}
               <button
                 type="button"
-                className="app-icon"
+                className="app-icon note-secondary-control"
                 aria-label="Note properties"
                 title="Note properties"
                 aria-expanded={properties}
@@ -533,7 +595,7 @@ export function MemoryEditor({
               </button>
               <button
                 type="button"
-                className="app-icon editor-focus-toggle"
+                className="app-icon editor-focus-toggle note-secondary-control"
                 aria-label={focused ? "Exit focus mode" : "Focus mode"}
                 title={focused ? "Exit focus mode" : "Focus mode"}
                 aria-pressed={focused}
@@ -546,7 +608,7 @@ export function MemoryEditor({
               {workspace && !fullPage && !expanded && (
                 <button
                   type="button"
-                  className="app-icon"
+                  className="app-icon note-secondary-control"
                   aria-label="Expand editor"
                   title="Expand editor"
                   onClick={() => setExpanded(true)}

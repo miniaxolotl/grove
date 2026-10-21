@@ -200,13 +200,13 @@ export function MemoryDetail({
         cancel={close}
         done={onSaved}
         onLockChange={setEditorLocked}
-        toolbar={({ locked: writing, content }) => (
+        toolbar={({ locked: writing, content, secondary }) => (
           <>
             {!fullPage && (
               <>
                 <button
                   type="button"
-                  className="app-icon"
+                  className="app-icon note-secondary-control"
                   disabled={!onPrevious}
                   onClick={onPrevious}
                   aria-label="Previous note"
@@ -216,7 +216,7 @@ export function MemoryDetail({
                 </button>
                 <button
                   type="button"
-                  className="app-icon"
+                  className="app-icon note-secondary-control"
                   disabled={!onNext}
                   onClick={onNext}
                   aria-label="Next note"
@@ -228,7 +228,7 @@ export function MemoryDetail({
             )}
             <button
               type="button"
-              className="app-icon"
+              className="app-icon note-secondary-control"
               aria-label="History"
               title="History"
               onClick={() => setHistoryOpen(true)}
@@ -280,6 +280,34 @@ export function MemoryDetail({
               >
                 <Trash2 size={15} /> Delete note…
               </button>
+              <button
+                type="button"
+                className="note-mobile-menu-item"
+                onClick={() => setHistoryOpen(true)}
+              >
+                <History size={16} /> History
+              </button>
+              {secondary}
+              {!fullPage && (
+                <>
+                  <button
+                    type="button"
+                    className="note-mobile-menu-item"
+                    disabled={!onPrevious}
+                    onClick={onPrevious}
+                  >
+                    <ArrowLeft size={16} /> Previous note
+                  </button>
+                  <button
+                    type="button"
+                    className="note-mobile-menu-item"
+                    disabled={!onNext}
+                    onClick={onNext}
+                  >
+                    <ArrowRight size={16} /> Next note
+                  </button>
+                </>
+              )}
             </ActionMenu>
           </>
         )}
