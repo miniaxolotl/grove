@@ -770,10 +770,18 @@ test("sharing controls keep stable links, retry uncertain writes and show inheri
     dialog.getByRole("combobox", { name: "General access" }),
     "anyone",
   );
-  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  await dialog.getByRole("button", { name: "Create link" }).click();
+  await expect(dialog.getByRole("button", { name: "Copy link" })).toBeFocused();
   const first = await dialog.getByLabel("Current link").inputValue();
+  const copyBounds = await dialog.locator(".share-primary").boundingBox();
   await dialog.getByRole("button", { name: "Copy link" }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(first);
+  await expect(
+    dialog.getByRole("status").filter({ hasText: "Share link copied." }),
+  ).toBeAttached();
+  expect(await dialog.locator(".share-primary").boundingBox()).toEqual(
+    copyBounds,
+  );
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("button", { name: "Share note", exact: true }),
@@ -832,8 +840,9 @@ test("sharing controls keep stable links, retry uncertain writes and show inheri
 
 test("notebook sharing entry points preserve scope and refresh conflicting settings", async ({
   page,
-}) => {
+}, info) => {
   const { sharing } = await shareFixture(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
   await page
@@ -847,14 +856,14 @@ test("notebook sharing entry points preserve scope and refresh conflicting setti
     dialog.getByRole("combobox", { name: "General access" }),
     "anyone",
   );
-  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  await dialog.getByRole("button", { name: "Create link" }).click();
   const url = await dialog.getByLabel("Current link").inputValue();
   await chooseOption(
     dialog.getByRole("combobox", { name: "Notebook scope" }),
     "subtree",
   );
   sharing.get(project.id).direct!.version++;
-  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  await dialog.getByRole("button", { name: "Save changes" }).click();
   await expect(dialog.getByRole("alert")).toContainText(
     "Current settings are shown",
   );
@@ -865,7 +874,7 @@ test("notebook sharing entry points preserve scope and refresh conflicting setti
     dialog.getByRole("combobox", { name: "Notebook scope" }),
     "subtree",
   );
-  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  await dialog.getByRole("button", { name: "Save changes" }).click();
   await expect(dialog.getByLabel("Current link")).toHaveValue(url);
   await expect(
     dialog.getByRole("button", { name: "Close dialog" }),
@@ -888,11 +897,124 @@ test("notebook sharing entry points preserve scope and refresh conflicting setti
     .getByRole("button", { name: `Share ${project.name}`, exact: true })
     .click();
   await expect(dialog.getByLabel("Current link")).toHaveValue(url);
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 700 });
+    expect(
+      await dialog.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    await dialog
+      .getByRole("button", { name: "Copy link" })
+      .scrollIntoViewIfNeeded();
+    await expect(
+      dialog.getByRole("button", { name: "Copy link" }),
+    ).toBeInViewport();
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`notebook-share-${width}.png`),
+    });
+  }
+});
+
+test("staged sharing changes keep the published link clear and recover from blocked clipboard access", async ({
+  page,
+}) => {
+  const { sharing } = await shareFixture(page);
+  sharing.get(project.id).direct = {
+    id: crypto.randomUUID(),
+    version: 1,
+    active: true,
+    includeDescendants: true,
+    url: `https://grove.example.test/s/gsh_${"a".repeat(43)}`,
+  };
+  await page.goto(`${base}/app/projects/${project.id}`);
+  await page.getByRole("button", { name: "Notebook options" }).click();
+  await page
+    .getByRole("button", { name: "Share notebook", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Share notebook" });
+  const scope = dialog.getByRole("combobox", { name: "Notebook scope" });
+  const link = dialog.getByLabel("Current link");
+  const copy = dialog.getByRole("button", { name: "Copy link" });
+  await expect(link).toBeVisible();
+  const original = await link.inputValue();
+  const before = sharing.calls.length;
+  await chooseOption(scope, "direct");
+  await expect(copy).toHaveCount(0);
+  await expect(link).toBeDisabled();
+  await expect(dialog.getByLabel("Open link in a new tab")).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await expect(dialog.getByText("Changes not saved")).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(scope).toContainText("Include sub-notebooks");
+  await expect(
+    dialog.getByRole("combobox", { name: "General access" }),
+  ).toBeFocused();
+  await expect(copy).toBeEnabled();
+  await expect(link).toHaveValue(original);
+  expect(sharing.calls).toHaveLength(before);
+
+  const started = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<void>();
+  await page.route("**/api/grove/shares/*", async (route) => {
+    if (route.request().method() === "PATCH") {
+      started.resolve();
+      await response.promise;
+    }
+    await route.fallback();
+  });
+  await chooseOption(scope, "direct");
+  await dialog.getByRole("button", { name: "Save changes" }).click();
+  await started.promise;
+  await expect(dialog.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  response.resolve();
+  await expect(copy).toBeEnabled();
+  await expect(copy).toBeFocused();
+  await expect(link).toHaveValue(original);
+  await expect(dialog.getByRole("status")).toHaveText("Changes saved");
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator.clipboard, "writeText", {
+      configurable: true,
+      value: () =>
+        Promise.reject(
+          new DOMException("Clipboard blocked", "NotAllowedError"),
+        ),
+    });
+  });
+  await copy.click();
+  await expect(dialog.getByRole("alert")).toContainText("copy it manually");
+  await expect(link).toBeFocused();
   expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
+    await link.evaluate((element: HTMLInputElement) =>
+      element.value.slice(
+        element.selectionStart ?? 0,
+        element.selectionEnd ?? 0,
+      ),
     ),
-  ).toBe(true);
+  ).toBe(original);
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "General access" }),
+    "restricted",
+  );
+  await dialog.getByRole("button", { name: "Turn off direct link" }).click();
+  await expect(link).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Done", exact: true }),
+  ).toBeFocused();
+  await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test("sharing an editing note permits revocation while retaining the pending draft", async ({

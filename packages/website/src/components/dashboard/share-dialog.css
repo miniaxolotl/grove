@@ -1,100 +1,233 @@
+.app-dialog:has(> .share-settings) {
+  width: min(540px, calc(100vw - 32px));
+  padding: 24px;
+}
+.app-dialog:has(> .share-settings) > .dialog-heading {
+  margin-bottom: 16px;
+}
+.app-dialog:has(> .share-settings) > .dialog-heading h2 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.app-dialog:has(> .share-settings) > .dialog-heading .app-icon {
+  width: 44px;
+  height: 44px;
+  margin: -8px -8px -8px 0;
+}
 .share-settings {
   display: grid;
-  gap: 16px;
+  gap: 20px;
+  min-width: 0;
+}
+.share-settings svg {
+  flex-shrink: 0;
+}
+.share-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.share-summary > svg {
+  margin-top: 2px;
+  color: var(--color-muted);
+}
+.share-summary > div {
   min-width: 0;
 }
 .share-target {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .share-help {
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
 }
-.share-access {
-  display: flex;
-  gap: 16px;
-  align-items: end;
+.share-summary .share-help {
+  margin-top: 3px;
 }
-.share-access > :first-child {
-  flex: 1;
-  min-width: 0;
+.share-fields {
+  display: grid;
+  gap: 18px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-line);
 }
-.share-permission {
-  flex-shrink: 0;
-  padding-bottom: 12px;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-.share-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.share-actions > .app-button {
-  min-height: 44px;
-  white-space: normal;
-}
+.share-field,
 .share-link {
   display: grid;
-  gap: 10px;
+  gap: 7px;
   min-width: 0;
 }
-.share-link label {
+.share-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-height: 20px;
+}
+.share-label label,
+.share-settings .app-select-field > label,
+.share-inherited h3 {
+  color: var(--color-forest);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
-.share-link input {
-  width: 100%;
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-paper);
+.share-permission {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.share-settings .app-select-trigger {
+  min-height: 44px;
   font-size: 13px;
 }
 .share-inherited {
-  border: 1px solid var(--color-line);
-  border-radius: 10px;
-  padding: 16px;
-  background: var(--color-sage);
-  font-size: 13px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
 }
-.share-inherited h3 {
-  font-weight: 600;
-  margin-bottom: 8px;
+.share-inherited > p {
+  margin-top: 4px;
 }
-.share-inherited p {
-  line-height: 1.6;
+.share-inherited ul {
+  margin-top: 6px;
 }
-.share-inherited button,
-.share-back {
-  display: inline-flex;
-  gap: 8px;
+.share-inherited-link {
+  display: flex;
   align-items: center;
+  gap: 8px;
+  width: 100%;
   min-height: 44px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
   text-align: left;
   overflow-wrap: anywhere;
 }
-.share-inherited button svg {
-  flex-shrink: 0;
+.share-inherited-link > span:not(.sr-only) {
+  flex: 1;
+  min-width: 0;
 }
-.share-inherited ul {
-  margin-top: 8px;
+.share-inherited-link > svg:last-child {
+  color: var(--color-muted);
+}
+.share-inherited-link:hover {
+  background: var(--color-sage);
+}
+.share-url {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #fff;
+}
+.share-url input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.share-url .app-icon {
+  width: 44px;
+  height: 44px;
+  border-left: 1px solid var(--color-line);
+  border-radius: 0 6px 6px 0;
+}
+.share-link-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+.share-text-action,
+.share-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 12px;
+  text-align: left;
+}
+.share-text-action:hover:not(:disabled),
+.share-back:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.share-back {
+  justify-self: start;
+  margin-block: -8px;
+}
+.share-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--color-line);
+  padding-top: 16px;
+}
+.share-footer .app-button {
+  flex-shrink: 0;
+  min-height: 44px;
+  white-space: normal;
+}
+.share-feedback {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.share-primary {
+  min-width: 120px;
+}
+.share-settings :is(button:disabled, input:disabled, [aria-disabled="true"]) {
+  opacity: 0.5;
+  cursor: default;
 }
 .share-settings .app-notice,
 .share-settings .app-error {
   margin: 0;
 }
-@media (max-width: 380px) {
-  .share-access {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+.share-settings :is(button, a, input):focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: 2px;
+}
+.share-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 220px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+@media (max-width: 540px) {
+  .app-dialog:has(> .share-settings) {
+    padding: 20px;
   }
-  .share-permission {
-    padding-bottom: 0;
+  .share-settings {
+    gap: 16px;
+  }
+  .share-fields {
+    padding-top: 16px;
+  }
+  .share-link-tools {
+    gap: 0 8px;
+  }
+  .share-url input {
+    font-size: 16px;
   }
 }

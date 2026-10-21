@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Copy, ExternalLink, Link2, RefreshCw } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Eye,
+  FileText,
+  Folder,
+  Link2,
+  RefreshCw,
+} from "lucide-react";
 import type { ShareState, ShareTarget } from "@lib/shared/sharing";
 import { api, DashboardApiError, errorMessage } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { Select } from "./ui/select";
-import { useToast } from "./toasts";
 import "./share-dialog.css";
 
 export function ShareDialog({
@@ -38,6 +48,7 @@ export function ShareDialog({
           key={`${current.kind}:${current.id}`}
           target={current}
           blocked={blocked && !ancestors.length}
+          close={close}
           onBusy={setBusy}
           openNotebook={(id) =>
             setAncestors((items) => [...items, { kind: "notebook", id }])
@@ -51,11 +62,13 @@ export function ShareDialog({
 function ShareSettings({
   target,
   blocked,
+  close,
   onBusy,
   openNotebook,
 }: {
   target: ShareTarget;
   blocked: boolean;
+  close: () => void;
   onBusy: (busy: boolean) => void;
   openNotebook: (id: string) => void;
 }) {
@@ -63,17 +76,44 @@ function ShareSettings({
   const [state, setState] = useState<ShareState | null>(null);
   const [access, setAccess] = useState("restricted");
   const [descendants, setDescendants] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [action, setAction] = useState<"save" | "rotate" | null>(null);
   const [error, setError] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [copyError, setCopyError] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const accessId = useId();
+  const scopeId = useId();
+  const linkInput = useRef<HTMLInputElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const operations = useRef(new Map<string, string>());
   const pending = useRef(false);
-  const toast = useToast();
+  const busy = action !== null;
+  useEffect(() => {
+    if (busy || !returnFocus.current) return;
+    const control = returnFocus.current;
+    returnFocus.current = null;
+    if (
+      control.isConnected &&
+      (document.activeElement === document.body ||
+        document.activeElement === control.closest("dialog") ||
+        document.activeElement === control)
+    )
+      control.focus({ preventScroll: true });
+  }, [busy]);
   function accept(value: ShareState) {
     setState(value);
     setAccess(value.direct?.active ? "anyone" : "restricted");
     setDescendants(value.direct?.includeDescendants ?? false);
+    setCopiedUrl(null);
+    setFeedback("");
+    setCopyError("");
   }
+  useEffect(() => {
+    if (!copiedUrl) return;
+    const timer = setTimeout(() => setCopiedUrl(null), 2500);
+    return () => clearTimeout(timer);
+  }, [copiedUrl]);
   useEffect(() => {
     const controller = new AbortController();
     api<ShareState>(path, undefined, undefined, controller.signal)
@@ -85,7 +125,7 @@ function ShareSettings({
       });
     return () => controller.abort();
   }, [path, revision]);
-  async function mutate(action: "save" | "rotate") {
+  async function mutate(action: "save" | "rotate", trigger: HTMLElement) {
     if (!state || pending.current) return;
     const direct = state.direct;
     const revoke = action === "save" && access === "restricted";
@@ -116,7 +156,8 @@ function ShareSettings({
     if (!operations.current.has(identity))
       operations.current.set(identity, crypto.randomUUID());
     pending.current = true;
-    setBusy(true);
+    returnFocus.current = trigger;
+    setAction(action);
     onBusy(true);
     setError("");
     try {
@@ -127,12 +168,14 @@ function ShareSettings({
           method,
         ),
       );
-      toast(
+      setFeedback(
         action === "rotate"
-          ? "Link replaced. The previous link no longer works."
+          ? "Link replaced"
           : revoke
-            ? "Direct link turned off."
-            : "Sharing settings saved.",
+            ? "Link turned off"
+            : direct?.active
+              ? "Changes saved"
+              : "Link ready",
       );
     } catch (error) {
       if (error instanceof DashboardApiError && error.status === 409) {
@@ -149,7 +192,7 @@ function ShareSettings({
       } else setError(errorMessage(error));
     } finally {
       pending.current = false;
-      setBusy(false);
+      setAction(null);
       onBusy(false);
     }
   }
@@ -170,7 +213,10 @@ function ShareSettings({
             </button>
           </div>
         ) : (
-          <p role="status">Opening sharing settings…</p>
+          <div className="share-loading" role="status">
+            <Link2 size={18} aria-hidden="true" />
+            Opening sharing settings…
+          </div>
         )}
       </>
     );
@@ -182,12 +228,36 @@ function ShareSettings({
       descendants !== state.direct?.includeDescendants);
   const cannotPublish = blocked || !state.available || !state.canShare;
   const url = state.direct?.url;
+  const canCopy = active && !!url && !changed;
+  const copied = canCopy && copiedUrl === url;
+  async function copyLink() {
+    if (!url) return;
+    setCopyError("");
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      setFeedback("");
+    } catch {
+      setCopyError(
+        "Could not copy. The link is selected so you can copy it manually.",
+      );
+      linkInput.current?.focus();
+      linkInput.current?.select();
+    }
+  }
   return (
     <>
-      <p className="share-target">{state.target.name}</p>
-      <p className="share-help">
-        Links show the latest saved content. Visitors can view, but cannot edit.
-      </p>
+      <div className="share-summary">
+        {target.kind === "note" ? (
+          <FileText size={18} aria-hidden="true" />
+        ) : (
+          <Folder size={18} aria-hidden="true" />
+        )}
+        <div>
+          <p className="share-target">{state.target.name}</p>
+          <p className="share-help">Saved changes appear automatically.</p>
+        </div>
+      </div>
       {!state.available && (
         <p className="app-notice">
           Public sharing is not configured on this server.
@@ -205,49 +275,64 @@ function ShareSettings({
           replacing its link. You can still turn off an existing link.
         </p>
       )}
-      <div className="share-access">
-        <Select
-          label="General access"
-          value={access}
-          onValueChange={setAccess}
-          disabled={busy}
-          options={[
-            { value: "restricted", label: "Restricted" },
-            {
-              value: "anyone",
-              label: "Anyone with the link",
-              disabled: cannotPublish && !active,
-            },
-          ]}
-        />
-        <span className="share-permission">Can view</span>
-      </div>
-      <p className="share-help">
-        {access === "restricted"
-          ? "No direct link. Notebook links listed below may still include this content."
-          : "Anyone who receives this link can read the shared content without signing in."}
-      </p>
-      {target.kind === "notebook" && (
-        <>
+      <div className="share-fields">
+        <div className="share-field">
+          <div className="share-label">
+            <label htmlFor={accessId}>General access</label>
+            <span className="share-permission">
+              <Eye size={14} aria-hidden="true" /> Can view
+            </span>
+          </div>
           <Select
-            label="Notebook scope"
-            value={descendants ? "subtree" : "direct"}
-            onValueChange={(value) => setDescendants(value === "subtree")}
-            disabled={busy || cannotPublish}
+            id={accessId}
+            aria-label="General access"
+            aria-describedby={`${accessId}-help`}
+            value={access}
+            onValueChange={setAccess}
+            disabled={busy}
             options={[
-              { value: "direct", label: "This notebook only" },
-              { value: "subtree", label: "Include sub-notebooks" },
+              { value: "restricted", label: "Restricted" },
+              {
+                value: "anyone",
+                label: "Anyone with the link",
+                disabled: cannotPublish && !active,
+              },
             ]}
           />
-          <p className="share-help">
-            {descendants
-              ? "Current and future sub-notebooks and their notes are included."
-              : "Only notes directly in this notebook are included."}{" "}
-            New or moved-in notes become visible after saving. Archived and
-            expired notes are excluded.
+          <p className="share-help" id={`${accessId}-help`}>
+            {access === "restricted"
+              ? active
+                ? "Turn off this direct link to stop new visits."
+                : state.inherited.length
+                  ? "No direct link. Access through notebooks is shown below."
+                  : `This ${target.kind} has no public link.`
+              : "Anyone with this link can read, without signing in."}
           </p>
-        </>
-      )}
+        </div>
+        {target.kind === "notebook" && (
+          <div className="share-field">
+            <Select
+              id={scopeId}
+              label="Notebook scope"
+              aria-describedby={`${scopeId}-help`}
+              value={descendants ? "subtree" : "direct"}
+              onValueChange={(value) => setDescendants(value === "subtree")}
+              disabled={busy || cannotPublish}
+              options={[
+                { value: "direct", label: "This notebook only" },
+                { value: "subtree", label: "Include sub-notebooks" },
+              ]}
+            />
+            <p className="share-help" id={`${scopeId}-help`}>
+              {descendants
+                ? "Includes current and future sub-notebooks and their notes."
+                : "Only notes filed directly in this notebook."}{" "}
+              New notes are included when saved; archived and expired notes stay
+              hidden.
+            </p>
+          </div>
+        )}
+      </div>
       {!!state.inherited.length && (
         <section
           className="share-inherited"
@@ -258,105 +343,145 @@ function ShareSettings({
               ? "Also shared through notebooks"
               : "Included when restored"}
           </h3>
-          <p>
-            Turning off this direct link does not turn off these notebook links.
+          <p className="share-help">
+            These links keep their access when you turn off the direct link.
           </p>
           <ul>
             {state.inherited.map((source) => (
               <li key={source.id}>
                 <button
-                  className="text-button"
+                  className="share-inherited-link"
                   disabled={busy}
                   onClick={() => openNotebook(source.projectId)}
                 >
-                  <Link2 size={15} />
+                  <Link2 size={15} aria-hidden="true" />
                   <span>{source.name}</span>
                   <span className="sr-only"> sharing settings</span>
+                  <ChevronRight size={15} aria-hidden="true" />
                 </button>
               </li>
             ))}
           </ul>
         </section>
       )}
-      {active && url && (
+      {active && (
         <div className="share-link">
-          <label htmlFor={`share-url-${target.id}`}>Current link</label>
-          <input
-            id={`share-url-${target.id}`}
-            value={url}
-            readOnly
-            onFocus={(event) => event.currentTarget.select()}
-          />
-          <div className="share-actions">
+          {url && (
+            <>
+              <div className="share-label">
+                <label htmlFor={`share-url-${target.id}`}>Current link</label>
+                {changed && (
+                  <span className="share-help">Changes not saved</span>
+                )}
+              </div>
+              <div className="share-url">
+                <input
+                  ref={linkInput}
+                  id={`share-url-${target.id}`}
+                  value={url}
+                  readOnly
+                  spellCheck={false}
+                  disabled={busy || changed}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+                <a
+                  className="app-icon"
+                  href={busy || changed ? undefined : url}
+                  aria-disabled={busy || changed || undefined}
+                  aria-label="Open link in a new tab"
+                  title="Open link in a new tab"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <ExternalLink size={16} aria-hidden="true" />
+                </a>
+              </div>
+            </>
+          )}
+          {!url && state.available && (
+            <p className="app-notice">
+              This link cannot be recovered with the current server key. Replace
+              it to get a new link, or turn it off.
+            </p>
+          )}
+          <div className="share-link-tools">
             <button
-              className="app-button secondary"
-              disabled={busy}
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(url);
-                  toast("Share link copied.");
-                } catch {
-                  toast(
-                    "Could not copy. Select the link and copy it manually.",
-                    true,
-                  );
-                }
-              }}
+              className="share-text-action"
+              disabled={busy || cannotPublish || changed}
+              aria-describedby={`share-replace-${target.id}`}
+              onClick={(event) => void mutate("rotate", event.currentTarget)}
             >
-              <Copy size={15} />
-              Copy link
+              <RefreshCw size={14} aria-hidden="true" />
+              {action === "rotate" ? "Replacing…" : "Replace link"}
             </button>
-            <a
-              className="app-button secondary"
-              href={url}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              <ExternalLink size={15} />
-              Open link
-            </a>
+            <span className="share-help" id={`share-replace-${target.id}`}>
+              The previous link will stop working.
+            </span>
           </div>
         </div>
       )}
-      {active && !url && state.available && (
-        <p className="app-notice">
-          This link cannot be recovered with the current server key. Replace it
-          to get a new link, or turn it off.
-        </p>
-      )}
-      {error && (
+      {(error || copyError) && (
         <p className="app-error" role="alert">
-          {error}
+          {error || copyError}
         </p>
       )}
-      <div className="share-actions">
-        <button
-          className="app-button"
-          disabled={busy || !changed || (access === "anyone" && cannotPublish)}
-          onClick={() => void mutate("save")}
-        >
-          {busy
-            ? "Saving…"
-            : access === "restricted" && active
-              ? "Turn off direct link"
-              : "Save sharing settings"}
-        </button>
-        {active && (
+      <div className="share-footer">
+        <p className="share-feedback" role="status">
+          {!changed &&
+            (copied ? (
+              <span className="sr-only">Share link copied.</span>
+            ) : (
+              feedback
+            ))}
+        </p>
+        {(changed || canCopy) && (
           <button
+            key="dismiss"
             className="app-button secondary"
-            disabled={busy || cannotPublish || changed}
-            onClick={() => void mutate("rotate")}
+            disabled={busy}
+            onClick={() => {
+              if (changed) {
+                accept(state);
+                setError("");
+                document.getElementById(accessId)?.focus();
+              } else close();
+            }}
           >
-            <RefreshCw size={15} />
-            Replace link
+            {changed ? "Cancel" : "Done"}
           </button>
         )}
+        <button
+          key="primary"
+          className="app-button share-primary"
+          aria-label={canCopy ? "Copy link" : undefined}
+          disabled={busy || (changed && access === "anyone" && cannotPublish)}
+          onClick={(event) => {
+            if (changed) void mutate("save", event.currentTarget);
+            else if (canCopy) void copyLink();
+            else close();
+          }}
+        >
+          {canCopy &&
+            (copied ? (
+              <Check size={16} aria-hidden="true" />
+            ) : (
+              <Copy size={16} aria-hidden="true" />
+            ))}
+          {action === "save"
+            ? "Saving…"
+            : changed
+              ? access === "restricted" && active
+                ? "Turn off direct link"
+                : active
+                  ? "Save changes"
+                  : "Create link"
+              : canCopy
+                ? copied
+                  ? "Copied"
+                  : "Copy link"
+                : "Done"}
+        </button>
       </div>
-      {active && (
-        <p className="share-help">
-          Replacing the link immediately stops the previous link from working.
-        </p>
-      )}
     </>
   );
 }
