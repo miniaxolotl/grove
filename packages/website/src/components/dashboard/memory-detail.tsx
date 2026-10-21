@@ -4,10 +4,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
-  Copy,
-  FolderInput,
-  Archive,
-  ArchiveRestore,
   ArrowUpRight,
   History,
   Trash2,
@@ -23,6 +19,7 @@ import { RevisionCompare } from "./revision-compare";
 import { ActionMenu } from "./ui/action-menu";
 import { useToast } from "./toasts";
 import { useWorkspaceCommands } from "./workspace-commands";
+import { NoteActions } from "./note-actions";
 
 export function MemoryDetail({
   memory,
@@ -155,7 +152,7 @@ export function MemoryDetail({
       {
         id: "note-delete",
         label: "Delete note…",
-        disabled: locked,
+        disabled: busy || actionBusy,
         run: () => setConfirmDelete(true),
       },
     ],
@@ -185,7 +182,11 @@ export function MemoryDetail({
       event.preventDefault();
       onNext();
     }
-    if ((event.key === "Delete" || event.key === "Backspace") && !locked) {
+    if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      !busy &&
+      !actionBusy
+    ) {
       event.preventDefault();
       setConfirmDelete(true);
     }
@@ -211,7 +212,10 @@ export function MemoryDetail({
         cancel={close}
         done={onSaved}
         onLockChange={setEditorLocked}
-        toolbar={({ locked: writing, content }) => (
+        deleteRequested={confirmDelete}
+        cancelDelete={() => setConfirmDelete(false)}
+        onDeleted={onDeleted}
+        toolbar={({ locked: writing, onExport }) => (
           <>
             {!fullPage && (
               <>
@@ -247,51 +251,40 @@ export function MemoryDetail({
               <History size={16} />
             </button>
             <ActionMenu label="Note actions">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(content);
-                    toast("Markdown copied.");
-                  } catch {
-                    toast("Could not copy. Try again.", true);
-                  }
-                }}
-              >
-                <Copy size={15} /> Copy Markdown
-              </button>
-              {!fullPage && (
-                <Link href={`/app/memories/${memory.id}`}>
-                  <ArrowUpRight size={15} /> Open note page
-                </Link>
-              )}
-              <button
-                type="button"
-                disabled={writing || busy || actionBusy}
-                onClick={onMove}
-              >
-                <FolderInput size={15} /> Move
-              </button>
-              <button
-                type="button"
-                disabled={writing || busy || actionBusy}
-                onClick={onArchive}
-              >
-                {isInactive(memory) ? (
-                  <ArchiveRestore size={15} />
-                ) : (
-                  <Archive size={15} />
-                )}
-                {isInactive(memory) ? "Restore" : "Archive"}
-              </button>
-              <button
-                type="button"
-                disabled={writing || busy || actionBusy}
-                onClick={() => setConfirmDelete(true)}
-              >
-                <Trash2 size={15} /> Delete note…
-              </button>
+              <NoteActions
+                inactive={isInactive(memory)}
+                locked={writing || busy || actionBusy}
+                busy={busy || actionBusy}
+                onMove={onMove}
+                onExport={onExport}
+                onArchive={onArchive}
+                onDelete={() => setConfirmDelete(true)}
+                before={
+                  !fullPage && (
+                    <Link href={`/app/memories/${memory.id}`}>
+                      <ArrowUpRight size={15} /> Open note page
+                    </Link>
+                  )
+                }
+                details={
+                  <button type="button" onClick={() => setHistoryOpen(true)}>
+                    <History size={15} />
+                    Revision history
+                  </button>
+                }
+              />
             </ActionMenu>
+            <button
+              type="button"
+              className="app-icon note-delete-button"
+              aria-label="Delete note…"
+              title="Delete note…"
+              data-focus-key="note-delete"
+              disabled={busy || actionBusy}
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 size={17} />
+            </button>
           </>
         )}
         details={
@@ -467,51 +460,6 @@ export function MemoryDetail({
               </li>
             ))}
           </ol>
-        </Dialog>
-      )}
-      {confirmDelete && (
-        <Dialog
-          title="Delete note?"
-          close={() => setConfirmDelete(false)}
-          busy={busy}
-        >
-          <p className="mb-6 text-sm">
-            Permanently delete “{memoryTitle(memory)}” and its history?
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="app-button secondary"
-              onClick={() => setConfirmDelete(false)}
-              disabled={busy}
-              autoFocus
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="app-button danger"
-              disabled={locked}
-              onClick={() =>
-                void run(async () => {
-                  const result = await mutate<{
-                    results: { outcome: string }[];
-                  }>("/memories/delete", {
-                    items: [{ id: memory.id, expectedVersion: memory.version }],
-                  });
-                  if (result.results[0]?.outcome !== "deleted")
-                    throw new Error(
-                      "This note changed. Reload it before deleting.",
-                    );
-                  setConfirmDelete(false);
-                  onDeleted();
-                  toast("Note permanently deleted.");
-                })
-              }
-            >
-              Delete this note
-            </button>
-          </div>
         </Dialog>
       )}
     </article>

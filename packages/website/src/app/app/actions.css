@@ -4,3 +4,38 @@
   margin-top: 4px;
   padding-top: 10px;
 }
+.action-menu > .action-danger,
+.note-delete-button {
+  color: #923a32;
+}
+.note-export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 10px;
+  flex-shrink: 0;
+}
+.export-options {
+  display: grid;
+  gap: 8px;
+  margin-block: 16px;
+}
+.export-options > button {
+  justify-content: flex-start;
+  min-height: 48px;
+}
+.export-source {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+}
+.action-menu > .action-danger:hover,
+.note-delete-button:hover {
+  background: #fff0ec;
+}
+.note-delete-button {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}

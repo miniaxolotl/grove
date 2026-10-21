@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { chooseOption } from "./fixtures/select";
 import {
   listSchema,
@@ -122,7 +123,7 @@ test("one wide note workspace preserves editor history, toggles with shortcuts a
   await editor.press("Control+e");
   const before = await drawer.locator(".writing-paper").boundingBox();
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await drawer.getByRole("button", { name: "Note actions" }).click();
+  await drawer.getByRole("button", { name: "Export", exact: true }).click();
   await page
     .getByRole("button", { name: "Copy Markdown", exact: true })
     .click();
@@ -156,6 +157,350 @@ test("one wide note workspace preserves editor history, toggles with shortcuts a
     ),
   ).toBe(true);
   await page.screenshot({ path: info.outputPath("unified-note-mobile.png") });
+});
+
+test("visible row deletion confirms directly and rejects a stale revision", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app`);
+  const row = page.locator(`[data-note-id="${note.id}"]`);
+  await row
+    .getByRole("button", { name: `Actions for Review preferences` })
+    .click();
+  await row.getByRole("button", { name: "Delete note…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete note?" });
+  await expect(page.locator(".note-editor")).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Cancel", exact: true }),
+  ).toBeFocused();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(
+    state.calls.filter((call) => call.path === "/memories/delete"),
+  ).toHaveLength(0);
+  await row.getByRole("button", { name: "Delete note…", exact: true }).click();
+  state.records.get(note.id)!.version++;
+  await dialog.getByRole("button", { name: "Delete this note" }).click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "changed or is no longer available",
+  );
+  expect(state.records.has(note.id)).toBe(true);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    row.getByRole("button", { name: "Delete note…", exact: true }),
+  ).toBeFocused();
+});
+
+test("direct delete can discard an invalid dirty draft without saving it", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("A draft that exceeds the save limit. ".repeat(200));
+  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete note?" });
+  await expect(dialog).toContainText("local draft");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(editor).toContainText("exceeds the save limit");
+  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Delete note and discard draft" })
+    .click();
+  await expect(page).toHaveURL(`${base}/app`);
+  expect(state.records.has(note.id)).toBe(false);
+  expect(state.calls.filter((call) => call.path === "/memories")).toHaveLength(
+    0,
+  );
+});
+
+test("deletion waits for a held save and uses the revision it produced", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/grove/memories", async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+  await page
+    .getByRole("textbox", { name: "What should stay with you?" })
+    .fill("# Saved before deletion");
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete note?" });
+  await expect(dialog).toContainText("Finishing the pending save");
+  await expect(
+    dialog.getByRole("button", {
+      name: /Delete (this note|note and discard draft)/,
+    }),
+  ).toBeDisabled();
+  release();
+  const confirm = dialog.getByRole("button", {
+    name: /Delete (this note|note and discard draft)/,
+  });
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  await expect(page).toHaveURL(`${base}/app`);
+  const deletion = state.calls.find(
+    (call) => call.path === "/memories/delete",
+  )!;
+  expect(deletion.body.items).toEqual([{ id: note.id, expectedVersion: 2 }]);
+  expect(state.records.has(note.id)).toBe(false);
+});
+
+test("row deletion resolves a lost save with its original identity and keeps newer draft text", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const attempts: Record<string, unknown>[] = [];
+  await page.route("**/api/grove/memories", async (route) => {
+    const input = route.request().postDataJSON();
+    attempts.push(input);
+    if (attempts.length === 1) {
+      state.records.set(note.id, {
+        ...note,
+        content: input.content,
+        version: 2,
+      });
+      return route.abort("failed");
+    }
+    return route.fulfill({
+      json: { success: true, data: state.records.get(note.id) },
+    });
+  });
+  await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("Committed before the connection was lost");
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await expect(page.locator(".note-save-status")).toContainText("Not saved");
+  await editor.fill("A newer unsavable draft. ".repeat(300));
+  await page
+    .getByRole("button", { name: "Back to notes", exact: true })
+    .click();
+  const row = page.locator(`[data-note-id="${note.id}"]`);
+  await row
+    .getByRole("button", { name: "Actions for Review preferences" })
+    .click();
+  await row.getByRole("button", { name: "Delete note…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete note?" });
+  await expect(
+    dialog.getByRole("button", { name: "Delete note and discard draft" }),
+  ).toBeDisabled();
+  await dialog
+    .getByRole("button", { name: "Retry pending save", exact: true })
+    .click();
+  await expect(
+    dialog.getByRole("button", { name: "Delete note and discard draft" }),
+  ).toBeEnabled();
+  expect(attempts).toHaveLength(2);
+  expect(attempts[1]).toEqual(attempts[0]);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await row.getByRole("button", { name: "Export…", exact: true }).click();
+  const download = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Markdown (.md)", exact: true })
+    .click();
+  expect(await readFile((await (await download).path())!, "utf8")).toBe(
+    "A newer unsavable draft. ".repeat(300),
+  );
+});
+
+test("export downloads exact unsaved Markdown and preserves a denied clipboard fallback", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+  const content =
+    "# CON.pdf\n\nCafé 日本語 🌱\n\n```ts\n  const keep = true;\n```\n" +
+    "Long draft. ".repeat(550);
+  await page
+    .getByRole("textbox", { name: "What should stay with you?" })
+    .fill(content);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
+  await expect(dialog).toContainText("Includes unsaved changes");
+  const download = page.waitForEvent("download");
+  await dialog
+    .getByRole("button", { name: "Markdown (.md)", exact: true })
+    .click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("note-CON.md");
+  expect(await readFile((await file.path())!, "utf8")).toBe(content);
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error("Denied")) },
+    }),
+  );
+  await dialog
+    .getByRole("button", { name: "Copy Markdown", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Clipboard access is unavailable",
+  );
+  await expect(dialog.getByLabel("Markdown source")).toHaveValue(content);
+  expect(state.calls.filter((call) => call.path === "/memories")).toHaveLength(
+    0,
+  );
+});
+
+test("row export reads current content and first-save routing retains the export snapshot", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app`);
+  const row = page.locator(`[data-note-id="${note.id}"]`);
+  await expect(row).toBeVisible();
+  state.records.set(note.id, {
+    ...note,
+    content: "# Newer saved text",
+    version: 2,
+  });
+  await row
+    .getByRole("button", { name: "Actions for Review preferences" })
+    .click();
+  await row.getByRole("button", { name: "Export…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
+  await expect(dialog).toContainText("Newer saved text");
+  await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  const gate = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories", async (route) => {
+    await gate.promise;
+    await route.fallback();
+  });
+  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "What should stay with you?" })
+    .fill("# First save export");
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await expect(dialog).toContainText("Includes unsaved changes");
+  gate.resolve();
+  await expect(page).toHaveURL(/\/app\/memories\/[^/]+\?mode=edit$/);
+  await expect(dialog).toBeVisible();
+  const download = page.waitForEvent("download");
+  await dialog
+    .getByRole("button", { name: "Markdown (.md)", exact: true })
+    .click();
+  expect(await readFile((await (await download).path())!, "utf8")).toBe(
+    "# First save export",
+  );
+  await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Export", exact: true }),
+  ).toBeFocused();
+});
+
+test("PDF load failure keeps Markdown available and cancellation terminates pending work", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.addInitScript(() => {
+    const terminate = Worker.prototype.terminate;
+    Worker.prototype.terminate = function () {
+      document.documentElement.dataset.workerTerminated = "true";
+      terminate.call(this);
+    };
+  });
+  await page.route("**/note-pdf.worker.ts", (route) => route.abort("failed"));
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
+  await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Could not prepare the PDF",
+  );
+  const download = page.waitForEvent("download");
+  await dialog
+    .getByRole("button", { name: "Markdown (.md)", exact: true })
+    .click();
+  await download;
+  await page.unroute("**/note-pdf.worker.ts");
+  const gate = Promise.withResolvers<void>();
+  await page.route("**/note-pdf.worker.ts", async (route) => {
+    await gate.promise;
+    await route.continue();
+  });
+  await page.evaluate(
+    () => delete document.documentElement.dataset.workerTerminated,
+  );
+  const requested = page.waitForRequest("**/note-pdf.worker.ts");
+  await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  await requested;
+  await dialog
+    .getByRole("button", { name: "Cancel export", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  expect(
+    await page.locator("html").getAttribute("data-worker-terminated"),
+  ).toBe("true");
+  gate.resolve();
+});
+
+test("PDF export contains paginated searchable Markdown with safe links and Unicode fallbacks", async ({
+  page,
+}, info) => {
+  const content =
+    "# Café review\n\n[Read the guide](https://example.com/guide)\n\n![Diagram](https://images.example.com/private.png)\n\n- [x] Reviewed\n- [ ] Follow up\n\n```ts\nconst ready = true;\n```\n\n" +
+    Array.from(
+      { length: 30 },
+      (_, i) =>
+        `## Section ${i + 1}\n\nKeep feedback specific and include a working example.\n\n`,
+    ).join("") +
+    "| Name | Result |\n| --- | --- |\n| Last row | Complete |\n\n日本語 🌱\n\nFinal paragraph.";
+  await fixture(page, [{ ...note, content }]);
+  const external: string[] = [];
+  page.on("request", (request) => {
+    if (/images\.example|example\.com/.test(request.url()))
+      external.push(request.url());
+  });
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
+  const pending = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  const download = await pending;
+  expect(download.suggestedFilename()).toBe("Café review.pdf");
+  await download.saveAs(info.outputPath("note.pdf"));
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const loading = getDocument({
+    data: new Uint8Array(await readFile((await download.path())!)),
+    verbosity: 0,
+  });
+  const pdf = await loading.promise;
+  expect(pdf.numPages).toBeGreaterThan(1);
+  let text = "";
+  const links: string[] = [];
+  for (let index = 1; index <= pdf.numPages; index++) {
+    const page = await pdf.getPage(index);
+    text += (await page.getTextContent()).items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    links.push(
+      ...(await page.getAnnotations())
+        .map((annotation) => annotation.url)
+        .filter(Boolean),
+    );
+  }
+  expect(text).toContain("Café review");
+  expect(text).toContain("Final paragraph");
+  expect(text).toContain("Last row");
+  expect(text).toContain("const ready = true;");
+  expect(text.replace(/[\s\u200b]/g, "")).toContain("[U+1F331]");
+  expect(text).not.toContain("source-session");
+  expect(links).toContain("https://example.com/guide");
+  expect(external).toEqual([]);
+  await expect(dialog).toContainText("Unicode codes");
+  await loading.destroy();
 });
 
 test("browsing arrows and delete are scoped to notes and deletion still requires confirmation", async ({

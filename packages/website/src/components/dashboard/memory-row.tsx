@@ -1,17 +1,13 @@
 "use client";
 import { useRef, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import {
-  Archive,
-  ArchiveRestore,
-  FolderInput,
-  GripVertical,
-  MoreHorizontal,
-} from "lucide-react";
+import { GripVertical, MoreHorizontal } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
 import { Button, IconButton } from "./ui/button";
 import { useWorkspaceDrag, type WorkspaceDragItem } from "./memory-drag";
+import { NoteActions } from "./note-actions";
+import { useNoteExport } from "./note-export";
 
 export function MemoryRow({
   memory,
@@ -39,6 +35,7 @@ export function MemoryRow({
   selectedItems: Memory[];
 }) {
   const workspace = useWorkspaceDrag();
+  const noteExport = useNoteExport();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } =
     useDraggable({
       id: memory.id,
@@ -68,6 +65,7 @@ export function MemoryRow({
     <li
       ref={setNodeRef}
       className="memory-list-item"
+      data-note-id={memory.id}
       data-selected={selected || undefined}
       data-dragging={isDragging || undefined}
     >
@@ -267,18 +265,18 @@ export function MemoryRow({
       </div>
       {actions && (
         <div className="memory-actions" aria-label={`Actions for ${title}`}>
-          <Button variant="secondary" disabled={busy} onClick={onMove}>
-            <FolderInput size={15} />
-            Move
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={onArchive}>
-            {isInactive(memory) ? (
-              <ArchiveRestore size={15} />
-            ) : (
-              <Archive size={15} />
-            )}
-            {isInactive(memory) ? "Restore" : "Archive"}
-          </Button>
+          <NoteActions
+            row
+            inactive={isInactive(memory)}
+            locked={busy}
+            busy={busy}
+            onMove={onMove}
+            onArchive={onArchive}
+            onDelete={onDelete}
+            onExport={() =>
+              noteExport.open({ key: `note:${memory.id}`, note: memory })
+            }
+          />
           <Button variant="secondary" onClick={() => setActions(false)}>
             Close actions
           </Button>

@@ -54,6 +54,13 @@ const fixtureConfig = {
   ],
 };
 const result = await build(fixtureConfig);
+const pdfWorker = await build({
+  entryPoints: [join(root, "src/lib/note-pdf.worker.ts")],
+  bundle: true,
+  write: false,
+  platform: "browser",
+  format: "iife",
+});
 const telemetryResult = await build({
   ...fixtureConfig,
   entryPoints: [join(root, "tests/fixtures/telemetry-dashboard.tsx")],
@@ -103,6 +110,12 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   try {
+    if (path === "/note-pdf.worker.ts") {
+      response
+        .writeHead(200, { "Content-Type": "application/javascript" })
+        .end(pdfWorker.outputFiles[0].contents);
+      return;
+    }
     if (path === "/telemetry-fixture.js") {
       response
         .writeHead(200, { "Content-Type": "application/javascript" })
