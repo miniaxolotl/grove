@@ -6,6 +6,7 @@ const sections = [
   ["/app/settings", "Preferences"],
   ["/app/settings/account", "Account"],
   ["/app/settings/connections", "Connections"],
+  ["/app/settings/models", "Search & organization"],
   ["/app/settings/data", "Your data"],
 ];
 export function SettingsNavigation() {
@@ -16,6 +17,10 @@ export function SettingsNavigation() {
         <Link
           key={href}
           href={href}
+          scroll={false}
+          onClick={() =>
+            document.querySelector(".settings-page")?.scrollTo(0, 0)
+          }
           aria-current={
             path === href ||
             (href.endsWith("connections") && path === "/app/connections")

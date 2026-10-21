@@ -20,6 +20,7 @@ import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
 import { SearchField } from "./ui/search-field";
 import { LoadError } from "./load-error";
+import { Shortcut } from "./workspace-commands";
 
 export type AskSession = {
   scope: string;
@@ -76,7 +77,7 @@ export function WorkspaceSearchButton() {
     >
       <Search size={16} />
       <span>Search anything</span>
-      <kbd>⌘ K</kbd>
+      <Shortcut>Mod K</Shortcut>
     </button>
   );
 }

@@ -3,6 +3,8 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 const DialogBusy = createContext<(busy: boolean) => void>(() => {});
+let scrollLocks = 0;
+let previousOverflow = "";
 export const useDialogBusy = () => useContext(DialogBusy);
 export function Dialog({
   title,
@@ -24,6 +26,10 @@ export function Dialog({
   useEffect(() => {
     const element = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
+    const focusKey = previous?.dataset.focusKey;
+    if (scrollLocks++ === 0)
+      previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
     element.showModal();
     element
       .querySelector<HTMLElement>(
@@ -32,7 +38,18 @@ export function Dialog({
       ?.focus();
     return () => {
       element.close();
-      previous?.focus();
+      if (--scrollLocks === 0)
+        document.documentElement.style.overflow = previousOverflow;
+      const scope =
+        [...document.querySelectorAll("dialog[open]")].at(-1) ?? document;
+      const target = previous?.isConnected
+        ? previous
+        : focusKey
+          ? scope.querySelector<HTMLElement>(
+              `[data-focus-key="${CSS.escape(focusKey)}"]`,
+            )
+          : null;
+      target?.focus({ preventScroll: true });
     };
   }, []);
   return (
@@ -66,6 +83,7 @@ export function Dialog({
       }}
       onCancel={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         if (!locked) close();
       }}
       aria-label={title}

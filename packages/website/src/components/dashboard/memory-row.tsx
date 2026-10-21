@@ -20,6 +20,7 @@ export function MemoryRow({
   busy,
   onSelect,
   onOpen,
+  onDelete,
   onMove,
   onArchive,
   onTag,
@@ -31,6 +32,7 @@ export function MemoryRow({
   busy: boolean;
   onSelect: () => void;
   onOpen: () => void;
+  onDelete: () => void;
   onMove: () => void;
   onArchive: () => void;
   onTag: (tag: string) => void;
@@ -150,7 +152,52 @@ export function MemoryRow({
           </button>
         </div>
         <div className="memory-row-content">
-          <button className="memory-open" disabled={busy} onClick={onOpen}>
+          <button
+            className="memory-open"
+            disabled={busy}
+            onClick={onOpen}
+            onKeyDown={(event) => {
+              if (
+                event.defaultPrevented ||
+                event.nativeEvent.isComposing ||
+                event.altKey ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey
+              )
+                return;
+              if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+                event.preventDefault();
+                const rows = [
+                  ...event.currentTarget
+                    .closest("ul")!
+                    .querySelectorAll<HTMLButtonElement>(".memory-open"),
+                ];
+                const index = rows.indexOf(event.currentTarget);
+                rows[
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? rows.length - 1
+                      : Math.max(
+                          0,
+                          Math.min(
+                            rows.length - 1,
+                            index + (event.key === "ArrowDown" ? 1 : -1),
+                          ),
+                        )
+                ]?.focus();
+              }
+              if (event.key === "ArrowRight") {
+                event.preventDefault();
+                onOpen();
+              }
+              if (event.key === "Delete" || event.key === "Backspace") {
+                event.preventDefault();
+                if (!event.repeat) onDelete();
+              }
+            }}
+          >
             <span className="memory-title">{title}</span>
             {memory.enrichment?.title && (
               <span className="memory-excerpt">

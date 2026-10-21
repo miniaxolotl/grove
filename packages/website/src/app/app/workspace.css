@@ -1,4 +1,341 @@
 /* Workspace chrome: one navigation tree, compact controls, content first. */
+html:has(.grove-app) {
+  scrollbar-gutter: stable;
+}
+.app-dialog,
+.writing-layout,
+.note-editor-properties,
+.notebook-explorer {
+  overscroll-behavior: contain;
+}
+.app-sidebar {
+  min-height: 0;
+}
+.app-sidebar-heading,
+.sidebar-create,
+.workspace-search-launcher,
+.app-sidebar-footer {
+  flex-shrink: 0;
+}
+.workspace-command-launcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  margin: 0;
+  flex: 1;
+  color: var(--color-muted);
+  font-size: 11px;
+  min-height: 32px;
+}
+.workspace-utilities {
+  display: flex;
+  align-items: center;
+  margin: -6px 4px 8px;
+  flex-shrink: 0;
+}
+.workspace-utilities > .app-icon {
+  width: 28px;
+  height: 32px;
+}
+.workspace-command-launcher kbd {
+  margin-left: auto;
+  font-size: 9px;
+}
+.app-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.app-sidebar-footer > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-muted);
+  padding: 8px 10px;
+}
+.command-menu > input {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 12px;
+  background: white;
+  font-size: 16px;
+}
+.command-results {
+  max-height: 52dvh;
+  overflow-y: auto;
+  margin: 12px 0;
+  overscroll-behavior: contain;
+}
+.command-results [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.command-results [aria-selected="true"] {
+  background: var(--color-sage);
+}
+.command-results kbd,
+.shortcut-list kbd {
+  font-size: 11px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.command-hint,
+.shortcut-intro {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-muted);
+}
+.shortcut-list {
+  margin: 18px 0;
+}
+.shortcut-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--color-line);
+  font-size: 13px;
+}
+.toast-region {
+  position: fixed;
+  inset: auto 16px 20px;
+  display: flex;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+}
+.workspace-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, 100%);
+  padding: 10px 12px 10px 16px;
+  color: #263d30;
+  background: #f8fcf4;
+  border: 1px solid #b8c6ac;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px #203d3020;
+  pointer-events: auto;
+  font-size: 13px;
+}
+.workspace-toast > p {
+  overflow-wrap: anywhere;
+}
+.workspace-toast > svg {
+  flex-shrink: 0;
+}
+.workspace-toast.is-error {
+  background: #fff5f1;
+  border-color: #d7a693;
+  color: #793825;
+}
+.app-content:has(> .note-document) {
+  padding: 0;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.grove-app:has(.note-document),
+.grove-app:has(.settings-frame) {
+  height: 100dvh;
+  min-height: 0;
+}
+.app-main:has(.note-document),
+.app-main:has(.settings-frame) {
+  min-height: 0;
+  overflow: hidden;
+}
+.note-document,
+.note-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.note-document > .app-form {
+  padding: 24px;
+}
+.note-workspace .note-editor-bar {
+  flex-wrap: wrap;
+}
+.note-workspace .note-editor-location {
+  min-width: 100px;
+}
+.note-save-button > svg {
+  display: none;
+}
+.note-workspace .writing-paper {
+  max-width: 960px;
+}
+.app-detail-panel:has(.note-editor-drawer) {
+  width: min(1120px, 94vw);
+  max-width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-detail-panel:has(.note-editor-drawer) > .dialog-heading {
+  flex-shrink: 0;
+  position: static;
+  padding: 8px 16px;
+  margin: 0;
+  min-height: 44px;
+}
+.app-detail-panel:has(.note-editor-drawer) > .dialog-heading h2 {
+  font:
+    500 12px var(--font-space-grotesk),
+    sans-serif;
+  color: var(--color-muted);
+}
+.app-dialog:has(.note-workspace):not(:has(.note-editor-drawer))
+  > .note-workspace {
+  height: 100dvh;
+}
+.live-editor .editor-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.live-editor .mode-toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.live-editor .editor-tools[hidden] {
+  display: none;
+}
+.linked-notes {
+  border-top: 1px solid var(--color-line);
+  margin-top: 32px;
+  padding: 14px 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.linked-notes summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+.linked-notes summary > span {
+  margin-left: 6px;
+}
+.linked-notes > p {
+  padding: 12px 0;
+}
+.note-dates {
+  font-size: 11px;
+}
+.note-dates dt {
+  color: var(--color-muted);
+  margin-top: 10px;
+}
+.note-editor-properties .agent-details {
+  margin: 0;
+  font-size: 11px;
+}
+.note-editor-properties .agent-details dd {
+  overflow-wrap: anywhere;
+}
+.settings-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.app-content:has(> .settings-frame) {
+  min-height: 0;
+  overflow: hidden;
+}
+.app-main:has(.settings-frame) > .app-footer {
+  display: none;
+}
+.settings-header {
+  flex-shrink: 0;
+}
+.settings-page {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  flex: 1;
+  min-height: 0;
+  padding: 0 8px 24px 0;
+}
+.settings-page > *,
+.settings-content {
+  max-width: 1000px;
+}
+.settings-section-heading {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.settings-section-description {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin-bottom: 18px;
+}
+.settings-loading {
+  min-height: 280px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+@media (max-width: 1023px) {
+  .grove-app:has(.note-document),
+  .grove-app:has(.settings-frame),
+  .grove-app:has(.app-content > .note-editor-full) {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .workspace-utilities {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .workspace-command-launcher kbd {
+    font-size: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .note-editor-full .note-save-button {
+    padding: 8px;
+    min-width: 34px;
+  }
+  .note-editor-full .note-save-button > svg {
+    display: block;
+  }
+  .note-editor-full .note-save-button > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .app-detail-panel:has(.note-editor-drawer) {
+    width: 100vw;
+    border-radius: 0;
+  }
+  .note-workspace .note-editor-location {
+    min-width: 0;
+  }
+  .shortcut-list > div {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .toast-region {
+    inset: auto 8px 12px;
+  }
+}
 .ask-page-actions {
   display: flex;
   gap: 8px;

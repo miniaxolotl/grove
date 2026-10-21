@@ -65,6 +65,14 @@ mobile notebook browsing keeps nested organization accessible. The browser build
 above uses synthetic telemetry identifiers: Playwright intercepts their traffic
 and verifies the real SDKs without sending events to production projects.
 
+Unified-workspace checks also cover persistent edit/preview history and scroll,
+drawer bounds, note-list/drawer keyboard navigation, confirmed deletion, command
+menu and shortcut-help focus, clipboard toast geometry, and settings header/tab
+persistence. Geometry tests scroll off-screen controls into view before comparing
+positions, so browser actionability scrolling is not mistaken for layout reflow.
+Held-save cases also verify command availability, preview mode and modal return
+focus when a new note's first save changes the route while a menu remains open.
+
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.
 With an isolated `GROVE_CONFIG_HOME`, the API environment and Clerk development

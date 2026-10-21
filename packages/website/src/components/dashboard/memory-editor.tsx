@@ -1,6 +1,11 @@
 "use client";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-import Link from "next/link";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ArrowLeft,
   Maximize2,
@@ -8,7 +13,7 @@ import {
   PanelRight,
   Focus,
   Check,
-  History,
+  Save,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import {
@@ -28,6 +33,7 @@ import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { NotebookDialog } from "./notebook-dialog";
 import { useWorkspaceDrag } from "./memory-drag";
 import { useSetCurrentNotebook } from "./notebooks-provider";
+import { useWorkspaceCommands } from "./workspace-commands";
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
 
@@ -41,6 +47,12 @@ export function MemoryEditor({
   personal = false,
   fullPage = false,
   draftKey,
+  initialPreview = false,
+  workspace = false,
+  toolbar,
+  details,
+  children,
+  onLockChange,
   done,
   cancel,
 }: {
@@ -53,10 +65,18 @@ export function MemoryEditor({
   personal?: boolean;
   fullPage?: boolean;
   draftKey?: string;
-  done: (memory: Memory) => void;
+  initialPreview?: boolean;
+  workspace?: boolean;
+  toolbar?: (state: { locked: boolean; content: string }) => ReactNode;
+  details?: ReactNode;
+  children?: ReactNode;
+  onLockChange?: (locked: boolean) => void;
+  done: (memory: Memory, view?: { preview: boolean }) => void;
   cancel: () => void;
 }) {
   const drafts = useNoteDrafts();
+  const root = useRef<HTMLFormElement>(null);
+  const [preview, setPreview] = useState(initialPreview);
   const { refresh: refreshNotes } = useWorkspaceDrag();
   const [draft] = useState(() =>
     draftKey ? drafts?.get(draftKey) : undefined,
@@ -92,7 +112,8 @@ export function MemoryEditor({
   const [properties, setProperties] = useState(false);
   const [createNotebook, setCreateNotebook] = useState(false);
   const submitted = useRef<NoteValues | undefined>(draft?.submitted);
-  const pageView = fullPage || expanded;
+  const pageView = fullPage || expanded || workspace;
+  const autoSave = fullPage || workspace;
   const setDialogBusy = useDialogBusy();
   const task = useRef(draft?.task ?? memory?.taskId ?? "");
   const pending = useRef<{
@@ -208,7 +229,7 @@ export function MemoryEditor({
         pending.current = null;
         submitted.current = undefined;
         refreshNotes();
-        done(saved);
+        done(saved, { preview });
       } catch (e) {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.error = errorMessage(e);
@@ -266,9 +287,12 @@ export function MemoryEditor({
   }, [dirty]);
   const saveDisabled =
     busy || !!latest || !content.trim() || content.length > 6000 || !dirty;
+  useEffect(() => {
+    onLockChange?.(busy || dirty || !!latest);
+  }, [onLockChange, busy, dirty, latest]);
   function persist() {
     if (saveDisabled) return;
-    setDialogBusy(!fullPage);
+    setDialogBusy(!autoSave);
     setError("");
     if (kind === "handoff" && !task.current)
       task.current = `task-${crypto.randomUUID()}`;
@@ -312,11 +336,11 @@ export function MemoryEditor({
   }
   const autosave = useEffectEvent(persist);
   useEffect(() => {
-    if (!fullPage || saveDisabled || error) return;
+    if (!autoSave || saveDisabled || error) return;
     const timer = setTimeout(() => autosave(), 900);
     return () => clearTimeout(timer);
   }, [
-    fullPage,
+    autoSave,
     saveDisabled,
     error,
     content,
@@ -325,15 +349,55 @@ export function MemoryEditor({
     autoKind,
     projectId,
   ]);
+  useWorkspaceCommands(
+    [
+      {
+        id: "note-mode",
+        label: preview ? "Edit note" : "Preview note",
+        shortcut: "Mod E",
+        key: "e",
+        run: () => setPreview(!preview),
+      },
+      {
+        id: "note-save",
+        label: "Save note",
+        shortcut: "Mod S",
+        key: "s",
+        disabled: saveDisabled,
+        run: persist,
+      },
+      {
+        id: "note-focus",
+        label: focused ? "Exit focus mode" : "Focus mode",
+        shortcut: "Mod Shift F",
+        key: "f",
+        shift: true,
+        run: () => setFocused(!focused),
+      },
+      {
+        id: "note-properties",
+        label: properties ? "Hide note properties" : "Show note properties",
+        run: () => setProperties(!properties),
+      },
+    ],
+    root,
+  );
   const saveButton = (
-    <Button type="submit" disabled={saveDisabled}>
-      {busy ? "Saving…" : "Save note"}
+    <Button
+      type="submit"
+      disabled={saveDisabled}
+      className="note-save-button"
+      title={busy ? "Saving…" : "Save note (⌘ / Ctrl S)"}
+    >
+      <Save size={16} aria-hidden="true" />
+      <span>{busy ? "Saving…" : "Save note"}</span>
     </Button>
   );
   return (
     <>
       <form
-        className={`app-form note-editor${pageView ? " note-editor-full" : ""}${focused ? " editor-focus" : ""}`}
+        ref={root}
+        className={`app-form note-editor${pageView ? " note-editor-full" : ""}${workspace && !fullPage && !expanded && !focused ? " note-editor-drawer" : ""}${focused ? " editor-focus" : ""}`}
         onKeyDown={(event) => {
           if (
             (event.metaKey || event.ctrlKey) &&
@@ -364,7 +428,7 @@ export function MemoryEditor({
                   expanded ? "Return to compact editor" : "Back to notes"
                 }
                 title={expanded ? "Return to compact editor" : "Back to notes"}
-                disabled={busy && !fullPage}
+                disabled={busy && !autoSave}
                 onClick={() => {
                   if (expanded) {
                     setExpanded(false);
@@ -378,7 +442,8 @@ export function MemoryEditor({
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
                 <h1>
                   {content.match(/^#\s+(.+)/m)?.[1] ||
-                    (base ? "Edit note" : "New note")}
+                    content.trim().split("\n")[0].slice(0, 110) ||
+                    (base ? "Untitled note" : "New note")}
                 </h1>
               </div>
               <span className="note-save-status" role="status">
@@ -387,7 +452,7 @@ export function MemoryEditor({
                 ) : dirty ? (
                   error ? (
                     "Not saved · retry"
-                  ) : fullPage ? (
+                  ) : autoSave ? (
                     "Waiting to save…"
                   ) : (
                     "Unsaved changes"
@@ -395,21 +460,13 @@ export function MemoryEditor({
                 ) : base ? (
                   <>
                     <Check size={13} /> Saved
+                    {base.status === "archived" && " · Archived"}
                   </>
                 ) : (
                   "Start a note"
                 )}
               </span>
-              {base && draftKey && (
-                <Link
-                  className="app-icon"
-                  aria-label="Read note and history"
-                  title="Read note and history"
-                  href={`/app/memories/${base.id}`}
-                >
-                  <History size={17} />
-                </Link>
-              )}
+              {toolbar?.({ locked: busy || dirty || !!latest, content })}
               <button
                 type="button"
                 className="app-icon"
@@ -432,6 +489,17 @@ export function MemoryEditor({
                 {focused && <span>Exit focus</span>}
               </button>
               {saveButton}
+              {workspace && !fullPage && !expanded && (
+                <button
+                  type="button"
+                  className="app-icon"
+                  aria-label="Expand editor"
+                  title="Expand editor"
+                  onClick={() => setExpanded(true)}
+                >
+                  <Maximize2 size={16} />
+                </button>
+              )}
             </>
           ) : (
             <button
@@ -444,7 +512,7 @@ export function MemoryEditor({
           )}
         </div>
         <fieldset
-          disabled={busy && !fullPage}
+          disabled={busy && !autoSave}
           className="editor-fields"
           aria-busy={busy}
         >
@@ -517,14 +585,18 @@ export function MemoryEditor({
                 setContent(value);
                 if (!latest) setError("");
               }}
-              disabled={busy && !fullPage}
+              disabled={busy && !autoSave}
               fullPage={pageView}
+              preview={preview}
+              onPreviewChange={setPreview}
               placeholder={
                 kind === "handoff"
                   ? "# Task name\n\n## Progress\nWhat’s done so far?\n\n## Next steps\n- [ ] What should happen next?"
                   : "Start writing…"
               }
-            />
+            >
+              {children}
+            </MarkdownEditor>
             <div
               className="note-editor-properties"
               hidden={pageView && !properties}
@@ -621,6 +693,7 @@ export function MemoryEditor({
                   </label>
                 )}
               </details>
+              {details}
             </div>
           </div>
           {error && (
@@ -643,7 +716,7 @@ export function MemoryEditor({
           )}
           {pageView && (
             <p className="note-editor-hint">
-              {fullPage ? "Saves automatically" : "⌘ / Ctrl S to save"}
+              {autoSave ? "Saves automatically" : "⌘ / Ctrl S to save"}
               {draftKey && dirty
                 ? " · Draft kept while you move around Grove"
                 : " · Earlier versions stay in History"}

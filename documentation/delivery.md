@@ -1,5 +1,32 @@
 # Delivery evidence
 
+## Unified note workspace and keyboard navigation (21 October 2026 UTC)
+
+Reading and editing now share one persistent editor on the canonical note page and
+in a wider drawer. The mode toggle retains editor history and scroll positions;
+drawer autosave uses the same retained drafts, operation IDs and version checks as
+full-page writing. Linked notes are collapsed; agent references are within Note
+properties. History, comparison and restore remain contextual.
+
+The workspace adds a searchable command menu, platform-aware shortcut help, scoped
+arrow/Delete controls, and non-reflowing toast feedback. Text editing, native
+selection and accessible notebook dragging retain their own key handling. Nested
+dialogs dismiss independently, restore focus and release reference-counted scroll
+locks. The sidebar logo returns to Notes. Settings share a persistent layout with
+consistent navigation and independently scrolling content.
+
+Verification on Node 24.21.0 / pnpm 10.33.0: root lint, types, build and all five
+packed-artifact checks pass; website lint, types and telemetry-enabled production
+build pass. All 75 Chromium browser scenarios pass, including privacy/telemetry
+regressions, draft recovery, version conflicts, keyboard commands, confirmation
+before deletion, mode switching, responsive geometry and accessibility. Hosted CI
+exposed a first-save focus race: the command registry now follows the mounted
+workspace, preview survives routing, and modal dismissal restores focus by a stable
+key. Deterministic held-save tests verify that transition. Seven iPhone/WebKit
+checks pass for settings, notes, mode/scroll retention, mobile notebooks, touch
+menus and the first-save regressions. [Visual review](design/screenshots/note-workspace/README.md)
+records the captures. No schema migration is required.
+
 ## Product observability 1.7.1 (21 October 2026 UTC)
 
 Repair #45, coordinated release #46 and frozen production #47 are merged.
