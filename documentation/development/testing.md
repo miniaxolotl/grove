@@ -105,6 +105,13 @@ multi-page PDF plus desktop/390px/320px captures. The iPhone/WebKit set includes
 download and focus checks; physical iOS/Android file delivery remains a separate
 device qualification.
 
+PDF refinement checks inspect the actual embedded JetBrains Mono face and section
+bookmarks, single-page folio omission, landscape table/prose transitions and heading
+placement. Local code-font loading is deferred until export; a failed font request
+keeps Markdown available and a fresh attempt retries successfully. Ordinary table
+cells must remain complete/searchable across page boundaries. Reviewed ordinary-note
+and stress-case renders live with the note-actions captures.
+
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.
 With an isolated `GROVE_CONFIG_HOME`, the API environment and Clerk development

@@ -2,6 +2,19 @@
 
 Reviewed 21 October 2026 using synthetic notes and production-built CSS.
 
+## Refined PDF design
+
+- `pdf-focused-note.png`: the new one-page layout. Restrained monochrome hierarchy,
+  vector checkboxes, a quiet quote rule, content-weighted table columns and padded
+  JetBrains Mono code. A single page has no footer.
+- `pdf-focused-table.png`: a dedicated landscape table sheet with its section
+  heading. Ordinary rows remain intact, headers repeat, and the note returns to
+  portrait after the table. Long words wrap at the measured column edge.
+
+The original PDF captures below retain the before state for comparison.
+
+## Original feature review
+
 - `reader-desktop.png`: direct Export/Delete, persistent reader and copied feedback.
 - `reader-390.png`: 44px controls; writing surface starts at y=174, within the
   176px target. Compare the prior [gesture reader](../gesture-polish/compact-reader-mobile.png).

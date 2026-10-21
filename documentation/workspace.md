@@ -106,6 +106,10 @@ paginated text with links, headings, lists, code and tables. Images become label
 links; raw HTML is omitted. It loads locally only when requested, without sending
 your writing to a conversion service. Unsupported font characters appear as explicit
 Unicode codes; Markdown retains the originals. Very wide tables become labelled records.
+The PDF uses a quiet monochrome layout, real checkboxes, embedded monospace code,
+and section bookmarks. Ordinary table rows stay together; six-to-eight-column
+tables use landscape sheets while the rest of the note stays portrait. Page
+numbers appear only on multi-page notes.
 If an automatic PDF download does not start, use **Download PDF** in the chooser.
 Closing it cancels preparation. Clipboard denial leaves selectable source text.
 
