@@ -38,6 +38,11 @@ import {
 import type { ModelRegistry } from "./models.ts";
 import { InferenceError } from "@lib/ai";
 import {
+  connectionQuerySchema,
+  connectionReviewSchema,
+  connectionLevelSchema,
+} from "@lib/shared/relationships";
+import {
   conversationCreateSchema,
   conversationTurnSchema,
 } from "@lib/shared/conversations";
@@ -432,6 +437,26 @@ export function createApp(deps: AppDependencies) {
     c.json({
       success: true,
       data: await service.list(c.get("principal"), await body(c, listSchema)),
+    }),
+  );
+  app.post("/v1/relationships/search", async (c) =>
+    c.json({
+      success: true,
+      data: await service.relationships.list(
+        c.get("principal"),
+        await body(c, connectionQuerySchema),
+      ),
+    }),
+  );
+  app.post("/v1/relationships/:level/:id/review", async (c) =>
+    c.json({
+      success: true,
+      data: await service.relationships.review(
+        c.get("principal"),
+        connectionLevelSchema.parse(c.req.param("level")),
+        uuidSchema.parse(c.req.param("id")),
+        await mutation(c, connectionReviewSchema),
+      ),
     }),
   );
   app.get("/v1/memories/:id", async (c) =>

@@ -17,6 +17,7 @@ import {
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
+import { Relationships } from "./relationships.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
@@ -89,6 +90,7 @@ export const digest = (value: string) =>
 
 export class MemoryService {
   readonly conversations: Conversations;
+  readonly relationships: Relationships;
   providers: Providers;
   jobProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>;
   get embedder() {
@@ -102,6 +104,7 @@ export class MemoryService {
     readonly dailyRequestLimit = 2000,
   ) {
     this.providers = { ...providers, embedding: embedder };
+    this.relationships = new Relationships(this);
     this.conversations = new Conversations(
       this,
       this.present.bind(this),
