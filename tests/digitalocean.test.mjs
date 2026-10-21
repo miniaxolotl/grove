@@ -20,6 +20,7 @@ const env = {
   CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.usegrove.cloud$").toString("base64")}`,
   CLERK_WEBHOOK_SIGNING_SECRET: "whsec_test_fixture",
   CURSOR_SECRET: "test-cursor-secret".repeat(3),
+  SHARE_LINK_KEY: "ab".repeat(32),
   DEEPINFRA_API_KEY: "deepinfra-fixture",
   MINIMAX_API_KEY: "minimax-fixture",
 };
@@ -56,12 +57,23 @@ test("initial spec isolates runtime secrets and never deploys the migration owne
     spec.services[0].envs.find((item) => item.key === "GROVE_EDITION").value,
     "cloud",
   );
+  assert.deepEqual(
+    spec.services[0].envs.find((item) => item.key === "SHARE_LINK_KEY"),
+    {
+      key: "SHARE_LINK_KEY",
+      value: env.SHARE_LINK_KEY,
+      type: "SECRET",
+      scope: "RUN_TIME",
+    },
+  );
+  assert(!spec.workers[0].envs.some((item) => item.key === "SHARE_LINK_KEY"));
 });
 
 test("provisioning rejects owner connections, insecure TLS and stale Clerk keys", () => {
   for (const [key, value] of [
     ["CLERK_SECRET_KEY", "sk_test_do_not_log"],
     ["CLERK_WEBHOOK_SIGNING_SECRET", "unprefixed-private-signing-key"],
+    ["SHARE_LINK_KEY", "invalid-sharing-key-do-not-log"],
   ]) {
     assert.throws(
       () => createAppSpec({ ...env, [key]: value }),
