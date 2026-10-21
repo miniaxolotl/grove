@@ -1,5 +1,12 @@
 # Delivery evidence
 
+## Google Search Console (21 October 2026 UTC)
+
+The `sc-domain:usegrove.cloud` property is DNS-verified. Google successfully
+processed the production sitemap and discovered five public pages. Cloudflare,
+public DNS and Google owner/sitemap readbacks are accepted; ongoing checks are in
+[product observability](product-observability.md#google-search-console).
+
 ## Unified note workspace and keyboard navigation (21 October 2026 UTC)
 
 Reading and editing now share one persistent editor on the canonical note page and
