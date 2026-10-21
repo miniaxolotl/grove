@@ -10,6 +10,7 @@ import {
   Inbox,
   Folder,
   ChevronDown,
+  Share2,
 } from "lucide-react";
 import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
@@ -21,6 +22,7 @@ import {
   useWorkspaceDrag,
 } from "./memory-drag";
 import { ActionMenu } from "./ui/action-menu";
+import { ShareDialog } from "./share-dialog";
 
 export function NotebookExplorer() {
   const { projects, loading, error, reload } = useNotebooks();
@@ -28,6 +30,7 @@ export function NotebookExplorer() {
   const currentNotebook = useCurrentNotebook();
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [openPath, setOpenPath] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<string | null>(null);
   const open = openPath === path;
   const id = useId();
   const { active } = useWorkspaceDrag();
@@ -99,6 +102,10 @@ export function NotebookExplorer() {
                   <Pencil size={15} />
                   Rename
                 </button>
+                <button onClick={() => setSharing(project.id)}>
+                  <Share2 size={15} />
+                  Share notebook
+                </button>
                 <button onClick={() => setAction({ project, move: true })}>
                   <FolderInput size={15} />
                   Move
@@ -115,6 +122,12 @@ export function NotebookExplorer() {
         )}
         {action && (
           <NotebookDialog action={action} close={() => setAction(null)} />
+        )}
+        {sharing && (
+          <ShareDialog
+            target={{ kind: "notebook", id: sharing }}
+            close={() => setSharing(null)}
+          />
         )}
       </section>
     </div>

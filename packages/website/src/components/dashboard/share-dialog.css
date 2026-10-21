@@ -1,0 +1,100 @@
+.share-settings {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.share-target {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.share-help {
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.share-access {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+}
+.share-access > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.share-permission {
+  flex-shrink: 0;
+  padding-bottom: 12px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.share-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.share-actions > .app-button {
+  min-height: 44px;
+  white-space: normal;
+}
+.share-link {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.share-link label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.share-link input {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-paper);
+  font-size: 13px;
+}
+.share-inherited {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--color-sage);
+  font-size: 13px;
+}
+.share-inherited h3 {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.share-inherited p {
+  line-height: 1.6;
+}
+.share-inherited button,
+.share-back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.share-inherited button svg {
+  flex-shrink: 0;
+}
+.share-inherited ul {
+  margin-top: 8px;
+}
+.share-settings .app-notice,
+.share-settings .app-error {
+  margin: 0;
+}
+@media (max-width: 380px) {
+  .share-access {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .share-permission {
+    padding-bottom: 0;
+  }
+}

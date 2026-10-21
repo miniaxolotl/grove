@@ -14,6 +14,12 @@ import {
   conversationTurnSchema,
   type Conversation,
 } from "@lib/shared/conversations";
+import {
+  shareEnableSchema,
+  shareScopeSchema,
+  shareMutationSchema,
+  type ShareState,
+} from "@lib/shared/sharing";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const project = {
@@ -649,6 +655,290 @@ test("personal prompts save explicit preferences and the editor exposes independ
     path: info.outputPath("personal-context.png"),
     fullPage: true,
   });
+});
+
+async function shareFixture(page: Page) {
+  const workspace = await fixture(page);
+  const states = new Map<string, ShareState>();
+  const calls: { path: string; body: Record<string, unknown> }[] = [];
+  const receipts = new Map<string, ShareState>();
+  const controls = { loseResponse: false };
+  const get = (id: string): ShareState => {
+    if (!states.has(id))
+      states.set(id, {
+        available: true,
+        canShare: true,
+        target: {
+          kind: id === project.id ? "notebook" : "note",
+          id,
+          version: 1,
+          name: id === project.id ? project.name : "Review preferences",
+        },
+        direct: null,
+        inherited:
+          id === note.id
+            ? [
+                {
+                  id: "00000000-0000-4000-a000-000000000020",
+                  projectId: project.id,
+                  name: project.name,
+                },
+              ]
+            : [],
+      });
+    const value = states.get(id)!;
+    value.target.version = workspace.records.get(id)?.version ?? 1;
+    return value;
+  };
+  await page.route(
+    /\/api\/grove\/(?:memories|projects)\/[^/]+\/share$|\/api\/grove\/shares\//,
+    async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace("/api/grove", "");
+      const body = request.postDataJSON();
+      calls.push({ path, body });
+      const state = path.startsWith("/shares/")
+        ? [...states.values()].find(
+            (value) => value.direct?.id === path.split("/")[2],
+          )!
+        : get(path.split("/")[2]);
+      if (request.method() === "GET")
+        return route.fulfill({ json: { success: true, data: state } });
+      const input = (
+        request.method() === "PATCH"
+          ? shareScopeSchema
+          : path.endsWith("/share")
+            ? shareEnableSchema
+            : shareMutationSchema
+      ).parse(body);
+      if (receipts.has(input.operationId))
+        return route.fulfill({
+          json: { success: true, data: receipts.get(input.operationId) },
+        });
+      if (input.expectedVersion !== (state.direct?.version ?? 0))
+        return route.fulfill({
+          status: 409,
+          json: {
+            success: false,
+            error: { code: "version_conflict", message: "Sharing changed" },
+          },
+        });
+      const version = (state.direct?.version ?? 0) + 1;
+      state.direct = {
+        id: state.direct?.id ?? crypto.randomUUID(),
+        version,
+        active: request.method() !== "DELETE",
+        includeDescendants:
+          "includeDescendants" in input &&
+          typeof input.includeDescendants === "boolean"
+            ? input.includeDescendants
+            : (state.direct?.includeDescendants ?? false),
+        url:
+          request.method() === "DELETE"
+            ? null
+            : request.method() === "PATCH"
+              ? state.direct!.url
+              : `https://grove.example.test/s/gsh_${String(version).repeat(43)}`,
+      };
+      receipts.set(input.operationId, structuredClone(state));
+      if (controls.loseResponse) {
+        controls.loseResponse = false;
+        return route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: { code: "unavailable", message: "Please retry" },
+          },
+        });
+      }
+      return route.fulfill({ json: { success: true, data: state } });
+    },
+  );
+  return { ...workspace, sharing: { get, calls, controls } };
+}
+
+test("sharing controls keep stable links, retry uncertain writes and show inherited access", async ({
+  page,
+  context,
+}, info) => {
+  const { sharing } = await shareFixture(page);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "General access" }),
+    "anyone",
+  );
+  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  const first = await dialog.getByLabel("Current link").inputValue();
+  await dialog.getByRole("button", { name: "Copy link" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(first);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Share note", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Control+Shift+p");
+  await page
+    .getByRole("combobox", { name: "Search commands" })
+    .fill("share note");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByLabel("Current link")).toHaveValue(first);
+  sharing.controls.loseResponse = true;
+  await dialog.getByRole("button", { name: "Replace link" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Please retry");
+  await dialog.getByRole("button", { name: "Replace link" }).click();
+  await expect(dialog.getByLabel("Current link")).not.toHaveValue(first);
+  const rotations = sharing.calls.filter((call) =>
+    call.path.endsWith("/rotate"),
+  );
+  expect(rotations).toHaveLength(2);
+  expect(rotations[0].body.operationId).toBe(rotations[1].body.operationId);
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "General access" }),
+    "restricted",
+  );
+  await dialog.getByRole("button", { name: "Turn off direct link" }).click();
+  await expect(dialog.getByLabel("Current link")).toHaveCount(0);
+  await expect(
+    dialog.getByRole("heading", { name: "Also shared through notebooks" }),
+  ).toBeVisible();
+  await dialog
+    .getByRole("button", { name: `${project.name} sharing settings` })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Share notebook" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Back to note", exact: true }).click();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(
+      await dialog.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`share-dialog-${width}.png`),
+    });
+  }
+});
+
+test("notebook sharing entry points preserve scope and refresh conflicting settings", async ({
+  page,
+}) => {
+  const { sharing } = await shareFixture(page);
+  await page.goto(`${base}/app/projects/${project.id}`);
+  await page.getByRole("button", { name: "Notebook options" }).click();
+  await page
+    .getByRole("button", { name: "Share notebook", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Share notebook" });
+  await expect(
+    dialog.getByRole("combobox", { name: "Notebook scope" }),
+  ).toContainText("This notebook only");
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "General access" }),
+    "anyone",
+  );
+  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  const url = await dialog.getByLabel("Current link").inputValue();
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "Notebook scope" }),
+    "subtree",
+  );
+  sharing.get(project.id).direct!.version++;
+  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Current settings are shown",
+  );
+  await expect(
+    dialog.getByRole("combobox", { name: "Notebook scope" }),
+  ).toContainText("This notebook only");
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "Notebook scope" }),
+    "subtree",
+  );
+  await dialog.getByRole("button", { name: "Save sharing settings" }).click();
+  await expect(dialog.getByLabel("Current link")).toHaveValue(url);
+  await page.keyboard.press("Escape");
+  await page
+    .locator(".app-sidebar")
+    .getByRole("button", { name: `Notebook actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Share notebook", exact: true })
+    .click();
+  await expect(
+    dialog.getByRole("combobox", { name: "Notebook scope" }),
+  ).toContainText("Include sub-notebooks");
+  await page.keyboard.press("Escape");
+  await page.goto(`${base}/app/projects`);
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page
+    .getByRole("button", { name: `Share ${project.name}`, exact: true })
+    .click();
+  await expect(dialog.getByLabel("Current link")).toHaveValue(url);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("sharing an editing note permits revocation while retaining the pending draft", async ({
+  page,
+}) => {
+  const { sharing } = await shareFixture(page);
+  sharing.get(note.id).direct = {
+    id: crypto.randomUUID(),
+    version: 1,
+    active: true,
+    includeDescendants: false,
+    url: `https://grove.example.test/s/gsh_${"a".repeat(43)}`,
+  };
+  const started = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories", async (route) => {
+    started.resolve();
+    await response.promise;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app`);
+  await page
+    .locator(".memory-open")
+    .filter({ hasText: "Review preferences" })
+    .click();
+  const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+  await drawer.getByRole("button", { name: "Edit note", exact: true }).click();
+  const editor = drawer.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("An unsaved thought worth keeping");
+  await editor.press("Control+s");
+  await started.promise;
+  await drawer.getByRole("button", { name: "Share note", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
+  await expect(
+    dialog.getByRole("button", { name: "Replace link" }),
+  ).toBeDisabled();
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "General access" }),
+    "restricted",
+  );
+  await dialog.getByRole("button", { name: "Turn off direct link" }).click();
+  await expect(dialog.getByLabel("Current link")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeVisible();
+  await expect(editor).toHaveText("An unsaved thought worth keeping");
+  response.resolve();
+  await expect(drawer.locator(".note-save-status")).toHaveText("Saved");
 });
 
 async function fixture(page: Page, initial = [note, handoff]) {

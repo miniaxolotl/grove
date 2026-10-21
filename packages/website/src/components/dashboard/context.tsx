@@ -9,6 +9,7 @@ import {
   MessageSquare,
   AlignLeft,
   ListTodo,
+  Share2,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { BriefPanel } from "./brief";
@@ -28,6 +29,7 @@ import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { AskGrove } from "./ask-grove";
 import { ActionMenu } from "./ui/action-menu";
+import { ShareDialog } from "./share-dialog";
 
 export function MemoryContext({
   projectId = null,
@@ -42,6 +44,7 @@ export function MemoryContext({
     null,
   );
   const [refresh, setRefresh] = useState(0);
+  const [sharing, setSharing] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
   if (loading) return <p role="status">Opening notebook…</p>;
@@ -83,6 +86,10 @@ export function MemoryContext({
                     Today’s note
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <button onClick={() => setSharing(true)}>
+                      <Share2 size={15} />
+                      Share notebook
+                    </button>
                     <button onClick={() => setView("ask")}>
                       <MessageSquare size={15} />
                       Ask about these notes
@@ -285,6 +292,12 @@ export function MemoryContext({
         <NotebookDialog
           action={notebookAction}
           close={() => setNotebookAction(null)}
+        />
+      )}
+      {sharing && project && (
+        <ShareDialog
+          target={{ kind: "notebook", id: project.id }}
+          close={() => setSharing(false)}
         />
       )}
     </>
