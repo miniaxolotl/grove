@@ -14,6 +14,7 @@ import {
   Focus,
   Check,
   Save,
+  Download,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import {
@@ -27,7 +28,9 @@ import { useDialogBusy } from "./dialog";
 import { Button } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
 import { RevisionCompare } from "./revision-compare";
-import { useNoteDrafts, type NoteValues } from "./note-drafts";
+import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
+import { NoteDeleteDialog } from "./note-delete-dialog";
+import { useNoteExport } from "./note-export";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
@@ -54,6 +57,9 @@ export function MemoryEditor({
   details,
   children,
   onLockChange,
+  deleteRequested = false,
+  cancelDelete,
+  onDeleted,
   done,
   cancel,
 }: {
@@ -71,15 +77,20 @@ export function MemoryEditor({
   toolbar?: (state: {
     locked: boolean;
     content: string;
+    onExport: () => void;
     secondary: ReactNode;
   }) => ReactNode;
   details?: ReactNode;
   children?: ReactNode;
   onLockChange?: (locked: boolean) => void;
+  deleteRequested?: boolean;
+  cancelDelete?: () => void;
+  onDeleted?: () => void;
   done: (memory: Memory, view?: { preview: boolean }) => void;
   cancel: () => void;
 }) {
   const drafts = useNoteDrafts();
+  const noteExport = useNoteExport();
   const root = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState(initialPreview);
   const { refresh: refreshNotes } = useWorkspaceDrag();
@@ -90,6 +101,7 @@ export function MemoryEditor({
     draft?.content ?? memory?.content ?? initialContent,
   );
   const [base, setBase] = useState(draft ? draft.base : memory);
+  const held = useDraftHeld(base ? `note:${base.id}` : (draftKey ?? ""));
   const [latest, setLatest] = useState<Memory>();
   const [kind, setKind] = useState(draft?.kind ?? memory?.kind ?? initialKind);
   const [retention, setRetention] = useState(
@@ -233,6 +245,7 @@ export function MemoryEditor({
         setAutoKind(next.autoKind);
         pending.current = null;
         submitted.current = undefined;
+        if (draftKey) noteExport.followSave(draftKey, saved.id);
         refreshNotes();
         done(saved, { preview });
       } catch (e) {
@@ -255,6 +268,7 @@ export function MemoryEditor({
       } finally {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.saving = undefined;
+        drafts?.notify();
         if (active()) {
           setSaving(undefined);
           setDialogBusy(false);
@@ -296,7 +310,9 @@ export function MemoryEditor({
     onLockChange?.(busy || dirty || !!latest);
   }, [onLockChange, busy, dirty, latest]);
   function persist() {
-    if (saveDisabled) return;
+    // Retrying an uncertain save must use its original payload even if newer
+    // local edits are empty or exceed the save limit.
+    if (saveDisabled && !(pending.current?.input && !busy && !latest)) return;
     setDialogBusy(!autoSave);
     setError("");
     if (kind === "handoff" && !task.current)
@@ -340,8 +356,13 @@ export function MemoryEditor({
       });
   }
   const autosave = useEffectEvent(persist);
+  const openExport = () =>
+    noteExport.open({
+      key: draftKey ?? (base ? `note:${base.id}` : "new:compact"),
+      snapshot: { content, unsaved: dirty || busy || !base },
+    });
   useEffect(() => {
-    if (!autoSave || saveDisabled || error) return;
+    if (!autoSave || saveDisabled || error || held || deleteRequested) return;
     const timer = setTimeout(() => autosave(), 900);
     return () => clearTimeout(timer);
   }, [
@@ -353,9 +374,12 @@ export function MemoryEditor({
     retention,
     autoKind,
     projectId,
+    held,
+    deleteRequested,
   ]);
   useWorkspaceCommands(
     [
+      { id: "note-export", label: "Export note…", run: openExport },
       {
         id: "note-mode",
         label: preview ? "Edit note" : "Preview note",
@@ -490,6 +514,10 @@ export function MemoryEditor({
                 ) : dirty ? (
                   error ? (
                     "Not saved · retry"
+                  ) : content.length > 6000 ? (
+                    "Over save limit"
+                  ) : !content.trim() ? (
+                    "Empty draft"
                   ) : autoSave ? (
                     "Waiting to save…"
                   ) : (
@@ -504,15 +532,31 @@ export function MemoryEditor({
                   "Start a note"
                 )}
               </span>
+              <button
+                type="button"
+                className="app-button secondary note-export-button"
+                data-focus-key="note-export"
+                onClick={openExport}
+              >
+                <Download size={16} />
+                Export
+              </button>
               {toolbar ? (
                 toolbar({
                   locked: busy || dirty || !!latest,
                   content,
                   secondary,
+                  onExport: openExport,
                 })
               ) : (
                 <span className="note-mobile-actions">
-                  <ActionMenu label="Note actions">{secondary}</ActionMenu>
+                  <ActionMenu label="Note actions">
+                    <button type="button" onClick={openExport}>
+                      <Download size={15} />
+                      Export…
+                    </button>
+                    {secondary}
+                  </ActionMenu>
                 </span>
               )}
               <button
@@ -772,9 +816,18 @@ export function MemoryEditor({
           )}
         </fieldset>
       </form>
+      {deleteRequested && base && cancelDelete && onDeleted && (
+        <NoteDeleteDialog
+          memory={base}
+          close={cancelDelete}
+          onDeleted={onDeleted}
+          retrySave={persist}
+          conflict={!!latest}
+        />
+      )}
       {createNotebook && (
         <NotebookDialog
-          action={{}}
+          action={{ mode: "create" }}
           close={() => setCreateNotebook(false)}
           onSaved={(project) => setProjectId(project.id)}
         />

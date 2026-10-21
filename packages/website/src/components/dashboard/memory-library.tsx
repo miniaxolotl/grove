@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -38,6 +38,7 @@ import { SegmentedControl } from "./ui/segmented-control";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
+import { NoteDeleteDialog } from "./note-delete-dialog";
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
   loading: () => (
@@ -106,7 +107,8 @@ export function MemoryLibrary({
   const [notice, setNotice] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Memory | "new" | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting] = useState<Memory | null>(null);
+  const focusAfterDelete = useRef<string | null | undefined>(undefined);
   const [checked, setChecked] = useState<string[]>([]);
   const [actionRow, setActionRow] = useState<string | null>(null);
   const [moving, setMoving] = useState<Memory[] | null>(null);
@@ -136,7 +138,10 @@ export function MemoryLibrary({
     lifetime,
   });
   useSetCurrentNotebook(scopedProject);
-  const items = resultKey === requestKey ? loadedItems : [];
+  const items = useMemo(
+    () => (resultKey === requestKey ? loadedItems : []),
+    [resultKey, requestKey, loadedItems],
+  );
   const next = resultKey === requestKey ? cursor : null;
   const loading = fetching || resultKey !== requestKey;
   const currentError = resultKey === requestKey ? error : "";
@@ -376,8 +381,42 @@ export function MemoryLibrary({
     if (busy || !memories.length) return;
     setSelected(null);
     setMoving(memories);
-    setDestination("personal");
+    const first = memories[0].projectId;
+    setDestination(
+      memories.every((note) => note.projectId === first)
+        ? (first ?? "personal")
+        : "",
+    );
   }
+  function deleted(memory: Memory) {
+    const index = items.findIndex((item) => item.id === memory.id);
+    const neighbor = items[index + 1] ?? items[index - 1];
+    focusAfterDelete.current = neighbor?.id ?? null;
+    setDeleting(null);
+    setChecked((checked) => checked.filter((id) => id !== memory.id));
+    setItems((items) => items.filter((item) => item.id !== memory.id));
+    reload();
+  }
+  useEffect(() => {
+    if (focusAfterDelete.current === undefined || loading) return;
+    const id = focusAfterDelete.current;
+    const target =
+      (id
+        ? document.querySelector<HTMLElement>(
+            `[data-note-id="${id}"] .memory-open`,
+          )
+        : null) ??
+      document.querySelector<HTMLElement>(
+        ".library-main .memory-open, .library-main .app-empty h2",
+      );
+    if (!target) return;
+    const frame = requestAnimationFrame(() => {
+      target.tabIndex = target.tabIndex < 0 ? -1 : target.tabIndex;
+      target.focus({ preventScroll: true });
+      focusAfterDelete.current = undefined;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [items, loading]);
   const title = archive
     ? "Archive"
     : initialView === "graph"
@@ -648,12 +687,11 @@ export function MemoryLibrary({
                           )
                         }
                         onOpen={() => {
-                          setDeleting(false);
+                          setDeleting(null);
                           setSelected(memory);
                         }}
                         onDelete={() => {
-                          setDeleting(true);
-                          setSelected(memory);
+                          setDeleting(memory);
                         }}
                         onMove={() => startMove([memory])}
                         onArchive={() =>
@@ -730,7 +768,6 @@ export function MemoryLibrary({
               key={selected.id}
               memory={selected}
               projects={projects}
-              initialDelete={deleting}
               busy={busy}
               onSaved={(memory) => {
                 setSelected(memory);
@@ -739,7 +776,7 @@ export function MemoryLibrary({
                 );
               }}
               close={() => setSelected(null)}
-              onDeleted={() => reload()}
+              onDeleted={() => deleted(selected)}
               onMove={() => startMove([selected])}
               onArchive={() =>
                 void perform(
@@ -750,7 +787,7 @@ export function MemoryLibrary({
               onPrevious={
                 currentIndex > 0
                   ? () => {
-                      setDeleting(false);
+                      setDeleting(null);
                       setSelected(items[currentIndex - 1]);
                     }
                   : undefined
@@ -758,7 +795,7 @@ export function MemoryLibrary({
               onNext={
                 currentIndex >= 0 && currentIndex < items.length - 1
                   ? () => {
-                      setDeleting(false);
+                      setDeleting(null);
                       setSelected(items[currentIndex + 1]);
                     }
                   : undefined
@@ -766,6 +803,13 @@ export function MemoryLibrary({
             />
           )}
         </Dialog>
+      )}
+      {deleting && (
+        <NoteDeleteDialog
+          memory={deleting}
+          close={() => setDeleting(null)}
+          onDeleted={() => deleted(deleting)}
+        />
       )}
       {moving && (
         <Dialog
@@ -792,16 +836,46 @@ export function MemoryLibrary({
               value={destination}
               onValueChange={setDestination}
               projects={projects}
-              leading={[{ value: "personal", label: "Unfiled" }]}
+              leading={[
+                ...(destination === ""
+                  ? [
+                      {
+                        value: "",
+                        label: "Choose a destination",
+                        disabled: true,
+                      },
+                    ]
+                  : []),
+                { value: "personal", label: "Unfiled" },
+              ]}
               disabled={busy}
             />
             <p className="text-xs text-muted">
               Connected agents with access to this notebook can read these
               notes.
             </p>
-            <button disabled={busy} className="app-button">
-              {busy ? "Moving…" : "Move here"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="app-button secondary"
+                disabled={busy}
+                onClick={() => setMoving(null)}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={
+                  busy ||
+                  !destination ||
+                  moving.every(
+                    (note) => (note.projectId ?? "personal") === destination,
+                  )
+                }
+                className="app-button"
+              >
+                {busy ? "Moving…" : "Move here"}
+              </button>
+            </div>
           </form>
         </Dialog>
       )}

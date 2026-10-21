@@ -98,6 +98,23 @@ fixture serves production CSS and bundles current components, so rebuild the sit
 after CSS changes. Browser emulation does not qualify physical software keyboards,
 OS text-selection handles, back-edge gestures or trackpad/pen feel.
 
+Note-action checks cover direct toolbar/row deletion, Cancel focus, stale versions,
+dirty/oversized drafts, held saves and same-identity retries after a lost response.
+Export checks inspect actual UTF-8 downloads and clipboard results, first-save
+snapshot retention, row freshness, denied clipboard fallback, deferred PDF failure
+and cancellation. PDFs are parsed with pdfjs: searchable text, links, every table
+cell, page counts and text bounds are checked. Visual review uses the generated
+multi-page PDF plus desktop/390px/320px captures. The iPhone/WebKit set includes
+download and focus checks; physical iOS/Android file delivery remains a separate
+device qualification.
+
+PDF refinement checks inspect the actual embedded JetBrains Mono face and section
+bookmarks, single-page folio omission, landscape table/prose transitions and heading
+placement. Local code-font loading is deferred until export; a failed font request
+keeps Markdown available and a fresh attempt retries successfully. Ordinary table
+cells must remain complete/searchable across page boundaries. Reviewed ordinary-note
+and stress-case renders live with the note-actions captures.
+
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.
 With an isolated `GROVE_CONFIG_HOME`, the API environment and Clerk development

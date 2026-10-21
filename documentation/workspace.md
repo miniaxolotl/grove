@@ -24,14 +24,13 @@ logo always returns to Notes.
   preserves typing that happens during a request.
   Reopening a draft during a save follows the same request rather than creating
   another note.
-  **History** opens earlier revisions without leaving the workspace.
-   **Linked notes** is a collapsed accordion below your writing. **Note actions**
-   holds Copy Markdown, Move, Archive and Delete. Action confirmations appear as
-   toasts without moving the page; autosave status stays in the toolbar.
-   On phones, **Note actions** also holds History, properties, focus mode and
-   previous/next note controls. The compact header keeps Back, Save and the note's
-    save state visible while reading or writing. Save stays visually quiet until
-    there are changes to save.
+   **History** opens earlier revisions without leaving the workspace.
+   **Linked notes** is a collapsed accordion below your writing. **Export** and
+   **Delete note…** are directly reachable in the toolbar, including focus mode.
+   **Note actions** orders Move, Export, revision history/properties, Archive or
+   Restore, then separated Delete. On phones it also holds focus mode and
+   previous/next controls. Save state stays visible; feedback does not move the page.
+   Save stays visually quiet until there are changes to save.
 - Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
@@ -40,10 +39,12 @@ logo always returns to Notes.
   notebook settings. Each notebook's action menu includes **New sub-notebook**;
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
   matching notebooks' ancestors so you can see where they belong.
-- **Rename** and **Move** share notebook settings. Choose a **Parent notebook**
-  or **Top level** to reorganize it; sub-notebooks move with their parent. Breadcrumbs
-  and notebook dropdowns show the full path. A notebook cannot move into itself or
-  its descendants. Concurrent changes require reopening settings to review them.
+- **Rename notebook** focuses the name; **Move notebook** focuses the destination
+   and preserves the name. Choose a **Parent notebook** or **Top level**;
+   sub-notebooks move with their parent. Breadcrumbs and dropdowns show full paths.
+   A notebook cannot move into itself or its descendants. Concurrent changes keep
+   your inputs and offer the current version for review. Unchanged actions are disabled.
+   Single-note moves start at their current notebook; mixed selections ask for a destination.
 - Each notebook keeps its own access scope: parent access does not include children.
   Notes/search/Ask Grove stay scoped to the chosen notebook. Moving a notebook
   preserves its notes, revisions, retention, and stable agent/repository references.
@@ -52,17 +53,17 @@ logo always returns to Notes.
    again. Escape cancels. On touch screens, a horizontal swipe reveals ordinary
    action buttons for one note at a time; vertical gestures scroll. A long press
    on the handle starts dragging and reveals a scrollable list of destinations.
-    Hold near the list's edge to scroll, or release over **Drop here to cancel**
-    at the bottom of the same destination panel. The preview identifies the item;
-    the current destination is highlighted as you move.
+   Hold near the list's edge to scroll, or release over **Drop here to cancel**
+   at the bottom of the same destination panel. The preview identifies the item;
+   the current destination is highlighted as you move.
    Pens start from the same handles. Interrupted gestures do not move a note.
   Notebook handles also support drag or keyboard nesting; hover over a collapsed
   destination to expand it. Focus mode fills the viewport and hides secondary tools.
 - **Undo** checks the version produced by the original action. It never overwrites
    someone else's later edit. Partial failures identify the affected notes.
    Move and bulk-action Undo stays available in the shared notification stack
-    alongside later copy feedback, including inside an open dialog. Compact neutral
-    confirmations sit at the lower right, clear of the chat composer.
+   alongside later copy feedback, including inside an open dialog. Compact neutral
+   confirmations sit at the lower right, clear of the chat composer.
 
 Dropdowns share keyboard, touch and focus behavior across filters, notebook choices,
 note properties and settings. Use arrows, Home/End or typeahead, Enter to
@@ -95,6 +96,37 @@ in the sidebar/footer, or `Ctrl`/`Cmd` + `/`, opens the help menu.
 Arrow and Delete keys keep their normal behavior inside text fields and editors.
 Deleting always requires confirmation. Drag handles retain their own Space/arrow
 controls. Long notes scroll within the workspace while the mode switch stays visible.
+
+## Export and delete notes
+
+**Export** opens three choices: **Markdown (.md)**, **PDF (.pdf)** and
+**Copy Markdown**. It uses the text you are reading or editing, including new and
+unsaved drafts, without requiring a save. The chooser identifies unsaved changes.
+From a row, Export uses a retained draft or fetches the latest saved note.
+Files contain the note body; their names follow its current title.
+
+Markdown and Copy preserve source text and Unicode. PDF produces searchable,
+paginated text with links, headings, lists, code and tables. Images become labelled
+links; raw HTML is omitted. It loads locally only when requested, without sending
+your writing to a conversion service. Unsupported font characters appear as explicit
+Unicode codes; Markdown retains the originals. Very wide tables become labelled records.
+The PDF uses a quiet monochrome layout, real checkboxes, embedded monospace code,
+and section bookmarks. Ordinary table rows stay together; six-to-eight-column
+tables use landscape sheets while the rest of the note stays portrait. Page
+numbers appear only on multi-page notes.
+If an automatic PDF download does not start, use **Download PDF** in the chooser.
+Closing it cancels preparation. Clipboard denial leaves selectable source text.
+
+Drafts longer than 6,000 characters stay available for export; shorten them to save.
+PDF supports up to 100,000 characters. **Settings → Your data → Export all account
+data** is the separate backup containing notes, revisions and conversations.
+
+**Delete note…** is also available under a row's Actions button, without opening
+the note. Confirmation names the note and permanently removes its history. Cancel
+keeps your draft. If you have unsaved edits, the confirmation explicitly discards
+them; it pauses autosave and waits for an active save. An uncertain save must be
+resolved with **Retry pending save** first. Concurrent edits require review rather
+than deletion against an unseen version. Successful deletion has no Undo.
 
 ## Daily writing and personal details
 
