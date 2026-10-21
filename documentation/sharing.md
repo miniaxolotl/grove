@@ -8,11 +8,17 @@ see **live saved content** without signing in. Visitor permission is **Can view*
 Open **Share note** in the note toolbar or Commands. Notebook sharing is available
 in notebook options, sidebar actions and the notebook manager.
 
-- Choose **Restricted** or **Anyone with the link**, then save the settings.
+- Choose **Anyone with the link**, then **Create link**. Existing links lead with
+  **Copy link**; **Done** closes the dialog. Copy confirmation stays on the button.
 - Notebook scope defaults to **This notebook only**. **Include sub-notebooks** adds
   current and future descendants. New or moved-in saved notes become visible.
 - Copy/Open reuse the same URL. Replace invalidates the previous URL immediately.
   Select Restricted and **Turn off direct link** to revoke. Re-enabling makes a new URL.
+- Permission changes are staged until **Save changes** or **Turn off direct link**.
+  **Cancel** restores the saved settings without a write. Copy/Open are unavailable
+  while changes are pending, so the current URL cannot imply unsaved permissions.
+  Saves and replacement use inline feedback; a blocked clipboard selects the URL
+  for manual copying. Keyboard focus stays with the completed action.
 - The dialog lists covering notebook links and opens their settings. Turning off
   one direct link does not remove access through another covering notebook link.
 - New notes must finish their first save. Pending saves/conflicts prevent enabling

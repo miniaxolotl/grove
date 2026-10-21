@@ -41,6 +41,30 @@ Rollout requires owner migration `20261021_011_public_sharing`, an API-only
 capability-log redaction and live signed-in/signed-out checks remain rollout
 verification, as detailed in [deploy](deploy.md#public-sharing-rollout).
 
+### Sharing interface refinement
+
+After screenshot review, the sharing dialog uses a compact 540px layout, grouped
+settings and quiet inherited-access rows. Its primary action follows the current
+state: Create link, Save changes, Turn off direct link, Copy link or Done. Cancel
+restores staged settings without writing. Copy/Open remain unavailable while
+permissions are pending. Copy feedback stays on the button; saves/replacement use
+inline status, keeping mobile actions clear. Clipboard denial selects the URL for
+manual copying, and completed mutations preserve keyboard focus.
+
+Public readers have a tighter reading rhythm, aligned checklists, quiet notebook
+rows with update dates, and explicit focus states. All navigation retains fresh
+server reads. [Reviewed screenshots](design/screenshots/public-sharing/README.md)
+cover desktop and mobile, including long names and short-viewport scrolling.
+
+Follow-up verification: root lint/types/build and all five artifact tests pass;
+website lint/types and the telemetry-enabled production build pass. The full
+**85-test Chromium suite** passed, followed by all **four** sharing-control cases
+after the final inline-feedback/focus correction. All **eight iPhone/WebKit**
+reader/control scenarios pass, including scope conflicts, staged cancellation,
+clipboard denial, pending-save revocation and no-JavaScript reading. Desktop,
+390px and 320px overflow/accessibility checks pass. Mobile review exposed the
+success-toast overlap that the inline feedback resolves.
+
 ## Google Search Console (21 October 2026 UTC)
 
 The `sc-domain:usegrove.cloud` property is DNS-verified. Google successfully
