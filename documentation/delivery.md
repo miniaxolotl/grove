@@ -82,6 +82,17 @@ controls: the 390×844 reader begins at y=134 instead of y=280. Chat replies pre
 older-message reading/selection, with an explicit Latest reply action. Move/bulk
 Undo and copy feedback share the active dialog's notification stack.
 
+The screenshot-review follow-up simplifies presentation: one mobile move panel
+contains destinations and cancellation, the smaller drag preview only identifies
+the item, saved controls are neutral, and compact success feedback sits at the
+lower right. Graph instructions are available through **Controls**, with explicit
+Expand/Done labels and only relevant legends. Empty-state guidance stays below
+the canvas. Independent touch targets and durable Undo remain available.
+The follow-up passes all 87 Chromium and eight iPhone/WebKit scenarios, with the
+three graph scenarios rechecked after the final 320px toolbar/accessible-label
+adjustments. All required static, build and artifact gates pass; six refreshed
+captures record the visual review.
+
 Node 24.21.0 / pnpm 10.33.0 verification passes root lint, types, build and all five
 packed-artifact checks; website lint, types and telemetry-enabled production build;
 87 Chromium browser/accessibility/privacy scenarios; eight focused iPhone/WebKit

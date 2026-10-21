@@ -440,43 +440,38 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
       >
         {children}
         {active && (
-          <div className="mobile-drop-tray" aria-label="Move destination">
-            <span>Drop into a notebook</span>
-            <div className="mobile-drop-destinations">
-              <NotebookDropTarget
-                projectId={null}
-                name={active.kind === "notebook" ? "Top level" : "Unfiled"}
-                root={active.kind === "notebook"}
-              />
-              {notebookOptions(notebooks.projects).map((option) => (
+          <div className="workspace-drop-surface">
+            <div className="mobile-drop-tray" aria-label="Move destination">
+              <span>Move to</span>
+              <div className="mobile-drop-destinations">
                 <NotebookDropTarget
-                  key={option.value}
-                  projectId={option.value}
-                  name={option.label}
+                  projectId={null}
+                  name={active.kind === "notebook" ? "Top level" : "Unfiled"}
+                  root={active.kind === "notebook"}
                 />
-              ))}
+                {notebookOptions(notebooks.projects).map((option) => (
+                  <NotebookDropTarget
+                    key={option.value}
+                    projectId={option.value}
+                    name={option.label}
+                  />
+                ))}
+              </div>
             </div>
+            <CancelDropTarget />
           </div>
         )}
-        {active && <CancelDropTarget />}
         <DragOverlay dropAnimation={null} modifiers={[fingerOffset]}>
           {active && (
             <div className="memory-drag-preview">
               <FolderInput size={18} />
-              <span>
-                <strong>
-                  {active.kind === "notebook"
-                    ? active.project.name
-                    : active.items.length > 1
-                      ? `${active.items.length} notes`
-                      : memoryTitle(active.items[0])}
-                </strong>
-                <small>
-                  {active.kind === "notebook"
-                    ? "Move notebook and its contents"
-                    : "Drop into a notebook to move"}
-                </small>
-              </span>
+              <strong>
+                {active.kind === "notebook"
+                  ? active.project.name
+                  : active.items.length > 1
+                    ? `${active.items.length} notes`
+                    : memoryTitle(active.items[0])}
+              </strong>
             </div>
           )}
         </DragOverlay>
