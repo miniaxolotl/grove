@@ -1,7 +1,15 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Pencil, FolderInput } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  FolderInput,
+  CalendarDays,
+  MessageSquare,
+  AlignLeft,
+  ListTodo,
+} from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { BriefPanel } from "./brief";
 import { MemoryLibrary } from "./memory-library";
@@ -55,7 +63,7 @@ export function MemoryContext({
         <NotebookBreadcrumbs projects={projects} id={projectId} current />
       )}
       <PageHeading
-        title={project?.name ?? "About me"}
+        title={project?.name ?? "About you"}
         description={
           project
             ? undefined
@@ -67,13 +75,25 @@ export function MemoryContext({
               {project && (
                 <>
                   <Link
-                    className="app-button"
-                    href={`/app/notes/new?notebook=${project.id}`}
+                    className="app-button secondary"
+                    href={`/app/notes/new?from=journal&notebook=${project.id}`}
                   >
-                    <Plus size={16} />
-                    New note
+                    <CalendarDays size={16} />
+                    Today’s note
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <button onClick={() => setView("ask")}>
+                      <MessageSquare size={15} />
+                      Ask about these notes
+                    </button>
+                    <button onClick={() => setView("context")}>
+                      <AlignLeft size={15} />
+                      Summarize notebook
+                    </button>
+                    <button onClick={() => setView("handoffs")}>
+                      <ListTodo size={15} />
+                      Progress notes
+                    </button>
                     <Button
                       variant="secondary"
                       onClick={() => setNotebookAction({ project })}
@@ -121,29 +141,31 @@ export function MemoryContext({
         </p>
       )}
       {error && <LoadError message={error} retry={reload} />}
-      <nav className="workspace-tabs" aria-label="Workspace views">
-        {(project
-          ? [
-              { id: "memories", label: "Notes" },
-              { id: "context", label: "Summary" },
-              { id: "handoffs", label: "In progress" },
-              { id: "ask", label: "Ask Grove" },
-            ]
-          : [
-              { id: "context", label: "Overview" },
-              { id: "preferences", label: "Preferences" },
-              { id: "facts", label: "My notes" },
-            ]
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            aria-pressed={view === tab.id}
-            onClick={() => setView(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {project && view !== "memories" && (
+        <button
+          className="text-button mb-4"
+          onClick={() => setView("memories")}
+        >
+          Back to notes
+        </button>
+      )}
+      {!project && (
+        <nav className="workspace-tabs" aria-label="Workspace views">
+          {[
+            { id: "context", label: "Overview" },
+            { id: "preferences", label: "Preferences" },
+            { id: "facts", label: "My notes" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              aria-pressed={view === tab.id}
+              onClick={() => setView(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
       {project &&
         view === "memories" &&
         projects.some((p) => p.parentId === project.id) && (
@@ -206,7 +228,6 @@ export function MemoryContext({
         <MemoryLibrary
           key={`${refresh}:${view}`}
           embedded
-          showCreate={!project}
           initialView={view === "graph" ? "graph" : "list"}
           projectId={projectId}
           initialKind={

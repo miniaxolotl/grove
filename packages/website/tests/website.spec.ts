@@ -149,10 +149,10 @@ test("the public library preview supports keyboard exploration without account m
   await page.getByRole("tab", { name: "Notes", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(
-    page.getByRole("tab", { name: "Journal", exact: true }),
+    page.getByRole("tab", { name: "By date", exact: true }),
   ).toBeFocused();
   await expect(
-    page.getByRole("tabpanel", { name: "Journal", exact: true }),
+    page.getByRole("tabpanel", { name: "By date", exact: true }),
   ).toContainText("A small win");
   await page.keyboard.press("End");
   await expect(

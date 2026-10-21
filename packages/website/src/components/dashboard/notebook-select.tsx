@@ -5,7 +5,7 @@ import { Select, type SelectProps, type SelectOption } from "./ui/select";
 export function NotebookSelect({
   projects,
   exclude,
-  leading = [{ value: "", label: "Personal" }],
+  leading = [{ value: "", label: "Unfiled" }],
   ...props
 }: Omit<SelectProps, "options"> & {
   projects: readonly Project[];

@@ -1,9 +1,17 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { Plus, FilePlus2, Pencil, FolderInput, UserRound } from "lucide-react";
-import { useNotebooks } from "./notebooks-provider";
+import { useId, useState } from "react";
+import {
+  Plus,
+  FilePlus2,
+  Pencil,
+  FolderInput,
+  Inbox,
+  Folder,
+  ChevronDown,
+} from "lucide-react";
+import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
 import { IconButton } from "./ui/button";
@@ -17,74 +25,98 @@ import { ActionMenu } from "./ui/action-menu";
 export function NotebookExplorer() {
   const { projects, loading, error, reload } = useNotebooks();
   const path = usePathname();
+  const currentNotebook = useCurrentNotebook();
   const [action, setAction] = useState<NotebookAction | null>(null);
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const open = openPath === path;
+  const id = useId();
   const { active } = useWorkspaceDrag();
-  const { setNodeRef, isOver } = useNotebookDrop(null, "Personal");
+  const { setNodeRef, isOver } = useNotebookDrop(null, "Unfiled");
   return (
-    <section className="notebook-explorer" aria-label="Your notebooks">
-      <div className="notebook-explorer-heading">
-        <Link href="/app/projects">Your notebooks</Link>
-        <IconButton label="Create notebook" onClick={() => setAction({})}>
-          <Plus size={14} />
-        </IconButton>
-      </div>
-      <Link
-        ref={setNodeRef}
-        className="notebook-personal"
-        href="/app?notebook=personal"
-        data-destination="personal"
-        data-drop-active={isOver || undefined}
+    <div className="notebook-browser">
+      <button
+        className="notebook-browser-toggle"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpenPath(open ? null : path)}
       >
-        <UserRound size={15} />
-        Personal
-      </Link>
-      {active?.kind === "notebook" && (
-        <NotebookDropTarget projectId={null} name="Top level" root />
-      )}
-      {loading ? (
-        <p className="notebook-tree-message">Opening notebooks…</p>
-      ) : error ? (
-        <button className="text-button" onClick={reload}>
-          Retry notebooks
-        </button>
-      ) : projects.length ? (
-        <NotebookTree
-          showNotes
-          projects={projects}
-          selectedId={
-            path.startsWith("/app/projects/") ? path.split("/")[3] : null
-          }
-          actions={(project) => (
-            <ActionMenu label={`Notebook actions for ${project.name}`}>
-              <Link href={`/app/notes/new?notebook=${project.id}`}>
-                <FilePlus2 size={15} />
-                New note
-              </Link>
-              <button onClick={() => setAction({ parentId: project.id })}>
-                <Plus size={15} />
-                New sub-notebook
-              </button>
-              <button onClick={() => setAction({ project })}>
-                <Pencil size={15} />
-                Rename
-              </button>
-              <button onClick={() => setAction({ project, move: true })}>
-                <FolderInput size={15} />
-                Move
-              </button>
-            </ActionMenu>
-          )}
-        />
-      ) : (
-        <p className="notebook-tree-message">
-          <button className="text-button" onClick={() => setAction({})}>
-            Create a notebook
+        <Folder size={16} /> Notebooks <ChevronDown size={14} />
+      </button>
+      <section
+        id={id}
+        className="notebook-explorer"
+        data-mobile-open={open || undefined}
+        aria-label="Your notebooks"
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) setOpenPath(null);
+        }}
+      >
+        <div className="notebook-explorer-heading">
+          <span>Notebooks</span>
+          <Link href="/app/projects" className="notebook-manage">
+            Manage
+          </Link>
+          <IconButton label="Create notebook" onClick={() => setAction({})}>
+            <Plus size={14} />
+          </IconButton>
+        </div>
+        <Link
+          ref={setNodeRef}
+          className="notebook-personal"
+          href="/app?notebook=personal"
+          aria-current={currentNotebook === null ? "page" : undefined}
+          data-destination="personal"
+          data-drop-active={isOver || undefined}
+        >
+          <Inbox size={15} />
+          Unfiled
+        </Link>
+        {active?.kind === "notebook" && (
+          <NotebookDropTarget projectId={null} name="Top level" root />
+        )}
+        {loading ? (
+          <p className="notebook-tree-message">Opening notebooks…</p>
+        ) : error ? (
+          <button className="text-button" onClick={reload}>
+            Retry notebooks
           </button>
-        </p>
-      )}
-      {action && (
-        <NotebookDialog action={action} close={() => setAction(null)} />
-      )}
-    </section>
+        ) : projects.length ? (
+          <NotebookTree
+            showNotes
+            projects={projects}
+            selectedId={currentNotebook}
+            actions={(project) => (
+              <ActionMenu label={`Notebook actions for ${project.name}`}>
+                <Link href={`/app/notes/new?notebook=${project.id}`}>
+                  <FilePlus2 size={15} />
+                  New note
+                </Link>
+                <button onClick={() => setAction({ parentId: project.id })}>
+                  <Plus size={15} />
+                  New sub-notebook
+                </button>
+                <button onClick={() => setAction({ project })}>
+                  <Pencil size={15} />
+                  Rename
+                </button>
+                <button onClick={() => setAction({ project, move: true })}>
+                  <FolderInput size={15} />
+                  Move
+                </button>
+              </ActionMenu>
+            )}
+          />
+        ) : (
+          <p className="notebook-tree-message">
+            <button className="text-button" onClick={() => setAction({})}>
+              Create a notebook
+            </button>
+          </p>
+        )}
+        {action && (
+          <NotebookDialog action={action} close={() => setAction(null)} />
+        )}
+      </section>
+    </div>
   );
 }

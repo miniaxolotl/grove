@@ -56,6 +56,12 @@ async function forward(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        ...([
+          request.headers.get("DNT"),
+          request.headers.get("Sec-GPC"),
+        ].includes("1") || request.headers.get("X-Grove-Telemetry") === "off"
+          ? { "X-Grove-Telemetry": "off" }
+          : {}),
       },
       body: content,
       redirect: "error",

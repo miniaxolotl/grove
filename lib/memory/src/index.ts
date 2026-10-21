@@ -17,6 +17,7 @@ import {
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
+import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
   budgetedInference,
@@ -366,7 +367,8 @@ export class MemoryService {
   }
 
   async remember(principal: Principal, input: Remember) {
-    return this.access(
+    let created = false;
+    const result = await this.access(
       principal,
       "memory:write",
       async ({ trx, account, grant }) => {
@@ -465,6 +467,7 @@ export class MemoryService {
                   status: input.archived ? "archived" : "active",
                 });
             await this.revise(trx, row);
+            created = !input.id;
             return { id: row.id, version: row.version };
           },
         );
@@ -478,6 +481,8 @@ export class MemoryService {
         return this.present(trx, row);
       },
     );
+    if (created) currentTelemetry().capture("memory_created");
+    return result;
   }
 
   async get(principal: Principal, id: string) {
@@ -676,6 +681,7 @@ export class MemoryService {
     signal?: AbortSignal,
     allProjects = false,
   ): Promise<RecallResult> {
+    const started = performance.now();
     const embedder = this.embedder;
     // Authorize before sending text to inference. Reauthorize after asynchronous work.
     await this.access(principal, "memory:read", async ({ grant }) => {
@@ -696,7 +702,7 @@ export class MemoryService {
         /* explicit lexical degradation */
       }
     }
-    return this.access(
+    const result = await this.access<RecallResult>(
       principal,
       "memory:read",
       async ({ trx, grant, account }) => {
@@ -834,6 +840,11 @@ export class MemoryService {
         };
       },
     );
+    currentTelemetry().capture("memory_recalled", {
+      result_count: result.items.length,
+      duration_ms: performance.now() - started,
+    });
+    return result;
   }
 
   async ask(
@@ -841,6 +852,7 @@ export class MemoryService {
     input: AskRequest,
     signal?: AbortSignal,
   ): Promise<AskResult> {
+    const started = performance.now();
     const generation = this.providers.generation;
     const previous = input.previousQuestions.at(-1);
     const query =
@@ -917,7 +929,7 @@ export class MemoryService {
       throw new InferenceError("generation_invalid_citation", false);
     signal?.throwIfAborted();
     // Reauthorize and validate the entire evidence snapshot after asynchronous inference.
-    return this.access(
+    const result = await this.access<AskResult>(
       principal,
       "memory:read",
       async ({ trx, account, grant }) => {
@@ -956,6 +968,10 @@ export class MemoryService {
         };
       },
     );
+    currentTelemetry().capture("chat_completed", {
+      duration_ms: performance.now() - started,
+    });
+    return result;
   }
 
   async lifecycle(
@@ -1111,7 +1127,8 @@ export class MemoryService {
     },
     id?: string,
   ) {
-    return this.access(
+    let created = false;
+    const result = await this.access(
       principal,
       "memory:write",
       async ({ trx, account, grant }) => {
@@ -1203,9 +1220,12 @@ export class MemoryService {
           .onConflict(["accountId", "identity"])
           .merge({ name: input.name })
           .returning(fields);
+        created = true;
         return present(row);
       },
     );
+    if (created) currentTelemetry().capture("notebook_created");
+    return result;
   }
 
   async connections(principal: Principal) {

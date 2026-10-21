@@ -1,6 +1,6 @@
 {
   "name": "@miniaxolotl/grove",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -57,6 +57,7 @@
   "devDependencies": {
     "@lib/eslint-config": "workspace:*",
     "@lib/shared": "workspace:*",
+    "@lib/telemetry": "workspace:*",
     "@lib/integration-core": "workspace:*",
     "@lib/typescript-config": "workspace:*",
     "tsx": "~4.21.0",

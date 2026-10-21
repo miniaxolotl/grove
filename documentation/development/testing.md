@@ -19,7 +19,10 @@ node --test tests/digitalocean.test.mjs
 pnpm test:artifacts
 pnpm lint:website
 pnpm check-types:website
-pnpm build:website
+VERCEL_ENV=production NEXT_PUBLIC_POSTHOG_ENABLED=true \
+  NEXT_PUBLIC_POSTHOG_KEY=phc_playwright_only NEXT_PUBLIC_SENTRY_ENABLED=true \
+  NEXT_PUBLIC_SENTRY_DSN=https://00000000000000000000000000000000@o0.ingest.us.sentry.io/1 \
+  pnpm build:website
 pnpm --filter website exec playwright install chromium
 pnpm test:website
 docker build -t grove-memory:test .
@@ -40,6 +43,8 @@ archive/restore/deletion, worker races, handoff retention and account tombstones
 Conversation cases cover contextual references, tenant/session-only history,
 version-fenced atomic merge/apply/undo, retry identities, cancellation and
 authorization/settings changes during inference, pagination and export.
+The actual HTTP generation adapter also exercises no-action greetings, malformed
+actions/targets, retry/replay, and create-preview normalization before applying.
 Identity fixtures do not replace required live Clerk sign-in/OAuth tests.
 
 Artifact tests pack all distributables and execute them in isolated directories,
@@ -55,6 +60,10 @@ must verify sign-up → save → dashboard → MCP → second-account denial and
 Workspace cases exercise autosave with newer typing and uncertain first responses,
 keyboard notebook nesting, global search, outside dismissal, durable conversation
 reopening and edit previews, and the auto-growing plain/Markdown composer.
+Daily writing uses the same editor/library, with date grouping and scoped creation;
+mobile notebook browsing keeps nested organization accessible. The browser build
+above uses synthetic telemetry identifiers: Playwright intercepts their traffic
+and verifies the real SDKs without sending events to production projects.
 
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.

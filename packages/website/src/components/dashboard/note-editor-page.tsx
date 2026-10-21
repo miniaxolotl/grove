@@ -21,7 +21,7 @@ export function NoteEditorPage({
   const { projects, loading, error, reload } = useNotebooks();
   const key = id
     ? `note:${id}`
-    : `new:${journal ? "journal" : notebook || "personal"}`;
+    : `new:${journal ? `journal${notebook ? `:${notebook}` : ""}` : notebook || "personal"}`;
   const [refresh, setRefresh] = useState(0);
   const [result, setResult] = useState<{
     key: string;
@@ -76,7 +76,6 @@ export function NoteEditorPage({
       memory={current.memory}
       projects={projects}
       projectId={notebook ?? null}
-      personal={journal}
       initialContent={
         journal
           ? `# ${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}\n\n`
@@ -84,10 +83,10 @@ export function NoteEditorPage({
       }
       cancel={() =>
         router.push(
-          journal
-            ? "/app/journal"
-            : current.memory?.projectId || notebook
-              ? `/app/projects/${current.memory?.projectId || notebook}`
+          current.memory?.projectId || notebook
+            ? `/app/projects/${current.memory?.projectId || notebook}`
+            : journal
+              ? "/app?sort=created_desc"
               : "/app",
         )
       }
