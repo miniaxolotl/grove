@@ -5,6 +5,8 @@ export const relationships = {
   async up(db: Knex) {
     await db.raw(`
       ALTER TABLE projects ADD COLUMN content_version integer NOT NULL DEFAULT 0;
+      ALTER TABLE memory_enrichments DROP CONSTRAINT memory_enrichments_kind_check;
+      ALTER TABLE memory_enrichments ADD CONSTRAINT memory_enrichments_kind_check CHECK (kind IN ('decision','organization','relationship_scan'));
       CREATE TABLE notebook_profiles (
         account_id uuid NOT NULL, project_id uuid NOT NULL, profile text NOT NULL,
         content_version integer NOT NULL, expires_at timestamptz,
@@ -55,6 +57,9 @@ export const relationships = {
         LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
       BEGIN
         IF TG_OP = 'DELETE' THEN
+          DELETE FROM notebook_profiles WHERE account_id=OLD.account_id AND project_id=OLD.project_id;
+          UPDATE notebook_relationships SET assessment=jsonb_build_object('relationship','unrelated','reason','','basis','none','direction','both','evidence','[]'::jsonb,'coverage',assessment->'coverage','breadth','thread'), profile='rebuild-after-deletion'
+            WHERE account_id=OLD.account_id AND (left_id=OLD.project_id OR right_id=OLD.project_id);
           UPDATE projects SET content_version = content_version + 1 WHERE account_id = OLD.account_id AND id = OLD.project_id;
           UPDATE accounts SET organization_due_at = now() WHERE id = OLD.account_id;
         ELSE
@@ -85,9 +90,35 @@ export const relationships = {
             WHERE a.status = 'active' AND j.failed_at IS NULL AND j.attempts < 5 AND j.due_at <= now()
             AND (wanted IS NULL OR j.id = wanted) AND (profiles IS NULL OR j.profile = ANY(profiles))
             AND (j.kind NOT IN ('decision','relationship_scan') OR NOT EXISTS (SELECT 1 FROM jobs e WHERE e.account_id = j.account_id AND e.target = j.target AND e.kind = 'embedding' AND e.failed_at IS NULL AND (profiles IS NULL OR e.profile = ANY(profiles))))
+            AND (j.kind <> 'notebook_profile' OR NOT EXISTS (SELECT 1 FROM jobs e JOIN memories m ON m.account_id=e.account_id AND m.id=e.memory_id WHERE e.account_id=j.account_id AND m.project_id::text=j.target AND e.kind='embedding' AND e.failed_at IS NULL AND (profiles IS NULL OR e.profile=ANY(profiles))))
             AND (j.kind <> 'brief' OR NOT EXISTS (SELECT 1 FROM jobs e WHERE e.account_id = j.account_id AND e.kind IN ('embedding','decision','organization') AND e.failed_at IS NULL AND (profiles IS NULL OR e.profile = ANY(profiles))))
             AND (j.lease_until IS NULL OR j.lease_until < now()) ORDER BY j.due_at, j.id
             FOR UPDATE OF j SKIP LOCKED LIMIT 1) RETURNING *;
+      END $$;
+      CREATE OR REPLACE FUNCTION grove_reprocess(embedding_profile text, decision_profile text, generation_profile text) RETURNS void
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+      BEGIN
+        DELETE FROM jobs;
+        DELETE FROM memory_briefs;
+        DELETE FROM notebook_profiles;
+        DELETE FROM memory_enrichments WHERE kind='relationship_scan';
+        UPDATE accounts SET organization_due_at=now();
+        INSERT INTO jobs(account_id, memory_id, version, target, kind, profile)
+          SELECT m.account_id, m.id, m.version, m.id::text, p.kind, p.profile
+          FROM memories m JOIN accounts a ON a.id=m.account_id
+          CROSS JOIN (VALUES ('embedding',embedding_profile),('decision',decision_profile),('organization',generation_profile)) AS p(kind,profile)
+          WHERE a.status='active' AND m.status='active' AND (m.expires_at IS NULL OR m.expires_at>now())
+            AND p.profile IS NOT NULL AND (p.kind='embedding' OR a.organize_enabled);
+        IF generation_profile IS NOT NULL THEN
+          INSERT INTO jobs(account_id,kind,target,profile,scope,due_at)
+            SELECT DISTINCT m.account_id,'brief',COALESCE(m.project_id::text,'personal'),generation_profile,jsonb_build_object('projectId',m.project_id),now()+interval '5 seconds'
+            FROM memories m JOIN accounts a ON a.id=m.account_id
+            WHERE a.status='active' AND a.summaries_enabled AND m.status='active' AND (m.expires_at IS NULL OR m.expires_at>now());
+          INSERT INTO jobs(account_id,kind,target,profile,scope,due_at)
+            SELECT m.account_id,'brief',COALESCE(m.project_id::text,'personal')||':task:'||m.task_id,generation_profile,jsonb_build_object('projectId',m.project_id,'taskId',m.task_id),now()+interval '5 seconds'
+            FROM memories m JOIN accounts a ON a.id=m.account_id
+            WHERE a.status='active' AND a.summaries_enabled AND m.status='active' AND m.kind='handoff' AND m.expires_at>now();
+        END IF;
       END $$;
     `);
   },

@@ -101,6 +101,8 @@ export type Enrichment = {
     id: string;
     version: number;
     relationship: z.infer<typeof relationshipSchema>;
+    connectionId?: string;
+    reason?: string;
   }[];
   profiles: string[];
 };

@@ -1,7 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createDatabase, tenant } from "@lib/database";
+import { createDatabase, tenant, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
 import { rememberSchema } from "@lib/shared/contracts";
 import {
@@ -16,15 +16,27 @@ import {
   relationshipTable,
 } from "../../lib/memory/src/relationship-data.ts";
 import { MemoryModel } from "@lib/database";
+import type { GenerationProvider } from "@lib/ai";
 
 const url = process.env.TEST_MIGRATION_DATABASE_URL!;
 if (!url || !new URL(url).pathname.endsWith("_test"))
   throw new Error("Disposable database required");
-const admin = createDatabase(url);
-const db = createDatabase(process.env.TEST_DATABASE_URL!);
-const workerDb = createDatabase(process.env.TEST_WORKER_DATABASE_URL!);
+const authority = createDatabase(url);
+const databaseName = `grove_relationships_${randomUUID().replaceAll("-", "")}_test`;
+let admin: Knex, db: Knex, workerDb: Knex;
 const accounts: string[] = [];
-before(() => admin.migrate.latest());
+before(async () => {
+  await authority.raw("CREATE DATABASE ??", [databaseName]);
+  const target = (source: string) => {
+    const value = new URL(source);
+    value.pathname = `/${databaseName}`;
+    return value.href;
+  };
+  admin = createDatabase(target(url));
+  await admin.migrate.latest();
+  db = createDatabase(target(process.env.TEST_DATABASE_URL!));
+  workerDb = createDatabase(target(process.env.TEST_WORKER_DATABASE_URL!));
+});
 after(async () => {
   for (const id of accounts) {
     await admin("accounts").where({ id }).update({ status: "deleting" });
@@ -34,6 +46,8 @@ after(async () => {
     "relationship-tests-secret-32-characters",
   ).maintenance(async () => {});
   await Promise.all([db.destroy(), workerDb.destroy(), admin.destroy()]);
+  await authority.raw("DROP DATABASE ?? WITH (FORCE)", [databaseName]);
+  await authority.destroy();
 });
 const input = (content: string, rest = {}) =>
   rememberSchema.parse({ operationId: randomUUID(), content, ...rest });
@@ -42,7 +56,7 @@ async function fixture() {
   const { rows } = await db.raw("SELECT * FROM grove_account(?)", [subject]);
   const principal = sessionPrincipal(rows[0].id, subject);
   accounts.push(principal.accountId);
-  const generation = {
+  const generation: GenerationProvider = {
     profile: `generation-${randomUUID()}`,
     generate: async <T>() => {
       throw new Error("Unexpected inference");
@@ -206,6 +220,263 @@ test("canonical reads are symmetric, tenant-isolated, and review replay/undo is 
   );
 });
 
+function groundedGenerator(connected = false): GenerationProvider["generate"] {
+  return async (schema, instructions, sources) => {
+    const groups = instructions.match(
+      /LEFT source IDs: (.+)\. RIGHT source IDs: (.+)\. Examining/,
+    );
+    assert(groups, "Assessments must identify both source groups");
+    const leftIds = groups[1].split(", "),
+      rightIds = groups[2].split(", ");
+    const selected = [
+      sources.find((s) => leftIds.includes(s.id))!,
+      sources.find((s) => rightIds.includes(s.id))!,
+    ];
+    return schema.parse({
+      relationship: connected ? "connected" : "complementary",
+      reason:
+        "Both cover the October Kyoto trip; lodging adds detail to the itinerary.",
+      basis: connected ? "shared_goal" : "additional_context",
+      direction: "both",
+      evidence: selected.map((s) => ({
+        id: s.id,
+        version: s.version,
+        quote: s.content.slice(0, 200),
+      })),
+    });
+  };
+}
+async function drain(f: Awaited<ReturnType<typeof fixture>>, kinds: string[]) {
+  for (let i = 0; i < 100; i++) {
+    const jobs = await admin("jobs")
+      .where({ accountId: f.principal.accountId })
+      .whereIn("kind", kinds)
+      .whereNull("failedAt")
+      .orderBy("kind");
+    if (!jobs.length) return;
+    for (const job of jobs) {
+      await admin("jobs")
+        .where({ id: job.id })
+        .update({ dueAt: admin.fn.now() });
+      assert.equal(await f.worker.runJob(job.id), true);
+      const remaining = await admin("jobs").where({ id: job.id }).first();
+      assert(!remaining?.errorCode, `Worker failed: ${remaining?.errorCode}`);
+    }
+  }
+  assert.fail("Relationship jobs did not converge");
+}
+
+test("asynchronous scans coalesce opposite pairs, retain dismissals, and never compare notes across notebooks", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.worker.providers.generation!.generate = async (...args) => {
+    calls++;
+    return groundedGenerator()(...args);
+  };
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: book lodging."),
+  );
+  const b = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: book three nights."),
+  );
+  const project = await f.service.project(f.principal, {
+    name: "Other",
+    identity: randomUUID(),
+  });
+  await f.service.remember(
+    f.principal,
+    input(a.content, { projectId: project.id }),
+  );
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  assert.equal(calls, 1);
+  const page = await f.service.relationships.list(
+    f.principal,
+    connectionQuerySchema.parse({ level: "note" }),
+  );
+  assert.equal(page.items.length, 1);
+  const pair = page.items[0];
+  assert.deepEqual([pair.from.id, pair.to.id].sort(), [a.id, b.id].sort());
+  assert.equal(
+    (await f.service.get(f.principal, b.id)).enrichment?.relationships[0]
+      .connectionId,
+    pair.id,
+  );
+  await f.service.relationships.review(f.principal, "note", pair.id, {
+    operationId: randomUUID(),
+    expectedRevision: pair.revision,
+    expectedReviewVersion: pair.reviewVersion,
+    dismissed: true,
+  });
+  await f.service.retryProcessing(f.principal, a.id, a.version);
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  assert.equal(calls, 1, "Unchanged pairs use their checked state");
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "note" }),
+      )
+    ).items.length,
+    0,
+  );
+  await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: book four nights.", {
+      id: a.id,
+      expectedVersion: a.version,
+    }),
+  );
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  assert.equal(calls, 2);
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "note" }),
+      )
+    ).items.length,
+    1,
+  );
+});
+
+test("late evidence cannot publish after a source edit, settings disable, or committed model switch", async () => {
+  for (const change of ["edit", "settings", "profile"] as const) {
+    const f = await fixture();
+    const a = await f.service.remember(
+      f.principal,
+      input("October Kyoto trip: reserve lodging."),
+    );
+    await f.service.remember(
+      f.principal,
+      input("October Kyoto trip: lodging budget."),
+    );
+    await drain(f, ["relationship_scan"]);
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>((r) => {
+      entered = r;
+    });
+    const wait = new Promise<void>((r) => {
+      release = r;
+    });
+    f.worker.providers.generation!.generate = async (...args) => {
+      entered();
+      await wait;
+      return groundedGenerator()(...args);
+    };
+    const job = await admin("jobs")
+      .where({ accountId: f.principal.accountId, kind: "note_relationship" })
+      .first();
+    await admin("jobs").where({ id: job.id }).update({ dueAt: admin.fn.now() });
+    const pending = f.worker.runJob(job.id);
+    await started;
+    if (change === "edit")
+      await f.service.remember(
+        f.principal,
+        input("October Kyoto trip is cancelled.", {
+          id: a.id,
+          expectedVersion: a.version,
+        }),
+      );
+    if (change === "settings")
+      await f.service.settings(f.principal, {
+        captureEnabled: true,
+        recallEnabled: true,
+        organizeEnabled: false,
+      });
+    if (change === "profile")
+      f.worker.jobProfiles = async () => ({
+        embedding: null,
+        decision: null,
+        generation: "changed",
+      });
+    release();
+    await pending;
+    assert.equal(
+      (
+        await admin("memory_relationships").where({
+          accountId: f.principal.accountId,
+        })
+      ).length,
+      0,
+    );
+  }
+});
+
+test("notebook profiles resume bounded batches, use both notebooks, and disclose limited evidence", async () => {
+  const f = await fixture();
+  f.worker.providers.generation!.generate = groundedGenerator(true);
+  await f.service.settings(f.principal, {
+    captureEnabled: true,
+    recallEnabled: true,
+    summariesEnabled: false,
+  });
+  const left = await f.service.project(f.principal, {
+    name: "Itinerary",
+    identity: randomUUID(),
+  });
+  const right = await f.service.project(f.principal, {
+    name: "Budget",
+    identity: randomUUID(),
+  });
+  for (let i = 0; i < 65; i++)
+    await f.service.remember(
+      f.principal,
+      input(`October Kyoto trip, itinerary entry ${i}.`, {
+        projectId: left.id,
+      }),
+    );
+  await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: lodging budget.", { projectId: right.id }),
+  );
+  await f.worker.scheduleOrganization(60);
+  const profile = await admin("jobs")
+    .where({
+      accountId: f.principal.accountId,
+      kind: "notebook_profile",
+      target: left.id,
+    })
+    .first();
+  await admin("jobs")
+    .where({ id: profile.id })
+    .update({ dueAt: admin.fn.now() });
+  assert.equal(await f.worker.runJob(profile.id), true);
+  const partial = await admin("notebook_profiles")
+    .where({ projectId: left.id })
+    .first();
+  assert.equal(partial.processed, 64);
+  assert.equal(partial.complete, false);
+  await drain(f, ["notebook_profile", "notebook_relationship"]);
+  const page = await f.service.relationships.list(
+    f.principal,
+    connectionQuerySchema.parse({ level: "notebook" }),
+  );
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0].breadth, "thread");
+  const coverage =
+    page.items[0].from.id === left.id
+      ? page.items[0].coverage.from
+      : page.items[0].coverage.to;
+  assert.equal(coverage.total, 65);
+  assert(coverage.examined <= 8);
+  assert.equal(
+    (await admin("notebook_profiles").where({ projectId: left.id }).first())
+      .processed,
+    65,
+  );
+  assert.equal(
+    (
+      await admin("jobs").where({
+        accountId: f.principal.accountId,
+        kind: "brief",
+      })
+    ).length,
+    0,
+  );
+});
+
 test("notebook claims invalidate on uncited changes; scoped grants reveal neither hidden endpoints nor counts", async () => {
   const f = await fixture();
   const p = await f.service.project(f.principal, {
@@ -282,4 +553,66 @@ test("notebook claims invalidate on uncited changes; scoped grants reveal neithe
     ).items.length,
     0,
   );
+});
+
+test("invalid evidence exhausts bounded retries; explicit retry and daily-budget deferral preserve checked state", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(f.principal, input("October Kyoto trip: reserve lodging."));
+  await f.service.remember(f.principal, input("October Kyoto trip: reserve three nights."));
+  await drain(f, ["relationship_scan"]);
+  const job = await admin("jobs").where({ accountId: f.principal.accountId, kind: "note_relationship" }).first();
+  f.worker.providers.generation!.generate = async (schema, _prompt, sources) => schema.parse({ relationship: "complementary", reason: "This must not publish.", basis: "additional_context", direction: "both", evidence: sources.map((s) => ({ id: s.id, version: s.version, quote: "Invented source text" })) });
+  await admin("jobs").where({ id: job.id }).update({ attempts: 4, dueAt: admin.fn.now() });
+  await f.worker.runJob(job.id);
+  const failed = await admin("jobs").where({ id: job.id }).first();
+  assert(failed.failedAt);
+  assert.equal(failed.errorCode, "relationship_invalid_evidence");
+  assert.equal((await f.service.relationships.list(f.principal, connectionQuerySchema.parse({ level: "note", endpointId: a.id }))).status, "failed");
+  await f.service.relationships.retry(f.principal, "note", a.id);
+  await admin("jobs").where({ id: job.id }).update({ dueAt: admin.fn.now() });
+  const noBudget = new MemoryService(workerDb, f.service.cursorSecret, undefined, f.worker.providers, 0);
+  await noBudget.runJob(job.id);
+  const deferred = await admin("jobs").where({ id: job.id }).first();
+  assert.equal(deferred.attempts, 0);
+  assert.equal(deferred.failedAt, null);
+  assert.equal(deferred.errorCode, "inference_budget");
+  f.worker.providers.generation!.generate = groundedGenerator();
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  assert.equal((await f.service.relationships.list(f.principal, connectionQuerySchema.parse({ level: "note" }))).items.length, 1);
+});
+
+test("relationship pagination binds its filters and exported review state survives reindexing", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(f.principal, input("October Kyoto trip itinerary."));
+  for (const detail of ["lodging", "travel", "budget"]) {
+    const b = await f.service.remember(f.principal, input(`October Kyoto trip ${detail}.`));
+    await seed(f, [a.id, b.id]);
+  }
+  const query = connectionQuerySchema.parse({ level: "note", endpointId: a.id, limit: 1 });
+  const first = await f.service.relationships.list(f.principal, query);
+  assert(first.nextCursor);
+  const second = await f.service.relationships.list(f.principal, { ...query, cursor: first.nextCursor });
+  assert.notEqual(first.items[0].id, second.items[0].id);
+  await assert.rejects(f.service.relationships.list(f.principal, { ...query, limit: 2, cursor: first.nextCursor }), { code: "invalid_cursor" });
+  await assert.rejects(f.service.relationships.list(f.principal, { ...query, cursor: `${first.nextCursor}x` }), { code: "invalid_cursor" });
+  const pair = first.items[0];
+  await f.service.relationships.review(f.principal, "note", pair.id, { operationId: randomUUID(), expectedRevision: pair.revision, expectedReviewVersion: 0, dismissed: true });
+  await admin.raw("SELECT grove_reprocess(?, ?, ?)", [null, null, f.worker.providers.generation!.profile]);
+  const exported = await f.service.relationships.exportPage(f.principal, "note");
+  assert.equal(exported.find((r) => r.id === pair.id)!.dismissedRevision, pair.revision);
+  assert.equal(exported.find((r) => r.id === pair.id)!.reviewVersion, 1);
+});
+
+test("deleting a cited note scrubs retained notebook excerpts and profiles", async () => {
+  const f = await fixture();
+  const p = await f.service.project(f.principal, { name: "Itinerary", identity: randomUUID() });
+  const q = await f.service.project(f.principal, { name: "Budget", identity: randomUUID() });
+  const a = await f.service.remember(f.principal, input("A private Kyoto itinerary passage.", { projectId: p.id }));
+  const b = await f.service.remember(f.principal, input("A private Kyoto lodging budget.", { projectId: q.id }));
+  await seed(f, [a.id, b.id], "notebook");
+  await f.service.forget(f.principal, { operationId: randomUUID(), items: [{ id: a.id, expectedVersion: a.version }] });
+  const saved = await admin("notebook_relationships").where({ accountId: f.principal.accountId }).first();
+  assert.deepEqual(saved.assessment.evidence, []);
+  assert(!JSON.stringify(saved).includes(a.content));
+  assert.equal((await f.service.relationships.list(f.principal, connectionQuerySchema.parse({ level: "notebook" }))).items.length, 0);
 });

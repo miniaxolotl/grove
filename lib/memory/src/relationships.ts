@@ -13,6 +13,7 @@ import {
   presentRelationships,
   relationHash,
   relationshipTable,
+  enqueueRelationship,
   type RelationshipRow,
 } from "./relationship-data.ts";
 
@@ -20,6 +21,69 @@ const unavailable = () =>
   new GroveError("not_found", "Connection unavailable", 404);
 export class Relationships {
   constructor(private service: MemoryService) {}
+  async exportPage(
+    principal: Principal,
+    level: ConnectionLevel,
+    after?: string,
+  ) {
+    return this.service.access(principal, "admin", async ({ trx }) => {
+      const query = trx<RelationshipRow>(relationshipTable(level))
+        .orderBy("id")
+        .limit(50);
+      if (after) query.where("id", ">", after);
+      return query;
+    });
+  }
+  async retry(
+    principal: Principal,
+    level: ConnectionLevel,
+    endpointId: string,
+  ) {
+    return this.service.access(principal, "admin", async ({ trx, account }) => {
+      const profile = currentRelationshipProfile(this.service.providers);
+      const endpoint =
+        level === "note"
+          ? await activeNotes(trx).findById(endpointId)
+          : await trx("projects").where({ id: endpointId }).first();
+      if (!endpoint) throw unavailable();
+      if (!account.organizeEnabled || !profile) return { status: "disabled" };
+      if (level === "notebook")
+        await trx("notebook_profiles")
+          .where({ projectId: endpointId, profile })
+          .delete();
+      await enqueueRelationship(
+        trx,
+        account.id,
+        level === "note" ? "relationship_scan" : "notebook_profile",
+        endpointId,
+        profile,
+        {},
+        level === "note" ? endpoint : undefined,
+        true,
+      );
+      await trx("jobs")
+        .where({
+          profile,
+          kind:
+            level === "note" ? "note_relationship" : "notebook_relationship",
+        })
+        .whereRaw("scope->>'leftId'=? OR scope->>'rightId'=?", [
+          endpointId,
+          endpointId,
+        ])
+        .whereNotNull("failedAt")
+        .update({
+          attempts: 0,
+          failedAt: null,
+          errorCode: null,
+          leaseId: null,
+          leaseUntil: null,
+          dispatchedAt: null,
+          dueAt: trx.fn.now(),
+        });
+      return { status: "pending" };
+    });
+  }
   async list(
     principal: Principal,
     input: ConnectionQuery,
@@ -51,6 +115,9 @@ export class Relationships {
         const binding = relationHash([
           principal.accountId,
           principal.connectionId,
+          grant
+            ? [grant.personal, grant.allProjects, [...grant.projectIds].sort()]
+            : null,
           filters,
         ]);
         let after = "";
@@ -105,6 +172,7 @@ export class Relationships {
             q.whereExists(endpoint);
           }
         if (after) q.where("id", ">", after);
+        if (input.connectionId) q.where("id", input.connectionId);
         if (input.endpointId)
           q.where((b) =>
             b
@@ -150,15 +218,52 @@ export class Relationships {
                 input.endpointId!,
               ]),
           );
-        const pending = grant ? [] : await jobs.select("failedAt");
+        const pending = grant
+          ? undefined
+          : await jobs
+              .select(
+                trx.raw(
+                  "count(*)::int AS total, count(*) FILTER (WHERE failed_at IS NOT NULL)::int AS failed",
+                ),
+              )
+              .first();
+        let waiting = false;
+        if (!grant && input.endpointId && !pending?.total) {
+          if (input.level === "note")
+            waiting = !(await trx("memory_enrichments")
+              .where({
+                memoryId: input.endpointId,
+                kind: "relationship_scan",
+                profile,
+              })
+              .first());
+          else {
+            const snapshot = await trx("notebook_profiles as n")
+              .join("projects as p", "p.id", "n.projectId")
+              .where({
+                "n.projectId": input.endpointId,
+                "n.profile": profile,
+                "n.complete": true,
+              })
+              .whereRaw(
+                "n.content_version=p.content_version AND (n.expires_at IS NULL OR n.expires_at>now())",
+              )
+              .first();
+            waiting =
+              !snapshot &&
+              !!(await activeNotes(trx)
+                .where({ projectId: input.endpointId })
+                .first());
+          }
+        }
         return {
           items,
           nextCursor: more
             ? `${encoded}.${createHmac("sha256", this.service.cursorSecret).update(encoded).digest("hex")}`
             : null,
-          status: pending.some((j) => j.failedAt)
+          status: pending?.failed
             ? "failed"
-            : pending.length
+            : pending?.total || waiting
               ? "pending"
               : "ready",
         };

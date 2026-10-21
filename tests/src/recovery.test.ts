@@ -35,6 +35,7 @@ test("isolated restore replays current deletions and revocations without changin
       forgotten = randomUUID(),
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
+    const notebookIds = [randomUUID(), randomUUID()].sort();
     const deletedChat = randomUUID(),
       retainedChat = randomUUID(),
       accountChat = randomUUID();
@@ -43,6 +44,8 @@ test("isolated restore replays current deletions and revocations without changin
         { id: a, clerkSubject: "recovery_a" },
         { id: b, clerkSubject: "recovery_b" },
       ]);
+      await db("projects").insert(notebookIds.map((id) => ({ accountId: a, id, name: "Recovery notebook", identity: id })));
+      await db("notebook_relationships").insert({ accountId: a, leftId: notebookIds[0], rightId: notebookIds[1], leftVersion: 0, rightVersion: 0, revision: "a".repeat(64), profile: "fixture", assessment: JSON.stringify({ evidence: [{ quote: "Old derived passage" }], coverage: {} }) });
       await db("conversations").insert([
         { id: deletedChat, accountId: a, scope: "{}" },
         { id: retainedChat, accountId: a, scope: "{}" },
@@ -135,6 +138,7 @@ test("isolated restore replays current deletions and revocations without changin
       });
     }
     await source("deleted_memories").insert({ accountId: a, id: forgotten });
+    await source("notebook_relationships").where({ accountId: a }).update({ dismissedRevision: "a".repeat(64), reviewVersion: 1 });
     await source("deleted_conversations").insert({
       accountId: a,
       id: deletedChat,
@@ -162,6 +166,11 @@ test("isolated restore replays current deletions and revocations without changin
     await source("connections").update({ capabilities: ["memory:read"] });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    const recoveredReview = await target("notebook_relationships").where({ accountId: a }).first();
+    assert.equal(recoveredReview.dismissedRevision, "a".repeat(64));
+    assert.equal(recoveredReview.reviewVersion, 2);
+    assert.equal(recoveredReview.profile, "recovery-pending");
+    assert.deepEqual(recoveredReview.assessment.evidence, []);
     assert.equal(result.purgedMemories, 2);
     assert.equal(result.blockedAccounts, 1);
     assert.deepEqual(await source("accounts").orderBy("id"), before);

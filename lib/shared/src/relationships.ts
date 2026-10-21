@@ -94,6 +94,7 @@ export const connectionQuerySchema = z
   .object({
     level: connectionLevelSchema,
     endpointId: z.uuid().optional(),
+    connectionId: z.uuid().optional(),
     // Graph reads contain only edges whose two endpoints are loaded.
     endpointIds: z.array(z.uuid()).min(1).max(100).optional(),
     limit: z.number().int().min(1).max(100).default(30),

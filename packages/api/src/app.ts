@@ -459,6 +459,16 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/relationships/:level/:id/retry", async (c) =>
+    c.json({
+      success: true,
+      data: await service.relationships.retry(
+        c.get("principal"),
+        connectionLevelSchema.parse(c.req.param("level")),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
   app.get("/v1/memories/:id", async (c) =>
     c.json({
       success: true,
@@ -703,6 +713,22 @@ export function createApp(deps: AppDependencies) {
           principal,
           chats.at(-1)!.id,
         );
+      }
+      for (const level of ["note", "notebook"] as const) {
+        let after: string | undefined;
+        while (!stream.aborted) {
+          const pairs = await service.relationships.exportPage(
+            principal,
+            level,
+            after,
+          );
+          for (const pair of pairs)
+            await stream.writeln(
+              JSON.stringify({ type: "relationship", level, ...pair }),
+            );
+          if (pairs.length < 50) break;
+          after = pairs.at(-1)!.id;
+        }
       }
     });
   });

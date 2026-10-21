@@ -18,6 +18,7 @@ import {
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
+import { relationshipKinds } from "./relationship-data.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
@@ -30,7 +31,7 @@ import {
   runProcessingJob,
 } from "./processing.ts";
 export type { Embedder } from "@lib/ai";
-export { budgetedInference } from "./processing.ts";
+export { budgetedInference, providerProfiles } from "./processing.ts";
 import {
   GroveError,
   capabilities,
@@ -1339,7 +1340,7 @@ export class MemoryService {
       }
       if (input.organizeEnabled === false) {
         await trx("jobs")
-          .whereIn("kind", ["decision", "organization"])
+          .whereIn("kind", ["decision", "organization", ...relationshipKinds])
           .delete();
         await trx("memory_enrichments").delete();
       }
@@ -1452,6 +1453,14 @@ export class MemoryService {
       this.providers,
       this.dailyRequestLimit,
       id,
+      async (trx) =>
+        this.jobProfiles
+          ? this.jobProfiles(trx)
+          : {
+              embedding: this.providers.embedding?.profile ?? null,
+              decision: this.providers.decision?.profile ?? null,
+              generation: this.providers.generation?.profile ?? null,
+            },
     );
   }
 
