@@ -694,6 +694,15 @@ test("row export reads current content and first-save routing retains the export
   expect(await readFile((await (await download).path())!, "utf8")).toBe(
     "# First save export",
   );
+  const pdfDownload = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const loading = getDocument({
+    data: new Uint8Array(await readFile((await (await pdfDownload).path())!)),
+    verbosity: 0,
+  });
+  expect((await loading.promise).numPages).toBe(1);
+  await loading.destroy();
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Export", exact: true }),
@@ -3187,7 +3196,7 @@ test("named workspaces browse scoped memories and handoffs without manual agent 
 
 test("notebook rename preserves location and requires review of a concurrent change", async ({
   page,
-}) => {
+}, info) => {
   const state = await fixture(page);
   await page.goto(`${base}/app/projects`);
   await page
@@ -3204,6 +3213,7 @@ test("notebook rename preserves location and requires review of a concurrent cha
   await expect(dialog.getByRole("combobox")).toHaveCount(0);
   await expect(dialog.getByLabel("Notebook name")).toBeFocused();
   await expect(submit).toBeDisabled();
+  await dialog.screenshot({ path: info.outputPath("rename-notebook.png") });
   await dialog.getByLabel("Notebook name").fill(" My renamed notebook ");
   state.projects[0].name = "Changed elsewhere";
   state.projects[0].version++;
@@ -3228,6 +3238,7 @@ test("notebook rename preserves location and requires review of a concurrent cha
   const move = page.getByRole("dialog", { name: "Move notebook", exact: true });
   await expect(move.getByLabel("Notebook name")).toHaveCount(0);
   await expect(move.getByRole("combobox")).toBeFocused();
+  await move.screenshot({ path: info.outputPath("move-notebook.png") });
   await expect(
     move.getByRole("button", { name: "Move notebook", exact: true }),
   ).toBeDisabled();

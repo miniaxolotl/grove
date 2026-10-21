@@ -330,7 +330,9 @@ export function notePdfDocument(root: Root, title: string, origin: string) {
       color: "#69756d",
     }),
     pageBreakBefore: (node, queries) =>
-      !!node.headlineLevel && queries.getFollowingNodesOnPage().length === 0,
+      !!node.headlineLevel &&
+      queries.getFollowingNodesOnPage().length === 0 &&
+      queries.getNodesOnNextPage().length > 0,
   };
   return { document, substituted };
 }
