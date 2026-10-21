@@ -25,9 +25,12 @@ logo always returns to Notes.
   Reopening a draft during a save follows the same request rather than creating
   another note.
   **History** opens earlier revisions without leaving the workspace.
-  **Linked notes** is a collapsed accordion below your writing. **Note actions**
-  holds Copy Markdown, Move, Archive and Delete. Action confirmations appear as
-  toasts without moving the page; autosave status stays in the toolbar.
+   **Linked notes** is a collapsed accordion below your writing. **Note actions**
+   holds Copy Markdown, Move, Archive and Delete. Action confirmations appear as
+   toasts without moving the page; autosave status stays in the toolbar.
+   On phones, **Note actions** also holds History, properties, focus mode and
+   previous/next note controls. The compact header keeps Back, Save and the note's
+   save state visible while reading or writing.
 - Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
@@ -45,17 +48,24 @@ logo always returns to Notes.
   preserves its notes, revisions, retention, and stable agent/repository references.
 - Select up to 50 loaded notes to move, archive, or restore. Drag a handle into a
   notebook, or press Space, choose a destination with the arrows, and press Space
-  again. Escape cancels. On touch screens, a swipe reveals ordinary action buttons;
-  a long press on the handle starts dragging and reveals notebook destinations.
+   again. Escape cancels. On touch screens, a horizontal swipe reveals ordinary
+   action buttons for one note at a time; vertical gestures scroll. A long press
+   on the handle starts dragging and reveals a scrollable list of destinations.
+   Hold near the list's edge to scroll, or release over **Drop here to cancel**.
+   Pens start from the same handles. Interrupted gestures do not move a note.
   Notebook handles also support drag or keyboard nesting; hover over a collapsed
   destination to expand it. Focus mode fills the viewport and hides secondary tools.
 - **Undo** checks the version produced by the original action. It never overwrites
-  someone else's later edit. Partial failures identify the affected notes.
+   someone else's later edit. Partial failures identify the affected notes.
+   Move and bulk-action Undo stays available in the shared notification stack
+   alongside later copy feedback, including inside an open dialog.
 
 Dropdowns share keyboard, touch and focus behavior across filters, notebook choices,
 note properties and settings. Use arrows, Home/End or typeahead, Enter to
 choose, and Escape to dismiss; inside a dialog, the first Escape closes the menu.
-Clicking outside a dialog or drawer dismisses it. Confirmed mutations finish before
+An outside tap or click dismisses a dialog or drawer; scrolling or dragging across
+its edge does not. Action menus follow their opener when scrolling/resizing and
+scroll internally in short viewports. Confirmed mutations finish before
 closing; background autosave retains its request and draft when you navigate away.
 
 ## Commands and keyboard shortcuts
@@ -113,7 +123,13 @@ version for review. Replacing or restoring always creates another version.
 
 Choose **Graph** within Notes to explore recorded related, duplicate, or conflicting
 ideas. It uses the loaded, current notes in the selected scope. Load earlier pages
-to expand it. Pan, zoom, select a note, or press Enter on a focused node to read it.
+to expand it. Drag to pan, or hold Ctrl/Cmd while scrolling to zoom; ordinary wheel
+input scrolls the page. On touch screens, tap notes in the embedded graph and use
+**Expand graph** for one-finger pan and pinch zoom. Expansion also works without
+browser fullscreen. Zoom and the central view stay stable when selecting, reading,
+editing or resizing; **Fit View** deliberately brings all loaded nodes into view.
+Space selects a focused node; Enter reads it. Escape clears a focused selection or
+leaves expanded exploration.
 
 **Ask Grove** finds, explains and helps change your notes. Follow-ups such as
 “shorten that note” use the conversation's context. Choose all notes, Unfiled, or
@@ -130,6 +146,10 @@ The message box grows with your writing. The formatting toggle reveals Markdown 
 preview; switching modes keeps your text and selection. Plain text uses Enter to send
 and Shift+Enter for a new line. Markdown uses Enter for new lines and Ctrl/Cmd+Enter
 to send. The send button works in either mode, including touch keyboards.
+Replies follow the conversation only while you are near its latest message. Scroll
+up to keep reading older messages, even as a reply arrives or the composer grows.
+**Latest reply** returns to the bottom and resumes following. Sending a new question
+also resumes following.
 
 **Settings** groups Preferences, Account, Connections, Search & organization and
 Your data under a persistent heading and navigation. Section content scrolls
