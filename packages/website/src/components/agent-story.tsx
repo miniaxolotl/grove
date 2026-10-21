@@ -10,23 +10,19 @@ export function AgentStory() {
     >
       <div className="agent-story-grid">
         <div data-reveal>
-          <p className="eyebrow">
-            FOR DEVELOPERS / CONTEXT THAT COMES WITH YOU
-          </p>
+          <p className="eyebrow">FOR DEVELOPERS</p>
           <h2 id="agents-heading" className="section-heading">
             New session.
             <br />
-            <em>Same head start.</em>
+            <em>Same context.</em>
           </h2>
           <p className="agent-story-copy">
-            The decision you already made. The fix you finally found. Give your
-            AI tools a shared place to remember the useful bits, right alongside
-            the notes you keep yourself.
+            Stop explaining the same decisions to your coding agent. Save useful
+            context and recall it in the next session.
           </p>
           <p className="agent-story-copy">
-            Connect OpenCode, Claude Code, or Codex. Choose the notebooks each
-            connection can access, then review and edit what is saved. Hosted or
-            self-hosted, the context stays yours to manage.
+            Connect OpenCode, Claude Code or Codex. Choose which notebooks it
+            can access. Review and edit what it saves.
           </p>
           <div className="agent-story-actions">
             <Link href="/install" className="button-primary">

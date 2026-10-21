@@ -103,7 +103,7 @@ export function Installation() {
             work with.
           </p>
           <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] text-leaf">
-            <Check size={13} /> Browser sign-in · Project-aware setup
+            <Check size={13} /> Browser sign-in and project setup
           </span>
         </div>
         <AgentSetup />

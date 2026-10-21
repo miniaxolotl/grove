@@ -26,7 +26,7 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await page.getByRole("link", { name: "Connect your AI tools" }).click();
   await expect(page).toHaveURL(/\/install$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "agent’s memory",
+    "a memory.",
   );
   await expect(
     page.getByLabel("OpenCode connection command", { exact: true }),
@@ -57,9 +57,7 @@ test("Ask Grove examples, comparison and source notes work with keyboard navigat
     .click();
   await expect(
     page.getByRole("tabpanel", { name: "Everyday preferences" }),
-  ).toContainText(
-    "There isn’t a saved note about your dinner preferences yet.",
-  );
+  ).toContainText("No saved note about your dinner preferences yet.");
   await page.getByRole("button", { name: "With a note", exact: true }).click();
   await expect(
     page.getByRole("tabpanel", { name: "Everyday preferences" }),
