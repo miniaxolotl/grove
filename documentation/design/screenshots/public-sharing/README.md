@@ -24,3 +24,7 @@ The full 85-case Chromium suite passed, then all four sharing-control regression
 passed after the final inline-feedback correction. Eight iPhone 13/WebKit scenarios
 passed using Playwright 1.64.1 Noble with Node 24.21.0. Automated WCAG 2A/AA/2.1AA,
 overflow, clipboard fallback, held-write/focus, conflict and revocation checks pass.
+
+The subsequent integration with gesture PR #58 retains these sharing surfaces and
+places the phone entry point in Note actions. Combined verification covers all 97
+Chromium cases and 16 iPhone/WebKit cases, including the compact mobile note header.

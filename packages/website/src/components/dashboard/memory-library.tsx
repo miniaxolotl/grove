@@ -27,6 +27,7 @@ import { MemoryRow } from "./memory-row";
 import { MemoryEditor } from "./memory-editor";
 import { MemoryDetail } from "./memory-detail";
 import { useWorkspaceDrag } from "./memory-drag";
+import { WorkspaceNotice } from "./toasts";
 import {
   LibraryFilterBar,
   initialFilters,
@@ -107,6 +108,7 @@ export function MemoryLibrary({
   const [selected, setSelected] = useState<Memory | "new" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
+  const [actionRow, setActionRow] = useState<string | null>(null);
   const [moving, setMoving] = useState<Memory[] | null>(null);
   const [destination, setDestination] = useState("personal");
   const [busy, setBusy] = useState(false);
@@ -586,6 +588,7 @@ export function MemoryLibrary({
             items.length > 0 &&
             (view === "graph" ? (
               <MemoryGraph
+                key={requestKey}
                 items={items}
                 projects={projects}
                 onOpen={setSelected}
@@ -624,6 +627,10 @@ export function MemoryLibrary({
                         )}
                       <MemoryRow
                         memory={memory}
+                        actions={actionRow === memory.id}
+                        setActions={(open) =>
+                          setActionRow(open ? memory.id : null)
+                        }
                         projectName={
                           projects.find((p) => p.id === memory.projectId)
                             ?.name ?? "Unfiled"
@@ -683,7 +690,7 @@ export function MemoryLibrary({
         </div>
       </div>
       {(notice || busy) && (
-        <div className="workspace-notice" role="status">
+        <WorkspaceNotice>
           <span>{busy ? "Updating notes…" : notice}</span>
           {undo.length > 0 && (
             <button disabled={busy} onClick={undoLast}>
@@ -701,7 +708,7 @@ export function MemoryLibrary({
           >
             <X size={16} />
           </button>
-        </div>
+        </WorkspaceNotice>
       )}
       {selected && (
         <Dialog

@@ -5,7 +5,8 @@ see **live saved content** without signing in. Visitor permission is **Can view*
 
 ## Owner controls and lifecycle
 
-Open **Share note** in the note toolbar or Commands. Notebook sharing is available
+Open **Share note** in the note toolbar, the phone's **Note actions** menu, or
+Commands. Notebook sharing is available
 in notebook options, sidebar actions and the notebook manager.
 
 - Choose **Anyone with the link**, then **Create link**. Existing links lead with
