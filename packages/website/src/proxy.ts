@@ -8,6 +8,8 @@ const middleware = clerkMiddleware(async (auth, request) => {
     await auth.protect();
 });
 export default function proxy(...args: Parameters<typeof middleware>) {
+  // Public capabilities are checked by the API, independently of Clerk sessions.
+  if (args[0].nextUrl.pathname.startsWith("/s/")) return NextResponse.next();
   if (
     !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
     !process.env.CLERK_SECRET_KEY

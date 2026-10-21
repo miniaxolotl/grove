@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { operationSchema, uuidSchema } from "./contracts.ts";
+import { operationSchema, uuidSchema } from "@lib/shared/contracts";
 
 export const shareTokenSchema = z.string().regex(/^gsh_[A-Za-z0-9_-]{43}$/);
 export const shareMutationSchema = z
