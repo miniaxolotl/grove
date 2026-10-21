@@ -22,6 +22,12 @@ import { installIntegration, activationInstructions } from "./install.ts";
 import { openBrowser } from "./browser.ts";
 import { connectAgent, cloudOrigin, type LoginOptions } from "./connect.ts";
 import { selectAgent } from "./select-agent.ts";
+import { closeTelemetry, telemetry, type Properties } from "@lib/telemetry";
+import { outcome as operationOutcome } from "@lib/telemetry/context";
+import {
+  setTelemetryEnabled,
+  telemetryDisabled,
+} from "@lib/telemetry/preference";
 
 const help = `Grove — private memory across your agents
 
@@ -32,6 +38,7 @@ const help = `Grove — private memory across your agents
   grove project [--client <client>]
   grove logout [--client <client>]
   grove pause | resume
+  grove telemetry status | enable | disable
   grove uninstall --client <client>
   grove mcp --stdio [--client <client>]
   grove serve  (requires @miniaxolotl/grove-server or use Docker)
@@ -39,6 +46,10 @@ const help = `Grove — private memory across your agents
 Run grove connect to choose an installed agent, create an account or sign in, and finish setup.
 Credentials stay in your user configuration, never in project files.
 Use GROVE_API_URL + GROVE_API_KEY for headless clients. Logs use stderr in stdio mode.`;
+
+let observedCommand: Properties["command"];
+let commandStarted = 0;
+let commandFailure: unknown;
 
 async function login(
   origin: string,
@@ -215,6 +226,40 @@ async function main() {
     console.log(help);
     return;
   }
+  if (command === "telemetry") {
+    const action = positionals[1] ?? "status";
+    if (
+      !["status", "enable", "disable"].includes(action) ||
+      positionals.length > 2
+    )
+      throw new GroveError(
+        "invalid_command",
+        "Use grove telemetry status | enable | disable",
+      );
+    if (action !== "status") setTelemetryEnabled(action === "enable");
+    console.log(
+      `Anonymous analytics and diagnostics: ${telemetryDisabled() ? "disabled" : "enabled"}. DO_NOT_TRACK=1 or GROVE_TELEMETRY=0 also disables collection.`,
+    );
+    return;
+  }
+  if (
+    [
+      "connect",
+      "init",
+      "login",
+      "status",
+      "project",
+      "logout",
+      "pause",
+      "resume",
+      "uninstall",
+      "mcp",
+      "serve",
+    ].includes(command)
+  ) {
+    observedCommand = command as Properties["command"];
+    commandStarted = performance.now();
+  }
   if (command === "connect") {
     const selected =
       positionals[1] ??
@@ -378,17 +423,39 @@ async function main() {
   }
   throw new GroveError("invalid_command", help);
 }
-main().catch((error) => {
-  const output = {
-    status: "error",
-    code: error instanceof GroveError ? error.code : "unavailable",
-    message:
-      error instanceof GroveError
-        ? error.message
-        : "Grove could not complete the command",
-  };
-  (process.argv.includes("--json") ? console.log : console.error)(
-    JSON.stringify(output),
-  );
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    commandFailure = error;
+    const output = {
+      status: "error",
+      code: error instanceof GroveError ? error.code : "unavailable",
+      message:
+        error instanceof GroveError
+          ? error.message
+          : "Grove could not complete the command",
+    };
+    (process.argv.includes("--json") ? console.log : console.error)(
+      JSON.stringify(output),
+    );
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (!observedCommand) return;
+    const outcome = commandFailure
+      ? operationOutcome(commandFailure)
+      : "success";
+    telemetry("cli").operation(
+      "command_run",
+      commandStarted,
+      outcome,
+      {
+        command: observedCommand,
+      },
+      commandFailure,
+    );
+    telemetry("cli").capture("command_completed", {
+      command: observedCommand,
+      outcome,
+    });
+    if (!["mcp", "serve"].includes(observedCommand)) await closeTelemetry();
+  });

@@ -1,6 +1,7 @@
 import type { ApiEnvelope } from "@lib/shared/contracts";
 import { operationForRequest, type Outcome } from "./analytics-policy";
 import { recordWebsiteOperation } from "./diagnostics";
+import { telemetryAllowed } from "./telemetry-choice";
 
 export class DashboardApiError extends Error {
   constructor(
@@ -27,7 +28,10 @@ export async function api<T>(
       method: verb,
       credentials: "same-origin",
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(!telemetryAllowed() ? { "X-Grove-Telemetry": "off" } : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     });

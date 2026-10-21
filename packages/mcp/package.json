@@ -57,6 +57,7 @@
   "devDependencies": {
     "@lib/eslint-config": "workspace:*",
     "@lib/shared": "workspace:*",
+    "@lib/telemetry": "workspace:*",
     "@lib/integration-core": "workspace:*",
     "@lib/typescript-config": "workspace:*",
     "tsx": "~4.21.0",

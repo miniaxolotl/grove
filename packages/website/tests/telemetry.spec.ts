@@ -4,6 +4,24 @@ import { pagePath } from "../src/lib/analytics-policy";
 
 const dashboard = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const copyCommand = "Copy OpenCode connection command";
+test("browser opt-out accompanies private workspace mutations to the API boundary", async ({
+  page,
+}) => {
+  let forwarded: string | undefined;
+  await page.route("**/api/grove/**", async (route) => {
+    if (route.request().method() === "PATCH")
+      forwarded = route.request().headers()["x-grove-telemetry"];
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
+  });
+  await page.goto(`${dashboard}/?telemetry_fixture=1`);
+  await page.getByRole("button", { name: "Disable website telemetry" }).click();
+  await page.getByRole("link", { name: "Open workspace fixture" }).click();
+  await page.getByRole("button", { name: "Save note fixture" }).click();
+  await expect.poll(() => forwarded).toBe("off");
+});
 test("private route identifiers, errors and span attributes never cross the boundary", () => {
   expect(pagePath("/app/projects/PRIVATE_ID?token=PRIVATE")).toBe(
     "/app/projects/:id",

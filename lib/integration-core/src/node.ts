@@ -13,6 +13,8 @@ import { homedir } from "node:os";
 import { basename, join, dirname } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { resetLocalTelemetry, telemetry } from "@lib/telemetry";
+import { telemetryDisabled } from "@lib/telemetry/preference";
 import {
   auth,
   type OAuthClientProvider,
@@ -267,6 +269,11 @@ export async function saveCredentials(value: Credentials) {
     );
     const config = await readConfig();
     pinOrigins(config);
+    if (
+      config.accounts?.[value.origin]?.[value.agent] !== value.accountId ||
+      activeOrigin(config, value.agent) !== value.origin
+    )
+      resetLocalTelemetry();
     config.origins![value.agent] = value.origin;
     config.origin = value.origin;
     config.accounts ??= {};
@@ -294,17 +301,20 @@ export async function activateCredentials(
       );
     const config = await readConfig();
     pinOrigins(config);
-    if (config.origin !== origin || config.origins![agent] !== origin)
+    if (config.origin !== origin || config.origins![agent] !== origin) {
+      resetLocalTelemetry();
       await writeConfig({
         ...config,
         origins: { ...config.origins, [agent]: origin },
         origin,
         generation: (config.generation ?? 0) + 1,
       });
+    }
   });
 }
 export async function clearCredentials(origin: string, agent: AgentName) {
   await withStoreLock(async () => {
+    resetLocalTelemetry();
     const config = await readConfig();
     const account = config.accounts?.[origin]?.[agent];
     if (account)
@@ -452,6 +462,11 @@ export async function nodeClient(
     endpoint,
     (signal) => bearer(endpoint, agent, signal),
     timeoutMs,
+    {
+      disabled: () => telemetryDisabled(),
+      completed: (started, outcome) =>
+        telemetry(agent).operation("http_request", started, outcome, { agent }),
+    },
   );
 }
 
@@ -522,6 +537,7 @@ export async function automaticContext(
   signal?: AbortSignal,
   budget = 6000,
 ) {
+  const started = performance.now();
   const deadline = AbortSignal.any([
     AbortSignal.timeout(1500),
     ...(signal ? [signal] : []),
@@ -550,7 +566,7 @@ export async function automaticContext(
     const context = formatContext(result, Math.max(0, budget - 350));
     return `Grove current project: ${projectId ?? "unconfigured; personal scope only"}. Automatic capture: ${me.captureEnabled ? "permitted for confirmed context; set capture=automatic on these saves" : "paused; explicit user-requested saves only"}.\n${context}`;
   };
-  return Promise.race([
+  const result = await Promise.race([
     work().catch(() => ""),
     new Promise<string>((resolve) => {
       if (deadline.aborted) resolve("");
@@ -558,4 +574,11 @@ export async function automaticContext(
         deadline.addEventListener("abort", () => resolve(""), { once: true });
     }),
   ]);
+  telemetry(agent).operation(
+    "agent_context",
+    started,
+    result ? "success" : "unavailable",
+    { agent },
+  );
+  return result;
 }

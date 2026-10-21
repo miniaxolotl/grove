@@ -4,6 +4,11 @@ WORKDIR /app
 COPY . .
 ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
 RUN pnpm install --frozen-lockfile
+ARG GROVE_TELEMETRY_BUILD
+ARG RELEASE_SOURCE_SHA
+ARG GROVE_POSTHOG_KEY
+ARG GROVE_CLI_SENTRY_DSN
+ARG GROVE_API_SENTRY_DSN
 RUN node scripts/build.mjs api
 RUN pnpm --filter @miniaxolotl/grove-server deploy --prod --legacy /prod
 

@@ -43,6 +43,7 @@
     "@lib/environment": "workspace:*",
     "@lib/integration-core": "workspace:*",
     "@lib/memory": "workspace:*",
-    "@lib/shared": "workspace:*"
+    "@lib/shared": "workspace:*",
+    "@lib/telemetry": "workspace:*"
   }
 }
