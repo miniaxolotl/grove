@@ -44,6 +44,17 @@ import {
 import type { Memory } from "@lib/shared/contracts";
 import type { Project } from "@/lib/dashboard-api";
 import {
+  relationshipLabels,
+  type NoteConnection,
+} from "@lib/shared/relationships";
+import {
+  ConnectionCards,
+  ConnectionInspector,
+  ConnectionStatus,
+  useConnections,
+} from "./connection-panel";
+import { NotebookGraph } from "./notebook-graph";
+import {
   memoryTitle,
   memoryExcerpt,
   noteKindLabel,
@@ -52,10 +63,10 @@ import { Button } from "./ui/button";
 import "@xyflow/react/dist/style.css";
 
 type Relationship = "complementary" | "duplicate" | "conflicting";
-const labels: Record<Relationship, string> = {
-  complementary: "Related",
-  duplicate: "Possible duplicate",
-  conflicting: "Conflicting",
+const labels = {
+  complementary: relationshipLabels.complementary,
+  duplicate: relationshipLabels.duplicate,
+  conflicting: relationshipLabels.conflicting,
 };
 const colors: Record<Relationship, string> = {
   complementary: "#5a8875",
@@ -160,7 +171,7 @@ function MemoryConnection({
         id={id}
         path={path}
         className="graph-connection-line"
-        interactionWidth={0}
+        interactionWidth={24}
       />
       {data?.emphasized && (
         <path className="graph-connection-spark" d={path} aria-hidden="true" />
@@ -170,32 +181,30 @@ function MemoryConnection({
 }
 const edgeTypes = { connection: MemoryConnection };
 
-function graphEdges(items: Memory[]): ConnectionEdge[] {
-  const edges = new Map<string, ConnectionEdge>();
-  const byId = new Map(items.map((item) => [item.id, item]));
-  for (const memory of items)
-    for (const relation of memory.enrichment?.relationships ?? []) {
-      const other = byId.get(relation.id);
-      if (
-        relation.relationship === "unrelated" ||
-        relation.id === memory.id ||
-        !other ||
-        other.version !== relation.version ||
-        other.projectId !== memory.projectId
-      )
-        continue;
-      const [source, target] = [memory.id, relation.id].sort();
-      const id = `${source}:${target}:${relation.relationship}`;
-      edges.set(id, {
-        id,
-        source,
-        target,
-        type: "connection",
-        data: { relationship: relation.relationship },
-        ariaLabel: `${labels[relation.relationship]}: ${memoryTitle(memory)} and ${memoryTitle(other)}`,
-      });
-    }
-  return [...edges.values()];
+function graphEdges(
+  items: Memory[],
+  connections: NoteConnection[],
+): ConnectionEdge[] {
+  return connections
+    .filter(
+      (c) =>
+        c.type !== "connected" &&
+        [c.from.id, c.to.id].every((id) =>
+          items.some(
+            (n) =>
+              n.id === id &&
+              c.evidence.every((e) => e.id !== id || e.version === n.version),
+          ),
+        ),
+    )
+    .map((c) => ({
+      id: c.id,
+      source: c.from.id,
+      target: c.to.id,
+      type: "connection",
+      data: { relationship: c.type as Relationship },
+      ariaLabel: `${relationshipLabels[c.type]}: ${c.from.title} and ${c.to.title}. Press Enter for evidence.`,
+    }));
 }
 function layout(
   items: Memory[],
@@ -270,12 +279,90 @@ export default function MemoryGraph({
   projects: Project[];
   onOpen: (memory: Memory) => void;
 }) {
+  const [level, setLevel] = useState("note");
+  const [offset, setOffset] = useState(0);
+  const start = Math.min(
+    offset,
+    Math.max(0, Math.floor((items.length - 1) / 100) * 100),
+  );
+  return (
+    <>
+      <nav className="workspace-tabs" aria-label="Connection level">
+        <button
+          aria-pressed={level === "note"}
+          onClick={() => setLevel("note")}
+        >
+          Notes
+        </button>
+        <button
+          aria-pressed={level === "notebook"}
+          onClick={() => setLevel("notebook")}
+        >
+          Notebooks
+        </button>
+      </nav>
+      {level === "note" ? (
+        <NoteGraph
+          items={items.slice(start, start + 100)}
+          projects={projects}
+          onOpen={onOpen}
+        />
+      ) : (
+        <NotebookGraph projects={projects} />
+      )}
+      {level === "note" && (
+        <p className="graph-notice">
+          Showing connections among {items.length ? start + 1 : 0}–
+          {Math.min(items.length, start + 100)} of {items.length} loaded notes.
+          {items.length <= 100 &&
+            " Load more notes in the library to explore further."}
+        </p>
+      )}
+      {level === "note" && items.length > 100 && (
+        <nav className="connection-actions" aria-label="Graph note pages">
+          <button
+            className="text-button"
+            disabled={!start}
+            onClick={() => setOffset(start - 100)}
+          >
+            Previous notes
+          </button>
+          <button
+            className="text-button"
+            disabled={start + 100 >= items.length}
+            onClick={() => setOffset(start + 100)}
+          >
+            Next notes
+          </button>
+        </nav>
+      )}
+    </>
+  );
+}
+function NoteGraph({
+  items,
+  projects,
+  onOpen,
+}: {
+  items: Memory[];
+  projects: Project[];
+  onOpen: (memory: Memory) => void;
+}) {
   const [relationship, setRelationship] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [canExpand, setCanExpand] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
+  const [inspected, setInspected] = useState<NoteConnection>();
+  const connections = useConnections(
+    {
+      level: "note",
+      endpointIds: items.map((n) => n.id).sort(),
+      limit: 100,
+    },
+    items.reduce((n, m) => n + m.version, 0),
+  );
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
     const element = section.current;
@@ -298,7 +385,10 @@ export default function MemoryGraph({
       );
     }
   }
-  const edges = useMemo(() => graphEdges(items), [items]);
+  const edges = useMemo(
+    () => graphEdges(items, connections.page?.items ?? []),
+    [items, connections.page],
+  );
   const visibleEdges = useMemo(
     () =>
       relationship
@@ -407,12 +497,17 @@ export default function MemoryGraph({
             showTitles={showTitles}
             onSelect={setSelected}
             onOpen={onOpen}
+            onConnection={(id) =>
+              setInspected(connections.page?.items.find((c) => c.id === id))
+            }
           />
           {!visibleEdges.length && (
             <p className="graph-hint" role="status">
-              {relationship
-                ? "No matching connections here."
-                : "Connections appear as Grove finds related ideas."}
+              {connections.loading
+                ? "Loading connections…"
+                : relationship
+                  ? "No matching connections here."
+                  : "Connections appear as Grove finds related ideas."}
             </p>
           )}
         </div>
@@ -456,7 +551,15 @@ export default function MemoryGraph({
                   )!;
                   return (
                     <li key={edge.id}>
-                      <button onClick={() => setSelected(other.id)}>
+                      <button
+                        onClick={() =>
+                          setInspected(
+                            connections.page?.items.find(
+                              (c) => c.id === edge.id,
+                            ),
+                          )
+                        }
+                      >
                         <small>
                           {labels[edge.data!.relationship as Relationship]}
                         </small>
@@ -505,6 +608,31 @@ export default function MemoryGraph({
           {fullscreenError}
         </p>
       )}
+      <details className="graph-connection-list">
+        <summary>Explore connections as a list</summary>
+        <ConnectionStatus state={connections} />
+        <ConnectionCards
+          items={(connections.page?.items ?? []).filter((c) =>
+            visibleEdges.some((e) => e.id === c.id),
+          )}
+          onInspect={setInspected}
+        />
+        {connections.page?.nextCursor && (
+          <button
+            className="text-button"
+            disabled={connections.loading}
+            onClick={() => void connections.more()}
+          >
+            More connections
+          </button>
+        )}
+      </details>
+      {inspected && (
+        <ConnectionInspector
+          connection={inspected}
+          close={() => setInspected(undefined)}
+        />
+      )}
     </section>
   );
 }
@@ -515,6 +643,7 @@ function Canvas({
   showTitles,
   onSelect,
   onOpen,
+  onConnection,
 }: {
   initialNodes: GraphNode[];
   edges: ConnectionEdge[];
@@ -522,6 +651,7 @@ function Canvas({
   showTitles: boolean;
   onSelect: (id: string | null) => void;
   onOpen: (memory: Memory) => void;
+  onConnection: (id: string) => void;
 }) {
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -546,6 +676,15 @@ function Canvas({
       }
       onBlurCapture={() => setHovered(null)}
       onKeyDownCapture={(event) => {
+        const edgeId = (event.target as HTMLElement)
+          .closest(".react-flow__edge")
+          ?.getAttribute("data-id");
+        if (edgeId && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          event.stopPropagation();
+          onConnection(edgeId);
+          return;
+        }
         const id = (event.target as HTMLElement)
           .closest(".react-flow__node")
           ?.getAttribute("data-id");
@@ -603,12 +742,13 @@ function Canvas({
         onNodeDragStart={() => setHovered(null)}
         onNodeClick={(_, node) => onSelect(node.id)}
         onNodeDoubleClick={(_, node) => onOpen(node.data.memory)}
+        onEdgeClick={(_, edge) => onConnection(edge.id)}
         onPaneClick={() => {
           onSelect(null);
           setHovered(null);
         }}
         nodesConnectable={false}
-        edgesFocusable={false}
+        edgesFocusable
         deleteKeyCode={null}
         ariaLabelConfig={{
           "node.a11yDescription.default":

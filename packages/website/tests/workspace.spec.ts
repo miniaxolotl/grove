@@ -10,6 +10,11 @@ import {
 } from "@lib/shared/contracts";
 import { askSchema, briefRequestSchema } from "@lib/shared/models";
 import {
+  connectionQuerySchema,
+  connectionReviewSchema,
+  type NoteConnection,
+} from "@lib/shared/relationships";
+import {
   conversationCreateSchema,
   conversationTurnSchema,
   type Conversation,
@@ -74,6 +79,7 @@ test("one wide note workspace preserves editor history, toggles with shortcuts a
   const state = await fixture(page, [
     {
       ...note,
+      projectId: project.id,
       enrichment: {
         ...note.enrichment!,
         relationships: [
@@ -204,6 +210,247 @@ test("browsing arrows and delete are scoped to notes and deletion still requires
   await search.press("Delete");
   await expect(search).toHaveValue("aunch");
   await expect(confirmation).toHaveCount(0);
+});
+
+test("connection evidence compares current notes, preserves the editor, and supports dismissal and Undo", async ({
+  page,
+}, info) => {
+  const a = {
+    ...note,
+    content:
+      "# Review preferences\n\nKeep feedback **specific**. The launch review must happen on October 30.",
+    projectId: project.id,
+    enrichment: {
+      ...note.enrichment!,
+      relationships: [
+        { id: handoff.id, version: 1, relationship: "conflicting" as const },
+      ],
+    },
+  };
+  const state = await fixture(page, [
+    a,
+    {
+      ...handoff,
+      content:
+        "# Launch checklist\n\nThe launch review must happen on November 2.",
+    },
+  ]);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.locator(".linked-notes summary").click();
+  await expect(page.locator(".connection-card")).toContainText("May conflict");
+  const trigger = page.getByRole("button", {
+    name: "Why this connection?",
+    exact: true,
+  });
+  await trigger.click();
+  const inspector = page.getByRole("dialog", {
+    name: "Why this connection?",
+    exact: true,
+  });
+  await expect(inspector.locator("blockquote")).toHaveCount(2);
+  await inspector
+    .getByRole("button", { name: "Compare notes", exact: true })
+    .click();
+  const comparison = page.getByRole("dialog", {
+    name: "Compare notes",
+    exact: true,
+  });
+  await expect(comparison).toContainText("Keep feedback");
+  await page.keyboard.press("Escape");
+  await expect(
+    inspector.getByRole("button", { name: "Compare notes", exact: true }),
+  ).toBeFocused();
+  await inspector.getByRole("button", { name: "Dismiss suggestion" }).click();
+  await expect(
+    inspector.getByRole("button", { name: "Undo dismissal" }),
+  ).toBeVisible();
+  expect([...state.pairs.values()][0].dismissed).toBe(true);
+  await inspector.getByRole("button", { name: "Undo dismissal" }).click();
+  await expect(
+    inspector.getByRole("button", { name: "Dismiss suggestion" }),
+  ).toBeVisible();
+  for (const width of [1440, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(
+      await inspector.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: info.outputPath(`relationship-evidence-${width}.png`),
+    });
+  }
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  expect(
+    state.calls.filter((c) => c.path === "/memories" && c.body),
+  ).toHaveLength(0);
+  await page.getByRole("button", { name: "Edit note", exact: true }).click();
+  await expect(
+    page.getByRole("textbox", { name: "What should stay with you?" }),
+  ).toContainText("Keep feedback");
+});
+
+test("notebook context and graph share evidence, show partial coverage and offer keyboard access", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, [
+    {
+      ...note,
+      projectId: project.id,
+      enrichment: {
+        ...note.enrichment!,
+        relationships: [
+          { id: handoff.id, version: 1, relationship: "complementary" },
+        ],
+      },
+    },
+    handoff,
+  ]);
+  const budget = { ...project, id: crypto.randomUUID(), name: "Launch budget" };
+  state.projects.push(budget);
+  state.records.get(handoff.id)!.projectId = budget.id;
+  const old = [...state.pairs.values()][0];
+  state.pairs.clear();
+  const pair: NoteConnection = {
+    ...old,
+    level: "notebook",
+    type: "connected",
+    from: { id: project.id, title: project.name },
+    to: { id: budget.id, title: budget.name },
+    reason:
+      "The launch review and budget both cover keyboard accessibility testing.",
+    basis: "shared_goal",
+    evidence: old.evidence.map((e) => ({
+      ...e,
+      projectId: e.id === handoff.id ? budget.id : project.id,
+    })),
+    coverage: {
+      from: { total: 40, examined: 8, supporting: 1 },
+      to: { total: 3, examined: 3, supporting: 1 },
+    },
+  };
+  state.pairs.set(pair.id, pair);
+  await page.goto(`${base}/app/projects/${project.id}`);
+  await page.getByRole("button", { name: "Notebook options" }).click();
+  await page
+    .getByRole("button", { name: "Connected notebooks", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Why this connection?", exact: true })
+    .click();
+  const inspector = page.getByRole("dialog", {
+    name: "Why this connection?",
+    exact: true,
+  });
+  await expect(inspector).toContainText("Based on 8 of 40 notes");
+  await expect(inspector).toContainText("A shared thread");
+  await expect(
+    inspector.getByRole("link", { name: `Open ${budget.name}` }),
+  ).toHaveAttribute("href", `/app/projects/${budget.id}`);
+  await page.keyboard.press("Escape");
+  await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Connection level" })
+    .getByRole("button", { name: "Notebooks", exact: true })
+    .click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  await page.screenshot({ path: info.outputPath("notebook-graph.png") });
+  await page.locator(".react-flow__edge").focus();
+  await page.keyboard.press("Enter");
+  await expect(inspector).toContainText(pair.reason);
+  await page.screenshot({
+    path: info.outputPath("notebook-connection-graph.png"),
+  });
+});
+
+test("connections recover from failed processing, paginate, and reject stale review and comparison", async ({
+  page,
+}) => {
+  const others = Array.from({ length: 32 }, (_, i) => ({
+    ...handoff,
+    id: crypto.randomUUID(),
+    content: `Launch review detail ${i}.`,
+    enrichment: { ...handoff.enrichment!, relationships: [] },
+  }));
+  const state = await fixture(page, [
+    {
+      ...note,
+      projectId: project.id,
+      enrichment: {
+        ...note.enrichment!,
+        relationships: others.map((n) => ({
+          id: n.id,
+          version: n.version,
+          relationship: "duplicate" as const,
+        })),
+      },
+    },
+    ...others,
+  ]);
+  let failed = true;
+  await page.route("**/api/grove/relationships/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/retry")) {
+      failed = false;
+      return route.fulfill({
+        json: { success: true, data: { status: "pending" } },
+      });
+    }
+    if (path.endsWith("/search") && failed)
+      return route.fulfill({
+        json: {
+          success: true,
+          data: { items: [], nextCursor: null, status: "failed" },
+        },
+      });
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.locator(".linked-notes summary").click();
+  await expect(page.locator(".connection-panel")).toContainText(
+    "could not be checked",
+  );
+  await page.getByRole("button", { name: "Retry connections" }).click();
+  await expect(page.locator(".connection-card")).toHaveCount(30);
+  await expect(page.locator(".connection-card").first()).toContainText(
+    "Possible duplicate",
+  );
+  await page.getByRole("button", { name: "More connections" }).click();
+  await expect(page.locator(".connection-card")).toHaveCount(32);
+  await page
+    .getByRole("button", { name: "Why this connection?", exact: true })
+    .first()
+    .click();
+  const inspector = page.getByRole("dialog", {
+    name: "Why this connection?",
+    exact: true,
+  });
+  await expect(inspector.locator("blockquote")).toHaveCount(2);
+  const pair = [...state.pairs.values()][0];
+  pair.reviewVersion++;
+  await inspector.getByRole("button", { name: "Dismiss suggestion" }).click();
+  await expect(inspector.getByRole("alert")).toContainText("changed");
+  expect(pair.dismissed).toBe(false);
+  await expect(inspector.locator("blockquote")).toHaveCount(2);
+  state.records.get(others[0].id)!.version++;
+  await inspector
+    .getByRole("button", { name: "Compare notes", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Compare notes", exact: true }),
+  ).toHaveCount(0);
+  await expect(inspector).toContainText("no longer available");
+  await expect(inspector.locator("blockquote")).toHaveCount(0);
 });
 
 test("commands and shortcut help work from notes, preserve focus, and create in the current notebook", async ({
@@ -661,6 +908,66 @@ async function fixture(page: Page, initial = [note, handoff]) {
   );
   const calls: { path: string; body: Record<string, unknown> }[] = [];
   const chats = new Map<string, Conversation>();
+  const pairs = new Map<string, NoteConnection>();
+  for (const memory of initial)
+    for (const ref of memory.enrichment?.relationships ?? []) {
+      const other = records.get(ref.id);
+      if (
+        !other ||
+        other.version !== ref.version ||
+        other.projectId !== memory.projectId ||
+        ref.relationship === "unrelated"
+      )
+        continue;
+      const [left, right] = [memory, other].sort((a, b) =>
+        a.id.localeCompare(b.id),
+      );
+      const pair: NoteConnection = {
+        id: crypto.randomUUID(),
+        level: "note",
+        from: {
+          id: left.id,
+          title: left.enrichment?.title ?? left.content.split("\n")[0],
+        },
+        to: {
+          id: right.id,
+          title: right.enrichment?.title ?? right.content.split("\n")[0],
+        },
+        type: ref.relationship,
+        reason:
+          ref.relationship === "conflicting"
+            ? "These notes give different dates for the same launch review: October 30 and November 2."
+            : ref.relationship === "duplicate"
+              ? "Both notes record the same launch review requirement."
+              : "Both describe launch review; the checklist adds keyboard verification.",
+        basis:
+          ref.relationship === "conflicting"
+            ? "incompatible_claims"
+            : ref.relationship === "duplicate"
+              ? "same_information"
+              : "additional_context",
+        direction: "both",
+        evidence: [left, right].map((n) => ({
+          id: n.id,
+          version: n.version,
+          quote: n.content.slice(0, 150),
+          start: 0,
+          end: Math.min(n.content.length, 150),
+          title: n.enrichment?.title ?? "Note",
+          projectId: n.projectId,
+        })),
+        coverage: {
+          from: { total: 1, examined: 1, supporting: 1 },
+          to: { total: 1, examined: 1, supporting: 1 },
+        },
+        breadth: "thread",
+        revision: "a".repeat(64),
+        reviewVersion: 0,
+        dismissed: false,
+        updatedAt: note.updatedAt,
+      };
+      pairs.set(pair.id, pair);
+    }
   await page.route("**/api/grove/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace("/api/grove", "");
@@ -678,7 +985,42 @@ async function fixture(page: Page, initial = [note, handoff]) {
           },
         },
       });
-    if (path === "/conversations") {
+    if (path === "/relationships/search") {
+      const input = connectionQuerySchema.parse(body);
+      const items = [...pairs.values()].filter(
+        (p) =>
+          p.level === input.level &&
+          (!p.dismissed || input.includeDismissed) &&
+          (!input.connectionId || input.connectionId === p.id) &&
+          (!input.endpointId ||
+            [p.from.id, p.to.id].includes(input.endpointId)) &&
+          (!input.endpointIds ||
+            [p.from.id, p.to.id].every((id) =>
+              input.endpointIds!.includes(id),
+            )) &&
+          p.evidence.every((e) => records.get(e.id)?.version === e.version),
+      );
+      const offset = Number(input.cursor ?? 0);
+      data = {
+        items: items.slice(offset, offset + input.limit),
+        nextCursor:
+          items.length > offset + input.limit
+            ? String(offset + input.limit)
+            : null,
+        status: "ready",
+      };
+    } else if (/^\/relationships\/(note|notebook)\/[^/]+\/review$/.test(path)) {
+      const input = connectionReviewSchema.parse(body);
+      const pair = pairs.get(path.split("/")[3])!;
+      if (
+        pair.revision !== input.expectedRevision ||
+        pair.reviewVersion !== input.expectedReviewVersion
+      )
+        return conflict();
+      pair.dismissed = input.dismissed;
+      pair.reviewVersion++;
+      data = { reviewVersion: pair.reviewVersion, dismissed: pair.dismissed };
+    } else if (path === "/conversations") {
       if (request.method() === "POST") {
         const { id, ...scope } = conversationCreateSchema.parse(body);
         if (!chats.has(id))
@@ -916,7 +1258,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
     else throw new Error(`Unexpected fixture request: ${path}`);
     await route.fulfill({ json: { success: true, data } });
   });
-  return { records, calls, projects, chats };
+  return { records, calls, projects, chats, pairs };
 }
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({

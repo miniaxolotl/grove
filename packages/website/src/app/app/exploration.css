@@ -352,6 +352,13 @@
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
+.graph-connection .react-flow__edge-interaction {
+  stroke: transparent;
+  cursor: pointer;
+}
+.react-flow__edge:focus-visible .graph-connection-line {
+  stroke-width: 3;
+}
 .graph-connection .graph-connection-line {
   stroke-width: 1;
 }
@@ -1093,5 +1100,138 @@
   .graph-connection-spark {
     animation: none;
     display: none;
+  }
+}
+.connection-panel {
+  margin-block: 1rem;
+  font-size: 0.875rem;
+}
+.connection-panel > p,
+.connection-coverage {
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+.connection-cards {
+  display: grid;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin-block: 1rem;
+}
+.connection-card {
+  border-inline-start: 2px solid #5a8875;
+  padding: 0.25rem 0 0.25rem 1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connection-card.connection-conflicting {
+  border-color: #ab7439;
+}
+.connection-card.connection-duplicate {
+  border-color: #8872b0;
+}
+.connection-card small,
+.connection-inspector > small {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+.connection-card h3 {
+  font-size: 1rem;
+  margin-block: 0.25rem;
+}
+.connection-card p {
+  margin-block: 0.4rem;
+  line-height: 1.6;
+}
+.connection-inspector {
+  overflow-wrap: anywhere;
+}
+.connection-inspector > h3 {
+  font-size: 1.25rem;
+  margin-block: 0.5rem 1rem;
+}
+.connection-inspector > p {
+  margin-block: 1rem;
+  line-height: 1.7;
+}
+.connection-inspector h4 {
+  margin-block: 1.5rem 1rem;
+  font-weight: 600;
+}
+.connection-evidence,
+.connection-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+.connection-evidence figure {
+  margin: 0;
+  min-width: 0;
+}
+.connection-evidence figcaption {
+  font-size: 0.8125rem;
+  margin-block-end: 0.75rem;
+}
+.connection-evidence figcaption span {
+  color: var(--color-muted);
+}
+.connection-evidence a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.connection-evidence blockquote {
+  margin: 0;
+  border-inline-start: 2px solid #5a8875;
+  padding-inline-start: 1rem;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  line-height: 1.75;
+}
+.connection-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-block: 1.5rem 0.5rem;
+}
+.connection-actions p {
+  font-size: 0.8125rem;
+}
+.connection-comparison section {
+  min-width: 0;
+}
+.connection-comparison h3 {
+  font-size: 1.125rem;
+}
+.connection-comparison section > p {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin-block: 0.5rem 1.25rem;
+}
+.graph-connection-list {
+  padding: 1rem;
+  border-top: 1px solid var(--color-line);
+  max-height: 40vh;
+  overflow: auto;
+}
+.graph-connection-list summary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+.notebook-graph-node {
+  border-color: #5a8875;
+  border-radius: 12px;
+  background: var(--color-paper);
+  color: var(--color-forest);
+  padding: 1rem;
+  font-size: 0.875rem;
+}
+@media (max-width: 600px) {
+  .connection-evidence,
+  .connection-comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .connection-card {
+    padding-inline-start: 0.75rem;
   }
 }
