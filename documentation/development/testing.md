@@ -80,6 +80,9 @@ zoom, and selection/read/edit viewport retention. Menu bounds are checked at nar
 short and 2× pinch-zoom viewports. Mobile formatting retains selected text; held
 chat replies preserve older reading positions. Move Undo stays actionable alongside
 copy feedback in the active dialog's shared notification stack.
+Graph guidance is checked with keyboard/touch disclosure and expanded focus
+wrapping; opening and closing it retains the graph's focal point. The touch move
+case covers the integrated destination/cancel panel and edge autoscroll.
 
 After building production CSS, run the focused iPhone/WebKit set with:
 

@@ -30,7 +30,8 @@ logo always returns to Notes.
    toasts without moving the page; autosave status stays in the toolbar.
    On phones, **Note actions** also holds History, properties, focus mode and
    previous/next note controls. The compact header keeps Back, Save and the note's
-   save state visible while reading or writing.
+    save state visible while reading or writing. Save stays visually quiet until
+    there are changes to save.
 - Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
@@ -51,14 +52,17 @@ logo always returns to Notes.
    again. Escape cancels. On touch screens, a horizontal swipe reveals ordinary
    action buttons for one note at a time; vertical gestures scroll. A long press
    on the handle starts dragging and reveals a scrollable list of destinations.
-   Hold near the list's edge to scroll, or release over **Drop here to cancel**.
+    Hold near the list's edge to scroll, or release over **Drop here to cancel**
+    at the bottom of the same destination panel. The preview identifies the item;
+    the current destination is highlighted as you move.
    Pens start from the same handles. Interrupted gestures do not move a note.
   Notebook handles also support drag or keyboard nesting; hover over a collapsed
   destination to expand it. Focus mode fills the viewport and hides secondary tools.
 - **Undo** checks the version produced by the original action. It never overwrites
    someone else's later edit. Partial failures identify the affected notes.
    Move and bulk-action Undo stays available in the shared notification stack
-   alongside later copy feedback, including inside an open dialog.
+    alongside later copy feedback, including inside an open dialog. Compact neutral
+    confirmations sit at the lower right, clear of the chat composer.
 
 Dropdowns share keyboard, touch and focus behavior across filters, notebook choices,
 note properties and settings. Use arrows, Home/End or typeahead, Enter to
@@ -130,6 +134,9 @@ browser fullscreen. Zoom and the central view stay stable when selecting, readin
 editing or resizing; **Fit View** deliberately brings all loaded nodes into view.
 Space selects a focused node; Enter reads it. Escape clears a focused selection or
 leaves expanded exploration.
+**Controls** reveals pointer, touch and keyboard guidance when needed. **Done**
+returns from expanded exploration. Connection legends describe the visible edges;
+empty-state guidance stays below the canvas.
 
 **Ask Grove** finds, explains and helps change your notes. Follow-ups such as
 “shorten that note” use the conversation's context. Choose all notes, Unfiled, or
