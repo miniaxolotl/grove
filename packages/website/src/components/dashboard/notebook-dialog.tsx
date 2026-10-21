@@ -2,11 +2,9 @@ import type { Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { ProjectForm } from "./project-form";
 
-export type NotebookAction = {
-  project?: Project;
-  parentId?: string;
-  move?: boolean;
-};
+export type NotebookAction =
+  | { mode: "create"; parentId?: string; project?: never }
+  | { mode: "rename" | "move"; project: Project; parentId?: never };
 export function NotebookDialog({
   action,
   close,
@@ -19,7 +17,7 @@ export function NotebookDialog({
   return (
     <Dialog
       title={
-        action.move
+        action.mode === "move"
           ? "Move notebook"
           : action.project
             ? "Rename notebook"
@@ -30,8 +28,10 @@ export function NotebookDialog({
       close={close}
     >
       <ProjectForm
+        mode={action.mode}
         project={action.project}
         parentId={action.parentId}
+        cancel={close}
         done={(project) => {
           close();
           onSaved?.(project);

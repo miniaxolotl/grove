@@ -89,7 +89,7 @@ export function MarkdownEditor({
   const [writingMode, setWritingMode] = useState<"live" | "source">("live");
   const mode = preview ? "preview" : writingMode;
   const [outline, setOutline] = useState(false);
-  const [limit, setLimit] = useState(false);
+  const limit = value.length > 6000;
   useEffect(() => {
     change.current = onChange;
   }, [onChange]);
@@ -128,20 +128,8 @@ export function MarkdownEditor({
             ...historyKeymap,
             ...defaultKeymap,
           ]),
-          EditorState.transactionFilter.of((transaction) => {
-            if (
-              transaction.docChanged &&
-              transaction.newDoc.length > 6000 &&
-              transaction.newDoc.length > transaction.startState.doc.length
-            ) {
-              queueMicrotask(() => setLimit(true));
-              return [];
-            }
-            return transaction;
-          }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
-              setLimit(false);
               change.current(update.state.doc.toString());
             }
           }),
@@ -403,8 +391,8 @@ export function MarkdownEditor({
       </div>
       {limit && (
         <p role="alert" className="app-error">
-          That change would exceed 6,000 characters. Your existing text is
-          unchanged.
+          This draft exceeds the 6,000-character save limit. Shorten it to save,
+          or use Export to keep a copy of all your writing.
         </p>
       )}
     </div>

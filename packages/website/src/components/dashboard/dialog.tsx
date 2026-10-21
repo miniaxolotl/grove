@@ -30,11 +30,12 @@ export function Dialog({
     const focusKey = previous?.dataset.focusKey;
     const unlock = lockPageScroll();
     element.showModal();
-    element
-      .querySelector<HTMLElement>(
+    (
+      element.querySelector<HTMLElement>("[data-autofocus]") ??
+      element.querySelector<HTMLElement>(
         "[contenteditable=true], textarea, input:not([type=checkbox]), [role=combobox]",
       )
-      ?.focus();
+    )?.focus();
     return () => {
       element.close();
       unlock();
