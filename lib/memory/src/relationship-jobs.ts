@@ -6,7 +6,10 @@ import {
   groundRelationship,
   noteRelationshipInstructions,
   notebookRelationshipInstructions,
-  relationshipAssessmentSchema,
+  noteAssessmentSchema,
+  notebookAssessmentSchema,
+  type RelationshipAssessment,
+  normalizeRelationshipAssessment,
   type ConnectionLevel,
   type ConnectionSource,
 } from "@lib/shared/relationships";
@@ -78,13 +81,37 @@ export async function queuePair(
 ) {
   if (a === b) return;
   const [leftId, rightId] = [a, b].sort();
+  const endpoints =
+    level === "note"
+      ? await activeNotes(trx).whereIn("id", [leftId, rightId]).orderBy("id")
+      : await trx("notebook_profiles as n")
+          .join("projects as p", "p.id", "n.projectId")
+          .whereIn("n.projectId", [leftId, rightId])
+          .where({ "n.profile": profile, "n.complete": true })
+          .where("n.total", ">", 0)
+          .whereRaw(
+            "n.content_version=p.content_version AND (n.expires_at IS NULL OR n.expires_at>now())",
+          )
+          .orderBy("n.projectId")
+          .select("n.*");
+  if (
+    endpoints.length !== 2 ||
+    (level === "note" && endpoints[0].projectId !== endpoints[1].projectId)
+  )
+    return;
+  const snapshot = relationHash(
+    endpoints.map((endpoint) => [
+      level === "note" ? endpoint.version : endpoint.contentVersion,
+      endpoint.expiresAt,
+    ]),
+  );
   await enqueueRelationship(
     trx,
     accountId,
     level === "note" ? "note_relationship" : "notebook_relationship",
     `${leftId}:${rightId}`,
     profile,
-    { leftId, rightId },
+    { leftId, rightId, snapshot },
   );
 }
 async function scanNote(
@@ -318,18 +345,25 @@ export async function runRelationshipJob(
       outcome = "success";
     });
     if (!input) return true;
-    const assessment = await budgetedInference(
-      db,
-      job.accountId,
-      "generation",
-      dailyLimit,
-      (options) =>
-        providers.generation!.generate(
-          relationshipAssessmentSchema,
-          `${input.level === "note" ? noteRelationshipInstructions : notebookRelationshipInstructions}\nLEFT source IDs: ${input.left.map((s) => s.id).join(", ")}. RIGHT source IDs: ${input.right.map((s) => s.id).join(", ")}. Examining ${input.left.length} of ${input.leftTotal} left notes and ${input.right.length} of ${input.rightTotal} right notes.`,
-          [...input.left, ...input.right].map((s) => ({ ...s, kind: "fact" })),
-          options,
-        ),
+    const assessment = normalizeRelationshipAssessment(
+      await budgetedInference(
+        db,
+        job.accountId,
+        "generation",
+        dailyLimit,
+        (options) =>
+          providers.generation!.generate<RelationshipAssessment>(
+            input.level === "note"
+              ? noteAssessmentSchema
+              : notebookAssessmentSchema,
+            `${input.level === "note" ? noteRelationshipInstructions : notebookRelationshipInstructions}\nLEFT source IDs: ${input.left.map((s) => s.id).join(", ")}. RIGHT source IDs: ${input.right.map((s) => s.id).join(", ")}. Examining ${input.left.length} of ${input.leftTotal} left notes and ${input.right.length} of ${input.rightTotal} right notes.`,
+            [...input.left, ...input.right].map((s) => ({
+              ...s,
+              kind: "fact",
+            })),
+            options,
+          ),
+      ),
     );
     let evidence;
     try {

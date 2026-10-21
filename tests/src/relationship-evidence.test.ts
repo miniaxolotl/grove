@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   groundRelationship,
+  normalizeRelationshipAssessment,
   relationshipAssessmentSchema,
   type ConnectionSource,
 } from "@lib/shared/relationships";
@@ -115,5 +116,21 @@ test("notebook connections require both groups and directional dependencies must
       [right],
     ),
     [],
+  );
+});
+
+test("abstentions discard incidental citations without relaxing positive-evidence checks", () => {
+  const abstention = normalizeRelationshipAssessment({
+    ...assessment,
+    relationship: "unrelated",
+  });
+  assert.deepEqual(groundRelationship(abstention, "note", [left], [right]), []);
+  const positive = normalizeRelationshipAssessment({
+    ...assessment,
+    evidence: [{ ...assessment.evidence[0], quote: "Invented source passage" }],
+  });
+  assert.throws(
+    () => groundRelationship(positive, "note", [left], [right]),
+    /invalid_evidence/,
   );
 });

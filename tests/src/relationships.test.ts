@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDatabase, tenant, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
-import { rememberSchema } from "@lib/shared/contracts";
+import { rememberSchema, listSchema } from "@lib/shared/contracts";
 import {
   connectionQuerySchema,
   groundRelationship,
@@ -557,20 +557,55 @@ test("notebook claims invalidate on uncited changes; scoped grants reveal neithe
 
 test("invalid evidence exhausts bounded retries; explicit retry and daily-budget deferral preserve checked state", async () => {
   const f = await fixture();
-  const a = await f.service.remember(f.principal, input("October Kyoto trip: reserve lodging."));
-  await f.service.remember(f.principal, input("October Kyoto trip: reserve three nights."));
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: reserve lodging."),
+  );
+  await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: reserve three nights."),
+  );
   await drain(f, ["relationship_scan"]);
-  const job = await admin("jobs").where({ accountId: f.principal.accountId, kind: "note_relationship" }).first();
-  f.worker.providers.generation!.generate = async (schema, _prompt, sources) => schema.parse({ relationship: "complementary", reason: "This must not publish.", basis: "additional_context", direction: "both", evidence: sources.map((s) => ({ id: s.id, version: s.version, quote: "Invented source text" })) });
-  await admin("jobs").where({ id: job.id }).update({ attempts: 4, dueAt: admin.fn.now() });
+  const job = await admin("jobs")
+    .where({ accountId: f.principal.accountId, kind: "note_relationship" })
+    .first();
+  f.worker.providers.generation!.generate = async (schema, _prompt, sources) =>
+    schema.parse({
+      relationship: "complementary",
+      reason: "This must not publish.",
+      basis: "additional_context",
+      direction: "both",
+      evidence: sources.map((s) => ({
+        id: s.id,
+        version: s.version,
+        quote: "Invented source text",
+      })),
+    });
+  await admin("jobs")
+    .where({ id: job.id })
+    .update({ attempts: 4, dueAt: admin.fn.now() });
   await f.worker.runJob(job.id);
   const failed = await admin("jobs").where({ id: job.id }).first();
   assert(failed.failedAt);
   assert.equal(failed.errorCode, "relationship_invalid_evidence");
-  assert.equal((await f.service.relationships.list(f.principal, connectionQuerySchema.parse({ level: "note", endpointId: a.id }))).status, "failed");
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "note", endpointId: a.id }),
+      )
+    ).status,
+    "failed",
+  );
   await f.service.relationships.retry(f.principal, "note", a.id);
   await admin("jobs").where({ id: job.id }).update({ dueAt: admin.fn.now() });
-  const noBudget = new MemoryService(workerDb, f.service.cursorSecret, undefined, f.worker.providers, 0);
+  const noBudget = new MemoryService(
+    workerDb,
+    f.service.cursorSecret,
+    undefined,
+    f.worker.providers,
+    0,
+  );
   await noBudget.runJob(job.id);
   const deferred = await admin("jobs").where({ id: job.id }).first();
   assert.equal(deferred.attempts, 0);
@@ -578,41 +613,283 @@ test("invalid evidence exhausts bounded retries; explicit retry and daily-budget
   assert.equal(deferred.errorCode, "inference_budget");
   f.worker.providers.generation!.generate = groundedGenerator();
   await drain(f, ["relationship_scan", "note_relationship"]);
-  assert.equal((await f.service.relationships.list(f.principal, connectionQuerySchema.parse({ level: "note" }))).items.length, 1);
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "note" }),
+      )
+    ).items.length,
+    1,
+  );
 });
 
 test("relationship pagination binds its filters and exported review state survives reindexing", async () => {
   const f = await fixture();
-  const a = await f.service.remember(f.principal, input("October Kyoto trip itinerary."));
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip itinerary."),
+  );
   for (const detail of ["lodging", "travel", "budget"]) {
-    const b = await f.service.remember(f.principal, input(`October Kyoto trip ${detail}.`));
+    const b = await f.service.remember(
+      f.principal,
+      input(`October Kyoto trip ${detail}.`),
+    );
     await seed(f, [a.id, b.id]);
   }
-  const query = connectionQuerySchema.parse({ level: "note", endpointId: a.id, limit: 1 });
+  const query = connectionQuerySchema.parse({
+    level: "note",
+    endpointId: a.id,
+    limit: 1,
+  });
   const first = await f.service.relationships.list(f.principal, query);
   assert(first.nextCursor);
-  const second = await f.service.relationships.list(f.principal, { ...query, cursor: first.nextCursor });
+  const second = await f.service.relationships.list(f.principal, {
+    ...query,
+    cursor: first.nextCursor,
+  });
   assert.notEqual(first.items[0].id, second.items[0].id);
-  await assert.rejects(f.service.relationships.list(f.principal, { ...query, limit: 2, cursor: first.nextCursor }), { code: "invalid_cursor" });
-  await assert.rejects(f.service.relationships.list(f.principal, { ...query, cursor: `${first.nextCursor}x` }), { code: "invalid_cursor" });
+  await assert.rejects(
+    f.service.relationships.list(f.principal, {
+      ...query,
+      limit: 2,
+      cursor: first.nextCursor,
+    }),
+    { code: "invalid_cursor" },
+  );
+  await assert.rejects(
+    f.service.relationships.list(f.principal, {
+      ...query,
+      cursor: `${first.nextCursor}x`,
+    }),
+    { code: "invalid_cursor" },
+  );
   const pair = first.items[0];
-  await f.service.relationships.review(f.principal, "note", pair.id, { operationId: randomUUID(), expectedRevision: pair.revision, expectedReviewVersion: 0, dismissed: true });
-  await admin.raw("SELECT grove_reprocess(?, ?, ?)", [null, null, f.worker.providers.generation!.profile]);
-  const exported = await f.service.relationships.exportPage(f.principal, "note");
-  assert.equal(exported.find((r) => r.id === pair.id)!.dismissedRevision, pair.revision);
+  await f.service.relationships.review(f.principal, "note", pair.id, {
+    operationId: randomUUID(),
+    expectedRevision: pair.revision,
+    expectedReviewVersion: 0,
+    dismissed: true,
+  });
+  await admin.raw("SELECT grove_reprocess(?, ?, ?)", [
+    null,
+    null,
+    f.worker.providers.generation!.profile,
+  ]);
+  const exported = await f.service.relationships.exportPage(
+    f.principal,
+    "note",
+  );
+  assert.equal(
+    exported.find((r) => r.id === pair.id)!.dismissedRevision,
+    pair.revision,
+  );
   assert.equal(exported.find((r) => r.id === pair.id)!.reviewVersion, 1);
 });
 
-test("deleting a cited note scrubs retained notebook excerpts and profiles", async () => {
+test("deleting a moved cited note scrubs retained notebook excerpts and profiles", async () => {
   const f = await fixture();
-  const p = await f.service.project(f.principal, { name: "Itinerary", identity: randomUUID() });
-  const q = await f.service.project(f.principal, { name: "Budget", identity: randomUUID() });
-  const a = await f.service.remember(f.principal, input("A private Kyoto itinerary passage.", { projectId: p.id }));
-  const b = await f.service.remember(f.principal, input("A private Kyoto lodging budget.", { projectId: q.id }));
+  const p = await f.service.project(f.principal, {
+    name: "Itinerary",
+    identity: randomUUID(),
+  });
+  const q = await f.service.project(f.principal, {
+    name: "Budget",
+    identity: randomUUID(),
+  });
+  const destination = await f.service.project(f.principal, {
+    name: "Moved notes",
+    identity: randomUUID(),
+  });
+  const a = await f.service.remember(
+    f.principal,
+    input("A private Kyoto itinerary passage.", { projectId: p.id }),
+  );
+  const b = await f.service.remember(
+    f.principal,
+    input("A private Kyoto lodging budget.", { projectId: q.id }),
+  );
   await seed(f, [a.id, b.id], "notebook");
-  await f.service.forget(f.principal, { operationId: randomUUID(), items: [{ id: a.id, expectedVersion: a.version }] });
-  const saved = await admin("notebook_relationships").where({ accountId: f.principal.accountId }).first();
+  const moved = await f.service.remember(
+    f.principal,
+    input(a.content, {
+      id: a.id,
+      expectedVersion: a.version,
+      projectId: destination.id,
+    }),
+  );
+  await f.service.forget(f.principal, {
+    operationId: randomUUID(),
+    items: [{ id: a.id, expectedVersion: moved.version }],
+  });
+  const saved = await admin("notebook_relationships")
+    .where({ accountId: f.principal.accountId })
+    .first();
   assert.deepEqual(saved.assessment.evidence, []);
   assert(!JSON.stringify(saved).includes(a.content));
-  assert.equal((await f.service.relationships.list(f.principal, connectionQuerySchema.parse({ level: "notebook" }))).items.length, 0);
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "notebook" }),
+      )
+    ).items.length,
+    0,
+  );
+});
+
+test("changed source snapshots can retry an exhausted pair without resetting unchanged failures", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: reserve lodging."),
+  );
+  await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: lodging budget."),
+  );
+  await drain(f, ["relationship_scan"]);
+  const job = await admin("jobs")
+    .where({ accountId: f.principal.accountId, kind: "note_relationship" })
+    .first();
+  await admin("jobs")
+    .where({ id: job.id })
+    .update({ failedAt: admin.fn.now(), attempts: 5 });
+  await f.service.retryProcessing(f.principal, a.id, a.version);
+  await drain(f, ["relationship_scan"]);
+  assert.equal((await admin("jobs").where({ id: job.id }).first()).attempts, 5);
+  await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: reserve four nights of lodging.", {
+      id: a.id,
+      expectedVersion: a.version,
+    }),
+  );
+  await drain(f, ["relationship_scan"]);
+  const revised = await admin("jobs").where({ id: job.id }).first();
+  assert.equal(revised.failedAt, null);
+  assert.equal(revised.attempts, 0);
+  f.worker.providers.generation!.generate = groundedGenerator();
+  await drain(f, ["note_relationship"]);
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "note" }),
+      )
+    ).items.length,
+    1,
+  );
+});
+
+test("notebook candidate discovery resumes beyond the first hundred collections", async () => {
+  const f = await fixture();
+  const origin = await f.service.project(f.principal, {
+    name: "Itinerary",
+    identity: randomUUID(),
+  });
+  await f.service.remember(
+    f.principal,
+    input("October Kyoto trip itinerary.", { projectId: origin.id }),
+  );
+  const ids = Array.from({ length: 105 }, () => randomUUID()).sort();
+  const target = ids.at(-1)!;
+  await tenant(db, f.principal.accountId, async (trx) => {
+    await trx("projects").insert(
+      ids.map((id) => ({
+        id,
+        accountId: f.principal.accountId,
+        name: "Candidate",
+        identity: id,
+      })),
+    );
+    await trx("notebook_profiles").insert(
+      ids.map((id) => ({
+        accountId: f.principal.accountId,
+        projectId: id,
+        contentVersion: 0,
+        profile: currentRelationshipProfile(f.service.providers),
+        total: 1,
+        processed: 1,
+        complete: true,
+        data: JSON.stringify({
+          discoveryComplete: true,
+          sum: [],
+          vectors: 0,
+          hashes: [],
+          representatives: [],
+          terms:
+            id === target
+              ? { october: 1, kyoto: 1, itinerary: 1 }
+              : { printer: 1, toner: 1 },
+        }),
+      })),
+    );
+  });
+  await f.worker.scheduleOrganization(60);
+  const job = await admin("jobs")
+    .where({
+      accountId: f.principal.accountId,
+      kind: "notebook_profile",
+      target: origin.id,
+    })
+    .first();
+  await admin("jobs").where({ id: job.id }).update({ dueAt: admin.fn.now() });
+  await f.worker.runJob(job.id);
+  const partial = await admin("notebook_profiles")
+    .where({ projectId: origin.id })
+    .first();
+  assert.equal(partial.data.candidateAfter, ids[19]);
+  assert(await admin("jobs").where({ id: job.id }).first());
+  await f.service.settings(f.principal, {
+    captureEnabled: true,
+    recallEnabled: true,
+    organizeEnabled: false,
+  });
+  await f.service.settings(f.principal, {
+    captureEnabled: true,
+    recallEnabled: true,
+    organizeEnabled: true,
+  });
+  await f.worker.scheduleOrganization(60);
+  await drain(f, ["notebook_profile"]);
+  const pair = await admin("jobs")
+    .where({ accountId: f.principal.accountId, kind: "notebook_relationship" })
+    .first();
+  assert(pair);
+  assert.deepEqual(
+    [pair.scope.leftId, pair.scope.rightId].sort(),
+    [origin.id, target].sort(),
+  );
+});
+
+test("library relationship projection batches canonical reads instead of adding queries per note", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto itinerary."),
+  );
+  for (const detail of ["hotel", "budget", "transport", "food"]) {
+    const b = await f.service.remember(
+      f.principal,
+      input(`October Kyoto ${detail}.`),
+    );
+    await seed(f, [a.id, b.id]);
+  }
+  const queries: string[] = [];
+  const observe = ({ sql }: { sql: string }) => {
+    if (sql.includes("memory_relationships")) queries.push(sql);
+  };
+  db.on("query", observe);
+  try {
+    const page = await f.service.list(f.principal, listSchema.parse({}));
+    assert.equal(page.items.length, 5);
+    assert.equal(
+      page.items.find((n) => n.id === a.id)!.enrichment!.relationships.length,
+      4,
+    );
+    assert.equal(queries.length, 1);
+  } finally {
+    db.off("query", observe);
+  }
 });

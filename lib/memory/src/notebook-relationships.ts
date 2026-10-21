@@ -15,12 +15,16 @@ import {
 } from "./relationship-jobs.ts";
 
 type Representative = { id: string; vector: number[]; hash: string };
+type Candidate = { projectId: string; score: number; shared: number };
 type ProfileData = {
   sum: number[];
   vectors: number;
   hashes: string[];
   representatives: Representative[];
   terms: Record<string, number>;
+  candidateAfter?: string;
+  candidates?: Candidate[];
+  discoveryComplete?: boolean;
 };
 type Profile = {
   projectId: string;
@@ -75,19 +79,21 @@ export async function scheduleNotebookProfiles(
       trx("notebook_profiles as n")
         .select(trx.raw("1"))
         .whereRaw(
-          "n.account_id=p.account_id AND n.project_id=p.id AND n.content_version=p.content_version AND n.complete AND (n.expires_at IS NULL OR n.expires_at>now())",
+          "n.account_id=p.account_id AND n.project_id=p.id AND n.content_version=p.content_version AND n.complete AND n.data->>'discoveryComplete'='true' AND (n.expires_at IS NULL OR n.expires_at>now())",
         )
         .where("n.profile", profile),
     )
     .whereNotExists(
       trx("jobs as j")
         .select(trx.raw("1"))
-        .whereRaw("j.account_id=p.account_id AND j.target=p.id::text")
+        .whereRaw(
+          "j.account_id=p.account_id AND j.target=p.id::text AND j.scope->>'contentVersion'=p.content_version::text",
+        )
         .where({ "j.kind": "notebook_profile", "j.profile": profile }),
     )
     .orderBy("p.id")
     .limit(20)
-    .select("p.id");
+    .select("p.id", "p.contentVersion");
   for (const p of projects)
     await enqueueRelationship(
       trx,
@@ -95,7 +101,7 @@ export async function scheduleNotebookProfiles(
       "notebook_profile",
       p.id,
       profile,
-      {},
+      { contentVersion: p.contentVersion },
     );
 }
 /** Profile all directly filed notes in stable bounded batches, without generation calls. */
@@ -159,7 +165,8 @@ export async function advanceNotebookProfile(
       data.vectors++;
     }
     for (const term of words(note.content))
-      data.terms[term] = (data.terms[term] ?? 0) + 1;
+      data.terms[term] =
+        (Object.hasOwn(data.terms, term) ? data.terms[term] : 0) + 1;
     data.representatives.push({ id: note.id, vector, hash });
     if (data.representatives.length > 12) {
       // Keep diverse subjects; deterministic hashing is the no-vector reservoir.
@@ -205,7 +212,7 @@ export async function advanceNotebookProfile(
     .insert({ ...value, data: JSON.stringify(data), accountId: job.accountId })
     .onConflict(["accountId", "projectId", "profile"])
     .merge({ ...value, data: JSON.stringify(data), updatedAt: trx.fn.now() });
-  if (!value.complete) {
+  const resume = async () => {
     await trx("jobs")
       .where({ id: job.id })
       .update({
@@ -216,44 +223,63 @@ export async function advanceNotebookProfile(
         dueAt: trx.raw("now() + interval '1 second'"),
       });
     return false;
-  }
-  if (!value.total) return true;
-  const others: Profile[] = await trx("notebook_profiles as n")
-    .join("projects as p", "p.id", "n.projectId")
-    .where({ "n.profile": job.profile, "n.complete": true })
-    .whereNot("n.projectId", project.id)
-    .where("n.total", ">", 0)
-    .whereRaw(
-      "n.content_version=p.content_version AND (n.expires_at IS NULL OR n.expires_at>now())",
-    )
-    .select("n.*")
-    .limit(100);
-  const ranked = others
-    .map((p) => ({
-      p,
-      score: Math.max(
-        similarity(data.sum, p.data.sum),
-        ...data.representatives.flatMap((a) =>
-          p.data.representatives.map((b) => similarity(a.vector, b.vector)),
+  };
+  if (!value.complete) return resume();
+  const others: Profile[] = !value.total
+    ? []
+    : await trx("notebook_profiles as n")
+        .join("projects as p", "p.id", "n.projectId")
+        .where({ "n.profile": job.profile, "n.complete": true })
+        .whereNot("n.projectId", project.id)
+        .where("n.total", ">", 0)
+        .whereRaw(
+          "n.content_version=p.content_version AND (n.expires_at IS NULL OR n.expires_at>now())",
+        )
+        .modify((query) => {
+          if (data.candidateAfter)
+            query.where("n.projectId", ">", data.candidateAfter);
+        })
+        .orderBy("n.projectId")
+        .select("n.*")
+        .limit(20);
+  const ranked = [
+    ...(data.candidates ?? []),
+    ...others
+      .map((p) => ({
+        projectId: p.projectId,
+        score: Math.max(
+          similarity(data.sum, p.data.sum),
+          ...data.representatives.flatMap((a) =>
+            p.data.representatives.map((b) => similarity(a.vector, b.vector)),
+          ),
         ),
-      ),
-      shared: Object.keys(data.terms).filter((t) => p.data.terms[t]).length,
-    }))
-    .filter((p) => p.score > 0.35 || p.shared >= 2)
+        shared: Object.keys(data.terms).filter((t) =>
+          Object.hasOwn(p.data.terms, t),
+        ).length,
+      }))
+      .filter((p) => p.score > 0.35 || p.shared >= 2),
+  ]
     .sort(
       (a, b) =>
         b.score - a.score ||
         b.shared - a.shared ||
-        a.p.projectId.localeCompare(b.p.projectId),
+        a.projectId.localeCompare(b.projectId),
     )
     .slice(0, 5);
-  for (const { p } of ranked)
+  data.candidateAfter = others.at(-1)?.projectId ?? data.candidateAfter;
+  data.candidates = ranked;
+  data.discoveryComplete = others.length < 20;
+  await trx("notebook_profiles")
+    .where({ projectId: project.id, profile: job.profile })
+    .update({ data: JSON.stringify(data), updatedAt: trx.fn.now() });
+  if (others.length === 20) return resume();
+  for (const candidate of ranked)
     await queuePair(
       trx,
       job.accountId,
       "notebook",
       project.id,
-      p.projectId,
+      candidate.projectId,
       job.profile,
     );
   return true;
@@ -302,7 +328,7 @@ export async function notebookPairInput(
       .map((r) => r.id);
     add(await query().whereIn("id", refs).orderBy("id"));
     const shared = Object.keys(own.data.terms)
-      .filter((t) => other.data.terms[t])
+      .filter((t) => Object.hasOwn(other.data.terms, t))
       .slice(0, 12)
       .join(" OR ");
     if (shared)

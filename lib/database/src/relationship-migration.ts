@@ -59,13 +59,16 @@ export const relationships = {
         IF TG_OP = 'DELETE' THEN
           DELETE FROM notebook_profiles WHERE account_id=OLD.account_id AND project_id=OLD.project_id;
           UPDATE notebook_relationships SET assessment=jsonb_build_object('relationship','unrelated','reason','','basis','none','direction','both','evidence','[]'::jsonb,'coverage',assessment->'coverage','breadth','thread'), profile='rebuild-after-deletion'
-            WHERE account_id=OLD.account_id AND (left_id=OLD.project_id OR right_id=OLD.project_id);
+            WHERE account_id=OLD.account_id AND (left_id=OLD.project_id OR right_id=OLD.project_id
+              OR EXISTS (SELECT 1 FROM jsonb_array_elements(assessment->'evidence') e WHERE e->>'id'=OLD.id::text));
           UPDATE projects SET content_version = content_version + 1 WHERE account_id = OLD.account_id AND id = OLD.project_id;
           UPDATE accounts SET organization_due_at = now() WHERE id = OLD.account_id;
         ELSE
           IF TG_OP = 'UPDATE' AND OLD.project_id IS DISTINCT FROM NEW.project_id THEN
+            DELETE FROM notebook_profiles WHERE account_id=OLD.account_id AND project_id=OLD.project_id;
             UPDATE projects SET content_version = content_version + 1 WHERE account_id = OLD.account_id AND id = OLD.project_id;
           END IF;
+          DELETE FROM notebook_profiles WHERE account_id=NEW.account_id AND project_id=NEW.project_id;
           UPDATE projects SET content_version = content_version + 1 WHERE account_id = NEW.account_id AND id = NEW.project_id;
           UPDATE accounts SET organization_due_at = now() WHERE id = NEW.account_id;
         END IF;

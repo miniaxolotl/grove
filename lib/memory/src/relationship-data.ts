@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
-import { MemoryModel, type Knex, type QueryBuilder } from "@lib/database";
+import {
+  MemoryModel,
+  camelRows,
+  type Knex,
+  type QueryBuilder,
+} from "@lib/database";
 import type { Providers } from "@lib/ai";
-import type { ModelProfiles } from "@lib/shared/models";
+import type { Enrichment, ModelProfiles } from "@lib/shared/models";
 import type {
   ConnectionLevel,
   ConnectionSource,
@@ -25,7 +30,7 @@ export function relationshipProfile(
   profiles: Pick<ModelProfiles, "generation" | "embedding">,
 ) {
   return profiles.generation
-    ? `relationships-v1-${relationHash([profiles.generation, profiles.embedding])}`
+    ? `relationships-v2-${relationHash([profiles.generation, profiles.embedding])}`
     : null;
 }
 export const currentRelationshipProfile = (providers: Providers) =>
@@ -188,17 +193,70 @@ export async function enqueueRelationship(
       dueAt: trx.raw("now() + interval '5 seconds'"),
     })
     .onConflict(["accountId", "kind", "target", "profile"]);
-  if (replace)
-    await query.merge({
-      scope: JSON.stringify(scope),
-      version: note?.version ?? null,
-      attempts: 0,
-      failedAt: null,
-      errorCode: null,
-      leaseId: null,
-      leaseUntil: null,
-      dispatchedAt: null,
-      dueAt: trx.raw("now() + interval '5 seconds'"),
-    });
-  else await query.ignore();
+  const upsert = query.merge({
+    scope: JSON.stringify(scope),
+    version: note?.version ?? null,
+    attempts: 0,
+    failedAt: null,
+    errorCode: null,
+    leaseId: null,
+    leaseUntil: null,
+    dispatchedAt: null,
+    dueAt: trx.raw("now() + interval '5 seconds'"),
+  });
+  if (!replace)
+    upsert.whereRaw(
+      "jobs.scope IS DISTINCT FROM EXCLUDED.scope OR jobs.version IS DISTINCT FROM EXCLUDED.version",
+    );
+  await upsert;
+}
+
+/** Batch the legacy projection so list/recall never add one pair read per note. */
+export async function legacyRelationshipsFor(
+  trx: Knex.Transaction,
+  ids: string[],
+  providers: Providers,
+) {
+  const result = new Map<string, Enrichment["relationships"]>(
+    ids.map((id) => [id, []]),
+  );
+  const profile = currentRelationshipProfile(providers);
+  if (!ids.length || !profile) return result;
+  const account = await trx("accounts").first("organizeEnabled");
+  if (!account?.organizeEnabled) return result;
+  const rows = camelRows<RelationshipRow>(
+    await trx.raw(
+      `
+    SELECT DISTINCT pair.* FROM unnest(?::uuid[]) endpoint(id)
+    CROSS JOIN LATERAL (
+      SELECT r.* FROM memory_relationships r
+      WHERE r.account_id=NULLIF(current_setting('grove.account_id', true), '')::uuid
+        AND r.profile=? AND (r.left_id=endpoint.id OR r.right_id=endpoint.id)
+        AND r.dismissed_revision IS DISTINCT FROM r.revision
+        AND r.assessment->>'relationship'<>'unrelated'
+      ORDER BY r.id LIMIT 30
+    ) pair ORDER BY pair.id`,
+      [ids, profile],
+    ),
+  );
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  for (const pair of await presentRelationships(trx, "note", rows)) {
+    if (pair.type === "connected") continue;
+    const stored = byId.get(pair.id)!;
+    for (const [from, to, version] of [
+      [pair.from.id, pair.to.id, stored.rightVersion],
+      [pair.to.id, pair.from.id, stored.leftVersion],
+    ] as const) {
+      const links = result.get(from);
+      if (links && links.length < 30)
+        links.push({
+          id: to,
+          version,
+          relationship: pair.type,
+          connectionId: pair.id,
+          reason: pair.reason,
+        });
+    }
+  }
+  return result;
 }

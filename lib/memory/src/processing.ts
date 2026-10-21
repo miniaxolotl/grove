@@ -22,10 +22,9 @@ import {
 import {
   currentRelationshipProfile,
   enqueueRelationship,
-  presentRelationships,
+  legacyRelationshipsFor,
   relationshipKinds,
   relationshipProfile,
-  type RelationshipRow,
 } from "./relationship-data.ts";
 import {
   runRelationshipJob,
@@ -199,6 +198,7 @@ export async function enrichmentFor(
   trx: Knex.Transaction,
   row: MemoryModel,
   providers: Providers,
+  suppliedRelationships?: Enrichment["relationships"],
 ): Promise<Enrichment> {
   if (
     row.status !== "active" ||
@@ -225,32 +225,9 @@ export async function enrichmentFor(
   const organized = records.find((r) => r.kind === "organization") as
     | { data: Organization }
     | undefined;
-  const relationships: Enrichment["relationships"] = [];
-  const relationshipProfile = currentRelationshipProfile(providers);
-  const account = await trx("accounts").where({ id: row.accountId }).first();
-  if (relationshipProfile && account.organizeEnabled) {
-    const pairs = await trx<RelationshipRow>("memory_relationships")
-      .where({ profile: relationshipProfile })
-      .where((b) => b.where("leftId", row.id).orWhere("rightId", row.id))
-      .whereRaw("dismissed_revision IS DISTINCT FROM revision")
-      .orderBy("id")
-      .limit(30);
-    for (const pair of await presentRelationships(trx, "note", pairs)) {
-      if (pair.type === "connected") continue;
-      const target = pair.from.id === row.id ? pair.to.id : pair.from.id;
-      const version = pairs.find((p) => p.id === pair.id)!;
-      relationships.push({
-        id: target,
-        version:
-          target === version.leftId
-            ? version.leftVersion
-            : version.rightVersion,
-        relationship: pair.type,
-        connectionId: pair.id,
-        reason: pair.reason,
-      });
-    }
-  }
+  const relationships =
+    suppliedRelationships ??
+    (await legacyRelationshipsFor(trx, [row.id], providers)).get(row.id)!;
   return {
     status: pending.some((j) => j.failedAt)
       ? "failed"
@@ -665,7 +642,11 @@ export async function runProcessingJob(
             "notebook_profile",
             row.projectId,
             profile,
-            {},
+            {
+              contentVersion: (
+                await trx("projects").where({ id: row.projectId }).first()
+              ).contentVersion,
+            },
           );
         }
       }

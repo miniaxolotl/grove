@@ -57,7 +57,7 @@ export class Relationships {
         level === "note" ? "relationship_scan" : "notebook_profile",
         endpointId,
         profile,
-        {},
+        level === "notebook" ? { contentVersion: endpoint.contentVersion } : {},
         level === "note" ? endpoint : undefined,
         true,
       );
@@ -67,7 +67,7 @@ export class Relationships {
           kind:
             level === "note" ? "note_relationship" : "notebook_relationship",
         })
-        .whereRaw("scope->>'leftId'=? OR scope->>'rightId'=?", [
+        .whereRaw("(scope->>'leftId'=? OR scope->>'rightId'=?)", [
           endpointId,
           endpointId,
         ])
@@ -218,6 +218,23 @@ export class Relationships {
                 input.endpointId!,
               ]),
           );
+        if (input.connectionId) {
+          const selected = rows.find((row) => row.id === input.connectionId);
+          if (selected)
+            jobs.where("target", `${selected.leftId}:${selected.rightId}`);
+          else jobs.whereRaw("false");
+        }
+        if (input.endpointIds)
+          jobs.where((b) =>
+            b
+              .whereIn("target", input.endpointIds!)
+              .orWhere((pair) =>
+                pair.whereRaw(
+                  "scope->>'leftId'=ANY(?::text[]) AND scope->>'rightId'=ANY(?::text[])",
+                  [input.endpointIds!, input.endpointIds!],
+                ),
+              ),
+          );
         const pending = grant
           ? undefined
           : await jobs
@@ -246,7 +263,7 @@ export class Relationships {
                 "n.complete": true,
               })
               .whereRaw(
-                "n.content_version=p.content_version AND (n.expires_at IS NULL OR n.expires_at>now())",
+                "n.content_version=p.content_version AND n.data->>'discoveryComplete'='true' AND (n.expires_at IS NULL OR n.expires_at>now())",
               )
               .first();
             waiting =

@@ -22,7 +22,7 @@ import {
 } from "../../packages/api/src/models.ts";
 import { resetModelData } from "../../scripts/database/models.ts";
 import { formatContext } from "@lib/integration-core";
-import { relationshipAssessmentSchema } from "@lib/shared/relationships";
+import { noteAssessmentSchema } from "@lib/shared/relationships";
 
 const authorityUrl = process.env.TEST_MIGRATION_DATABASE_URL!;
 if (!authorityUrl || !new URL(authorityUrl).pathname.endsWith("_test"))
@@ -89,7 +89,7 @@ async function fixture(
       profile: `generation-${suffix}`,
       generate: async (schema, _instructions, sources, opts) => {
         opts?.onUsage?.({ inputTokens: 10, outputTokens: 20 });
-        if (Object.is(schema, relationshipAssessmentSchema))
+        if (Object.is(schema, noteAssessmentSchema))
           return schema.parse({
             relationship: "duplicate",
             reason: "Both request short examples.",
