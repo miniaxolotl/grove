@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import {
   ReactFlow,
   Background,
@@ -12,7 +13,7 @@ import {
 import type { NoteConnection } from "@lib/shared/relationships";
 import type { Project } from "@/lib/dashboard-api";
 import {
-  ConnectionCards,
+  ConnectionList,
   ConnectionInspector,
   ConnectionStatus,
   useConnections,
@@ -65,7 +66,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
     target: c.to.id,
     interactionWidth: 24,
     type: "smoothstep",
-    label: c.breadth === "broad" ? "Shared context" : "Shared thread",
+    className: "notebook-connection",
     ariaLabel: `${c.from.title} and ${c.to.title}. Press Enter for evidence.`,
   }));
   const inspect = (id: string) => setInspected(items.find((c) => c.id === id));
@@ -76,7 +77,8 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
           <div>
             <strong>Connected notebooks</strong>
             <span>
-              {loaded.length} notebooks · {items.length}{" "}
+              {loaded.length} notebooks · {items.length}
+              {connections.page?.nextCursor ? "+" : ""}{" "}
               {items.length === 1 ? "connection" : "connections"}
             </span>
           </div>
@@ -127,6 +129,16 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
         </div>
         {selected && (
           <aside className="graph-inspector" aria-label="Selected notebook">
+            <div className="graph-inspector-heading">
+              <span>Notebook</span>
+              <button
+                className="app-icon"
+                aria-label="Clear graph selection"
+                onClick={() => setSelected(undefined)}
+              >
+                <X size={16} />
+              </button>
+            </div>
             <h3>{selected.name}</h3>
             <Link
               className="app-button secondary"
@@ -134,13 +146,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
             >
               Open notebook
             </Link>
-            <button
-              className="text-button"
-              onClick={() => setSelected(undefined)}
-            >
-              Clear selection
-            </button>
-            <ConnectionCards
+            <ConnectionList
               items={items.filter(
                 (c) => c.from.id === selected.id || c.to.id === selected.id,
               )}
@@ -150,12 +156,12 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
           </aside>
         )}
       </div>
-      <p className="graph-notice">
-        Directly filed notes connect these notebooks. Sub-notebooks are assessed
-        separately.
-        {projects.length > 100 &&
-          ` Showing notebooks ${start + 1}–${Math.min(start + 100, projects.length)} of ${projects.length}.`}
-      </p>
+      {projects.length > 100 && (
+        <p className="graph-notice">
+          Notebooks {start + 1}–{Math.min(start + 100, projects.length)} of{" "}
+          {projects.length}.
+        </p>
+      )}
       {projects.length > 100 && (
         <nav className="connection-actions" aria-label="Graph notebook pages">
           <button
@@ -181,9 +187,9 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
         </nav>
       )}
       <details className="graph-connection-list">
-        <summary>Explore connections as a list</summary>
+        <summary>Connection list</summary>
         <ConnectionStatus state={connections} />
-        <ConnectionCards items={items} onInspect={setInspected} />
+        <ConnectionList items={items} onInspect={setInspected} />
         {connections.page?.nextCursor && (
           <button
             className="text-button"

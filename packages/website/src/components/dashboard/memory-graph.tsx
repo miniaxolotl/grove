@@ -33,14 +33,7 @@ import {
   forceY,
   type SimulationNodeDatum,
 } from "d3-force";
-import {
-  ArrowUpRight,
-  Maximize2,
-  Minimize2,
-  Network,
-  Type,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, Maximize2, Minimize2, Type, X } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import type { Project } from "@/lib/dashboard-api";
 import {
@@ -48,7 +41,7 @@ import {
   type NoteConnection,
 } from "@lib/shared/relationships";
 import {
-  ConnectionCards,
+  ConnectionList,
   ConnectionInspector,
   ConnectionStatus,
   useConnections,
@@ -310,12 +303,10 @@ export default function MemoryGraph({
       ) : (
         <NotebookGraph projects={projects} />
       )}
-      {level === "note" && (
+      {level === "note" && items.length > 100 && (
         <p className="graph-notice">
-          Showing connections among {items.length ? start + 1 : 0}–
-          {Math.min(items.length, start + 100)} of {items.length} loaded notes.
-          {items.length <= 100 &&
-            " Load more notes in the library to explore further."}
+          Notes {start + 1}–{Math.min(items.length, start + 100)} of{" "}
+          {items.length} loaded.
         </p>
       )}
       {level === "note" && items.length > 100 && (
@@ -429,13 +420,11 @@ function NoteGraph({
     >
       <div className="graph-toolbar">
         <div className="graph-heading">
-          <span className="graph-heading-icon">
-            <Network size={18} />
-          </span>
           <div>
             <strong>Connected ideas</strong>
             <span>
-              {visibleItems.length} notes · {visibleEdges.length}{" "}
+              {visibleItems.length} loaded notes · {visibleEdges.length}
+              {connections.page?.nextCursor ? "+" : ""}{" "}
               {visibleEdges.length === 1 ? "connection" : "connections"}
             </span>
           </div>
@@ -537,81 +526,63 @@ function NoteGraph({
               <ArrowUpRight size={15} />
             </Button>
             <h4>Linked notes</h4>
-            <ul>
-              {visibleEdges
-                .filter(
+            <ConnectionList
+              items={(connections.page?.items ?? []).filter((c) =>
+                visibleEdges.some(
                   (edge) =>
-                    edge.source === active.id || edge.target === active.id,
-                )
-                .map((edge) => {
-                  const other = items.find(
-                    (item) =>
-                      item.id ===
-                      (edge.source === active.id ? edge.target : edge.source),
-                  )!;
-                  return (
-                    <li key={edge.id}>
-                      <button
-                        onClick={() =>
-                          setInspected(
-                            connections.page?.items.find(
-                              (c) => c.id === edge.id,
-                            ),
-                          )
-                        }
-                      >
-                        <small>
-                          {labels[edge.data!.relationship as Relationship]}
-                        </small>
-                        <span>{memoryTitle(other)}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-            </ul>
+                    edge.id === c.id &&
+                    (edge.source === active.id || edge.target === active.id),
+                ),
+              )}
+              endpointId={active.id}
+              onInspect={setInspected}
+            />
             {!neighbors.size && <p>No recorded connections in this view.</p>}
           </aside>
         )}
       </div>
-      {notebooks.length > 0 && (
-        <div className="graph-notebooks" aria-label="Notebook colors">
-          {notebooks.map((notebook) => (
-            <span key={notebook.id ?? "personal"} title={notebook.name}>
-              <i style={{ background: notebook.color }} />
-              <span>{notebook.name}</span>
-              <small>{notebook.count}</small>
-            </span>
-          ))}
+      <details className="graph-guide">
+        <summary>Graph guide</summary>
+        {notebooks.length > 0 && (
+          <div className="graph-notebooks" aria-label="Notebook colors">
+            {notebooks.map((notebook) => (
+              <span key={notebook.id ?? "personal"} title={notebook.name}>
+                <i style={{ background: notebook.color }} />
+                <span>{notebook.name}</span>
+                <small>{notebook.count}</small>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="graph-footer">
+          <div className="graph-legend">
+            {Object.entries(labels).map(([key, label]) => (
+              <span key={key}>
+                <i
+                  className={`relationship-${key}`}
+                  style={{ borderColor: colors[key as Relationship] }}
+                />
+                {label}
+              </span>
+            ))}
+          </div>
+          <p className="graph-help-pointer">
+            Drag to explore · Hover to trace · Click to read more
+          </p>
+          <p className="graph-help-touch">
+            Drag to explore · Pinch to zoom · Tap a note
+          </p>
         </div>
-      )}
-      <div className="graph-footer">
-        <div className="graph-legend">
-          {Object.entries(labels).map(([key, label]) => (
-            <span key={key}>
-              <i
-                className={`relationship-${key}`}
-                style={{ borderColor: colors[key as Relationship] }}
-              />
-              {label}
-            </span>
-          ))}
-        </div>
-        <p className="graph-help-pointer">
-          Drag to explore · Hover to trace · Click to read more
-        </p>
-        <p className="graph-help-touch">
-          Drag to explore · Pinch to zoom · Tap a note
-        </p>
-      </div>
+      </details>
       {fullscreenError && (
         <p className="graph-notice" role="status">
           {fullscreenError}
         </p>
       )}
       <details className="graph-connection-list">
-        <summary>Explore connections as a list</summary>
+        <summary>Connection list</summary>
         <ConnectionStatus state={connections} />
-        <ConnectionCards
+        <ConnectionList
           items={(connections.page?.items ?? []).filter((c) =>
             visibleEdges.some((e) => e.id === c.id),
           )}

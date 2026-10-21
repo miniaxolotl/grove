@@ -101,7 +101,7 @@ test("one wide note workspace preserves editor history, toggles with shortcuts a
   await expect(drawer.getByText("Agent details", { exact: true })).toBeHidden();
   await drawer.locator(".linked-notes summary").click();
   await expect(
-    drawer.getByRole("link", { name: "Launch checklist" }),
+    drawer.getByRole("button", { name: "Connection: Launch checklist" }),
   ).toBeVisible();
   await drawer.locator(".linked-notes summary").click();
   await page.keyboard.press("Control+e");
@@ -235,18 +235,33 @@ test("connection evidence compares current notes, preserves the editor, and supp
         "# Launch checklist\n\nThe launch review must happen on November 2.",
     },
   ]);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${base}/app/memories/${note.id}`);
   await page.locator(".linked-notes summary").click();
-  await expect(page.locator(".connection-card")).toContainText("May conflict");
+  await expect(page.locator(".connection-row")).toContainText("May conflict");
+  await page.screenshot({
+    path: info.outputPath("relationship-list-desktop.png"),
+  });
   const trigger = page.getByRole("button", {
-    name: "Why this connection?",
+    name: "Connection: Launch checklist",
     exact: true,
   });
+  await expect(trigger).toHaveAccessibleDescription(
+    /May conflict.*October 30 and November 2/,
+  );
   await trigger.click();
   const inspector = page.getByRole("dialog", {
-    name: "Why this connection?",
+    name: "Connection",
     exact: true,
   });
+  await expect(inspector.locator("blockquote").first()).toBeHidden();
+  await expect(inspector).toContainText("October 30 and November 2");
+  await page.screenshot({
+    path: info.outputPath("relationship-summary-desktop.png"),
+  });
+  await inspector.locator(".connection-support summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(inspector.locator("blockquote").first()).toBeVisible();
   await expect(inspector.locator("blockquote")).toHaveCount(2);
   await inspector
     .getByRole("button", { name: "Compare notes", exact: true })
@@ -269,6 +284,7 @@ test("connection evidence compares current notes, preserves the editor, and supp
   await expect(
     inspector.getByRole("button", { name: "Dismiss suggestion" }),
   ).toBeVisible();
+  await expect(inspector.locator("blockquote").first()).toBeVisible();
   for (const width of [1440, 320]) {
     await page.setViewportSize({ width, height: 900 });
     expect(
@@ -304,15 +320,26 @@ test("notebook context and graph share evidence, show partial coverage and offer
   const state = await fixture(page, [
     {
       ...note,
+      content:
+        "# Accessibility review\n\nTest keyboard navigation before the website launch.",
       projectId: project.id,
       enrichment: {
         ...note.enrichment!,
+        title: "Accessibility review",
         relationships: [
           { id: handoff.id, version: 1, relationship: "complementary" },
         ],
       },
     },
-    handoff,
+    {
+      ...handoff,
+      content:
+        "# Accessibility testing budget\n\nSet aside $600 for keyboard accessibility testing before launch.",
+      enrichment: {
+        ...handoff.enrichment!,
+        title: "Accessibility testing budget",
+      },
+    },
   ]);
   const budget = { ...project, id: crypto.randomUUID(), name: "Launch budget" };
   state.projects.push(budget);
@@ -344,17 +371,20 @@ test("notebook context and graph share evidence, show partial coverage and offer
     .getByRole("button", { name: "Connected notebooks", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Why this connection?", exact: true })
+    .getByRole("button", { name: `Connection: ${budget.name}`, exact: true })
     .click();
   const inspector = page.getByRole("dialog", {
-    name: "Why this connection?",
+    name: "Connection",
     exact: true,
   });
-  await expect(inspector).toContainText("Based on 8 of 40 notes");
-  await expect(inspector).toContainText("A shared thread");
+  await expect(inspector).toContainText("Shared thread · Partial coverage");
+  await expect(inspector.getByText("8 of 40 notes checked")).toBeHidden();
   await expect(
-    inspector.getByRole("link", { name: `Open ${budget.name}` }),
+    inspector.getByRole("link", { name: budget.name, exact: true }),
   ).toHaveAttribute("href", `/app/projects/${budget.id}`);
+  await inspector.locator(".connection-support summary").click();
+  await expect(inspector.getByText("8 of 40 notes checked")).toBeVisible();
+  await expect(inspector.locator("blockquote")).toHaveCount(2);
   await page.keyboard.press("Escape");
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Graph", exact: true }).click();
@@ -364,13 +394,29 @@ test("notebook context and graph share evidence, show partial coverage and offer
     .click();
   await expect(page.locator(".react-flow__node")).toHaveCount(2);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
-  await page.screenshot({ path: info.outputPath("notebook-graph.png") });
+  await page.screenshot({
+    path: info.outputPath("notebook-graph.png"),
+    fullPage: true,
+  });
   await page.locator(".react-flow__edge").focus();
   await page.keyboard.press("Enter");
   await expect(inspector).toContainText(pair.reason);
+  await expect(inspector.locator("blockquote").first()).toBeHidden();
+  await inspector.locator(".connection-support summary").click();
   await page.screenshot({
     path: info.outputPath("notebook-connection-graph.png"),
   });
+  await page.keyboard.press("Escape");
+  await page.locator(".graph-connection-list summary").click();
+  const listTrigger = page.getByRole("button", {
+    name: `Connection: ${project.name} and ${budget.name}`,
+    exact: true,
+  });
+  await listTrigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(inspector).toContainText(pair.reason);
+  await page.keyboard.press("Escape");
+  await expect(listTrigger).toBeFocused();
 });
 
 test("connections recover from failed processing, paginate, and reject stale review and comparison", async ({
@@ -421,18 +467,18 @@ test("connections recover from failed processing, paginate, and reject stale rev
     "could not be checked",
   );
   await page.getByRole("button", { name: "Retry connections" }).click();
-  await expect(page.locator(".connection-card")).toHaveCount(30);
-  await expect(page.locator(".connection-card").first()).toContainText(
+  await expect(page.locator(".connection-row")).toHaveCount(5);
+  await expect(page.locator(".connection-row").first()).toContainText(
     "Possible duplicate",
   );
   await page.getByRole("button", { name: "More connections" }).click();
-  await expect(page.locator(".connection-card")).toHaveCount(32);
+  await expect(page.locator(".connection-row")).toHaveCount(10);
   await page
-    .getByRole("button", { name: "Why this connection?", exact: true })
+    .getByRole("button", { name: "Connection: Launch checklist", exact: true })
     .first()
     .click();
   const inspector = page.getByRole("dialog", {
-    name: "Why this connection?",
+    name: "Connection",
     exact: true,
   });
   await expect(inspector.locator("blockquote")).toHaveCount(2);
@@ -947,15 +993,20 @@ async function fixture(page: Page, initial = [note, handoff]) {
               ? "same_information"
               : "additional_context",
         direction: "both",
-        evidence: [left, right].map((n) => ({
-          id: n.id,
-          version: n.version,
-          quote: n.content.slice(0, 150),
-          start: 0,
-          end: Math.min(n.content.length, 150),
-          title: n.enrichment?.title ?? "Note",
-          projectId: n.projectId,
-        })),
+        evidence: [left, right].map((n) => {
+          const headingEnd = n.content.indexOf("\n\n");
+          const start = headingEnd < 0 ? 0 : headingEnd + 2;
+          const end = Math.min(n.content.length, start + 150);
+          return {
+            id: n.id,
+            version: n.version,
+            quote: n.content.slice(start, end),
+            start,
+            end,
+            title: n.enrichment?.title ?? "Note",
+            projectId: n.projectId,
+          };
+        }),
         coverage: {
           from: { total: 1, examined: 1, supporting: 1 },
           to: { total: 1, examined: 1, supporting: 1 },

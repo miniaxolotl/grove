@@ -1,7 +1,14 @@
 # Note and notebook connections
 
-Open **Linked notes → Why this connection?** in a note, or select an edge in
-the Notes graph. Both views use the same assessment, reason and current excerpts.
+Open **Linked notes** and select a connection, or select an edge in the Notes
+graph. Compact rows show the other note, category and a short reason; notebook
+lists use the same layout. Endpoint lists start with five results and offer
+**More connections**.
+
+The compact **Connection** inspector shows the reason and links to both endpoints.
+Expand **Supporting notes** for current excerpts and notebook coverage. Source
+revision numbers are checked internally. Graph guides and the keyboard-accessible
+**Connection list** are collapsed until opened.
 
 - **Related** identifies useful additional context about a specific subject.
 - **May conflict** identifies incompatible claims under the same conditions.
@@ -21,8 +28,9 @@ connections between collections. Only directly filed active, unexpired notes
 participate; sub-notebooks are independent. Both notebook endpoints and every
 cited note must be accessible. Parent grants do not include children.
 
-Notebook explanations show **a shared thread** or **broad shared context**, plus
-the number of original notes examined out of each notebook's eligible total.
+Notebook explanations show **Shared thread** or **Shared context**, with a visible
+**Partial coverage** qualifier when only some eligible notes were examined. The
+expanded supporting notes show the number examined out of each notebook's total.
 Broad context requires examining every eligible note, with at least two distinct
 supporting contents covering half of each collection. Sampling a large notebook
 therefore produces a qualified thread, even when discovery processed every note.

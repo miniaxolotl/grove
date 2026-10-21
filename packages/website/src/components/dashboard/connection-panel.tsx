@@ -1,6 +1,7 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowLeftRight, ChevronRight } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import {
   relationshipLabels,
@@ -90,37 +91,45 @@ export function ConnectionStatus({
   const { page, error, loading, reload } = state;
   if (error)
     return (
-      <p role="alert">
+      <p className="connection-status" role="alert">
         {error}{" "}
         <button className="text-button" onClick={reload}>
           Try again
         </button>
       </p>
     );
-  if (!page && loading) return <p role="status">Loading connections…</p>;
+  if (!page && loading)
+    return (
+      <p className="connection-status" role="status">
+        Loading connections…
+      </p>
+    );
   if (page?.status === "pending")
     return (
-      <p role="status">
-        Grove is checking connections. Updated evidence will appear here.
+      <p className="connection-status" role="status">
+        Checking connections…
       </p>
     );
   if (page?.status === "failed")
     return (
-      <p role="status">
-        Some connections could not be checked. You can retry processing.
+      <p className="connection-status" role="status">
+        Some connections could not be checked.
       </p>
     );
   if (page?.status === "disabled")
-    return (
-      <p>
-        Connections are unavailable while organization or text generation is
-        off.
-      </p>
-    );
-  if (!page?.items.length) return <p>No evidence-backed connections yet.</p>;
+    return <p className="connection-status">Connections are unavailable.</p>;
+  if (!page?.items.length)
+    return <p className="connection-status">No connections yet.</p>;
   return null;
 }
-export function ConnectionCards({
+function connectionLabel(item: NoteConnection) {
+  return item.level === "note"
+    ? relationshipLabels[item.type]
+    : item.breadth === "broad"
+      ? "Shared context"
+      : "Shared thread";
+}
+export function ConnectionList({
   items,
   endpointId,
   onInspect,
@@ -129,35 +138,43 @@ export function ConnectionCards({
   endpointId?: string;
   onInspect: (item: NoteConnection) => void;
 }) {
+  const listId = useId();
   return (
-    <ul className="connection-cards">
+    <ul className="connection-list">
       {items.map((item) => {
         const other = endpointId === item.to.id ? item.from : item.to;
         return (
-          <li
-            key={item.id}
-            className={`connection-card connection-${item.type}`}
-          >
-            <small>{relationshipLabels[item.type]}</small>
-            <h3>
-              {endpointId ? (
-                <Link
-                  href={`/app/${item.level === "note" ? "memories" : "projects"}/${other.id}`}
-                >
-                  {other.title}
-                </Link>
-              ) : (
-                `${item.from.title} ↔ ${item.to.title}`
-              )}
-            </h3>
-            <p>{item.reason}</p>
+          <li key={item.id}>
             <button
               type="button"
-              className="text-button"
+              className="connection-row"
+              aria-label={`Connection: ${endpointId ? other.title : `${item.from.title} and ${item.to.title}`}`}
+              aria-describedby={`${listId}-${item.id}-kind ${listId}-${item.id}-reason`}
               data-focus-key={`connection-${item.id}`}
               onClick={() => onInspect(item)}
             >
-              Why this connection?
+              <span className="connection-row-content">
+                <span className="connection-row-heading">
+                  <span className="connection-row-title">
+                    {endpointId
+                      ? other.title
+                      : `${item.from.title} ↔ ${item.to.title}`}
+                  </span>
+                  <span
+                    className="connection-kind"
+                    id={`${listId}-${item.id}-kind`}
+                  >
+                    {connectionLabel(item)}
+                  </span>
+                </span>
+                <span
+                  className="connection-row-reason"
+                  id={`${listId}-${item.id}-reason`}
+                >
+                  {item.reason}
+                </span>
+              </span>
+              <ChevronRight size={15} aria-hidden="true" />
             </button>
           </li>
         );
@@ -174,7 +191,7 @@ export function ConnectionPanel({
   endpointId: string;
   revision?: number;
 }) {
-  const state = useConnections({ level, endpointId }, revision);
+  const state = useConnections({ level, endpointId, limit: 5 }, revision);
   const [selected, setSelected] = useState<NoteConnection>();
   const [retryError, setRetryError] = useState("");
   return (
@@ -183,17 +200,9 @@ export function ConnectionPanel({
       aria-label={level === "note" ? "Note connections" : "Connected notebooks"}
       data-private
     >
-      {level === "notebook" && (
-        <>
-          <h2>Connected notebooks</h2>
-          <p>
-            Shared threads in directly filed notes. Sub-notebooks are assessed
-            separately.
-          </p>
-        </>
-      )}
+      {level === "notebook" && <h2>Connected notebooks</h2>}
       <ConnectionStatus state={state} />
-      <ConnectionCards
+      <ConnectionList
         items={state.page?.items ?? []}
         endpointId={endpointId}
         onInspect={setSelected}
@@ -249,6 +258,7 @@ export function ConnectionInspector({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [comparison, setComparison] = useState<Memory[]>();
+  const [showEvidence, setShowEvidence] = useState(false);
   const operations = useRef(new Map<string, string>());
   const reviewButton = useRef<HTMLButtonElement>(null);
   const returnToReview = useRef(false);
@@ -319,7 +329,7 @@ export function ConnectionInspector({
     }
   }
   return (
-    <Dialog title="Why this connection?" close={close} panel busy={busy}>
+    <Dialog title="Connection" close={close} busy={busy}>
       <div className="connection-inspector" data-private>
         {error && (
           <p role="alert" className="app-error">
@@ -330,8 +340,7 @@ export function ConnectionInspector({
           <>
             {state.page && !state.error ? (
               <p role="status">
-                This connection changed or is no longer available. Close this
-                view to refresh.
+                This connection changed or is no longer available.
               </p>
             ) : (
               <ConnectionStatus state={state} />
@@ -339,61 +348,85 @@ export function ConnectionInspector({
           </>
         ) : (
           <>
-            <small>{relationshipLabels[current.type]}</small>
-            <h3>
-              {current.from.title} <span aria-label="and">↔</span>{" "}
-              {current.to.title}
-            </h3>
-            <p>{current.reason}</p>
-            {current.level === "notebook" && (
-              <>
-                <p className="connection-coverage">
-                  {current.breadth === "broad"
-                    ? "Broad shared context"
-                    : "A shared thread"}
-                  . Based on {current.coverage.from.examined} of{" "}
-                  {current.coverage.from.total} notes in {current.from.title},
-                  and {current.coverage.to.examined} of{" "}
-                  {current.coverage.to.total} in {current.to.title}.
-                </p>
-                {current.basis === "dependency" && (
-                  <p>
-                    {current.direction === "left_to_right"
-                      ? `${current.from.title} depends on ${current.to.title}.`
-                      : current.direction === "right_to_left"
-                        ? `${current.to.title} depends on ${current.from.title}.`
-                        : "The notes describe a shared dependency."}
-                  </p>
-                )}
-                <div className="connection-actions">
-                  {[current.from, current.to].map((p) => (
-                    <Link
-                      className="text-button"
-                      key={p.id}
-                      href={`/app/projects/${p.id}`}
-                    >
-                      Open {p.title}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
-            <h4>Supporting notes</h4>
-            <div className="connection-evidence">
-              {current.evidence.map((ref) => (
-                <figure key={`${ref.id}:${ref.start}`}>
-                  <figcaption>
-                    <Link href={`/app/memories/${ref.id}`}>{ref.title}</Link>{" "}
-                    <span>· revision {ref.version}</span>
-                  </figcaption>
-                  <blockquote>{ref.quote}</blockquote>
-                </figure>
-              ))}
+            <p className="connection-kind">
+              {connectionLabel(current)}
+              {current.level === "notebook" &&
+                (current.coverage.from.examined < current.coverage.from.total ||
+                  current.coverage.to.examined < current.coverage.to.total) &&
+                " · Partial coverage"}
+            </p>
+            <div className="connection-endpoints">
+              <Link
+                href={`/app/${current.level === "note" ? "memories" : "projects"}/${current.from.id}`}
+              >
+                {current.from.title}
+              </Link>
+              <ArrowLeftRight size={14} aria-label="and" />
+              <Link
+                href={`/app/${current.level === "note" ? "memories" : "projects"}/${current.to.id}`}
+              >
+                {current.to.title}
+              </Link>
             </div>
-            <div className="connection-actions">
+            <p className="connection-reason">{current.reason}</p>
+            <details
+              className="connection-support"
+              open={showEvidence}
+              onToggle={(event) => setShowEvidence(event.currentTarget.open)}
+            >
+              <summary>Supporting notes</summary>
+              <div className="connection-evidence">
+                {(["from", "to"] as const).map((side) => (
+                  <section key={side}>
+                    {current.level === "notebook" && (
+                      <>
+                        <h3>{current[side].title}</h3>
+                        <p className="connection-coverage">
+                          {current.coverage[side].examined} of{" "}
+                          {current.coverage[side].total} notes checked
+                        </p>
+                      </>
+                    )}
+                    {current.evidence
+                      .filter((ref) =>
+                        current.level === "note"
+                          ? ref.id === current[side].id
+                          : ref.projectId === current[side].id,
+                      )
+                      .map((ref) => (
+                        <figure key={`${ref.id}:${ref.start}`}>
+                          <figcaption>
+                            <Link href={`/app/memories/${ref.id}`}>
+                              {ref.title}
+                            </Link>
+                          </figcaption>
+                          <blockquote>{ref.quote}</blockquote>
+                        </figure>
+                      ))}
+                  </section>
+                ))}
+              </div>
+              {current.level === "notebook" && (
+                <p className="connection-coverage">
+                  Directly filed notes only. Sub-notebooks are checked
+                  separately.
+                  {current.basis === "dependency" && (
+                    <>
+                      {" "}
+                      {current.direction === "left_to_right"
+                        ? `${current.from.title} depends on ${current.to.title}.`
+                        : current.direction === "right_to_left"
+                          ? `${current.to.title} depends on ${current.from.title}.`
+                          : "The notes describe a shared dependency."}
+                    </>
+                  )}
+                </p>
+              )}
+            </details>
+            <div className="connection-actions connection-review">
               {current.level === "note" && (
                 <button
-                  className="app-button secondary"
+                  className="text-button"
                   aria-disabled={busy}
                   onClick={() => void compare()}
                 >
@@ -408,9 +441,7 @@ export function ConnectionInspector({
               >
                 {current.dismissed ? "Undo dismissal" : "Dismiss suggestion"}
               </button>
-              {current.dismissed && (
-                <p role="status">Suggestion dismissed from both views.</p>
-              )}
+              {current.dismissed && <p role="status">Dismissed.</p>}
             </div>
           </>
         )}
@@ -424,7 +455,6 @@ export function ConnectionInspector({
               {comparison.map((note) => (
                 <section key={note.id}>
                   <h3>{note.content.split("\n")[0].replace(/^#+\s*/, "")}</h3>
-                  <p>Revision {note.version}</p>
                   <Markdown>{note.content}</Markdown>
                 </section>
               ))}

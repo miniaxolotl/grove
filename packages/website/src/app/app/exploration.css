@@ -84,16 +84,6 @@
   align-items: center;
   gap: 10px;
 }
-.graph-heading-icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  color: #426b37;
-  background: var(--color-sage);
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-}
 .graph-heading strong {
   display: block;
   font-size: 12px;
@@ -492,26 +482,6 @@
   margin-top: 20px;
   font-size: 11px;
   font-weight: 500;
-}
-.graph-inspector li {
-  border-bottom: 1px solid var(--graph-line);
-}
-.graph-inspector li button {
-  width: 100%;
-  text-align: left;
-  padding: 10px 0;
-  font-size: 12px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.graph-inspector li button:hover span {
-  text-decoration: underline;
-}
-.graph-inspector small {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 10px;
-  color: var(--graph-muted);
 }
 .graph-notebooks {
   display: flex;
@@ -1103,60 +1073,142 @@
   }
 }
 .connection-panel {
-  margin-block: 1rem;
+  max-width: 48rem;
+  margin-block: 0.5rem;
   font-size: 0.875rem;
 }
-.connection-panel > p,
+.connection-panel > h2 {
+  margin-block-end: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.connection-status,
 .connection-coverage {
   color: var(--color-muted);
   line-height: 1.6;
+  font-size: 0.75rem;
+  margin-block: 0.75rem;
 }
-.connection-cards {
-  display: grid;
-  gap: 1rem;
+.connection-list {
   list-style: none;
   padding: 0;
-  margin-block: 1rem;
+  margin-block: 0.5rem;
 }
-.connection-card {
-  border-inline-start: 2px solid #5a8875;
-  padding: 0.25rem 0 0.25rem 1rem;
+.connection-list > li + li {
+  border-top: 1px solid var(--color-line);
+}
+.connection-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 0.5rem;
+  border-radius: 6px;
+  text-align: start;
+  color: var(--color-forest);
+}
+.connection-row:hover {
+  background: var(--color-sage);
+}
+.connection-row-content {
+  flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.connection-card.connection-conflicting {
-  border-color: #ab7439;
+.connection-row-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
 }
-.connection-card.connection-duplicate {
-  border-color: #8872b0;
+.connection-row-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.6;
 }
-.connection-card small,
-.connection-inspector > small {
+.connection-kind {
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 400;
+}
+.connection-row-reason {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.25rem;
   color: var(--color-muted);
   font-size: 0.75rem;
-}
-.connection-card h3 {
-  font-size: 1rem;
-  margin-block: 0.25rem;
-}
-.connection-card p {
-  margin-block: 0.4rem;
   line-height: 1.6;
+}
+.connection-row > svg {
+  flex-shrink: 0;
+  color: var(--color-muted);
+}
+.app-dialog:has(> .connection-inspector) {
+  width: min(600px, calc(100vw - 32px));
+  padding: 24px;
+}
+.app-dialog:has(> .connection-inspector)::backdrop {
+  background: #15251b55;
+  backdrop-filter: blur(1px);
+}
+.app-dialog:has(> .connection-inspector) > .dialog-heading {
+  margin-bottom: 1.25rem;
+}
+.app-dialog:has(> .connection-inspector) > .dialog-heading h2 {
+  font-size: 1rem;
 }
 .connection-inspector {
   overflow-wrap: anywhere;
 }
-.connection-inspector > h3 {
-  font-size: 1.25rem;
+.connection-endpoints {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   margin-block: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }
-.connection-inspector > p {
-  margin-block: 1rem;
+.connection-endpoints a {
+  min-width: 0;
+}
+.connection-endpoints svg {
+  flex-shrink: 0;
+  color: var(--color-muted);
+}
+.connection-endpoints a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.connection-reason {
+  font-size: 0.875rem;
   line-height: 1.7;
+  margin-bottom: 1.25rem;
 }
-.connection-inspector h4 {
-  margin-block: 1.5rem 1rem;
-  font-weight: 600;
+.connection-support {
+  border-block: 1px solid var(--color-line);
+}
+.connection-support > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.connection-support > summary::-webkit-details-marker {
+  display: none;
+}
+.connection-support > summary::after {
+  content: "+";
+  font-size: 1rem;
+}
+.connection-support[open] > summary::after {
+  content: "−";
 }
 .connection-evidence,
 .connection-comparison {
@@ -1164,16 +1216,30 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.5rem;
 }
+.connection-evidence {
+  padding-block: 0.5rem 1.25rem;
+}
+.connection-evidence section {
+  min-width: 0;
+}
+.connection-evidence h3 {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.connection-evidence .connection-coverage {
+  font-size: 0.6875rem;
+  margin-block: 0.25rem 1rem;
+}
 .connection-evidence figure {
   margin: 0;
   min-width: 0;
 }
-.connection-evidence figcaption {
-  font-size: 0.8125rem;
-  margin-block-end: 0.75rem;
+.connection-evidence figure + figure {
+  margin-top: 1rem;
 }
-.connection-evidence figcaption span {
-  color: var(--color-muted);
+.connection-evidence figcaption {
+  font-size: 0.75rem;
+  margin-block-end: 0.5rem;
 }
 .connection-evidence a {
   text-decoration: underline;
@@ -1181,10 +1247,10 @@
 }
 .connection-evidence blockquote {
   margin: 0;
-  border-inline-start: 2px solid #5a8875;
-  padding-inline-start: 1rem;
+  border-inline-start: 1px solid var(--color-line);
+  padding-inline-start: 0.75rem;
   white-space: pre-wrap;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.75;
 }
 .connection-actions {
@@ -1197,41 +1263,78 @@
 .connection-actions p {
   font-size: 0.8125rem;
 }
+.connection-review {
+  gap: 0.25rem 1.5rem;
+  margin-block: 0.5rem 0;
+  color: var(--color-muted);
+}
+.connection-review .text-button {
+  text-decoration: none;
+}
+.connection-review .text-button:hover {
+  text-decoration: underline;
+  color: var(--color-forest);
+}
 .connection-comparison section {
   min-width: 0;
 }
 .connection-comparison h3 {
   font-size: 1.125rem;
+  margin-bottom: 1.25rem;
 }
-.connection-comparison section > p {
-  font-size: 0.75rem;
-  color: var(--color-muted);
-  margin-block: 0.5rem 1.25rem;
-}
-.graph-connection-list {
-  padding: 1rem;
+.graph-connection-list,
+.graph-guide {
+  padding-inline: 1rem;
   border-top: 1px solid var(--color-line);
   max-height: 40vh;
   overflow: auto;
 }
-.graph-connection-list summary {
+.graph-connection-list > summary,
+.graph-guide > summary {
+  padding-block: 0.875rem;
+  min-height: 44px;
   cursor: pointer;
-  font-size: 0.8125rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+.graph-guide .graph-notebooks,
+.graph-guide .graph-footer {
+  border-top: 0;
+  padding-inline: 0;
 }
 .notebook-graph-node {
-  border-color: #5a8875;
-  border-radius: 12px;
+  border-color: var(--color-line);
+  border-radius: 8px;
   background: var(--color-paper);
   color: var(--color-forest);
   padding: 1rem;
   font-size: 0.875rem;
+}
+.notebook-connection .react-flow__edge-path {
+  stroke: #8ca396;
+  stroke-width: 1;
+}
+.notebook-connection:hover .react-flow__edge-path,
+.notebook-connection:focus-visible .react-flow__edge-path {
+  stroke: var(--color-forest);
+  stroke-width: 2;
+}
+.notebook-connection .react-flow__edge-interaction {
+  cursor: pointer;
 }
 @media (max-width: 600px) {
   .connection-evidence,
   .connection-comparison {
     grid-template-columns: minmax(0, 1fr);
   }
-  .connection-card {
-    padding-inline-start: 0.75rem;
+  .app-dialog:has(> .connection-inspector) {
+    padding: 16px;
+  }
+  .connection-endpoints {
+    font-size: 0.875rem;
+  }
+  .connection-row-heading {
+    flex-direction: column;
+    gap: 0;
   }
 }
