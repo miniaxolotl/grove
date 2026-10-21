@@ -27,6 +27,7 @@ import { MemoryRow } from "./memory-row";
 import { MemoryEditor } from "./memory-editor";
 import { MemoryDetail } from "./memory-detail";
 import { useWorkspaceDrag } from "./memory-drag";
+import { WorkspaceNotice } from "./toasts";
 import {
   LibraryFilterBar,
   initialFilters,
@@ -689,7 +690,7 @@ export function MemoryLibrary({
         </div>
       </div>
       {(notice || busy) && (
-        <div className="workspace-notice" role="status">
+        <WorkspaceNotice>
           <span>{busy ? "Updating notes…" : notice}</span>
           {undo.length > 0 && (
             <button disabled={busy} onClick={undoLast}>
@@ -707,7 +708,7 @@ export function MemoryLibrary({
           >
             <X size={16} />
           </button>
-        </div>
+        </WorkspaceNotice>
       )}
       {selected && (
         <Dialog

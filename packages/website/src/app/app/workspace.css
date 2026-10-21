@@ -107,13 +107,21 @@ html:has(.grove-app) {
 }
 .toast-region {
   position: fixed;
-  inset: auto 16px 20px;
+  inset: auto max(12px, env(safe-area-inset-right))
+    max(var(--toast-bottom, 16px), calc(12px + env(safe-area-inset-bottom)))
+    max(12px, env(safe-area-inset-left));
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   justify-content: center;
+  max-height: 35dvh;
+  overflow-y: auto;
   z-index: 100;
   pointer-events: none;
 }
-.workspace-toast {
+.workspace-toast,
+.toast-region > .workspace-notice {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -126,6 +134,22 @@ html:has(.grove-app) {
   box-shadow: 0 8px 32px #203d3020;
   pointer-events: auto;
   font-size: 13px;
+}
+.toast-region > .workspace-notice {
+  position: static;
+  transform: none;
+  width: max-content;
+  flex-shrink: 0;
+  overflow: visible;
+  max-height: none;
+}
+.toast-region > .workspace-notice > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.toast-region button {
+  min-width: 44px;
+  min-height: 44px;
 }
 .workspace-toast > p {
   overflow-wrap: anywhere;
@@ -339,9 +363,6 @@ html:has(.grove-app) {
     flex-wrap: wrap;
     gap: 4px 12px;
   }
-  .toast-region {
-    inset: auto 8px 12px;
-  }
 }
 .ask-page-actions {
   display: flex;
@@ -357,6 +378,27 @@ html:has(.grove-app) {
   flex: 1;
   min-height: 0;
   max-height: none;
+}
+.ask-reading-controls {
+  position: relative;
+  height: 0;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.ask-latest {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--color-forest);
+  color: white;
+  border-radius: 24px;
+  box-shadow: 0 2px 12px #253e3130;
+  font-size: 12px;
 }
 .ask-toolbar,
 .ask-composer {

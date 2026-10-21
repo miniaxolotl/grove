@@ -30,6 +30,7 @@ import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { memoryTitle, moveMemoryInput } from "@/lib/memory-display";
 import { notebookPath, notebookOptions } from "@/lib/notebooks";
 import { useNotebooks } from "./notebooks-provider";
+import { WorkspaceNotice } from "./toasts";
 
 export type WorkspaceDragItem =
   | { kind: "notes"; items: Memory[] }
@@ -457,7 +458,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         </DragOverlay>
       </DndContext>
       {(notice || busy) && (
-        <div className="workspace-notice" role="status">
+        <WorkspaceNotice>
           <div>
             <span>{busy ? "Moving…" : notice}</span>
             {failures.length > 0 && (
@@ -485,7 +486,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           >
             <X size={16} />
           </button>
-        </div>
+        </WorkspaceNotice>
       )}
     </Context.Provider>
   );

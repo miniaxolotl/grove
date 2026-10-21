@@ -1344,6 +1344,132 @@ test("embedded touch graph yields to page scrolling and expanded fallback suppor
   }
 });
 
+test("a reply and growing composer preserve older reading position until Latest reply is chosen", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const id = crypto.randomUUID();
+  state.chats.set(id, {
+    id,
+    title: "Reading thread",
+    scope: { includePersonal: true },
+    version: 12,
+    updatedAt: note.updatedAt,
+    turns: Array.from({ length: 12 }, (_, index) => ({
+      id: crypto.randomUUID(),
+      question: `Earlier question ${index}. Keep my place while I read.`,
+      format: "plain",
+      expectedVersion: index,
+      status: "ready",
+      error: null,
+      createdAt: note.createdAt,
+      result: {
+        message:
+          `Earlier answer ${index}. This is a useful saved explanation. `.repeat(
+            12,
+          ),
+        statements: [],
+        sources: [],
+        proposal: null,
+      },
+    })),
+  });
+  await page.goto(`${base}/app/ask`);
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page.getByRole("button", { name: /^Reading thread/ }).click();
+  const log = page.getByRole("log", { name: "Conversation" });
+  const input = page.getByRole("textbox", { name: "Ask about your notes" });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/grove/conversations/*/turns", async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await input.fill("A new question");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
+  await expect(
+    page.getByText("Looking through your notes…", { exact: true }),
+  ).toBeVisible();
+  await log.evaluate((el) => {
+    el.scrollTop = 20;
+  });
+  await expect(
+    page.getByRole("button", { name: "Latest reply" }),
+  ).toBeVisible();
+  const position = await log.evaluate((el) => el.scrollTop);
+  await log
+    .locator(".ask-question p")
+    .first()
+    .evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const selection = getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+  release();
+  await expect(log.locator(".ask-turn").last()).toContainText(
+    "Keep feedback specific",
+  );
+  expect(await log.evaluate((el) => el.scrollTop)).toBeCloseTo(position, 0);
+  expect(await page.evaluate(() => getSelection()?.toString())).toContain(
+    "Earlier question 0",
+  );
+  await input.fill("Another thought\n".repeat(8));
+  expect(await log.evaluate((el) => el.scrollTop)).toBeCloseTo(position, 0);
+  await page.getByRole("button", { name: "Latest reply" }).click();
+  await expect
+    .poll(() =>
+      log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight),
+    )
+    .toBeLessThan(2);
+  await expect(log).toBeFocused();
+  await expect(page.getByRole("button", { name: "Latest reply" })).toHaveCount(
+    0,
+  );
+});
+
+test("copy feedback shares the active dialog stack without replacing a version-fenced move Undo", async ({
+  page,
+  context,
+}) => {
+  const state = await fixture(page, [note]);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(`${base}/app`);
+  await page.locator(".memory-row .drag-handle").focus();
+  await page.keyboard.press("Space", { delay: 50 });
+  await expect(page.locator(".memory-drag-preview")).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.locator(`.notebook-explorer [data-destination="${project.id}"]`),
+  ).toHaveAttribute("data-drop-active", "true");
+  await page.keyboard.press("Space");
+  await expect(page.locator(".workspace-notice")).toContainText("1 note moved");
+  await page.locator(".memory-open").click();
+  const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+  await drawer.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Copy Markdown" }).click();
+  const notifications = drawer.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "Markdown copied",
+  );
+  await expect(notifications.locator(".workspace-notice")).toContainText(
+    "1 note moved",
+  );
+  const a = (await notifications.locator(".workspace-toast").boundingBox())!;
+  const b = (await notifications.locator(".workspace-notice").boundingBox())!;
+  expect(a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
+  await notifications
+    .getByRole("button", { name: "Undo", exact: true })
+    .click();
+  await expect(notifications).toContainText("Change undone");
+  expect(state.records.get(note.id)?.projectId).toBeNull();
+});
+
 test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and discards cancelled answers", async ({
   page,
 }, info) => {
