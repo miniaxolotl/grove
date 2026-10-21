@@ -59,7 +59,5 @@ export function HeroCtaCopy() {
   useEffect(() => {
     captureCtaExposure();
   }, [variant]);
-  return variant === "benefit"
-    ? "Give your ideas a home"
-    : "Start your notebook";
+  return variant === "benefit" ? "Save your first note" : "Start your notebook";
 }

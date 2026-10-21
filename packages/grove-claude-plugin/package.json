@@ -1,6 +1,6 @@
 {
   "name": "@miniaxolotl/grove-claude-plugin",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "type": "module",
   "description": "Grove private memory tools and skills for Claude Code",
   "license": "MIT",

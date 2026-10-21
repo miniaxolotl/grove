@@ -11,11 +11,9 @@ export default function NotFound() {
       <span className="recovery-mark">
         <GroveMark className="size-14 text-leaf" />
       </span>
-      <p className="eyebrow">404 / A PATH LESS TRAVELED</p>
+      <p className="eyebrow">404</p>
       <h1 className="section-heading mt-4">
-        Nothing planted here.
-        <br />
-        <em>Head back home.</em>
+        Page <em>not found.</em>
       </h1>
       <p className="mt-6 max-w-sm text-sm leading-7 text-muted">
         This page does not exist. Return to the homepage.

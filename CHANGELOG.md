@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/miniaxolotl/grove/compare/v1.8.0...v1.8.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **website:** simplify public copy and remove brand downloads ([#52](https://github.com/miniaxolotl/grove/issues/52)) ([d5ff8e3](https://github.com/miniaxolotl/grove/commit/d5ff8e3c4010f06db50a5ef6ccc242f0581cbadb))
+
 ## [1.8.0](https://github.com/miniaxolotl/grove/compare/v1.7.1...v1.8.0) (2026-10-21)
 
 

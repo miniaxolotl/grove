@@ -26,7 +26,7 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await page.getByRole("link", { name: "Connect your AI tools" }).click();
   await expect(page).toHaveURL(/\/install$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "a memory.",
+    "coding agent.",
   );
   await expect(
     page.getByLabel("OpenCode connection command", { exact: true }),
@@ -175,10 +175,8 @@ test("sharing copies the canonical URL and offers a fallback when clipboard is u
     }),
   );
   await page.goto("/");
-  await page.getByRole("button", { name: "Share a little Grove" }).click();
-  await expect(
-    page.getByRole("button", { name: "Link copied. Let it grow." }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Share Grove" }).click();
+  await expect(page.getByRole("button", { name: "Link copied" })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     siteURL,
   );
@@ -189,7 +187,7 @@ test("sharing copies the canonical URL and offers a fallback when clipboard is u
       configurable: true,
     }),
   );
-  await page.getByRole("button", { name: "Link copied. Let it grow." }).click();
+  await page.getByRole("button", { name: "Link copied" }).click();
   await expect(
     page.getByRole("textbox", { name: "Grove link to share" }),
   ).toHaveValue(siteURL);
@@ -217,13 +215,11 @@ test("native sharing cancellation is quiet and clipboard failure remains usable"
     Object.defineProperty(navigator, "clipboard", { value: undefined });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Share a little Grove" }).click();
+  await page.getByRole("button", { name: "Share Grove" }).click();
   await expect(
     page.getByRole("textbox", { name: "Grove link to share" }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Share a little Grove" }),
-  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Share Grove" })).toBeEnabled();
   await page.goto("/install");
   await page
     .getByRole("button", {

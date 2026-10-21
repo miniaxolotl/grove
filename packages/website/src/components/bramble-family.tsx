@@ -4,19 +4,19 @@ const products = [
   {
     id: "fern",
     name: "Fern",
-    detail: "Shared moments",
+    detail: "Shared photo albums",
     url: "https://usefern.app",
   },
   {
     id: "burrow",
     name: "Burrow",
-    detail: "Localhost, shared",
+    detail: "HTTPS tunnels",
     url: "https://useburrow.app",
   },
   {
     id: "grove",
     name: "Grove",
-    detail: "Your ideas, connected",
+    detail: "A private notebook",
     url: "https://usegrove.cloud",
   },
 ];
@@ -48,7 +48,7 @@ export function BrambleFamily({ current }: { current: string }) {
         </svg>
         <span>
           <strong>From Bramble Labs</strong>
-          <small>Good ideas. Carefully grown.</small>
+          <small>Independent software</small>
         </span>
         <ArrowUpRight size={14} aria-hidden="true" />
       </a>
