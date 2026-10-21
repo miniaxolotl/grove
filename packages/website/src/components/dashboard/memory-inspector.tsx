@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
 import { isInactive, moveMemoryInput } from "@/lib/memory-display";
@@ -11,7 +12,7 @@ import { MemoryDetail } from "./memory-detail";
 import { LoadError } from "./load-error";
 import { Button } from "./ui/button";
 import { useToast } from "./toasts";
-import { useWorkspaceDrag } from "./memory-drag";
+import { useWorkspaceCache } from "./workspace-cache";
 
 export function MemoryInspector({
   id,
@@ -30,30 +31,23 @@ export function MemoryInspector({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const workspace = useWorkspaceDrag();
-  const [memory, setMemory] = useState<Memory>();
+  const cache = useWorkspaceCache();
+  const api = cache.api;
+  const query = useQuery(cache.note(id));
   const { projects } = useNotebooks();
-  const [error, setError] = useState("");
-  const [refresh, setRefresh] = useState(0);
+  const [actionError, setError] = useState("");
+  const error =
+    actionError ||
+    (query.error
+      ? errorMessage(query.error)
+      : query.data === null
+        ? "This note is no longer available."
+        : "");
   const [busy, setBusy] = useState(false);
   const [moving, setMoving] = useState(false);
   const [destination, setDestination] = useState("personal");
   const operations = useRef(new Map<string, string>());
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Memory>(`/memories/${id}`, undefined, undefined, controller.signal)
-      .then((record) => {
-        if (!controller.signal.aborted) {
-          setMemory(record);
-          setError("");
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
-      });
-    return () => controller.abort();
-  }, [id, refresh]);
-  const current = memory?.id === id ? memory : undefined;
+  const current = query.data;
   async function mutate(action: "move" | "archive" | "restore") {
     if (!current || busy) return;
     const body =
@@ -70,14 +64,11 @@ export function MemoryInspector({
     setBusy(true);
     setError("");
     try {
-      setMemory(
-        await api<Memory>(path, {
-          ...body,
-          operationId: operations.current.get(key),
-        }),
-      );
+      await api<Memory>(path, {
+        ...body,
+        operationId: operations.current.get(key),
+      });
       setMoving(false);
-      workspace.refresh();
       toast(
         action === "move"
           ? "Note moved."
@@ -96,7 +87,10 @@ export function MemoryInspector({
       {error && (
         <LoadError
           message={error}
-          retry={() => setRefresh((value) => value + 1)}
+          retry={() => {
+            setError("");
+            void query.refetch();
+          }}
         />
       )}
       {!current && !error && <p role="status">Opening your note…</p>}
@@ -151,7 +145,7 @@ export function MemoryInspector({
             memory={current}
             projects={projects}
             busy={busy}
-            onSaved={setMemory}
+            onSaved={() => {}}
             close={
               close ??
               (() =>
@@ -164,7 +158,6 @@ export function MemoryInspector({
                 ))
             }
             onDeleted={() => {
-              workspace.refresh();
               if (close) close();
               else router.push("/app");
             }}

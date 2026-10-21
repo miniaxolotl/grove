@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { KeyRound, Plug } from "lucide-react";
 import {
@@ -7,7 +8,8 @@ import {
   type Grant,
   type ConnectAttempt,
 } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { errorMessage, type Project } from "@/lib/dashboard-api";
+import { useWorkspaceApi, useWorkspaceCache } from "./workspace-cache";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { AgentSetup } from "@/components/installation";
@@ -25,44 +27,30 @@ type Connection = Grant & {
   setup?: ConnectAttempt | null;
 };
 export function Connections({ origin }: { origin: string }) {
-  const [items, setItems] = useState<Connection[]>([]);
+  const api = useWorkspaceApi();
+  const cache = useWorkspaceCache();
+  const query = useQuery(cache.resource<Connection[]>("/connections"));
+  const [openedAt] = useState(Date.now);
+  const items = (query.data ?? []).map((item) =>
+    item.setup?.status === "pending" &&
+    Date.parse(item.setup.expiresAt) <= Math.max(openedAt, query.dataUpdatedAt)
+      ? { ...item, setup: { ...item.setup, status: "expired" as const } }
+      : item,
+  );
   const { projects } = useNotebooks();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [refresh, setRefresh] = useState(0);
+  const loading = query.isPending;
+  const [actionError, setError] = useState("");
+  const error = actionError || (query.error ? errorMessage(query.error) : "");
   const [selected, setSelected] = useState<Connection | "new" | null>(null);
   const [secret, setSecret] = useState("");
   const reload = () => {
     setError("");
-    setLoading(true);
-    setRefresh((value) => value + 1);
+    void query.refetch();
   };
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Connection[]>("/connections", undefined, undefined, controller.signal)
-      .then((connections) => {
-        if (controller.signal.aborted) return;
-        setItems(
-          connections.map((item) =>
-            item.setup?.status === "pending" &&
-            Date.parse(item.setup.expiresAt) <= Date.now()
-              ? { ...item, setup: { ...item.setup, status: "expired" } }
-              : item,
-          ),
-        );
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [refresh]);
   async function revoke(id: string) {
     try {
       await api(`/connections/${id}`, undefined, "DELETE");
-      reload();
+      setError("");
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -206,7 +194,7 @@ export function Connections({ origin }: { origin: string }) {
             done={(value) => {
               setSelected(null);
               setSecret(value ?? "");
-              reload();
+              setError("");
             }}
           />
         </Dialog>
@@ -242,6 +230,7 @@ function GrantForm({
   projects: Project[];
   done: (secret?: string) => void;
 }) {
+  const api = useWorkspaceApi();
   const [name, setName] = useState(
     connection?.name === "Awaiting approval" ? "" : (connection?.name ?? ""),
   );

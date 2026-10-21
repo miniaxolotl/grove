@@ -22,7 +22,6 @@ type Notebooks = {
   loading: boolean;
   error: string;
   reload: () => void;
-  saved: (project: Project) => void;
   location: NotebookLocation | undefined;
   setLocation: Dispatch<SetStateAction<NotebookLocation | undefined>>;
 };
@@ -40,21 +39,9 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
       queryKey: workspaceKeys.resource("/projects"),
     });
   }, [cache]);
-  const saved = useCallback(
-    (project: Project) => {
-      cache.client.setQueryData<Project[]>(
-        workspaceKeys.resource("/projects"),
-        (previous) => [
-          ...(previous ?? []).filter((p) => p.id !== project.id),
-          project,
-        ],
-      );
-    },
-    [cache],
-  );
   return (
     <Context.Provider
-      value={{ projects, loading, error, reload, saved, location, setLocation }}
+      value={{ projects, loading, error, reload, location, setLocation }}
     >
       {children}
     </Context.Provider>

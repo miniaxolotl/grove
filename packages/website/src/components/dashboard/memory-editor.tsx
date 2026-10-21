@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import {
-  api,
   DashboardApiError,
   errorMessage,
   type Project,
@@ -31,7 +30,7 @@ import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { NotebookDialog } from "./notebook-dialog";
-import { useWorkspaceDrag } from "./memory-drag";
+import { useWorkspaceApi } from "./workspace-cache";
 import { useSetCurrentNotebook } from "./notebooks-provider";
 import { useWorkspaceCommands } from "./workspace-commands";
 
@@ -77,7 +76,7 @@ export function MemoryEditor({
   const drafts = useNoteDrafts();
   const root = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState(initialPreview);
-  const { refresh: refreshNotes } = useWorkspaceDrag();
+  const api = useWorkspaceApi();
   const [draft] = useState(() =>
     draftKey ? drafts?.get(draftKey) : undefined,
   );
@@ -85,7 +84,7 @@ export function MemoryEditor({
     draft?.content ?? memory?.content ?? initialContent,
   );
   const [base, setBase] = useState(draft ? draft.base : memory);
-  const [latest, setLatest] = useState<Memory>();
+  const [latest, setLatest] = useState<Memory | undefined>(draft?.latest);
   const [kind, setKind] = useState(draft?.kind ?? memory?.kind ?? initialKind);
   const [retention, setRetention] = useState(
     draft?.retention ??
@@ -129,6 +128,28 @@ export function MemoryEditor({
       retention !==
         String(base.retentionDays ?? (base.expiresAt ? 30 : "permanent"))
     : content.trim().length > 0 && content !== initialContent;
+  const receiveSnapshot = useEffectEvent(() => {
+    if (!memory || !base || memory.version <= base.version || saving) return;
+    // A revalidation must never silently rebase a retained draft or an uncertain save.
+    // A response may be lost after our own commit: retry its original operation first.
+    if (pending.current) return;
+    if (dirty) {
+      setLatest(memory);
+      return;
+    }
+    setBase(memory);
+    setContent(memory.content);
+    setKind(memory.kind);
+    setAutoKind(memory.autoKind ?? false);
+    setProjectId(memory.projectId ?? "");
+    setRetention(
+      String(memory.retentionDays ?? (memory.expiresAt ? 30 : "permanent")),
+    );
+  });
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => receiveSnapshot());
+    return () => cancelAnimationFrame(frame);
+  }, [memory, saving]);
   useEffect(() => {
     if (!focused) return;
     const navigation = [
@@ -148,10 +169,11 @@ export function MemoryEditor({
     const key =
       draftKey.startsWith("new:") && base ? `note:${base.id}` : draftKey;
     if (key !== draftKey) drafts.delete(draftKey);
-    if (dirty || saving)
+    if (dirty || saving || latest)
       drafts.set(key, {
         content,
         base,
+        latest,
         kind,
         retention,
         autoKind,
@@ -169,6 +191,7 @@ export function MemoryEditor({
     dirty,
     content,
     base,
+    latest,
     kind,
     retention,
     autoKind,
@@ -191,6 +214,38 @@ export function MemoryEditor({
           ? { content, kind, retention, autoKind, projectId }
           : retained;
         if (!values) return;
+        const operationVersion =
+          Number(
+            pending.current?.input?.expectedVersion ?? base?.version ?? 0,
+          ) + 1;
+        if (saved.version > operationVersion) {
+          // Idempotent replay can return an agent's later version. A successful
+          // retry confirms our operation, not permission to overwrite that edit.
+          const message =
+            "This note changed after your save. Review the newer version before saving again.";
+          if (draftKey && drafts) {
+            drafts.set(base ? draftKey : `note:${saved.id}`, {
+              ...values,
+              base: base ?? saved,
+              latest: saved,
+              task: task.current,
+              pending: null,
+              error: message,
+            });
+            if (!base) drafts.delete(draftKey);
+          }
+          if (active()) {
+            pending.current = null;
+            submitted.current = undefined;
+            setLatest(saved);
+            setError(message);
+            if (!base) {
+              setBase(saved);
+              if (fullPage && draftKey) done(saved, { preview });
+            }
+          }
+          return;
+        }
         const sent = submitted.current;
         const next = {
           ...values,
@@ -228,7 +283,6 @@ export function MemoryEditor({
         setAutoKind(next.autoKind);
         pending.current = null;
         submitted.current = undefined;
-        refreshNotes();
         done(saved, { preview });
       } catch (e) {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;

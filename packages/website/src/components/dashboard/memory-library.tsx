@@ -1,5 +1,6 @@
 "use client";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -13,8 +14,9 @@ import {
   Network,
   CalendarDays,
 } from "lucide-react";
-import type { Memory, Page } from "@lib/shared/contracts";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import type { Memory, MemoryList } from "@lib/shared/contracts";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import {
   dateLabel,
   isInactive,
@@ -24,9 +26,7 @@ import {
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { MemoryRow } from "./memory-row";
-import { MemoryEditor } from "./memory-editor";
-import { MemoryDetail } from "./memory-detail";
-import { useWorkspaceDrag } from "./memory-drag";
+import { deferredFeature } from "./deferred-feature";
 import {
   LibraryFilterBar,
   initialFilters,
@@ -37,6 +37,19 @@ import { SegmentedControl } from "./ui/segmented-control";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
+const loadDetail = () =>
+  import("./memory-detail").then((module) => ({
+    default: module.MemoryDetail,
+  }));
+const MemoryDetail = deferredFeature(
+  loadDetail,
+  "Opening your note…",
+  "note-editor-drawer",
+);
+const MemoryEditor = deferredFeature(
+  async () => ({ default: (await import("./memory-editor")).MemoryEditor }),
+  "Opening your writing space…",
+);
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
   loading: () => (
@@ -70,10 +83,9 @@ export function MemoryLibrary({
   initialProject?: string;
   initialSort?: "updated_desc" | "created_desc";
 }) {
-  const workspace = useWorkspaceDrag();
+  const cache = useWorkspaceCache();
+  const api = cache.api;
   const [view, setView] = useState(initialView);
-  const [loadedItems, setItems] = useState<Memory[]>([]);
-  const [resultKey, setResultKey] = useState("");
   const {
     projects,
     error: notebookError,
@@ -96,15 +108,18 @@ export function MemoryLibrary({
     sort,
     lifetime,
   } = filters;
-  const [searchMode, setSearchMode] = useState<string>();
-  const [cursor, setNext] = useState<string | null>(null);
-  const [fetching, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [detailError, setDetailError] = useState("");
   const [failures, setFailures] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
-  const [refresh, setRefresh] = useState(0);
-  const [selected, setSelected] = useState<Memory | "new" | null>(null);
+  const [selectedId, selectId] = useState<string | null>(initialId ?? null);
+  const detail = useQuery({
+    ...cache.note(selectedId ?? ""),
+    enabled: !!selectedId && selectedId !== "new",
+  });
+  const selected = selectedId === "new" ? "new" : detail.data;
+  const setSelected = (note: Memory | "new" | null) =>
+    selectId(typeof note === "string" ? note : (note?.id ?? null));
+  const detailError = detail.error ? errorMessage(detail.error) : "";
   const [deleting, setDeleting] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
   const [moving, setMoving] = useState<Memory[] | null>(null);
@@ -113,7 +128,6 @@ export function MemoryLibrary({
   const [undo, setUndo] = useState<Undo[]>([]);
   const [listRef] = useAutoAnimate<HTMLUListElement>({ duration: 200 });
   const requests = useRef(new Map<string, string>());
-  const controller = useRef<AbortController | null>(null);
   const scopedProject =
     fixedProject !== undefined
       ? fixedProject
@@ -122,22 +136,31 @@ export function MemoryLibrary({
         : project === "personal"
           ? null
           : project;
-  const requestKey = JSON.stringify({
-    search,
-    project: scopedProject,
-    kind,
-    tag,
-    status,
-    sourceAgent,
-    updatedAfter,
-    sort,
-    lifetime,
-  });
+  const query = useInfiniteQuery(
+    cache.notes({
+      query: search,
+      projectId: scopedProject,
+      kind: (kind || undefined) as MemoryList["kind"],
+      tag: tag || undefined,
+      status: status as MemoryList["status"],
+      sourceAgent: (sourceAgent || undefined) as MemoryList["sourceAgent"],
+      updatedAfter: updatedAfter || undefined,
+      sort,
+      lifetime: (lifetime || undefined) as MemoryList["lifetime"],
+    }),
+  );
   useSetCurrentNotebook(scopedProject);
-  const items = resultKey === requestKey ? loadedItems : [];
-  const next = resultKey === requestKey ? cursor : null;
-  const loading = fetching || resultKey !== requestKey;
-  const currentError = resultKey === requestKey ? error : "";
+  const items = [
+    ...new Map(
+      query.data?.pages
+        .flatMap((page) => page.items)
+        .map((note) => [note.id, note]),
+    ).values(),
+  ];
+  const next = query.hasNextPage;
+  const loading = query.isPending || query.isFetchingNextPage;
+  const searchMode = query.data?.pages[0]?.searchMode;
+  const currentError = error || (query.error ? errorMessage(query.error) : "");
   const filtered = !!(
     search ||
     kind ||
@@ -150,115 +173,10 @@ export function MemoryLibrary({
   );
   const selectedItems = items.filter((memory) => checked.includes(memory.id));
 
-  useEffect(() => {
-    const request = new AbortController();
-    controller.current = request;
-    api<Page<Memory>>(
-      "/memories/search",
-      {
-        query: search || undefined,
-        projectId: scopedProject,
-        kind: kind || undefined,
-        tag: tag || undefined,
-        status,
-        sourceAgent: sourceAgent || undefined,
-        updatedAfter: updatedAfter || undefined,
-        sort,
-        lifetime: lifetime || undefined,
-      },
-      undefined,
-      request.signal,
-    )
-      .then((page) => {
-        if (request.signal.aborted) return;
-        setError("");
-        setChecked([]);
-        setItems(page.items);
-        setNext(page.nextCursor);
-        setSearchMode(page.searchMode);
-      })
-      .catch((e) => {
-        if (!request.signal.aborted) {
-          setError(errorMessage(e));
-          setItems([]);
-          setNext(null);
-        }
-      })
-      .finally(() => {
-        if (!request.signal.aborted) {
-          setLoading(false);
-          setResultKey(requestKey);
-        }
-      });
-    return () => request.abort();
-  }, [
-    search,
-    scopedProject,
-    kind,
-    tag,
-    status,
-    sourceAgent,
-    updatedAfter,
-    sort,
-    lifetime,
-    refresh,
-    requestKey,
-    workspace.revision,
-  ]);
-  useEffect(() => {
-    if (!initialId) return;
-    const request = new AbortController();
-    api<Memory>(`/memories/${initialId}`, undefined, undefined, request.signal)
-      .then((memory) => {
-        if (!request.signal.aborted) setSelected(memory);
-      })
-      .catch((e) => {
-        if (!request.signal.aborted) setDetailError(errorMessage(e));
-      });
-    return () => request.abort();
-  }, [initialId]);
   function reload(message?: string) {
     setSelected(null);
     if (message) setNotice(message);
-    setRefresh((value) => value + 1);
-    workspace.refresh();
     onChanged?.();
-  }
-  async function loadMore() {
-    const request = controller.current;
-    if (!request || loading || !next) return;
-    setLoading(true);
-    setError("");
-    try {
-      const page = await api<Page<Memory>>(
-        "/memories/search",
-        {
-          query: search || undefined,
-          projectId: scopedProject,
-          kind: kind || undefined,
-          tag: tag || undefined,
-          status,
-          cursor: next,
-          sourceAgent: sourceAgent || undefined,
-          updatedAfter: updatedAfter || undefined,
-          sort,
-          lifetime: lifetime || undefined,
-        },
-        undefined,
-        request.signal,
-      );
-      if (!request.signal.aborted) {
-        setItems((current) => [
-          ...current,
-          ...page.items.filter((m) => !current.some((old) => old.id === m.id)),
-        ]);
-        setNext(page.nextCursor);
-      }
-    } catch (e) {
-      if (!request.signal.aborted) setError(errorMessage(e));
-    } finally {
-      if (!request.signal.aborted) setLoading(false);
-    }
   }
   async function mutate(
     memory: Memory,
@@ -514,7 +432,10 @@ export function MemoryLibrary({
           {currentError && (
             <LoadError
               message={currentError}
-              retry={() => setRefresh((v) => v + 1)}
+              retry={() => {
+                setError("");
+                void query.refetch();
+              }}
             />
           )}
           {detailError && (
@@ -522,7 +443,7 @@ export function MemoryLibrary({
               {detailError}
               <button
                 className="text-button ml-3"
-                onClick={() => setDetailError("")}
+                onClick={() => setSelected(null)}
               >
                 Dismiss
               </button>
@@ -623,6 +544,9 @@ export function MemoryLibrary({
                           </li>
                         )}
                       <MemoryRow
+                        onIntent={() => {
+                          void loadDetail().catch(() => {});
+                        }}
                         memory={memory}
                         projectName={
                           projects.find((p) => p.id === memory.projectId)
@@ -670,7 +594,7 @@ export function MemoryLibrary({
               <button
                 className="app-button secondary"
                 disabled={loading}
-                onClick={loadMore}
+                onClick={() => void query.fetchNextPage()}
               >
                 {loading
                   ? "Loading…"
@@ -725,12 +649,7 @@ export function MemoryLibrary({
               projects={projects}
               initialDelete={deleting}
               busy={busy}
-              onSaved={(memory) => {
-                setSelected(memory);
-                setItems((items) =>
-                  items.map((item) => (item.id === memory.id ? memory : item)),
-                );
-              }}
+              onSaved={setSelected}
               close={() => setSelected(null)}
               onDeleted={() => reload()}
               onMove={() => startMove([selected])}

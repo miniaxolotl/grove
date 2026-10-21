@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { LoadError } from "@/components/dashboard/load-error";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
 
 type Settings = {
@@ -20,23 +22,20 @@ export function SettingsPanel({
 }: {
   section?: "preferences" | "account" | "data";
 }) {
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [error, setError] = useState("");
+  const cache = useWorkspaceCache();
+  const api = cache.api;
+  const query = useQuery({
+    ...cache.resource<Settings>("/me"),
+    enabled: section === "preferences",
+  });
+  const [draft, setSettings] = useState<Settings | null>(null);
+  const settings = draft ?? query.data;
+  const [saveError, setError] = useState("");
+  const error = saveError || (query.error ? errorMessage(query.error) : "");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
-  const [refresh, setRefresh] = useState(0);
   const { signOut } = useClerk();
-  useEffect(() => {
-    if (section !== "preferences") return;
-    const controller = new AbortController();
-    api<Settings>("/me", undefined, undefined, controller.signal)
-      .then(setSettings)
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      });
-    return () => controller.abort();
-  }, [refresh, section]);
   async function update() {
     if (!settings) return;
     setBusy(true);
@@ -66,7 +65,7 @@ export function SettingsPanel({
           message={error}
           retry={() => {
             setError("");
-            setRefresh((value) => value + 1);
+            void query.refetch();
           }}
         />
       ) : error ? (

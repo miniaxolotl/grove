@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -13,7 +14,8 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { errorMessage, type Project } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
 import { isActiveSurface, isTyping } from "@/lib/workspace-keyboard";
 import { Markdown } from "./markdown";
@@ -53,6 +55,8 @@ export function MemoryDetail({
   onDeleted: () => void;
   close: () => void;
 }) {
+  const cache = useWorkspaceCache();
+  const api = cache.api;
   const root = useRef<HTMLElement>(null);
   const toast = useToast();
   const [compare, setCompare] = useState<number | null>(null);
@@ -60,11 +64,18 @@ export function MemoryDetail({
   const [editorLocked, setEditorLocked] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyError, setHistoryError] = useState("");
   const [editorRevision, setEditorRevision] = useState(0);
-  const [history, setHistory] = useState<
-    { version: number; content: string; createdAt: string }[] | null
-  >(null);
+  const historyQuery = useQuery({
+    ...cache.resource<
+      { version: number; content: string; createdAt: string }[]
+    >(`/memories/${memory.id}/revisions`),
+    enabled: historyOpen,
+  });
+  const history = historyQuery.data;
+  const historyError = historyQuery.error
+    ? errorMessage(historyQuery.error)
+    : "";
+  const [relatedOpen, setRelatedOpen] = useState(false);
   const [related, setRelated] = useState<Record<string, string>>({});
   const operations = useRef(new Map<string, string>());
   const setDialogBusy = useDialogBusy();
@@ -75,50 +86,28 @@ export function MemoryDetail({
     return () => cancelAnimationFrame(frame);
   }, [initialDelete]);
   useEffect(() => {
+    if (!relatedOpen) return;
     const controller = new AbortController();
+    const ids = (memory.enrichment?.relationships ?? []).map(({ id }) => id);
+    const titles: Record<string, string> = {};
+    // Four workers bound missing-title requests; cached note snapshots are reused.
     Promise.all(
-      (memory.enrichment?.relationships ?? []).map(async ({ id }) => {
-        try {
-          return [
-            id,
-            memoryTitle(
-              await api<Memory>(
-                `/memories/${id}`,
-                undefined,
-                undefined,
-                controller.signal,
-              ),
-            ),
-          ] as const;
-        } catch {
-          return [id, "Linked note"] as const;
+      Array.from({ length: Math.min(4, ids.length) }, async () => {
+        while (ids.length && !controller.signal.aborted) {
+          const id = ids.shift()!;
+          try {
+            const note = await cache.fetchNote(id, controller.signal);
+            titles[id] = note ? memoryTitle(note) : "Linked note unavailable";
+          } catch {
+            titles[id] = "Linked note";
+          }
         }
       }),
-    ).then((entries) => {
-      if (!controller.signal.aborted) setRelated(Object.fromEntries(entries));
+    ).then(() => {
+      if (!controller.signal.aborted) setRelated(titles);
     });
     return () => controller.abort();
-  }, [memory]);
-  useEffect(() => {
-    if (!historyOpen) return;
-    const controller = new AbortController();
-    api<typeof history>(
-      `/memories/${memory.id}/revisions`,
-      undefined,
-      undefined,
-      controller.signal,
-    )
-      .then((value) => {
-        if (!controller.signal.aborted) {
-          setHistory(value);
-          setHistoryError("");
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setHistoryError(errorMessage(error));
-      });
-    return () => controller.abort();
-  }, [historyOpen, memory.id, memory.version]);
+  }, [memory.enrichment?.relationships, relatedOpen, cache]);
   async function run(action: () => Promise<void>) {
     if (locked) return;
     setBusy(true);
@@ -364,7 +353,10 @@ export function MemoryDetail({
           </>
         }
       >
-        <details className="linked-notes">
+        <details
+          className="linked-notes"
+          onToggle={(event) => setRelatedOpen(event.currentTarget.open)}
+        >
           <summary>
             Linked notes{" "}
             <span>{memory.enrichment?.relationships.length ?? 0}</span>

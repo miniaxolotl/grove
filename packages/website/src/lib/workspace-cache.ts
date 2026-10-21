@@ -186,6 +186,8 @@ export class WorkspaceCache {
             predicate: (query) => query.queryKey[1] === "notes",
           });
           this.forget(path.split("/")[2]);
+        } else if ([403, 404].includes(error.status)) {
+          this.client.setQueryData(workspaceKeys.resource(path, body), null);
         }
       }
       throw error;
@@ -553,21 +555,28 @@ export class WorkspaceCache {
         const key = workspaceKeys.resource("/projects");
         void this.client.cancelQueries({ queryKey: key });
         if (project?.id)
-          this.client.setQueryData<Notebook[]>(key, (old) => [
-            ...(old ?? []).filter((item) => item.id !== project.id),
-            project,
-          ]);
+          this.client.setQueryData<Notebook[]>(key, (old) => {
+            const current = old?.find(item => item.id === project.id);
+            return current && current.version > project.version ? old : [
+              ...(old ?? []).filter(item => item.id !== project.id), project,
+            ];
+          });
         else this.invalidate({ resource: "/projects" });
         this.publish?.({ resource: "/projects" });
       } else if (path.startsWith("/conversations")) {
         const change = { resource: "/conversations" };
-        this.invalidate(change);
+        void this.client.cancelQueries({
+          predicate: (query) => this.affected(query, change),
+        });
         const chat = result as Conversation;
         if (chat?.id && chat.turns)
           this.client.setQueryData(
             workspaceKeys.resource(`/conversations/${chat.id}`),
             chat,
           );
+        if (verb === "DELETE")
+          this.client.setQueryData(workspaceKeys.resource(path), null);
+        this.invalidate(change);
         if (/\/(apply|undo)$/.test(path)) {
           // Merge/undo may affect archived source notes absent from the reply. Revalidate all note dependencies.
           this.invalidate({});
@@ -586,6 +595,12 @@ export class WorkspaceCache {
                   ? "/models"
                   : undefined;
         if (resource) {
+          if (resource === "/models" && path === "/models") {
+            void this.client.cancelQueries({
+              queryKey: workspaceKeys.resource(resource),
+            });
+            this.client.setQueryData(workspaceKeys.resource(resource), result);
+          }
           this.invalidate({ resource });
           this.publish?.({ resource });
         }

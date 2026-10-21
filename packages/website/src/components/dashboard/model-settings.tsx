@@ -1,12 +1,14 @@
 "use client";
 import { Select } from "./ui/select";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type {
   ModelConfig,
   ModelRole,
   ModelSettings as Settings,
 } from "@lib/shared/models";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { LoadError } from "./load-error";
 import { ProviderOverview } from "./provider-overview";
 import { useToast } from "./toasts";
@@ -23,39 +25,31 @@ type Usage = {
 };
 const roles: ModelRole[] = ["embedding", "decision", "generation"];
 export function ModelSettings() {
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [config, setConfig] = useState<ModelConfig | null>(null);
-  const [usage, setUsage] = useState<Usage | null>(null);
+  const cache = useWorkspaceCache();
+  const api = cache.api;
+  const query = useQuery(cache.resource<Settings>("/models"));
+  const usageQuery = useQuery(cache.resource<Usage>("/account/usage"));
+  const [draftSettings, setSettings] = useState<Settings | null>(null);
+  const [draftConfig, setConfig] = useState<ModelConfig | null>(null);
+  const settings = draftSettings ?? query.data;
+  const config = draftConfig ?? settings?.config;
+  const usage = usageQuery.data;
   const [clearKeys, setClearKeys] = useState<ModelRole[]>([]);
-  const [error, setError] = useState("");
+  const [actionError, setError] = useState("");
+  const error =
+    actionError ||
+    (query.error || usageQuery.error
+      ? errorMessage(query.error || usageQuery.error)
+      : "");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [refresh, setRefresh] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    Promise.all([
-      api<Settings>("/models", undefined, undefined, controller.signal),
-      api<Usage>("/account/usage", undefined, undefined, controller.signal),
-    ])
-      .then(([value, counts]) => {
-        setSettings(value);
-        setConfig(value.config);
-        setUsage(counts);
-        setClearKeys([]);
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      });
-    return () => controller.abort();
-  }, [refresh]);
   function change<R extends ModelRole>(
     role: R,
     patch: Partial<ModelConfig[R]>,
   ) {
-    setConfig(
-      (current) =>
-        current && { ...current, [role]: { ...current[role], ...patch } },
-    );
+    if (!settings || !config) return;
+    setSettings(settings);
+    setConfig({ ...config, [role]: { ...config[role], ...patch } });
   }
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -76,7 +70,8 @@ export function ModelSettings() {
           message={error}
           retry={() => {
             setError("");
-            setRefresh((v) => v + 1);
+            void query.refetch();
+            void usageQuery.refetch();
           }}
         />
       )}
@@ -94,13 +89,13 @@ export function ModelSettings() {
           onSubmit={(e) => {
             e.preventDefault();
             void run(async () => {
-              const saved = await api<Settings>(
+              await api<Settings>(
                 "/models",
                 { expectedVersion: settings.version, config, clearKeys },
                 "PATCH",
               );
-              setSettings(saved);
-              setConfig(saved.config);
+              setSettings(null);
+              setConfig(null);
               setClearKeys([]);
               toast(
                 "Model settings saved. Changed profiles are queued for background processing.",
@@ -235,13 +230,14 @@ export function ModelSettings() {
                             <input
                               type="checkbox"
                               checked={clearKeys.includes(role)}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                setSettings(settings);
                                 setClearKeys(
                                   e.target.checked
                                     ? [...clearKeys, role]
                                     : clearKeys.filter((r) => r !== role),
-                                )
-                              }
+                                );
+                              }}
                             />
                             Clear stored key
                           </label>

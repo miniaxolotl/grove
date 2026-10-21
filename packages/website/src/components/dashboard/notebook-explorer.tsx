@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import {
   Plus,
   FilePlus2,
@@ -21,6 +21,12 @@ import {
   useWorkspaceDrag,
 } from "./memory-drag";
 import { ActionMenu } from "./ui/action-menu";
+const desktop = () => matchMedia("(min-width: 1024px)").matches;
+const subscribeDesktop = (callback: () => void) => {
+  const media = matchMedia("(min-width: 1024px)");
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+};
 
 export function NotebookExplorer() {
   const { projects, loading, error, reload } = useNotebooks();
@@ -29,6 +35,7 @@ export function NotebookExplorer() {
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === path;
+  const wide = useSyncExternalStore(subscribeDesktop, desktop, () => false);
   const id = useId();
   const { active } = useWorkspaceDrag();
   const { setNodeRef, isOver } = useNotebookDrop(null, "Unfiled");
@@ -83,6 +90,7 @@ export function NotebookExplorer() {
         ) : projects.length ? (
           <NotebookTree
             showNotes
+            notesVisible={wide || open}
             projects={projects}
             selectedId={currentNotebook}
             actions={(project) => (

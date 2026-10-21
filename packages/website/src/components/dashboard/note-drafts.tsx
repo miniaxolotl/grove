@@ -12,6 +12,7 @@ export type NoteValues = {
 };
 export type NoteDraft = NoteValues & {
   base?: Memory;
+  latest?: Memory;
   task: string;
   pending: {
     fingerprint: string;
