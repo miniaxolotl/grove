@@ -15,8 +15,8 @@ fonts. Notes, notebooks and account details are synthetic.
 - [Mobile global search](search-mobile.png): the query remains anchored while
   results load, clear or become empty. The command menu uses the same policy.
 
-Browser verification covers all 83 Chromium scenarios and 11 focused WebKit
+Browser verification covers all 108 Chromium scenarios and 11 focused WebKit
 scenarios, including the existing editor, notebook, settings, chat and connection
-flows. Interrupted runs were completed with targeted reruns. Automated WCAG A/AA
-and viewport geometry checks pass. See the
+flows, after integrating the landed gesture and note-action work. Automated WCAG
+A/AA and viewport geometry checks pass. See the
 [interaction contract](../../../development/stable-interactions.md).

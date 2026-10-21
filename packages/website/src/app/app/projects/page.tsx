@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Folder, Plus, Pencil, FolderInput } from "lucide-react";
+import { Folder, Plus } from "lucide-react";
 import { LoadError } from "@/components/dashboard/load-error";
 import {
   NotebookDialog,
@@ -9,7 +9,8 @@ import {
 import { NotebookTree } from "@/components/dashboard/notebook-tree";
 import { useNotebooks } from "@/components/dashboard/notebooks-provider";
 import { PageHeading } from "@/components/dashboard/ui/page-heading";
-import { Button, IconButton } from "@/components/dashboard/ui/button";
+import { Button } from "@/components/dashboard/ui/button";
+import { NotebookActions } from "@/components/dashboard/notebook-actions";
 import { SearchField } from "@/components/dashboard/ui/search-field";
 import { NotebookDropTarget } from "@/components/dashboard/memory-drag";
 
@@ -27,7 +28,7 @@ export default function ProjectsPage() {
         title="Notebooks"
         description={`${projects.length} notebooks`}
         actions={
-          <Button onClick={() => setAction({})}>
+          <Button onClick={() => setAction({ mode: "create" })}>
             <Plus size={16} />
             New notebook
           </Button>
@@ -69,7 +70,10 @@ export default function ProjectsPage() {
               : "Start a notebook for a project, a topic, or whatever’s on your mind."}
           </p>
           {!query && (
-            <Button className="mt-6" onClick={() => setAction({})}>
+            <Button
+              className="mt-6"
+              onClick={() => setAction({ mode: "create" })}
+            >
               Create your first notebook
             </Button>
           )}
@@ -85,26 +89,7 @@ export default function ProjectsPage() {
             query={query}
             defaultExpanded
             actions={(project) => (
-              <>
-                <IconButton
-                  label={`Add sub-notebook to ${project.name}`}
-                  onClick={() => setAction({ parentId: project.id })}
-                >
-                  <Plus size={16} />
-                </IconButton>
-                <IconButton
-                  label={`Rename ${project.name}`}
-                  onClick={() => setAction({ project })}
-                >
-                  <Pencil size={15} />
-                </IconButton>
-                <IconButton
-                  label={`Move ${project.name}`}
-                  onClick={() => setAction({ project, move: true })}
-                >
-                  <FolderInput size={16} />
-                </IconButton>
-              </>
+              <NotebookActions compact project={project} onAction={setAction} />
             )}
           />
           <p className="notebook-organization-hint">

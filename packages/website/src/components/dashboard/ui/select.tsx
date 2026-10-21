@@ -12,6 +12,7 @@ export type SelectOption = {
   disabled?: boolean;
 };
 export type SelectProps = {
+  autoFocus?: boolean;
   value: string;
   onValueChange: (value: string) => void;
   options: readonly SelectOption[];

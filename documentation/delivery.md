@@ -16,11 +16,119 @@ and [reviewed captures](design/screenshots/stable-interactions/README.md) show t
 desktop and narrow layouts.
 
 Root lint/types/build and all five packed-artifact checks pass; website lint/types
-and the telemetry-enabled production build pass. All 83 Chromium scenarios and 11
-selected WebKit scenarios pass, including targeted completion after a harness
-restart and a shell timeout. Geometry checks cover 320, 390 and 1440px, mixed/bulk
-selection, nested overlays, search loading and preference-save races. No schema
-migration is required.
+and the telemetry-enabled production build pass. After integrating the landed
+gesture and note-action work (`570c133`), all 108 Chromium scenarios and 11 focused
+WebKit scenarios pass. Refreshed captures were reviewed in both browsers. Geometry
+checks cover 320, 390 and 1440px, mixed/bulk selection, nested overlays, search
+loading and preference-save races. No schema migration is required.
+
+## Focused PDF exports (21 October 2026 UTC)
+
+The PDF refinement uses a monochrome type scale, a consistent portrait reading
+measure and compact list rhythm. Real task checkboxes, subtle quote/table rules,
+content-weighted columns and padded monospace code retain the note's structure.
+Only multi-page documents show a quiet folio. Section bookmarks aid navigation.
+Six-to-eight-column tables and their introductory headings occupy landscape
+sheets; prose returns to portrait. Ordinary rows stay together, while unusually
+tall cells can continue across pages. Text wraps at measured edges without
+injected zero-width spaces, and Markdown soft line endings flow naturally.
+
+Code uses pinned JetBrains Mono 2.304 TTF under its existing OFL attribution,
+requested from the same origin only for exports containing code. It is subset
+into the PDF; rare missing glyphs fall back to the embedded prose face. A failed
+font request leaves source export usable and can be retried. The production
+Turbopack worker was exercised with actual code: it produced a parsed one-page
+PDF with an embedded JetBrains Mono face and exactly one local font request.
+The renderer remains deferred (about 754KB gzip) and absent from initial Notes
+chunks.
+
+The updated [PDF captures](design/screenshots/note-notebook-actions/README.md)
+include an ordinary one-page note and a wide-table sheet. Browser checks inspect
+actual font embedding, bookmarks, selectable text, single-page output, table
+heading placement, mixed page orientations, every wide-table cell, oversized
+record continuation, content bounds and font-load recovery.
+
+Root lint/types/build and five artifact checks pass, as do website lint/types and
+the telemetry-enabled production build. The 100-case Chromium run found one
+ordinary table row split; after the row-keeping fix, all six export regressions
+pass. Six distinct iPhone/WebKit export scenarios pass as well, including a final
+repeat of the mixed-orientation/oversized-record case. Fresh single-page and
+seven-page stress PDFs were parsed and visually reviewed.
+
+## Note and notebook actions (21 October 2026 UTC)
+
+Notes expose Export and confirmed Delete directly in the toolbar and row actions.
+Deletion pauses autosave, settles active/uncertain saves with their original retry
+identity, checks the saved version and explicitly discards local edits. Cancel
+retains drafts; success focuses the next row or the empty-state heading. Notebook
+Create/Rename/Move use distinct controls, reject no-op moves and preserve inputs
+while reviewing a concurrent change.
+
+Export downloads exact UTF-8 Markdown, copies it with a selectable fallback, or
+generates a real paginated PDF. Local snapshots survive first-save routing and
+identify unsaved content. pdfmake 0.3.12 (MIT) embeds its bundled Roboto fonts in a
+cancellable worker; Markdown parsing is loaded on demand too. Images become links,
+raw HTML is ignored and unavailable glyphs get explicit Unicode codes. Renderer
+and fonts are absent from initial Notes chunks: the deferred worker is about
+753KB gzip; Notes client-reference chunks grew about 8KB gzip against the integrated
+gesture baseline. A production Turbopack worker was separately started and produced
+an `application/pdf` Blob successfully.
+
+Node 24.21.0 / pnpm 10.33.0: root lint/types/build and five artifact tests pass;
+website lint/types and telemetry-enabled production build pass; 98 Chromium tests
+pass, with five focused deletion checks repeated after the empty-state focus fix.
+Fourteen focused iPhone/WebKit scenarios pass (the PDF filename assertion accounts
+for WebKit replacing spaces with underscores). PDF checks parse selectable text,
+links, pagination and all 280 cells in a wide table, checking text bounds as well
+as real downloads. Deferred-load failure, cancellation, clipboard denial, stale
+versions and lost save responses are covered. Final focused PDF checks also ensure
+a title-only first-save snapshot produces one page rather than a blank leading page.
+
+[Reviewed captures](design/screenshots/note-notebook-actions/README.md) show the
+desktop/390px/320px reader, export chooser and PDF layouts. Physical-device download
+and clipboard behavior remains unqualified. The feature requires no schema migration.
+
+## Gesture and interaction polish (21 October 2026 UTC)
+
+Native action menus measure, flip and clamp to the visual viewport; touch targets
+reserve independent 44px areas. Backdrop dismissal requires an intentional primary
+press/release. Note swipes reveal one action strip, preserve page scrolling and
+cancel on capture loss or a second contact. Mouse, touch, pen and keyboard handles
+share validated destinations, a scrollable touch tray and visible cancellation.
+
+Graph selection, reading and same-scope note revisions retain zoom. Ordinary wheel
+input and embedded touch gestures scroll the page; modifier-wheel and expanded
+pinch zoom are deliberate. Expanded exploration has an in-app fallback, focus
+return and nested reader support. The phone note header consolidates secondary
+controls: the 390×844 reader begins at y=134 instead of y=280. Chat replies preserve
+older-message reading/selection, with an explicit Latest reply action. Move/bulk
+Undo and copy feedback share the active dialog's notification stack.
+
+The screenshot-review follow-up simplifies presentation: one mobile move panel
+contains destinations and cancellation, the smaller drag preview only identifies
+the item, saved controls are neutral, and compact success feedback sits at the
+lower right. Graph instructions are available through **Controls**, with explicit
+Expand/Done labels and only relevant legends. Empty-state guidance stays below
+the canvas. Independent touch targets and durable Undo remain available.
+The follow-up passes all 87 Chromium and eight iPhone/WebKit scenarios, with the
+three graph scenarios rechecked after the final 320px toolbar/accessible-label
+adjustments. All required static, build and artifact gates pass; six refreshed
+captures record the visual review.
+
+Node 24.21.0 / pnpm 10.33.0 verification passes root lint, types, build and all five
+packed-artifact checks; website lint, types and telemetry-enabled production build;
+87 Chromium browser/accessibility/privacy scenarios; eight focused iPhone/WebKit
+scenarios; and 25 memory/conversation database/API tests with non-owner roles in a
+new disposable PostgreSQL database. Tests cover trusted mouse/touch/pen input,
+second-contact interruption, autoscroll/hover expansion, 2× pinch-zoom menu bounds,
+graph pan/pinch and nested focus, mobile text formatting/Undo, held replies and
+version-fenced mutation Undo. The focused WebKit config is reproducible from
+[testing guidance](development/testing.md).
+
+[Reviewed captures](design/screenshots/gesture-polish/README.md) use synthetic notes
+and production CSS. Physical iOS/Android keyboards, OS selection handles,
+back-edge navigation and hybrid-device/trackpad/pen feel remain unverified. No
+schema migration is required; this records feature verification, not a release.
 
 ## Google Search Console (21 October 2026 UTC)
 
