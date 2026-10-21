@@ -171,3 +171,19 @@ Earlier timing samples remain attached to their measured sources above.
 The combined suite passes **112 Chromium** and **15 selected iPhone/WebKit** cases;
 production held/failed/retried drawer geometry and focus, sign-in/account controls,
 and anonymous private/no-store denial pass at **1440, 390 and 320px**.
+
+## Final workspace integration
+
+Landed actions #61 and relationships #60 are integrated at application source
+`e20deb615c01ea061a1064aef18eb3269883e7ca`, build `OpJqVPQE_A1t4l2TZW1a1`.
+Notes entry is **463,180 gzip bytes (-32.3% original baseline)**; notebook entry
+is **466,081 (-33.0%)**. The editor and PDF renderer remain deferred. Canonical
+connection pages are cached and fetched only after Linked notes expands, replacing
+individual legacy title requests. Review and source changes reconcile that resource
+family, including cancellation/deletion fencing; row-delete replay retains conflicts.
+Earlier p75 measurements still describe their original source and build.
+Final synthetic screenshots and bundle/auth reports use `closeout-*` in local state.
+Verification: **131 Chromium / 32 selected iPhone/WebKit** cases, root and website
+lint/types/builds, five artifacts, and production auth/chunk/bounds/focus recovery
+at 1440/390/320px pass. Seven [reviewed screenshots](../../documentation/design/screenshots/client-performance/README.md)
+are committed for the chat/PR handoff.

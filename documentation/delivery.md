@@ -52,6 +52,17 @@ The integrated gesture/cache build is **457,678 gzip Notes bytes (-33.1%)** and
 Combined verification passes **112 Chromium** and **15 selected iPhone/WebKit**
 cases, plus production drawer/auth/focus recovery at **1440, 390 and 320px**.
 
+Final integration includes landed actions and canonical relationships. Connection
+pages stay idle while collapsed, share cached batched titles/evidence, and reconcile
+review/source changes with cancellation and deletion fencing. Row-delete retries
+retain the original draft base when a later agent version requires review. The
+combined tree passes **131 Chromium**, **32 selected iPhone/WebKit**, root/website
+lint/types/builds and five artifacts. Production auth/deferred retry/focus checks
+pass at **1440, 390 and 320px**. Notes entry is **463,180 gzip bytes (-32.3%)**;
+notebook entry is **466,081 (-33.0%)**. Both editor and PDF renderer remain deferred.
+[Final synthetic screenshots](design/screenshots/client-performance/README.md)
+show quiet loading, background recovery and desktop/mobile editing.
+
 See [cache ownership and integration](development/client-cache.md) when adding
 workspace actions or resource families. No schema migration is required.
 

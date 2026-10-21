@@ -20,6 +20,11 @@ Use `useWorkspaceCache()` and the query factories in
   begun before a newer snapshot cannot overwrite it.
 - `resource<T>(path, body)` handles projects, preferences, models, usage, connection
   metadata, briefs, revision history and conversations/search. POST search is a read.
+- `relationships(filters)` owns canonical connection pages, normalized graph
+  endpoint sets and cursor retries. Closed Linked notes fetches nothing; expansion
+  reads batched titles/evidence rather than making per-note title requests. Fresh
+  reopenings reuse those pages. Pending processing polls every 15s for up to two
+  minutes while visible; ordinary freshness is 15s.
 - `fetch` / `fetchNote` support imperative consumers with a temporary observer.
   Consumers share a miss; leaving one consumer does not cancel another's request.
   Pass a consumer signal so its subscription is released on departure.
@@ -43,6 +48,9 @@ membership is server-owned. Note changes cover the old/new notebook, global list
 search, briefs and history; conversation apply/undo refreshes note dependencies.
 Notebook patches preserve the directory's previous freshness timestamp. A single
 create response cannot become a supposedly complete project directory.
+Source changes invalidate the relationship family and remove affected evidence
+before late reads can restore it. Notebook edits and review/retry actions also
+invalidate that family; review does not refresh unrelated note lists.
 
 Cross-tab messages contain only resource names, note IDs and notebook scopes.
 They carry no content, search text, credentials or drafts. Failed/uncertain note
@@ -56,11 +64,16 @@ Fetched snapshots are separate from `NoteDraftsProvider`. A dirty draft keeps it
 original version and uncertain save request; a newer fetched version becomes a
 reviewable conflict. Later-version idempotent replay also requires explicit review.
 Revalidation never silently gives that draft permission to overwrite another edit.
+Row deletion holds autosave and settles uncertain saves through the same scoped
+transport. A replay returning a later version keeps the original draft base and
+reviewable latest version, including after cancelling and reopening deletion.
+Exports are session-owned and retain their local snapshot through first-save routing.
 
 The Notes drawer/editor and secondary notebook panels load on demand, with an
-in-place chunk retry. Note hover/focus can preload the reader. Linked titles load
-only on expansion, reusing note snapshots and limiting misses to four concurrent
-requests. Hidden mobile notebook previews stay idle. Keep these boundaries when
+in-place chunk retry. Note hover/focus can preload the reader. Canonical connections
+load only on expansion; notebook connection panels are deferred too. This supersedes
+the original four-worker legacy title loader. Hidden mobile notebook previews stay
+idle. Keep these boundaries when
 changing reader/toolbars/actions; an eager reader import in the Notes entry brings
 the editor back into the initial bundle.
 
