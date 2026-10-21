@@ -4,8 +4,11 @@ import { createRuntime } from "./runtime.ts";
 import { camelRows, tenant } from "@lib/database";
 import { deliverEmail } from "./mail.ts";
 import { JobBroker, type JobEnvelope } from "./broker.ts";
+import { closeTelemetry, telemetry } from "@lib/telemetry";
+import { withTelemetry } from "@lib/telemetry/context";
 
 const runtime = await createRuntime();
+const reporter = telemetry("worker");
 const clerk = createClerkClient({ secretKey: runtime.env.CLERK_SECRET_KEY });
 const controller = new AbortController();
 process.once("SIGTERM", () => controller.abort());
@@ -29,7 +32,8 @@ const recipient = async (subject: string) => {
   );
 };
 const run = async (job: JobEnvelope) => {
-  if (job.kind === "memory") await runtime.memories.runJob(job.id);
+  if (job.kind === "memory")
+    await withTelemetry(reporter, () => runtime.memories.runJob(job.id));
   else if (mail) await deliverEmail(runtime.db, mail, recipient, job.id);
 };
 const broker = runtime.env.AMQP_URL
@@ -38,9 +42,11 @@ const broker = runtime.env.AMQP_URL
 let reconnectAt = 0;
 try {
   while (!controller.signal.aborted) {
+    const iterationStarted = performance.now();
     try {
       await runtime.models.refresh();
       if (Date.now() > maintenanceAt) {
+        const started = performance.now();
         await runtime.db.raw("SELECT grove_sweep_deliveries()");
         await runtime.memories.maintenance(async (subject) => {
           try {
@@ -53,6 +59,7 @@ try {
         const scheduled = await runtime.memories.scheduleOrganization(
           runtime.env.ORGANIZATION_INTERVAL_SECONDS,
         );
+        reporter.operation("maintenance", started, "success");
         if (scheduled.accounts)
           console.info(
             JSON.stringify({ code: "organization_scheduled", ...scheduled }),
@@ -92,14 +99,15 @@ try {
       }
       const work = await Promise.all(
         Array.from({ length: runtime.env.AI_CONCURRENCY }, () =>
-          runtime.memories.runJob(),
+          withTelemetry(reporter, () => runtime.memories.runJob()),
         ),
       );
       if (mail) work.push(await deliverEmail(runtime.db, mail, recipient));
       if (!work.some(Boolean))
         await setTimeout(1000, undefined, { signal: controller.signal });
-    } catch {
+    } catch (error) {
       if (!controller.signal.aborted) {
+        reporter.operation("job_run", iterationStarted, "error", {}, error);
         console.error(JSON.stringify({ code: "worker_retry" }));
         await setTimeout(5000, undefined, { signal: controller.signal }).catch(
           () => {},
@@ -110,4 +118,5 @@ try {
 } finally {
   await broker?.close();
   await runtime.close();
+  await closeTelemetry();
 }

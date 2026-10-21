@@ -45,6 +45,20 @@ export const conversationReplySchema = z
     proposal: noteProposalSchema.nullable(),
   })
   .strict();
+// Tool providers can encode nullable objects as {}, losing the distinction between
+// no action and an incomplete action. Empty arrays represent absence on the wire;
+// the public conversation contract still exposes a single proposal or null.
+export const conversationGenerationSchema = conversationReplySchema
+  .omit({ proposal: true })
+  .extend({
+    proposals: z
+      .array(
+        noteProposalSchema.extend({
+          target: z.array(sourceRefSchema).max(1),
+        }),
+      )
+      .max(1),
+  });
 export type ConversationScope = z.infer<typeof conversationScopeSchema>;
 export type ConversationCreate = z.infer<typeof conversationCreateSchema>;
 export type ConversationTurnRequest = z.infer<typeof conversationTurnSchema>;

@@ -24,6 +24,7 @@ import {
   activationInstructions,
 } from "./install.ts";
 import { openBrowser } from "./browser.ts";
+import { telemetry } from "@lib/telemetry";
 
 export const cloudOrigin = "https://api.usegrove.cloud";
 export type LoginOptions = {
@@ -235,6 +236,7 @@ export async function connectAgent(
       "Launch your agent with the same GROVE_API_URL and GROVE_API_KEY environment.",
     );
   const activation = activationInstructions(agent);
+  telemetry(agent).capture("agent_connected", { agent });
   if (options.json)
     console.log(
       JSON.stringify({

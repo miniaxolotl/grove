@@ -143,7 +143,7 @@ function SearchDialog({ close }: { close: () => void }) {
           onValueChange={setScope}
           leading={[
             { value: "all", label: "All notes" },
-            { value: "personal", label: "Personal" },
+            { value: "personal", label: "Unfiled" },
           ]}
         />
         <div className="quick-search-results" aria-busy={!current}>
@@ -174,7 +174,7 @@ function SearchDialog({ close }: { close: () => void }) {
                     <small>
                       {notebookPath(projects, note.projectId)
                         .map((p) => p.name)
-                        .join(" / ") || "Personal"}
+                        .join(" / ") || "Unfiled"}
                     </small>
                     <p>{memoryExcerpt(note, 140)}</p>
                   </span>

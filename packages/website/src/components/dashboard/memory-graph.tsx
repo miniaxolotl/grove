@@ -252,7 +252,7 @@ function layout(
       memory,
       project:
         projects.find((project) => project.id === memory.projectId)?.name ??
-        "Personal",
+        "Unfiled",
       color: notebookColor(memory.projectId),
       degree: degree.get(memory.id)!.size,
     },
@@ -327,7 +327,7 @@ export default function MemoryGraph({
     ...new Set(visibleItems.map((item) => item.projectId)),
   ].map((id) => ({
     id,
-    name: projects.find((project) => project.id === id)?.name ?? "Personal",
+    name: projects.find((project) => project.id === id)?.name ?? "Unfiled",
     count: visibleItems.filter((item) => item.projectId === id).length,
     color: notebookColor(id),
   }));
@@ -434,7 +434,7 @@ export default function MemoryGraph({
             <h3>{memoryTitle(active)}</h3>
             <span className="graph-inspector-notebook">
               {projects.find((project) => project.id === active.projectId)
-                ?.name ?? "Personal"}
+                ?.name ?? "Unfiled"}
             </span>
             <p>{memoryExcerpt(active, 260)}</p>
             <Button variant="secondary" onClick={() => onOpen(active)}>

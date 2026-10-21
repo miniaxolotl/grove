@@ -480,12 +480,12 @@ export function AskGrove({
                 }}
                 leading={[
                   { value: "all", label: "All notes" },
-                  { value: "personal", label: "Personal" },
+                  { value: "personal", label: "Unfiled" },
                 ]}
               />
             ) : (
               <span>
-                {projects.find((p) => p.id === projectId)?.name ?? "Personal"}
+                {projects.find((p) => p.id === projectId)?.name ?? "Unfiled"}
               </span>
             )}
             {scope !== "all" && scope !== "personal" && (
@@ -499,7 +499,7 @@ export function AskGrove({
                     setPersonal(e.target.checked);
                   }}
                 />
-                Include personal notes
+                Include unfiled notes
               </label>
             )}
           </div>
@@ -703,7 +703,7 @@ export function AskGrove({
                     {chat.scope.projectId === undefined
                       ? "All notes"
                       : (projects.find((p) => p.id === chat.scope.projectId)
-                          ?.name ?? "Personal")}{" "}
+                          ?.name ?? "Unfiled")}{" "}
                     · {new Date(chat.updatedAt).toLocaleDateString()}
                   </small>
                 </button>

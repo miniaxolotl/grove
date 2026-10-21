@@ -1,5 +1,55 @@
 # Product observability
 
+## Verified delivery
+
+Website release **1.6.0** passed protected source CI, promotion #40 and live
+browser acceptance. PostHog indexes the exact production release, opt-out clears
+both tabs and only a fresh identity resumes collection. A sampled recording was
+decoded locally and read back from PostHog; private markers were absent and text
+was masked. Sentry event `8e304a9ab2c94c26a48bd10e2fda575a` resolves the deployed
+JavaScript coordinate to `packages/website/src/lib/diagnostics.ts`.
+
+The native/service slice passes 60 PostgreSQL/provider/client/SDK checks,
+five production-configured packed-artifact checks, root/website lint/types/builds,
+five relevant browser scenarios, 17 release/deployment contracts and workflow lint.
+These include stalled response bodies, silent bounded shutdown, host SDK isolation,
+concurrent first-workspace creation, commit/rollback/replay conversion semantics,
+chat apply/undo, model usage accounting and browser/API opt-out propagation.
+Its production ingestion and symbolication acceptance follows the new release.
+
+## Service and developer-tool collection
+
+`lib/telemetry` is shared by the API, worker, CLI, MCP bridge and agent adapters.
+Official production builds embed only public ingestion credentials and the admitted
+source SHA. Local, staging, CI and private-mode execution is inert. The server also
+requires `GROVE_TELEMETRY_ENABLED=true` at runtime. Upload credentials and the
+server account-pseudonym salt never enter client builds.
+
+- CLI preference: `grove telemetry status|disable|enable`, `GROVE_TELEMETRY=0`,
+  or `DO_NOT_TRACK=1`. The protected local identity is separate from credentials;
+  disabling or switching accounts invalidates running generations and queued sends.
+- Request opt-out travels through the authenticated BFF/CLI to the API. Browser,
+  installation and server account pseudonyms remain separate. Background operations
+  use an ephemeral service identity rather than account identifiers.
+- Workspace creation, notebook creation, new memory creation and completed chat
+  replies are emitted only after durable success. Idempotent repeats, edits,
+  rolled-back writes and denied requests do not produce creation conversions.
+- Provider/role/outcome/token/timing metadata is projected explicitly; no model
+  prompts, responses, embeddings, notebook names, Git origins, file paths, keys,
+  headers or bodies are collected. Custom model names are not sent.
+- Sentry clients are isolated from the host agent: no global handlers or context
+  strategy replacement. Error frames retain only emitted entrypoint filenames and
+  coordinates; exact-source maps resolve them privately. Operations emit sampled
+  spans, numeric metrics and fixed-message logs.
+- Queues are bounded at 128 records. Enqueue never waits for a provider; requests
+  time out, provider failures open a short drop window, and shutdown waits at most
+  550 ms (50 ms for optional context hooks). Every upload rechecks collection.
+
+Production release uploads `grove-api@<source>`, `grove-cli@<source>` and
+`grove-opencode@<source>` source maps before publication. API and worker share
+Sentry `grove-api`; developer tools share `grove-cli`. PostHog project remains
+677268. Native/service production acceptance follows the coordinated release.
+
 ## Website and workspace
 
 Production uses the US PostHog **Grove** project (`677268`) and Sentry

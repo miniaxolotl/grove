@@ -6,6 +6,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@lib/shared": "workspace:*",
+    "@lib/telemetry": "workspace:*",
     "zod": "~4.1.8"
   }
 }

@@ -180,6 +180,18 @@ export const privacy: LegalDocument = {
             contain no memory text.
           </p>
           <p>
+            Official production CLI and agent integrations collect anonymous,
+            content-free command and connection outcomes, model-request timings,
+            and sanitized diagnostics. A private random installation identity
+            resets on account changes. Run <code>grove telemetry disable</code>
+            or set <code>DO_NOT_TRACK=1</code> or <code>GROVE_TELEMETRY=0</code>
+            to disable collection. CI, private mode and development builds do not
+            collect. Browser and CLI opt-outs also accompany their API requests.
+            Hosted activation events use a server-keyed account pseudonym,
+            without linking it to browser or installation identities. Background
+            reliability metrics are aggregate, without account identifiers.
+          </p>
+          <p>
             Authentication uses cookies or similar session storage needed to
             keep you signed in. The CLI keeps protected credentials on your
             machine, partitioned by API origin, agent, and account.

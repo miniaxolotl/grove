@@ -55,6 +55,10 @@ jobs:
       DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
       RELEASE_SOURCE_SHA: ${{ needs.candidate.outputs.sha }}
       RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
+      GROVE_TELEMETRY_BUILD: production
+      GROVE_POSTHOG_KEY: ${{ secrets.GROVE_POSTHOG_KEY }}
+      GROVE_CLI_SENTRY_DSN: ${{ secrets.GROVE_CLI_SENTRY_DSN }}
+      GROVE_API_SENTRY_DSN: ${{ secrets.GROVE_API_SENTRY_DSN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,6 +73,10 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Upload exact-source diagnostics maps and release linkage
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: node scripts/release/telemetry-release.mjs
       - run: pnpm test:artifacts
       - name: Preflight credentials, target and every package
         run: |
@@ -113,6 +121,12 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
+          build-args: |
+            GROVE_TELEMETRY_BUILD=production
+            RELEASE_SOURCE_SHA=${{ needs.candidate.outputs.sha }}
+            GROVE_POSTHOG_KEY=${{ secrets.GROVE_POSTHOG_KEY }}
+            GROVE_CLI_SENTRY_DSN=${{ secrets.GROVE_CLI_SENTRY_DSN }}
+            GROVE_API_SENTRY_DSN=${{ secrets.GROVE_API_SENTRY_DSN }}
           push: true
           tags: ghcr.io/miniaxolotl/grove:sha-${{ needs.candidate.outputs.sha }}
           labels: |

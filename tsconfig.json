@@ -14,6 +14,7 @@
     "lib/database/**/*.ts",
     "lib/memory/src/**/*.ts",
     "lib/integration-core/src/**/*.ts",
+    "lib/telemetry/src/**/*.ts",
     "lib/shared/src/contracts.ts",
     "lib/shared/src/models.ts",
     "packages/api/src/**/*.ts",

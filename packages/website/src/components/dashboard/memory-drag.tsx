@@ -60,7 +60,7 @@ const destinationCoordinates: KeyboardCoordinateGetter = (
   return { x: rect.left + 4, y: rect.top + 4 };
 };
 
-/** One drag surface spans navigation, notes, journal and notebook organization. */
+/** One drag surface spans navigation, notes and notebook organization. */
 export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const notebooks = useNotebooks();
   const [active, setActive] = useState<WorkspaceDragItem | null>(null);
@@ -151,7 +151,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           .join(" / ")
       : item.kind === "notebook"
         ? "Top level"
-        : "Personal";
+        : "Unfiled";
     setNotice(
       completed.length
         ? `${completed.length} ${item.kind === "notebook" ? "notebook" : completed.length === 1 ? "note" : "notes"} moved to ${name}.`
@@ -247,8 +247,8 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             <div>
               <NotebookDropTarget
                 projectId={null}
-                name={active.kind === "notebook" ? "Top level" : "Personal"}
-                root
+                name={active.kind === "notebook" ? "Top level" : "Unfiled"}
+                root={active.kind === "notebook"}
               />
               {notebookOptions(notebooks.projects).map((option) => (
                 <NotebookDropTarget
@@ -334,7 +334,7 @@ export function useNotebookDrop(
         notebookPath(projects, projectId).some(
           (p) => p.id === active.project.id,
         )
-      : (!projectId && root && name !== "Personal") ||
+      : (!projectId && root) ||
         active.items.every((note) => note.projectId === projectId));
   const drop = useDroppable({
     id,
@@ -362,9 +362,7 @@ export function NotebookDropTarget({
     <div
       ref={setNodeRef}
       className="notebook-drop-target"
-      data-destination={
-        projectId ?? (root && name !== "Personal" ? "root" : "personal")
-      }
+      data-destination={projectId ?? (root ? "root" : "personal")}
       data-drop-active={isOver || undefined}
       data-drop-disabled={(dragging && invalid) || undefined}
     >

@@ -8,6 +8,7 @@ import {
   InferenceError,
 } from "@lib/ai";
 import { modelConfigSchema, organizationSchema } from "@lib/shared/models";
+import { withTelemetry, type TelemetrySink } from "@lib/telemetry/context";
 
 type FixtureRequest = {
   model: string;
@@ -248,4 +249,86 @@ test("transport redacts provider errors, bounds response bodies, refuses redirec
     { code: "provider_timeout" },
   );
   assert(Date.now() - started < 1500);
+});
+
+test("real model requests expose only usage and outcome metadata while preserving caller accounting", async () => {
+  const records: unknown[] = [];
+  const sink: TelemetrySink = {
+    capture(event, properties) {
+      records.push({ event, properties });
+    },
+    operation(operation, _started, result, properties) {
+      records.push({ operation, result, properties });
+    },
+  };
+  let callbacks = 0;
+  const settings = {
+    ...config().generation,
+    model: "PRIVATE_MODEL",
+    apiKey: "PRIVATE_KEY",
+  };
+  const provider = createGenerationProvider(settings);
+  respond = (_body, response) =>
+    json(response, {
+      usage: { prompt_tokens: 75, completion_tokens: 12 },
+      choices: [
+        {
+          finish_reason: "tool_calls",
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: "record_result",
+                  arguments: JSON.stringify({
+                    title: "PRIVATE_RESULT",
+                    tags: [],
+                  }),
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  await withTelemetry(sink, async () => {
+    const value = await provider.generate(
+      organizationSchema,
+      "PRIVATE_PROMPT",
+      [{ ...source, content: "PRIVATE_NOTE" }],
+      {
+        onUsage(usage) {
+          callbacks++;
+          assert.deepEqual(usage, { inputTokens: 75, outputTokens: 12 });
+        },
+      },
+    );
+    assert.equal(value.title, "PRIVATE_RESULT");
+    respond = (_body, response) => {
+      response.statusCode = 503;
+      response.end("PRIVATE_UPSTREAM");
+    };
+    await assert.rejects(
+      provider.generate(organizationSchema, "PRIVATE_RETRY", []),
+    );
+  });
+  assert.equal(callbacks, 1);
+  assert.equal(records.length, 4);
+  assert.ok(!JSON.stringify(records).includes("PRIVATE"));
+  const events = records as {
+    event?: string;
+    properties: { outcome: string; provider: string; input_tokens: number };
+  }[];
+  assert.deepEqual(
+    events
+      .filter((record) => record.event === "$ai_generation")
+      .map((record) => [
+        record.properties.provider,
+        record.properties.outcome,
+        record.properties.input_tokens,
+      ]),
+    [
+      ["custom", "success", 75],
+      ["custom", "unavailable", 0],
+    ],
+  );
 });
