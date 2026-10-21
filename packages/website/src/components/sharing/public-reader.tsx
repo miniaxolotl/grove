@@ -1,13 +1,19 @@
 import {
   ArrowLeft,
   ArrowRight,
+  ChevronRight,
+  Eye,
   FileText,
   Folder,
-  LockKeyhole,
 } from "lucide-react";
 import type { PublicShare } from "@lib/shared/sharing";
 import { site } from "@/lib/site";
 import { Markdown } from "@/components/dashboard/markdown";
+
+const dateFormat = new Intl.DateTimeFormat("en", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 export function PublicReader({
   data,
@@ -31,13 +37,13 @@ export function PublicReader({
     <article className="shared-reader" data-shared-content data-private>
       {path !== root && data.kind === "notebook" && (
         <a className="shared-back" href={root}>
-          <ArrowLeft size={16} />
+          <ArrowLeft size={16} aria-hidden="true" />
           {data.root.name}
         </a>
       )}
       <header className="shared-heading">
         <p className="shared-eyebrow">
-          <LockKeyhole size={14} />
+          <Eye size={14} aria-hidden="true" />
           Shared {data.note ? "note" : "notebook"} · Read only
         </p>
         <h1>{title || "Untitled note"}</h1>
@@ -45,10 +51,7 @@ export function PublicReader({
           <p className="shared-date">
             Updated{" "}
             <time dateTime={data.note.updatedAt}>
-              {new Intl.DateTimeFormat("en", {
-                dateStyle: "medium",
-                timeZone: "UTC",
-              }).format(new Date(data.note.updatedAt))}
+              {dateFormat.format(new Date(data.note.updatedAt))}
             </time>
           </p>
         )}
@@ -72,9 +75,9 @@ export function PublicReader({
                 {data.notebooks.map((notebook) => (
                   <li key={notebook.id}>
                     <a href={`${root}/notebooks/${notebook.id}`}>
-                      <Folder size={18} />
+                      <Folder size={17} aria-hidden="true" />
                       <span>{notebook.name}</span>
-                      <ArrowRight size={16} />
+                      <ChevronRight size={16} aria-hidden="true" />
                     </a>
                   </li>
                 ))}
@@ -88,9 +91,14 @@ export function PublicReader({
                 {data.notes.map((note) => (
                   <li key={note.id}>
                     <a href={`${root}/notes/${note.id}`}>
-                      <FileText size={18} />
-                      <span>{note.title || "Untitled note"}</span>
-                      <ArrowRight size={16} />
+                      <FileText size={17} aria-hidden="true" />
+                      <span className="shared-note-label">
+                        <span>{note.title || "Untitled note"}</span>
+                        <time dateTime={note.updatedAt}>
+                          Updated {dateFormat.format(new Date(note.updatedAt))}
+                        </time>
+                      </span>
+                      <ChevronRight size={16} aria-hidden="true" />
                     </a>
                   </li>
                 ))}
@@ -106,7 +114,7 @@ export function PublicReader({
               className="shared-next"
               href={`${path}?cursor=${encodeURIComponent(data.nextCursor)}`}
             >
-              More notes <ArrowRight size={16} />
+              More notes <ArrowRight size={16} aria-hidden="true" />
             </a>
           )}
         </>
