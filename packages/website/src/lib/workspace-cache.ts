@@ -70,6 +70,7 @@ export class WorkspaceCache {
   private active = true;
   private lifetime = new AbortController();
   private deleted = new Set<string>();
+  private pendingSince = new WeakMap<object, number>();
   private channel?: BroadcastChannel;
   private timer?: ReturnType<typeof setInterval>;
   private expiry?: ReturnType<typeof setTimeout>;
@@ -226,12 +227,16 @@ export class WorkspaceCache {
       },
       refetchInterval: (query) => {
         const note = query.state.data;
-        return note &&
-          (note.indexing === "pending" ||
-            note.enrichment?.status === "pending") &&
-          Date.now() - Date.parse(note.updatedAt) < 120_000
-          ? 5000
-          : false;
+        if (
+          !note ||
+          (note.indexing !== "pending" && note.enrichment?.status !== "pending")
+        ) {
+          this.pendingSince.delete(query);
+          return false;
+        }
+        const started = this.pendingSince.get(query) ?? Date.now();
+        this.pendingSince.set(query, started);
+        return Date.now() - started < 120_000 ? 5000 : false;
       },
     });
   }
@@ -444,16 +449,27 @@ export class WorkspaceCache {
   private scheduleExpiry() {
     clearTimeout(this.expiry);
     const now = Date.now();
+    // Active paginated lists can outlive the inactive detail-entry cap.
     const boundaries = this.client
       .getQueryCache()
-      .findAll({ queryKey: [...root, "note"] })
+      .getAll()
       .flatMap((query) => {
-        const note = query.state.data as Memory | null;
-        return note
-          ? [note.expiresAt, note.purgeAt].flatMap((value) =>
-              value && Date.parse(value) > now ? [Date.parse(value)] : [],
-            )
-          : [];
+        const kind = query.queryKey[1];
+        const notes =
+          kind === "note"
+            ? [query.state.data as Memory | null]
+            : kind === "notes"
+              ? ((query.state.data as NotePages | undefined)?.pages.flatMap(
+                  (page) => page.items,
+                ) ?? [])
+              : [];
+        return notes.flatMap((note) =>
+          note
+            ? [note.expiresAt, note.purgeAt].flatMap((value) =>
+                value && Date.parse(value) > now ? [Date.parse(value)] : [],
+              )
+            : [],
+        );
       });
     if (!boundaries.length) return;
     this.expiry = setTimeout(

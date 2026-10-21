@@ -333,3 +333,51 @@ test("transient read failures retain useful snapshots, bounded retries exclude d
   expect(operationForRequest("/memories/search", "POST")).toBe("memory_recall");
   expect(operationForRequest("/memories", "POST")).toBe("memory_write");
 });
+
+test("reprocessing an old note polls from observation time and stops at its bound", async () => {
+  const cache = cacheWith(async () => ({ ...note, indexing: "pending" }));
+  const options = cache.note(note.id);
+  await cache.client.fetchQuery(options);
+  const query = cache.client
+    .getQueryCache()
+    .find({ queryKey: options.queryKey })!;
+  const interval = options.refetchInterval as (
+    query: unknown,
+  ) => number | false;
+  const original = Date.now;
+  let now = original();
+  Date.now = () => now;
+  try {
+    expect(interval(query)).toBe(5000);
+    now += 120001;
+    expect(interval(query)).toBe(false);
+    cache.client.setQueryData(options.queryKey, note);
+    expect(interval(query)).toBe(false);
+    cache.client.setQueryData<Memory | null>(options.queryKey, {
+      ...note,
+      indexing: "pending",
+    });
+    expect(interval(query)).toBe(5000);
+  } finally {
+    Date.now = original;
+  }
+});
+
+test("expiry still prunes a list after its inactive detail snapshot is evicted", async () => {
+  const expiring = {
+    ...note,
+    expiresAt: new Date(Date.now() + 150).toISOString(),
+  };
+  const cache = cacheWith(async (path) =>
+    path === "/memories/search"
+      ? { items: [expiring], nextCursor: null }
+      : { ...note, id: "00000000-0000-4000-a000-000000000099" },
+  );
+  const options = cache.notes();
+  await cache.client.fetchInfiniteQuery(options);
+  cache.client.removeQueries({ queryKey: workspaceKeys.note(note.id) });
+  await cache.api("/memories", { content: "Another note reschedules expiry" });
+  await expect
+    .poll(() => cache.client.getQueryData(options.queryKey)?.pages[0].items)
+    .toEqual([]);
+});
