@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./telemetry-fixtures";
 
 const siteURL = new URL(process.env.SITE_URL || "http://localhost:3000").origin;
 

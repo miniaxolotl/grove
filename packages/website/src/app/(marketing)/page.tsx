@@ -20,6 +20,7 @@ import { AgentStory } from "@/components/agent-story";
 import { StructuredData } from "@/components/structured-data";
 import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
+import { HeroCtaCopy } from "@/components/website-telemetry";
 
 export const metadata = pageMetadata(site.title, site.description, "/");
 
@@ -50,8 +51,13 @@ export default async function HomePage() {
             Less searching. More space to think.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link href="/sign-up" className="button-primary">
-              Start your notebook <ArrowRight size={16} />
+            <Link
+              href="/sign-up"
+              className="button-primary"
+              data-analytics-event="cta_clicked"
+              data-analytics-placement="hero"
+            >
+              <HeroCtaCopy /> <ArrowRight size={16} />
             </Link>
             <a
               href="#your-library"

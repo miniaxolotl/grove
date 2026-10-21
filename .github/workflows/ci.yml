@@ -69,6 +69,12 @@ jobs:
       - run: pnpm lint:website
       - run: pnpm check-types:website
       - run: pnpm build:website
+        env:
+          VERCEL_ENV: production
+          NEXT_PUBLIC_POSTHOG_ENABLED: "true"
+          NEXT_PUBLIC_POSTHOG_KEY: phc_playwright_only
+          NEXT_PUBLIC_SENTRY_ENABLED: "true"
+          NEXT_PUBLIC_SENTRY_DSN: https://00000000000000000000000000000000@o0.ingest.us.sentry.io/1
       - run: pnpm --filter website exec playwright install --with-deps chromium
       - run: pnpm test:website
 

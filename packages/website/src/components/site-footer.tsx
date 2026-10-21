@@ -5,6 +5,7 @@ import { BrambleFamily } from "@/components/bramble-family";
 import { GitHubIcon as Github } from "@/components/github-icon";
 import { ShareSite } from "@/components/share-site";
 import { site } from "@/lib/site";
+import { TelemetryChoice } from "@/components/website-telemetry";
 
 export function SiteFooter() {
   const shareText = site.shareText;
@@ -83,6 +84,7 @@ export function SiteFooter() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[10px] text-muted">
           <p>© {new Date().getFullYear()} Bramble Labs Inc.</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <TelemetryChoice />
             <Link
               href="/privacy"
               className="inline-flex min-h-9 items-center hover:text-forest"
