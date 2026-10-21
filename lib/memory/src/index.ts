@@ -46,6 +46,7 @@ import {
 } from "@lib/shared/contracts";
 
 export { ConnectionSetup } from "./connect.ts";
+export { Sharing } from "./sharing.ts";
 
 type Connection = Omit<Grant, "expiresAt"> & {
   id: string;
@@ -1423,6 +1424,12 @@ export class MemoryService {
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });
       await trx("connections").update({ revokedAt: trx.fn.now() });
+      await trx("public_shares").update({
+        revokedAt: trx.fn.now(),
+        tokenDigest: null,
+        tokenCiphertext: null,
+        version: trx.raw("version + 1"),
+      });
       return { status: "deleting" };
     });
   }
@@ -1485,6 +1492,7 @@ export class MemoryService {
           .forUpdate()
           .first();
         if (current.status === "deleting" || current.status === "deleted") {
+          await trx("public_shares").delete();
           await trx("conversations").delete();
           await trx("transactional_emails").delete();
           await trx("jobs").delete();

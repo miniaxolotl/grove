@@ -88,6 +88,13 @@ test("isolated restore replays current deletions and revocations without changin
         model: "fixture",
         dimensions: 384,
       });
+      await db("public_shares").insert({
+        id: randomUUID(),
+        accountId: a,
+        memoryId: keep,
+        tokenDigest: "f".repeat(64),
+        tokenCiphertext: "encrypted-backup-fixture",
+      });
       for (const [id, accountId] of [
         [forgotten, a],
         [erasedAccountMemory, b],
@@ -160,10 +167,29 @@ test("isolated restore replays current deletions and revocations without changin
       id: "session_revoked_after_snapshot",
     });
     await source("connections").update({ capabilities: ["memory:read"] });
+    await source("public_shares").update({
+      revokedAt: source.fn.now(),
+      tokenDigest: null,
+      tokenCiphertext: null,
+    });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
     assert.equal(result.purgedMemories, 2);
     assert.equal(result.blockedAccounts, 1);
+    assert.equal(result.invalidatedShares, 1);
+    const restoredShare = await target("public_shares").first();
+    assert(restoredShare.revokedAt);
+    assert.equal(restoredShare.tokenDigest, null);
+    assert.equal(restoredShare.tokenCiphertext, null);
+    assert.equal(
+      (
+        await target.raw(
+          "SELECT grove_public_share(?, 'root', NULL, NULL, NULL, NULL, 30) AS value",
+          ["f".repeat(64)],
+        )
+      ).rows[0].value,
+      null,
+    );
     assert.deepEqual(await source("accounts").orderBy("id"), before);
     assert.equal((await source("connections").first()).capabilities.length, 1);
     assert.deepEqual(await target("memories").pluck("id"), [keep]);

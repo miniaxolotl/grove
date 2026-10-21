@@ -28,7 +28,13 @@ import {
   uuidSchema,
   type Principal,
 } from "@lib/shared/contracts";
-import { ConnectionSetup, type MemoryService } from "@lib/memory";
+import { ConnectionSetup, Sharing, type MemoryService } from "@lib/memory";
+import {
+  publicShareQuerySchema,
+  shareEnableSchema,
+  shareMutationSchema,
+  shareScopeSchema,
+} from "@lib/shared/sharing";
 import type { Authentication } from "./auth.ts";
 import {
   askSchema,
@@ -52,6 +58,7 @@ export type AppDependencies = {
   webhookSecret: string;
   ready: () => Promise<void>;
   telemetry?: Pick<Reporter, "forIdentity" | "operation">;
+  shareLinkKey?: string;
 };
 type Environment = { Variables: { principal: Principal; requestId: string } };
 
@@ -63,6 +70,8 @@ export function createApp(deps: AppDependencies) {
     c.header("Cache-Control", "private, no-store");
     c.header("X-Content-Type-Options", "nosniff");
     c.header("Referrer-Policy", "no-referrer");
+    if (c.req.path.startsWith("/public/shares/"))
+      c.header("X-Robots-Tag", "noindex, nofollow, noarchive");
     const started = performance.now();
     await next();
     if (
@@ -252,6 +261,94 @@ export function createApp(deps: AppDependencies) {
       );
     return schema.parse({ ...value, ...(key ? { operationId: key } : {}) });
   };
+  const sharing = new Sharing(service, {
+    key: deps.shareLinkKey,
+    siteUrl: deps.siteUrl,
+  });
+  for (const [resource, kind] of [
+    ["memories", "note"],
+    ["projects", "notebook"],
+  ] as const) {
+    app.get(`/v1/${resource}/:id/share`, async (c) =>
+      c.json({
+        success: true,
+        data: await sharing.get(c.get("principal"), {
+          kind,
+          id: uuidSchema.parse(c.req.param("id")),
+        }),
+      }),
+    );
+    app.post(`/v1/${resource}/:id/share`, async (c) =>
+      c.json({
+        success: true,
+        data: await sharing.enable(
+          c.get("principal"),
+          { kind, id: uuidSchema.parse(c.req.param("id")) },
+          await mutation(c, shareEnableSchema),
+        ),
+      }),
+    );
+  }
+  app.patch("/v1/shares/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.change(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        "scope",
+        await mutation(c, shareScopeSchema),
+      ),
+    }),
+  );
+  app.post("/v1/shares/:id/rotate", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.change(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        "rotate",
+        await mutation(c, shareMutationSchema),
+      ),
+    }),
+  );
+  app.delete("/v1/shares/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.change(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        "revoke",
+        await mutation(c, shareMutationSchema),
+      ),
+    }),
+  );
+  app.get("/public/shares/:token", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.read(
+        c.req.param("token"),
+        "root",
+        undefined,
+        publicShareQuerySchema.parse(c.req.query()),
+      ),
+    }),
+  );
+  for (const [resource, kind] of [
+    ["notes", "note"],
+    ["notebooks", "notebook"],
+  ] as const) {
+    app.get(`/public/shares/:token/${resource}/:id`, async (c) =>
+      c.json({
+        success: true,
+        data: await sharing.read(
+          c.req.param("token"),
+          kind,
+          c.req.param("id"),
+          publicShareQuerySchema.parse(c.req.query()),
+        ),
+      }),
+    );
+  }
   app.get("/v1/me", async (c) =>
     c.json({ success: true, data: await service.me(c.get("principal")) }),
   );
