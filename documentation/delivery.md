@@ -1,5 +1,27 @@
 # Delivery evidence
 
+## Stable selection, filters and workspace feedback (21 October 2026 UTC)
+
+Bulk selection shares the existing list header, with mixed selection and keyboard
+focus recovery. Advanced filters open over the list; their count, search-clear and
+sort controls reserve their geometry. Clearing filters preserves the selected sort
+and empty results provide a direct reset. Native dropdowns stay within the active
+popover and dismiss independently.
+
+Global search and the command menu retain their query position through loading,
+matching and empty states. Preference saves provide in-place status, retain newer
+edits made during a pending save, and report errors without shifting the form.
+[Interaction guidance](development/stable-interactions.md) describes the contracts
+and [reviewed captures](design/screenshots/stable-interactions/README.md) show the
+desktop and narrow layouts.
+
+Root lint/types/build and all five packed-artifact checks pass; website lint/types
+and the telemetry-enabled production build pass. All 83 Chromium scenarios and 11
+selected WebKit scenarios pass, including targeted completion after a harness
+restart and a shell timeout. Geometry checks cover 320, 390 and 1440px, mixed/bulk
+selection, nested overlays, search loading and preference-save races. No schema
+migration is required.
+
 ## Google Search Console (21 October 2026 UTC)
 
 The `sc-domain:usegrove.cloud` property is DNS-verified. Google successfully
