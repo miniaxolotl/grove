@@ -2514,6 +2514,134 @@ test("long notebook menus scroll on touch without snapping back to the selected 
   }
 });
 
+test("touch handles activate deliberately, scroll destinations and cancel without a write", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    const state = await fixture(page, [note]);
+    state.projects.push(
+      ...Array.from({ length: 18 }, (_, index) => ({
+        ...project,
+        id: crypto.randomUUID(),
+        name: `Notebook ${String(index).padStart(2, "0")}`,
+      })),
+    );
+    await page.goto(`${base}/app`);
+    const handle = page.locator(".memory-row .drag-handle");
+    await handle.scrollIntoViewIfNeeded();
+    const cdp = await context.newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd" | "touchCancel",
+      x = 0,
+      y = 0,
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints:
+          type === "touchEnd" || type === "touchCancel" ? [] : [{ x, y }],
+      });
+    const pickUp = async () => {
+      const box = (await handle.boundingBox())!;
+      await touch("touchStart", box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page.locator(".memory-drag-preview")).toBeVisible();
+    };
+    await pickUp();
+    const tray = page.locator(".mobile-drop-destinations");
+    const bounds = (await tray.boundingBox())!;
+    await touch(
+      "touchMove",
+      bounds.x + bounds.width / 2,
+      bounds.y + bounds.height - 8,
+    );
+    await expect
+      .poll(() => tray.evaluate((el) => el.scrollTop))
+      .toBeGreaterThan(20);
+    const cancel = page.getByRole("button", { name: "Drop here to cancel" });
+    const cancelBox = (await cancel.boundingBox())!;
+    await touch(
+      "touchMove",
+      cancelBox.x + cancelBox.width / 2,
+      cancelBox.y + cancelBox.height / 2,
+    );
+    await expect(cancel).toHaveAttribute("data-drop-active", "true");
+    await touch("touchEnd");
+    await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+    expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+      0,
+    );
+    await pickUp();
+    const destination = page.locator(
+      `.mobile-drop-tray [data-destination="${state.projects[1].id}"]`,
+    );
+    const target = (await destination.boundingBox())!;
+    await touch(
+      "touchMove",
+      target.x + target.width / 2,
+      target.y + target.height / 2,
+    );
+    await expect(destination).toHaveAttribute("data-drop-active", "true");
+    await touch("touchEnd");
+    await expect(page.locator(".workspace-notice")).toContainText(
+      "1 note moved",
+    );
+    expect(state.records.get(note.id)?.projectId).toBe(state.projects[1].id);
+    expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+      1,
+    );
+  } finally {
+    await context.close();
+  }
+});
+
+test("pen pickup cancels when its source disappears during navigation", async ({
+  page,
+  context,
+}) => {
+  const state = await fixture(page, [note]);
+  await page.goto(`${base}/app`);
+  const box = (await page.locator(".memory-row .drag-handle").boundingBox())!;
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    button: "left",
+    buttons: 1,
+    x: box.x + 10,
+    y: box.y + 10,
+    pointerType: "pen",
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    button: "left",
+    buttons: 1,
+    x: box.x + 30,
+    y: box.y + 10,
+    pointerType: "pen",
+  });
+  await expect(page.locator(".memory-drag-preview")).toBeVisible();
+  await page.evaluate(() => {
+    history.pushState(null, "", "/app/ask");
+    dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    button: "left",
+    buttons: 0,
+    x: box.x + 30,
+    y: box.y + 10,
+    pointerType: "pen",
+  });
+  expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+    0,
+  );
+});
+
 test("row actions have one owner, Escape restores focus and an interrupted swipe never consumes the next tap", async ({
   browser,
 }) => {

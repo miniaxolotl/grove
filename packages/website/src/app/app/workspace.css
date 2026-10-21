@@ -671,6 +671,31 @@ html:has(.grove-app) {
 .mobile-drop-tray {
   display: none;
 }
+.drag-cancel-target {
+  position: fixed;
+  z-index: 46;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px dashed #9ba993;
+  border-radius: 8px;
+  background: #f8faf6;
+  color: #33482d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.drag-cancel-target[data-drop-active] {
+  background: #e6efdc;
+  outline: 2px solid #63834e;
+}
 .memory-drag-preview,
 .workspace-notice {
   font-family: var(--font-space-grotesk), Arial, sans-serif;
@@ -1003,7 +1028,9 @@ html:has(.grove-app) {
     display: block;
     position: fixed;
     z-index: 45;
-    inset: auto 8px 8px;
+    inset: auto max(8px, env(safe-area-inset-right))
+      calc(64px + env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
     padding: 10px;
     border: 1px solid #bac8b1;
     border-radius: 10px;
@@ -1014,19 +1041,21 @@ html:has(.grove-app) {
     font-size: 11px;
     color: #52634a;
   }
-  .mobile-drop-tray > div {
+  .mobile-drop-destinations {
     display: flex;
+    flex-direction: column;
     gap: 6px;
-    overflow-x: auto;
+    max-height: 30dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding-top: 6px;
   }
   .mobile-drop-tray .notebook-drop-target {
     flex: 0 0 auto;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: 12px;
+    margin: 0;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+    padding: 10px;
   }
 }
 @media (max-width: 600px) {
