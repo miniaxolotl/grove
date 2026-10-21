@@ -12,16 +12,15 @@ export function HowItWorks() {
       <div className="page-container section-space relative">
         <div className="section-intro">
           <div>
-            <p className="eyebrow text-lime/75">START SMALL. MAKE IT YOURS.</p>
+            <p className="eyebrow text-lime/75">GET STARTED</p>
             <h2 id="how-heading" className="section-heading mt-4">
-              A few words.
+              Open Grove.
               <br />
-              <em className="text-lime!">A little more clarity.</em>
+              <em className="text-lime!">Write your first note.</em>
             </h2>
           </div>
           <p className="text-paper/65!">
-            No perfect system to set up. Just open your notebook and start with
-            what’s on your mind.
+            Start in your browser. Organize as you go.
           </p>
         </div>
 
@@ -29,21 +28,20 @@ export function HowItWorks() {
           {[
             {
               number: "01",
-              title: "Open a little space.",
-              description:
-                "Create your account and open Grove in your browser. Your notebook is ready for a first thought.",
+              title: "Create an account.",
+              description: "Sign up and open your private notebook.",
             },
             {
               number: "02",
-              title: "Keep what matters.",
+              title: "Save a note.",
               description:
-                "Write a note, make a plan, or add a journal entry. Give related ideas a notebook of their own.",
+                "Write a plan, idea or journal entry. Group related pages into notebooks.",
             },
             {
               number: "03",
-              title: "Find your next thought.",
+              title: "Find it again.",
               description:
-                "Search in your own words, ask Grove a question, or explore the connections between your notes.",
+                "Search by meaning or ask a question. Follow answers back to your notes.",
             },
           ].map(({ number, title, description }) => (
             <li key={number}>

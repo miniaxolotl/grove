@@ -25,9 +25,9 @@ export default async function InstallPage() {
       <div className="mt-9 max-w-2xl">
         <p className="eyebrow">CONNECT TO GROVE CLOUD</p>
         <h1 className="section-heading mt-4 text-[56px]! sm:text-[72px]!">
-          A home for your
+          Give your agent
           <br />
-          <em>agent’s memory.</em>
+          <em>a memory.</em>
         </h1>
         <p className="mt-6 max-w-lg text-sm leading-7 text-muted">
           Choose your agent, run one command, and sign in. Grove takes care of
@@ -58,7 +58,7 @@ export default async function InstallPage() {
           {[
             { label: "Server & tool reference", href: site.docs },
             { label: "OpenCode plugin", href: site.pluginDocs },
-            { label: "Grove Open Source · Self-hosting", href: "/self-host" },
+            { label: "Grove Open Source and Self-hosting", href: "/self-host" },
           ].map(({ label, href }) => (
             <a
               key={label}

@@ -28,29 +28,28 @@ export function LibraryPreview() {
     >
       <div className="page-container library-layout">
         <div data-reveal>
-          <p className="eyebrow">A HOME FOR THE WHOLE PICTURE</p>
+          <p className="eyebrow">TRY THE NOTEBOOK</p>
           <h2 className="section-heading mt-4" id="library-heading">
-            Life has a lot
+            Your notes.
             <br />
-            <em>of little threads.</em>
+            <em>Easy to find.</em>
           </h2>
           <p className="library-description">
-            The trip you’re planning. The idea that arrived on a walk. What you
-            learned about yourself today. Keep it all in notebooks that feel
-            like yours, and follow the connections when you’re ready.
+            Keep plans, ideas and daily notes together. Browse by notebook, date
+            or connection.
           </p>
           <ul className="library-benefits">
             <li>
               <Search size={17} aria-hidden="true" />
-              <span>Find a note, even when the exact words escape you</span>
+              <span>Search by meaning</span>
             </li>
             <li>
               <NotebookPen size={17} aria-hidden="true" />
-              <span>Start a dated note for whatever’s on your mind</span>
+              <span>Write a daily note</span>
             </li>
             <li>
               <Network size={17} aria-hidden="true" />
-              <span>Explore the ideas that belong together</span>
+              <span>Explore related ideas</span>
             </li>
           </ul>
           <Link href="/sign-up" className="button-primary">
@@ -93,7 +92,7 @@ export function LibraryPreview() {
                 <>
                   <div className="library-search">
                     <Search size={14} aria-hidden="true" />
-                    <span>Find something worth coming back to…</span>
+                    <span>Search your notes</span>
                   </div>
                   <article className="library-memory">
                     <span className="library-kind">For home</span>
@@ -134,7 +133,7 @@ export function LibraryPreview() {
                   {[
                     {
                       title: "A small win",
-                      text: "Made time for a walk before the day got busy. I’d like to do that more often.",
+                      text: "Went for a walk before work. I want to do that more often.",
                     },
                     {
                       title: "Something worth noticing",
@@ -167,7 +166,7 @@ export function LibraryPreview() {
             </div>
           ))}
           <p className="library-disclaimer">
-            Example notes · your private notebook starts with what you save
+            Example notes. Your notebook starts with what you save.
           </p>
         </div>
       </div>

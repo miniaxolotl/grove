@@ -20,13 +20,13 @@ const examples = [
     notebook: "Japan trip",
     title: "Stay in Kyoto",
     saved:
-      "Stay in Kyoto for four nights. A small guesthouse near the river, with time for gardens and neighborhood cafés.",
+      "Stay in Kyoto for four nights. A small guesthouse near the river, with time for gardens and local cafes.",
     prompt: "Where did I want to stay in Kyoto?",
     query: "Your Kyoto plans",
     response:
-      "You’re looking for a small guesthouse near the river, for four nights. You wanted time to explore gardens and neighborhood cafés.",
+      "You want a small guesthouse near the river for four nights, with time for gardens and local cafes.",
     without:
-      "There isn’t a saved note about your Kyoto plans yet. Add the details you’d like to come back to.",
+      "No saved note about your Kyoto plans yet. Add the details you want to keep.",
   },
   {
     value: "preferences",
@@ -41,7 +41,7 @@ const examples = [
     response:
       "Something vegetarian, made in one pan, with minimal prep and enough leftovers for another day.",
     without:
-      "There isn’t a saved note about your dinner preferences yet. Add what works for you, so it’s easy to find next time.",
+      "No saved note about your dinner preferences yet. Add what works for you.",
   },
   {
     value: "ideas",
@@ -56,7 +56,7 @@ const examples = [
     response:
       "Start with mint and rosemary in the sunny corner. For the first weekend, you planned to get two pots and good soil.",
     without:
-      "There isn’t a saved note about the balcony yet. Capture your idea now, and you can pick it up later.",
+      "No saved note about the balcony yet. Save your idea to find it later.",
   },
 ];
 
@@ -124,7 +124,7 @@ export function MemoryDemo() {
                 </div>
                 <h3 className="mb-3 text-base font-medium">{example.title}</h3>
                 <p className="font-editorial text-[23px] leading-[1.4] text-forest">
-                  “{example.saved}”
+                  {example.saved}
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2 text-[10px] text-muted">
                   <span className="rounded bg-sage px-2 py-1">
@@ -188,7 +188,7 @@ export function MemoryDemo() {
                       <Search size={12} className="mt-1 shrink-0" />
                       <span>
                         Found in{" "}
-                        <span className="text-muted">“{example.query}”</span>
+                        <span className="text-muted">{example.query}</span>
                       </span>
                     </div>
                     <div className="flex items-start gap-3">
@@ -207,7 +207,7 @@ export function MemoryDemo() {
                           className="demo-source"
                           aria-label={`View note: ${example.title}`}
                         >
-                          1 · {example.title}
+                          1. {example.title}
                         </a>
                       </div>
                     </div>

@@ -57,7 +57,7 @@ export function SiteFooter() {
                 rel="noopener noreferrer"
                 aria-label="Share Grove on X (opens a new tab)"
               >
-                X ↗
+                X <ArrowUpRight size={12} aria-hidden="true" />
               </a>
               <a
                 className="footer-link text-[11px]!"
@@ -66,7 +66,7 @@ export function SiteFooter() {
                 rel="noopener noreferrer"
                 aria-label="Share Grove on LinkedIn (opens a new tab)"
               >
-                LinkedIn ↗
+                LinkedIn <ArrowUpRight size={12} aria-hidden="true" />
               </a>
               <a
                 className="footer-link text-[11px]!"
@@ -75,14 +75,14 @@ export function SiteFooter() {
                 rel="noopener noreferrer"
                 aria-label="Share Grove on Bluesky (opens a new tab)"
               >
-                Bluesky ↗
+                Bluesky <ArrowUpRight size={12} aria-hidden="true" />
               </a>
             </div>
           </div>
         </div>
         <BrambleFamily current="grove" />
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[10px] text-muted">
-          <p>© {new Date().getFullYear()} Bramble Labs Inc.</p>
+          <p>Copyright {new Date().getFullYear()} Bramble Labs Inc.</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <TelemetryChoice />
             <Link
@@ -113,7 +113,7 @@ export function SiteFooter() {
               href="#top"
               className="inline-flex min-h-9 items-center gap-1 hover:text-forest"
             >
-              Back to top ↑
+              Back to top
             </a>
           </div>
         </div>
