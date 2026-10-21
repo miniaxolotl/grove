@@ -553,17 +553,22 @@ export class WorkspaceCache {
       } else if (path.startsWith("/projects")) {
         const project = result as Notebook;
         const key = workspaceKeys.resource("/projects");
+        const previous = this.client.getQueryState(key);
         void this.client.cancelQueries({ queryKey: key });
-        if (project?.id)
-          this.client.setQueryData<Notebook[]>(key, (old) => {
-            const current = old?.find((item) => item.id === project.id);
-            return current && (current.version ?? 0) > (project.version ?? 0)
-              ? old
-              : [
-                  ...(old ?? []).filter((item) => item.id !== project.id),
-                  project,
-                ];
-          });
+        if (project?.id && previous?.data)
+          this.client.setQueryData<Notebook[]>(
+            key,
+            (old) => {
+              const current = old?.find((item) => item.id === project.id);
+              return current && (current.version ?? 0) > (project.version ?? 0)
+                ? old
+                : [
+                    ...(old ?? []).filter((item) => item.id !== project.id),
+                    project,
+                  ];
+            },
+            { updatedAt: previous.dataUpdatedAt },
+          );
         else this.invalidate({ resource: "/projects" });
         this.publish?.({ resource: "/projects" });
       } else if (path.startsWith("/conversations")) {
@@ -621,6 +626,9 @@ export class WorkspaceCache {
           // The server may have committed despite a lost response. Retain the caller's operation identity.
           this.invalidate({});
           this.publish?.({});
+        } else if (path.startsWith("/projects")) {
+          this.invalidate({ resource: "/projects" });
+          this.publish?.({ resource: "/projects" });
         }
       }
       throw error;

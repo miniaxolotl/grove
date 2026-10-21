@@ -241,6 +241,22 @@ test("a delayed notebook mutation cannot roll back a newer cached notebook versi
   ).toEqual([project]);
 });
 
+test("a notebook creation cannot masquerade as the complete directory or renew unrelated entries", async () => {
+  const project = {
+    id: "00000000-0000-4000-a000-000000000010",
+    name: "Created",
+    version: 1,
+  };
+  const cache = cacheWith(async () => project);
+  const key = workspaceKeys.resource("/projects");
+  await cache.api("/projects", { name: project.name });
+  expect(cache.client.getQueryData(key)).toBeUndefined();
+  cache.client.setQueryData(key, [], { updatedAt: 1000 });
+  await cache.api("/projects", { name: project.name });
+  expect(cache.client.getQueryData(key)).toEqual([project]);
+  expect(cache.client.getQueryState(key)?.dataUpdatedAt).toBe(1000);
+});
+
 test("authentication loss clears cached content and not-found details remove list copies", async () => {
   let status = 200,
     denied = 0;

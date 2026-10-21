@@ -1,7 +1,6 @@
 "use client";
 import { Fragment, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -126,7 +125,6 @@ export function MemoryLibrary({
   const [destination, setDestination] = useState("personal");
   const [busy, setBusy] = useState(false);
   const [undo, setUndo] = useState<Undo[]>([]);
-  const [listRef] = useAutoAnimate<HTMLUListElement>({ duration: 200 });
   const requests = useRef(new Map<string, string>());
   const scopedProject =
     fixedProject !== undefined
@@ -532,7 +530,7 @@ export function MemoryLibrary({
                   Select these notes
                   {items.length > 50 ? " (first 50)" : ""}
                 </label>
-                <ul ref={listRef}>
+                <ul>
                   {items.map((memory, index) => (
                     <Fragment key={memory.id}>
                       {sort === "created_desc" &&
