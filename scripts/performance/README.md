@@ -44,6 +44,9 @@ sign-in/account controls render, the editor is absent before opening a note,
 deliberately fail its first chunk load, retry in place, and verify anonymous BFF
 denial/private cache headers. Add
 `PERF_ONLY_LAZY=1` to run these checks without timing samples.
+The held-load check also compares drawer geometry through loading, failure and
+successful keyboard retry, and verifies focus stays inside the dialog. Set
+`PERF_VERIFY_WIDTH=390` (or `320`) to exercise the same production path on mobile.
 
 CI checks the Notes entry against **513,351 gzip bytes** (75% of the baseline)
 and requires the editor marker to remain absent. Real-component browser tests gate
@@ -65,10 +68,11 @@ Notes entry JS: **684,469 gzip bytes**; editor-containing chunk: **238,251 bytes
 The raw machine-local reports and screenshots are retained in
 `~/.local/state/grove-client-performance/`.
 
-## Final result and paired confirmation (21 October 2026)
+## Cache delivery and paired confirmation (21 October 2026)
 
 Application source `44f5a072e591176cb991ef7fe17860aa61826b1f`, build
-`wB9L2PDqM7nlyyouvjpzR`. Later delivery changes affect tests/tooling/docs only.
+`wB9L2PDqM7nlyyouvjpzR`. The measurements below refer to this cache-delivery build;
+the later visual loading-state refinement is verified separately below.
 Clerk's hosted UI changed from 1.40.0 during the original baseline to 1.41.1.
 Rebuilt the exact baseline source as `Lqd9nclWsDAIzkvhogoWe` and ran it immediately
 before the final candidate with the same current SDK and profiles. Each column
@@ -133,3 +137,21 @@ against the same privacy, account-switching and interaction regressions.
 Retained evidence: `baseline-*`, `confirmation-before*`, `confirmation-bundles.json`,
 `final-browser*`, `final-bundles.json` and `final-lazy-check.json` under the local
 state directory above. Intermediate `after-*` reports precede the font change.
+
+## Loading-state refinement
+
+The UI follow-up keeps drawer bounds and focus stable during held/failed/retried
+loading, adds static placeholders, and reserves a quiet refresh/retry slot beside
+the library count. Its Notes entry is **454,807 gzip bytes**: 661 bytes above the
+cache-delivery build, still **33.6% below the original baseline** and within the CI
+budget. The editor remains deferred. Geometry checks use actual held production
+chunks; interrupted-refresh checks retain actual note selection and position.
+Pagination failures retry the same cursor without re-reading earlier pages.
+
+Application source `1eeb1eb4bef50296934ca3d56008c0aa0aa3ae78`, production build
+`uW7m97JQuuzxxsQobN2jQ`. Production drawer geometry, keyboard retry/focus, actual
+sign-in/account controls and anonymous private/no-store denial pass at 1440, 390
+and 320px. The real-component suite additionally covers reduced-motion feedback.
+The earlier p75 measurements above remain attached to their original build.
+Refinement bundle/auth/geometry reports and synthetic screenshots use the
+`refined-*` prefix in the same local evidence directory.

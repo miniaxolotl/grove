@@ -14,7 +14,8 @@ title reads. Independent notebook/note reads start together. In-place chunk retr
 intent preloading, hidden-mobile preview gating and demand-loaded monospace fonts
 reduce opening work. New list rows render at full contrast immediately.
 
-Notes-entry JavaScript is **684,469 → 454,146 gzip bytes (-33.6%)**; notebook entry
+The cache-delivery build reduced Notes-entry JavaScript to
+**684,469 → 454,146 gzip bytes (-33.6%)**; notebook entry
 is **695,542 → 456,830 (-34.3%)**. The first Settings→Notes round trip makes **2 → 1**
 application reads; subsequent fresh repeated visits make zero. CI enforces the
 513,351-byte Notes-entry ceiling and keeps editor code out of that entry. Exact
@@ -24,7 +25,7 @@ mobile), and mobile return-to-Notes is **512→612ms**. Production-build timing,
 memory, long-task and layout evidence is recorded in
 [performance verification](../scripts/performance/README.md).
 
-All **97 Chromium** scenarios and **nine selected iPhone/WebKit** cases pass,
+Initial cache delivery passed **97 Chromium** scenarios and **nine selected iPhone/WebKit** cases,
 including cache ownership/cancellation, late responses, expiry, drafts/conflicts,
 mutation retries, pagination, keyboard/focus, dragging, responsive accessibility and
 telemetry privacy. Real production Next/Clerk checks verify sign-in, account controls,
@@ -32,6 +33,18 @@ deferred editor loading, failed-chunk recovery and anonymous private/no-store de
 Root lint/types/build, five artifact checks, website lint/types/production build,
 twelve release-script contracts and actionlint/ShellCheck pass. WebKit uses the
 Playwright 1.64.1 Noble browser container. Node is 24.21.0; pnpm is 10.33.0.
+
+The visual refinement keeps the drawer's width and header consistent through
+loading, failure and successful retry. Static placeholders, an honest loading label
+and a reserved refresh/retry slot keep Notes calm while data arrives. Background
+failures preserve rows and selection; pagination retries its original cursor.
+Keyboard recovery retains focus and reduced-motion feedback stays static.
+The follow-up passes **100 Chromium** scenarios, **eight selected iPhone/WebKit**
+cases and production drawer/auth/retry checks at **1440, 390 and 320px**. Required
+root/website checks and five artifacts pass. Notes entry is now **454,807 gzip
+bytes (-33.6%)**, including 661 bytes for the refinement; the editor remains deferred.
+Current application source/build and reviewed synthetic captures are recorded in
+the performance verification linked above.
 
 See [cache ownership and integration](development/client-cache.md) when adding
 workspace actions or resource families. No schema migration is required.

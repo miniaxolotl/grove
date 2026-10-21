@@ -70,6 +70,21 @@ checks exercise sign-in and the account menu alongside the deferred note editor.
 The two JetBrains Mono weights load on CSS demand, saving 79,396 preloaded font
 bytes on Notes. Space Grotesk retains its preloads and adjusted fallback metrics.
 
+Deferred views share a quiet `LoadingState`. Drawer loading, recovery and ready
+content use the same width/header treatment. Retry returns focus to the dialog's
+close control before replacing its button. Placeholders are static and decorative;
+their short status labels remain available to assistive technology.
+
+The library presents a count only after receiving a snapshot. A sustained background
+refresh appears in a reserved status slot beside that count. If it fails, the same
+slot offers Retry while existing content and selection remain in place. Initial-read
+and mutation failures retain their full error feedback. Keyboard retry keeps focus
+on the summary while the status changes.
+An interrupted next-page read retries its cursor rather than restarting the list.
+When composing other library-chrome changes, preserve the `.library-sync` reserved
+slot and `.library-summary` focus target; they prevent refresh feedback from moving
+existing notes or losing keyboard position.
+
 ## Checks
 
 `tests/cache.spec.ts` covers ownership, cancellation, freshness/version/deletion,

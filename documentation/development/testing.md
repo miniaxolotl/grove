@@ -78,6 +78,10 @@ fresh revisits, held reads and saves, draft/version conflicts, cross-tab metadat
 expiry and bounded retention. See [cache ownership](client-cache.md) and
 [production performance measurements](../../scripts/performance/README.md) for the
 real Next/Clerk runner, deferred-chunk retry and CI bundle budget.
+Held initial reads also check that loading never shows a false zero count; interrupted
+background reads preserve row geometry, selection and keyboard retry focus. The
+production runner checks stable drawer bounds across pending, failed and ready views
+at desktop and narrow mobile widths.
 
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.
