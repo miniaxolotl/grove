@@ -1,5 +1,22 @@
 # Product observability
 
+## Verified delivery
+
+Website release **1.6.0** passed protected source CI, promotion #40 and live
+browser acceptance. PostHog indexes the exact production release, opt-out clears
+both tabs and only a fresh identity resumes collection. A sampled recording was
+decoded locally and read back from PostHog; private markers were absent and text
+was masked. Sentry event `8e304a9ab2c94c26a48bd10e2fda575a` resolves the deployed
+JavaScript coordinate to `packages/website/src/lib/diagnostics.ts`.
+
+The native/service slice passes 60 PostgreSQL/provider/client/SDK checks,
+five production-configured packed-artifact checks, root/website lint/types/builds,
+five relevant browser scenarios, 17 release/deployment contracts and workflow lint.
+These include stalled response bodies, silent bounded shutdown, host SDK isolation,
+concurrent first-workspace creation, commit/rollback/replay conversion semantics,
+chat apply/undo, model usage accounting and browser/API opt-out propagation.
+Its production ingestion and symbolication acceptance follows the new release.
+
 ## Service and developer-tool collection
 
 `lib/telemetry` is shared by the API, worker, CLI, MCP bridge and agent adapters.
