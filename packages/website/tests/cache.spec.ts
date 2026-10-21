@@ -217,6 +217,30 @@ test("content versions never roll back, while equal-version worker enrichment ca
   ).toBe("failed");
 });
 
+test("a delayed notebook mutation cannot roll back a newer cached notebook version", async () => {
+  const project = {
+    id: "00000000-0000-4000-a000-000000000010",
+    name: "New name",
+    identity: "test:cache",
+    parentId: null,
+    version: 3,
+  };
+  const cache = cacheWith(async (_path, _body, method) =>
+    method === "PATCH"
+      ? { ...project, name: "Old name", version: 2 }
+      : [project],
+  );
+  await cache.client.fetchQuery(cache.resource("/projects"));
+  await cache.api(
+    `/projects/${project.id}`,
+    { name: "Old name", expectedVersion: 1 },
+    "PATCH",
+  );
+  expect(
+    cache.client.getQueryData(workspaceKeys.resource("/projects")),
+  ).toEqual([project]);
+});
+
 test("authentication loss clears cached content and not-found details remove list copies", async () => {
   let status = 200,
     denied = 0;

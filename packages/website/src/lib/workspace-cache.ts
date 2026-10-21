@@ -556,10 +556,13 @@ export class WorkspaceCache {
         void this.client.cancelQueries({ queryKey: key });
         if (project?.id)
           this.client.setQueryData<Notebook[]>(key, (old) => {
-            const current = old?.find(item => item.id === project.id);
-            return current && current.version > project.version ? old : [
-              ...(old ?? []).filter(item => item.id !== project.id), project,
-            ];
+            const current = old?.find((item) => item.id === project.id);
+            return current && (current.version ?? 0) > (project.version ?? 0)
+              ? old
+              : [
+                  ...(old ?? []).filter((item) => item.id !== project.id),
+                  project,
+                ];
           });
         else this.invalidate({ resource: "/projects" });
         this.publish?.({ resource: "/projects" });
