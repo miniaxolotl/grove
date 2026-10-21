@@ -90,6 +90,7 @@ export default function RootLayout({
         </a>
         {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
           <ClerkProvider
+            prefetchUI={false}
             signInUrl="/sign-in"
             signUpUrl="/sign-up"
             signInFallbackRedirectUrl="/app"
