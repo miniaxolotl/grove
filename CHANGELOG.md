@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/miniaxolotl/grove/compare/v1.7.0...v1.7.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **telemetry:** bind streamed spans to Grove sampling context ([#45](https://github.com/miniaxolotl/grove/issues/45)) ([3eb31f9](https://github.com/miniaxolotl/grove/commit/3eb31f9397867aecbe397578f46a85188db6f3f8))
+
 ## [1.7.0](https://github.com/miniaxolotl/grove/compare/v1.6.0...v1.7.0) (2026-10-21)
 
 
