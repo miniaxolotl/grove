@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/miniaxolotl/grove/compare/v1.7.1...v1.8.0) (2026-10-21)
+
+
+### Features
+
+* **website:** focus notebook marketing and refresh media kit ([#49](https://github.com/miniaxolotl/grove/issues/49)) ([2741c64](https://github.com/miniaxolotl/grove/commit/2741c643965c3ea972377d54f2b9afc2e59c9680))
+
 ## [1.7.1](https://github.com/miniaxolotl/grove/compare/v1.7.0...v1.7.1) (2026-10-21)
 
 
