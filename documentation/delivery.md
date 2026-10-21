@@ -1,5 +1,20 @@
 # Delivery evidence
 
+## Connection and gesture integration (21 October 2026 UTC)
+
+Integrated gesture polish #58 into the connection feature, retaining stable graph
+zoom, embedded touch scrolling, expanded pan/pinch, contextual Controls and the
+shared evidence inspector. The expanded focus loop includes the connection list.
+Memoized visible nodes keep graph edges mounted while an inspector opens, so
+closing it restores keyboard focus to the original edge.
+
+Root/website lint, types and builds plus all five artifact checks pass. The combined
+90-case Chromium run passed 89 scenarios and exposed the edge-focus regression;
+after the fix all three graph scenarios pass, including nested evidence/reader
+dialogs, focus return and narrow-layout accessibility. All 11 focused iPhone/WebKit
+relationship and gesture cases pass. Desktop and 320px graph/inspector captures
+were reviewed. Final website lint, types and build also pass after the focus fix.
+
 ## Quieter connection UI (21 October 2026 UTC)
 
 Connection lists now use compact rows with a title, short reason and quiet category.
@@ -40,6 +55,48 @@ conflicts for superseded/tentative decisions and unsupported dependency directio
 the final level-specific schemas and instructions address those findings. Incidental
 citations in abstentions are discarded; positive claims retain strict validation.
 This small corpus is a regression signal, not a general accuracy estimate.
+
+## Gesture and interaction polish (21 October 2026 UTC)
+
+Native action menus measure, flip and clamp to the visual viewport; touch targets
+reserve independent 44px areas. Backdrop dismissal requires an intentional primary
+press/release. Note swipes reveal one action strip, preserve page scrolling and
+cancel on capture loss or a second contact. Mouse, touch, pen and keyboard handles
+share validated destinations, a scrollable touch tray and visible cancellation.
+
+Graph selection, reading and same-scope note revisions retain zoom. Ordinary wheel
+input and embedded touch gestures scroll the page; modifier-wheel and expanded
+pinch zoom are deliberate. Expanded exploration has an in-app fallback, focus
+return and nested reader support. The phone note header consolidates secondary
+controls: the 390×844 reader begins at y=134 instead of y=280. Chat replies preserve
+older-message reading/selection, with an explicit Latest reply action. Move/bulk
+Undo and copy feedback share the active dialog's notification stack.
+
+The screenshot-review follow-up simplifies presentation: one mobile move panel
+contains destinations and cancellation, the smaller drag preview only identifies
+the item, saved controls are neutral, and compact success feedback sits at the
+lower right. Graph instructions are available through **Controls**, with explicit
+Expand/Done labels and only relevant legends. Empty-state guidance stays below
+the canvas. Independent touch targets and durable Undo remain available.
+The follow-up passes all 87 Chromium and eight iPhone/WebKit scenarios, with the
+three graph scenarios rechecked after the final 320px toolbar/accessible-label
+adjustments. All required static, build and artifact gates pass; six refreshed
+captures record the visual review.
+
+Node 24.21.0 / pnpm 10.33.0 verification passes root lint, types, build and all five
+packed-artifact checks; website lint, types and telemetry-enabled production build;
+87 Chromium browser/accessibility/privacy scenarios; eight focused iPhone/WebKit
+scenarios; and 25 memory/conversation database/API tests with non-owner roles in a
+new disposable PostgreSQL database. Tests cover trusted mouse/touch/pen input,
+second-contact interruption, autoscroll/hover expansion, 2× pinch-zoom menu bounds,
+graph pan/pinch and nested focus, mobile text formatting/Undo, held replies and
+version-fenced mutation Undo. The focused WebKit config is reproducible from
+[testing guidance](development/testing.md).
+
+[Reviewed captures](design/screenshots/gesture-polish/README.md) use synthetic notes
+and production CSS. Physical iOS/Android keyboards, OS selection handles,
+back-edge navigation and hybrid-device/trackpad/pen feel remain unverified. No
+schema migration is required; this records feature verification, not a release.
 
 ## Google Search Console (21 October 2026 UTC)
 

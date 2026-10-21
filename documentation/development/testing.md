@@ -97,6 +97,33 @@ docker run --rm --ipc=host --user "$(id -u):$(id -g)" -e HOME=/tmp \
   node node_modules/@playwright/test/cli.js test --config playwright.relationships-webkit.config.ts
 ```
 
+Gesture checks use trusted Chromium touch/pen events alongside mouse and keyboard:
+one-row swipe ownership, second-contact cancellation, handle activation, destination
+autoscroll, delayed notebook expansion, route interruption, pinch and modifier-wheel
+zoom, and selection/read/edit viewport retention. Menu bounds are checked at narrow,
+short and 2× pinch-zoom viewports. Mobile formatting retains selected text; held
+chat replies preserve older reading positions. Move Undo stays actionable alongside
+copy feedback in the active dialog's shared notification stack.
+Graph guidance is checked with keyboard/touch disclosure and expanded focus
+wrapping; opening and closing it retains the graph's focal point. The touch move
+case covers the integrated destination/cancel panel and edge autoscroll.
+Expanded graph checks also open connection evidence from a focused edge, restore
+that edge on dismissal and include the connection-list disclosure in focus wrapping.
+
+After building production CSS, run the focused iPhone/WebKit set with:
+
+```sh
+pnpm --filter website exec playwright install webkit
+pnpm test:website --config playwright.webkit.config.ts
+```
+
+WebKit requires its system libraries; verification can also run in
+`mcr.microsoft.com/playwright:v1.64.1-noble` with Node 24 and the worktree mounted.
+`DASHBOARD_TEST_PORT` selects an isolated fixture port for concurrent work. The
+fixture serves production CSS and bundles current components, so rebuild the site
+after CSS changes. Browser emulation does not qualify physical software keyboards,
+OS text-selection handles, back-edge gestures or trackpad/pen feel.
+
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.
 With an isolated `GROVE_CONFIG_HOME`, the API environment and Clerk development
