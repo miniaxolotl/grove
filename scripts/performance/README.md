@@ -155,3 +155,19 @@ and 320px. The real-component suite additionally covers reduced-motion feedback.
 The earlier p75 measurements above remain attached to their original build.
 Refinement bundle/auth/geometry reports and synthetic screenshots use the
 `refined-*` prefix in the same local evidence directory.
+
+## Gesture integration
+
+Development merged gesture polish (#58) during closeout. The integration at
+`abe1e50c220702e0f1f92eb8e109fbf59928c4a1`, build `-SuxdPVBr4YOk8HdoYoTF`, combines
+the compact toolbar, reader-controlled chat following and gesture feedback with
+cache-owned reads/mutations and deferred loading. Focus transfers from the temporary
+drawer header to its ready close control; graph scope uses the normalized query key.
+
+The integrated Notes entry is **457,678 gzip bytes (-33.1% original baseline)** and
+notebook entry is **460,613 (-33.8%)**. Both remain within the target; Notes still
+passes its CI ceiling and excludes the editor. Reports/captures use `integrated-*`.
+Earlier timing samples remain attached to their measured sources above.
+The combined suite passes **112 Chromium** and **15 selected iPhone/WebKit** cases;
+production held/failed/retried drawer geometry and focus, sign-in/account controls,
+and anonymous private/no-store denial pass at **1440, 390 and 320px**.

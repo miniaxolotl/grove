@@ -43,10 +43,14 @@ With the merged gesture refinement, the ready compact toolbar takes keyboard foc
 from the temporary loading header.
 The follow-up passes **100 Chromium** scenarios, **eight selected iPhone/WebKit**
 cases and production drawer/auth/retry checks at **1440, 390 and 320px**. Required
-root/website checks and five artifacts pass. Notes entry is now **454,807 gzip
+root/website checks and five artifacts pass. Before gesture integration, Notes entry is **454,807 gzip
 bytes (-33.6%)**, including 661 bytes for the refinement; the editor remains deferred.
 Current application source/build and reviewed synthetic captures are recorded in
 the performance verification linked above.
+The integrated gesture/cache build is **457,678 gzip Notes bytes (-33.1%)** and
+**460,613 notebook bytes (-33.8%)**; the same CI budget and deferred boundary pass.
+Combined verification passes **112 Chromium** and **15 selected iPhone/WebKit**
+cases, plus production drawer/auth/focus recovery at **1440, 390 and 320px**.
 
 See [cache ownership and integration](development/client-cache.md) when adding
 workspace actions or resource families. No schema migration is required.
