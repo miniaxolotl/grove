@@ -1,5 +1,38 @@
 # Delivery evidence
 
+## Note and notebook actions (21 October 2026 UTC)
+
+Notes expose Export and confirmed Delete directly in the toolbar and row actions.
+Deletion pauses autosave, settles active/uncertain saves with their original retry
+identity, checks the saved version and explicitly discards local edits. Cancel
+retains drafts; success focuses the next row or the empty-state heading. Notebook
+Create/Rename/Move use distinct controls, reject no-op moves and preserve inputs
+while reviewing a concurrent change.
+
+Export downloads exact UTF-8 Markdown, copies it with a selectable fallback, or
+generates a real paginated PDF. Local snapshots survive first-save routing and
+identify unsaved content. pdfmake 0.3.12 (MIT) embeds its bundled Roboto fonts in a
+cancellable worker; Markdown parsing is loaded on demand too. Images become links,
+raw HTML is ignored and unavailable glyphs get explicit Unicode codes. Renderer
+and fonts are absent from initial Notes chunks: the deferred worker is about
+753KB gzip; Notes client-reference chunks grew about 8KB gzip against the integrated
+gesture baseline. A production Turbopack worker was separately started and produced
+an `application/pdf` Blob successfully.
+
+Node 24.21.0 / pnpm 10.33.0: root lint/types/build and five artifact tests pass;
+website lint/types and telemetry-enabled production build pass; 98 Chromium tests
+pass, with five focused deletion checks repeated after the empty-state focus fix.
+Fourteen focused iPhone/WebKit scenarios pass (the PDF filename assertion accounts
+for WebKit replacing spaces with underscores). PDF checks parse selectable text,
+links, pagination and all 280 cells in a wide table, checking text bounds as well
+as real downloads. Deferred-load failure, cancellation, clipboard denial, stale
+versions and lost save responses are covered. Final focused PDF checks also ensure
+a title-only first-save snapshot produces one page rather than a blank leading page.
+
+[Reviewed captures](design/screenshots/note-notebook-actions/README.md) show the
+desktop/390px/320px reader, export chooser and PDF layouts. Physical-device download
+and clipboard behavior remains unqualified. The feature requires no schema migration.
+
 ## Gesture and interaction polish (21 October 2026 UTC)
 
 Native action menus measure, flip and clamp to the visual viewport; touch targets
