@@ -17,13 +17,15 @@ New note follows filters and editor context. Notebook summaries, progress notes 
 scoped chat are contextual actions; personal details are under Settings → Account.
 [Visual review](design/screenshots/simple-notes/README.md) covers desktop and mobile.
 
-Root and website lint/types/builds, five packed artifacts, 52 database/provider
-scenarios, 67 Chromium browser/accessibility cases, 16 release/deployment contracts
+Root and website lint/types/builds, five packed artifacts, 61 database/provider
+scenarios, 68 Chromium browser/accessibility cases, 17 release/deployment contracts
 and actionlint/ShellCheck pass. A disposable PostgreSQL account using the actual
 MiniMax adapter also passes the original greeting, grounded note finding, and
 edit/create/merge previews without changing notes. No schema migration is needed.
-This records local/provider verification; production rollout follows the protected
-release path.
+Four additional iPhone/WebKit scenarios pass for notebook browsing, dated writing,
+composer editing and touch menu scrolling. The integration preserves the independent
+native-observability changes from #41. This records local/provider verification;
+production rollout follows the protected release path.
 
 ## Workspace polish and contextual conversations (20 October 2026 UTC)
 

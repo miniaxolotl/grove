@@ -10,7 +10,11 @@ CSS and local fonts. All notes and account details are synthetic.
 - [Mobile notebooks](notebooks-mobile.png), Chromium 390 × 844 viewport, full page:
   the notebook disclosure exposes navigation, note links, creation and management.
 
-All 67 Chromium browser scenarios pass, including the simplified workflows,
+All 68 Chromium browser scenarios pass, including the simplified workflows,
 320px overflow/WCAG A/AA checks, keyboard dragging, autosave, focus mode and chat
 history/preview/composer regressions. These are browser screenshots, not native
 application captures.
+
+Four iPhone/WebKit scenarios also pass through the Playwright 1.64.1 Ubuntu browser
+container: mobile notebook browsing, dated writing, composer formatting/selection,
+and touch-scrolling long notebook menus.
