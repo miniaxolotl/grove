@@ -17,9 +17,9 @@ export function NotebookBreadcrumbs({
     <nav className="notebook-breadcrumbs" aria-label="Notebook path">
       <ol>
         <li>
-          <Link href="/app/projects">Notebooks</Link>
+          <Link href="/app">Notes</Link>
         </li>
-        {(path.length ? path : [{ id: "personal", name: "Personal" }]).map(
+        {(path.length ? path : [{ id: "personal", name: "Unfiled" }]).map(
           (project, index) => (
             <li key={project.id}>
               <ChevronRight size={12} aria-hidden="true" />
@@ -29,7 +29,7 @@ export function NotebookBreadcrumbs({
                 <Link
                   href={
                     project.id === "personal"
-                      ? "/app/profile"
+                      ? "/app?notebook=personal"
                       : `/app/projects/${project.id}`
                   }
                 >

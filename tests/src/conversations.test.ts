@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import { after, before, test } from "node:test";
 import { createDatabase, tenant, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
@@ -9,7 +10,8 @@ import {
   conversationPlanSchema,
   conversationTurnSchema,
 } from "@lib/shared/conversations";
-import type { Providers, Source } from "@lib/ai";
+import { createGenerationProvider, type Providers, type Source } from "@lib/ai";
+import { generationConfigSchema } from "@lib/shared/models";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { createApp } from "../../packages/api/src/app.ts";
 import { withTelemetry, type TelemetrySink } from "@lib/telemetry/context";
@@ -86,20 +88,23 @@ async function fixture() {
               },
             ],
           })),
-          proposal:
+          proposals:
             behavior.intent === "find"
-              ? null
-              : {
-                  kind: behavior.intent,
-                  content: "# Garden\n\nWater the garden every morning.",
-                  target: behavior.intent === "create" ? null : refs[0],
-                  sources:
-                    behavior.intent === "create"
-                      ? []
-                      : behavior.intent === "edit"
-                        ? refs.slice(0, 1)
-                        : refs.slice(0, 2),
-                },
+              ? []
+              : [
+                  {
+                    kind: behavior.intent,
+                    content: "# Garden\n\nWater the garden every morning.",
+                    target:
+                      behavior.intent === "create" ? [] : refs.slice(0, 1),
+                    sources:
+                      behavior.intent === "create"
+                        ? []
+                        : behavior.intent === "edit"
+                          ? refs.slice(0, 1)
+                          : refs.slice(0, 2),
+                  },
+                ],
         });
       },
     },
@@ -129,6 +134,157 @@ async function fixture() {
 }
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
+
+test("real tool transport completes greetings, retries invalid responses and normalizes creation previews", async () => {
+  const { service, principal, create } = await fixture();
+  let malformed: unknown = { message: "Hey!", statements: [], proposal: {} };
+  let calls = 0;
+  const server = createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString());
+    const context = JSON.parse(body.messages[1].content);
+    const properties = body.tools[0].function.parameters.properties;
+    const creating = context.question.includes("Create");
+    // Reproduce MiniMax's {} for a nullable object. An array-only tool contract
+    // must handle absence without treating an empty or partial object as an edit.
+    const output = properties.intent
+      ? {
+          query: context.question,
+          intent: creating ? "create" : "answer",
+          references: [],
+        }
+      : malformed || !properties.proposals
+        ? (malformed ?? { message: "Hey!", statements: [], proposal: {} })
+        : {
+            message: creating
+              ? "Created and saved your note."
+              : "Hey! What’s on your mind?",
+            statements: [],
+            proposals: creating
+              ? [
+                  {
+                    kind: "create",
+                    target: [],
+                    sources: [],
+                    content: "# A small idea\n\nBring a notebook.",
+                  },
+                ]
+              : [],
+          };
+    calls++;
+    response.setHeader("Content-Type", "application/json");
+    response.end(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: "tool_calls",
+            message: {
+              tool_calls: [
+                {
+                  function: {
+                    name: "record_result",
+                    arguments: JSON.stringify(output),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      }),
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert(address && typeof address !== "string");
+  service.providers.generation = createGenerationProvider(
+    generationConfigSchema.parse({
+      provider: "minimax",
+      model: "MiniMax-M3.1-Flash",
+      baseUrl: `http://127.0.0.1:${address.port}`,
+    }),
+  );
+  try {
+    const chat = await create();
+    const greeting = turn("# YO\n\nWhat’s popping?");
+    for (const output of [
+      malformed,
+      { message: "Preview", statements: [], proposals: [{}] },
+      {
+        message: "Preview",
+        statements: [],
+        proposals: [
+          {
+            kind: "create",
+            target: [{}],
+            sources: [],
+            content: "An incomplete action",
+          },
+        ],
+      },
+    ]) {
+      malformed = output;
+      await assert.rejects(
+        service.conversations.turn(principal, chat.id, greeting),
+        { code: "generation_invalid_response" },
+      );
+      const failed = (await service.conversations.get(principal, chat.id))
+        .turns[0]!;
+      assert.equal(failed.status, "failed");
+      assert.equal(
+        failed.result,
+        null,
+        "an incomplete action must never become a usable preview",
+      );
+    }
+    malformed = null;
+    const reply = await service.conversations.turn(
+      principal,
+      chat.id,
+      greeting,
+    );
+    assert.equal(reply.turns.length, 1);
+    assert.equal(reply.turns[0]!.status, "ready");
+    assert.equal(reply.turns[0]!.result!.proposal, null);
+    assert.deepEqual(reply.turns[0]!.result!.sources, []);
+    assert.match(reply.turns[0]!.result!.message, /Hey!/);
+    const completedCalls = calls;
+    assert.deepEqual(
+      await service.conversations.turn(principal, chat.id, greeting),
+      reply,
+    );
+    assert.equal(
+      calls,
+      completedCalls,
+      "reopening a completed reply must not regenerate it",
+    );
+    const preview = await service.conversations.turn(
+      principal,
+      chat.id,
+      turn("Create a note: Bring a notebook.", 1),
+    );
+    assert.equal(preview.turns[1]!.result!.proposal!.kind, "create");
+    assert.equal(preview.turns[1]!.result!.proposal!.target, null);
+    assert.match(preview.turns[1]!.result!.message, /preview/i);
+    assert.doesNotMatch(preview.turns[1]!.result!.message, /saved/i);
+    assert.equal(
+      (await service.list(principal, { status: "active", limit: 20 })).items
+        .length,
+      0,
+      "a preview must not save a note",
+    );
+    await service.conversations.apply(principal, chat.id, preview.turns[1]!.id);
+    assert.equal(
+      (await service.list(principal, { status: "active", limit: 20 })).items[0]!
+        .content,
+      "# A small idea\n\nBring a notebook.",
+    );
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
 
 test("chat conversions follow committed replies and applied creates, excluding failed or replayed turns", async () => {
   const { service, principal, behavior, create } = await fixture();

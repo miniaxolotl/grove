@@ -160,8 +160,7 @@ export function MemoryDetail({
                 ? "Note"
                 : memory.kind}{" "}
             ·{" "}
-            {projects.find((p) => p.id === memory.projectId)?.name ??
-              "Personal"}
+            {projects.find((p) => p.id === memory.projectId)?.name ?? "Unfiled"}
           </span>
           {!fullPage && (
             <div>
@@ -494,7 +493,7 @@ export function MemoryDetail({
             <dt>Notebook</dt>
             <dd>
               {projects.find((project) => project.id === memory.projectId)
-                ?.name ?? "Personal"}
+                ?.name ?? "Unfiled"}
             </dd>
             <dt>Saved from</dt>
             <dd>

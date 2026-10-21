@@ -225,6 +225,25 @@
 .notebook-explorer {
   flex: 1;
 }
+.notebook-browser {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.notebook-browser-toggle {
+  display: none;
+}
+.notebook-manage {
+  margin-left: auto;
+  font-weight: 400;
+}
+.library-date {
+  padding: 16px 8px 6px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
 .notebook-personal {
   display: flex;
   align-items: center;
@@ -356,24 +375,6 @@
 }
 .sub-notebooks .notebook-tree-list li {
   max-width: 100%;
-}
-.journal-entry-row {
-  display: flex;
-  align-items: center;
-  padding-left: 8px;
-}
-.journal-entry-row + .journal-entry-row {
-  border-top: 1px solid var(--color-line);
-}
-.journal-entry {
-  padding: 10px 12px;
-  min-width: 0;
-}
-.journal-day {
-  margin: 14px 0;
-}
-.journal-layout {
-  gap: 16px;
 }
 .action-menu {
   position: fixed;
@@ -631,6 +632,30 @@
   }
   .app-navigation {
     grid-column: 1 / -1;
+  }
+  .notebook-browser {
+    grid-column: 1 / -1;
+  }
+  .notebook-browser-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 10px;
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+  .notebook-browser-toggle svg:last-child {
+    margin-left: auto;
+    transition: transform 150ms;
+  }
+  .notebook-browser-toggle[aria-expanded="true"] svg:last-child {
+    transform: rotate(180deg);
+  }
+  .notebook-explorer[data-mobile-open] {
+    display: block;
+    max-height: 45dvh;
+    margin-top: 0;
   }
   .app-sidebar-footer {
     display: none;

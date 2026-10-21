@@ -129,7 +129,7 @@ export function MemoryInspector({
               value={destination}
               onValueChange={setDestination}
               projects={projects}
-              leading={[{ value: "personal", label: "Personal" }]}
+              leading={[{ value: "personal", label: "Unfiled" }]}
               disabled={busy}
             />
             <p className="text-sm text-muted">

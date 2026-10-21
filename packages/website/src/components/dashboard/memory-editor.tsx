@@ -27,6 +27,7 @@ import { NotebookSelect } from "./notebook-select";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { NotebookDialog } from "./notebook-dialog";
 import { useWorkspaceDrag } from "./memory-drag";
+import { useSetCurrentNotebook } from "./notebooks-provider";
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
 
@@ -82,6 +83,7 @@ export function MemoryEditor({
   const [projectId, setProjectId] = useState(
     draft?.projectId ?? memory?.projectId ?? defaultProject ?? "",
   );
+  useSetCurrentNotebook(projectId || null, fullPage);
   const [saving, setSaving] = useState(draft?.saving);
   const busy = !!saving;
   const [error, setError] = useState(draft?.error ?? "");
@@ -599,7 +601,8 @@ export function MemoryEditor({
                 </p>
                 {personal && (
                   <p className="text-sm leading-7 text-muted">
-                    Saved in Personal. You choose which agents can read it.
+                    Saved outside notebooks. You choose which agents can read
+                    it.
                   </p>
                 )}
                 {kind === "handoff" ? (

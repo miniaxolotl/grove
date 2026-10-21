@@ -147,8 +147,8 @@ export function LibraryFilterBar({
             onValueChange={(project) => update({ project })}
             projects={projects}
             leading={[
-              { value: "all", label: "All notebooks" },
-              { value: "personal", label: "Personal" },
+              { value: "all", label: "All notes" },
+              { value: "personal", label: "Unfiled" },
             ]}
           />
         )}
@@ -304,7 +304,7 @@ export function LibraryFilterBar({
             >
               {notebookPath(projects, value.project)
                 .map((p) => p.name)
-                .join(" / ") || "Personal"}
+                .join(" / ") || "Unfiled"}
             </FilterChip>
           )}
           {value.kind && (
