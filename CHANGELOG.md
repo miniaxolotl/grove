@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/miniaxolotl/grove/compare/v1.5.0...v1.6.0) (2026-10-20)
+
+
+### Features
+
+* **website:** add private-by-design analytics and diagnostics ([#38](https://github.com/miniaxolotl/grove/issues/38)) ([d918dbd](https://github.com/miniaxolotl/grove/commit/d918dbd56360a40df164d35b4a82391a745f7fb0))
+
 ## [1.5.0](https://github.com/miniaxolotl/grove/compare/v1.4.0...v1.5.0) (2026-10-20)
 
 
