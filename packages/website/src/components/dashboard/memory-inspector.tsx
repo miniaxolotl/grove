@@ -1,36 +1,36 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
-import {
-  isInactive,
-  memoryTitle,
-  moveMemoryInput,
-  noteKindLabel,
-} from "@/lib/memory-display";
+import { isInactive, moveMemoryInput } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { MemoryDetail } from "./memory-detail";
 import { LoadError } from "./load-error";
-import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
+import { useToast } from "./toasts";
+import { useWorkspaceDrag } from "./memory-drag";
 
 export function MemoryInspector({
   id,
   close,
   fullPage = false,
   citedVersion,
+  initialPreview = true,
+  journal = false,
 }: {
   id: string;
   close?: () => void;
   fullPage?: boolean;
   citedVersion?: number;
+  initialPreview?: boolean;
+  journal?: boolean;
 }) {
   const router = useRouter();
+  const toast = useToast();
+  const workspace = useWorkspaceDrag();
   const [memory, setMemory] = useState<Memory>();
   const { projects } = useNotebooks();
   const [error, setError] = useState("");
@@ -38,7 +38,6 @@ export function MemoryInspector({
   const [busy, setBusy] = useState(false);
   const [moving, setMoving] = useState(false);
   const [destination, setDestination] = useState("personal");
-  const [notice, setNotice] = useState("");
   const operations = useRef(new Map<string, string>());
   useEffect(() => {
     const controller = new AbortController();
@@ -78,7 +77,8 @@ export function MemoryInspector({
         }),
       );
       setMoving(false);
-      setNotice(
+      workspace.refresh();
+      toast(
         action === "move"
           ? "Note moved."
           : action === "archive"
@@ -98,11 +98,6 @@ export function MemoryInspector({
           message={error}
           retry={() => setRefresh((value) => value + 1)}
         />
-      )}
-      {notice && (
-        <p className="app-notice" role="status">
-          {notice}
-        </p>
       )}
       {!current && !error && <p role="status">Opening your note…</p>}
       {current &&
@@ -150,16 +145,26 @@ export function MemoryInspector({
           </form>
         ) : (
           <MemoryDetail
-            key={`${id}:${current.version}`}
+            key={`${id}:${current.status}`}
             fullPage={fullPage}
+            initialPreview={initialPreview}
             memory={current}
             projects={projects}
             busy={busy}
-            onSaved={(message) => {
-              setNotice(message);
-              setRefresh((value) => value + 1);
-            }}
+            onSaved={setMemory}
+            close={
+              close ??
+              (() =>
+                router.push(
+                  current.projectId
+                    ? `/app/projects/${current.projectId}`
+                    : journal
+                      ? "/app?sort=created_desc"
+                      : "/app",
+                ))
+            }
             onDeleted={() => {
+              workspace.refresh();
               if (close) close();
               else router.push("/app");
             }}
@@ -175,29 +180,7 @@ export function MemoryInspector({
     </>
   );
   return fullPage ? (
-    <div className="memory-document">
-      <Link
-        className="workspace-back"
-        href={
-          current?.projectId ? `/app/projects/${current.projectId}` : "/app"
-        }
-      >
-        <ArrowLeft size={15} />
-        {current?.projectId
-          ? (projects.find((project) => project.id === current.projectId)
-              ?.name ?? "Notebook")
-          : "Notes"}
-      </Link>
-      <PageHeading
-        title={current ? memoryTitle(current) : "Note"}
-        description={
-          current
-            ? `${noteKindLabel(current.kind)}${isInactive(current) ? (current.status === "archived" ? " · Archived" : " · Expired") : ""}`
-            : undefined
-        }
-      />
-      {contents}
-    </div>
+    <div className="note-document">{contents}</div>
   ) : (
     <Dialog title="Your note" panel busy={busy} close={close!}>
       {contents}

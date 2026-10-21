@@ -6,8 +6,7 @@ import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { LoadError } from "@/components/dashboard/load-error";
 import { api, errorMessage } from "@/lib/dashboard-api";
-import { PageHeading } from "@/components/dashboard/ui/page-heading";
-import { SettingsNavigation } from "./settings-navigation";
+import { useToast } from "./toasts";
 
 type Settings = {
   captureEnabled: boolean;
@@ -23,7 +22,7 @@ export function SettingsPanel({
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -53,7 +52,7 @@ export function SettingsPanel({
         },
         "PATCH",
       );
-      setNotice("Preferences saved.");
+      toast("Preferences saved.");
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -62,8 +61,6 @@ export function SettingsPanel({
   }
   return (
     <>
-      <PageHeading title="Settings" />
-      <SettingsNavigation />
       {error && !settings ? (
         <LoadError
           message={error}
@@ -77,11 +74,6 @@ export function SettingsPanel({
           {error}
         </p>
       ) : null}
-      {notice && (
-        <p className="app-notice" role="status">
-          {notice}
-        </p>
-      )}
       <div className="settings-content">
         {section === "preferences" && (
           <>
@@ -160,7 +152,10 @@ export function SettingsPanel({
                   </button>
                 </form>
               ) : (
-                <p className="mt-4 text-sm text-muted" role="status">
+                <p
+                  className="settings-loading mt-4 text-sm text-muted"
+                  role="status"
+                >
                   {error
                     ? "Your preferences couldn’t be loaded."
                     : "Loading preferences…"}
@@ -218,7 +213,7 @@ export function SettingsPanel({
                   setError("");
                   try {
                     await api("/account/delete", { confirm: confirmation });
-                    setNotice(
+                    toast(
                       "Deletion requested. Your account is no longer accessible.",
                     );
                     await signOut({ redirectUrl: "/" });

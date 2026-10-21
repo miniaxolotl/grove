@@ -11,12 +11,10 @@ import { api, errorMessage, type Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { AgentSetup } from "@/components/installation";
-import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { useNotebooks } from "./notebooks-provider";
 import { notebookOptions } from "@/lib/notebooks";
-import { SettingsNavigation } from "./settings-navigation";
 
 type Connection = Grant & {
   id: string;
@@ -71,12 +69,11 @@ export function Connections({ origin }: { origin: string }) {
   }
   return (
     <>
-      <PageHeading
-        title="Connections"
-        description="Choose what each agent can read, remember, and forget."
-      />
-      <SettingsNavigation />
-      <details className="connection-setup" open={!items.length}>
+      <h2 className="settings-section-heading">Connections</h2>
+      <p className="settings-section-description">
+        Choose what each agent can read, remember, and forget.
+      </p>
+      <details className="connection-setup">
         <summary>
           <Plug size={17} />
           Connect an agent

@@ -14,6 +14,7 @@ import type { Memory } from "@lib/shared/contracts";
 import { BriefPanel } from "./brief";
 import { MemoryLibrary } from "./memory-library";
 import { MemoryEditor } from "./memory-editor";
+import { useToast } from "./toasts";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
@@ -41,7 +42,7 @@ export function MemoryContext({
     null,
   );
   const [refresh, setRefresh] = useState(0);
-  const [notice, setNotice] = useState("");
+  const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
   if (loading) return <p role="status">Opening notebook…</p>;
   if (projectId && !project)
@@ -135,11 +136,6 @@ export function MemoryContext({
           )
         }
       />
-      {notice && (
-        <p role="status" className="app-notice">
-          {notice}
-        </p>
-      )}
       {error && <LoadError message={error} retry={reload} />}
       {project && view !== "memories" && (
         <button
@@ -279,7 +275,7 @@ export function MemoryContext({
             cancel={() => setCreate(null)}
             done={() => {
               setCreate(null);
-              setNotice("Note saved.");
+              toast("Note saved.");
               setRefresh((v) => v + 1);
             }}
           />

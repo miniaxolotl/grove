@@ -9,6 +9,7 @@ import type {
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { LoadError } from "./load-error";
 import { ProviderOverview } from "./provider-overview";
+import { useToast } from "./toasts";
 
 type Usage = {
   dailyRequestLimit: number;
@@ -27,7 +28,7 @@ export function ModelSettings() {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [clearKeys, setClearKeys] = useState<ModelRole[]>([]);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
@@ -59,7 +60,6 @@ export function ModelSettings() {
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       await action();
     } catch (e) {
@@ -70,13 +70,7 @@ export function ModelSettings() {
   }
   return (
     <>
-      <div className="app-page-heading">
-        <div>
-          <h1>
-            {settings?.editable ? "Model settings" : "Search & organization"}
-          </h1>
-        </div>
-      </div>
+      <h2 className="settings-section-heading">Search & organization</h2>
       {error && (
         <LoadError
           message={error}
@@ -86,13 +80,12 @@ export function ModelSettings() {
           }}
         />
       )}
-      {notice && (
-        <p className="app-notice" role="status">
-          {notice}
-        </p>
-      )}
       {!config || !settings ? (
-        !error && <p role="status">Loading settings…</p>
+        !error && (
+          <p role="status" className="settings-loading">
+            Loading settings…
+          </p>
+        )
       ) : !settings.editable ? (
         <ProviderOverview settings={settings} />
       ) : (
@@ -109,7 +102,7 @@ export function ModelSettings() {
               setSettings(saved);
               setConfig(saved.config);
               setClearKeys([]);
-              setNotice(
+              toast(
                 "Model settings saved. Changed profiles are queued for background processing.",
               );
             });
@@ -415,7 +408,7 @@ export function ModelSettings() {
                         latencyMs: number;
                         dimensions?: number;
                       }>("/models/test", { role });
-                      setNotice(
+                      toast(
                         `${role} connection verified in ${result.latencyMs} ms${result.dimensions ? ` · ${result.dimensions} dimensions` : ""}.`,
                       );
                     })

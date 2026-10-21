@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import {
   EditorView,
@@ -30,6 +38,8 @@ import {
   Undo2,
   Redo2,
   ListTree,
+  Eye,
+  Pencil,
 } from "lucide-react";
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
@@ -52,15 +62,23 @@ export function MarkdownEditor({
   placeholder,
   disabled = false,
   fullPage = false,
+  preview = false,
+  onPreviewChange,
+  children,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
   fullPage?: boolean;
+  preview?: boolean;
+  onPreviewChange?: (preview: boolean) => void;
+  children?: ReactNode;
 }) {
   const id = useId();
   const host = useRef<HTMLDivElement>(null);
+  const layout = useRef<HTMLDivElement>(null);
+  const scrollPositions = useRef({ preview: 0, edit: 0 });
   const view = useRef<EditorView | null>(null);
   const initial = useRef({ value, placeholder });
   const change = useRef(onChange);
@@ -68,7 +86,8 @@ export function MarkdownEditor({
     mode: new Compartment(),
     editable: new Compartment(),
   });
-  const [mode, setMode] = useState<"live" | "source" | "preview">("live");
+  const [writingMode, setWritingMode] = useState<"live" | "source">("live");
+  const mode = preview ? "preview" : writingMode;
   const [outline, setOutline] = useState(false);
   const [limit, setLimit] = useState(false);
   useEffect(() => {
@@ -129,7 +148,6 @@ export function MarkdownEditor({
       }),
     });
     view.current = editor;
-    editor.focus();
     return () => {
       editor.destroy();
       view.current = null;
@@ -158,6 +176,20 @@ export function MarkdownEditor({
     });
     view.current?.requestMeasure();
   }, [mode, disabled, fullPage]);
+  useEffect(() => {
+    if (!preview) view.current?.focus();
+  }, [preview]);
+  useLayoutEffect(() => {
+    const element = layout.current;
+    if (!element) return;
+    const key = preview ? "preview" : "edit";
+    element.scrollTop = scrollPositions.current[key];
+    const remember = () => {
+      scrollPositions.current[key] = element.scrollTop;
+    };
+    element.addEventListener("scroll", remember);
+    return () => element.removeEventListener("scroll", remember);
+  }, [preview]);
   const headings = useMemo(() => {
     const result: { title: string; from: number; level: number }[] = [];
     markdownLanguage.parser.parse(value).iterate({
@@ -189,20 +221,32 @@ export function MarkdownEditor({
       data-mode={mode}
     >
       <div className="editor-heading">
-        <span id={`${id}-label`}>Your words</span>
-        <SegmentedControl
-          label="Editor mode"
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: "live", label: "Write" },
-            { value: "source", label: "Markdown" },
-            { value: "preview", label: "Preview" },
-          ]}
-        />
+        <span id={`${id}-label`}>{preview ? "Reading" : "Your words"}</span>
+        {!preview && (
+          <SegmentedControl
+            label="Editor mode"
+            value={writingMode}
+            onChange={setWritingMode}
+            options={[
+              { value: "live", label: "Write" },
+              { value: "source", label: "Markdown" },
+            ]}
+          />
+        )}
+        <button
+          type="button"
+          className="app-button secondary mode-toggle"
+          title="Edit / preview (⌘ / Ctrl E)"
+          aria-keyshortcuts="Control+e Meta+e"
+          onClick={() => onPreviewChange?.(!preview)}
+        >
+          {preview ? <Pencil size={15} /> : <Eye size={15} />}
+          {preview ? "Edit note" : "Preview"}
+        </button>
       </div>
       <div className="editor-surface">
         <div
+          hidden={preview}
           className="editor-tools"
           role="group"
           aria-label="Markdown formatting"
@@ -273,7 +317,10 @@ export function MarkdownEditor({
             <ListTree size={16} />
           </button>
         </div>
-        <div className={`writing-layout${outline ? " with-outline" : ""}`}>
+        <div
+          ref={layout}
+          className={`writing-layout${outline ? " with-outline" : ""}`}
+        >
           <div className="writing-paper">
             <div
               ref={host}
@@ -281,7 +328,10 @@ export function MarkdownEditor({
               className="codemirror-host"
             />
             {mode === "preview" && (
-              <div className="editor-preview" aria-label="Markdown preview">
+              <div
+                className="editor-preview reader-copy"
+                aria-label="Markdown preview"
+              >
                 {value ? (
                   <Markdown>{value}</Markdown>
                 ) : (
@@ -291,6 +341,7 @@ export function MarkdownEditor({
                 )}
               </div>
             )}
+            {children}
           </div>
           {outline && (
             <aside className="writing-outline" aria-label="Note outline">
@@ -306,7 +357,8 @@ export function MarkdownEditor({
                           paddingLeft: Math.min(heading.level - 1, 3) * 12,
                         }}
                         onClick={() => {
-                          setMode("live");
+                          setWritingMode("live");
+                          onPreviewChange?.(false);
                           requestAnimationFrame(() =>
                             command((editor) =>
                               editor.dispatch({

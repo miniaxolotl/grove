@@ -105,6 +105,7 @@ export function MemoryLibrary({
   const [notice, setNotice] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Memory | "new" | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
   const [moving, setMoving] = useState<Memory[] | null>(null);
   const [destination, setDestination] = useState("personal");
@@ -639,7 +640,14 @@ export function MemoryLibrary({
                                 : current,
                           )
                         }
-                        onOpen={() => setSelected(memory)}
+                        onOpen={() => {
+                          setDeleting(false);
+                          setSelected(memory);
+                        }}
+                        onDelete={() => {
+                          setDeleting(true);
+                          setSelected(memory);
+                        }}
                         onMove={() => startMove([memory])}
                         onArchive={() =>
                           void perform(
@@ -712,11 +720,19 @@ export function MemoryLibrary({
             />
           ) : (
             <MemoryDetail
-              key={`${selected.id}:${selected.version}`}
+              key={selected.id}
               memory={selected}
               projects={projects}
+              initialDelete={deleting}
               busy={busy}
-              onSaved={reload}
+              onSaved={(memory) => {
+                setSelected(memory);
+                setItems((items) =>
+                  items.map((item) => (item.id === memory.id ? memory : item)),
+                );
+              }}
+              close={() => setSelected(null)}
+              onDeleted={() => reload()}
               onMove={() => startMove([selected])}
               onArchive={() =>
                 void perform(
@@ -726,12 +742,18 @@ export function MemoryLibrary({
               }
               onPrevious={
                 currentIndex > 0
-                  ? () => setSelected(items[currentIndex - 1])
+                  ? () => {
+                      setDeleting(false);
+                      setSelected(items[currentIndex - 1]);
+                    }
                   : undefined
               }
               onNext={
                 currentIndex >= 0 && currentIndex < items.length - 1
-                  ? () => setSelected(items[currentIndex + 1])
+                  ? () => {
+                      setDeleting(false);
+                      setSelected(items[currentIndex + 1]);
+                    }
                   : undefined
               }
             />
