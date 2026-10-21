@@ -21,6 +21,7 @@ import {
   safeLog,
   safeMetric,
   safeSpan,
+  safeSpanEnvelope,
   surfaces,
   type EventName,
   type Identity,
@@ -235,10 +236,19 @@ export class Reporter implements TelemetrySink {
             );
             return {
               ...transport,
-              send: (envelope) =>
-                this.allowed()
-                  ? transport.send(envelope)
-                  : Promise.resolve({ statusCode: 200 }),
+              send: (envelope) => {
+                if (!this.allowed())
+                  return Promise.resolve({ statusCode: 200 });
+                const projected = safeSpanEnvelope(
+                  envelope,
+                  this.identity,
+                  config.dsn!,
+                  config.sampleRate ?? 0.1,
+                );
+                return projected
+                  ? transport.send(projected)
+                  : Promise.resolve({ statusCode: 200 });
+              },
             };
           },
         });
