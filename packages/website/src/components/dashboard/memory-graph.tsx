@@ -2,6 +2,7 @@
 import { Select } from "./ui/select";
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -34,6 +35,7 @@ import {
 } from "d3-force";
 import {
   ArrowUpRight,
+  CircleHelp,
   Maximize2,
   Minimize2,
   Network,
@@ -273,6 +275,8 @@ export default function MemoryGraph({
   const [relationship, setRelationship] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
+  const helpId = useId();
   const [expanded, setExpanded] = useState(false);
   const [fallback, setFallback] = useState(false);
   const section = useRef<HTMLElement>(null);
@@ -404,21 +408,23 @@ export default function MemoryGraph({
           </div>
         </div>
         <div className="graph-tools">
-          <Select
-            aria-label="Graph relationships"
-            value={relationship}
-            onValueChange={(value) => {
-              setRelationship(value);
-              setSelected(null);
-            }}
-            options={[
-              { value: "", label: "All connections" },
-              ...Object.entries(labels).map(([value, label]) => ({
-                value,
-                label,
-              })),
-            ]}
-          />
+          {(edges.length > 0 || relationship) && (
+            <Select
+              aria-label="Graph relationships"
+              value={relationship}
+              onValueChange={(value) => {
+                setRelationship(value);
+                setSelected(null);
+              }}
+              options={[
+                { value: "", label: "All connections" },
+                ...Object.entries(labels).map(([value, label]) => ({
+                  value,
+                  label,
+                })),
+              ]}
+            />
+          )}
           <button
             type="button"
             className="graph-tool-button"
@@ -433,11 +439,12 @@ export default function MemoryGraph({
           <button
             type="button"
             className="graph-tool-button graph-expand"
-            aria-label={expanded ? "Exit full screen" : "Expand graph"}
-            title={expanded ? "Exit full screen" : "Expand graph"}
+            aria-label={expanded ? "Done exploring graph" : "Expand graph"}
+            title={expanded ? "Done exploring graph" : "Expand graph"}
             onClick={() => void toggleFullscreen()}
           >
             {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            <span>{expanded ? "Done" : "Expand"}</span>
           </button>
         </div>
       </div>
@@ -455,13 +462,6 @@ export default function MemoryGraph({
             onSelect={setSelected}
             onOpen={onOpen}
           />
-          {!visibleEdges.length && (
-            <p className="graph-hint" role="status">
-              {relationship
-                ? "No matching connections here."
-                : "Connections appear as Grove finds related ideas."}
-            </p>
-          )}
         </div>
         {active && (
           <aside className="graph-inspector" aria-label="Selected note">
@@ -529,25 +529,55 @@ export default function MemoryGraph({
         </div>
       )}
       <div className="graph-footer">
-        <div className="graph-legend">
-          {Object.entries(labels).map(([key, label]) => (
-            <span key={key}>
-              <i
-                className={`relationship-${key}`}
-                style={{ borderColor: colors[key as Relationship] }}
-              />
-              {label}
-            </span>
-          ))}
+        {visibleEdges.length > 0 ? (
+          <div
+            className="graph-legend"
+            role="group"
+            aria-label="Connection types"
+          >
+            {Object.entries(labels)
+              .filter(([key]) =>
+                visibleEdges.some((edge) => edge.data?.relationship === key),
+              )
+              .map(([key, label]) => (
+                <span key={key}>
+                  <i
+                    className={`relationship-${key}`}
+                    style={{ borderColor: colors[key as Relationship] }}
+                  />
+                  {label}
+                </span>
+              ))}
+          </div>
+        ) : (
+          <p className="graph-hint" role="status">
+            {relationship
+              ? "No matching connections here."
+              : "Connections appear as Grove finds related ideas."}
+          </p>
+        )}
+        <button
+          type="button"
+          className="graph-tool-button graph-help-toggle"
+          aria-expanded={showHelp}
+          aria-controls={helpId}
+          onClick={() => setShowHelp(!showHelp)}
+        >
+          <CircleHelp size={14} aria-hidden="true" /> Controls
+        </button>
+        <div id={helpId} className="graph-help" hidden={!showHelp}>
+          <p className="graph-help-pointer">
+            {expanded
+              ? "Drag to pan · Scroll to zoom · Click a note to select"
+              : "Drag to pan · Ctrl/⌘ + scroll to zoom · Click a note to select"}
+          </p>
+          <p className="graph-help-touch">
+            {expanded
+              ? "Drag to pan · Pinch to zoom · Tap a note to select"
+              : "Tap a note to select · Expand to pan and zoom"}
+          </p>
+          <p>Tab to a note · Space to select · Enter to read · Esc to close</p>
         </div>
-        <p className="graph-help-pointer">
-          Drag to explore · Ctrl/⌘ + scroll to zoom · Click a note
-        </p>
-        <p className="graph-help-touch">
-          {expanded
-            ? "Drag to explore · Pinch to zoom · Tap a note"
-            : "Tap a note · Expand to pan and zoom"}
-        </p>
       </div>
     </section>
   );

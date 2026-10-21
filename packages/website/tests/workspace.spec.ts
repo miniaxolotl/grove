@@ -1177,6 +1177,15 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   await page.getByRole("button", { name: "Graph", exact: true }).click();
   await expect(page.locator(".react-flow__node")).toHaveCount(4);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  await expect(page.locator(".graph-legend")).toHaveText("Related");
+  const controls = page.getByRole("button", { name: "Controls", exact: true });
+  await expect(controls).toHaveAttribute("aria-expanded", "false");
+  await controls.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".graph-help")).toBeVisible();
+  await expect(page.locator(".graph-help")).toContainText("Enter to read");
+  await page.keyboard.press("Space");
+  await expect(page.locator(".graph-help")).toBeHidden();
   const first = page.locator(`.react-flow__node[data-id="${note.id}"]`);
   const unrelated = page.locator(`.react-flow__node[data-id="${personal.id}"]`);
   const titles = page.getByRole("button", { name: "Show note titles" });
@@ -1212,7 +1221,7 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   await expect(page.getByRole("dialog")).toBeInViewport();
   await page.keyboard.press("Escape");
   await page
-    .getByRole("button", { name: "Exit full screen", exact: true })
+    .getByRole("button", { name: "Done exploring graph", exact: true })
     .click();
   await expect
     .poll(() => page.evaluate(() => document.fullscreenElement))
@@ -1271,6 +1280,7 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   );
   await expect(page.locator(".react-flow__node")).toHaveCount(0);
   await expect(page.getByText("No matching connections here.")).toBeVisible();
+  await expect(page.locator(".graph-legend")).toHaveCount(0);
   await chooseOption(
     page.getByRole("combobox", { name: "Graph relationships" }),
     "conflicting",
@@ -1376,7 +1386,10 @@ test("embedded touch graph yields to page scrolling and expanded fallback suppor
     const expanded = page.getByRole("dialog", { name: "Linked notes graph" });
     await expect(expanded).toBeInViewport();
     await expect(
-      page.getByRole("button", { name: "Exit full screen", exact: true }),
+      page.getByRole("combobox", { name: "Graph relationships" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Done exploring graph", exact: true }),
     ).toBeFocused();
     const area = (await canvas.boundingBox())!;
     const beforePan = await view.getAttribute("style");
@@ -1418,6 +1431,27 @@ test("embedded touch graph yields to page scrolling and expanded fallback suppor
       });
     const focalPoint = await center();
     await page.locator(`.react-flow__node[data-id="${note.id}"]`).tap();
+    await expect
+      .poll(async () => {
+        const current = await center();
+        return Math.hypot(current.x - focalPoint.x, current.y - focalPoint.y);
+      })
+      .toBeLessThan(2);
+    const controls = page.getByRole("button", {
+      name: "Controls",
+      exact: true,
+    });
+    await controls.tap();
+    await expect(page.locator(".graph-help-touch")).toBeVisible();
+    await expect(page.locator(".graph-help-touch")).toContainText(
+      "Pinch to zoom",
+    );
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("button", { name: "Show note titles" }),
+    ).toBeFocused();
+    await controls.tap();
+    await expect(page.locator(".graph-help")).toBeHidden();
     await expect
       .poll(async () => {
         const current = await center();
