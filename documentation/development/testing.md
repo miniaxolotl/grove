@@ -1,5 +1,19 @@
 # Verification
 
+Public sharing coverage uses real non-owner database roles for capability scope,
+concurrent revocation, archive/moves/expiry, account purging, token encryption,
+temporary-schema shadowing, separate public quotas and backup invalidation.
+`tests/src/sharing.test.ts` requires all three disposable database URLs below.
+
+Website orchestration starts a synthetic sharing upstream on port 4378
+(`SHARING_TEST_PORT` overrides it) alongside the real production-built Next server.
+`sharing.spec.ts` verifies signed-out reads, scoped links, live edits, revoked-link
+reload/history, metadata/headers and safe Markdown. Workspace tests cover owner
+scope controls, retry/conflict handling, inherited access and revocation during
+pending saves. Telemetry tests inspect actual SDK payloads for capability/content
+canaries and disabled replay. Synthetic fixture routes exist only in the test
+upstream, never in the application. Rebuild the website before browser checks.
+
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
