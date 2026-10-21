@@ -28,3 +28,5 @@ overflow, clipboard fallback, held-write/focus, conflict and revocation checks p
 The subsequent integration with gesture PR #58 retains these sharing surfaces and
 places the phone entry point in Note actions. Combined verification covers all 97
 Chromium cases and 16 iPhone/WebKit cases, including the compact mobile note header.
+Integration with note/notebook actions PR #61 subsequently passes all 110 Chromium
+and 25 iPhone/WebKit cases; sharing follows its common note/notebook action order.

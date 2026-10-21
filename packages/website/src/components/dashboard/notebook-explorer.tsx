@@ -2,16 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useState } from "react";
-import {
-  Plus,
-  FilePlus2,
-  Pencil,
-  FolderInput,
-  Inbox,
-  Folder,
-  ChevronDown,
-  Share2,
-} from "lucide-react";
+import { Plus, Inbox, Folder, ChevronDown } from "lucide-react";
 import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
@@ -23,6 +14,7 @@ import {
 } from "./memory-drag";
 import { ActionMenu } from "./ui/action-menu";
 import { ShareDialog } from "./share-dialog";
+import { NotebookActions } from "./notebook-actions";
 
 export function NotebookExplorer() {
   const { projects, loading, error, reload } = useNotebooks();
@@ -59,7 +51,10 @@ export function NotebookExplorer() {
           <Link href="/app/projects" className="notebook-manage">
             Manage
           </Link>
-          <IconButton label="Create notebook" onClick={() => setAction({})}>
+          <IconButton
+            label="Create notebook"
+            onClick={() => setAction({ mode: "create" })}
+          >
             <Plus size={14} />
           </IconButton>
         </div>
@@ -90,32 +85,20 @@ export function NotebookExplorer() {
             selectedId={currentNotebook}
             actions={(project) => (
               <ActionMenu label={`Notebook actions for ${project.name}`}>
-                <Link href={`/app/notes/new?notebook=${project.id}`}>
-                  <FilePlus2 size={15} />
-                  New note
-                </Link>
-                <button onClick={() => setAction({ parentId: project.id })}>
-                  <Plus size={15} />
-                  New sub-notebook
-                </button>
-                <button onClick={() => setAction({ project })}>
-                  <Pencil size={15} />
-                  Rename
-                </button>
-                <button onClick={() => setSharing(project.id)}>
-                  <Share2 size={15} />
-                  Share notebook
-                </button>
-                <button onClick={() => setAction({ project, move: true })}>
-                  <FolderInput size={15} />
-                  Move
-                </button>
+                <NotebookActions
+                  project={project}
+                  onAction={setAction}
+                  onShare={() => setSharing(project.id)}
+                />
               </ActionMenu>
             )}
           />
         ) : (
           <p className="notebook-tree-message">
-            <button className="text-button" onClick={() => setAction({})}>
+            <button
+              className="text-button"
+              onClick={() => setAction({ mode: "create" })}
+            >
               Create a notebook
             </button>
           </p>

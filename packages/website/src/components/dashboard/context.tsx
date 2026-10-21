@@ -3,13 +3,10 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Plus,
-  Pencil,
-  FolderInput,
   CalendarDays,
   MessageSquare,
   AlignLeft,
   ListTodo,
-  Share2,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { BriefPanel } from "./brief";
@@ -30,6 +27,7 @@ import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { AskGrove } from "./ask-grove";
 import { ActionMenu } from "./ui/action-menu";
 import { ShareDialog } from "./share-dialog";
+import { NotebookActions } from "./notebook-actions";
 
 export function MemoryContext({
   projectId = null,
@@ -86,11 +84,15 @@ export function MemoryContext({
                     Today’s note
                   </Link>
                   <ActionMenu label="Notebook options">
-                    <button onClick={() => setSharing(true)}>
-                      <Share2 size={15} />
-                      Share notebook
-                    </button>
-                    <button onClick={() => setView("ask")}>
+                    <NotebookActions
+                      project={project}
+                      onAction={setNotebookAction}
+                      onShare={() => setSharing(true)}
+                    />
+                    <button
+                      className="action-group-start"
+                      onClick={() => setView("ask")}
+                    >
                       <MessageSquare size={15} />
                       Ask about these notes
                     </button>
@@ -102,29 +104,6 @@ export function MemoryContext({
                       <ListTodo size={15} />
                       Progress notes
                     </button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setNotebookAction({ project })}
-                    >
-                      <Pencil size={15} />
-                      Rename
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setNotebookAction({ project, move: true })}
-                    >
-                      <FolderInput size={15} />
-                      Move
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        setNotebookAction({ parentId: project.id })
-                      }
-                    >
-                      <Plus size={15} />
-                      Sub-notebook
-                    </Button>
                   </ActionMenu>
                 </>
               )}
