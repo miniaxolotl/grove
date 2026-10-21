@@ -1078,6 +1078,8 @@
   .graph-help-touch {
     display: block;
   }
+}
+@media (any-pointer: coarse) {
   .graph-tool-button,
   .graph-toolbar select,
   .memory-graph .react-flow__controls-button,

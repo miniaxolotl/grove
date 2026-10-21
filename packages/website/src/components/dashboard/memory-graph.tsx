@@ -16,7 +16,6 @@ import {
   Handle,
   Position,
   useNodesState,
-  useNodesInitialized,
   useReactFlow,
   useStore,
   type Node,
@@ -712,15 +711,16 @@ function KeepGraphCenter({
   container: RefObject<HTMLDivElement | null>;
 }) {
   const { getViewport, setViewport } = useReactFlow();
-  const initialized = useNodesInitialized();
   useEffect(() => {
-    if (!container.current || !initialized) return;
+    if (!container.current) return;
     let previous = container.current.getBoundingClientRect();
     let frame = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const next = container.current!.getBoundingClientRect();
+        if (next.width === previous.width && next.height === previous.height)
+          return;
         const view = getViewport();
         // Preserve the world point at the canvas center, including inspector changes.
         void setViewport({
@@ -736,6 +736,6 @@ function KeepGraphCenter({
       observer.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [container, getViewport, setViewport, initialized]);
+  }, [container, getViewport, setViewport]);
   return null;
 }

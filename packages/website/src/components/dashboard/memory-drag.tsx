@@ -202,6 +202,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<WorkspaceDragItem | null>(null);
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
+  const pickingUp = useRef(false);
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
   const [failures, setFailures] = useState<string[]>([]);
@@ -215,6 +216,18 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     useSensor(PenSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: destinationCoordinates }),
   );
+  useEffect(() => {
+    const interrupt = () => {
+      if (pickingUp.current) cancelDrag();
+    };
+    // A second contact interrupts both long-press activation and an active drag.
+    document.addEventListener("pointerdown", interrupt, true);
+    window.addEventListener("blur", interrupt);
+    return () => {
+      document.removeEventListener("pointerdown", interrupt, true);
+      window.removeEventListener("blur", interrupt);
+    };
+  }, []);
   useEffect(() => {
     if (!active) return;
     if (origin.current?.path !== path) {
@@ -386,7 +399,14 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             onDragCancel: () => "Move cancelled.",
           },
         }}
+        onDragPending={() => {
+          pickingUp.current = true;
+        }}
+        onDragAbort={() => {
+          pickingUp.current = false;
+        }}
         onDragStart={({ active, activatorEvent }) => {
+          pickingUp.current = true;
           if (!working.current) {
             origin.current = {
               path,
@@ -398,8 +418,12 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             setActive(active.data.current?.item ?? null);
           }
         }}
-        onDragCancel={() => setActive(null)}
+        onDragCancel={() => {
+          pickingUp.current = false;
+          setActive(null);
+        }}
         onDragEnd={({ over }) => {
+          pickingUp.current = false;
           const destination: Destination | undefined =
             over?.data.current?.destination;
           if (

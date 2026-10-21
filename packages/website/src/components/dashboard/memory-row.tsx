@@ -242,11 +242,16 @@ export function MemoryRow({
         </div>
       </div>
       {actions && (
-        <div className="memory-actions" aria-label={`Actions for ${title}`}>
+        <div
+          className="memory-actions"
+          role="group"
+          aria-label={`Actions for ${title}`}
+        >
           <Button
             variant="secondary"
             disabled={busy}
             onClick={() => {
+              actionButton.current?.focus({ preventScroll: true });
               setActions(false);
               onMove();
             }}
@@ -258,6 +263,7 @@ export function MemoryRow({
             variant="secondary"
             disabled={busy}
             onClick={() => {
+              actionButton.current?.focus({ preventScroll: true });
               setActions(false);
               onArchive();
             }}

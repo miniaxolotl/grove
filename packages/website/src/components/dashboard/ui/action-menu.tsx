@@ -47,7 +47,12 @@ export function ActionMenu({
       element.style.top = `${Math.max(top, Math.min(y, bottom - menu.height))}px`;
     }
     place();
-    const observer = new ResizeObserver(place);
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(place);
+    };
+    const observer = new ResizeObserver(schedule);
     observer.observe(element);
     observer.observe(trigger);
     // Capture scrolls from nested readers and notebook explorers too.
@@ -57,6 +62,7 @@ export function ActionMenu({
     viewport?.addEventListener("scroll", place);
     return () => {
       observer.disconnect();
+      cancelAnimationFrame(frame);
       document.removeEventListener("scroll", place, true);
       window.removeEventListener("resize", place);
       viewport?.removeEventListener("resize", place);
