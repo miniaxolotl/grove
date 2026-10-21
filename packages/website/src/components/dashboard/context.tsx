@@ -7,6 +7,7 @@ import {
   MessageSquare,
   AlignLeft,
   ListTodo,
+  Network,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { BriefPanel } from "./brief";
@@ -26,6 +27,7 @@ import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { AskGrove } from "./ask-grove";
 import { ActionMenu } from "./ui/action-menu";
+import { ConnectionPanel } from "./connection-panel";
 import { NotebookActions } from "./notebook-actions";
 
 export function MemoryContext({
@@ -88,8 +90,12 @@ export function MemoryContext({
                     />
                     <button
                       className="action-group-start"
-                      onClick={() => setView("ask")}
+                      onClick={() => setView("connections")}
                     >
+                      <Network size={15} />
+                      Connected notebooks
+                    </button>
+                    <button onClick={() => setView("ask")}>
                       <MessageSquare size={15} />
                       Ask about these notes
                     </button>
@@ -226,6 +232,9 @@ export function MemoryContext({
         />
       )}
       {view === "ask" && <AskGrove projectId={projectId} embedded />}
+      {project && view === "connections" && (
+        <ConnectionPanel level="notebook" endpointId={project.id} />
+      )}
       {project && (
         <details className="agent-details project-agent-details">
           <summary>Agent details</summary>

@@ -28,6 +28,35 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
     const deletedConversations = await source("deleted_conversations").select(
       "*",
     );
+    const reviews = new Map<
+      string,
+      {
+        accountId: string;
+        leftId: string;
+        rightId: string;
+        leftVersion: number;
+        rightVersion: number;
+        revision: string;
+        dismissedRevision: string | null;
+        reviewVersion: number;
+      }[]
+    >();
+    for (const table of ["memory_relationships", "notebook_relationships"])
+      reviews.set(
+        table,
+        await source(table)
+          .where("reviewVersion", ">", 0)
+          .select(
+            "accountId",
+            "leftId",
+            "rightId",
+            "leftVersion",
+            "rightVersion",
+            "revision",
+            "dismissedRevision",
+            "reviewVersion",
+          ),
+      );
     const migrations = await source("knex_migrations")
       .orderBy("id")
       .pluck("name");
@@ -68,6 +97,54 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("memory_operations").delete();
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
+      await target("notebook_profiles").delete();
+      // Rebuild explanations, but use current authoritative review decisions.
+      const emptyAssessment = JSON.stringify({
+        relationship: "unrelated",
+        reason: "",
+        basis: "none",
+        direction: "both",
+        evidence: [],
+        coverage: {
+          from: { total: 0, examined: 0, supporting: 0 },
+          to: { total: 0, examined: 0, supporting: 0 },
+        },
+        breadth: "thread",
+      });
+      for (const [table, rows] of reviews) {
+        await target(table).update({
+          profile: "recovery-pending",
+          assessment: emptyAssessment,
+          dismissedRevision: null,
+          reviewVersion: target.raw("review_version + 1"),
+        });
+        const endpoint =
+          table === "memory_relationships" ? "memories" : "projects";
+        for (const row of rows) {
+          if (
+            (
+              await target(endpoint)
+                .where({ accountId: row.accountId })
+                .whereIn("id", [row.leftId, row.rightId])
+            ).length !== 2
+          )
+            continue;
+          await target(table)
+            .insert({
+              ...row,
+              reviewVersion: row.reviewVersion + 1,
+              profile: "recovery-pending",
+              assessment: emptyAssessment,
+            })
+            .onConflict(["accountId", "leftId", "rightId"])
+            .merge({
+              ...row,
+              reviewVersion: row.reviewVersion + 1,
+              profile: "recovery-pending",
+              assessment: emptyAssessment,
+            });
+        }
+      }
       await target("jobs").delete();
       // Recovery must not replay old account emails or notifications from grant invalidation.
       await target("transactional_emails").delete();
@@ -102,6 +179,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             organizeEnabled: current.organizeEnabled,
             summariesEnabled: current.summariesEnabled,
             contentVersion: Math.max(current.contentVersion, 1) + 1,
+            organizationDueAt: target.fn.now(),
           });
         if (gone) {
           await target("conversations").where({ accountId: row.id }).delete();

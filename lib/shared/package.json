@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
     "./models": "./src/models.ts",
-    "./conversations": "./src/conversations.ts"
+    "./conversations": "./src/conversations.ts",
+    "./relationships": "./src/relationships.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",
