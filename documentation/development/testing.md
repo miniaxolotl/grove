@@ -1,5 +1,19 @@
 # Verification
 
+Queue coverage (`queue.test.ts`, `queue-migration.test.ts`) uses fresh PostgreSQL
+databases and non-owner roles for claims, tenant/provider limits, lease fences,
+dispatch reservations, retained history, checkpointed imports/backfills, and
+bounded exports. The populated013→014 test verifies unchanged authored records.
+Set `TEST_AMQP_URL` for `broker.test.ts`; CI supplies an isolated RabbitMQ service.
+It checks lane isolation, shared fallback capacity, draining and reconnect.
+`artifacts.test.ts` always tests private atomic local files; optional S3 checks use
+`TEST_STORAGE_ENDPOINT`, `TEST_STORAGE_BUCKET`, `TEST_STORAGE_KEY` and
+`TEST_STORAGE_SECRET` against an owned private Garage bucket (region`garage`).
+These verify12MiB multipart streaming, byte identity, anonymous denial and deletion.
+Browser `exports.spec.ts` covers retry identity, notebook scope, cancel/retry,
+actual downloads and accessible1440/390/320px layouts. It is included in the
+focused WebKit configuration. Cloud provisioning is separate from local tests.
+
 Public sharing coverage uses real non-owner database roles for capability scope,
 concurrent revocation, archive/moves/expiry, account purging, token encryption,
 temporary-schema shadowing, separate public quotas and backup invalidation.
