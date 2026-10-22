@@ -5,7 +5,6 @@ import {
   withTelemetry,
 } from "@lib/telemetry/context";
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { streamText } from "hono/streaming";
 import { z, ZodError } from "zod";
@@ -35,7 +34,12 @@ import {
   type MemoryService,
 } from "@lib/memory";
 import { databaseSignal, withDatabaseSignal } from "@lib/database";
-import { Admission, defaultCapacity, type ApiCapacity } from "./admission.ts";
+import {
+  Admission,
+  admittedRequest,
+  defaultCapacity,
+  type ApiCapacity,
+} from "./admission.ts";
 import {
   publicShareQuerySchema,
   shareEnableSchema,
@@ -123,15 +127,6 @@ export function createApp(deps: AppDependencies) {
         c.error,
       );
   });
-  app.use(
-    "*",
-    bodyLimit({
-      maxSize: 128 * 1024,
-      onError: () => {
-        throw new GroveError("too_large", "Request body is too large", 413);
-      },
-    }),
-  );
   app.use(
     "*",
     cors({
@@ -232,10 +227,12 @@ export function createApp(deps: AppDependencies) {
     try {
       release = await (long ? interactive : foreground).acquire(signal);
       await withMemoryOperation(async () => {
+        c.req.raw = await admittedRequest(c.req.raw, signal);
         await next();
         if (!c.get("streaming") && !c.error) signal.throwIfAborted();
       }, signal);
     } finally {
+      if (!c.req.raw.bodyUsed) void c.req.raw.body?.cancel().catch(() => {});
       if (!c.get("streaming")) finish();
     }
   });

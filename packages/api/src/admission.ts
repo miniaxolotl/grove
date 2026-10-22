@@ -3,6 +3,30 @@ import { GroveError } from "@lib/shared/contracts";
 const busy = () =>
   new GroveError("overloaded", "Grove is busy. Try again shortly.", 503);
 
+/** Buffer at most one small API body, only after admission. The stream signal
+ * interrupts stalled reads; received bytes, not Content-Length, enforce the cap. */
+export async function admittedRequest(request: Request, signal: AbortSignal) {
+  if (!request.body) return request;
+  const maximum = 128 * 1024;
+  const tooLarge = () =>
+    new GroveError("too_large", "Request body is too large", 413);
+  if (Number(request.headers.get("content-length")) > maximum) throw tooLarge();
+  let size = 0;
+  const limited = request.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        size += chunk.byteLength;
+        if (size > maximum) throw tooLarge();
+        controller.enqueue(chunk);
+      },
+    }),
+    { signal },
+  );
+  const body = await new Response(limited).arrayBuffer();
+  signal.throwIfAborted();
+  return new Request(request, { body, signal });
+}
+
 /** FIFO, bounded, cancellable waiting. A permit stays owned until work settles. */
 export class Admission {
   private active = 0;

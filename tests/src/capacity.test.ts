@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
+import { request as httpRequest } from "node:http";
+import { serve } from "@hono/node-server";
 import { createDatabase, tenant, withDatabaseSignal } from "@lib/database";
 import { withMemoryOperation } from "@lib/memory";
 import { listSchema } from "@lib/shared/contracts";
@@ -150,7 +152,133 @@ test("bounded HTTP waiting cancels, times out, rejects excess work and recovers"
   assert.equal((await request()).status, 200);
 });
 
-test("interactive saturation leaves foreground reads available and deadlines cancel inference", async () => {
+for (const sized of [false, true]) {
+  test(`a stalled ${sized ? "fixed-length" : "chunked"} body owns admission and observes the request deadline`, async () => {
+    const reading = deferred();
+    let source!: ReadableStreamDefaultController<Uint8Array>;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        start(controller) {
+          source = controller;
+        },
+        pull() {
+          reading.resolve();
+        },
+        cancel() {
+          cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const server = app({
+      capacity: { concurrency: 1, queued: 0, requestTimeoutMs: 500 },
+    });
+    const init: RequestInit & { duplex: "half" } = {
+      method: "POST",
+      body,
+      duplex: "half",
+      headers: {
+        authorization: "Bearer 0",
+        "content-type": "application/json",
+        ...(sized ? { "content-length": "2" } : {}),
+      },
+    };
+    const pending = server.request(
+      new Request("http://localhost/v1/memories/search", init),
+    );
+    try {
+      await reading.promise;
+      assert.equal((await server.request("/health/live")).status, 200);
+      assert.equal((await server.request("/missing")).status, 503);
+      const response = await Promise.race([
+        pending,
+        setTimeout(2000).then(() => {
+          throw new Error("Body ignored the request deadline");
+        }),
+      ]);
+      assert.equal(response.status, 503);
+      assert.equal((await response.json()).error.code, "request_timeout");
+      assert.equal(cancelled, true);
+      assert.equal((await server.request("/missing")).status, 404);
+    } finally {
+      if (!cancelled) {
+        source.enqueue(new TextEncoder().encode("{}"));
+        source.close();
+      }
+      await pending;
+    }
+  });
+}
+
+test("body limits check received bytes even when Content-Length understates them", async () => {
+  const response = await app().request("/v1/memories/search", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer 0",
+      "content-type": "application/json",
+      "content-length": "2",
+    },
+    body: "{}" + " ".repeat(128 * 1024),
+  });
+  assert.equal(response.status, 413);
+});
+
+test("the Node HTTP adapter returns a deadline response to an unfinished upload", async () => {
+  const server = serve({
+    fetch: app({
+      capacity: { concurrency: 1, queued: 0, requestTimeoutMs: 500 },
+    }).fetch,
+    hostname: "127.0.0.1",
+    port: 0,
+  });
+  if (!server.listening)
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const request = httpRequest(
+    `http://127.0.0.1:${address.port}/v1/memories/search`,
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer 0",
+        "content-type": "application/json",
+      },
+    },
+  );
+  try {
+    const response = new Promise<{ status: number | undefined; body: string }>(
+      (resolve, reject) => {
+        request.on("error", reject);
+        request.setTimeout(4000, () =>
+          request.destroy(new Error("Upload deadline was not enforced")),
+        );
+        request.on("response", (incoming) => {
+          let body = "";
+          incoming.setEncoding("utf8");
+          incoming.on("data", (chunk) => {
+            body += chunk;
+          });
+          incoming.on("error", reject);
+          incoming.on("end", () =>
+            resolve({ status: incoming.statusCode, body }),
+          );
+        });
+      },
+    );
+    request.write("{"); // Keep the chunked body open after headers have arrived.
+    const result = await response;
+    assert.equal(result.status, 503);
+    assert.equal(JSON.parse(result.body).error.code, "request_timeout");
+  } finally {
+    request.destroy();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test("interactive saturation leaves foreground reads available and cancellation reaches inference", async () => {
   const entered = deferred(),
     release = deferred();
   const server = app({
@@ -186,11 +314,14 @@ test("interactive saturation leaves foreground reads available and deadlines can
   }
 
   const embedder = fixture.service.providers.embedding!;
+  const inference = deferred();
+  const controller = new AbortController();
   let stopped = false;
   fixture.service.providers.embedding = {
     ...embedder,
     async embed(_text, _purpose, options) {
       assert.ok(options?.signal);
+      inference.resolve();
       await new Promise<void>((_resolve, reject) => {
         options.signal!.addEventListener(
           "abort",
@@ -205,19 +336,22 @@ test("interactive saturation leaves foreground reads available and deadlines can
     },
   };
   try {
-    const deadline = app({ capacity: { requestTimeoutMs: 500 } });
-    const result = await deadline.request("/v1/memories/search", {
+    const pending = app().request("/v1/memories/search", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         authorization: "Bearer 0",
         "content-type": "application/json",
       },
       body: JSON.stringify({ query: "garden" }),
     });
+    await inference.promise;
+    controller.abort();
+    const result = await pending;
     assert.equal(result.status, 503);
-    assert.equal((await result.json()).error.code, "request_timeout");
     assert.equal(stopped, true);
   } finally {
+    controller.abort();
     fixture.service.providers.embedding = embedder;
   }
 });
