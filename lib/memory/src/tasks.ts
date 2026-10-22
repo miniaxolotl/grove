@@ -298,6 +298,17 @@ export class Tasks {
       createdAt: new Date(row.createdAt).toISOString(),
       updatedAt: new Date(row.updatedAt).toISOString(),
       expiresAt: row.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+      ...(row.kind === "export"
+        ? {
+            scope: {
+              projectId:
+                typeof row.payload.projectId === "string"
+                  ? row.payload.projectId
+                  : null,
+              includeDescendants: !!row.payload.includeDescendants,
+            },
+          }
+        : {}),
       downloadable:
         row.kind === "export" &&
         row.status === "succeeded" &&
