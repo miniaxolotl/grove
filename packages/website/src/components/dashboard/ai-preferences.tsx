@@ -26,7 +26,7 @@ const groups: {
         key: "classificationEnabled",
         label: "Note classification",
         description:
-          "Suggest note types. Apply them to notes with automatic classification on.",
+          "Suggest a note type. Only apply it when that note’s auto-classification is on.",
         provider: "classification",
       },
     ],
@@ -120,8 +120,13 @@ export function AiPreferences({
       {features.map(({ key, label, description, provider }) => (
         <label className="ai-preference" key={key}>
           <span className="ai-preference-copy">
-            <span id={`${key}-label`} className="ai-preference-label">
-              {label}
+            <span className="ai-preference-label">
+              <span id={`${key}-label`}>{label}</span>
+              {provider && availability?.[provider] === false && (
+                <span className="settings-badge" aria-hidden="true">
+                  Unavailable
+                </span>
+              )}
             </span>
             <span
               id={`${key}-description`}
@@ -129,9 +134,9 @@ export function AiPreferences({
             >
               {description}
               {provider && availability?.[provider] === false && (
-                <span className="ai-preference-unavailable">
-                  Currently unavailable on this installation. Your choice will
-                  be saved.
+                <span className="sr-only">
+                  {" "}
+                  Currently unavailable. Your choice will be saved.
                 </span>
               )}
             </span>

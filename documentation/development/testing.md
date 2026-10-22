@@ -28,8 +28,10 @@ organization/summary combinations, separate summary scopes and connections, part
 HTTP writes, owner-only permissions, reindex/restore preservation and disabling then
 re-enabling features during inference. Browser cases exercise the five categories,
 ten controls, provider availability, failed/overlapping saves, keyboard operation,
-cross-tab summary invalidation and 1440/390/320px accessibility. The focused WebKit
-configuration includes categorized preferences and held-save cases.
+cross-tab summary invalidation and 1440/390/320px accessibility. Settings cases also
+cover draft retention across tabs, discard, clean-form server updates, session
+replacement and provider credential save/retry. The focused WebKit configuration
+includes categorized preferences, held saves and provider configuration.
 
 ```sh
 pnpm install --frozen-lockfile
