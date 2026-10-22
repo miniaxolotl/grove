@@ -30,6 +30,7 @@ import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
 import { presentMemories } from "./presentation.ts";
+import { semanticMatches } from "./search.ts";
 import { admitOperation } from "./operation-context.ts";
 export { withMemoryOperation } from "./operation-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
@@ -744,21 +745,7 @@ export class MemoryService {
             )
             .limit(40);
           const semantic = vector
-            ? await base()
-                .whereRaw(
-                  `EXISTS (SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id
-          AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
-                  [
-                    embedder!.profile,
-                    JSON.stringify(vector),
-                    embedder!.distanceThreshold ?? 0.45,
-                  ],
-                )
-                .orderByRaw(
-                  `(SELECT e.embedding <=> ?::vector FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ?)`,
-                  [JSON.stringify(vector), embedder!.profile],
-                )
-                .limit(40)
+            ? await semanticMatches(trx, base(), embedder!, vector, 40)
             : [];
           const candidates = new Map<
             string,
