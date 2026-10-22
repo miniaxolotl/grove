@@ -331,7 +331,7 @@ export class Conversations {
         return {
           conversation,
           history: history.reverse(),
-          enabled: account.summariesEnabled,
+          enabled: account.askEnabled,
         };
       },
     );
@@ -406,6 +406,11 @@ export class Conversations {
         principal,
         "admin",
         async ({ trx, account }) => {
+          if (generation && !account.askEnabled) throw stale();
+          const pending = await trx("conversation_turns")
+            .where({ id: input.id, leaseId, status: "pending" })
+            .first("id");
+          if (!pending) throw stale();
           const ids = [
             ...new Set([
               ...plan.references,
@@ -514,7 +519,7 @@ export class Conversations {
             throw conflict();
           if (
             generation &&
-            (!account.summariesEnabled ||
+            (!account.askEnabled ||
               this.service.providers.generation?.profile !== generation.profile)
           )
             throw stale();
@@ -602,6 +607,12 @@ export class Conversations {
         const proposal = result.proposal!;
         if (undo ? proposal.status === "undone" : proposal.status === "applied")
           return this.read(trx, conversation);
+        if (!undo && !account.askEnabled)
+          throw new GroveError(
+            "feature_disabled",
+            "Enable Ask Grove in AI preferences to apply this preview.",
+            409,
+          );
         if (
           undo
             ? proposal.status !== "applied" || !turn.undo

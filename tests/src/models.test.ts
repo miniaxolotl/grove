@@ -5,6 +5,9 @@ import { createDatabase, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
 import { InferenceError, type Providers } from "@lib/ai";
 import {
+  answerSchema,
+  askSchema,
+  briefContentSchema,
   organizationSchema,
   type Annotation,
   type BriefContent,
@@ -23,6 +26,9 @@ import {
 import { resetModelData } from "../../scripts/database/models.ts";
 import { formatContext } from "@lib/integration-core";
 import { noteAssessmentSchema } from "@lib/shared/relationships";
+import { preferencesFor } from "@lib/shared/preferences";
+import { Authentication } from "../../packages/api/src/auth.ts";
+import { createApp } from "../../packages/api/src/app.ts";
 
 const authorityUrl = process.env.TEST_MIGRATION_DATABASE_URL!;
 if (!authorityUrl || !new URL(authorityUrl).pathname.endsWith("_test"))
@@ -89,6 +95,14 @@ async function fixture(
       profile: `generation-${suffix}`,
       generate: async (schema, _instructions, sources, opts) => {
         opts?.onUsage?.({ inputTokens: 10, outputTokens: 20 });
+        if (Object.is(schema, answerSchema))
+          return schema.parse({
+            insufficient: false,
+            statements: sources.slice(0, 1).map((s) => ({
+              text: s.content,
+              sources: [{ id: s.id, version: s.version }],
+            })),
+          });
         if (Object.is(schema, noteAssessmentSchema))
           return schema.parse({
             relationship: "duplicate",
@@ -150,6 +164,338 @@ async function fixture(
   };
   return { principal, providers, service, worker, drain };
 }
+
+test("settings HTTP updates are partial, legacy-compatible and restricted to the owning session", async () => {
+  const f = await fixture();
+  const other = await fixture();
+  const auth = new Authentication(db, {
+    verify: async () => ({
+      subject: f.principal.subject,
+      type: "session",
+      sessionId: `settings_${randomUUID()}`,
+    }),
+  });
+  const app = createApp({
+    memories: f.service,
+    auth,
+    origin: "http://localhost",
+    siteUrl: "http://localhost",
+    issuer: "https://clerk.example.test",
+    webhookSecret: "whsec_dGVzdA==",
+    ready: async () => {},
+  });
+  const update = (body: unknown, token = "owner") =>
+    app.request("/v1/account/settings", {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  for (const body of [
+    {},
+    { askEnabled: "no" },
+    { accountId: other.principal.accountId, askEnabled: false },
+  ])
+    assert.equal((await update(body)).status, 400);
+  const legacy = await update({
+    captureEnabled: false,
+    recallEnabled: true,
+    organizeEnabled: false,
+    summariesEnabled: false,
+  });
+  assert.equal(legacy.status, 200);
+  const partial = await update({
+    askEnabled: true,
+    noteConnectionsEnabled: true,
+  });
+  assert.equal(partial.status, 200);
+  const result = (await partial.json()).data;
+  assert.equal(result.askEnabled, true);
+  assert.equal(result.noteConnectionsEnabled, true);
+  assert.equal(result.classificationEnabled, false);
+  assert.equal(result.notebookConnectionsEnabled, false);
+  assert.equal(result.notebookSummariesEnabled, false);
+  assert.equal(result.captureEnabled, false);
+  assert.deepEqual(
+    preferencesFor(await other.service.me(other.principal)),
+    preferencesFor({}),
+  );
+  const key = await f.service.grant(
+    f.principal,
+    {
+      name: "Connected agent",
+      personal: true,
+      allProjects: true,
+      projectIds: [],
+      capabilities: ["memory:read", "memory:write"],
+    },
+    { key: true },
+  );
+  assert.equal((await update({ askEnabled: false }, key.secret)).status, 403);
+  assert.equal((await f.service.me(f.principal)).askEnabled, true);
+  assert.deepEqual((await f.service.me(f.principal)).aiAvailability, {
+    classification: true,
+    generation: true,
+  });
+  delete f.service.providers.decision;
+  assert.deepEqual((await f.service.me(f.principal)).aiAvailability, {
+    classification: false,
+    generation: true,
+  });
+});
+
+test("turning Ask Grove off and back on fences a direct in-flight answer", async () => {
+  const f = await fixture({ generationOnly: true });
+  await f.service.remember(f.principal, input("Garden plans."));
+  const original = f.providers.generation!.generate;
+  const entered = deferred(),
+    release = deferred();
+  f.providers.generation!.generate = async (...args) => {
+    entered.resolve();
+    await release.promise;
+    return original(...args);
+  };
+  const running = f.service.ask(
+    f.principal,
+    askSchema.parse({ query: "garden" }),
+  );
+  const rejected = assert.rejects(running, /changed/);
+  await entered.promise;
+  await f.service.settings(f.principal, { askEnabled: false });
+  await f.service.settings(f.principal, { askEnabled: true });
+  release.resolve();
+  await rejected;
+});
+
+test("titles, classification and briefs can be switched independently without resetting other work", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, { notebookConnectionsEnabled: false });
+  const note = await f.service.remember(
+    f.principal,
+    input("Use concise examples.", { autoKind: true }),
+  );
+  await f.drain();
+  const embeddings = await admin("memory_embeddings").where({
+    memoryId: note.id,
+  });
+  const decisions = await admin("memory_enrichments").where({
+    memoryId: note.id,
+    kind: "decision",
+  });
+  const briefs = await admin("memory_briefs").where({
+    accountId: f.principal.accountId,
+  });
+  await f.service.settings(f.principal, { titlesTagsEnabled: false });
+  const withoutTitle = await f.service.get(f.principal, note.id);
+  assert.equal(withoutTitle.enrichment?.title, undefined);
+  assert.deepEqual(withoutTitle.enrichment?.tags, []);
+  assert.equal(withoutTitle.enrichment?.suggestedKind, "preference");
+  assert.deepEqual(
+    await admin("memory_briefs").where({ accountId: f.principal.accountId }),
+    briefs,
+  );
+  assert.deepEqual(
+    (await f.service.list(f.principal, listSchema.parse({ tag: "testing" })))
+      .items,
+    [],
+  );
+  await f.service.settings(f.principal, { titlesTagsEnabled: true });
+  assert.deepEqual(
+    await admin("memory_embeddings").where({ memoryId: note.id }),
+    embeddings,
+  );
+  assert.deepEqual(
+    await admin("memory_enrichments").where({
+      memoryId: note.id,
+      kind: "decision",
+    }),
+    decisions,
+  );
+  assert.deepEqual(
+    await admin("memory_briefs").where({ accountId: f.principal.accountId }),
+    briefs,
+  );
+  await f.drain();
+  await f.service.settings(f.principal, { classificationEnabled: false });
+  const organized = await f.service.get(f.principal, note.id);
+  assert.equal(organized.enrichment?.title, "Organized memory");
+  assert.equal(organized.enrichment?.suggestedKind, undefined);
+  assert.equal(organized.kind, "preference");
+  const next = await f.service.remember(
+    f.principal,
+    input("Use separate examples.", { autoKind: true }),
+  );
+  await f.drain();
+  assert.equal((await f.service.get(f.principal, next.id)).kind, "fact");
+  await f.service.settings(f.principal, { classificationEnabled: true });
+  await f.drain();
+  assert.equal((await f.service.get(f.principal, next.id)).kind, "preference");
+});
+
+test("each summary scope and Ask Grove are independent across save, refresh and reindex", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, { notebookConnectionsEnabled: false });
+  const project = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  await f.service.remember(f.principal, input("Personal garden preferences."));
+  await f.service.remember(
+    f.principal,
+    input("Garden layout.", { projectId: project.id }),
+  );
+  await f.service.remember(
+    f.principal,
+    input("Garden work is ready.", {
+      projectId: project.id,
+      kind: "handoff",
+      taskId: "garden",
+    }),
+  );
+  const scopes = [
+    { projectId: null },
+    { projectId: project.id },
+    { projectId: project.id, taskId: "garden" },
+  ];
+  await f.service.settings(f.principal, {
+    notebookSummariesEnabled: false,
+    classificationEnabled: false,
+  });
+  await f.drain();
+  assert.equal((await f.service.brief(f.principal, scopes[0])).status, "ready");
+  assert.equal(
+    (await f.service.brief(f.principal, scopes[1], true)).status,
+    "disabled",
+  );
+  assert.equal((await f.service.brief(f.principal, scopes[2])).status, "ready");
+  await f.service.settings(f.principal, {
+    personalSummaryEnabled: false,
+    progressSummariesEnabled: false,
+  });
+  assert.equal(
+    (await f.service.ask(f.principal, askSchema.parse({ query: "garden" })))
+      .status,
+    "ready",
+  );
+  await f.service.settings(f.principal, {
+    askEnabled: false,
+    notebookSummariesEnabled: true,
+  });
+  await f.drain();
+  assert.equal((await f.service.brief(f.principal, scopes[1])).status, "ready");
+  assert.equal(
+    (await f.service.ask(f.principal, askSchema.parse({ query: "garden" })))
+      .status,
+    "generation_disabled",
+  );
+  await admin.raw("SELECT grove_reprocess(?, ?, ?)", [
+    f.providers.embedding!.profile,
+    f.providers.decision!.profile,
+    f.providers.generation!.profile,
+  ]);
+  const jobs = await admin("jobs").where({ accountId: f.principal.accountId });
+  assert(!jobs.some((j) => j.kind === "decision"));
+  assert.deepEqual(
+    jobs.filter((j) => j.kind === "brief").map((j) => j.scope),
+    [scopes[1]],
+  );
+  await f.drain();
+  await f.worker.scheduleOrganization(60);
+  const repaired = await admin("jobs").where({
+    accountId: f.principal.accountId,
+  });
+  assert(
+    !repaired.some((j) => j.kind === "brief" && j.scope.projectId === null),
+  );
+  assert(
+    !repaired.some((j) =>
+      ["decision", "notebook_profile", "notebook_relationship"].includes(
+        j.kind,
+      ),
+    ),
+  );
+});
+
+test("disabling then re-enabling a feature fences its old leased output and preserves other queues", async () => {
+  for (const [key, schema] of [
+    ["titlesTagsEnabled", organizationSchema],
+    ["personalSummaryEnabled", briefContentSchema],
+  ] as const) {
+    const f = await fixture({ generationOnly: true });
+    await f.service.settings(f.principal, {
+      notebookConnectionsEnabled: false,
+      noteConnectionsEnabled: false,
+    });
+    const note = await f.service.remember(
+      f.principal,
+      input("Keep the garden notes concise."),
+    );
+    if (key === "personalSummaryEnabled") {
+      const organization = await admin("jobs")
+        .where({ memoryId: note.id, kind: "organization" })
+        .first();
+      await f.worker.runJob(organization.id);
+    }
+    const original = f.providers.generation!.generate;
+    const entered = deferred(),
+      release = deferred();
+    f.providers.generation!.generate = async (
+      s,
+      instructions,
+      sources,
+      options,
+    ) => {
+      if (Object.is(s, schema)) {
+        entered.resolve();
+        await release.promise;
+      }
+      return original(s, instructions, sources, options);
+    };
+    const kind = key === "titlesTagsEnabled" ? "organization" : "brief";
+    const job = await admin("jobs")
+      .where({ accountId: f.principal.accountId, kind })
+      .first();
+    await admin("jobs").where({ id: job.id }).update({ dueAt: admin.fn.now() });
+    const running = f.worker.runJob(job.id);
+    await entered.promise;
+    const otherJobs = await admin("jobs")
+      .where({ accountId: f.principal.accountId })
+      .whereNot("kind", kind);
+    await f.service.settings(f.principal, { [key]: false });
+    await f.service.settings(f.principal, { [key]: true });
+    assert.deepEqual(
+      await admin("jobs")
+        .where({ accountId: f.principal.accountId })
+        .whereNot("kind", kind),
+      otherJobs,
+    );
+    const replacement = await admin("jobs")
+      .where({ accountId: f.principal.accountId, kind })
+      .first();
+    assert.notEqual(replacement.id, job.id);
+    release.resolve();
+    await running;
+    assert(await admin("jobs").where({ id: replacement.id }).first());
+    assert.equal(
+      (
+        await admin(
+          key === "titlesTagsEnabled" ? "memory_enrichments" : "memory_briefs",
+        ).where({ accountId: f.principal.accountId })
+      ).length,
+      0,
+    );
+    f.providers.generation!.generate = original;
+    await f.drain();
+    assert.equal(
+      key === "titlesTagsEnabled"
+        ? (await f.service.get(f.principal, note.id)).enrichment?.status
+        : (await f.service.brief(f.principal, { projectId: null })).status,
+      "ready",
+    );
+  }
+});
 
 test("4096-dimensional exact search, auto-kind, enrichment, cited briefs and grant isolation work together", async () => {
   const { principal, providers, service, drain } = await fixture();

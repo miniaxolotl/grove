@@ -12,7 +12,8 @@ export const aiPreferences = {
         ADD COLUMN notebook_summaries_enabled boolean NOT NULL DEFAULT true,
         ADD COLUMN personal_summary_enabled boolean NOT NULL DEFAULT true,
         ADD COLUMN progress_summaries_enabled boolean NOT NULL DEFAULT true,
-        ADD COLUMN ask_enabled boolean NOT NULL DEFAULT true;
+        ADD COLUMN ask_enabled boolean NOT NULL DEFAULT true,
+        ADD COLUMN ask_version integer NOT NULL DEFAULT 0;
       UPDATE accounts SET
         titles_tags_enabled=organize_enabled, classification_enabled=organize_enabled,
         note_connections_enabled=organize_enabled, notebook_connections_enabled=organize_enabled,

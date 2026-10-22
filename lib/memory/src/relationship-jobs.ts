@@ -1,5 +1,6 @@
 import { MemoryModel, tenant, type Knex } from "@lib/database";
 import { InferenceError, type Providers } from "@lib/ai";
+import { processingEnabled } from "@lib/shared/preferences";
 import type { ModelProfiles } from "@lib/shared/models";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
@@ -246,6 +247,7 @@ export async function scheduleRelationships(
   const rows = await trx("memories as m")
     .leftJoin("projects as p", "p.id", "m.projectId")
     .join("accounts as a", "a.id", "m.accountId")
+    .where("a.noteConnectionsEnabled", true)
     .where("m.status", "active")
     .where((b) =>
       b.whereNull("m.expiresAt").orWhere("m.expiresAt", ">", trx.fn.now()),
@@ -279,7 +281,9 @@ export async function scheduleRelationships(
       {},
       row,
     );
-  await scheduleNotebookProfiles(trx, accountId, profile);
+  const account = await trx("accounts").where({ id: accountId }).first();
+  if (account.notebookConnectionsEnabled)
+    await scheduleNotebookProfiles(trx, accountId, profile);
   return rows.length;
 }
 
@@ -313,7 +317,11 @@ export async function runRelationshipJob(
       const profile = resolveProfiles
         ? relationshipProfile(await resolveProfiles(trx))
         : currentRelationshipProfile(providers);
-      if (!account?.organizeEnabled || profile !== job.profile) {
+      if (
+        !account ||
+        !processingEnabled(account, job.kind) ||
+        profile !== job.profile
+      ) {
         await trx("jobs").where({ id: job.id }).delete();
         return;
       }

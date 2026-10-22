@@ -1,6 +1,11 @@
 import { MemoryModel, camelRows, tenant, type Knex } from "@lib/database";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
+  briefPreference,
+  processingEnabled,
+  type PreferenceKey,
+} from "@lib/shared/preferences";
+import {
   InferenceError,
   type Embedder,
   type Providers,
@@ -75,6 +80,8 @@ export async function queueBrief(
   profile: string,
   delay = 5,
 ) {
+  const account = await trx("accounts").where({ id: accountId }).first();
+  if (!account?.[briefPreference(scope)]) return;
   await trx("jobs")
     .insert({
       accountId,
@@ -121,17 +128,23 @@ export async function queueMemory(
     decision: providers.decision?.profile ?? null,
     generation: providers.generation?.profile ?? null,
   },
+  only?: PreferenceKey[],
 ) {
-  await trx("jobs").where({ memoryId: row.id }).delete();
-  await trx("memory_enrichments").where({ memoryId: row.id }).delete();
+  // Settings re-enable only the requested features; preserve unrelated jobs/leases.
+  if (!only) {
+    await trx("jobs").where({ memoryId: row.id }).delete();
+    await trx("memory_enrichments").where({ memoryId: row.id }).delete();
+  }
   if (
     row.status !== "active" ||
     (row.expiresAt && new Date(row.expiresAt) <= new Date())
   )
     return;
   const account = await trx("accounts").where({ id: row.accountId }).first();
+  const enabled = (key: PreferenceKey) =>
+    account[key] && (!only || only.includes(key));
   const connectionProfile = relationshipProfile(profiles);
-  if (account.organizeEnabled && connectionProfile)
+  if (enabled("noteConnectionsEnabled") && connectionProfile)
     await enqueueRelationship(
       trx,
       row.accountId,
@@ -142,28 +155,38 @@ export async function queueMemory(
       row,
     );
   for (const [kind, provider] of [
-    ["embedding", profiles.embedding],
-    ["decision", account.organizeEnabled ? profiles.decision : undefined],
-    ["organization", account.organizeEnabled ? profiles.generation : undefined],
+    ["embedding", !only ? profiles.embedding : undefined],
+    [
+      "decision",
+      enabled("classificationEnabled") ? profiles.decision : undefined,
+    ],
+    [
+      "organization",
+      enabled("titlesTagsEnabled") ? profiles.generation : undefined,
+    ],
   ] as const) {
     if (provider)
-      await trx("jobs").insert({
-        accountId: row.accountId,
-        memoryId: row.id,
-        version: row.version,
-        target: row.id,
-        kind,
-        profile: provider,
-      });
+      await trx("jobs")
+        .insert({
+          accountId: row.accountId,
+          memoryId: row.id,
+          version: row.version,
+          target: row.id,
+          kind,
+          profile: provider,
+        })
+        .onConflict(["accountId", "kind", "target", "profile"])
+        .ignore();
   }
-  if (profiles.generation && account.summariesEnabled) {
-    await queueBrief(
-      trx,
-      row.accountId,
-      { projectId: row.projectId },
-      profiles.generation,
-    );
-    if (row.taskId)
+  if (profiles.generation) {
+    if (enabled(briefPreference({ projectId: row.projectId })))
+      await queueBrief(
+        trx,
+        row.accountId,
+        { projectId: row.projectId },
+        profiles.generation,
+      );
+    if (row.taskId && enabled("progressSummariesEnabled"))
       await queueBrief(
         trx,
         row.accountId,
@@ -205,12 +228,11 @@ export async function enrichmentFor(
     (row.expiresAt && new Date(row.expiresAt) <= new Date())
   )
     return { status: "disabled", tags: [], relationships: [], profiles: [] };
+  const account = await trx("accounts").where({ id: row.accountId }).first();
   const profiles = [
-    providers.decision?.profile,
-    providers.generation?.profile,
+    account.classificationEnabled ? providers.decision?.profile : undefined,
+    account.titlesTagsEnabled ? providers.generation?.profile : undefined,
   ].filter((p): p is string => !!p);
-  if (!profiles.length)
-    return { status: "disabled", tags: [], relationships: [], profiles: [] };
   const records = await trx("memory_enrichments")
     .where({ memoryId: row.id, version: row.version })
     .whereIn("profile", profiles);
@@ -237,12 +259,14 @@ export async function enrichmentFor(
           ? "ready"
           : "disabled",
     title: organized?.data.title,
-    tags: [
-      ...new Set([
-        ...(classified?.data.topics ?? []),
-        ...(organized?.data.tags ?? []),
-      ]),
-    ].slice(0, 10),
+    tags: account.titlesTagsEnabled
+      ? [
+          ...new Set([
+            ...(classified?.data.topics ?? []),
+            ...(organized?.data.tags ?? []),
+          ]),
+        ].slice(0, 10)
+      : [],
     suggestedKind: classified?.data.kind,
     salience: classified?.data.salience,
     relationships,
@@ -266,7 +290,7 @@ export async function briefFor(
   };
   if (!providers.generation) return empty;
   const account = await trx("accounts").where({ id: accountId }).first();
-  if (!account.summariesEnabled) return empty;
+  if (!account[briefPreference(scope)]) return empty;
   const target = briefTarget(scope),
     profile = providers.generation.profile;
   const row = await trx("memory_briefs").where({ target, profile }).first();
@@ -436,12 +460,12 @@ export async function runProcessingJob(
         .first();
       const finish = () =>
         trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
-      if (
-        !account ||
-        ((job.kind === "decision" || job.kind === "organization") &&
-          !account.organizeEnabled) ||
-        (job.kind === "brief" && !account.summariesEnabled)
-      ) {
+      const lease = await trx("jobs")
+        .where({ id: job.id, leaseId: job.leaseId })
+        .where("leaseUntil", ">", trx.fn.now())
+        .first("id");
+      if (!lease) return;
+      if (!account || !processingEnabled(account, job.kind, job.scope)) {
         await finish();
         return;
       }
@@ -596,11 +620,7 @@ export async function runProcessingJob(
         await trx("jobs").where({ id: job.id }).delete();
         return;
       }
-      if (
-        (job.kind === "brief" && !account.summariesEnabled) ||
-        ((job.kind === "decision" || job.kind === "organization") &&
-          !account.organizeEnabled)
-      ) {
+      if (!processingEnabled(account, job.kind, job.scope)) {
         await trx("jobs").where({ id: job.id }).delete();
         return;
       }
@@ -632,7 +652,7 @@ export async function runProcessingJob(
           .onConflict(["accountId", "memoryId", "version", "profile"])
           .merge(["embedding"]);
         const profile = currentRelationshipProfile(providers);
-        if (profile && row?.projectId && account.organizeEnabled) {
+        if (profile && row?.projectId && account.notebookConnectionsEnabled) {
           await trx("notebook_profiles")
             .where({ projectId: row.projectId, profile })
             .delete();

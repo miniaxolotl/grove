@@ -19,6 +19,7 @@ export const preferenceKeys = [
 ] as const;
 export type PreferenceKey = (typeof preferenceKeys)[number];
 export type AccountPreferences = Record<PreferenceKey, boolean>;
+export type AiAvailability = { classification: boolean; generation: boolean };
 export type LegacyPreferences = {
   organizeEnabled?: boolean;
   summariesEnabled?: boolean;

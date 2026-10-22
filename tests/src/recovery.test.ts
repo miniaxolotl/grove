@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { createDatabase } from "@lib/database";
 import { reconcileRestore } from "../../scripts/database/reconcile-restore.ts";
+import { preferencesFor } from "@lib/shared/preferences";
 
 test("isolated restore replays current deletions and revocations without changing authority", async () => {
   const url = process.env.TEST_MIGRATION_DATABASE_URL;
@@ -182,7 +183,14 @@ test("isolated restore replays current deletions and revocations without changin
       deletedAt: source.fn.now(),
       providerDeletedAt: source.fn.now(),
     });
-    await source("accounts").where({ id: a }).update({ captureEnabled: false });
+    const preferences = preferencesFor({
+      captureEnabled: false,
+      titlesTagsEnabled: false,
+      notebookConnectionsEnabled: false,
+      personalSummaryEnabled: false,
+      askEnabled: false,
+    });
+    await source("accounts").where({ id: a }).update(preferences);
     await source("subject_authority").insert({
       subject: "recovery_b",
       eventAt: "2000",
@@ -251,6 +259,10 @@ test("isolated restore replays current deletions and revocations without changin
     assert.equal(
       (await target("accounts").where({ id: a }).first()).captureEnabled,
       false,
+    );
+    assert.deepEqual(
+      preferencesFor(await target("accounts").where({ id: a }).first()),
+      preferences,
     );
     assert.equal(
       (
