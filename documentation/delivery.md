@@ -113,12 +113,19 @@ deduplicate sources and protect local edits; connector adapters checkpoint their
 pages with ordinary memory writes. [Operations and API](jobs.md) and the
 [014 rollout](deploy.md#queue-and-retained-deletion-rollout-014) describe setup.
 
-Verification passes: the **121-case backend/storage suite**, plus the two-worker
-broker-outage/import/export/SIGTERM case; populated **013→014** upgrade; real RabbitMQ
-isolation/reconnect; private Garage **12 MiB** multipart transfers; root/website lint,
-types and builds; five packaged artifacts; 17 release/deployment checks and workflow
-lint. The integrated workspace passes **196 Chromium** and four focused iPhone/WebKit
-scenarios. The final saved-scope follow-up passes three Chromium and one WebKit check.
+After integrating workspace-polish #77 and backend capacity #78, all **138
+backend/storage cases** pass, including two-worker broker-outage/import/export/SIGTERM,
+populated **013→014** upgrade, real RabbitMQ isolation/reconnect and private Garage
+**12 MiB** multipart transfers. Download deadline/cancellation/storage failures release
+interactive permits; freshness rechecks share one request admission, and worker writes
+retain authorization without consuming request quota. Root/website lint, types and
+builds, five packaged artifacts, 17 release/deployment checks and workflow lint pass.
+The integrated workspace passes **196 Chromium** and six focused iPhone/WebKit scenarios.
+
+The final notebook-assistance #80 integration passes **156 backend cases** with one
+optional S3 check skipped, plus **eight affected browser cases in each engine**.
+The S3 adapter is unchanged from the earlier Garage-qualified run. Root/website
+lint, types, builds, bundle budgets and all five packaged artifacts pass again.
 
 The synthetic 1,000-note/2,000-record export uses at most a 623,300-byte serialized
 page. Its initial local run took 742 ms with 34.7 MiB RSS growth and foreground-read

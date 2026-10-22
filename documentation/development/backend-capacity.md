@@ -59,10 +59,10 @@ owner operations and monitoring headroom. Start with eight per process. Increasi
 pools or HTTP concurrency cannot repair a CPU/I/O-bound database. Inspect pool wait,
 connection hold, SQL duration, lock waits and queue growth before changing limits.
 
-The existing worker's `AI_CONCURRENCY` is separate from foreground admission.
-Durable worker lanes, broker fairness and shared cross-replica provider budgets
-belong to the queue-processing workstream. API save throughput alone does not
-establish sustainable enrichment throughput.
+Worker lane concurrency is separate from foreground admission. See
+[durable background work](../jobs.md) for lane limits, broker fairness and shared
+cross-replica provider budgets. API save throughput alone does not establish
+sustainable enrichment throughput.
 
 ## Reproduce and verify
 
@@ -80,6 +80,6 @@ cancellation and retained usage accounting for all three roles. Existing databas
 tests cover revocation, profile changes, stale evidence and tenant isolation. Browser
 cache/editor tests cover stable navigation, typing during saves, focus and retry.
 
-Capacity changes add no schema migration beyond the current AI-preferences **013**
-baseline. Production resizing and real-provider throughput qualification remain
-explicit deployment operations.
+Foreground capacity changes add no schema migration; durable background work
+requires queue migration **014** after AI-preferences **013**. Production resizing
+and real-provider throughput qualification remain explicit deployment operations.

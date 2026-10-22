@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { PassThrough, Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
 import {
   requestCollectionAllowed,
@@ -6,7 +8,6 @@ import {
 } from "@lib/telemetry/context";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { stream } from "hono/streaming";
 import { z, ZodError } from "zod";
 import { Webhook } from "svix";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -987,50 +988,47 @@ export function createApp(deps: AppDependencies) {
     const cancelled = new AbortController();
     const signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
     const source = await deps.artifacts.read(artifact.key, signal);
-    c.header(
-      "Content-Disposition",
-      `attachment; filename="${artifact.filename}"`,
-    );
-    c.header("Content-Type", "application/x-ndjson");
-    c.header("Content-Length", String(artifact.bytes));
+    const stream = new PassThrough();
+    const response = Readable.toWeb(stream) as ReadableStream;
+    stream.once("close", () => {
+      if (!stream.readableEnded) cancelled.abort();
+    });
     c.set("streaming", true);
-    const response = stream(
-      c,
-      async (stream) => {
-        stream.onAbort(() => cancelled.abort());
-        try {
-          await withDatabaseSignal(signal, async () => {
-            let checked = Date.now();
-            for await (const chunk of source) {
-              signal.throwIfAborted();
-              if (Date.now() - checked >= 5000) {
-                await tasks.artifact(principal, id);
-                checked = Date.now();
-              }
-              await stream.write(chunk);
-            }
-          });
-        } finally {
-          source.destroy();
-          c.get("finish")();
+    void pipeline(
+      source,
+      async function* (input) {
+        let checked = Date.now();
+        for await (const chunk of input) {
+          if (Date.now() - checked >= 5000) {
+            await withDatabaseSignal(signal, () =>
+              tasks.artifact(principal, id),
+            );
+            checked = Date.now();
+          }
+          yield chunk;
         }
       },
-      async (_error, stream) => {
+      stream,
+      { signal },
+    )
+      .catch(() => {
+        // pipeline errors reach the response body; never report a partial export
+        // as a complete download or log storage credentials/object contents.
         console.error(
           JSON.stringify({
             requestId: c.get("requestId"),
             code: "export_interrupted",
           }),
         );
-        cancelled.abort();
-        stream.abort();
-      },
+      })
+      .finally(c.get("finish"));
+    c.header(
+      "Content-Disposition",
+      `attachment; filename="${artifact.filename}"`,
     );
-    // An interrupted backup must fail the download, not look like a complete file.
-    return new Response(
-      response.body!.pipeThrough(new TransformStream(), { signal }),
-      response,
-    );
+    c.header("Content-Type", "application/x-ndjson");
+    c.header("Content-Length", String(artifact.bytes));
+    return c.body(response);
   });
   app.all("/mcp", async (c) => {
     const principal = c.get("principal");

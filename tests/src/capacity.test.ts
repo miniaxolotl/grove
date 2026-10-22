@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { request as httpRequest } from "node:http";
-import { Readable } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import { serve } from "@hono/node-server";
 import { createDatabase, tenant, withDatabaseSignal } from "@lib/database";
 import { Tasks, withMemoryOperation } from "@lib/memory";
@@ -418,90 +418,131 @@ test("pool acquisition and SQL timeouts are bounded and connections recover", as
   }
 });
 
-for (const interruption of ["deadline", "client", "storage"] as const) {
-  test(`${interruption} interruption closes queued export storage and releases its interactive permit`, async () => {
-    const task = await new Tasks(fixture.service, true).export(
-      fixture.principals[0],
-      {
-        id: randomUUID(),
-        includeDescendants: false,
-      },
-    );
-    const content = Buffer.from('{"type":"fixture"}\n');
-    await fixture
-      .admin("background_tasks")
-      .where({ id: task.id })
-      .update({
-        status: "succeeded",
-        result: JSON.stringify({
-          key: "fixture.ndjson",
-          bytes: content.length,
-        }),
-      });
+async function readyExport() {
+  const task = await new Tasks(fixture.service, true).export(
+    fixture.principals[0],
+    { id: randomUUID(), includeDescendants: false },
+  );
+  await fixture
+    .admin("background_tasks")
+    .where({ id: task.id })
+    .update({
+      status: "succeeded",
+      result: JSON.stringify({
+        key: `exports/${fixture.principals[0].accountId}/${task.id}/${randomUUID()}.ndjson`,
+        bytes: 8,
+      }),
+    });
+  return `/v1/tasks/${task.id}/download`;
+}
+
+for (const interruption of ["deadline", "cancel", "storage"] as const) {
+  test(`artifact download ${interruption} releases its interactive permit and stops storage`, async () => {
+    const path = await readyExport();
+    const source = new PassThrough();
     const closed = deferred();
-    let source: Readable | undefined,
-      held = true;
+    source.once("close", closed.resolve);
+    let first = true;
     const server = app({
-      capacity: {
-        interactiveConcurrency: 1,
-        interactiveTimeoutMs: 3000,
-        queueTimeoutMs: 20,
-      },
       artifacts: {
-        async ready() {},
-        async write() {},
-        async remove() {},
-        async read(_key, signal) {
-          source = new Readable({ read() {}, signal });
-          source.once("close", closed.resolve);
-          source.push(content);
-          if (!held) source.push(null);
+        write: async () => {},
+        remove: async () => {},
+        read: async () => {
+          if (!first) return Readable.from([Buffer.from("complete")]);
+          first = false;
           return source;
         },
       },
+      capacity: {
+        interactiveConcurrency: 1,
+        interactiveTimeoutMs: 3000,
+        queueTimeoutMs: 30,
+      },
     });
-    const download = () =>
-      server.request(`/v1/tasks/${task.id}/download`, {
-        headers: { authorization: "Bearer 0" },
-      });
+    const request = (url = path) =>
+      server.request(url, { headers: { authorization: "Bearer 0" } });
     try {
-      const response = await download();
+      const response = await request();
       assert.equal(response.status, 200);
+      const reader = response.body!.getReader();
+      source.write(Buffer.from("partial"));
       assert.equal(
-        (await download()).status,
-        503,
-        "stream owns its interactive permit",
+        Buffer.from((await reader.read()).value!).toString(),
+        "partial",
       );
-      assert.equal(
-        (
-          await server.request("/v1/projects", {
-            headers: { authorization: "Bearer 0" },
-          })
-        ).status,
-        200,
-        "foreground reads retain capacity",
-      );
-      if (interruption === "client") await response.body!.cancel();
+      assert.equal((await request()).status, 503);
+      assert.equal((await request("/v1/projects")).status, 200);
+      const started = performance.now();
+      if (interruption === "cancel") await reader.cancel();
       else {
-        const failed = assert.rejects(
-          response.text(),
-          interruption === "deadline" ? /too long/ : /aborted/,
+        const rejected = assert.rejects(
+          reader.read(),
+          interruption === "deadline" ? /aborted/ : /synthetic storage outage/,
         );
         if (interruption === "storage")
-          source!.destroy(new Error("Interrupted fixture storage"));
-        await failed;
+          source.destroy(new Error("synthetic storage outage"));
+        await rejected;
       }
       await closed.promise;
-      assert.equal(source!.destroyed, true);
-      held = false;
-      const next = await download();
+      if (interruption === "cancel")
+        assert.ok(
+          performance.now() - started < 1000,
+          "Cancellation must not wait for the request deadline",
+        );
+      assert.equal(source.destroyed, true);
+      const next = await request();
       assert.equal(next.status, 200);
-      assert.equal(await next.text(), content.toString());
+      assert.equal(await next.text(), "complete");
     } finally {
-      source?.destroy();
+      source.destroy();
     }
   });
 }
+
+test("artifact reauthorization shares one request admission while retaining freshness checks", async () => {
+  const path = await readyExport();
+  const source = new PassThrough();
+  const server = app({
+    artifacts: {
+      write: async () => {},
+      remove: async () => {},
+      read: async () => source,
+    },
+  });
+  const count = async () =>
+    Number(
+      (
+        await fixture
+          .admin("rate_buckets")
+          .where({ accountId: fixture.principals[0].accountId })
+          .sum({ count: "count" })
+          .first()
+      )?.count ?? 0,
+    );
+  const before = await count();
+  const response = await server.request(path, {
+    headers: { authorization: "Bearer 0" },
+  });
+  assert.equal(response.status, 200);
+  const reader = response.body!.getReader();
+  try {
+    await setTimeout(5100);
+    source.write(Buffer.from("first"));
+    assert.equal(Buffer.from((await reader.read()).value!).toString(), "first");
+    assert.equal(await count(), before + 1);
+    await fixture
+      .admin("background_tasks")
+      .where({ id: path.split("/")[3] })
+      .update({ expiresAt: fixture.admin.raw("now()-interval '1 second'") });
+    await setTimeout(5100);
+    const rejected = assert.rejects(reader.read(), /Export is not available/);
+    source.write(Buffer.from("stale"));
+    await rejected;
+    assert.equal(await count(), before + 1);
+  } finally {
+    source.destroy();
+  }
+});
 after(async () => {
   await fixture?.close();
 });

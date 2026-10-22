@@ -579,7 +579,18 @@ test("imports and connector checkpoints commit with source mappings, avoid dupli
     });
   for (const content of ["First", "Second", "First", "First"]) {
     const task = await submit(content);
+    const usage = () =>
+      admin("rate_buckets")
+        .where({ accountId: f.accountId })
+        .sum({ count: "count" })
+        .first();
+    const before = await usage();
     await runTask(worker, handlers, { id: task.id });
+    assert.deepEqual(
+      await usage(),
+      before,
+      "Worker writes must not consume request quota",
+    );
     assert.equal(
       (await tasks.get(principal, task.id)).status,
       "succeeded",

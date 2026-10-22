@@ -85,6 +85,10 @@ Configure the **same store** on API and workers:
 Readiness validates configured storage. Downloads are session-owner-only,
 `private, no-store` streams through API/BFF, with authorization rechecked during
 long transfers. No public object URLs or credentials reach the browser.
+Downloads use the API's interactive admission lane and deadline; interrupted
+transfers fail the response, stop storage reads and release their permit. Rechecks
+share the original request's account quota reservation. Task creation/status/control
+use ordinary HTTP admission; worker checkpoints do not consume request quota.
 `artifact_cleanup` removes expired tracked parts and abandoned objects; provider
 lifecycle covers process crashes during multipart requests. Tracked expiry also
 removes local `.partial` files left by terminated processes.
