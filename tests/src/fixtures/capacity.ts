@@ -2,8 +2,12 @@ import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { createDatabase, probeDatabase, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
-import type { Providers } from "@lib/ai";
-import { organizationSchema } from "@lib/shared/models";
+import { InferenceError, type Providers } from "@lib/ai";
+import { briefContentSchema, organizationSchema } from "@lib/shared/models";
+import {
+  noteAssessmentSchema,
+  notebookAssessmentSchema,
+} from "@lib/shared/relationships";
 import {
   conversationGenerationSchema,
   conversationPlanSchema,
@@ -29,6 +33,8 @@ export async function capacityFixture(
     pool?: number;
     embeddingDelayMs?: number;
     generationDelayMs?: number;
+    querySeed?: number;
+    providerFailureEvery?: number;
   } = {},
 ) {
   const urls = [
@@ -70,25 +76,52 @@ export async function capacityFixture(
     };
     admin = createDatabase(target(parsed[0]));
     await admin.migrate.latest();
-    db = createDatabase(target(parsed[1]), { max: options.pool ?? 8 });
-    workerDb = createDatabase(target(parsed[2]));
+    db = createDatabase(target(parsed[1]), {
+      max: options.pool ?? 8,
+      acquireTimeoutMs: 2000,
+      statementTimeoutMs: 10000,
+    });
+    workerDb = createDatabase(target(parsed[2]), {
+      max: options.pool ?? 8,
+      acquireTimeoutMs: 2000,
+      statementTimeoutMs: 10000,
+    });
     await probeDatabase(db);
-    const vector = fixtureVector();
+    const vector = fixtureVector(options.querySeed ?? 1);
+    const providerMetrics = { calls: 0, active: 0, peak: 0, failures: 0 };
+    const delay = async (ms: number, signal?: AbortSignal) => {
+      const call = ++providerMetrics.calls;
+      providerMetrics.peak = Math.max(
+        providerMetrics.peak,
+        ++providerMetrics.active,
+      );
+      try {
+        await setTimeout(ms, undefined, { signal });
+        if (
+          options.providerFailureEvery &&
+          call % options.providerFailureEvery === 0
+        ) {
+          providerMetrics.failures++;
+          throw new InferenceError("fixture_unavailable");
+        }
+      } finally {
+        providerMetrics.active--;
+      }
+    };
     const providers: Providers = {
       embedding: {
         profile: "capacity-4096-v1",
         model: "synthetic-dense",
         dimensions: 4096,
         async embed(_text, _purpose, settings) {
-          await setTimeout(options.embeddingDelayMs ?? 0, undefined, {
-            signal: settings?.signal,
-          });
-          return vector;
+          await delay(options.embeddingDelayMs ?? 0, settings?.signal);
+          return _purpose === "query" ? vector : fixtureVector();
         },
       },
       decision: {
         profile: "capacity-decision-v1",
-        async classify() {
+        async classify(_source, _candidates, settings) {
+          await delay(options.embeddingDelayMs ?? 0, settings?.signal);
           return {
             kind: "fact",
             topics: ["other"],
@@ -100,9 +133,20 @@ export async function capacityFixture(
       generation: {
         profile: "capacity-generation-v1",
         async generate(schema, _instructions, _sources, settings) {
-          await setTimeout(options.generationDelayMs ?? 0, undefined, {
-            signal: settings?.signal,
-          });
+          await delay(options.generationDelayMs ?? 0, settings?.signal);
+          if (Object.is(schema, briefContentSchema))
+            return schema.parse({ title: "Garden", sections: [] });
+          if (
+            Object.is(schema, noteAssessmentSchema) ||
+            Object.is(schema, notebookAssessmentSchema)
+          )
+            return schema.parse({
+              relationship: "unrelated",
+              reason: "",
+              basis: "none",
+              direction: "both",
+              evidence: [],
+            });
           if (Object.is(schema, conversationPlanSchema))
             return schema.parse({
               query: "garden",
@@ -243,6 +287,7 @@ export async function capacityFixture(
     });
     return {
       databaseUrl: target(parsed[1]),
+      providerMetrics,
       admin,
       db,
       workerDb,
