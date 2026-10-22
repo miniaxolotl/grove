@@ -28,7 +28,7 @@ test("upgrading existing shares preserves capabilities and enables expiry withou
         ...migrationSource,
         getMigrations: async () =>
           all.filter(
-            (migration) => migration.name !== "20261022_012_share_expiration",
+            (migration) => migration.name < "20261022_012_share_expiration",
           ),
       },
     });
@@ -65,7 +65,15 @@ test("upgrading existing shares preserves capabilities and enables expiry withou
         )
       ).rows[0].value;
     assert.equal((await read()).root.name, "Existing notebook");
-    const [, applied] = await owner.migrate.latest({ migrationSource });
+    const [, applied] = await owner.migrate.latest({
+      migrationSource: {
+        ...migrationSource,
+        getMigrations: async () =>
+          all.filter(
+            (migration) => migration.name <= "20261022_012_share_expiration",
+          ),
+      },
+    });
     assert.deepEqual(applied, ["20261022_012_share_expiration"]);
     const after = await owner("public_shares").where({ id: share }).first();
     const { duration, expiresAt, ...retained } = after;
