@@ -57,13 +57,10 @@ test("cookie Settings stays readable through hover, press and keyboard focus", a
 });
 const container = "GTM-M5WKD5LZ";
 const preference = "grove.telemetry.optout";
-const proxyResponses: Promise<void>[] = [];
-
-test.afterEach(async ({ context, page }) => {
-  // Settle document and prefetch responses before removing the local proxy.
-  await page.waitForLoadState("networkidle");
-  await Promise.all(proxyResponses);
-  await context.unrouteAll({ behavior: "wait" });
+test.afterEach(async ({ context }) => {
+  // Removing the proxy continues in-flight prefetches before their fetch/fulfill
+  // handlers finish. Ignore those teardown errors, after all assertions ran.
+  await context.unrouteAll({ behavior: "ignoreErrors" });
 });
 
 test("a compact notice can be dismissed once without optional requests", async ({
@@ -132,17 +129,14 @@ for (const category of ["Analytics", "Advertising"]) {
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
-  proxyResponses.length = 0;
   await context.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.origin === origin) {
-      const response = route
+      return route
         .fetch({
           url: `${baseURL}${url.pathname}${url.search}`,
         })
         .then((response) => route.fulfill({ response }));
-      proxyResponses.push(response);
-      return response;
     }
     if (url.hostname === "www.googletagmanager.com")
       return route.fulfill({
