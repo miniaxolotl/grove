@@ -43,8 +43,8 @@ export default async function HomePage() {
             <em>Room to grow.</em>
           </h1>
           <p className="mt-6 max-w-[420px] text-[15px] leading-[1.85] text-muted sm:text-base">
-            Keep your notes, plans and journal in one private notebook. Find
-            them again, even when you forget the exact words.
+            Keep a thought, make a plan or write about your day. Grove helps you
+            find it again.
           </p>
           <p className="mt-3 text-xs leading-6 text-muted">
             Write in your browser. No install needed.
@@ -81,7 +81,7 @@ export default async function HomePage() {
       </section>
 
       <section
-        className="border-y border-line bg-sage/40"
+        className="border-y border-line"
         aria-label="A place for your everyday ideas"
       >
         <div className="page-container flex flex-col items-center gap-6 py-6 lg:flex-row lg:justify-between">
@@ -140,7 +140,6 @@ export default async function HomePage() {
         className="closing-section"
         aria-labelledby="closing-heading"
       >
-        <div className="closing-rings" />
         <div className="page-container relative flex flex-col items-start justify-between gap-8 py-16 sm:py-20 md:flex-row md:items-center lg:py-24">
           <div>
             <p className="eyebrow flex items-center gap-2">
@@ -154,7 +153,7 @@ export default async function HomePage() {
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-start gap-4 md:items-center">
-            <Link href="/sign-up" className="button-primary min-w-52">
+            <Link href="/sign-up" className="button-primary">
               Start your notebook <ArrowRight size={17} />
             </Link>
             <Link

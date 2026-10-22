@@ -6,7 +6,7 @@
   width: min(384px, calc(100vw - 24px));
   padding: 16px;
   border: 1px solid var(--brand-line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--brand-paper);
   color: var(--brand-ink);
   box-shadow: 0 4px 24px #18261d14;
@@ -29,24 +29,39 @@
 }
 .cookie-notice-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 .cookie-notice-actions button {
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--brand-accent);
-  border-radius: 8px;
-  background: var(--brand-accent);
-  color: #fff;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--brand-line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--brand-ink);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
-.cookie-notice-actions button:hover {
-  background: var(--brand-ink);
-  border-color: var(--brand-ink);
+.cookie-notice-actions .cookie-notice-accept {
+  background: var(--brand-accent);
+  border-color: var(--brand-accent);
+  color: #fff;
+}
+.cookie-notice-actions .cookie-notice-accept:is(:hover, :active) {
+  background: var(--action-hover, var(--brand-ink));
+  border-color: var(--action-hover, var(--brand-ink));
+  color: #fff;
+}
+.cookie-notice-actions .cookie-notice-dismiss:is(:hover, :active) {
+  background: var(--brand-line);
+  color: var(--brand-ink);
 }
 .cookie-notice-actions .cookie-notice-settings {
   margin-left: auto;
@@ -54,15 +69,22 @@
   border-color: transparent;
   background: transparent;
   color: var(--brand-ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+}
+.cookie-notice-actions .cookie-notice-settings:is(:hover, :active) {
+  background: var(--brand-line);
+  border-color: transparent;
+  color: var(--brand-ink);
 }
 .cookie-settings {
+  min-height: 36px;
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 .cookie-notice button:focus-visible,
 .cookie-settings:focus-visible {
@@ -89,8 +111,19 @@
   --cc-cookie-category-block-bg: transparent;
   --cc-cookie-category-block-border: var(--brand-line);
   --cc-toggle-on-bg: var(--brand-accent);
-  --cc-modal-border-radius: 12px;
-  --cc-btn-border-radius: 8px;
+  --cc-modal-border-radius: 8px;
+  --cc-btn-border-radius: 5px;
+}
+#cc-main .pm__btn {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+@media (pointer: coarse) {
+  .cookie-notice-actions button,
+  #cc-main .pm__btn {
+    min-height: 36px;
+  }
 }
 #cc-main .pm {
   border: 1px solid var(--brand-line);
