@@ -1,5 +1,27 @@
 # Delivery evidence
 
+## Workspace polish follow-up (22 October 2026)
+
+Commands use full-row selection without a coloured edge stripe. Dialogs, dropdowns
+and menus share workspace colours, compact headings and restrained shading; keyboard
+focus and forced-colour selection remain distinct. Quotes use neutral inset surfaces
+across writing, reading, public links and connection evidence. Desktop drag grips
+appear on hover/focus without shifting rows.
+
+Ask Grove has concise suggestions, divided source rows, neutral citations and a
+comfortable reading width. The composer fits below desktop/mobile navigation;
+long conversations scroll internally and short windows retain page scrolling.
+Shared plain-text excerpts remove visible task/quote/fence/link syntax in note rows,
+search, graphs and source lists.
+
+The full **193 Chromium** suite passes for the visual treatments, followed by
+**20 excerpt** and **seven conversation/control** checks. **18 focused WebKit** cases
+pass, with five affected cases verified after the final changes; the final submission
+check passes in both engines. Root/website lint, types and builds, five artifacts
+and bundle budgets pass. Notes entry is **481,587 gzip bytes** with the editor deferred.
+[Eighteen reviewed captures](design/screenshots/workspace-polish/) cover desktop,
+tablet, phone, forced colours and short windows on application source `f33fd3a`.
+
 ## Independent AI preferences (22 October 2026)
 
 Settings groups ten independent controls under Organization, Connections, Summaries,
