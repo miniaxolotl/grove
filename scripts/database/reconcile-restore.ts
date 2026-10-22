@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createDatabase, type Knex } from "@lib/database";
+import {
+  preferenceKeys,
+  preferencesFor,
+  legacyPreferences,
+} from "../../lib/shared/src/preferences.ts";
 
 /** Read current authority without copying memory content into the recovery log. */
 export async function reconcileRestore(authority: Knex, restored: Knex) {
@@ -16,10 +21,10 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "status",
       "deletedAt",
       "providerDeletedAt",
-      "captureEnabled",
-      "recallEnabled",
+      ...preferenceKeys,
       "organizeEnabled",
       "summariesEnabled",
+      "askVersion",
       "contentVersion",
     );
     const subjects = await source("subject_authority").select("*");
@@ -183,10 +188,9 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             providerDeletedAt: subject?.deleted
               ? (current.providerDeletedAt ?? target.fn.now())
               : current.providerDeletedAt,
-            captureEnabled: current.captureEnabled,
-            recallEnabled: current.recallEnabled,
-            organizeEnabled: current.organizeEnabled,
-            summariesEnabled: current.summariesEnabled,
+            ...preferencesFor(current),
+            ...legacyPreferences(preferencesFor(current)),
+            askVersion: current.askVersion + 1,
             contentVersion: Math.max(current.contentVersion, 1) + 1,
             organizationDueAt: target.fn.now(),
           });

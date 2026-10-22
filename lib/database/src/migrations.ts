@@ -8,6 +8,7 @@ import { conversations } from "./conversation-migration.ts";
 import { relationships } from "./relationship-migration.ts";
 import { publicSharing } from "./sharing-migration.ts";
 import { shareExpiration } from "./share-expiration-migration.ts";
+import { aiPreferences } from "./preferences-migration.ts";
 
 export const migrations = [
   {
@@ -225,6 +226,7 @@ export const migrations = [
   relationships,
   publicSharing,
   shareExpiration,
+  aiPreferences,
 ];
 
 export const migrationSource: Knex.MigrationSource<

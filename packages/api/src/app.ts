@@ -43,6 +43,7 @@ import {
 } from "@lib/shared/models";
 import type { ModelRegistry } from "./models.ts";
 import { InferenceError } from "@lib/ai";
+import { settingsUpdateSchema } from "@lib/shared/settings";
 import {
   connectionQuerySchema,
   connectionReviewSchema,
@@ -755,17 +756,7 @@ export function createApp(deps: AppDependencies) {
       success: true,
       data: await service.settings(
         c.get("principal"),
-        await body(
-          c,
-          z
-            .object({
-              captureEnabled: z.boolean(),
-              recallEnabled: z.boolean(),
-              organizeEnabled: z.boolean().optional(),
-              summariesEnabled: z.boolean().optional(),
-            })
-            .strict(),
-        ),
+        await body(c, settingsUpdateSchema),
       ),
     }),
   );

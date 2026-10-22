@@ -97,6 +97,16 @@ configured generation provider and existing account budgets; the website allows
 180 seconds for a contextual reply. Retain conversation tombstones during recovery;
 the reconciliation tool removes deleted chats and invalidates restored proposals.
 
+Independent AI preferences require `20261022_013_ai_preferences` after 012.
+Verify a backup and migration history, pause API/worker traffic, apply the forward
+migration with the owner role, then deploy matching API/worker replicas before the
+website. The migration preserves each account's legacy choices and retained notes,
+adds independent controls and an Ask Grove cancellation version, and updates the
+reindex function. Verify mixed enabled/disabled controls with the non-owner roles
+before resuming traffic. Retain the additive schema and preference-aware API/worker
+on rollback: older binaries only enforce the grouped organization/summary flags.
+Restore reconciliation requires the same forward schema on authority and target.
+
 Both use the same model configuration. Self-hosted local embeddings need a writable
 model-cache path and use CPU inference. Remote role configuration, encrypted settings
 and the Cloud DeepInfra/MiniMax defaults are documented in [models](models.md).
