@@ -38,6 +38,12 @@ polls every five seconds for up to two minutes from observation, with background
 polling disabled. Brief reads always revalidate so server expiry/job scheduling
 remains authoritative. Expiry/purge deadlines also prune cached list membership.
 
+Public sharing readers never use the authenticated workspace cache. Owner sharing
+dialogs also read their permission/link state afresh on each open or conflict;
+capability URLs stay out of workspace snapshots and cross-tab messages. Share
+mutations retain their dialog-owned operation identities and version checks, while
+note/notebook edits continue through the workspace reconciliation path.
+
 ## Durable changes
 
 Use `useWorkspaceApi()` for workspace mutations. It publishes cache effects before
@@ -68,6 +74,9 @@ Row deletion holds autosave and settles uncertain saves through the same scoped
 transport. A replay returning a later version keeps the original draft base and
 reviewable latest version, including after cancelling and reopening deletion.
 Exports are session-owned and retain their local snapshot through first-save routing.
+Preference forms similarly freeze their loaded base on first edit. Background
+`/me` updates cannot acknowledge local changes, and a completed save acknowledges
+only the submitted snapshot, preserving edits made while it was pending.
 
 The Notes drawer/editor and secondary notebook panels load on demand, with an
 in-place chunk retry. Note hover/focus can preload the reader. Canonical connections

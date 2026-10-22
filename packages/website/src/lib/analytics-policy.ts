@@ -44,6 +44,7 @@ export function pagePath(value: string): string {
   try {
     const path = new URL(value, origin).pathname.replace(/\/$/, "") || "/";
     if (publicRoutes.has(path) || workspaceRoutes.has(path)) return path;
+    if (path.startsWith("/s/")) return "/s/:token";
     const dynamic = path.match(
       /^\/(app\/(notes|memories|projects|connect)|sign-in|sign-up)(?:\/|$)/,
     );

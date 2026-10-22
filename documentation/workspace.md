@@ -45,7 +45,7 @@ logo always returns to Notes.
   A notebook cannot move into itself or its descendants. Concurrent changes keep
   your inputs and offer the current version for review. Unchanged actions are disabled.
   Single-note moves start at their current notebook; mixed selections ask for a destination.
-- Each notebook keeps its own access scope: parent access does not include children.
+- Agent grants keep each notebook's own scope: parent access does not include children.
   Notes/search/Ask Grove stay scoped to the chosen notebook. Moving a notebook
   preserves its notes, revisions, retention, and stable agent/repository references.
 - Select up to 50 loaded notes to move, archive, or restore. Drag a handle into a
@@ -72,6 +72,24 @@ An outside tap or click dismisses a dialog or drawer; scrolling or dragging acro
 its edge does not. Action menus follow their opener when scrolling/resizing and
 scroll internally in short viewports. Confirmed mutations finish before
 closing; background autosave retains its request and draft when you navigate away.
+
+## Share with a link
+
+Open **Share note** in a saved note's toolbar, the phone's **Note actions** menu, or
+Commands. **Share notebook** is
+available in notebook options and sidebar actions; the notebook manager also has
+a Share button. Choose **Anyone with the link**, then save the settings. Visitors
+can read the latest saved content without an account; permission is **Can view**.
+Notebook scope defaults to **This notebook only**; **Include sub-notebooks** also
+includes current and future descendants. Newly saved or moved-in notes become
+visible through the chosen scope.
+
+Copy/open reuses the current link. Replace invalidates the previous link. Choose
+**Restricted → Turn off direct link** to revoke. The dialog lists any notebook
+links that still include the content, with access to their settings. Archived and
+expired notes are hidden until restored; deleted notes are unavailable. Pending
+saves prevent new or replacement links while revocation remains available.
+See [public sharing](sharing.md) for lifecycle and permission details.
 
 ## Commands and keyboard shortcuts
 

@@ -74,6 +74,7 @@ services:
     environment:
       <<: *runtime
       DATABASE_URL: postgresql://grove_api:${API_DATABASE_PASSWORD}@postgres:5432/grove
+      SHARE_LINK_KEY: ${SHARE_LINK_KEY:-}
     ports: ["127.0.0.1:${PORT:-26080}:26080"]
     volumes: [api-models:/app/data/models]
     depends_on:

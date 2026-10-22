@@ -297,6 +297,61 @@ test("provider failures leave navigation and clipboard usable", async ({
 });
 test.describe("remote controls and private workspace", () => {
   test.use({ telemetrySettings: { replay: true, variant: "benefit" } });
+  test("shared capabilities and content stay out of actual events, diagnostics and replay", async ({
+    page,
+    request,
+    telemetry,
+  }) => {
+    const token = `gsh_${"E".repeat(43)}`;
+    await request.post(
+      `http://127.0.0.1:${process.env.SHARING_TEST_PORT || 4378}/_fixture/${token}`,
+      {
+        data: {
+          title: "SHARING_CONTENT_CANARY",
+          content: "# SHARING_CONTENT_CANARY\n\nSHARING_BODY_CANARY",
+        },
+      },
+    );
+    await page.goto(`/s/${token}?private=SHARING_QUERY_CANARY`);
+    await expect(
+      page.getByRole("heading", { name: "SHARING_CONTENT_CANARY" }),
+    ).toBeVisible();
+    await page.evaluate(() => {
+      setTimeout(() => {
+        throw new Error("SHARING_ERROR_CANARY");
+      }, 0);
+    });
+    await expect
+      .poll(
+        () => telemetry.events.some((event) => event.event === "$pageview"),
+        { timeout: 15000 },
+      )
+      .toBe(true);
+    await expect
+      .poll(() => telemetry.sentry.some((item) => item.type === "event"), {
+        timeout: 15000,
+      })
+      .toBe(true);
+    expect(
+      telemetry.events.find((event) => event.event === "$pageview")?.properties
+        .$pathname,
+    ).toBe("/s/:token");
+    expect(
+      telemetry.events.filter((event) => event.event === "$snapshot"),
+    ).toEqual([]);
+    const emitted = JSON.stringify({
+      events: telemetry.events,
+      diagnostics: telemetry.sentry,
+    });
+    for (const canary of [
+      token,
+      "SHARING_CONTENT_CANARY",
+      "SHARING_BODY_CANARY",
+      "SHARING_QUERY_CANARY",
+      "SHARING_ERROR_CANARY",
+    ])
+      expect(emitted).not.toContain(canary);
+  });
   test("decoded recordings mask public text, inputs, media and inherited query strings", async ({
     page,
     telemetry,

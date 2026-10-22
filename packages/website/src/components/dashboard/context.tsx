@@ -24,6 +24,7 @@ import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { ActionMenu } from "./ui/action-menu";
+import { ShareDialog } from "./share-dialog";
 import { NotebookActions } from "./notebook-actions";
 const ConnectionPanel = deferredFeature(
   async () => ({
@@ -66,6 +67,7 @@ export function MemoryContext({
     null,
   );
   const [refresh, setRefresh] = useState(0);
+  const [sharing, setSharing] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
   if (!loading && projectId && !project)
@@ -110,6 +112,7 @@ export function MemoryContext({
                     <NotebookActions
                       project={project}
                       onAction={setNotebookAction}
+                      onShare={() => setSharing(true)}
                     />
                     <button
                       className="action-group-start"
@@ -306,6 +309,12 @@ export function MemoryContext({
         <NotebookDialog
           action={notebookAction}
           close={() => setNotebookAction(null)}
+        />
+      )}
+      {sharing && project && (
+        <ShareDialog
+          target={{ kind: "notebook", id: project.id }}
+          close={() => setSharing(false)}
         />
       )}
     </>

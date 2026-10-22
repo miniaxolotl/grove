@@ -94,6 +94,15 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
         projectIds: [],
       });
       await target("api_keys").delete();
+      // A restored live link may have been revoked or narrowed after the backup.
+      const invalidatedShares = await target("public_shares").update({
+        revokedAt: target.fn.now(),
+        tokenDigest: null,
+        tokenCiphertext: null,
+        version: target.raw("version + 1"),
+      });
+      await target("public_share_operations").delete();
+      await target("public_share_rates").delete();
       await target("memory_operations").delete();
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
@@ -247,6 +256,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
         blockedAccounts,
         purgedMemories,
         invalidatedConnections,
+        invalidatedShares,
         authoritySubjects: subjects.length,
         sessionRevocations: sessions.length,
       };

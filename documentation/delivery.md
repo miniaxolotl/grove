@@ -83,6 +83,83 @@ show quiet loading, background recovery and desktop/mobile editing.
 See [cache ownership and integration](development/client-cache.md) when adding
 workspace actions or resource families. No schema migration is required.
 
+## Public read-only sharing (21 October 2026 UTC)
+
+Owners can share live saved notes/notebooks, choose direct-only or descendant
+notebook scope, recopy stable links, replace or revoke them. The shared dialog is
+available from note toolbar/commands and notebook page/sidebar/manager actions.
+It identifies covering notebook links and allows revocation during pending saves.
+Public readers render independently of Clerk, inference and the private workspace
+cache. [Sharing](sharing.md) records the permissions, API and key lifecycle.
+
+Local verification on Node 24.21.0 / pnpm 10.33.0:
+
+- Root `pnpm lint`, `pnpm check-types`, `pnpm build`, all **74** database/service
+  tests and all **5** packed-artifact tests passed. PostgreSQL 17 / pgvector 0.8.2 used
+  separate non-owner API/worker roles in a newly created disposable `_test` database.
+  Coverage includes cross-account/RLS denial, concurrent rotation/revocation,
+  encrypted retry-safe tokens, scope narrowing/moves, expiry/restore/deletion,
+  account/limiter purging, temporary-schema shadowing and backup invalidation.
+- Website lint/types and telemetry-enabled production build passed. The full
+  Chromium suite passed **83/83**; after the final long-heading reader correction,
+  all **6** targeted reader/privacy checks passed, including the added no-JavaScript
+  case. All **5** public-reader checks also passed on iPhone 13 / WebKit using the
+  Playwright 1.64.1 Noble image with Node 24.21.0.
+- Browser checks verify stable copy, uncertain-response retry, stale settings,
+  inherited access and revocation while saving; anonymous/deep-link navigation,
+  live edits, revoked-link reload/history, no-store/no-referrer/no-index headers,
+  scoped Markdown links and safe failure recovery. Malformed upstream responses
+  emit only generic errors. Real SDK payloads contain neither capability nor
+  content canaries, and public-reader replay is absent.
+- Desktop 1440px and mobile 390px/320px reader/dialog screenshots were reviewed.
+  Automated WCAG 2A/AA/2.1AA and horizontal-overflow checks passed.
+- A synthetic 10,000-note notebook returned ten 30-note pages in **9.1–15.6ms**
+  locally. The listing used `memories_owner_page`, visited 31 rows and completed
+  in 0.045ms under `EXPLAIN ANALYZE`, with no sort or temporary blocks.
+- All **17** release/DigitalOcean contract tests, pinned actionlint with
+  ShellCheck 0.11.0, and `docker build -t grove-public-sharing:test .` passed.
+
+Rollout requires owner migration `20261021_011_public_sharing`, an API-only
+`SHARE_LINK_KEY`, API/worker rollout and then the matching website. Actual host
+capability-log redaction and live signed-in/signed-out checks remain rollout
+verification, as detailed in [deploy](deploy.md#public-sharing-rollout).
+
+### Sharing interface refinement
+
+After screenshot review, the sharing dialog uses a compact 540px layout, grouped
+settings and quiet inherited-access rows. Its primary action follows the current
+state: Create link, Save changes, Turn off direct link, Copy link or Done. Cancel
+restores staged settings without writing. Copy/Open remain unavailable while
+permissions are pending. Copy feedback stays on the button; saves/replacement use
+inline status, keeping mobile actions clear. Clipboard denial selects the URL for
+manual copying, and completed mutations preserve keyboard focus.
+
+Public readers have a tighter reading rhythm, aligned checklists, quiet notebook
+rows with update dates, and explicit focus states. All navigation retains fresh
+server reads. [Reviewed screenshots](design/screenshots/public-sharing/README.md)
+cover desktop and mobile, including long names and short-viewport scrolling.
+
+Follow-up verification on integrated development `5edcb42`: root/website
+lint/types/builds, all **five artifact**, **88 database/service**, **113 Chromium**
+and **28 iPhone/WebKit** scenarios pass. The disposable PostgreSQL database applies
+relationship migration 010 before sharing migration 011 and exercises real non-owner
+roles, public-scope/lifecycle/recovery and cross-account denial. Browser checks cover
+scope conflicts, staged cancellation, clipboard denial, pending-save revocation,
+no-JavaScript reading, and desktop/390px/320px accessibility and overflow. Mobile
+review exposed the success-toast overlap that inline feedback resolves.
+
+Handoff integrates landed gesture #58, actions #61 and connections #60. Phone
+sharing uses the compact Note actions menu; desktop retains its toolbar button.
+Share uses the common note-action slot and one notebook-action callback across
+page/sidebar/manager controls. Authenticated proxy admission retains both sharing
+and connection routes, while anonymous readers retain their independent scope.
+
+Merge closeout integrates stable interactions #63 at `1e1eb27`. The only textual
+conflict was in this delivery record; both feature histories are retained. The
+combined **121 Chromium** cases and **19 focused iPhone/WebKit** sharing/filter/
+selection/search checks pass. Root/website lint, types and builds plus all five
+artifact checks pass before the user-authorized squash merge.
+
 ## Stable selection, filters and workspace feedback (21 October 2026 UTC)
 
 Bulk selection shares the existing list header, with mixed selection and keyboard
