@@ -1,4 +1,11 @@
-import { MemoryModel, camelRows, tenant, type Knex } from "@lib/database";
+import {
+  MemoryModel,
+  camelRows,
+  tenant,
+  databaseSignal,
+  withDatabaseSignal,
+  type Knex,
+} from "@lib/database";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefPreference,
@@ -315,6 +322,7 @@ export async function queryEmbedding(
       ...options,
       signal: AbortSignal.any([
         AbortSignal.timeout(850),
+        ...(options.signal ? [options.signal] : []),
         ...(signal ? [signal] : []),
       ]),
     }),
@@ -334,12 +342,15 @@ export async function budgetedInference<T>(
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
   try {
     return await run({
+      signal: databaseSignal(),
       onUsage: (value) => {
         usage = value;
       },
     });
   } finally {
-    await recordUsage(db, accountId, role, usage);
+    await withDatabaseSignal(undefined, () =>
+      recordUsage(db, accountId, role, usage),
+    );
   }
 }
 async function recordUsage(

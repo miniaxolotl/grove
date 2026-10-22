@@ -28,7 +28,14 @@ import {
   uuidSchema,
   type Principal,
 } from "@lib/shared/contracts";
-import { ConnectionSetup, Sharing, type MemoryService } from "@lib/memory";
+import {
+  ConnectionSetup,
+  Sharing,
+  withMemoryOperation,
+  type MemoryService,
+} from "@lib/memory";
+import { databaseSignal, withDatabaseSignal } from "@lib/database";
+import { Admission, defaultCapacity, type ApiCapacity } from "./admission.ts";
 import {
   publicShareQuerySchema,
   shareEnableSchema,
@@ -65,11 +72,31 @@ export type AppDependencies = {
   ready: () => Promise<void>;
   telemetry?: Pick<Reporter, "forIdentity" | "operation">;
   shareLinkKey?: string;
+  capacity?: Partial<ApiCapacity>;
 };
-type Environment = { Variables: { principal: Principal; requestId: string } };
+type Environment = {
+  Variables: {
+    principal: Principal;
+    requestId: string;
+    signal: AbortSignal;
+    finish: () => void;
+    streaming: boolean;
+  };
+};
 
 export function createApp(deps: AppDependencies) {
   const app = new Hono<Environment>();
+  const capacity = { ...defaultCapacity, ...deps.capacity };
+  const foreground = new Admission(
+    capacity.concurrency,
+    capacity.queued,
+    capacity.queueTimeoutMs,
+  );
+  const interactive = new Admission(
+    capacity.interactiveConcurrency,
+    capacity.interactiveConcurrency,
+    capacity.queueTimeoutMs,
+  );
   app.use("*", async (c, next) => {
     c.set("requestId", randomUUID());
     c.header("X-Request-ID", c.get("requestId"));
@@ -117,7 +144,7 @@ export function createApp(deps: AppDependencies) {
         "MCP-Protocol-Version",
         "X-Grove-Telemetry",
       ],
-      exposeHeaders: ["WWW-Authenticate", "X-Request-ID"],
+      exposeHeaders: ["WWW-Authenticate", "X-Request-ID", "Retry-After"],
     }),
   );
   app.onError((error, c) => {
@@ -143,6 +170,7 @@ export function createApp(deps: AppDependencies) {
         `Bearer resource_metadata="${deps.origin}/.well-known/oauth-protected-resource/mcp"`,
       );
     if (detail.status === 429) c.header("Retry-After", "60");
+    if (detail.status === 503) c.header("Retry-After", "1");
     // Content-free diagnostics only. Driver/provider exceptions may contain SQL, parameters or credentials.
     if (detail.status >= 500)
       console.error(
@@ -169,6 +197,45 @@ export function createApp(deps: AppDependencies) {
       404,
     ),
   );
+  app.use("*", async (c, next) => {
+    if (
+      c.req.path.startsWith("/health/") ||
+      c.req.path.startsWith("/.well-known/")
+    )
+      return next();
+    const long =
+      c.req.path === "/v1/ask" ||
+      c.req.path === "/v1/models/test" ||
+      c.req.path === "/v1/account/export" ||
+      /^\/v1\/conversations\/[^/]+\/turns$/.test(c.req.path);
+    const deadline = new AbortController();
+    const signal = AbortSignal.any([c.req.raw.signal, deadline.signal]);
+    const timer = setTimeout(
+      () =>
+        deadline.abort(
+          new GroveError(
+            "request_timeout",
+            "This request took too long. Try again.",
+            503,
+          ),
+        ),
+      long ? capacity.interactiveTimeoutMs : capacity.requestTimeoutMs,
+    );
+    timer.unref();
+    let release: (() => void) | undefined;
+    const finish = () => {
+      clearTimeout(timer);
+      release?.();
+    };
+    c.set("signal", signal);
+    c.set("finish", finish);
+    try {
+      release = await (long ? interactive : foreground).acquire(signal);
+      await withMemoryOperation(next, signal);
+    } finally {
+      if (!c.get("streaming")) finish();
+    }
+  });
   const metadata = {
     resource: `${deps.origin}/mcp`,
     authorization_servers: [deps.issuer],
@@ -236,6 +303,7 @@ export function createApp(deps: AppDependencies) {
     if (origin && origin !== deps.siteUrl && origin !== deps.origin)
       throw new GroveError("forbidden", "Origin is not allowed", 403);
     c.set("principal", await deps.auth.principal(c.req.raw));
+    c.get("signal").throwIfAborted();
     await deps.models?.refresh();
     const sink = deps.telemetry?.forIdentity(
       accountIdentity(c.get("principal").accountId),
@@ -626,7 +694,7 @@ export function createApp(deps: AppDependencies) {
       data: await service.recall(
         c.get("principal"),
         await body(c, recallSchema),
-        c.req.raw.signal,
+        c.get("signal"),
       ),
     }),
   );
@@ -673,7 +741,7 @@ export function createApp(deps: AppDependencies) {
         c.get("principal"),
         uuidSchema.parse(c.req.param("id")),
         await body(c, conversationTurnSchema),
-        c.req.raw.signal,
+        c.get("signal"),
       ),
     }),
   );
@@ -696,7 +764,7 @@ export function createApp(deps: AppDependencies) {
       data: await service.ask(
         c.get("principal"),
         await body(c, askSchema),
-        c.req.raw.signal,
+        c.get("signal"),
       ),
     }),
   );
@@ -778,45 +846,54 @@ export function createApp(deps: AppDependencies) {
       "Content-Disposition",
       'attachment; filename="grove-memories.ndjson"',
     );
+    c.set("streaming", true);
     return streamText(c, async (stream) => {
-      let page = first;
-      while (page.length && !stream.aborted) {
-        for (const memory of page) await stream.writeln(JSON.stringify(memory));
-        if (page.length < 50) break;
-        page = await service.exportPage(principal, page.at(-1)!.id);
-      }
-      let chats = await service.conversations.exportPage(principal);
-      while (!stream.aborted) {
-        for (const chat of chats) {
-          if (stream.aborted) break;
-          await stream.writeln(
-            JSON.stringify({
-              type: "conversation",
-              ...chat,
-            }),
-          );
+      const abort = () => stream.abort();
+      c.get("signal").addEventListener("abort", abort, { once: true });
+      try {
+        let page = first;
+        while (page.length && !stream.aborted) {
+          for (const memory of page)
+            await stream.writeln(JSON.stringify(memory));
+          if (page.length < 50) break;
+          page = await service.exportPage(principal, page.at(-1)!.id);
         }
-        if (chats.length < 10) break;
-        chats = await service.conversations.exportPage(
-          principal,
-          chats.at(-1)!.id,
-        );
-      }
-      for (const level of ["note", "notebook"] as const) {
-        let after: string | undefined;
+        let chats = await service.conversations.exportPage(principal);
         while (!stream.aborted) {
-          const pairs = await service.relationships.exportPage(
-            principal,
-            level,
-            after,
-          );
-          for (const pair of pairs)
+          for (const chat of chats) {
+            if (stream.aborted) break;
             await stream.writeln(
-              JSON.stringify({ type: "relationship", level, ...pair }),
+              JSON.stringify({
+                type: "conversation",
+                ...chat,
+              }),
             );
-          if (pairs.length < 50) break;
-          after = pairs.at(-1)!.id;
+          }
+          if (chats.length < 10) break;
+          chats = await service.conversations.exportPage(
+            principal,
+            chats.at(-1)!.id,
+          );
         }
+        for (const level of ["note", "notebook"] as const) {
+          let after: string | undefined;
+          while (!stream.aborted) {
+            const pairs = await service.relationships.exportPage(
+              principal,
+              level,
+              after,
+            );
+            for (const pair of pairs)
+              await stream.writeln(
+                JSON.stringify({ type: "relationship", level, ...pair }),
+              );
+            if (pairs.length < 50) break;
+            after = pairs.at(-1)!.id;
+          }
+        }
+      } finally {
+        c.get("signal").removeEventListener("abort", abort);
+        c.get("finish")();
       }
     });
   });
@@ -827,15 +904,19 @@ export function createApp(deps: AppDependencies) {
       tool: ToolName,
       value: unknown,
       signal?: AbortSignal,
-    ) => {
-      if (tool === "remember")
-        return service.remember(principal, rememberSchema.parse(value));
-      if (tool === "recall")
-        return service.recall(principal, recallSchema.parse(value), signal);
-      if (tool === "memories")
-        return service.list(principal, listSchema.parse(value));
-      return service.forget(principal, forgetSchema.parse(value));
-    };
+    ) =>
+      withDatabaseSignal(
+        AbortSignal.any([databaseSignal()!, ...(signal ? [signal] : [])]),
+        async () => {
+          if (tool === "remember")
+            return service.remember(principal, rememberSchema.parse(value));
+          if (tool === "recall")
+            return service.recall(principal, recallSchema.parse(value), signal);
+          if (tool === "memories")
+            return service.list(principal, listSchema.parse(value));
+          return service.forget(principal, forgetSchema.parse(value));
+        },
+      );
     const server = createMemoryMcp(execute);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

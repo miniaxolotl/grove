@@ -1,11 +1,251 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { createDatabase, tenant, withDatabaseSignal } from "@lib/database";
+import { withMemoryOperation } from "@lib/memory";
 import { listSchema } from "@lib/shared/contracts";
 import { capacityFixture } from "./fixtures/capacity.ts";
+import { createApp } from "../../packages/api/src/app.ts";
 
 let fixture: Awaited<ReturnType<typeof capacityFixture>>;
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
 before(async () => {
   fixture = await capacityFixture({ accounts: 2, notes: 100 });
+});
+
+test("same-account reads overlap, internal checks count once, and failed work retains admission", async () => {
+  await fixture.admin("rate_buckets").delete();
+  const entered = deferred(),
+    release = deferred();
+  const principal = fixture.principals[0];
+  const first = withMemoryOperation(() =>
+    fixture.service.access(principal, "memory:read", async () => {
+      entered.resolve();
+      await release.promise;
+    }),
+  );
+  await entered.promise;
+  try {
+    // This used to wait on the first operation's minute row until its whole read committed.
+    await fixture.service.access(principal, "memory:read", async () => {});
+    const count = await fixture
+      .admin("rate_buckets")
+      .sum("count as total")
+      .first();
+    assert.equal(Number(count?.total), 2);
+  } finally {
+    release.resolve();
+    await first;
+  }
+  await assert.rejects(
+    withMemoryOperation(async () => {
+      await fixture.service.access(principal, "memory:read", async () => {});
+      await fixture.service.access(principal, "memory:read", async () => {
+        throw new Error("fixture failure");
+      });
+    }),
+    /fixture failure/,
+  );
+  const count = await fixture
+    .admin("rate_buckets")
+    .sum("count as total")
+    .first();
+  assert.equal(Number(count?.total), 3);
+});
+
+test("HTTP search has one admission and cancellation rolls back a pending write", async () => {
+  await fixture.admin("rate_buckets").delete();
+  const response = await fixture.app.request("/v1/memories/search", {
+    method: "POST",
+    headers: { authorization: "Bearer 0", "content-type": "application/json" },
+    body: JSON.stringify({ query: "garden", limit: 30 }),
+  });
+  assert.equal(response.status, 200);
+  const count = await fixture
+    .admin("rate_buckets")
+    .sum("count as total")
+    .first();
+  assert.equal(Number(count?.total), 1);
+  const principal = fixture.principals[0];
+  const account = await fixture
+    .admin("accounts")
+    .where({ id: principal.accountId })
+    .first();
+  const controller = new AbortController();
+  await assert.rejects(
+    withDatabaseSignal(controller.signal, () =>
+      tenant(fixture.db, principal.accountId, async (trx) => {
+        await trx("accounts")
+          .where({ id: principal.accountId })
+          .increment("contentVersion", 1);
+        controller.abort(new Error("fixture cancellation"));
+      }),
+    ),
+    /fixture cancellation/,
+  );
+  assert.equal(
+    (await fixture.admin("accounts").where({ id: principal.accountId }).first())
+      .contentVersion,
+    account.contentVersion,
+  );
+});
+
+const app = (options: Partial<Parameters<typeof createApp>[0]> = {}) =>
+  createApp({
+    memories: fixture.service,
+    auth: fixture.auth,
+    origin: "http://127.0.0.1:26080",
+    siteUrl: "http://127.0.0.1:3000",
+    issuer: "https://clerk.example.test",
+    webhookSecret: "whsec_dGVzdA==",
+    ready: async () => {},
+    ...options,
+  });
+
+test("bounded HTTP waiting cancels, times out, rejects excess work and recovers", async () => {
+  const entered = deferred(),
+    release = deferred();
+  let held = true;
+  const server = app({
+    capacity: { concurrency: 1, queued: 1, queueTimeoutMs: 100 },
+    auth: {
+      async principal(request) {
+        if (held) {
+          entered.resolve();
+          await release.promise;
+        }
+        return fixture.auth.principal(request);
+      },
+    },
+  });
+  const request = (signal?: AbortSignal) =>
+    server.request("/v1/projects", {
+      headers: { authorization: "Bearer 0" },
+      signal,
+    });
+  const active = request();
+  await entered.promise;
+  try {
+    const controller = new AbortController();
+    const queued = request(controller.signal);
+    assert.equal((await request()).status, 503);
+    controller.abort();
+    assert.equal((await queued).status, 503);
+    const timedOut = await request();
+    assert.equal(timedOut.status, 503);
+    assert.equal(timedOut.headers.get("retry-after"), "1");
+    assert.equal((await server.request("/health/live")).status, 200);
+  } finally {
+    held = false;
+    release.resolve();
+  }
+  assert.equal((await active).status, 200);
+  assert.equal((await request()).status, 200);
+});
+
+test("interactive saturation leaves foreground reads available and deadlines cancel inference", async () => {
+  const entered = deferred(),
+    release = deferred();
+  const server = app({
+    capacity: { interactiveConcurrency: 1, queueTimeoutMs: 10 },
+    auth: {
+      async principal(request) {
+        if (new URL(request.url).pathname === "/v1/models/test") {
+          entered.resolve();
+          await release.promise;
+        }
+        return fixture.auth.principal(request);
+      },
+    },
+  });
+  const held = server.request("/v1/models/test", {
+    method: "POST",
+    headers: { authorization: "Bearer 0", "content-type": "application/json" },
+    body: JSON.stringify({ role: "embedding" }),
+  });
+  await entered.promise;
+  try {
+    assert.equal(
+      (
+        await server.request("/v1/projects", {
+          headers: { authorization: "Bearer 0" },
+        })
+      ).status,
+      200,
+    );
+  } finally {
+    release.resolve();
+    await held;
+  }
+
+  const embedder = fixture.service.providers.embedding!;
+  let stopped = false;
+  fixture.service.providers.embedding = {
+    ...embedder,
+    async embed(_text, _purpose, options) {
+      assert.ok(options?.signal);
+      await new Promise<void>((_resolve, reject) => {
+        options.signal!.addEventListener(
+          "abort",
+          () => {
+            stopped = true;
+            reject(options.signal!.reason);
+          },
+          { once: true },
+        );
+      });
+      return [];
+    },
+  };
+  try {
+    const deadline = app({ capacity: { requestTimeoutMs: 100 } });
+    const result = await deadline.request("/v1/memories/search", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer 0",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ query: "garden" }),
+    });
+    assert.equal(result.status, 503);
+    assert.equal((await result.json()).error.code, "request_timeout");
+    assert.equal(stopped, true);
+  } finally {
+    fixture.service.providers.embedding = embedder;
+  }
+});
+
+test("pool acquisition and SQL timeouts are bounded and connections recover", async () => {
+  const db = createDatabase(fixture.databaseUrl, {
+    max: 1,
+    acquireTimeoutMs: 100,
+    statementTimeoutMs: 100,
+  });
+  try {
+    const trx = await db.transaction();
+    try {
+      await assert.rejects(
+        db.raw("SELECT 1"),
+        /Timeout acquiring a connection/,
+      );
+    } finally {
+      await trx.rollback();
+    }
+    await assert.rejects(
+      tenant(db, fixture.principals[0].accountId, (t) =>
+        t.raw("SELECT pg_sleep(1)"),
+      ),
+      /statement timeout/,
+    );
+    assert.equal((await db.raw("SELECT 1 AS ready")).rows[0].ready, 1);
+  } finally {
+    await db.destroy();
+  }
 });
 after(async () => {
   await fixture?.close();

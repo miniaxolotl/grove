@@ -30,6 +30,8 @@ import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
 import { presentMemories } from "./presentation.ts";
+import { admitOperation } from "./operation-context.ts";
+export { withMemoryOperation } from "./operation-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
@@ -87,8 +89,6 @@ const forbidden = () =>
     "This connection does not grant that access",
     403,
   );
-const iso = (value: Date | string | null) =>
-  value === null ? null : new Date(value).toISOString();
 const stable = (value: unknown): string =>
   JSON.stringify(value, (_key, entry) =>
     entry && typeof entry === "object" && !Array.isArray(entry)
@@ -130,6 +130,23 @@ export class MemoryService {
     run: (access: Access) => Promise<T>,
     modelUpdate = false,
   ): Promise<T> {
+    await admitOperation(this, principal, async () => {
+      const count = await tenant(this.db, principal.accountId, async (trx) => {
+        await this.authorize(trx, principal, capability, false, true);
+        const { rows } = await trx.raw(
+          `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
+          ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
+          [principal.accountId],
+        );
+        return Number(rows[0].count);
+      });
+      if (count > policy.requestsPerMinute)
+        throw new GroveError(
+          "rate_limited",
+          "Too many requests; retry in one minute",
+          429,
+        );
+    });
     return tenant(this.db, principal.accountId, async (trx) => {
       // Profile cutovers serialize with writes, before account locks. A replica may
       // have refreshed before waiting here; queue() resolves the committed profiles.
@@ -139,93 +156,92 @@ export class MemoryService {
             ? "SELECT pg_advisory_xact_lock(68142019)"
             : "SELECT pg_advisory_xact_lock_shared(68142019)",
         );
-      const accountQuery = trx<Account>("accounts").where({
-        id: principal.accountId,
-      });
-      const account = await (
-        capability === null || capability === "memory:read"
-          ? accountQuery.forShare()
-          : accountQuery.forUpdate()
-      ).first();
-      if (!account || account.status !== "active")
+      const access = await this.authorize(
+        trx,
+        principal,
+        capability,
+        capability !== null && capability !== "memory:read",
+      );
+      return run(access);
+    });
+  }
+
+  private async authorize(
+    trx: Knex.Transaction,
+    principal: Principal,
+    capability: Capability | "admin" | "self" | null,
+    mutation: boolean,
+    touchKey = false,
+  ): Promise<Access> {
+    const accountQuery = trx<Account>("accounts").where({
+      id: principal.accountId,
+    });
+    const account = await (
+      mutation ? accountQuery.forUpdate() : accountQuery.forShare()
+    ).first();
+    if (!account || account.status !== "active")
+      throw new GroveError(
+        "account_unavailable",
+        "This account is unavailable",
+        403,
+      );
+    if (principal.sessionId) {
+      const result = await trx.raw(
+        "SELECT grove_session_revoked(?) AS revoked",
+        [principal.sessionId],
+      );
+      if (result.rows[0].revoked)
+        throw new GroveError("unauthorized", "Session revoked", 401);
+    }
+    let grant: Connection | undefined;
+    if (principal.type !== "session") {
+      if (!principal.connectionId)
         throw new GroveError(
-          "account_unavailable",
-          "This account is unavailable",
+          "connection_required",
+          "Approve this connection in Grove Connections",
           403,
         );
-      if (principal.sessionId) {
-        const result = await trx.raw(
-          "SELECT grove_session_revoked(?) AS revoked",
-          [principal.sessionId],
-        );
-        if (result.rows[0].revoked)
-          throw new GroveError("unauthorized", "Session revoked", 401);
-      }
-      let grant: Connection | undefined;
-      if (principal.type !== "session") {
-        if (!principal.connectionId)
-          throw new GroveError(
-            "connection_required",
-            "Approve this connection in Grove Connections",
-            403,
-          );
-        const connectionQuery = trx<Connection>("connections").where({
-          id: principal.connectionId,
-        });
-        grant = await (
-          principal.type === "key"
-            ? connectionQuery.forUpdate()
-            : connectionQuery.forShare()
-        ).first();
-        if (
-          !grant ||
-          grant.revokedAt ||
-          (grant.expiresAt && new Date(grant.expiresAt) <= new Date())
-        )
-          throw forbidden();
-        if (
-          principal.type === "oauth" &&
-          (principal.clientId !== grant.clientId ||
-            !Number.isFinite(principal.issuedAt) ||
-            principal.issuedAt! < new Date(grant.authorizedAfter).getTime())
-        )
-          throw new GroveError(
-            "connection_revoked",
-            "Reconnect and approve this client in Grove Connections",
-            403,
-          );
-        if (principal.type === "key")
-          await trx("connections")
-            .where({ id: grant.id })
-            .update({ lastUsedAt: trx.fn.now() });
-      }
-      if (capability === "admin" && principal.type !== "session")
-        throw forbidden();
+      const connectionQuery = trx<Connection>("connections").where({
+        id: principal.connectionId,
+      });
+      grant = await (
+        principal.type === "key" && touchKey
+          ? connectionQuery.forUpdate()
+          : connectionQuery.forShare()
+      ).first();
       if (
-        capability &&
-        capability !== "admin" &&
-        capability !== "self" &&
-        (!principal.capabilities.includes(capability) ||
-          (grant && !grant.capabilities.includes(capability)))
+        !grant ||
+        grant.revokedAt ||
+        (grant.expiresAt && new Date(grant.expiresAt) <= new Date())
       )
         throw forbidden();
-      const { rows } = await trx.raw(
-        `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
-        ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
-        [account.id],
-      );
-      // Commit the rate counter even when over limit by returning the error after the transaction.
-      if (rows[0].count > policy.requestsPerMinute)
-        return new GroveError(
-          "rate_limited",
-          "Too many requests; retry in one minute",
-          429,
-        ) as T;
-      return run({ trx, account, grant });
-    }).then((result) => {
-      if (result instanceof GroveError) throw result;
-      return result;
-    });
+      if (
+        principal.type === "oauth" &&
+        (principal.clientId !== grant.clientId ||
+          !Number.isFinite(principal.issuedAt) ||
+          principal.issuedAt! < new Date(grant.authorizedAfter).getTime())
+      )
+        throw new GroveError(
+          "connection_revoked",
+          "Reconnect and approve this client in Grove Connections",
+          403,
+        );
+      if (principal.type === "key" && touchKey)
+        await trx("connections")
+          .where({ id: grant.id })
+          .update({ lastUsedAt: trx.fn.now() });
+    }
+    if (capability === "admin" && principal.type !== "session")
+      throw forbidden();
+    if (
+      capability &&
+      capability !== "admin" &&
+      capability !== "self" &&
+      (!principal.capabilities.includes(capability) ||
+        (grant && !grant.capabilities.includes(capability)))
+    )
+      throw forbidden();
+    return { trx, account, grant };
   }
 
   private scope(grant: Connection | undefined, projectId: string | null) {

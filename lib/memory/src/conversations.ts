@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { currentTelemetry } from "@lib/telemetry/context";
-import { MemoryModel, type Knex } from "@lib/database";
+import { MemoryModel, withDatabaseSignal, type Knex } from "@lib/database";
 import { InferenceError } from "@lib/ai";
 import { GroveError, type Memory, type Principal } from "@lib/shared/contracts";
 import type { SourceRef } from "@lib/shared/models";
@@ -612,18 +612,20 @@ export class Conversations {
             ? "Reply stopped. Try again when you’re ready."
             : "Grove couldn’t finish this reply. Try again.";
       // A failed attempt remains retryable after navigation or a dropped response.
-      await this.service
-        .access(principal, "admin", async ({ trx }) => {
-          await trx("conversation_turns")
-            .where({ id: input.id, leaseId })
-            .update({
-              status: "failed",
-              error: message,
-              leaseId: null,
-              leaseUntil: null,
-            });
-        })
-        .catch(() => {});
+      await withDatabaseSignal(undefined, () =>
+        this.service
+          .access(principal, "admin", async ({ trx }) => {
+            await trx("conversation_turns")
+              .where({ id: input.id, leaseId })
+              .update({
+                status: "failed",
+                error: message,
+                leaseId: null,
+                leaseUntil: null,
+              });
+          })
+          .catch(() => {}),
+      );
       throw error;
     }
   }

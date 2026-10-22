@@ -242,6 +242,7 @@ export async function capacityFixture(
       ready: () => probeDatabase(db!),
     });
     return {
+      databaseUrl: target(parsed[1]),
       admin,
       db,
       workerDb,
