@@ -59,7 +59,15 @@ test("AI preference upgrade preserves all legacy choices, content and tenant iso
     };
     await owner("memories").insert(memory);
     const before = await owner("memories").where({ id: memory.id }).first();
-    const [, applied] = await owner.migrate.latest();
+    const [, applied] = await owner.migrate.latest({
+      migrationSource: {
+        ...migrationSource,
+        getMigrations: async () =>
+          all.filter(
+            (migration) => migration.name <= "20261022_013_ai_preferences",
+          ),
+      },
+    });
     assert.deepEqual(applied, ["20261022_013_ai_preferences"]);
     for (const old of accounts) {
       const current = await tenant(runtime, old.id, (trx) =>

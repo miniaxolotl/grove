@@ -7,6 +7,9 @@ import {
   type Knex,
 } from "@lib/database";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { processingLease } from "./job-lease.ts";
+import { retryDelay } from "./task-runner.ts";
+import type { QueueLane } from "@lib/shared/jobs";
 import {
   briefPreference,
   processingEnabled,
@@ -40,6 +43,15 @@ import {
   runRelationshipJob,
   type RelationshipJob,
 } from "./relationship-jobs.ts";
+import {
+  isNotebookSummary,
+  notebookSummaryProfile,
+  runNotebookSummary,
+  summaryProfile,
+  type SummaryJob,
+} from "./notebook-summaries.ts";
+import { assistanceProfile } from "./assistance-data.ts";
+import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -48,6 +60,15 @@ export const providerProfiles = (providers: Providers) => [
     .filter(Boolean)
     .map((provider) => provider!.profile),
   ...[currentRelationshipProfile(providers)].filter((p): p is string => !!p),
+  ...(providers.generation
+    ? [
+        notebookSummaryProfile(providers.generation.profile),
+        assistanceProfile(
+          providers.generation.profile,
+          providers.embedding?.profile,
+        ),
+      ]
+    : []),
 ];
 export async function registerEmbedding(db: Knex, embedder: Embedder) {
   await db("embedding_profiles")
@@ -87,6 +108,7 @@ export async function queueBrief(
 ) {
   const account = await trx("accounts").where({ id: accountId }).first();
   if (!account?.[briefPreference(scope)]) return;
+  profile = summaryProfile(profile, scope);
   await trx("jobs")
     .insert({
       accountId,
@@ -98,11 +120,15 @@ export async function queueBrief(
     })
     .onConflict(["accountId", "kind", "target", "profile"])
     .merge({
+      epoch: trx.raw("(SELECT epoch FROM processing_control WHERE singleton)"),
       attempts: 0,
       failedAt: null,
       errorCode: null,
       leaseId: null,
       leaseUntil: null,
+      dispatchId: null,
+      dispatchUntil: null,
+      dispatchedAt: null,
       dueAt: trx.raw("now() + (? * interval '1 second')", [delay]),
     });
 }
@@ -110,17 +136,25 @@ export async function invalidateBriefs(
   trx: Knex.Transaction,
   accountId: string,
 ) {
-  const old = await trx("memory_briefs").select("scope", "profile");
-  await trx("memory_briefs").delete();
+  const scopes = (q: Knex.QueryBuilder) =>
+    q.whereRaw("scope->>'projectId' IS NULL OR scope->>'taskId' IS NOT NULL");
+  const old = await trx("memory_briefs")
+    .modify(scopes)
+    .select("scope", "profile");
+  await trx("memory_briefs").modify(scopes).delete();
   for (const row of old)
     await queueBrief(trx, accountId, row.scope, row.profile);
   await trx("jobs")
     .where({ kind: "brief" })
+    .modify(scopes)
     .update({
       attempts: 0,
       failedAt: null,
       leaseId: null,
       leaseUntil: null,
+      dispatchId: null,
+      dispatchUntil: null,
+      dispatchedAt: null,
       dueAt: trx.raw("now() + interval '5 seconds'"),
     });
 }
@@ -241,11 +275,19 @@ export async function briefFor(
   const account = await trx("accounts").where({ id: accountId }).first();
   if (!account[briefPreference(scope)]) return empty;
   const target = briefTarget(scope),
-    profile = providers.generation.profile;
+    profile = summaryProfile(providers.generation.profile, scope);
   const row = await trx("memory_briefs").where({ target, profile }).first();
+  const notebook = isNotebookSummary(scope)
+    ? await trx("projects")
+        .where({ id: scope.projectId })
+        .first("contentVersion")
+    : undefined;
   if (
     row &&
-    row.contentVersion === account.contentVersion &&
+    (notebook
+      ? row.notebookVersion === notebook.contentVersion
+      : row.contentVersion === account.contentVersion) &&
+    (!row.expiresAt || new Date(row.expiresAt) > new Date()) &&
     (await validSources(trx, row.sources, scope))
   ) {
     return {
@@ -253,7 +295,8 @@ export async function briefFor(
       status: "ready",
       content: row.content,
       updatedAt: new Date(row.createdAt).toISOString(),
-      sourceCount: row.sources.length,
+      sourceCount: row.coverage?.examined ?? row.sources.length,
+      ...(row.coverage ? { coverage: row.coverage } : {}),
       truncated: row.truncated,
     };
   }
@@ -376,24 +419,71 @@ export async function runProcessingJob(
   dailyLimit: number,
   wantedId?: string,
   resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
+  options: {
+    lane?: QueueLane;
+    accountLimit?: number;
+    providerLimit?: number;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<boolean> {
   const profiles = providerProfiles(providers);
   if (!profiles.length) return false;
-  const claimed = camelRows<Job | RelationshipJob>(
-    await db.raw("SELECT * FROM grove_claim_job(?::text[], ?::uuid)", [
-      profiles,
-      wantedId ?? null,
-    ]),
+  const claimed = camelRows<Job | RelationshipJob | AssistanceJob>(
+    await db.raw(
+      "SELECT * FROM grove_claim_processing(?::text[], ?::uuid, ?, ?, ?)",
+      [
+        profiles,
+        wantedId ?? null,
+        options.lane ?? null,
+        options.accountLimit ?? 2,
+        options.providerLimit ?? 8,
+      ],
+    ),
   )[0];
   if (!claimed) return false;
-  if ((relationshipKinds as readonly string[]).includes(claimed.kind))
-    return runRelationshipJob(
-      db,
-      providers,
-      dailyLimit,
-      claimed as RelationshipJob,
-      resolveProfiles,
-    );
+  const lease = processingLease(db, claimed, options.signal);
+  if (
+    claimed.kind === "assistance" ||
+    (claimed.kind === "brief" &&
+      claimed.scope &&
+      isNotebookSummary(claimed.scope as BriefRequest))
+  ) {
+    try {
+      return claimed.kind === "assistance"
+        ? await runAssistanceJob(
+            db,
+            providers,
+            dailyLimit,
+            claimed,
+            resolveProfiles,
+            lease.signal,
+          )
+        : await runNotebookSummary(
+            db,
+            providers,
+            dailyLimit,
+            claimed as SummaryJob,
+            resolveProfiles,
+            lease.signal,
+          );
+    } finally {
+      await lease.close();
+    }
+  }
+  if ((relationshipKinds as readonly string[]).includes(claimed.kind)) {
+    try {
+      return await runRelationshipJob(
+        db,
+        providers,
+        dailyLimit,
+        claimed as RelationshipJob,
+        resolveProfiles,
+        lease.signal,
+      );
+    } finally {
+      await lease.close();
+    }
+  }
   const job = claimed as Job;
   const started = performance.now();
   let completed = false;
@@ -415,6 +505,9 @@ export async function runProcessingJob(
         trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .where("leaseUntil", ">", trx.fn.now())
         .first("id");
       if (!lease) return;
@@ -494,6 +587,7 @@ export async function runProcessingJob(
     });
     if (!input) return true;
     const options = {
+      signal: lease.signal,
       onUsage: (value: Usage) => {
         usage = value;
       },
@@ -565,6 +659,9 @@ export async function runProcessingJob(
         : undefined;
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .where("leaseUntil", ">", trx.fn.now())
         .forUpdate()
         .first();
@@ -684,7 +781,7 @@ export async function runProcessingJob(
           leaseId: null,
           leaseUntil: null,
           dueAt: trx.raw("now() + (? * interval '1 second')", [
-            Math.min(3600, 2 ** job.attempts * 10),
+            retryDelay(job.attempts),
           ]),
           errorCode: code,
           failedAt:
@@ -695,6 +792,7 @@ export async function runProcessingJob(
         });
     });
   } finally {
+    await lease.close();
     currentTelemetry().operation(
       "job_run",
       started,

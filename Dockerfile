@@ -18,7 +18,7 @@ LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/grove" \
       org.opencontainers.image.licenses="MIT"
 WORKDIR /app
 COPY --from=build --chown=node:node /prod /app
-RUN mkdir -p /app/data/models && chown -R node:node /app/data
+RUN mkdir -p /app/data/models /app/data/exports && chown -R node:node /app/data
 USER node
 ENV NODE_ENV=production PORT=26080 EMBEDDING_CACHE=/app/data/models
 EXPOSE 26080

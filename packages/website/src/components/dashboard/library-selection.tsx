@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { Archive, ArchiveRestore, FolderInput, X } from "lucide-react";
+import type { ReactNode } from "react";
 
 /** Selection shares the list's header so checking a note never moves its row. */
 export function LibrarySelection({
@@ -14,6 +15,7 @@ export function LibrarySelection({
   onClear,
   onMove,
   onArchive,
+  assistance,
 }: {
   count: number;
   allSelected: boolean;
@@ -24,6 +26,7 @@ export function LibrarySelection({
   onClear: () => void;
   onMove: () => void;
   onArchive: () => void;
+  assistance?: ReactNode;
 }) {
   const checkbox = useRef<HTMLInputElement>(null);
   function clear() {
@@ -94,6 +97,7 @@ export function LibrarySelection({
             {archive ? <ArchiveRestore size={16} /> : <Archive size={16} />}
             <span>{archive ? "Restore" : "Archive"}</span>
           </button>
+          {assistance}
           <button
             type="button"
             disabled={busy}

@@ -205,6 +205,12 @@ export type Principal = {
   capabilities: Capability[];
 };
 export type Page<T> = {
+  visit?: {
+    projectId: string;
+    token: string;
+    from: string | null;
+    ready: boolean;
+  };
   items: T[];
   nextCursor: string | null;
   searchMode?: "hybrid" | "lexical";

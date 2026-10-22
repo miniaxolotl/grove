@@ -42,6 +42,14 @@ x-runtime: &runtime
   GENERATION_MAX_OUTPUT_TOKENS: ${GENERATION_MAX_OUTPUT_TOKENS:-4096}
   AI_DAILY_REQUEST_LIMIT: ${AI_DAILY_REQUEST_LIMIT:-2000}
   AI_CONCURRENCY: ${AI_CONCURRENCY:-4}
+  EXPORT_STORAGE: ${EXPORT_STORAGE:-local}
+  EXPORT_DIRECTORY: /app/data/exports
+  EXPORT_S3_ENDPOINT: ${EXPORT_S3_ENDPOINT:-}
+  EXPORT_S3_REGION: ${EXPORT_S3_REGION:-us-east-1}
+  EXPORT_S3_BUCKET: ${EXPORT_S3_BUCKET:-}
+  EXPORT_S3_ACCESS_KEY_ID: ${EXPORT_S3_ACCESS_KEY_ID:-}
+  EXPORT_S3_SECRET_ACCESS_KEY: ${EXPORT_S3_SECRET_ACCESS_KEY:-}
+  EXPORT_S3_PATH_STYLE: ${EXPORT_S3_PATH_STYLE:-false}
 
 services:
   postgres:
@@ -85,7 +93,7 @@ services:
       API_INTERACTIVE_CONCURRENCY: ${API_INTERACTIVE_CONCURRENCY:-4}
       API_INTERACTIVE_TIMEOUT_MS: ${API_INTERACTIVE_TIMEOUT_MS:-90000}
     ports: ["127.0.0.1:${PORT:-26080}:26080"]
-    volumes: [api-models:/app/data/models]
+    volumes: [api-models:/app/data/models, exports:/app/data/exports]
     depends_on:
       migrate: { condition: service_completed_successfully }
     networks: [database, outbound]
@@ -102,7 +110,16 @@ services:
       ORGANIZATION_INTERVAL_SECONDS: ${ORGANIZATION_INTERVAL_SECONDS:-900}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-notifications@mail.usegrove.cloud}
-    volumes: [worker-models:/app/data/models]
+      WORKER_LANES: ${WORKER_LANES:-indexing,enrichment,email,maintenance,bulk}
+      INDEXING_CONCURRENCY: ${INDEXING_CONCURRENCY:-2}
+      EMAIL_CONCURRENCY: ${EMAIL_CONCURRENCY:-1}
+      MAINTENANCE_CONCURRENCY: ${MAINTENANCE_CONCURRENCY:-1}
+      BULK_CONCURRENCY: ${BULK_CONCURRENCY:-1}
+      JOB_ACCOUNT_CONCURRENCY: ${JOB_ACCOUNT_CONCURRENCY:-2}
+      JOB_PROVIDER_CONCURRENCY: ${JOB_PROVIDER_CONCURRENCY:-8}
+      WORKER_LEGACY_QUEUE: ${WORKER_LEGACY_QUEUE:-true}
+    stop_grace_period: 40s
+    volumes: [worker-models:/app/data/models, exports:/app/data/exports]
     depends_on:
       migrate: { condition: service_completed_successfully }
     networks: [database, outbound]
@@ -114,3 +131,4 @@ volumes:
   postgres-data: {}
   api-models: {}
   worker-models: {}
+  exports: {}

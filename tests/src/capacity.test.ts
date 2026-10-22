@@ -3,9 +3,10 @@ import { after, before, test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { request as httpRequest } from "node:http";
+import { Readable } from "node:stream";
 import { serve } from "@hono/node-server";
 import { createDatabase, tenant, withDatabaseSignal } from "@lib/database";
-import { withMemoryOperation } from "@lib/memory";
+import { Tasks, withMemoryOperation } from "@lib/memory";
 import { listSchema } from "@lib/shared/contracts";
 import { capacityFixture } from "./fixtures/capacity.ts";
 import { createApp } from "../../packages/api/src/app.ts";
@@ -96,6 +97,39 @@ test("HTTP search has one admission and cancellation rolls back a pending write"
     (await fixture.admin("accounts").where({ id: principal.accountId }).first())
       .contentVersion,
     account.contentVersion,
+  );
+});
+
+test("background transactions preserve authorization without charging foreground admission", async () => {
+  const principal = fixture.principals[0];
+  const count = async () =>
+    Number(
+      (
+        await fixture
+          .admin("rate_buckets")
+          .where({ accountId: principal.accountId })
+          .sum("count as total")
+          .first()
+      )?.total ?? 0,
+    );
+  const before = await count();
+  await tenant(fixture.workerDb, principal.accountId, (trx) =>
+    fixture.worker
+      .inTransaction(trx)
+      .access(principal, "memory:read", async () => {}),
+  );
+  assert.equal(await count(), before);
+  const revoked = { ...principal, sessionId: randomUUID() };
+  await fixture.admin("session_revocations").insert({ id: revoked.sessionId });
+  await assert.rejects(
+    tenant(fixture.db, principal.accountId, (trx) =>
+      fixture.service
+        .inTransaction(trx)
+        .access(revoked, "memory:read", async () =>
+          assert.fail("Revoked work ran"),
+        ),
+    ),
+    { code: "unauthorized" },
   );
 });
 
@@ -384,38 +418,90 @@ test("pool acquisition and SQL timeouts are bounded and connections recover", as
   }
 });
 
-test("interrupted exports fail the download and release their interactive permit", async () => {
-  const original = fixture.service.exportPage.bind(fixture.service);
-  const entered = deferred(),
-    release = deferred();
-  fixture.service.exportPage = async (principal, after) => {
-    if (after) {
-      entered.resolve();
-      await release.promise;
-    }
-    return original(principal, after);
-  };
-  const server = app({
-    capacity: { interactiveConcurrency: 1, interactiveTimeoutMs: 3000 },
-  });
-  try {
-    const response = await server.request("/v1/account/export", {
-      headers: { authorization: "Bearer 0" },
+for (const interruption of ["deadline", "client", "storage"] as const) {
+  test(`${interruption} interruption closes queued export storage and releases its interactive permit`, async () => {
+    const task = await new Tasks(fixture.service, true).export(
+      fixture.principals[0],
+      {
+        id: randomUUID(),
+        includeDescendants: false,
+      },
+    );
+    const content = Buffer.from('{"type":"fixture"}\n');
+    await fixture
+      .admin("background_tasks")
+      .where({ id: task.id })
+      .update({
+        status: "succeeded",
+        result: JSON.stringify({
+          key: "fixture.ndjson",
+          bytes: content.length,
+        }),
+      });
+    const closed = deferred();
+    let source: Readable | undefined,
+      held = true;
+    const server = app({
+      capacity: {
+        interactiveConcurrency: 1,
+        interactiveTimeoutMs: 3000,
+        queueTimeoutMs: 20,
+      },
+      artifacts: {
+        async ready() {},
+        async write() {},
+        async remove() {},
+        async read(_key, signal) {
+          source = new Readable({ read() {}, signal });
+          source.once("close", closed.resolve);
+          source.push(content);
+          if (!held) source.push(null);
+          return source;
+        },
+      },
     });
-    assert.equal(response.status, 200);
-    const download = assert.rejects(response.text(), /too long/);
-    await entered.promise;
-    await download;
-  } finally {
-    fixture.service.exportPage = original;
-    release.resolve();
-  }
-  const next = await server.request("/v1/account/export", {
-    headers: { authorization: "Bearer 0" },
+    const download = () =>
+      server.request(`/v1/tasks/${task.id}/download`, {
+        headers: { authorization: "Bearer 0" },
+      });
+    try {
+      const response = await download();
+      assert.equal(response.status, 200);
+      assert.equal(
+        (await download()).status,
+        503,
+        "stream owns its interactive permit",
+      );
+      assert.equal(
+        (
+          await server.request("/v1/projects", {
+            headers: { authorization: "Bearer 0" },
+          })
+        ).status,
+        200,
+        "foreground reads retain capacity",
+      );
+      if (interruption === "client") await response.body!.cancel();
+      else {
+        const failed = assert.rejects(
+          response.text(),
+          interruption === "deadline" ? /too long/ : /aborted/,
+        );
+        if (interruption === "storage")
+          source!.destroy(new Error("Interrupted fixture storage"));
+        await failed;
+      }
+      await closed.promise;
+      assert.equal(source!.destroyed, true);
+      held = false;
+      const next = await download();
+      assert.equal(next.status, 200);
+      assert.equal(await next.text(), content.toString());
+    } finally {
+      source?.destroy();
+    }
   });
-  assert.equal(next.status, 200);
-  await next.body!.cancel();
-});
+}
 after(async () => {
   await fixture?.close();
 });

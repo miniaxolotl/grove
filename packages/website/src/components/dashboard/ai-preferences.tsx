@@ -29,6 +29,12 @@ const groups: {
           "Suggest a note type. Only apply it when that note’s auto-classification is on.",
         provider: "classification",
       },
+      {
+        key: "filingEnabled",
+        label: "Suggested filing",
+        description: "Suggest a notebook when you ask where a note belongs.",
+        provider: "generation",
+      },
     ],
   },
   {
@@ -44,6 +50,13 @@ const groups: {
         key: "notebookConnectionsEnabled",
         label: "Connected notebooks",
         description: "Find shared themes across notebooks.",
+        provider: "generation",
+      },
+      {
+        key: "cleanupEnabled",
+        label: "Guided cleanup",
+        description:
+          "Review overlaps, conflicts and explicit replacements on request.",
         provider: "generation",
       },
     ],
@@ -70,6 +83,13 @@ const groups: {
           "Summarize task handoffs so connected agents can pick up where you left off.",
         provider: "generation",
       },
+      {
+        key: "digestsEnabled",
+        label: "Change digests",
+        description:
+          "Summarize what changed since your last notebook visit, on request.",
+        provider: "generation",
+      },
     ],
   },
   {
@@ -80,6 +100,13 @@ const groups: {
         label: "Answers and writing",
         description:
           "Answer questions and draft changes using your notes. Review changes before applying.",
+        provider: "generation",
+      },
+      {
+        key: "actionListsEnabled",
+        label: "Action lists",
+        description:
+          "Extract recorded actions from selected notes when you ask.",
         provider: "generation",
       },
     ],

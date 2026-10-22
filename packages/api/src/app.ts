@@ -6,7 +6,7 @@ import {
 } from "@lib/telemetry/context";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { streamText } from "hono/streaming";
+import { stream } from "hono/streaming";
 import { z, ZodError } from "zod";
 import { Webhook } from "svix";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -30,9 +30,12 @@ import {
 import {
   ConnectionSetup,
   Sharing,
+  Tasks,
+  type ArtifactStore,
   withMemoryOperation,
   type MemoryService,
 } from "@lib/memory";
+import { exportRequestSchema, importRequestSchema } from "@lib/shared/jobs";
 import { databaseSignal, withDatabaseSignal } from "@lib/database";
 import {
   Admission,
@@ -56,6 +59,12 @@ import type { ModelRegistry } from "./models.ts";
 import { InferenceError } from "@lib/ai";
 import { settingsUpdateSchema } from "@lib/shared/settings";
 import {
+  assistanceRequestSchema,
+  assistanceApplySchema,
+  assistanceReviewSchema,
+  notebookVisitSchema,
+} from "@lib/shared/assistance";
+import {
   connectionQuerySchema,
   connectionReviewSchema,
   connectionLevelSchema,
@@ -66,6 +75,7 @@ import {
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
+  artifacts?: ArtifactStore | null;
   memories: MemoryService;
   models?: ModelRegistry;
   auth: Pick<Authentication, "principal">;
@@ -201,7 +211,7 @@ export function createApp(deps: AppDependencies) {
     const long =
       c.req.path === "/v1/ask" ||
       c.req.path === "/v1/models/test" ||
-      c.req.path === "/v1/account/export" ||
+      /^\/v1\/tasks\/[^/]+\/download$/.test(c.req.path) ||
       /^\/v1\/conversations\/[^/]+\/turns$/.test(c.req.path);
     const deadline = new AbortController();
     const signal = AbortSignal.any([c.req.raw.signal, deadline.signal]);
@@ -644,12 +654,76 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/assistance", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.request(
+        c.get("principal"),
+        await body(c, assistanceRequestSchema),
+      ),
+    }),
+  );
+  app.get("/v1/assistance/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  for (const action of ["apply", "undo"] as const)
+    app.post(`/v1/assistance/:id/${action}`, async (c) =>
+      c.json({
+        success: true,
+        data: await service.assistance.apply(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          await body(c, assistanceApplySchema),
+          action === "undo",
+        ),
+      }),
+    );
+  app.post("/v1/assistance/:id/review", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.review(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, assistanceReviewSchema),
+      ),
+    }),
+  );
+  app.post("/v1/notebook-visits", async (c) =>
+    c.json({
+      success: true,
+      data: await service.visits.acknowledge(
+        c.get("principal"),
+        await body(c, notebookVisitSchema),
+      ),
+    }),
+  );
   app.get("/v1/memories/:id/revisions", async (c) =>
     c.json({
       success: true,
       data: await service.revisions(
         c.get("principal"),
         uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.get("/v1/memories/:id/revisions/:version", async (c) =>
+    c.json({
+      success: true,
+      data: await service.sourceRevision(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        z.coerce
+          .number()
+          .int()
+          .positive()
+          .max(2147483647)
+          .parse(c.req.param("version")),
       ),
     }),
   );
@@ -838,65 +912,106 @@ export function createApp(deps: AppDependencies) {
       202,
     );
   });
+  const tasks = new Tasks(service, !!deps.artifacts);
   app.get("/v1/account/export", async (c) => {
-    const principal = c.get("principal");
-    // Authorize before committing download headers, then reauthorize each page.
-    const first = await service.exportPage(principal);
-    c.header(
-      "Content-Disposition",
-      'attachment; filename="grove-memories.ndjson"',
+    await service.access(c.get("principal"), "admin", async () => {});
+    throw new GroveError(
+      "export_moved",
+      "Create an export with POST /v1/exports",
+      410,
     );
-    c.set("streaming", true);
+  });
+  app.post("/v1/exports", async (c) =>
+    c.json(
+      {
+        success: true,
+        data: await tasks.export(
+          c.get("principal"),
+          await body(c, exportRequestSchema),
+        ),
+      },
+      202,
+    ),
+  );
+  app.post("/v1/imports", async (c) =>
+    c.json(
+      {
+        success: true,
+        data: await tasks.import(
+          c.get("principal"),
+          await body(c, importRequestSchema),
+        ),
+      },
+      202,
+    ),
+  );
+  app.get("/v1/tasks", async (c) =>
+    c.json({
+      success: true,
+      data: await tasks.list(
+        c.get("principal"),
+        z.uuid().optional().parse(c.req.query("projectId")),
+      ),
+    }),
+  );
+  app.get("/v1/tasks/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await tasks.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  for (const action of ["cancel", "retry"] as const)
+    app.post(`/v1/tasks/:id/${action}`, async (c) =>
+      c.json({
+        success: true,
+        data: await tasks.action(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          action,
+        ),
+      }),
+    );
+  app.get("/v1/tasks/:id/download", async (c) => {
+    const principal = c.get("principal"),
+      id = uuidSchema.parse(c.req.param("id"));
+    const artifact = await tasks.artifact(principal, id);
+    if (!deps.artifacts)
+      throw new GroveError(
+        "exports_unavailable",
+        "Export storage is not configured",
+        503,
+      );
     const cancelled = new AbortController();
     const signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
-    const response = streamText(
+    const source = await deps.artifacts.read(artifact.key, signal);
+    c.header(
+      "Content-Disposition",
+      `attachment; filename="${artifact.filename}"`,
+    );
+    c.header("Content-Type", "application/x-ndjson");
+    c.header("Content-Length", String(artifact.bytes));
+    c.set("streaming", true);
+    const response = stream(
       c,
       async (stream) => {
         stream.onAbort(() => cancelled.abort());
         try {
           await withDatabaseSignal(signal, async () => {
-            let page = first;
-            while (page.length && !stream.aborted) {
-              for (const memory of page)
-                await stream.writeln(JSON.stringify(memory));
-              if (page.length < 50) break;
-              page = await service.exportPage(principal, page.at(-1)!.id);
-            }
-            let chats = await service.conversations.exportPage(principal);
-            while (!stream.aborted) {
-              for (const chat of chats) {
-                if (stream.aborted) break;
-                await stream.writeln(
-                  JSON.stringify({
-                    type: "conversation",
-                    ...chat,
-                  }),
-                );
+            let checked = Date.now();
+            for await (const chunk of source) {
+              signal.throwIfAborted();
+              if (Date.now() - checked >= 5000) {
+                await tasks.artifact(principal, id);
+                checked = Date.now();
               }
-              if (chats.length < 10) break;
-              chats = await service.conversations.exportPage(
-                principal,
-                chats.at(-1)!.id,
-              );
-            }
-            for (const level of ["note", "notebook"] as const) {
-              let after: string | undefined;
-              while (!stream.aborted) {
-                const pairs = await service.relationships.exportPage(
-                  principal,
-                  level,
-                  after,
-                );
-                for (const pair of pairs)
-                  await stream.writeln(
-                    JSON.stringify({ type: "relationship", level, ...pair }),
-                  );
-                if (pairs.length < 50) break;
-                after = pairs.at(-1)!.id;
-              }
+              await stream.write(chunk);
             }
           });
         } finally {
+          source.destroy();
           c.get("finish")();
         }
       },

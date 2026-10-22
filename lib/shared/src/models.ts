@@ -79,6 +79,12 @@ export const briefRequestSchema = z
 export type BriefRequest = z.infer<typeof briefRequestSchema>;
 export type BriefContent = z.infer<typeof briefContentSchema>;
 export type SourceRef = z.infer<typeof sourceRefSchema>;
+export type SourceRevision = SourceRef & {
+  content: string;
+  createdAt: string;
+  currentVersion: number;
+  expiresAt: string | null;
+};
 export type Annotation = z.infer<typeof annotationSchema>;
 export type Organization = z.infer<typeof organizationSchema>;
 export type ProcessingStatus = "disabled" | "pending" | "ready" | "failed";
@@ -90,6 +96,7 @@ export type Brief = {
   updatedAt: string | null;
   sourceCount: number;
   truncated: boolean;
+  coverage?: import("./summaries.ts").SummaryCoverage;
 };
 export type Enrichment = {
   status: ProcessingStatus;

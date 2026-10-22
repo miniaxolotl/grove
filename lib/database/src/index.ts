@@ -86,7 +86,10 @@ export async function probeDatabase(db: Knex) {
       "Grove requires a non-owner, non-bypass database runtime role",
     );
   }
-  await db.raw("SELECT content_version, ask_enabled FROM accounts LIMIT 0");
+  await db.raw(
+    "SELECT content_version, ask_enabled, export_version, filing_enabled, change_token FROM accounts LIMIT 0",
+  );
+  await db.raw("SELECT id, lane, lease_id FROM background_tasks LIMIT 0");
   const versions = await db.raw(
     "SELECT extversion FROM pg_extension WHERE extname = 'vector'",
   );

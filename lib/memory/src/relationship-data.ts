@@ -194,6 +194,7 @@ export async function enqueueRelationship(
     })
     .onConflict(["accountId", "kind", "target", "profile"]);
   const upsert = query.merge({
+    epoch: trx.raw("(SELECT epoch FROM processing_control WHERE singleton)"),
     scope: JSON.stringify(scope),
     version: note?.version ?? null,
     attempts: 0,

@@ -5,7 +5,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import { MemoryModel, tenant, camelRows, type Knex } from "@lib/database";
+import { MemoryModel, tenant, type Knex } from "@lib/database";
 import { policy } from "@lib/config";
 import { InferenceError, type Embedder, type Providers } from "@lib/ai";
 import {
@@ -34,6 +34,26 @@ import { semanticMatches } from "./search.ts";
 import { admitOperation } from "./operation-context.ts";
 export { withMemoryOperation } from "./operation-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { NotebookAssistance } from "./assistance.ts";
+import { NotebookVisits, recordNotebookExpiry } from "./notebook-digests.ts";
+import { assistancePreferences } from "@lib/shared/assistance";
+import { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
+import { runTask } from "./task-runner.ts";
+import type { QueueLane } from "@lib/shared/jobs";
+export { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
+export { Tasks } from "./tasks.ts";
+export { exportHandlers, type ArtifactStore } from "./exports.ts";
+export {
+  importHandlers,
+  enqueueConnectorSync,
+  type ConnectorAdapter,
+} from "./imports.ts";
+export {
+  runTask,
+  TaskError,
+  type TaskHandler,
+  type ClaimedTask,
+} from "./task-runner.ts";
 import {
   briefFor,
   briefTarget,
@@ -74,6 +94,7 @@ type Connection = Omit<Grant, "expiresAt"> & {
   setup?: unknown;
 };
 type Account = AccountPreferences & {
+  exportVersion: string;
   id: string;
   clerkSubject: string;
   status: string;
@@ -102,6 +123,9 @@ export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export class MemoryService {
+  readonly assistance: NotebookAssistance;
+  readonly visits: NotebookVisits;
+  private internalWork = false;
   readonly conversations: Conversations;
   readonly relationships: Relationships;
   providers: Providers;
@@ -117,6 +141,8 @@ export class MemoryService {
     readonly dailyRequestLimit = 2000,
   ) {
     this.providers = { ...providers, embedding: embedder };
+    this.assistance = new NotebookAssistance(this);
+    this.visits = new NotebookVisits(this);
     this.relationships = new Relationships(this);
     this.conversations = new Conversations(
       this,
@@ -131,23 +157,28 @@ export class MemoryService {
     run: (access: Access) => Promise<T>,
     modelUpdate = false,
   ): Promise<T> {
-    await admitOperation(this, principal, async () => {
-      const count = await tenant(this.db, principal.accountId, async (trx) => {
-        await this.authorize(trx, principal, capability, false, true);
-        const { rows } = await trx.raw(
-          `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
+    if (!this.internalWork)
+      await admitOperation(this, principal, async () => {
+        const count = await tenant(
+          this.db,
+          principal.accountId,
+          async (trx) => {
+            await this.authorize(trx, principal, capability, false, true);
+            const { rows } = await trx.raw(
+              `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
           ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
-          [principal.accountId],
+              [principal.accountId],
+            );
+            return Number(rows[0].count);
+          },
         );
-        return Number(rows[0].count);
+        if (count > policy.requestsPerMinute)
+          throw new GroveError(
+            "rate_limited",
+            "Too many requests; retry in one minute",
+            429,
+          );
       });
-      if (count > policy.requestsPerMinute)
-        throw new GroveError(
-          "rate_limited",
-          "Too many requests; retry in one minute",
-          429,
-        );
-    });
     return tenant(this.db, principal.accountId, async (trx) => {
       // Profile cutovers serialize with writes, before account locks. A replica may
       // have refreshed before waiting here; queue() resolves the committed profiles.
@@ -187,9 +218,11 @@ export class MemoryService {
       .from<Account & { sessionRevoked: boolean }>("authorized_account")
       .select(
         "authorized_account.*",
-        trx.raw("grove_session_revoked(?) AS session_revoked", [
-          principal.sessionId ?? "",
-        ]),
+        principal.sessionId
+          ? trx.raw("grove_session_revoked(?) AS session_revoked", [
+              principal.sessionId,
+            ])
+          : trx.raw("false AS session_revoked"),
       )
       .first();
     if (!record || record.status !== "active")
@@ -262,6 +295,23 @@ export class MemoryService {
       throw forbidden();
   }
 
+  /** Background writes share mutation/version rules and the enclosing lease transaction. */
+  inTransaction(trx: Knex.Transaction) {
+    const service = new MemoryService(
+      trx,
+      this.cursorSecret,
+      this.providers.embedding ?? undefined,
+      {
+        decision: this.providers.decision,
+        generation: this.providers.generation,
+      },
+      this.dailyRequestLimit,
+    );
+    service.jobProfiles = this.jobProfiles;
+    service.internalWork = true;
+    return service;
+  }
+
   private query(trx: Knex.Transaction, grant?: Connection) {
     const q = MemoryModel.query(trx);
     if (grant)
@@ -328,7 +378,7 @@ export class MemoryService {
     await invalidateBriefs(trx, accountId);
   }
 
-  private async revise(trx: Knex.Transaction, row: MemoryModel) {
+  async revise(trx: Knex.Transaction, row: MemoryModel) {
     await trx("memory_revisions").insert({
       accountId: row.accountId,
       memoryId: row.id,
@@ -509,6 +559,28 @@ export class MemoryService {
     });
   }
 
+  async sourceRevision(principal: Principal, id: string, version: number) {
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      const note = await this.query(trx, grant)
+        .findById(id)
+        .where((q) =>
+          q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+        );
+      if (!note) throw missing();
+      const revision = await trx("memory_revisions")
+        .where({ memoryId: id, version })
+        .select("version", "content", "createdAt")
+        .first();
+      if (!revision) throw missing();
+      return {
+        ...revision,
+        id,
+        currentVersion: note.version,
+        expiresAt: note.expiresAt,
+      };
+    });
+  }
+
   private encodeCursor(value: unknown) {
     const payload = Buffer.from(JSON.stringify(value)).toString("base64url");
     return `${payload}.${createHmac("sha256", this.cursorSecret).update(payload).digest("base64url")}`;
@@ -568,8 +640,35 @@ export class MemoryService {
     }
     return this.access(
       principal,
-      "memory:read",
+      principal.type === "session" && input.projectId && !input.cursor
+        ? "admin"
+        : "memory:read",
       async ({ trx, grant, account }) => {
+        let visit: Page<Memory>["visit"];
+        if (
+          principal.type === "session" &&
+          input.projectId &&
+          !input.cursor &&
+          (await trx("projects").where({ id: input.projectId }).first("id"))
+        ) {
+          const ready = await recordNotebookExpiry(
+            trx,
+            account.id,
+            input.projectId,
+          );
+          const checkpoint = await trx("notebook_checkpoints")
+            .where({ projectId: input.projectId })
+            .first();
+          const current = await trx("accounts")
+            .where({ id: account.id })
+            .first("changeToken");
+          visit = {
+            projectId: input.projectId,
+            token: current.changeToken,
+            from: checkpoint?.token ?? null,
+            ready,
+          };
+        }
         const { cursor, limit, ...filters } = input;
         const binding = digest(
           stable({
@@ -665,6 +764,7 @@ export class MemoryService {
         );
         return {
           items,
+          ...(visit ? { visit } : {}),
           ...(input.query
             ? {
                 searchMode: vector ? ("hybrid" as const) : ("lexical" as const),
@@ -1227,7 +1327,9 @@ export class MemoryService {
             parentId: input.parentId ?? null,
             accountId: account.id,
           })
-          .onConflict(["accountId", "identity"])
+          .onConflict(
+            trx.raw("(account_id, identity) WHERE deleted_at IS NULL"),
+          )
           .merge({ name: input.name })
           .returning(fields);
         created = true;
@@ -1379,6 +1481,22 @@ export class MemoryService {
           leaseUntil: null,
         });
       }
+      for (const [kind, key] of Object.entries(assistancePreferences))
+        if (!next[key]) {
+          await trx("jobs")
+            .where({ kind: "assistance" })
+            .whereRaw("scope->>'feature'=?", [kind])
+            .delete();
+          await trx("assistance_requests")
+            .where({ kind })
+            .whereIn("status", ["pending", "ready", "failed"])
+            .update({
+              status: "stale",
+              state: "{}",
+              result: null,
+              error: "This feature is turned off.",
+            });
+        }
       const background = enabled.filter(
         (key) =>
           ![
@@ -1386,6 +1504,7 @@ export class MemoryService {
             "recallEnabled",
             "captureEnabled",
             "notebookConnectionsEnabled",
+            ...Object.values(assistancePreferences),
           ].includes(key),
       );
       if (background.length) {
@@ -1473,13 +1592,8 @@ export class MemoryService {
       await trx("accounts")
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });
-      await trx("connections").update({ revokedAt: trx.fn.now() });
-      await trx("public_shares").update({
-        revokedAt: trx.fn.now(),
-        tokenDigest: null,
-        tokenCiphertext: null,
-        version: trx.raw("version + 1"),
-      });
+      // Every authenticated/public read and worker publication checks account
+      // status. Per-record revocation is handled by bounded cleanup checkpoints.
       return { status: "deleting" };
     });
   }
@@ -1510,7 +1624,15 @@ export class MemoryService {
     });
   }
 
-  async runJob(id?: string): Promise<boolean> {
+  async runJob(
+    id?: string,
+    options: {
+      lane?: QueueLane;
+      accountLimit?: number;
+      providerLimit?: number;
+      signal?: AbortSignal;
+    } = {},
+  ): Promise<boolean> {
     return runProcessingJob(
       this.db,
       this.providers,
@@ -1524,6 +1646,7 @@ export class MemoryService {
               decision: this.providers.decision?.profile ?? null,
               generation: this.providers.generation?.profile ?? null,
             },
+      options,
     );
   }
 
@@ -1537,70 +1660,12 @@ export class MemoryService {
   }
 
   async maintenance(deleteIdentity: (subject: string) => Promise<void>) {
-    const rows = camelRows<{
-      id: string;
-      status: string;
-      clerkSubject: string;
-      providerDeletedAt: Date | null;
-    }>(await this.db.raw("SELECT * FROM grove_maintenance_accounts()"));
-    for (const account of rows) {
-      let identityDeleted = !!account.providerDeletedAt;
-      if (account.status === "deleting" && !identityDeleted) {
-        try {
-          await deleteIdentity(account.clerkSubject);
-          identityDeleted = true;
-        } catch {
-          /* Purge content while identity deletion retries. */
-        }
-      }
-      await tenant(this.db, account.id, async (trx) => {
-        await trx.raw("SELECT pg_advisory_xact_lock_shared(68142019)");
-        const current = await trx("accounts")
-          .where({ id: account.id })
-          .forUpdate()
-          .first();
-        if (current.status === "deleting" || current.status === "deleted") {
-          await trx("public_shares").delete();
-          await trx("conversations").delete();
-          await trx("transactional_emails").delete();
-          await trx("jobs").delete();
-          await trx("memory_briefs").delete();
-          await trx("inference_usage").delete();
-          await trx("memories").delete();
-          await trx("connections").delete();
-          await trx("projects").delete();
-          await trx("memory_operations").delete();
-          await trx("rate_buckets").delete();
-          const providerGone = identityDeleted || !!current.providerDeletedAt;
-          await trx("accounts")
-            .where({ id: account.id })
-            .update({
-              status: providerGone ? "deleted" : "deleting",
-              ...(providerGone ? { providerDeletedAt: trx.fn.now() } : {}),
-            });
-        } else {
-          const expired = await trx("memories")
-            .where("purgeAt", "<=", trx.fn.now())
-            .forUpdate()
-            .select("id");
-          for (const row of expired)
-            await trx("deleted_memories")
-              .insert({ accountId: account.id, id: row.id })
-              .onConflict(["accountId", "id"])
-              .ignore();
-          await trx("memories")
-            .whereIn(
-              "id",
-              expired.map((r) => r.id),
-            )
-            .delete();
-          if (expired.length) await this.changed(trx, account.id);
-        }
-        await trx("rate_buckets")
-          .where("minute", "<", trx.raw("now() - interval '1 day'"))
-          .delete();
-      });
-    }
+    await scheduleCleanup(this.db);
+    const handlers = cleanupHandlers(this.db, deleteIdentity);
+    // Bounded compatibility entrypoint; the deployed worker gives this lane its
+    // own consumer capacity, independent of dispatch and inference.
+    for (let batch = 0; batch < 20; batch++)
+      if (!(await runTask(this.db, handlers, { lane: "maintenance" }))) break;
   }
 }
 

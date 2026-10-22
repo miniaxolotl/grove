@@ -13,6 +13,7 @@ import { LoadError } from "./load-error";
 import { Button } from "./ui/button";
 import { useToast } from "./toasts";
 import { useWorkspaceCache } from "./workspace-cache";
+import { AssistanceAction } from "./assistance-action";
 
 export function MemoryInspector({
   id,
@@ -118,6 +119,16 @@ export function MemoryInspector({
             }}
           >
             <h2>Move note</h2>
+            {current.projectId === null && (
+              <AssistanceAction
+                compact
+                disabled={busy}
+                input={{
+                  kind: "filing",
+                  sources: [{ id: current.id, version: current.version }],
+                }}
+              />
+            )}
             <NotebookSelect
               label="Destination"
               value={destination}

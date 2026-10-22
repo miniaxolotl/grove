@@ -26,7 +26,7 @@ type ProfileData = {
   candidates?: Candidate[];
   discoveryComplete?: boolean;
 };
-type Profile = {
+export type NotebookProfile = {
   projectId: string;
   contentVersion: number;
   profile: string;
@@ -37,14 +37,15 @@ type Profile = {
   expiresAt: Date | null;
   data: ProfileData;
 };
-const similarity = (a: number[], b: number[]) =>
+type Profile = NotebookProfile;
+export const similarity = (a: number[], b: number[]) =>
   a.length && a.length === b.length
     ? a.reduce((n, x, i) => n + x * b[i], 0) /
       (Math.hypot(...a) * Math.hypot(...b) || 1)
     : 0;
-const vectorOf = (value: string | number[] | undefined): number[] =>
+export const vectorOf = (value: string | number[] | undefined): number[] =>
   typeof value === "string" ? JSON.parse(value) : (value ?? []);
-const words = (content: string) =>
+export const words = (content: string) =>
   [...new Set(content.toLocaleLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [])]
     .filter(
       (s) =>
@@ -107,8 +108,9 @@ export async function scheduleNotebookProfiles(
 /** Profile all directly filed notes in stable bounded batches, without generation calls. */
 export async function advanceNotebookProfile(
   trx: Knex.Transaction,
-  job: RelationshipJob,
+  job: Pick<RelationshipJob, "id" | "accountId" | "target" | "profile">,
   providers: Providers,
+  discover = true,
 ) {
   const project = await trx("projects").where({ id: job.target }).first();
   if (!project) return true;
@@ -225,6 +227,7 @@ export async function advanceNotebookProfile(
     return false;
   };
   if (!value.complete) return resume();
+  if (!discover) return true;
   const others: Profile[] = !value.total
     ? []
     : await trx("notebook_profiles as n")

@@ -1,5 +1,46 @@
 # Delivery evidence
 
+## Notebook assistance (22 October 2026)
+
+Five contextual tools share concise previews and exact source evidence: subject-aware
+notebook summaries, suggested filing in Move, editable source-linked action lists,
+fixed-window visit digests and reviewed cleanup with both-original comparisons.
+Apply/Undo rechecks versions; supporting sources do not authorize writes. Four
+independent AI preferences inherit existing choices once. On-demand assistance
+reuses the existing dialogs, profiles, worker limits and enrichment lane.
+
+Migration **015**, after queue **014**, adds tenant-isolated previews/reviews,
+transactional change tokens, frozen visit checkpoints and resumable summary fragments.
+Source/profile/preference/lease guards prevent stale publication. Deletion and expiry
+remove evidence immediately, including offline browser previews. Exports/recovery
+retain authoritative decisions and operation references while invalidating previews.
+See [feature/API documentation](notebook-assistance.md) and [rollout](deploy.md).
+
+Verification passes on integrated source `1542c08`: **138 backend/service tests**
+(two optional RabbitMQ/S3 checks skipped locally), root/website lint, types and builds,
+five packaged artifacts, 17 release/deployment contracts and pinned workflow lint.
+The full **203 Chromium** suite and **five focused iPhone/WebKit** assistance/source
+scenarios pass; the final queue integration also passes **eight affected cases in
+each engine**. Bundle budgets pass; Notes entry is **483,060 gzip bytes**.
+[Fourteen reviewed captures](design/screenshots/notebook-assistance/README.md)
+cover desktop, 390px and 320px.
+
+The six labelled live-model subjects produced all 30 ready feature results, including
+six expected actions, three filing matches/three abstentions and the expected
+duplicate/conflict/explicit-replacement cleanup cases. The synthetic 10,000-note
+unchanged refresh took **69 ms / zero model calls**; one edit rebuilt 12 fragments
+in 804 ms. [Quality and scale evidence](development/notebook-assistance-results.md)
+records the initial failures, remaining wording limitations and measurement scope.
+
+Conflict-resolution follow-up integrates backend capacity #78 (`be49db9`). Queued
+downloads retain interactive admission until completion and propagate cancellation
+to artifact storage; background work preserves authorization without foreground
+rate accounting. Session-revocation checks run only for principals with sessions,
+preserving worker-role permissions. The integrated suite passes **154 backend tests**
+(two optional-service skips), **eight focused Chromium cases**, all required static,
+build and artifact gates, bundle budgets and release/workflow checks. New regressions
+cover worker authorization and download deadlines, cancellation and storage failures.
+
 ## Backend capacity and responsiveness (22 October 2026)
 
 List presentation is constant at **15 SQL queries** for 1, 30 or 100 notes, down
@@ -56,6 +97,35 @@ check passes in both engines. Root/website lint, types and builds, five artifact
 and bundle budgets pass. Notes entry is **481,587 gzip bytes** with the editor deferred.
 [Eighteen reviewed captures](design/screenshots/workspace-polish/) cover desktop,
 tablet, phone, forced colours and short windows on application source `f33fd3a`.
+
+## Durable queues and retained deletion (22 October 2026)
+
+Migration **014** adds checkpointed bulk/maintenance tasks, fair database claims,
+renewable token-fenced leases, cross-replica limits and model-generation backfills.
+RabbitMQ has independent indexing, enrichment, email, maintenance and bulk lanes;
+polling uses the same capacity gates. Authored notes/history remain retained behind
+soft-delete visibility policies, including during account cleanup and recovery.
+
+Account and notebook exports use bounded NDJSON pages and private local/S3 storage,
+authenticated streaming downloads, expiry, cancellation and retry. Compact controls
+preserve progress across navigation and show the saved notebook scope. Imports
+deduplicate sources and protect local edits; connector adapters checkpoint their
+pages with ordinary memory writes. [Operations and API](jobs.md) and the
+[014 rollout](deploy.md#queue-and-retained-deletion-rollout-014) describe setup.
+
+Verification passes: the **121-case backend/storage suite**, plus the two-worker
+broker-outage/import/export/SIGTERM case; populated **013→014** upgrade; real RabbitMQ
+isolation/reconnect; private Garage **12 MiB** multipart transfers; root/website lint,
+types and builds; five packaged artifacts; 17 release/deployment checks and workflow
+lint. The integrated workspace passes **196 Chromium** and four focused iPhone/WebKit
+scenarios. The final saved-scope follow-up passes three Chromium and one WebKit check.
+
+The synthetic 1,000-note/2,000-record export uses at most a 623,300-byte serialized
+page. Its initial local run took 742 ms with 34.7 MiB RSS growth and foreground-read
+p95 of 14.3 ms (16.5 ms baseline); these are regression-fixture observations.
+[Reviewed screenshots](design/screenshots/queue-processing/README.md) show ready,
+retry and notebook progress states. Cloud storage and migration activation are
+explicit operator rollout steps; local verification uses disposable services.
 
 ## Independent AI preferences (22 October 2026)
 

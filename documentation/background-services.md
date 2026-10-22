@@ -1,5 +1,8 @@
 # Organization, queue delivery, and account email
 
+See [durable jobs](jobs.md) for lane capacity, exports/imports, retained deletion,
+storage configuration and migration014 rollout.
+
 The worker periodically checks active accounts for missing embeddings, titles,
 relationships, and summaries. `ORGANIZATION_INTERVAL_SECONDS` defaults to 900
 (allowed: 60–86,400). Each pass claims at most 20 accounts and bounds note/scope
@@ -16,11 +19,11 @@ before publishing explanations.
 
 ## CloudAMQP
 
-Set worker-only `AMQP_URL` to a TLS `amqps://` URL. The durable `grove.jobs.v1` queue
+Set worker-only `AMQP_URL` to a TLS `amqps://` URL. Durable `grove.jobs.v2.<lane>` queues
 carries only `{kind, id}` envelopes. Note text, recipients, and credentials never
 enter the broker. PostgreSQL remains the transactional outbox and lease authority.
 
-Publisher confirms precede dispatch timestamps. A 60-second redispatch window
+Publisher confirms precede dispatch timestamps. A15-second redispatch window
 recovers missed deliveries; claims use 120-second database leases. Duplicate
 deliveries cannot execute an already-claimed job. Retry state stays in PostgreSQL
 and exhausted jobs remain inspectable. The worker reconnects and uses database
@@ -44,8 +47,8 @@ Clerk continues to handle authentication email.
 The worker resolves only the current verified primary Clerk email, checks the
 account is active, and sends HTML plus plain text without note content. A stable
 Resend idempotency key protects retries. Transient failures retry up to five times;
-delivery stops after 23 hours, within Resend's 24-hour deduplication window. Completed
-and failed rows are removed after 30 days. Recovery discards restored pending mail.
+delivery stops after23 hours, within Resend's24-hour deduplication window. Recovery
+discards restored pending mail.
 
 Cloud's verified sending domain is `mail.usegrove.cloud`. Cloudflare hosts its
 DKIM and DNS-only `send.mail`/`rsend.mail` CNAME records. The DNS-only tracking CNAME
