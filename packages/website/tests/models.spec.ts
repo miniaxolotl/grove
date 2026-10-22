@@ -68,6 +68,22 @@ test("preferences retain newer edits during saving and errors do not move the fo
   await expect(button).toBeDisabled();
   const checks = page.getByRole("checkbox");
   await checks.nth(0).uncheck();
+  // Another tab can refresh /me to the same values as our unsaved draft.
+  // Reverting still compares with our loaded base, not that background snapshot.
+  preferences.recallEnabled = false;
+  const refreshed = page.waitForResponse("**/api/grove/me");
+  await page.evaluate(() => {
+    const channel = new BroadcastChannel("grove-workspace:fixture-user");
+    channel.postMessage({ resource: "/me" });
+    channel.close();
+  });
+  await (await refreshed).finished();
+  await checks.nth(0).check();
+  await expect(button).toBeDisabled();
+  await checks.nth(0).uncheck();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "Unsaved changes",
+  );
   const form = page.locator(".settings-content form");
   await button.scrollIntoViewIfNeeded();
   // Check layout within the settings scroller, independently of the browser

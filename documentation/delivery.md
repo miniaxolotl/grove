@@ -1,5 +1,92 @@
 # Delivery evidence
 
+## Error-page refinement (22 October 2026 UTC)
+
+Deferred views and service failures share a restrained recovery layout with
+context-specific headings, a clear retry action and responsive spacing. The 404
+and global-error pages use the same visual language and offer a route back to Grove.
+Global recovery carries its own styles/fonts and native home links so it remains
+usable outside the root layout. Error details stay out of that fallback's content.
+
+After integrating landed stable-library and sharing features, root/website lint,
+types and builds, five artifacts, **149 Chromium** and **35 supported focused
+iPhone/WebKit** cases pass. Release/deployment contracts and workflow lint pass.
+Production deferred retry/bounds/focus and
+sign-in/private-response checks pass at 1440/390/320px. Additional checks cover
+service/404 accessibility, 404 navigation without JavaScript, standalone global
+recovery in both browser engines, keyboard navigation and enlarged text.
+Notes entry is **469,016 gzip bytes (-31.5% original baseline)** with all landed
+features included. The error-UI-only increase was 200 bytes before those integrations.
+Preference drafts retain their loaded base across background refreshes and newer
+edits across pending saves. [Reviewed error screenshots](design/screenshots/error-recovery/README.md)
+record the final desktop/mobile presentation, exact source/build and browser coverage.
+
+## Client caching and loading performance (21 October 2026 UTC)
+
+The workspace now shares account/session-owned, in-memory read snapshots. Durable
+changes reconcile affected notes, notebook lists, history, search, briefs and
+conversation views. Retained drafts keep their original versions and uncertain
+operation IDs; newer edits and later-version save replays require explicit review.
+Metadata-only cross-tab invalidation, visible refresh, bounded retention and expiry
+preserve freshness. The authenticated transport remains private and `no-store`.
+
+Notes defers the drawer/editor, notebook secondary views and collapsed linked-note
+title reads. Independent notebook/note reads start together. In-place chunk retry,
+intent preloading, hidden-mobile preview gating and demand-loaded monospace fonts
+reduce opening work. New list rows render at full contrast immediately.
+
+The cache-delivery build reduced Notes-entry JavaScript to
+**684,469 → 454,146 gzip bytes (-33.6%)**; notebook entry
+is **695,542 → 456,830 (-34.3%)**. The first Settings→Notes round trip makes **2 → 1**
+application reads; subsequent fresh repeated visits make zero. CI enforces the
+513,351-byte Notes-entry ceiling and keeps editor code out of that entry. Exact
+paired p75 is **227→85ms** for desktop return-to-Notes and **7762→6141ms (-20.9%)**
+for mobile cold Notes. First drawer opening is slower (**437ms / 2291ms** desktop/
+mobile), and mobile return-to-Notes is **512→612ms**. Production-build timing,
+memory, long-task and layout evidence is recorded in
+[performance verification](../scripts/performance/README.md).
+
+Initial cache delivery passed **97 Chromium** scenarios and **nine selected iPhone/WebKit** cases,
+including cache ownership/cancellation, late responses, expiry, drafts/conflicts,
+mutation retries, pagination, keyboard/focus, dragging, responsive accessibility and
+telemetry privacy. Real production Next/Clerk checks verify sign-in, account controls,
+deferred editor loading, failed-chunk recovery and anonymous private/no-store denial.
+Root lint/types/build, five artifact checks, website lint/types/production build,
+twelve release-script contracts and actionlint/ShellCheck pass. WebKit uses the
+Playwright 1.64.1 Noble browser container. Node is 24.21.0; pnpm is 10.33.0.
+
+The visual refinement keeps the drawer's width consistent through
+loading, failure and successful retry. Static placeholders, an honest loading label
+and a reserved refresh/retry slot keep Notes calm while data arrives. Background
+failures preserve rows and selection; pagination retries its original cursor.
+Keyboard recovery retains focus and reduced-motion feedback stays static.
+With the merged gesture refinement, the ready compact toolbar takes keyboard focus
+from the temporary loading header.
+The follow-up passes **100 Chromium** scenarios, **eight selected iPhone/WebKit**
+cases and production drawer/auth/retry checks at **1440, 390 and 320px**. Required
+root/website checks and five artifacts pass. Before gesture integration, Notes entry is **454,807 gzip
+bytes (-33.6%)**, including 661 bytes for the refinement; the editor remains deferred.
+Current application source/build and reviewed synthetic captures are recorded in
+the performance verification linked above.
+The integrated gesture/cache build is **457,678 gzip Notes bytes (-33.1%)** and
+**460,613 notebook bytes (-33.8%)**; the same CI budget and deferred boundary pass.
+Combined verification passes **112 Chromium** and **15 selected iPhone/WebKit**
+cases, plus production drawer/auth/focus recovery at **1440, 390 and 320px**.
+
+Final integration includes landed actions and canonical relationships. Connection
+pages stay idle while collapsed, share cached batched titles/evidence, and reconcile
+review/source changes with cancellation and deletion fencing. Row-delete retries
+retain the original draft base when a later agent version requires review. The
+combined tree passes **131 Chromium**, **32 selected iPhone/WebKit**, root/website
+lint/types/builds and five artifacts. Production auth/deferred retry/focus checks
+pass at **1440, 390 and 320px**. Notes entry is **463,180 gzip bytes (-32.3%)**;
+notebook entry is **466,081 (-33.0%)**. Both editor and PDF renderer remain deferred.
+[Final synthetic screenshots](design/screenshots/client-performance/README.md)
+show quiet loading, background recovery and desktop/mobile editing.
+
+See [cache ownership and integration](development/client-cache.md) when adding
+workspace actions or resource families. No schema migration is required.
+
 ## Public read-only sharing (21 October 2026 UTC)
 
 Owners can share live saved notes/notebooks, choose direct-only or descendant

@@ -17,6 +17,7 @@ export function MemoryRow({
   busy,
   onSelect,
   onOpen,
+  onIntent,
   onDelete,
   onMove,
   onArchive,
@@ -31,6 +32,7 @@ export function MemoryRow({
   busy: boolean;
   onSelect: () => void;
   onOpen: () => void;
+  onIntent?: () => void;
   onDelete: () => void;
   onMove: () => void;
   onArchive: () => void;
@@ -134,6 +136,8 @@ export function MemoryRow({
             className="memory-open"
             disabled={busy}
             onClick={onOpen}
+            onPointerEnter={onIntent}
+            onFocus={onIntent}
             onKeyDown={(event) => {
               if (
                 event.defaultPrevented ||

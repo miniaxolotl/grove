@@ -1,38 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
-import type { Memory, Page } from "@lib/shared/contracts";
-import { api } from "@/lib/dashboard-api";
 import { memoryTitle } from "@/lib/memory-display";
-import { NoteDragHandle, useWorkspaceDrag } from "./memory-drag";
+import { NoteDragHandle } from "./memory-drag";
+import { useWorkspaceCache } from "./workspace-cache";
 
 export function NotebookPages({ projectId }: { projectId: string }) {
-  const { revision } = useWorkspaceDrag();
-  const [refresh, setRefresh] = useState(0);
-  const [result, setResult] = useState<{
-    key: string;
-    page?: Page<Memory>;
-    failed?: boolean;
-  }>();
-  const key = `${projectId}:${revision}:${refresh}`;
-  useEffect(() => {
-    const controller = new AbortController();
-    void api<Page<Memory>>(
-      "/memories/search",
-      { projectId, status: "active", sort: "updated_desc", limit: 8 },
-      undefined,
-      controller.signal,
-    )
-      .then((page) => {
-        if (!controller.signal.aborted) setResult({ key, page });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setResult({ key, failed: true });
-      });
-    return () => controller.abort();
-  }, [projectId, key]);
-  const current = result?.key === key ? result : undefined;
+  const cache = useWorkspaceCache();
+  const query = useInfiniteQuery(cache.notes({ projectId, limit: 8 }));
+  const current = { page: query.data?.pages[0], failed: query.isError };
   return (
     <ul className="notebook-pages">
       {current?.page?.items.map((note) => (
@@ -46,10 +23,7 @@ export function NotebookPages({ projectId }: { projectId: string }) {
       ))}
       {current?.failed && (
         <li>
-          <button
-            className="text-button"
-            onClick={() => setRefresh((n) => n + 1)}
-          >
+          <button className="text-button" onClick={() => void query.refetch()}>
             Retry notes
           </button>
         </li>

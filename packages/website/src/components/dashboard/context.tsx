@@ -10,26 +10,49 @@ import {
   Network,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { BriefPanel } from "./brief";
+import { deferredFeature } from "./deferred-feature";
 import { MemoryLibrary } from "./memory-library";
-import { MemoryEditor } from "./memory-editor";
 import { useToast } from "./toasts";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { NotebookTree } from "./notebook-tree";
-import { Handoffs } from "./handoffs";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
-import { AskGrove } from "./ask-grove";
 import { ActionMenu } from "./ui/action-menu";
 import { ShareDialog } from "./share-dialog";
-import { ConnectionPanel } from "./connection-panel";
 import { NotebookActions } from "./notebook-actions";
+const ConnectionPanel = deferredFeature(
+  async () => ({
+    default: (await import("./connection-panel")).ConnectionPanel,
+  }),
+  "Opening connections…",
+  { failureTitle: "Connections couldn’t open" },
+);
+const BriefPanel = deferredFeature(
+  async () => ({ default: (await import("./brief")).BriefPanel }),
+  "Opening summary…",
+  { failureTitle: "This summary couldn’t open" },
+);
+const Handoffs = deferredFeature(
+  async () => ({ default: (await import("./handoffs")).Handoffs }),
+  "Opening progress notes…",
+  { failureTitle: "Progress notes couldn’t open" },
+);
+const AskGrove = deferredFeature(
+  async () => ({ default: (await import("./ask-grove")).AskGrove }),
+  "Opening Ask Grove…",
+  { failureTitle: "Ask Grove couldn’t open" },
+);
+const MemoryEditor = deferredFeature(
+  async () => ({ default: (await import("./memory-editor")).MemoryEditor }),
+  "Opening your writing space…",
+  { failureTitle: "Your writing space couldn’t open" },
+);
 
 export function MemoryContext({
   projectId = null,
@@ -47,12 +70,12 @@ export function MemoryContext({
   const [sharing, setSharing] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
-  if (loading) return <p role="status">Opening notebook…</p>;
-  if (projectId && !project)
+  if (!loading && projectId && !project)
     return (
       <>
         <h1 className="font-editorial text-4xl">Notebook unavailable</h1>
         <LoadError
+          title="This notebook couldn’t open"
           message={error || "This notebook could not be found in your account."}
           retry={reload}
         />
@@ -67,7 +90,7 @@ export function MemoryContext({
         <NotebookBreadcrumbs projects={projects} id={projectId} current />
       )}
       <PageHeading
-        title={project?.name ?? "About you"}
+        title={project?.name ?? (projectId ? "Opening notebook…" : "About you")}
         description={
           project
             ? undefined
@@ -128,7 +151,13 @@ export function MemoryContext({
           )
         }
       />
-      {error && <LoadError message={error} retry={reload} />}
+      {error && (
+        <LoadError
+          title="Your notebooks couldn’t load"
+          message={error}
+          retry={reload}
+        />
+      )}
       {project && view !== "memories" && (
         <button
           className="text-button mb-4"
@@ -137,7 +166,7 @@ export function MemoryContext({
           Back to notes
         </button>
       )}
-      {!project && (
+      {!projectId && (
         <nav className="workspace-tabs" aria-label="Workspace views">
           {[
             { id: "context", label: "Overview" },

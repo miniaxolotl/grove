@@ -18,7 +18,9 @@ to production public marketing routes, excluding authentication, workspaces and
 shared notes. Navigation creates a fresh document once advertising is active.
 Public copy uses purpose descriptions, not supplier names.
 
-Verification: website lint, types, production build and 131 browser scenarios pass.
+Verification: website lint, types, production build and 159 browser scenarios pass
+after integrating the independently merged client-performance update. Root lint,
+types, build and all five packed-artifact checks also pass.
 Review also covers category independence, re-consent, responsive layout,
 accessibility, focus, remembered dismissal, public-to-private navigation and no
 optional requests before consent. Independent product rollout prerequisites apply

@@ -55,7 +55,13 @@ export default function ProjectsPage() {
           </span>
         </div>
       )}
-      {error && <LoadError message={error} retry={reload} />}
+      {error && (
+        <LoadError
+          title="Your notebooks couldn’t load"
+          message={error}
+          retry={reload}
+        />
+      )}
       {loading ? (
         <p role="status" className="library-loading">
           Opening your notebooks…

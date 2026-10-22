@@ -355,14 +355,11 @@ function NoteGraph({
   const [expanded, setExpanded] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [inspected, setInspected] = useState<NoteConnection>();
-  const connections = useConnections(
-    {
-      level: "note",
-      endpointIds: items.map((n) => n.id).sort(),
-      limit: 100,
-    },
-    items.reduce((n, m) => n + m.version, 0),
-  );
+  const connections = useConnections({
+    level: "note",
+    endpointIds: items.map((n) => n.id).sort(),
+    limit: 100,
+  });
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
     const element = section.current;

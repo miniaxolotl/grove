@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowLeftRight, ChevronRight } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
@@ -9,79 +10,44 @@ import {
   type ConnectionQuery,
   type NoteConnection,
 } from "@lib/shared/relationships";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache, useWorkspaceApi } from "./workspace-cache";
 import { Dialog } from "./dialog";
 import { Markdown } from "./markdown";
 
-const changed = () => window.dispatchEvent(new Event("grove:relationships"));
 export function useConnections(
   query: Omit<ConnectionQuery, "limit" | "includeDismissed"> &
     Partial<Pick<ConnectionQuery, "limit" | "includeDismissed">>,
-  revision?: number,
 ) {
-  const key = JSON.stringify(query);
-  const [result, setResult] = useState<{ key: string; page: ConnectionPage }>();
-  const [failure, setFailure] = useState<{ key: string; error: string }>();
-  const [loadingKey, setLoadingKey] = useState<string>();
-  const [refresh, setRefresh] = useState(0);
-  const requestKey = JSON.stringify([key, revision, refresh]);
-  const page = result?.key === requestKey ? result.page : undefined;
-  const error = failure?.key === requestKey ? failure.error : "";
-  const loading = (!page && !error) || loadingKey === requestKey;
-  const controller = useRef<AbortController | null>(null);
-  const reload = useCallback(() => setRefresh((n) => n + 1), [setRefresh]);
-  useEffect(() => {
-    window.addEventListener("grove:relationships", reload);
-    return () => window.removeEventListener("grove:relationships", reload);
-  }, [reload]);
-  useEffect(() => {
-    const abort = new AbortController();
-    controller.current = abort;
-    let timer: ReturnType<typeof setTimeout>;
-    api<ConnectionPage>(
-      "/relationships/search",
-      JSON.parse(key),
-      undefined,
-      abort.signal,
-    )
-      .then((result) => {
-        if (abort.signal.aborted) return;
-        setResult({ key: requestKey, page: result });
-        if (result.status === "pending") timer = setTimeout(reload, 15000);
-      })
-      .catch((e) => {
-        if (!abort.signal.aborted)
-          setFailure({ key: requestKey, error: errorMessage(e) });
-      });
-    return () => {
-      abort.abort();
-      clearTimeout(timer);
-    };
-  }, [key, requestKey, reload]);
-  async function more() {
-    if (loading || !page?.nextCursor) return;
-    const signal = controller.current?.signal;
-    setLoadingKey(requestKey);
-    try {
-      const next = await api<ConnectionPage>(
-        "/relationships/search",
-        { ...JSON.parse(key), cursor: page.nextCursor },
-        undefined,
-        signal,
-      );
-      if (!signal?.aborted)
-        setResult({
-          key: requestKey,
-          page: { ...next, items: [...page.items, ...next.items] },
-        });
-    } catch (e) {
-      if (!signal?.aborted)
-        setFailure({ key: requestKey, error: errorMessage(e) });
-    } finally {
-      if (!signal?.aborted) setLoadingKey(undefined);
-    }
-  }
-  return { page, error, loading, more, reload };
+  const cache = useWorkspaceCache();
+  const result = useInfiniteQuery(cache.relationships(query));
+  const page = useMemo<ConnectionPage | undefined>(
+    () =>
+      result.data && {
+        ...result.data.pages[0],
+        items: [
+          ...new Map(
+            result.data.pages
+              .flatMap((page) => page.items)
+              .map((item) => [item.id, item]),
+          ).values(),
+        ],
+        nextCursor: result.data.pages.at(-1)?.nextCursor ?? null,
+      },
+    [result.data],
+  );
+  return {
+    page,
+    error: result.error ? errorMessage(result.error) : "",
+    loading: result.isPending || result.isFetching,
+    more: () => {
+      if (!result.isFetching && result.hasNextPage) void result.fetchNextPage();
+    },
+    reload: () => {
+      if (result.isFetchNextPageError) void result.fetchNextPage();
+      else void result.refetch();
+    },
+  };
 }
 export function ConnectionStatus({
   state,
@@ -185,13 +151,12 @@ export function ConnectionList({
 export function ConnectionPanel({
   level,
   endpointId,
-  revision,
 }: {
   level: "note" | "notebook";
   endpointId: string;
-  revision?: number;
 }) {
-  const state = useConnections({ level, endpointId, limit: 5 }, revision);
+  const api = useWorkspaceApi();
+  const state = useConnections({ level, endpointId, limit: 5 });
   const [selected, setSelected] = useState<NoteConnection>();
   const [retryError, setRetryError] = useState("");
   return (
@@ -223,7 +188,6 @@ export function ConnectionPanel({
             try {
               await api(`/relationships/${level}/${endpointId}/retry`, {});
               setRetryError("");
-              state.reload();
             } catch (e) {
               setRetryError(errorMessage(e));
             }
@@ -249,6 +213,7 @@ export function ConnectionInspector({
   connection: NoteConnection;
   close: () => void;
 }) {
+  const api = useWorkspaceApi();
   const state = useConnections({
     level: connection.level,
     connectionId: connection.id,
@@ -286,7 +251,6 @@ export function ConnectionInspector({
         operationId: operations.current.get(key),
       });
       returnToReview.current = true;
-      changed();
     } catch (e) {
       setError(errorMessage(e));
       state.reload();
@@ -316,7 +280,7 @@ export function ConnectionInspector({
             ),
         )
       ) {
-        changed();
+        state.reload();
         throw new Error(
           "These notes changed. Reopen the connection for current evidence.",
         );

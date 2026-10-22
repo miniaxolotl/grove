@@ -87,6 +87,19 @@ positions, so browser actionability scrolling is not mistaken for layout reflow.
 Held-save cases also verify command availability, preview mode and modal return
 focus when a new note's first save changes the route while a menu remains open.
 
+Client-cache checks cover shared misses/cancellation, account and session teardown,
+fresh revisits, held reads and saves, draft/version conflicts, cross-tab metadata,
+expiry and bounded retention. See [cache ownership](client-cache.md) and
+[production performance measurements](../../scripts/performance/README.md) for the
+real Next/Clerk runner, deferred-chunk retry and CI bundle budget.
+Held initial reads also check that loading never shows a false zero count; interrupted
+background reads preserve row geometry, selection and keyboard retry focus. The
+production runner checks stable drawer bounds across pending, failed and ready views
+at desktop and narrow mobile widths.
+Canonical connection checks also cover collapsed-panel idleness, batched title-page
+reuse, normalized graph keys, family-only review invalidation and deletion fencing
+of a held evidence read. Row-delete replay must retain conflict review across reopen.
+
 Relationship checks use non-owner API/worker roles for pair uniqueness, symmetric
 reads, review replay, scoped grants, stale publication, budgets/retries, notebook
 batch resumption, uncited-source invalidation and deletion scrubbing. Recovery
@@ -147,6 +160,8 @@ cell, page counts and text bounds are checked. Visual review uses the generated
 multi-page PDF plus desktop/390px/320px captures. The iPhone/WebKit set includes
 download and focus checks; physical iOS/Android file delivery remains a separate
 device qualification.
+Download assertions save a local test artifact with Playwright `saveAs`, so they
+also work when the browser runs in a remote Playwright container.
 
 PDF refinement checks inspect the actual embedded JetBrains Mono face and section
 bookmarks, single-page folio omission, landscape table/prose transitions and heading

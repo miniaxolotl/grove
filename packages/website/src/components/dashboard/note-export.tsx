@@ -12,7 +12,8 @@ import {
 import { usePathname } from "next/navigation";
 import { Copy, Download, FileText } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceApi } from "./workspace-cache";
 import {
   downloadNote,
   noteExportFilename,
@@ -80,6 +81,7 @@ function NoteExportDialog({
   source: Source;
   close: () => void;
 }) {
+  const api = useWorkspaceApi();
   const drafts = useNoteDrafts();
   const toast = useToast();
   const [snapshot, setSnapshot] = useState(source.snapshot);
@@ -133,7 +135,7 @@ function NoteExportDialog({
         });
     }
     return () => controller.abort();
-  }, [source, drafts, revision]);
+  }, [source, drafts, revision, api]);
   async function copy() {
     if (!snapshot) return;
     setError("");

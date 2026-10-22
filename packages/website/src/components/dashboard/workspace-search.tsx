@@ -7,11 +7,12 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Search, ArrowUpRight, FileText, MessageSquare } from "lucide-react";
-import type { Memory, Page } from "@lib/shared/contracts";
 import type { AskResult } from "@lib/shared/models";
 import type { ConversationTurn } from "@lib/shared/conversations";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { memoryTitle, memoryExcerpt } from "@/lib/memory-display";
 import { notebookPath } from "@/lib/notebooks";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
@@ -86,48 +87,33 @@ function SearchDialog({ close }: { close: () => void }) {
   const { projects } = useNotebooks();
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("all");
-  const [retry, setRetry] = useState(0);
+  const cache = useWorkspaceCache();
   const search = useDebouncedValue(query.trim());
-  const key = JSON.stringify({ search, scope, retry });
-  const [result, setResult] = useState<{
-    key: string;
-    items?: Memory[];
-    error?: string;
-  }>();
-  useEffect(() => {
-    const controller = new AbortController();
-    const projectId =
-      scope === "all" ? undefined : scope === "personal" ? null : scope;
-    const load = search
-      ? api<AskResult>(
-          "/ask",
-          {
-            query: search,
-            projectId,
-            includePersonal: projectId === undefined,
-            mode: "search",
-          },
-          undefined,
-          controller.signal,
-        ).then((result) => result.sources)
-      : api<Page<Memory>>(
-          "/memories/search",
-          { projectId, status: "active", sort: "updated_desc", limit: 8 },
-          undefined,
-          controller.signal,
-        ).then((result) => result.items);
-    void load
-      .then((items) => {
-        if (!controller.signal.aborted) setResult({ key, items });
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted)
-          setResult({ key, error: errorMessage(error) });
-      });
-    return () => controller.abort();
-  }, [key, search, scope]);
+  const projectId =
+    scope === "all" ? undefined : scope === "personal" ? null : scope;
+  const searchQuery = useQuery({
+    ...cache.resource<AskResult>("/ask", {
+      query: search,
+      projectId,
+      includePersonal: projectId === undefined,
+      mode: "search",
+    }),
+    enabled: !!search,
+  });
+  const recentQuery = useInfiniteQuery({
+    ...cache.notes({ projectId, limit: 8 }),
+    enabled: !search,
+  });
+  const activeQuery = search ? searchQuery : recentQuery;
   const current =
-    search === query.trim() && result?.key === key ? result : undefined;
+    search === query.trim() && !activeQuery.isPending
+      ? {
+          items: search
+            ? searchQuery.data?.sources
+            : recentQuery.data?.pages[0].items,
+          error: activeQuery.error ? errorMessage(activeQuery.error) : "",
+        }
+      : undefined;
   return (
     <Dialog title="Search your Grove" close={close}>
       <div className="quick-search">
@@ -153,7 +139,7 @@ function SearchDialog({ close }: { close: () => void }) {
           ) : current.error ? (
             <LoadError
               message={current.error}
-              retry={() => setRetry((value) => value + 1)}
+              retry={() => void activeQuery.refetch()}
             />
           ) : (
             <>
