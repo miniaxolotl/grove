@@ -102,6 +102,9 @@ export async function queueBrief(
       errorCode: null,
       leaseId: null,
       leaseUntil: null,
+      dispatchId: null,
+      dispatchUntil: null,
+      dispatchedAt: null,
       dueAt: trx.raw("now() + (? * interval '1 second')", [delay]),
     });
 }
@@ -120,6 +123,9 @@ export async function invalidateBriefs(
       failedAt: null,
       leaseId: null,
       leaseUntil: null,
+      dispatchId: null,
+      dispatchUntil: null,
+      dispatchedAt: null,
       dueAt: trx.raw("now() + interval '5 seconds'"),
     });
 }

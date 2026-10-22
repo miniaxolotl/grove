@@ -2,7 +2,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDatabase, type Knex } from "@lib/database";
-import { MemoryService, sessionPrincipal } from "@lib/memory";
+import { MemoryService, sessionPrincipal, runTask } from "@lib/memory";
 import { InferenceError, type Providers } from "@lib/ai";
 import {
   answerSchema,
@@ -397,6 +397,30 @@ test("each summary scope and Ask Grove are independent across save, refresh and 
     f.providers.decision!.profile,
     f.providers.generation!.profile,
   ]);
+  const backfill = await admin("background_tasks")
+    .where({ kind: "model_backfill", status: "pending" })
+    .first();
+  for (let i = 0; i < 100; i++) {
+    if (
+      !(await runTask(
+        workerDb,
+        {
+          model_backfill: async (task) => {
+            await workerDb.raw(
+              "SELECT grove_backfill_batch(?::uuid,?::uuid,100)",
+              [task.id, task.leaseId],
+            );
+          },
+        },
+        { id: backfill.id },
+      ))
+    )
+      break;
+  }
+  assert.equal(
+    (await admin("background_tasks").where({ id: backfill.id }).first()).status,
+    "succeeded",
+  );
   const jobs = await admin("jobs").where({ accountId: f.principal.accountId });
   assert(!jobs.some((j) => j.kind === "decision"));
   assert.deepEqual(
@@ -985,6 +1009,10 @@ test("encrypted installation settings mask keys, enforce administrators, switch 
   assert.equal(cloud.generation.model, "MiniMax-M3.1-Flash");
   const reset = await resetModelData(admin);
   assert(reset.before.memories > 0);
-  assert(Object.values(reset.after).every((count) => count === 0));
+  assert.equal(reset.after.memories, reset.before.memories);
+  assert.equal(reset.after.memory_revisions, reset.before.memory_revisions);
+  assert.equal((await admin("memories").whereNull("deletedAt")).length, 0);
+  assert.equal(reset.after.memory_embeddings, 0);
+  assert.equal(reset.after.jobs, 0);
   assert((await admin("accounts").count("id as count").first())?.count);
 });

@@ -87,7 +87,15 @@ jobs:
       TEST_MIGRATION_DATABASE_URL: postgresql://postgres:grove_test@127.0.0.1:5432/grove_test
       TEST_DATABASE_URL: postgresql://grove_api:grove_disposable_api@127.0.0.1:5432/grove_test
       TEST_WORKER_DATABASE_URL: postgresql://grove_jobs:grove_disposable_worker@127.0.0.1:5432/grove_test
+      TEST_AMQP_URL: amqp://grove:grove_disposable_queue@127.0.0.1:5672
     services:
+      rabbitmq:
+        image: rabbitmq:4.1-alpine
+        env: { RABBITMQ_DEFAULT_USER: grove, RABBITMQ_DEFAULT_PASS: grove_disposable_queue }
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
       postgres:
         image: pgvector/pgvector:0.8.2-pg17
         env: { POSTGRES_DB: grove_test, POSTGRES_PASSWORD: grove_test }

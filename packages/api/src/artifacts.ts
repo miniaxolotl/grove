@@ -1,5 +1,5 @@
-import { mkdir, rename, unlink } from "node:fs/promises";
-import { createReadStream, createWriteStream } from "node:fs";
+import { access, mkdir, rename, unlink } from "node:fs/promises";
+import { constants, createReadStream, createWriteStream } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
@@ -9,6 +9,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   DeleteObjectCommand,
+  HeadBucketCommand,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import type { ArtifactStore } from "@lib/memory";
@@ -22,6 +23,10 @@ const validateKey = (key: string) => {
 export function localArtifacts(root: string): ArtifactStore {
   const path = (key: string) => resolve(root, validateKey(key));
   return {
+    async ready() {
+      await mkdir(root, { recursive: true, mode: 0o700 });
+      await access(root, constants.R_OK | constants.W_OK);
+    },
     async write(key, data, signal) {
       const target = path(key),
         temporary = `${target}.${randomUUID()}.partial`;
@@ -43,7 +48,8 @@ export function localArtifacts(root: string): ArtifactStore {
     async read(key, signal) {
       return createReadStream(path(key), { signal });
     },
-    async remove(key) {
+    async remove(key, signal) {
+      signal?.throwIfAborted();
       await unlink(path(key)).catch((error) => {
         if (error.code !== "ENOENT") throw error;
       });
@@ -52,6 +58,14 @@ export function localArtifacts(root: string): ArtifactStore {
 }
 export function s3Artifacts(client: S3Client, bucket: string): ArtifactStore {
   return {
+    async ready() {
+      await client.send(new HeadBucketCommand({ Bucket: bucket }), {
+        abortSignal: AbortSignal.timeout(5000),
+      });
+    },
+    close() {
+      client.destroy();
+    },
     async write(key, data, signal) {
       const params = {
         Bucket: bucket,
@@ -93,9 +107,10 @@ export function s3Artifacts(client: S3Client, bucket: string): ArtifactStore {
         throw new Error("artifact_unavailable");
       return result.Body;
     },
-    async remove(key) {
+    async remove(key, signal) {
       await client.send(
         new DeleteObjectCommand({ Bucket: bucket, Key: validateKey(key) }),
+        { abortSignal: signal ?? AbortSignal.timeout(10000) },
       );
     },
   };
@@ -116,6 +131,14 @@ export function createArtifacts(env: ServerEnvironment): ArtifactStore | null {
     new S3Client({
       region: env.EXPORT_S3_REGION,
       endpoint: env.EXPORT_S3_ENDPOINT,
+      // Compatible stores may return composite multipart checksums. Request
+      // optional AWS checksum extensions only on the native AWS endpoint.
+      ...(env.EXPORT_S3_ENDPOINT
+        ? {
+            requestChecksumCalculation: "WHEN_REQUIRED" as const,
+            responseChecksumValidation: "WHEN_REQUIRED" as const,
+          }
+        : {}),
       forcePathStyle: env.EXPORT_S3_PATH_STYLE,
       credentials: {
         accessKeyId: env.EXPORT_S3_ACCESS_KEY_ID,

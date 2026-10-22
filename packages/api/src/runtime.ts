@@ -20,13 +20,18 @@ export async function createRuntime() {
     );
     const models = new ModelRegistry(db, env, memories);
     await models.refresh();
+    const artifacts = createArtifacts(env);
+    await artifacts?.ready?.();
     return {
       env,
       db,
       memories,
       models,
-      artifacts: createArtifacts(env),
-      close: () => closeDatabase(db),
+      artifacts,
+      close: async () => {
+        artifacts?.close?.();
+        await closeDatabase(db);
+      },
     };
   } catch (error) {
     await closeDatabase(db);

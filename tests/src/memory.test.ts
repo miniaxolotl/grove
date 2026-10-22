@@ -109,7 +109,7 @@ test("runtime RLS blocks missing tenant context and pooled cross-account reuse",
   );
 });
 
-test("idempotency, concurrent corrections, history, archive search and permanent deletion", async () => {
+test("idempotency, concurrent corrections, archive and retained hidden deletion history", async () => {
   const save = input("Use PostgreSQL for the memory database.", {
     kind: "decision",
   });
@@ -177,7 +177,19 @@ test("idempotency, concurrent corrections, history, archive search and permanent
     "deleted",
   );
   await assert.rejects(service.remember(a, save), { code: "gone" });
-  for (const table of ["memory_revisions", "memory_embeddings", "jobs"])
+  assert.equal(
+    (await admin("memory_revisions").where({ memoryId: first.id })).length,
+    4,
+  );
+  assert.equal(
+    (
+      await tenant(db, a.accountId, (trx) =>
+        trx("memory_revisions").where({ memoryId: first.id }),
+      )
+    ).length,
+    0,
+  );
+  for (const table of ["memory_embeddings", "jobs"])
     assert.equal((await admin(table).where({ memoryId: first.id })).length, 0);
 });
 
@@ -485,7 +497,7 @@ test("a leased embedding completed after deletion cannot resurrect content", asy
     (await admin("memory_embeddings").where({ memoryId: row.id })).length,
     0,
   );
-  assert.equal((await admin("memories").where({ id: row.id })).length, 0);
+  assert((await admin("memories").where({ id: row.id }).first()).deletedAt);
 });
 
 test("temporary handoffs expire; restoring renews dates; durable facts survive maintenance", async () => {
@@ -605,7 +617,11 @@ test("deleted Clerk subject and stale webhook cannot reprovision an account", as
     async () => {},
   );
   assert.equal(
-    (await admin("memories").where({ accountId: principal.accountId })).length,
+    (
+      await admin("memories")
+        .where({ accountId: principal.accountId })
+        .whereNull("deletedAt")
+    ).length,
     0,
   );
   assert.equal(
@@ -682,24 +698,27 @@ test("capture pause is enforced on automatic saves while explicit memories persi
   await service.settings(b, { captureEnabled: true, recallEnabled: true });
 });
 
-test("deletion purges application content even while the identity provider is unavailable", async () => {
+test("deletion hides retained content while the identity provider is unavailable", async () => {
   const subject = `user_pending_delete_${randomUUID()}`;
   const { rows } = await db.raw("SELECT * FROM grove_account(?)", [subject]);
   const principal = sessionPrincipal(rows[0].id, subject);
   const saved = await service.remember(
     principal,
-    input("Do not retain me during a provider outage."),
+    input("Hide this note during a provider outage."),
   );
   await service.deleteAccount(principal);
   const worker = new MemoryService(workerDb, service.cursorSecret);
   await worker.maintenance(async () => {
     throw new Error("provider offline");
   });
-  assert.equal((await admin("memories").where({ id: saved.id })).length, 0);
+  assert((await admin("memories").where({ id: saved.id }).first()).deletedAt);
   assert.equal(
     (await admin("accounts").where({ id: principal.accountId }).first()).status,
     "deleting",
   );
+  await admin("background_tasks")
+    .where({ accountId: principal.accountId, kind: "account_cleanup" })
+    .update({ dueAt: admin.fn.now() });
   await worker.maintenance(async () => {});
   assert.equal(
     (await admin("accounts").where({ id: principal.accountId }).first()).status,

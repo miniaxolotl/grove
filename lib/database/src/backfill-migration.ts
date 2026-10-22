@@ -47,6 +47,10 @@ export async function incrementalBackfills(db: Knex) {
       last_id:=selected[completed_count];
       -- Old generations are removed incrementally, never in the settings request.
       DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE account_id=owner.id AND epoch<control.epoch ORDER BY id LIMIT 1000);
+      IF EXISTS(SELECT 1 FROM jobs WHERE account_id=owner.id AND epoch<control.epoch) THEN
+        PERFORM grove_task_checkpoint(task.id,token,jsonb_build_object('accountId',owner.id,'afterId',coalesce(after_note,'00000000-0000-0000-0000-000000000000'::uuid)),task.processed,NULL,false,0);
+        RETURN true;
+      END IF;
       INSERT INTO jobs(account_id,memory_id,version,target,kind,profile)
         SELECT m.account_id,m.id,m.version,m.id::text,p.kind,p.profile FROM memories m
         CROSS JOIN (VALUES ('embedding',control.profiles->>'embedding'),('decision',control.profiles->>'decision'),('organization',control.profiles->>'generation')) p(kind,profile)

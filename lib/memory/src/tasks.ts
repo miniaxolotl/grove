@@ -43,21 +43,13 @@ export class Tasks {
       request.id,
       request,
       async (trx, account) => {
-        let projectIds: string[] | null = null;
         if (request.projectId) {
-          const projects = await trx("projects").select("id", "parentId");
-          if (!projects.some((p) => p.id === request.projectId))
+          if (
+            !(await trx("projects")
+              .where({ id: request.projectId })
+              .first("id"))
+          )
             throw new GroveError("not_found", "Notebook not found", 404);
-          const ids = new Set([request.projectId]);
-          if (request.includeDescendants) {
-            for (let pass = 0; pass < projects.length; pass++) {
-              const old = ids.size;
-              for (const project of projects)
-                if (ids.has(project.parentId)) ids.add(project.id);
-              if (ids.size === old) break;
-            }
-          }
-          projectIds = [...ids];
         }
         const active = await trx("background_tasks")
           .where({ kind: "export" })
@@ -71,7 +63,6 @@ export class Tasks {
           );
         return {
           ...request,
-          projectIds,
           exportVersion: String(account.exportVersion),
         };
       },
@@ -191,22 +182,28 @@ export class Tasks {
       if (!row) throw new GroveError("not_found", "Job not found", 404);
       if (action === "cancel") {
         if (["pending", "running"].includes(row.status))
-          await trx("background_tasks")
-            .where({ id })
-            .update({
-              status: "cancelled",
-              leaseId: null,
-              leaseUntil: null,
-              updatedAt: trx.fn.now(),
-              finishedAt: trx.fn.now(),
-            });
+          await trx("background_tasks").where({ id }).update({
+            status: "cancelled",
+            leaseId: null,
+            leaseUntil: null,
+            updatedAt: trx.fn.now(),
+            finishedAt: trx.fn.now(),
+          });
       } else if (
         ["failed", "cancelled"].includes(row.status) ||
         (row.kind === "export" &&
           !this.present(row, String(account.exportVersion)).downloadable &&
-          row.status === "succeeded")
+          (row.status === "succeeded" ||
+            (row.expiresAt && new Date(row.expiresAt) <= new Date())))
       ) {
         if (row.kind === "export") {
+          if (
+            row.payload.projectId &&
+            !(await trx("projects")
+              .where({ id: row.payload.projectId })
+              .first("id"))
+          )
+            throw new GroveError("not_found", "Notebook not found", 404);
           if (
             await trx("background_tasks")
               .where({ kind: "export" })

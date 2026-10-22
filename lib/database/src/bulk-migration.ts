@@ -35,6 +35,7 @@ export async function bulkWork(db: Knex) {
     "connector_checkpoints",
   ]) {
     await db.raw("ALTER TABLE ?? ENABLE ROW LEVEL SECURITY", [table]);
+    await db.raw("ALTER TABLE ?? FORCE ROW LEVEL SECURITY", [table]);
     await db.raw(
       "CREATE POLICY tenant ON ?? USING(account_id=NULLIF(current_setting('grove.account_id',true),'')::uuid) WITH CHECK(account_id=NULLIF(current_setting('grove.account_id',true),'')::uuid)",
       [table],

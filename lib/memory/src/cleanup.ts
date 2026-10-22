@@ -12,6 +12,7 @@ export function cleanupHandlers(
 ) {
   const account_cleanup: TaskHandler = async (task, signal) => {
     const tables = [
+      "jobs",
       "memories",
       "conversations",
       "projects",
@@ -21,6 +22,9 @@ export function cleanupHandlers(
       "api_keys",
       "memory_operations",
       "memory_briefs",
+      "transactional_emails",
+      "inference_usage",
+      "rate_buckets",
     ] as const;
     const stage = Number(task.cursor.stage ?? 0);
     const table = tables[stage];

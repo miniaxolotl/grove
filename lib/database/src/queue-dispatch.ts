@@ -29,7 +29,7 @@ export async function queueDispatch(db: Knex) {
         WHERE (wanted IS NULL OR j.id=wanted) AND (requested_lane IS NULL OR j.lane=requested_lane) AND grove_job_due(j,profiles)
           AND (SELECT count(*) FROM jobs busy WHERE busy.account_id=j.account_id AND busy.lane=j.lane AND busy.lease_until>now())
             < greatest(1,least(account_limit,32))
-        ORDER BY a.work_claimed_at NULLS FIRST,j.due_at,j.id LIMIT 1;
+        ORDER BY a.work_claimed_at NULLS FIRST,j.due_at,j.id LIMIT 1 FOR UPDATE OF a SKIP LOCKED;
       IF selected IS NULL THEN RETURN; END IF;
       -- One short cross-replica admission lock per provider lane, never held
       -- while calling a provider. Active leases are the durable reservations.
@@ -55,6 +55,19 @@ export async function queueDispatch(db: Knex) {
 
     CREATE INDEX jobs_active_leases ON jobs(account_id,lane,lease_until) WHERE lease_id IS NOT NULL;
     CREATE INDEX jobs_provider_leases ON jobs(lane,lease_until) WHERE lease_id IS NOT NULL;
+    CREATE OR REPLACE FUNCTION grove_sweep_deliveries() RETURNS void
+      LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
+    BEGIN
+      UPDATE jobs SET failed_at=now(),error_code='lease_exhausted',lease_id=NULL,lease_until=NULL
+        WHERE id IN (SELECT id FROM jobs WHERE failed_at IS NULL AND attempts>=5 AND (lease_until IS NULL OR lease_until<now()) LIMIT 1000 FOR UPDATE SKIP LOCKED);
+      UPDATE transactional_emails SET failed_at=now(),error_code='delivery_exhausted',lease_id=NULL,lease_until=NULL
+        WHERE id IN (SELECT id FROM transactional_emails WHERE sent_at IS NULL AND failed_at IS NULL
+          AND (attempts>=5 OR created_at<now()-interval '23 hours') AND (lease_until IS NULL OR lease_until<now()) LIMIT 1000 FOR UPDATE SKIP LOCKED);
+      UPDATE background_tasks SET status='failed',error_code=CASE WHEN expires_at<=now() THEN 'export_expired' ELSE 'lease_exhausted' END,
+        lease_id=NULL,lease_until=NULL,dispatch_id=NULL,dispatch_until=NULL,dispatched_at=NULL,finished_at=now(),updated_at=now()
+        WHERE id IN (SELECT id FROM background_tasks WHERE status IN ('pending','running')
+          AND ((failures>=5 AND (lease_until IS NULL OR lease_until<now())) OR (kind='export' AND expires_at<=now())) LIMIT 1000 FOR UPDATE SKIP LOCKED);
+    END $$;
     CREATE OR REPLACE FUNCTION grove_claim_email(wanted uuid DEFAULT NULL) RETURNS SETOF transactional_emails
       LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
     DECLARE selected uuid; owner_id uuid;
@@ -66,7 +79,7 @@ export async function queueDispatch(db: Knex) {
         WHERE a.status='active' AND e.sent_at IS NULL AND e.failed_at IS NULL AND e.due_at<=now()
           AND (wanted IS NULL OR e.id=wanted) AND (e.lease_until IS NULL OR e.lease_until<now())
           AND NOT EXISTS(SELECT 1 FROM transactional_emails busy WHERE busy.account_id=e.account_id AND busy.lease_until>now())
-        ORDER BY a.work_claimed_at NULLS FIRST,e.due_at,e.id LIMIT 1;
+        ORDER BY a.work_claimed_at NULLS FIRST,e.due_at,e.id LIMIT 1 FOR UPDATE OF a SKIP LOCKED;
       IF selected IS NULL THEN RETURN; END IF;
       PERFORM 1 FROM accounts WHERE id=owner_id AND status='active' FOR UPDATE SKIP LOCKED;
       IF NOT FOUND OR EXISTS(SELECT 1 FROM transactional_emails WHERE account_id=owner_id AND lease_until>now()) THEN RETURN; END IF;

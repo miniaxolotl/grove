@@ -1553,13 +1553,8 @@ export class MemoryService {
       await trx("accounts")
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });
-      await trx("connections").update({ revokedAt: trx.fn.now() });
-      await trx("public_shares").update({
-        revokedAt: trx.fn.now(),
-        tokenDigest: null,
-        tokenCiphertext: null,
-        version: trx.raw("version + 1"),
-      });
+      // Every authenticated/public read and worker publication checks account
+      // status. Per-record revocation is handled by bounded cleanup checkpoints.
       return { status: "deleting" };
     });
   }
