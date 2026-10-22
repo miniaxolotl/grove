@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useState, useSyncExternalStore } from "react";
-import { Plus, Inbox, Folder, ChevronDown } from "lucide-react";
+import { Plus, Inbox, Folder, FolderCog, ChevronDown } from "lucide-react";
 import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
@@ -55,8 +55,13 @@ export function NotebookExplorer() {
       >
         <div className="notebook-explorer-heading">
           <span>Notebooks</span>
-          <Link href="/app/projects" className="notebook-manage">
-            Manage
+          <Link
+            href="/app/projects"
+            className="app-icon notebook-manage"
+            aria-label="Manage notebooks"
+            title="Manage notebooks"
+          >
+            <FolderCog size={16} aria-hidden="true" />
           </Link>
           <IconButton
             label="Create notebook"

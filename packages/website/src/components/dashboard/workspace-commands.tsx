@@ -7,31 +7,31 @@ import {
   useEffect,
   useEffectEvent,
   useId,
-  useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
   type RefObject,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Keyboard, Search } from "lucide-react";
+import { Command, Keyboard } from "lucide-react";
 import { Dialog } from "./dialog";
 import { useCurrentNotebook } from "./notebooks-provider";
 import { isActiveSurface, isTyping } from "@/lib/workspace-keyboard";
-
-export type WorkspaceCommand = {
-  id: string;
-  label: string;
-  shortcut?: string;
-  key?: string;
-  shift?: boolean;
-  alt?: boolean;
-  disabled?: boolean;
-  run: () => void;
-};
+import {
+  commandDefinitions,
+  workspaceCommand,
+  type WorkspaceCommand,
+} from "@/lib/workspace-commands";
+import {
+  matchesShortcut,
+  shortcuts,
+  shortcutHint,
+} from "@/lib/workspace-shortcuts";
+import { Shortcut } from "./ui/shortcut";
+import { CommandMenu } from "./command-menu";
 type Registration = {
   root: RefObject<HTMLElement | null>;
   commands: WorkspaceCommand[];
+  context?: string;
 };
 const Context = createContext<{
   register: (id: string, value?: Registration) => void;
@@ -42,6 +42,7 @@ const Context = createContext<{
 export function useWorkspaceCommands(
   commands: WorkspaceCommand[],
   root: RefObject<HTMLElement | null>,
+  contextLabel?: string,
 ) {
   const context = useContext(Context);
   const id = useId();
@@ -56,10 +57,11 @@ export function useWorkspaceCommands(
     const items = JSON.parse(metadata) as WorkspaceCommand[];
     register?.(id, {
       root,
+      context: contextLabel,
       commands: items.map((item) => ({ ...item, run: () => run(item.id) })),
     });
     return () => register?.(id);
-  }, [register, id, metadata, root]);
+  }, [register, id, metadata, root, contextLabel]);
 }
 
 export function WorkspaceCommands({ children }: { children: ReactNode }) {
@@ -79,46 +81,21 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
   const [opened, setOpened] = useState<"commands" | "help">();
   const [commandScope, setCommandScope] = useState<Element | null>(null);
   const global: WorkspaceCommand[] = [
-    {
-      id: "new",
-      label: "New note",
-      shortcut: "Mod Alt N",
-      key: "n",
-      alt: true,
-      run: () =>
-        router.push(
-          `/app/notes/new${notebook ? `?notebook=${encodeURIComponent(notebook)}` : ""}`,
-        ),
-    },
-    {
-      id: "today",
-      label: "Today’s note",
-      run: () =>
-        router.push(
-          `/app/notes/new?from=journal${notebook ? `&notebook=${encodeURIComponent(notebook)}` : ""}`,
-        ),
-    },
-    { id: "notes", label: "Go to Notes", run: () => router.push("/app") },
-    { id: "ask", label: "Ask Grove", run: () => router.push("/app/ask") },
-    {
-      id: "archive",
-      label: "Open Archive",
-      run: () => router.push("/app/archive"),
-    },
-    {
-      id: "settings",
-      label: "Open Settings",
-      shortcut: "Mod ,",
-      key: ",",
-      run: () => router.push("/app/settings"),
-    },
-    {
-      id: "help",
-      label: "Keyboard shortcuts",
-      shortcut: "Mod /",
-      key: "/",
-      run: () => setOpened("help"),
-    },
+    workspaceCommand("new", () =>
+      router.push(
+        `/app/notes/new${notebook ? `?notebook=${encodeURIComponent(notebook)}` : ""}`,
+      ),
+    ),
+    workspaceCommand("today", () =>
+      router.push(
+        `/app/notes/new?from=journal${notebook ? `&notebook=${encodeURIComponent(notebook)}` : ""}`,
+      ),
+    ),
+    workspaceCommand("notes", () => router.push("/app")),
+    workspaceCommand("ask", () => router.push("/app/ask")),
+    workspaceCommand("archive", () => router.push("/app/archive")),
+    workspaceCommand("settings", () => router.push("/app/settings")),
+    workspaceCommand("help", () => setOpened("help")),
   ];
   const getCommands = (scope?: Element | null) => [
     ...[...registry.values()]
@@ -128,7 +105,9 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
           : root.current?.isConnected &&
             root.current.closest("dialog") === scope,
       )
-      .flatMap(({ commands }) => commands),
+      .flatMap(({ commands, context }) =>
+        commands.map((command) => ({ ...command, context })),
+      ),
     ...global.filter(
       (command) =>
         !(scope === undefined
@@ -144,35 +123,24 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
     setOpened(mode);
   };
   const handleKey = useEffectEvent((event: KeyboardEvent) => {
-    if (
-      event.defaultPrevented ||
-      event.isComposing ||
-      event.repeat ||
-      event.getModifierState("AltGraph")
-    )
-      return;
-    const mod = event.metaKey || event.ctrlKey;
-    const key =
-      event.altKey && event.code === "KeyN" ? "n" : event.key.toLowerCase();
-    if (
-      mod &&
-      !event.altKey &&
-      ((key === "p" && event.shiftKey) || key === "/")
-    ) {
+    const help = matchesShortcut(event, shortcuts.help);
+    if (help || matchesShortcut(event, shortcuts.commands)) {
       event.preventDefault();
-      if (!opened) open(key === "/" ? "help" : "commands");
+      if (!opened) open(help ? "help" : "commands");
       return;
     }
-    if (opened || !mod) return;
+    if (opened) return;
     const command = getCommands().find(
-      (item) =>
-        item.key === key &&
-        !!item.shift === event.shiftKey &&
-        !!item.alt === event.altKey,
+      (item) => item.shortcut && matchesShortcut(event, item.shortcut),
     );
     if (!command) return;
     // Native text shortcuts remain local; explicit app chords work in editors.
-    if (isTyping(event.target) && !["s", "e", "f", ",", "n"].includes(key))
+    if (
+      isTyping(event.target) &&
+      !["note-save", "note-mode", "note-focus", "settings", "new"].includes(
+        command.id,
+      )
+    )
       return;
     event.preventDefault();
     if (!command.disabled) command.run();
@@ -204,20 +172,24 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
           </p>
           <dl className="shortcut-list">
             {[
-              ["Command menu", "Mod Shift P"],
-              ["Search notes", "Mod K"],
-              ["New note", "Mod Alt N"],
-              ["Settings", "Mod ,"],
-              ["Shortcut help", "Mod /"],
-              ["Edit / preview note", "Mod E"],
-              ["Save note", "Mod S"],
-              ["Focus mode", "Mod Shift F"],
+              ["Command menu", shortcuts.commands],
+              ["Search notes", shortcuts.search],
+              ...(
+                ["new", "settings", "help", "note-save", "note-focus"] as const
+              ).map((id) => [
+                commandDefinitions[id].label,
+                commandDefinitions[id].shortcut,
+              ]),
+              ["Edit / preview note", shortcuts.mode],
               ["Previous / next note in drawer", "← / →"],
               ["Navigate note list or commands", "↑ / ↓"],
               ["Open focused note or command", "Enter"],
               ["Delete note (with confirmation)", "Delete"],
               ["Close menu, drawer or focus mode", "Esc"],
-              ["Undo / redo writing", "Mod Z / Mod Shift Z"],
+              [
+                "Undo / redo note changes",
+                `${shortcuts.undo} / ${shortcuts.redo}`,
+              ],
               ["Bold / italic", "Mod B / Mod I"],
               ["Insert link while writing", "Mod K"],
             ].map(([label, keys]) => (
@@ -240,25 +212,19 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
   );
 }
 
-const subscribePlatform = () => () => {};
-export function Shortcut({ children }: { children: string }) {
-  const mac = useSyncExternalStore(
-    subscribePlatform,
-    () => /Mac|iPhone|iPad/.test(navigator.platform + navigator.userAgent),
-    () => false,
-  );
-  return <kbd>{children.replaceAll("Mod", mac ? "⌘" : "Ctrl")}</kbd>;
-}
-
 export function CommandMenuButton() {
   const context = useContext(Context);
   return (
     <button
       className="workspace-command-launcher"
       type="button"
+      aria-label="Commands"
+      title={`Commands (${shortcutHint(shortcuts.commands)})`}
       onClick={context?.open}
     >
-      <Search size={15} /> Commands <Shortcut>Mod Shift P</Shortcut>
+      <Command size={16} aria-hidden="true" />
+      <span>Commands</span>
+      <Shortcut>{shortcuts.commands}</Shortcut>
     </button>
   );
 }
@@ -270,111 +236,9 @@ export function ShortcutHelpButton({ compact = false }: { compact?: boolean }) {
       onClick={context?.help}
       className={compact ? "app-icon" : undefined}
       aria-label="Keyboard shortcuts"
-      title="Keyboard shortcuts (⌘ / Ctrl /)"
+      title={`Keyboard shortcuts (${shortcutHint(shortcuts.help)})`}
     >
       <Keyboard size={15} /> {!compact && "Keyboard shortcuts"}
     </button>
-  );
-}
-
-function CommandMenu({
-  commands,
-  close,
-}: {
-  commands: WorkspaceCommand[];
-  close: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [index, setIndex] = useState(0);
-  const list = useRef<HTMLDivElement>(null);
-  const id = useId();
-  const items = commands.filter(
-    (command) =>
-      !command.disabled &&
-      query
-        .toLowerCase()
-        .split(/\s+/)
-        .every((word) => command.label.toLowerCase().includes(word)),
-  );
-  const active = Math.min(index, Math.max(items.length - 1, 0));
-  useEffect(() => {
-    list.current
-      ?.querySelector('[aria-selected="true"]')
-      ?.scrollIntoView({ block: "nearest" });
-  }, [active, query]);
-  function execute(command: WorkspaceCommand) {
-    close();
-    command.run();
-  }
-  return (
-    <Dialog title="Command menu" close={close}>
-      <div className="command-menu">
-        <input
-          role="combobox"
-          aria-label="Search commands"
-          aria-expanded="true"
-          aria-controls={id}
-          aria-autocomplete="list"
-          aria-activedescendant={items.length ? `${id}-${active}` : undefined}
-          placeholder="What would you like to do?"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setIndex(0);
-          }}
-          onKeyDown={(event) => {
-            if (event.nativeEvent.isComposing) return;
-            if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
-              event.preventDefault();
-              setIndex(
-                event.key === "Home"
-                  ? 0
-                  : event.key === "End"
-                    ? Math.max(items.length - 1, 0)
-                    : (active +
-                        (event.key === "ArrowDown" ? 1 : -1) +
-                        items.length) %
-                      (items.length || 1),
-              );
-            }
-            if (event.key === "Enter" && items[active]) {
-              event.preventDefault();
-              execute(items[active]);
-            }
-          }}
-        />
-        <div className="command-results-frame">
-          <div
-            ref={list}
-            id={id}
-            role="listbox"
-            aria-label="Commands"
-            className="command-results"
-          >
-            {items.map((command, i) => (
-              <div
-                key={command.id}
-                id={`${id}-${i}`}
-                role="option"
-                aria-selected={i === active}
-                onMouseMove={() => setIndex(i)}
-                onClick={() => execute(command)}
-              >
-                <span>{command.label}</span>
-                {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
-              </div>
-            ))}
-          </div>
-          {!items.length && (
-            <p role="status" className="command-empty">
-              No matching commands.
-            </p>
-          )}
-        </div>
-        <p className="command-hint">
-          ↑ ↓ to choose · Enter to run · Esc to close
-        </p>
-      </div>
-    </Dialog>
   );
 }

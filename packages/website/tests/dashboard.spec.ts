@@ -123,7 +123,7 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   ).toContainText("Saved");
   await page.getByRole("button", { name: "Back to notes" }).click();
   await page.getByRole("button", { name: /^I prefer concise/ }).click();
-  await page.getByRole("button", { name: "Edit note", exact: true }).click();
+  await page.getByRole("button", { name: "Write", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("I prefer examples in TypeScript.");
