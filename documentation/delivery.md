@@ -1,5 +1,235 @@
 # Delivery evidence
 
+## Notebook assistance (22 October 2026)
+
+Five contextual tools share concise previews and exact source evidence: subject-aware
+notebook summaries, suggested filing in Move, editable source-linked action lists,
+fixed-window visit digests and reviewed cleanup with both-original comparisons.
+Apply/Undo rechecks versions; supporting sources do not authorize writes. Four
+independent AI preferences inherit existing choices once. On-demand assistance
+reuses the existing dialogs, profiles, worker limits and enrichment lane.
+
+Migration **015**, after queue **014**, adds tenant-isolated previews/reviews,
+transactional change tokens, frozen visit checkpoints and resumable summary fragments.
+Source/profile/preference/lease guards prevent stale publication. Deletion and expiry
+remove evidence immediately, including offline browser previews. Exports/recovery
+retain authoritative decisions and operation references while invalidating previews.
+See [feature/API documentation](notebook-assistance.md) and [rollout](deploy.md).
+
+Verification passes on integrated source `1542c08`: **138 backend/service tests**
+(two optional RabbitMQ/S3 checks skipped locally), root/website lint, types and builds,
+five packaged artifacts, 17 release/deployment contracts and pinned workflow lint.
+The full **203 Chromium** suite and **five focused iPhone/WebKit** assistance/source
+scenarios pass; the final queue integration also passes **eight affected cases in
+each engine**. Bundle budgets pass; Notes entry is **483,060 gzip bytes**.
+[Fourteen reviewed captures](design/screenshots/notebook-assistance/README.md)
+cover desktop, 390px and 320px.
+
+The six labelled live-model subjects produced all 30 ready feature results, including
+six expected actions, three filing matches/three abstentions and the expected
+duplicate/conflict/explicit-replacement cleanup cases. The synthetic 10,000-note
+unchanged refresh took **69 ms / zero model calls**; one edit rebuilt 12 fragments
+in 804 ms. [Quality and scale evidence](development/notebook-assistance-results.md)
+records the initial failures, remaining wording limitations and measurement scope.
+
+Conflict-resolution follow-up integrates backend capacity #78 (`be49db9`). Queued
+downloads retain interactive admission until completion and propagate cancellation
+to artifact storage; background work preserves authorization without foreground
+rate accounting. Session-revocation checks run only for principals with sessions,
+preserving worker-role permissions. The integrated suite passes **154 backend tests**
+(two optional-service skips), **eight focused Chromium cases**, all required static,
+build and artifact gates, bundle budgets and release/workflow checks. New regressions
+cover worker authorization and download deadlines, cancellation and storage failures.
+
+## Backend capacity and responsiveness (22 October 2026)
+
+List presentation is constant at **15 SQL queries** for 1, 30 or 100 notes, down
+from **15/131/411** with the integrated preference guards. Revision exports and
+conversation sources are batched. Exact semantic recall scores eligible vectors
+once before fetching note bodies. Short account/minute admission commits before
+work; each subsequent authorization still checks current grants and revocation,
+including a session revoked while waiting for an account lock.
+
+Ordinary and interactive HTTP lanes have bounded, cancellable queues. Retry-After,
+cooperative deadlines, rollback checks and failed interrupted-download streams
+support predictable recovery. Database pool/acquisition/statement settings are
+validated and forwarded through runtime/Compose. No new migration is required.
+
+All **115 backend/service tests**, **193 integrated Chromium scenarios**, five
+packaged-artifact checks, root/website lint/types/builds and bundle budgets pass.
+Seventeen release/deployment contracts, pinned actionlint/ShellCheck and Compose
+validation pass. Browser coverage includes navigation, search, held saves/newer
+typing, cache refresh, mobile controls and retry recovery. The pre-workspace-merge
+build also passed one focused iPhone/WebKit first-save navigation check.
+
+PR review reproduced and fixed stalled-body admission/deadline bypasses, an
+understated Content-Length bypass of the body-size limit, and model diagnostics
+replacing caller cancellation. Five new cases cover both upload encodings, actual
+received bytes, the Node HTTP adapter and cancellation/usage across provider roles.
+The merged workspace-polish #77 delivery record is integrated below.
+
+The final local 20 requests/s, two-minute run completed **2,398/2,400 successfully**
+at **209 ms p95**, with no generator drops. The **50 sustained / 100 burst targets
+remain unqualified**, and sustainable background processing/real-provider chat
+capacity remains a queue-workstream follow-up. The
+[measurement report](development/backend-capacity-results.md) retains exact
+configurations, unsuccessful iterations and sizing limits. These are synthetic
+HTTP/database and browser-fixture observations; production resources were not changed.
+
+## Workspace polish follow-up (22 October 2026)
+
+Commands use full-row selection without a coloured edge stripe. Dialogs, dropdowns
+and menus share workspace colours, compact headings and restrained shading; keyboard
+focus and forced-colour selection remain distinct. Quotes use neutral inset surfaces
+across writing, reading, public links and connection evidence. Desktop drag grips
+appear on hover/focus without shifting rows.
+
+Ask Grove has concise suggestions, divided source rows, neutral citations and a
+comfortable reading width. The composer fits below desktop/mobile navigation;
+long conversations scroll internally and short windows retain page scrolling.
+Shared plain-text excerpts remove visible task/quote/fence/link syntax in note rows,
+search, graphs and source lists.
+
+The full **193 Chromium** suite passes for the visual treatments, followed by
+**20 excerpt** and **seven conversation/control** checks. **18 focused WebKit** cases
+pass, with five affected cases verified after the final changes; the final submission
+check passes in both engines. Root/website lint, types and builds, five artifacts
+and bundle budgets pass. Notes entry is **481,587 gzip bytes** with the editor deferred.
+[Eighteen reviewed captures](design/screenshots/workspace-polish/) cover desktop,
+tablet, phone, forced colours and short windows on application source `f33fd3a`.
+
+## Durable queues and retained deletion (22 October 2026)
+
+Migration **014** adds checkpointed bulk/maintenance tasks, fair database claims,
+renewable token-fenced leases, cross-replica limits and model-generation backfills.
+RabbitMQ has independent indexing, enrichment, email, maintenance and bulk lanes;
+polling uses the same capacity gates. Authored notes/history remain retained behind
+soft-delete visibility policies, including during account cleanup and recovery.
+
+Account and notebook exports use bounded NDJSON pages and private local/S3 storage,
+authenticated streaming downloads, expiry, cancellation and retry. Compact controls
+preserve progress across navigation and show the saved notebook scope. Imports
+deduplicate sources and protect local edits; connector adapters checkpoint their
+pages with ordinary memory writes. [Operations and API](jobs.md) and the
+[014 rollout](deploy.md#queue-and-retained-deletion-rollout-014) describe setup.
+
+After integrating workspace-polish #77 and backend capacity #78, all **138
+backend/storage cases** pass, including two-worker broker-outage/import/export/SIGTERM,
+populated **013→014** upgrade, real RabbitMQ isolation/reconnect and private Garage
+**12 MiB** multipart transfers. Download deadline/cancellation/storage failures release
+interactive permits; freshness rechecks share one request admission, and worker writes
+retain authorization without consuming request quota. Root/website lint, types and
+builds, five packaged artifacts, 17 release/deployment checks and workflow lint pass.
+The integrated workspace passes **196 Chromium** and six focused iPhone/WebKit scenarios.
+
+The final notebook-assistance #80 integration passes **156 backend cases** with one
+optional S3 check skipped, plus **eight affected browser cases in each engine**.
+The S3 adapter is unchanged from the earlier Garage-qualified run. Root/website
+lint, types, builds, bundle budgets and all five packaged artifacts pass again.
+
+The synthetic 1,000-note/2,000-record export uses at most a 623,300-byte serialized
+page. Its initial local run took 742 ms with 34.7 MiB RSS growth and foreground-read
+p95 of 14.3 ms (16.5 ms baseline); these are regression-fixture observations.
+[Reviewed screenshots](design/screenshots/queue-processing/README.md) show ready,
+retry and notebook progress states. Cloud storage and migration activation are
+explicit operator rollout steps; local verification uses disposable services.
+
+## Independent AI preferences (22 October 2026)
+
+Settings groups ten independent controls under Organization, Connections, Summaries,
+Ask Grove and Connected agents. One Save action preserves newer edits and submits
+only changed fields. Missing providers are distinguished from saved preferences;
+related notes/notebooks correctly require generation. Shared preference keys,
+legacy mappings, job/scope guards and a single row renderer reduce duplication.
+
+Migration **013** preserves existing enabled/disabled choices. API reads, queued
+work, worker publication, summary scopes, Ask Grove, reindex and restore enforce
+the controls independently. Disable/re-enable races discard old results. Note
+`autoKind`, explicit types, connection reviews and tenant boundaries are preserved.
+
+All **102 database/service** tests, including the populated **012→013 upgrade**,
+and **five packaged-artifact** checks pass. Root/website lint, types and builds,
+bundle budgets, 17 release/deployment contracts and pinned workflow lint pass.
+All 166 Chromium scenarios pass in exact-head CI39732842999 on `b09cba8`, including
+the corrected marketing-proxy teardown. Three focused iPhone/WebKit scenarios pass
+with reviewed 1440/390/320px layouts, keyboard controls, save races, error recovery
+and WCAG A/AA checks.
+
+The subsequent settings polish keeps drafts and held saves across settings tabs,
+adds shared Save/Discard feedback, adopts fresh saved preferences, and keeps the
+active tab visible when resizing. Availability badges, switch-style controls,
+provider fields and account/data headings share consistent spacing. This passes
+37 focused Chromium settings/cache checks, nine final settings checks, six focused
+WebKit scenarios and the three-case WebKit tab-rounding follow-up. Root/website
+lint, types and builds, five artifact checks and bundle budgets pass again.
+
+[Screenshots](design/screenshots/ai-preferences/README.md) show the categorized
+controls and save row. [Rollout](deploy.md) requires an explicit owner migration
+and preference-aware API/worker before the website.
+
+## v1.10.0 production acceptance (22 October 2026 UTC)
+
+The timed-link, public-reader isolation and short-consent-copy release is live.
+Source `cb9b1a44` and protected production `8cea4497` have identical trees;
+source/production CI and Deploy **39726145131** pass. Migration **012** preserved all
+**29 retained-table fingerprints** and actual non-owner isolation. API/worker image `7901fa69`,
+all five published packages and the exact Vercel production alias verify.
+
+Live synthetic checks pass for authenticated sharing controls, no-JavaScript and
+phone readers, database-clock expiry, stable URLs/deadlines, new-secret renewal,
+scope changes, revocation, authentication/tracking isolation, worker indexing and
+relationship processing. Synthetic links are revoked and newly created test notes
+removed. Live consent, matching AdRoll pixel HTTP 200 and revocation pass; the
+Analytics description is **“Understand site usage and performance.”**
+
+The [complete release record](release-1.10.0.md) includes exact source/runtime/site
+identities, backup and migration evidence, the bounded browser-network retry, and
+the existing hosting-path logging limitation.
+
+## Command palette, shared search and stable note tools (22 October 2026 UTC)
+
+Commands and note search share a compact, viewport-aware dialog with warm surfaces,
+fixed search/footer positions and independently scrolling results. Commands group
+contextual editing, creation, navigation and note management; labels outrank aliases,
+matches are highlighted, unavailable actions explain why, and selection follows a
+stable command ID through first-save navigation. Shared metadata supplies note-menu
+labels/icons and keyboard shortcuts, help and tooltips use the same definitions.
+
+Reviewed [desktop and mobile captures](design/screenshots/command-palette/) cover
+320–1440px, short landscape, long context, enlarged text and empty results. Browser
+checks also exercise 2× pinch zoom, reduced motion, keyboard/IME guards, nested
+modal scope, disabled-click focus and note-search error/retry/notebook selection.
+
+The note viewer/editor keeps its mode and formatting controls in one persistent row,
+reserves save-feedback space and opens properties/outline in a shared inspector.
+Reader bounds stay fixed through mode changes and saving; focus/expand return keeps
+the reading position. Viewer task buttons edit parsed Markdown source positions
+through the same CodeMirror history and autosave/version-conflict path as writing.
+Nested/repeated tasks, quoted and ordered tasks, fenced examples, CRLF imports,
+keyboard/touch toggles, undo/redo, held saves, retry and conflict review are covered.
+Public sharing, history and comparison remain read-only Markdown consumers.
+
+The sidebar consolidates desktop/mobile styling and navigation, gives notebook names
+two readable lines, keeps hover actions in reserved space and uses inset focus outlines.
+All four destinations fit on phones; enlarged labels can wrap the navigation. Notebook
+management uses an icon and tooltip, while the explorer header remains reachable on scroll.
+Note-row actions share the native dropdown used elsewhere, replacing the expanding
+button strip. Menus overlay the list without shifting rows and restore focus after
+nested action dialogs; swipe reveal and cancellation use the same menu.
+
+After integrating settings/AI-preferences #75, all **193 Chromium** and **39 focused
+iPhone/WebKit** cases pass. Root/website lint, types and builds, all five packed
+artifact checks and the bundle budget pass. Notes entry is **481,536 gzip bytes**;
+the editor remains deferred. Twenty-two reviewed captures cover the final application
+source `a4a6ae6` (test harness `8e9248f`) on Node 24.21.0 / pnpm 10.33.0.
+
+## Minimal website refresh (22 October 2026)
+
+The public site uses open notebook-led sections, shorter copy, compact family
+controls and responsive demo transitions. Cookie Settings now remains readable
+on hover, press and keyboard focus. The workspace retains its independent styles.
+See the [screenshots and verification](design/screenshots/website-minimal-refresh/README.md).
+
 ## Timed public links (22 October 2026 UTC)
 
 Owners can set link expiry to one hour, four hours, one day, one week, two weeks
@@ -25,7 +255,7 @@ authentication-isolation baseline and within the existing bundle budget.
 dialog at desktop/390px/320px. The duration catalog has a dependency-free client
 entrypoint so adding its six options does not pull server validation schemas into
 the workspace bundle. Migration `20261022_012_share_expiration` is forward-only;
-production activation follows the coordinated rollout in [deploy](deploy.md).
+production activation is verified in the [v1.10.0 release record](release-1.10.0.md).
 
 ## Public-reader authentication isolation (22 October 2026 UTC)
 
@@ -37,8 +267,8 @@ and marketing pages make no authentication-provider requests. Existing secret-pa
 links and server-rendered, no-JavaScript reading are preserved.
 
 Root/website lint, types and builds, all five artifact checks, bundle budgets and
-all 160 Chromium scenarios pass. This records local verification; production
-acceptance requires the coordinated follow-up release. A separate hosting canary
+all 160 Chromium scenarios pass. These local checks are complemented by the
+[v1.10.0 production acceptance](release-1.10.0.md). A separate hosting canary
 was visible in Vercel request-path logs: hosting capability redaction is **not**
 verified and must not be inferred from application telemetry filtering.
 

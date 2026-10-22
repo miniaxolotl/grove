@@ -1,5 +1,20 @@
-import { MemoryModel, camelRows, tenant, type Knex } from "@lib/database";
+import {
+  MemoryModel,
+  camelRows,
+  tenant,
+  databaseSignal,
+  withDatabaseSignal,
+  type Knex,
+} from "@lib/database";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { processingLease } from "./job-lease.ts";
+import { retryDelay } from "./task-runner.ts";
+import type { QueueLane } from "@lib/shared/jobs";
+import {
+  briefPreference,
+  processingEnabled,
+  type PreferenceKey,
+} from "@lib/shared/preferences";
 import {
   InferenceError,
   type Embedder,
@@ -12,7 +27,6 @@ import {
   organizationSchema,
   type Brief,
   type BriefRequest,
-  type Enrichment,
   type SourceRef,
   type Usage,
   type Annotation,
@@ -22,7 +36,6 @@ import {
 import {
   currentRelationshipProfile,
   enqueueRelationship,
-  legacyRelationshipsFor,
   relationshipKinds,
   relationshipProfile,
 } from "./relationship-data.ts";
@@ -30,6 +43,15 @@ import {
   runRelationshipJob,
   type RelationshipJob,
 } from "./relationship-jobs.ts";
+import {
+  isNotebookSummary,
+  notebookSummaryProfile,
+  runNotebookSummary,
+  summaryProfile,
+  type SummaryJob,
+} from "./notebook-summaries.ts";
+import { assistanceProfile } from "./assistance-data.ts";
+import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -38,6 +60,15 @@ export const providerProfiles = (providers: Providers) => [
     .filter(Boolean)
     .map((provider) => provider!.profile),
   ...[currentRelationshipProfile(providers)].filter((p): p is string => !!p),
+  ...(providers.generation
+    ? [
+        notebookSummaryProfile(providers.generation.profile),
+        assistanceProfile(
+          providers.generation.profile,
+          providers.embedding?.profile,
+        ),
+      ]
+    : []),
 ];
 export async function registerEmbedding(db: Knex, embedder: Embedder) {
   await db("embedding_profiles")
@@ -75,6 +106,9 @@ export async function queueBrief(
   profile: string,
   delay = 5,
 ) {
+  const account = await trx("accounts").where({ id: accountId }).first();
+  if (!account?.[briefPreference(scope)]) return;
+  profile = summaryProfile(profile, scope);
   await trx("jobs")
     .insert({
       accountId,
@@ -86,11 +120,15 @@ export async function queueBrief(
     })
     .onConflict(["accountId", "kind", "target", "profile"])
     .merge({
+      epoch: trx.raw("(SELECT epoch FROM processing_control WHERE singleton)"),
       attempts: 0,
       failedAt: null,
       errorCode: null,
       leaseId: null,
       leaseUntil: null,
+      dispatchId: null,
+      dispatchUntil: null,
+      dispatchedAt: null,
       dueAt: trx.raw("now() + (? * interval '1 second')", [delay]),
     });
 }
@@ -98,17 +136,25 @@ export async function invalidateBriefs(
   trx: Knex.Transaction,
   accountId: string,
 ) {
-  const old = await trx("memory_briefs").select("scope", "profile");
-  await trx("memory_briefs").delete();
+  const scopes = (q: Knex.QueryBuilder) =>
+    q.whereRaw("scope->>'projectId' IS NULL OR scope->>'taskId' IS NOT NULL");
+  const old = await trx("memory_briefs")
+    .modify(scopes)
+    .select("scope", "profile");
+  await trx("memory_briefs").modify(scopes).delete();
   for (const row of old)
     await queueBrief(trx, accountId, row.scope, row.profile);
   await trx("jobs")
     .where({ kind: "brief" })
+    .modify(scopes)
     .update({
       attempts: 0,
       failedAt: null,
       leaseId: null,
       leaseUntil: null,
+      dispatchId: null,
+      dispatchUntil: null,
+      dispatchedAt: null,
       dueAt: trx.raw("now() + interval '5 seconds'"),
     });
 }
@@ -121,17 +167,23 @@ export async function queueMemory(
     decision: providers.decision?.profile ?? null,
     generation: providers.generation?.profile ?? null,
   },
+  only?: PreferenceKey[],
 ) {
-  await trx("jobs").where({ memoryId: row.id }).delete();
-  await trx("memory_enrichments").where({ memoryId: row.id }).delete();
+  // Settings re-enable only the requested features; preserve unrelated jobs/leases.
+  if (!only) {
+    await trx("jobs").where({ memoryId: row.id }).delete();
+    await trx("memory_enrichments").where({ memoryId: row.id }).delete();
+  }
   if (
     row.status !== "active" ||
     (row.expiresAt && new Date(row.expiresAt) <= new Date())
   )
     return;
   const account = await trx("accounts").where({ id: row.accountId }).first();
+  const enabled = (key: PreferenceKey) =>
+    account[key] && (!only || only.includes(key));
   const connectionProfile = relationshipProfile(profiles);
-  if (account.organizeEnabled && connectionProfile)
+  if (enabled("noteConnectionsEnabled") && connectionProfile)
     await enqueueRelationship(
       trx,
       row.accountId,
@@ -142,28 +194,38 @@ export async function queueMemory(
       row,
     );
   for (const [kind, provider] of [
-    ["embedding", profiles.embedding],
-    ["decision", account.organizeEnabled ? profiles.decision : undefined],
-    ["organization", account.organizeEnabled ? profiles.generation : undefined],
+    ["embedding", !only ? profiles.embedding : undefined],
+    [
+      "decision",
+      enabled("classificationEnabled") ? profiles.decision : undefined,
+    ],
+    [
+      "organization",
+      enabled("titlesTagsEnabled") ? profiles.generation : undefined,
+    ],
   ] as const) {
     if (provider)
-      await trx("jobs").insert({
-        accountId: row.accountId,
-        memoryId: row.id,
-        version: row.version,
-        target: row.id,
-        kind,
-        profile: provider,
-      });
+      await trx("jobs")
+        .insert({
+          accountId: row.accountId,
+          memoryId: row.id,
+          version: row.version,
+          target: row.id,
+          kind,
+          profile: provider,
+        })
+        .onConflict(["accountId", "kind", "target", "profile"])
+        .ignore();
   }
-  if (profiles.generation && account.summariesEnabled) {
-    await queueBrief(
-      trx,
-      row.accountId,
-      { projectId: row.projectId },
-      profiles.generation,
-    );
-    if (row.taskId)
+  if (profiles.generation) {
+    if (enabled(briefPreference({ projectId: row.projectId })))
+      await queueBrief(
+        trx,
+        row.accountId,
+        { projectId: row.projectId },
+        profiles.generation,
+      );
+    if (row.taskId && enabled("progressSummariesEnabled"))
       await queueBrief(
         trx,
         row.accountId,
@@ -194,61 +256,6 @@ async function validSources(
     ),
   );
 }
-export async function enrichmentFor(
-  trx: Knex.Transaction,
-  row: MemoryModel,
-  providers: Providers,
-  suppliedRelationships?: Enrichment["relationships"],
-): Promise<Enrichment> {
-  if (
-    row.status !== "active" ||
-    (row.expiresAt && new Date(row.expiresAt) <= new Date())
-  )
-    return { status: "disabled", tags: [], relationships: [], profiles: [] };
-  const profiles = [
-    providers.decision?.profile,
-    providers.generation?.profile,
-  ].filter((p): p is string => !!p);
-  if (!profiles.length)
-    return { status: "disabled", tags: [], relationships: [], profiles: [] };
-  const records = await trx("memory_enrichments")
-    .where({ memoryId: row.id, version: row.version })
-    .whereIn("profile", profiles);
-  const pending = await trx("jobs")
-    .where({ memoryId: row.id, version: row.version })
-    .whereIn("kind", ["decision", "organization"])
-    .whereIn("profile", profiles)
-    .select("failedAt");
-  const classified = records.find((r) => r.kind === "decision") as
-    | { data: Annotation; sources: SourceRef[] }
-    | undefined;
-  const organized = records.find((r) => r.kind === "organization") as
-    | { data: Organization }
-    | undefined;
-  const relationships =
-    suppliedRelationships ??
-    (await legacyRelationshipsFor(trx, [row.id], providers)).get(row.id)!;
-  return {
-    status: pending.some((j) => j.failedAt)
-      ? "failed"
-      : pending.length
-        ? "pending"
-        : records.length
-          ? "ready"
-          : "disabled",
-    title: organized?.data.title,
-    tags: [
-      ...new Set([
-        ...(classified?.data.topics ?? []),
-        ...(organized?.data.tags ?? []),
-      ]),
-    ].slice(0, 10),
-    suggestedKind: classified?.data.kind,
-    salience: classified?.data.salience,
-    relationships,
-    profiles: records.map((r) => r.profile),
-  };
-}
 export async function briefFor(
   trx: Knex.Transaction,
   accountId: string,
@@ -266,13 +273,21 @@ export async function briefFor(
   };
   if (!providers.generation) return empty;
   const account = await trx("accounts").where({ id: accountId }).first();
-  if (!account.summariesEnabled) return empty;
+  if (!account[briefPreference(scope)]) return empty;
   const target = briefTarget(scope),
-    profile = providers.generation.profile;
+    profile = summaryProfile(providers.generation.profile, scope);
   const row = await trx("memory_briefs").where({ target, profile }).first();
+  const notebook = isNotebookSummary(scope)
+    ? await trx("projects")
+        .where({ id: scope.projectId })
+        .first("contentVersion")
+    : undefined;
   if (
     row &&
-    row.contentVersion === account.contentVersion &&
+    (notebook
+      ? row.notebookVersion === notebook.contentVersion
+      : row.contentVersion === account.contentVersion) &&
+    (!row.expiresAt || new Date(row.expiresAt) > new Date()) &&
     (await validSources(trx, row.sources, scope))
   ) {
     return {
@@ -280,7 +295,8 @@ export async function briefFor(
       status: "ready",
       content: row.content,
       updatedAt: new Date(row.createdAt).toISOString(),
-      sourceCount: row.sources.length,
+      sourceCount: row.coverage?.examined ?? row.sources.length,
+      ...(row.coverage ? { coverage: row.coverage } : {}),
       truncated: row.truncated,
     };
   }
@@ -349,6 +365,7 @@ export async function queryEmbedding(
       ...options,
       signal: AbortSignal.any([
         AbortSignal.timeout(850),
+        ...(options.signal ? [options.signal] : []),
         ...(signal ? [signal] : []),
       ]),
     }),
@@ -368,12 +385,15 @@ export async function budgetedInference<T>(
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
   try {
     return await run({
+      signal: databaseSignal(),
       onUsage: (value) => {
         usage = value;
       },
     });
   } finally {
-    await recordUsage(db, accountId, role, usage);
+    await withDatabaseSignal(undefined, () =>
+      recordUsage(db, accountId, role, usage),
+    );
   }
 }
 async function recordUsage(
@@ -399,24 +419,71 @@ export async function runProcessingJob(
   dailyLimit: number,
   wantedId?: string,
   resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
+  options: {
+    lane?: QueueLane;
+    accountLimit?: number;
+    providerLimit?: number;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<boolean> {
   const profiles = providerProfiles(providers);
   if (!profiles.length) return false;
-  const claimed = camelRows<Job | RelationshipJob>(
-    await db.raw("SELECT * FROM grove_claim_job(?::text[], ?::uuid)", [
-      profiles,
-      wantedId ?? null,
-    ]),
+  const claimed = camelRows<Job | RelationshipJob | AssistanceJob>(
+    await db.raw(
+      "SELECT * FROM grove_claim_processing(?::text[], ?::uuid, ?, ?, ?)",
+      [
+        profiles,
+        wantedId ?? null,
+        options.lane ?? null,
+        options.accountLimit ?? 2,
+        options.providerLimit ?? 8,
+      ],
+    ),
   )[0];
   if (!claimed) return false;
-  if ((relationshipKinds as readonly string[]).includes(claimed.kind))
-    return runRelationshipJob(
-      db,
-      providers,
-      dailyLimit,
-      claimed as RelationshipJob,
-      resolveProfiles,
-    );
+  const lease = processingLease(db, claimed, options.signal);
+  if (
+    claimed.kind === "assistance" ||
+    (claimed.kind === "brief" &&
+      claimed.scope &&
+      isNotebookSummary(claimed.scope as BriefRequest))
+  ) {
+    try {
+      return claimed.kind === "assistance"
+        ? await runAssistanceJob(
+            db,
+            providers,
+            dailyLimit,
+            claimed,
+            resolveProfiles,
+            lease.signal,
+          )
+        : await runNotebookSummary(
+            db,
+            providers,
+            dailyLimit,
+            claimed as SummaryJob,
+            resolveProfiles,
+            lease.signal,
+          );
+    } finally {
+      await lease.close();
+    }
+  }
+  if ((relationshipKinds as readonly string[]).includes(claimed.kind)) {
+    try {
+      return await runRelationshipJob(
+        db,
+        providers,
+        dailyLimit,
+        claimed as RelationshipJob,
+        resolveProfiles,
+        lease.signal,
+      );
+    } finally {
+      await lease.close();
+    }
+  }
   const job = claimed as Job;
   const started = performance.now();
   let completed = false;
@@ -436,12 +503,15 @@ export async function runProcessingJob(
         .first();
       const finish = () =>
         trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
-      if (
-        !account ||
-        ((job.kind === "decision" || job.kind === "organization") &&
-          !account.organizeEnabled) ||
-        (job.kind === "brief" && !account.summariesEnabled)
-      ) {
+      const lease = await trx("jobs")
+        .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
+        .where("leaseUntil", ">", trx.fn.now())
+        .first("id");
+      if (!lease) return;
+      if (!account || !processingEnabled(account, job.kind, job.scope)) {
         await finish();
         return;
       }
@@ -517,6 +587,7 @@ export async function runProcessingJob(
     });
     if (!input) return true;
     const options = {
+      signal: lease.signal,
       onUsage: (value: Usage) => {
         usage = value;
       },
@@ -588,6 +659,9 @@ export async function runProcessingJob(
         : undefined;
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .where("leaseUntil", ">", trx.fn.now())
         .forUpdate()
         .first();
@@ -596,11 +670,7 @@ export async function runProcessingJob(
         await trx("jobs").where({ id: job.id }).delete();
         return;
       }
-      if (
-        (job.kind === "brief" && !account.summariesEnabled) ||
-        ((job.kind === "decision" || job.kind === "organization") &&
-          !account.organizeEnabled)
-      ) {
+      if (!processingEnabled(account, job.kind, job.scope)) {
         await trx("jobs").where({ id: job.id }).delete();
         return;
       }
@@ -632,7 +702,7 @@ export async function runProcessingJob(
           .onConflict(["accountId", "memoryId", "version", "profile"])
           .merge(["embedding"]);
         const profile = currentRelationshipProfile(providers);
-        if (profile && row?.projectId && account.organizeEnabled) {
+        if (profile && row?.projectId && account.notebookConnectionsEnabled) {
           await trx("notebook_profiles")
             .where({ projectId: row.projectId, profile })
             .delete();
@@ -711,7 +781,7 @@ export async function runProcessingJob(
           leaseId: null,
           leaseUntil: null,
           dueAt: trx.raw("now() + (? * interval '1 second')", [
-            Math.min(3600, 2 ** job.attempts * 10),
+            retryDelay(job.attempts),
           ]),
           errorCode: code,
           failedAt:
@@ -722,6 +792,7 @@ export async function runProcessingJob(
         });
     });
   } finally {
+    await lease.close();
     currentTelemetry().operation(
       "job_run",
       started,

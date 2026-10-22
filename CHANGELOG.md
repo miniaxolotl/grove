@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.11.0](https://github.com/miniaxolotl/grove/compare/v1.10.0...v1.11.0) (2026-10-22)
+
+
+### Features
+
+* add independent account AI preference contracts ([cd9c6ad](https://github.com/miniaxolotl/grove/commit/cd9c6add1eb535a32b48ea6712a20be2039d6d9e))
+* add independent AI preferences and polish settings ([6734d2e](https://github.com/miniaxolotl/grove/commit/6734d2e1f99b1a21b4fc44976471128f8a148a10))
+* enforce independent AI controls across processing and recovery ([ea59402](https://github.com/miniaxolotl/grove/commit/ea59402cd01d12d7b18bc3eba2d93cd92ac3c6de))
+* **notebooks:** add grounded summaries and contextual assistance ([#80](https://github.com/miniaxolotl/grove/issues/80)) ([67daa2c](https://github.com/miniaxolotl/grove/commit/67daa2c1675bdfc9b385d6365350aeaa9f2d518f))
+* **website:** align family headers and footers ([1b9eea2](https://github.com/miniaxolotl/grove/commit/1b9eea2490901d04a10e933a588c57b17c78ad62))
+* **website:** organize AI preferences into independent categories ([e5e57e6](https://github.com/miniaxolotl/grove/commit/e5e57e6389ba91889e41e964983b538b6863e286))
+* **website:** polish commands, note tools and workspace navigation ([#76](https://github.com/miniaxolotl/grove/issues/76)) ([4c46589](https://github.com/miniaxolotl/grove/commit/4c46589cae749bf0b8dcb601462f7016558e4cc8))
+* **website:** polish settings and preserve preference drafts ([8ef350e](https://github.com/miniaxolotl/grove/commit/8ef350ed4c787a6590042efa205183400f562dc0))
+* **website:** simplify notebook storytelling and demo motion ([f43fadd](https://github.com/miniaxolotl/grove/commit/f43fadd06001f1b484a533cdc5895135cdb7d44a))
+
+
+### Bug Fixes
+
+* **queue:** preserve export cancellation and freshness checks ([#79](https://github.com/miniaxolotl/grove/issues/79)) ([2436bb4](https://github.com/miniaxolotl/grove/commit/2436bb488a6b661145b8c78c2ab488a0427cb1f6))
+* **website:** keep settings tabs clear of scroll clipping ([e3744a8](https://github.com/miniaxolotl/grove/commit/e3744a8caf135f41ed4480146f542dc86c4f0282))
+* **website:** refine workspace surfaces and mobile conversations ([#77](https://github.com/miniaxolotl/grove/issues/77)) ([22a82fb](https://github.com/miniaxolotl/grove/commit/22a82fbb43a14bd42651e5ab531ac622da05222f))
+
+
+### Performance Improvements
+
+* **backend:** batch reads and bound foreground capacity ([#78](https://github.com/miniaxolotl/grove/issues/78)) ([be49db9](https://github.com/miniaxolotl/grove/commit/be49db9611a75ea1b2d4bc465db1dd3b4739ec2c))
+
 ## [1.10.0](https://github.com/miniaxolotl/grove/compare/v1.9.1...v1.10.0) (2026-10-22)
 
 

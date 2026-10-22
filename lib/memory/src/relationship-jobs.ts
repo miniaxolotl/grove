@@ -1,7 +1,9 @@
 import { MemoryModel, tenant, type Knex } from "@lib/database";
 import { InferenceError, type Providers } from "@lib/ai";
+import { processingEnabled } from "@lib/shared/preferences";
 import type { ModelProfiles } from "@lib/shared/models";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { retryDelay } from "./task-runner.ts";
 import {
   groundRelationship,
   noteRelationshipInstructions,
@@ -124,6 +126,45 @@ async function scanNote(
     .findById(job.memoryId!)
     .where({ version: job.version! });
   if (!note) return;
+  const candidates = await noteCandidates(trx, note, providers);
+  for (const other of candidates)
+    await queuePair(trx, job.accountId, "note", note.id, other.id, job.profile);
+  const previous = await trx("memory_relationships")
+    .where((b) => b.where("leftId", note.id).orWhere("rightId", note.id))
+    .orderBy("updatedAt", "desc")
+    .limit(20);
+  for (const pair of previous)
+    await queuePair(
+      trx,
+      job.accountId,
+      "note",
+      pair.leftId,
+      pair.rightId,
+      job.profile,
+    );
+  const scopeVersion = note.projectId
+    ? (await trx("projects").where({ id: note.projectId }).first())
+        .contentVersion
+    : contentVersion;
+  await trx("memory_enrichments")
+    .insert({
+      accountId: job.accountId,
+      memoryId: note.id,
+      version: note.version,
+      profile: job.profile,
+      kind: "relationship_scan",
+      data: JSON.stringify({ scopeVersion }),
+      sources: "[]",
+    })
+    .onConflict(["accountId", "memoryId", "version", "kind", "profile"])
+    .merge({ data: JSON.stringify({ scopeVersion }), createdAt: trx.fn.now() });
+}
+
+export async function noteCandidates(
+  trx: Knex.Transaction,
+  note: MemoryModel,
+  providers: Providers,
+) {
   const candidates = new Map<string, MemoryModel>();
   const sameScope = () =>
     activeNotes(trx)
@@ -177,37 +218,7 @@ async function scanNote(
       .orderBy("id")
       .limit(3))
       candidates.set(other.id, other);
-  for (const other of [...candidates.values()].slice(0, 8))
-    await queuePair(trx, job.accountId, "note", note.id, other.id, job.profile);
-  const previous = await trx("memory_relationships")
-    .where((b) => b.where("leftId", note.id).orWhere("rightId", note.id))
-    .orderBy("updatedAt", "desc")
-    .limit(20);
-  for (const pair of previous)
-    await queuePair(
-      trx,
-      job.accountId,
-      "note",
-      pair.leftId,
-      pair.rightId,
-      job.profile,
-    );
-  const scopeVersion = note.projectId
-    ? (await trx("projects").where({ id: note.projectId }).first())
-        .contentVersion
-    : contentVersion;
-  await trx("memory_enrichments")
-    .insert({
-      accountId: job.accountId,
-      memoryId: note.id,
-      version: note.version,
-      profile: job.profile,
-      kind: "relationship_scan",
-      data: JSON.stringify({ scopeVersion }),
-      sources: "[]",
-    })
-    .onConflict(["accountId", "memoryId", "version", "kind", "profile"])
-    .merge({ data: JSON.stringify({ scopeVersion }), createdAt: trx.fn.now() });
+  return [...candidates.values()].slice(0, 8);
 }
 async function pairInput(
   trx: Knex.Transaction,
@@ -246,6 +257,7 @@ export async function scheduleRelationships(
   const rows = await trx("memories as m")
     .leftJoin("projects as p", "p.id", "m.projectId")
     .join("accounts as a", "a.id", "m.accountId")
+    .where("a.noteConnectionsEnabled", true)
     .where("m.status", "active")
     .where((b) =>
       b.whereNull("m.expiresAt").orWhere("m.expiresAt", ">", trx.fn.now()),
@@ -279,7 +291,9 @@ export async function scheduleRelationships(
       {},
       row,
     );
-  await scheduleNotebookProfiles(trx, accountId, profile);
+  const account = await trx("accounts").where({ id: accountId }).first();
+  if (account.notebookConnectionsEnabled)
+    await scheduleNotebookProfiles(trx, accountId, profile);
   return rows.length;
 }
 
@@ -289,6 +303,7 @@ export async function runRelationshipJob(
   dailyLimit: number,
   job: RelationshipJob,
   resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
+  signal?: AbortSignal,
 ) {
   const started = performance.now();
   let outcome: "success" | "cancelled" | "unavailable" = "cancelled";
@@ -306,6 +321,9 @@ export async function runRelationshipJob(
         .first();
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .where("leaseUntil", ">", trx.fn.now())
         .forUpdate()
         .first();
@@ -313,7 +331,11 @@ export async function runRelationshipJob(
       const profile = resolveProfiles
         ? relationshipProfile(await resolveProfiles(trx))
         : currentRelationshipProfile(providers);
-      if (!account?.organizeEnabled || profile !== job.profile) {
+      if (
+        !account ||
+        !processingEnabled(account, job.kind) ||
+        profile !== job.profile
+      ) {
         await trx("jobs").where({ id: job.id }).delete();
         return;
       }
@@ -361,7 +383,7 @@ export async function runRelationshipJob(
               ...s,
               kind: "fact",
             })),
-            options,
+            { ...options, signal },
           ),
       ),
     );
@@ -447,7 +469,7 @@ export async function runRelationshipJob(
           dueAt: budget
             ? trx.raw("date_trunc('day', now()) + interval '1 day'")
             : trx.raw("now() + (? * interval '1 second')", [
-                Math.min(3600, 2 ** job.attempts * 10),
+                retryDelay(job.attempts),
               ]),
           failedAt:
             !budget &&

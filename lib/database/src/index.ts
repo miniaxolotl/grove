@@ -2,28 +2,39 @@ import knex from "knex";
 import { Model, knexSnakeCaseMappers } from "objection";
 import type { Knex } from "knex";
 import { migrationSource } from "./migrations.ts";
+import { databaseSignal } from "./context.ts";
 
 export { migrationSource };
+export { databaseSignal, withDatabaseSignal } from "./context.ts";
 export type { Knex };
 export type { QueryBuilder } from "objection";
+const statementTimeouts = new WeakMap<Knex, number>();
 
 export function createDatabase(
   url: string,
-  options: { ssl?: boolean; max?: number } = {},
+  options: {
+    ssl?: boolean;
+    max?: number;
+    acquireTimeoutMs?: number;
+    statementTimeoutMs?: number;
+  } = {},
 ) {
-  return knex({
+  const db = knex({
     client: "pg",
     connection: {
       connectionString: url,
       ssl: options.ssl ? { rejectUnauthorized: true } : undefined,
-      connectionTimeoutMillis: 10000,
+      connectionTimeoutMillis: options.acquireTimeoutMs ?? 10000,
+      statement_timeout: options.statementTimeoutMs,
       application_name: "grove",
     },
     pool: { min: 0, max: options.max ?? 8 },
-    acquireConnectionTimeout: 10000,
+    acquireConnectionTimeout: options.acquireTimeoutMs ?? 10000,
     ...knexSnakeCaseMappers(),
     migrations: { migrationSource },
   });
+  statementTimeouts.set(db, options.statementTimeoutMs ?? 10000);
+  return db;
 }
 
 export const closeDatabase = (db: Knex) => db.destroy();
@@ -48,12 +59,18 @@ export async function tenant<T>(
   accountId: string,
   run: (trx: Knex.Transaction) => Promise<T>,
 ): Promise<T> {
+  const signal = databaseSignal();
+  signal?.throwIfAborted();
   return db.transaction(async (trx) => {
-    await trx.raw("SELECT set_config('grove.account_id', ?, true)", [
-      accountId,
-    ]);
-    await trx.raw("SET LOCAL statement_timeout = '10000ms'");
-    return run(trx);
+    signal?.throwIfAborted();
+    await trx.raw(
+      "SELECT set_config('grove.account_id', ?, true), set_config('statement_timeout', ?, true)",
+      [accountId, String(statementTimeouts.get(db) ?? 10000)],
+    );
+    const result = await run(trx);
+    // An aborted save must roll back, including when cancellation arrived during SQL.
+    signal?.throwIfAborted();
+    return result;
   });
 }
 
@@ -69,7 +86,10 @@ export async function probeDatabase(db: Knex) {
       "Grove requires a non-owner, non-bypass database runtime role",
     );
   }
-  await db.raw("SELECT content_version FROM accounts LIMIT 0");
+  await db.raw(
+    "SELECT content_version, ask_enabled, export_version, filing_enabled, change_token FROM accounts LIMIT 0",
+  );
+  await db.raw("SELECT id, lane, lease_id FROM background_tasks LIMIT 0");
   const versions = await db.raw(
     "SELECT extversion FROM pg_extension WHERE extname = 'vector'",
   );

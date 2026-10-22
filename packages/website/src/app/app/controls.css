@@ -18,20 +18,18 @@
   min-width: 0;
   min-height: 36px;
   padding: 8px 11px;
-  border: 1px solid #dce2d9;
+  border: 1px solid var(--color-line);
   border-radius: 7px;
   background: #fff;
-  color: #293a30;
+  color: var(--color-forest);
   font: inherit;
   font-size: 12px;
   line-height: 1.5;
   text-align: left;
-  box-shadow: 0 1px 2px #192f1605;
   cursor: pointer;
   transition:
     background 120ms,
-    border-color 120ms,
-    box-shadow 120ms;
+    border-color 120ms;
 }
 .app-select-trigger > span:first-child {
   overflow: hidden;
@@ -43,20 +41,19 @@
   color: #6a786c;
   transition: transform 140ms;
 }
-.app-select-trigger:hover {
+.app-select-trigger:hover:not(:disabled) {
   border-color: #9ba995;
   background: #fafcf8;
 }
 .app-select-trigger[data-state="open"] {
-  border-color: #6f865d;
-  box-shadow: 0 0 0 3px #768e5a18;
+  border-color: var(--color-muted);
 }
 .app-select-trigger[data-state="open"] > svg {
   transform: rotate(180deg);
 }
 .app-select-trigger:focus-visible {
-  outline: 2px solid #557044;
-  outline-offset: 3px;
+  outline: 2px solid var(--color-leaf);
+  outline-offset: 2px;
 }
 .app-select-trigger:disabled {
   opacity: 0.5;
@@ -70,14 +67,11 @@
   max-height: min(340px, var(--radix-select-content-available-height));
   overflow: hidden;
   padding: 4px;
-  border: 1px solid #dce2d9;
-  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
   background: #fff;
-  color: #293a30;
-  box-shadow:
-    0 8px 28px #25372016,
-    0 2px 6px #25372009;
-  transform-origin: var(--radix-select-content-transform-origin);
+  color: var(--color-forest);
+  box-shadow: 0 8px 24px #15251b18;
   animation: select-in 130ms ease-out;
   font-family: var(--font-space-grotesk), Arial, sans-serif;
   font-size: 12px;
@@ -96,13 +90,19 @@
   user-select: none;
 }
 .app-select-option[data-state="checked"] {
-  color: #355522;
-  background: #f1f5ed;
+  color: var(--color-forest);
+  background: var(--color-paper);
   font-weight: 500;
 }
 .app-select-option[data-highlighted] {
-  background: #e8efdf;
-  color: #253c18;
+  background: var(--color-sage);
+  color: var(--color-forest);
+}
+@media (forced-colors: active) {
+  .app-select-option[data-highlighted] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 .app-select-option[data-disabled] {
   opacity: 0.45;
@@ -164,10 +164,10 @@
 }
 @keyframes select-in {
   from {
-    transform: translateY(-3px) scale(0.98);
+    opacity: 0;
   }
   to {
-    transform: none;
+    opacity: 1;
   }
 }
 @media (pointer: coarse) {

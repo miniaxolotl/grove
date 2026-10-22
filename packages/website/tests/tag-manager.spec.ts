@@ -1,15 +1,66 @@
 import { test, expect } from "@playwright/test";
 
 const origin = "https://usegrove.cloud";
+
+test("cookie Settings stays readable through hover, press and keyboard focus", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto(origin);
+  const settings = page.getByRole("button", { name: "Settings", exact: true });
+  const readable = async () => {
+    const contrast = await settings.evaluate((button) => {
+      const rgb = (color: string) => color.match(/[\d.]+/g)!.map(Number);
+      const luminance = (color: number[]) =>
+        color
+          .slice(0, 3)
+          .map((n) => {
+            const value = n / 255;
+            return value <= 0.04045
+              ? value / 12.92
+              : ((value + 0.055) / 1.055) ** 2.4;
+          })
+          .reduce((sum, n, i) => sum + n * [0.2126, 0.7152, 0.0722][i], 0);
+      let background = getComputedStyle(button).backgroundColor;
+      let parent = button.parentElement;
+      while (rgb(background)[3] === 0 && parent) {
+        background = getComputedStyle(parent).backgroundColor;
+        parent = parent.parentElement;
+      }
+      const foreground = luminance(rgb(getComputedStyle(button).color));
+      const behind = luminance(rgb(background));
+      return (
+        (Math.max(foreground, behind) + 0.05) /
+        (Math.min(foreground, behind) + 0.05)
+      );
+    });
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
+  };
+  await expect(settings).toBeVisible();
+  await readable();
+  await settings.hover();
+  await readable();
+  await page.mouse.down();
+  await readable();
+  await page.mouse.move(0, 0);
+  await page.mouse.up();
+  await page.getByRole("button", { name: "No thanks", exact: true }).focus();
+  await page.keyboard.press("Tab");
+  await expect(settings).toBeFocused();
+  await expect(settings).toHaveCSS("outline-style", "solid");
+  await readable();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("checkbox", { name: "Advertising", exact: true }),
+  ).toBeVisible();
+});
 const container = "GTM-M5WKD5LZ";
 const preference = "grove.telemetry.optout";
-const proxyResponses: Promise<void>[] = [];
-
-test.afterEach(async ({ context, page }) => {
-  // Settle document and prefetch responses before removing the local proxy.
-  await page.waitForLoadState("networkidle");
-  await Promise.all(proxyResponses);
-  await context.unrouteAll({ behavior: "wait" });
+test.afterEach(async ({ context }) => {
+  // Removing the proxy continues in-flight prefetches before their fetch/fulfill
+  // handlers finish. Ignore those teardown errors, after all assertions ran.
+  await context.unrouteAll({ behavior: "ignoreErrors" });
 });
 
 test("a compact notice can be dismissed once without optional requests", async ({
@@ -78,17 +129,14 @@ for (const category of ["Analytics", "Advertising"]) {
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
-  proxyResponses.length = 0;
   await context.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.origin === origin) {
-      const response = route
+      return route
         .fetch({
           url: `${baseURL}${url.pathname}${url.search}`,
         })
         .then((response) => route.fulfill({ response }));
-      proxyResponses.push(response);
-      return response;
     }
     if (url.hostname === "www.googletagmanager.com")
       return route.fulfill({

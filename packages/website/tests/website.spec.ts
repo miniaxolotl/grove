@@ -17,7 +17,7 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
     page.getByRole("link", { name: "Start your notebook" }).first(),
   ).toHaveAttribute("href", "/sign-up");
   await expect(
-    page.getByRole("heading", { name: "A slower Saturday" }),
+    page.getByRole("heading", { name: "Saturday", exact: true }),
   ).toBeVisible();
   await page.getByText("Is my notebook private?", { exact: true }).click();
   await expect(

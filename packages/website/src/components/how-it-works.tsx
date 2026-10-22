@@ -5,12 +5,11 @@ export function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="relative overflow-hidden bg-forest text-paper"
+      className="dark-section relative overflow-hidden bg-forest text-paper"
       aria-labelledby="how-heading"
     >
-      <div className="dark-rings" aria-hidden="true" />
       <div className="page-container section-space relative">
-        <div className="section-intro">
+        <div className="section-intro" data-reveal>
           <div>
             <p className="eyebrow text-lime/75">GET STARTED</p>
             <h2 id="how-heading" className="section-heading mt-4">
@@ -24,7 +23,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <ol className="getting-started-steps">
+        <ol className="getting-started-steps" data-stagger>
           {[
             {
               number: "01",
@@ -44,7 +43,7 @@ export function HowItWorks() {
                 "Search by meaning or ask a question. Follow answers back to your notes.",
             },
           ].map(({ number, title, description }) => (
-            <li key={number}>
+            <li key={number} data-reveal>
               <span className="getting-started-number">{number}</span>
               <h3 className="mt-4 text-lg font-medium tracking-tight">
                 {title}

@@ -86,6 +86,77 @@ const handoff: Memory = {
   },
 };
 
+test("sidebar remains reachable with long names, short height and enlarged text", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  state.projects[0] = { ...project, name: "Model preferences and research" };
+  state.projects.push(
+    ...Array.from({ length: 16 }, (_, index) => ({
+      ...project,
+      id: crypto.randomUUID(),
+      name: `Notebook ${index}`,
+    })),
+  );
+  await page.setViewportSize({ width: 1440, height: 480 });
+  await page.goto(`${base}/app`);
+  await page.addStyleTag({
+    content:
+      ".app-sidebar :is(.app-nav, .notebook-tree-link, .workspace-search-launcher, .workspace-command-launcher, .sidebar-create) { font-size: 24px; }",
+  });
+  const sidebar = page.getByRole("complementary", {
+    name: "Workspace sidebar",
+  });
+  for (const width of [1440, 320]) {
+    if (width === 320) {
+      await page.setViewportSize({ width, height: 720 });
+      await sidebar
+        .getByRole("button", { name: "Notebooks", exact: true })
+        .click();
+    }
+    await sidebar.getByRole("link", { name: "Notes", exact: true }).focus();
+    expect(
+      await sidebar.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    expect(
+      await sidebar
+        .locator(
+          ".app-nav, .sidebar-create, .workspace-search-launcher, .workspace-command-launcher",
+        )
+        .evaluateAll((elements) =>
+          elements
+            .filter(
+              (element) =>
+                element.getClientRects().length &&
+                element.scrollWidth > element.clientWidth,
+            )
+            .map(
+              (element) =>
+                element.getAttribute("aria-label") || element.textContent,
+            ),
+        ),
+    ).toEqual([]);
+    await sidebar.screenshot({
+      path: info.outputPath(`sidebar-large-text-${width}.png`),
+    });
+    const settings = sidebar.getByRole("link", {
+      name: "Settings",
+      exact: true,
+    });
+    await settings.focus();
+    await expect(settings).toBeInViewport();
+    const manage = sidebar.getByRole("link", { name: "Manage notebooks" });
+    await manage.focus();
+    await expect(manage).toBeInViewport();
+    await manage.press("Enter");
+    await expect(page).toHaveURL(`${base}/app/projects`);
+    if (width === 1440)
+      await sidebar.getByRole("link", { name: "Notes", exact: true }).click();
+  }
+});
+
 for (const width of [1440, 390, 320]) {
   test.describe(`stable library at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
@@ -436,6 +507,564 @@ test("open action menus stay inside the visual viewport at two-times browser pin
   }
 });
 
+for (const width of [1440, 768, 390, 320]) {
+  test.describe(`sidebar at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("keeps navigation, notebook names and contextual actions usable without shifting rows", async ({
+      page,
+    }, info) => {
+      const state = await fixture(page, [
+        { ...note, projectId: project.id },
+        handoff,
+      ]);
+      state.projects[0] = { ...project, name: "Model preferences" };
+      const child = {
+        ...project,
+        id: crypto.randomUUID(),
+        parentId: project.id,
+        name: "Working notes",
+      };
+      state.projects.push(
+        child,
+        ...Array.from({ length: 24 }, (_, index) => ({
+          ...project,
+          id: crypto.randomUUID(),
+          name: `Notebook ${String(index).padStart(2, "0")}`,
+        })),
+      );
+      await page.goto(`${base}/app`);
+      const sidebar = page.getByRole("complementary", {
+        name: "Workspace sidebar",
+      });
+      await page.evaluate(() => document.fonts.ready);
+      const notes = sidebar.getByRole("link", { name: "Notes", exact: true });
+      await notes.focus();
+      await expect(notes).toHaveAttribute("aria-current", "page");
+      await expect(notes).toBeInViewport();
+      if (width < 1024) {
+        expect((await sidebar.boundingBox())!.height).toBeLessThanOrEqual(220);
+        for (const name of ["Notes", "Ask Grove", "Archive", "Settings"]) {
+          const link = sidebar.getByRole("link", { name, exact: true });
+          await expect(link).toBeInViewport();
+          expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        }
+      }
+      await sidebar.screenshot({
+        path: info.outputPath(`sidebar-${width}.png`),
+      });
+      await sidebar
+        .getByRole("button", { name: "Commands", exact: true })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "Command menu", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        sidebar.getByRole("button", { name: "Commands", exact: true }),
+      ).toBeFocused();
+      if (width < 1024)
+        await sidebar
+          .getByRole("button", { name: "Notebooks", exact: true })
+          .click();
+      const notebooks = sidebar.getByRole("region", { name: "Your notebooks" });
+      const book = notebooks.getByRole("link", {
+        name: "Model preferences",
+        exact: true,
+      });
+      expect(
+        await book
+          .locator("span")
+          .evaluate(
+            (element) =>
+              element.scrollHeight <= element.clientHeight &&
+              element.scrollWidth <= element.clientWidth,
+          ),
+      ).toBe(true);
+      const before = await book.boundingBox();
+      const actions = notebooks.getByRole("button", {
+        name: "Notebook actions for Model preferences",
+        exact: true,
+      });
+      await actions.focus();
+      await actions.press("ArrowDown");
+      const menu = notebooks.getByRole("group", {
+        name: "Notebook actions for Model preferences",
+        exact: true,
+      });
+      await expect(
+        menu.getByRole("link", { name: "New note", exact: true }),
+      ).toBeFocused();
+      expect(await book.boundingBox()).toEqual(before);
+      await page.keyboard.press("Escape");
+      await expect(actions).toBeFocused();
+      await book.click();
+      await expect(page).toHaveURL(new RegExp(`/app/projects/${project.id}$`));
+      await expect(sidebar.locator(".sidebar-create")).toHaveAttribute(
+        "href",
+        `/app/notes/new?notebook=${project.id}`,
+      );
+      if (width < 1024)
+        await sidebar
+          .getByRole("button", { name: "Notebooks", exact: true })
+          .click();
+      await expect(
+        notebooks.getByRole("link", { name: "Working notes", exact: true }),
+      ).toBeVisible();
+      await expect(book).toHaveAttribute("aria-current", "page");
+      const heading = await notebooks
+        .locator(".notebook-explorer-heading")
+        .boundingBox();
+      await notebooks.evaluate((element) =>
+        element.scrollTo(0, element.scrollHeight),
+      );
+      await expect
+        .poll(() => notebooks.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
+      expect(
+        await notebooks.locator(".notebook-explorer-heading").boundingBox(),
+      ).toEqual(heading);
+      await expect(
+        notebooks.getByRole("link", { name: "Manage notebooks" }),
+      ).toBeInViewport();
+      expect(
+        await sidebar.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await sidebar.screenshot({
+        path: info.outputPath(`sidebar-scrolled-${width}.png`),
+      });
+    });
+  });
+}
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`row dropdown at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("overlays the list with one menu, keyboard dismissal and dialog focus return", async ({
+      page,
+    }, info) => {
+      await fixture(page);
+      await page.goto(`${base}/app`);
+      const row = page.locator(`[data-note-id="${note.id}"]`);
+      const trigger = row.getByRole("button", {
+        name: "Actions for Review preferences",
+        exact: true,
+      });
+      await trigger.scrollIntoViewIfNeeded();
+      await page.evaluate(() => document.fonts.ready);
+      const bounds = () =>
+        page
+          .locator(".memory-list-item")
+          .evaluateAll((elements) =>
+            elements.map((element) => element.getBoundingClientRect().toJSON()),
+          );
+      const before = await bounds();
+      await trigger.press("ArrowDown");
+      const menu = row.getByRole("group", {
+        name: "Actions for Review preferences",
+        exact: true,
+      });
+      await expect(
+        menu.getByRole("button", { name: "Move", exact: true }),
+      ).toBeFocused();
+      expect(await bounds()).toEqual(before);
+      const box = (await menu.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(
+        await page.evaluate(
+          () => document.documentElement.getBoundingClientRect().right - 8,
+        ),
+      );
+      await menu
+        .getByRole("button", { name: "Move", exact: true })
+        .press("End");
+      await expect(
+        menu.getByRole("button", { name: "Delete note…", exact: true }),
+      ).toBeFocused();
+      await page.screenshot({
+        path: info.outputPath(`row-dropdown-${width}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(trigger).toBeFocused();
+      expect(await bounds()).toEqual(before);
+      await trigger.click();
+      await menu.getByRole("button", { name: "Export…", exact: true }).click();
+      const exportDialog = page.getByRole("dialog", {
+        name: "Export note",
+        exact: true,
+      });
+      await expect(exportDialog).toBeVisible();
+      await exportDialog
+        .getByRole("button", { name: "Done", exact: true })
+        .click();
+      await expect(trigger).toBeFocused();
+      await trigger.click();
+      // The overlay may cover the other row's trigger; keyboard users can still
+      // switch directly, and native auto-popover ownership dismisses the first.
+      const other = page.getByRole("button", {
+        name: "Actions for Launch checklist",
+        exact: true,
+      });
+      await other.focus();
+      await other.press("Enter");
+      await expect(
+        page.getByRole("group", { name: /^Actions for/ }),
+      ).toHaveCount(1);
+      await page.getByRole("heading", { name: "Notes", exact: true }).click();
+      await expect(
+        page.getByRole("group", { name: /^Actions for/ }),
+      ).toHaveCount(0);
+    });
+  });
+}
+
+for (const width of [1440, 768, 390, 320]) {
+  test.describe(`stable note tools at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("modes and inspectors preserve document bounds and return reading position", async ({
+      page,
+    }, info) => {
+      await fixture(page, [
+        {
+          ...note,
+          content: `# A stable workspace\n\n${"A thought worth keeping.\n\n".repeat(60)}\n## Next steps\n\n- [ ] Keep the document steady`,
+        },
+      ]);
+      await page.goto(`${base}/app`);
+      await page.locator(".memory-open").click();
+      const drawer = page.getByRole("dialog", { name: "Note", exact: true });
+      const paper = drawer.locator(".writing-layout");
+      const geometry = () =>
+        drawer.evaluate((element) =>
+          Object.fromEntries(
+            [
+              ".note-editor-bar",
+              ".editor-heading",
+              ".writing-layout",
+              ".editor-footer",
+              ".note-export-button",
+              ".note-save-button",
+            ].map((selector) => [
+              selector,
+              element.querySelector(selector)!.getBoundingClientRect().toJSON(),
+            ]),
+          ),
+        );
+      await page.evaluate(() => document.fonts.ready);
+      await expect(
+        drawer.getByRole("button", { name: "Preview", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+      const before = await geometry();
+      await paper.evaluate((element) => element.scrollTo(0, 250));
+      const position = await paper.evaluate((element) => element.scrollTop);
+      await page.screenshot({
+        path: info.outputPath(`note-read-${width}.png`),
+      });
+      for (const mode of ["Write", "Markdown", "Preview"]) {
+        await drawer.getByRole("button", { name: mode, exact: true }).click();
+        await expect(
+          drawer.getByRole("button", { name: mode, exact: true }),
+        ).toHaveAttribute("aria-pressed", "true");
+        expect(await geometry()).toEqual(before);
+      }
+      await expect
+        .poll(() => paper.evaluate((element) => element.scrollTop))
+        .toBe(position);
+      if (width <= 960)
+        await drawer
+          .getByRole("button", { name: "Note actions", exact: true })
+          .click();
+      await drawer
+        .getByRole("button", { name: "Note properties", exact: true })
+        .click();
+      const properties = page.getByRole("dialog", {
+        name: "Note properties",
+        exact: true,
+      });
+      await expect(
+        properties.getByRole("combobox", { name: "Notebook", exact: true }),
+      ).toBeFocused();
+      expect(await geometry()).toEqual(before);
+      expect(await paper.evaluate((element) => element.scrollTop)).toBe(
+        position,
+      );
+      await page.screenshot({
+        path: info.outputPath(`note-properties-${width}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(properties).toHaveCount(0);
+      await drawer
+        .getByRole("button", { name: "Note outline", exact: true })
+        .click();
+      const outline = page.getByRole("dialog", {
+        name: "Note outline",
+        exact: true,
+      });
+      await expect(outline).toBeVisible();
+      expect(await geometry()).toEqual(before);
+      await outline
+        .getByRole("button", { name: "Next steps", exact: true })
+        .click();
+      await expect(outline).toHaveCount(0);
+      await expect(
+        drawer.getByRole("button", { name: "Preview", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await expect(
+        drawer
+          .locator(".editor-preview")
+          .getByRole("heading", { name: "Next steps" }),
+      ).toBeFocused();
+      const afterOutline = await paper.evaluate((element) => element.scrollTop);
+      if (width <= 960)
+        await drawer
+          .getByRole("button", { name: "Note actions", exact: true })
+          .click();
+      await drawer
+        .getByRole("button", { name: "Expand editor", exact: true })
+        .click();
+      await expect(drawer.locator(".note-editor-drawer")).toHaveCount(0);
+      await drawer
+        .getByRole("button", { name: "Return to compact editor", exact: true })
+        .click();
+      expect(await geometry()).toEqual(before);
+      await expect
+        .poll(() => paper.evaluate((element) => element.scrollTop))
+        .toBe(afterOutline);
+      await page.keyboard.press("Control+Shift+f");
+      await expect(drawer.locator(".editor-focus")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(drawer.locator(".editor-focus")).toHaveCount(0);
+      expect(await geometry()).toEqual(before);
+      await expect
+        .poll(() => paper.evaluate((element) => element.scrollTop))
+        .toBe(afterOutline);
+      expect(
+        await drawer.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await drawer.getByRole("button", { name: "Write", exact: true }).click();
+      await page.screenshot({
+        path: info.outputPath(`note-write-${width}.png`),
+      });
+    });
+  });
+}
+
+const checklist =
+  "# Checklists\n\n- [ ] Repeat\n  - [x] Repeat\n- [ ] Ship **the note**\n\n> - [ ] Quoted task\n\n1. [ ] Ordered task\n\n```md\n- [ ] Example only\n```\n\n\\- [ ] Escaped example";
+for (const width of [1440, 390]) {
+  test.describe(`viewer tasks at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("toggle exact Markdown tasks with keyboard, touch and undo without moving the reader", async ({
+      page,
+      browserName,
+    }, info) => {
+      const state = await fixture(page, [
+        {
+          ...note,
+          content:
+            width === 1440 ? checklist.replaceAll("\n", "\r\n") : checklist,
+        },
+      ]);
+      await page.goto(`${base}/app/memories/${note.id}`);
+      const reader = page.locator(".editor-preview");
+      await expect(reader.getByRole("checkbox")).toHaveCount(5);
+      await page.evaluate(() => document.fonts.ready);
+      const bounds = await page.locator(".writing-layout").boundingBox();
+      const repeated = reader.getByRole("checkbox", {
+        name: "Repeat",
+        exact: true,
+      });
+      const nested = repeated.nth(1);
+      await expect(nested).toBeChecked();
+      if (width < 600) await nested.tap();
+      else await nested.click();
+      await expect(nested).not.toBeChecked();
+      await expect(nested).toBeFocused();
+      await expect
+        .poll(() => state.records.get(note.id)?.content)
+        .toBe(checklist.replace("  - [x]", "  - [ ]"));
+      const first = repeated.first();
+      await first.focus();
+      await first.press("Space");
+      await expect(first).toBeChecked();
+      const mod = browserName === "webkit" ? "Meta" : "Control";
+      await first.press(`${mod}+z`);
+      await expect(first).not.toBeChecked();
+      await expect(first).toBeFocused();
+      await first.press(`${mod}+Shift+z`);
+      await expect(first).toBeChecked();
+      const ordered = reader.getByRole("checkbox", { name: "Ordered task" });
+      await ordered.click();
+      await expect(ordered).toBeChecked();
+      await expect
+        .poll(() => state.records.get(note.id)?.content)
+        .toBe(
+          checklist
+            .replace("- [ ] Repeat", "- [x] Repeat")
+            .replace("  - [x]", "  - [ ]")
+            .replace("1. [ ]", "1. [x]"),
+        );
+      expect(await page.locator(".writing-layout").boundingBox()).toEqual(
+        bounds,
+      );
+      await expect(
+        page.getByRole("button", { name: "Preview", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await page.screenshot({
+        path: info.outputPath(`viewer-checklist-${width}.png`),
+      });
+      await page.reload();
+      await expect(
+        reader.getByRole("checkbox", { name: "Ordered task" }),
+      ).toBeChecked();
+      await expect(
+        reader.getByRole("checkbox", { name: "Repeat", exact: true }).first(),
+      ).toBeChecked();
+    });
+  });
+}
+
+test("viewer tasks keep newer checks through a held save and leave revision previews read-only", async ({
+  page,
+}) => {
+  const state = await fixture(page, [{ ...note, content: checklist }]);
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories", async (route) => {
+    started.resolve();
+    await release.promise;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/memories/${note.id}`);
+  const reader = page.locator(".editor-preview");
+  await reader
+    .getByRole("checkbox", { name: "Ship the note", exact: true })
+    .click();
+  await started.promise;
+  await reader
+    .getByRole("checkbox", { name: "Quoted task", exact: true })
+    .click();
+  release.resolve();
+  await expect
+    .poll(() => state.records.get(note.id)?.content)
+    .toBe(
+      checklist
+        .replace("- [ ] Ship", "- [x] Ship")
+        .replace("> - [ ]", "> - [x]"),
+    );
+  await expect(
+    reader.getByRole("checkbox", { name: "Quoted task" }),
+  ).toBeFocused();
+  expect(
+    state.calls
+      .filter((call) => call.path === "/memories")
+      .map((call) => call.body.expectedVersion),
+  ).toEqual([1, 2]);
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Revision history", exact: true })
+    .click();
+  const history = page.getByRole("dialog", { name: "Revision history" });
+  await expect(history).toBeVisible();
+  await expect(history.getByRole("checkbox")).toHaveCount(0);
+});
+
+test("viewer task save failures retain the checked draft and stable controls for retry", async ({
+  page,
+}) => {
+  const state = await fixture(page, [{ ...note, content: checklist }]);
+  let failed = true;
+  await page.route("**/api/grove/memories", (route) =>
+    failed
+      ? route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: { code: "unavailable", message: "Please retry this save." },
+          },
+        })
+      : route.fallback(),
+  );
+  await page.goto(`${base}/app/memories/${note.id}`);
+  const task = page
+    .locator(".editor-preview")
+    .getByRole("checkbox", { name: "Ship the note" });
+  await expect(task).toBeVisible();
+  const geometry = () =>
+    page
+      .locator(".note-editor")
+      .evaluate((element) =>
+        [".writing-layout", ".note-save-status", ".note-save-button"].map(
+          (selector) =>
+            element.querySelector(selector)!.getBoundingClientRect().toJSON(),
+        ),
+      );
+  const before = await geometry();
+  await task.click();
+  await expect(page.getByRole("alert")).toHaveText("Please retry this save.");
+  await expect(task).toBeChecked();
+  expect(await geometry()).toEqual(before);
+  expect(state.records.get(note.id)?.content).toBe(checklist);
+  failed = false;
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await expect
+    .poll(() => state.records.get(note.id)?.content)
+    .toBe(checklist.replace("- [ ] Ship", "- [x] Ship"));
+  expect(await geometry()).toEqual(before);
+});
+
+test("viewer task conflicts retain the draft until the newer saved version is reviewed", async ({
+  page,
+}) => {
+  const state = await fixture(page, [{ ...note, content: checklist }]);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  const task = page
+    .locator(".editor-preview")
+    .getByRole("checkbox", { name: "Ship the note" });
+  await expect(task).not.toBeChecked();
+  const newer = `${checklist}\nAn agent added context.`;
+  state.records.set(note.id, { ...note, content: newer, version: 2 });
+  await task.click();
+  const review = page.getByRole("region", { name: "Review newer version" });
+  await expect(review).toContainText("An agent added context.");
+  await expect(review.getByRole("checkbox")).toHaveCount(0);
+  await expect(task).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Save note", exact: true }),
+  ).toBeDisabled();
+  expect(state.records.get(note.id)?.content).toBe(newer);
+  await review
+    .getByRole("button", { name: "Use saved version", exact: true })
+    .click();
+  await expect(task).not.toBeChecked();
+  await task.click();
+  await expect
+    .poll(() => state.records.get(note.id)?.content)
+    .toBe(newer.replace("- [ ] Ship", "- [x] Ship"));
+  expect(
+    state.calls
+      .filter((call) => call.path === "/memories")
+      .map((call) => call.body.expectedVersion),
+  ).toEqual([1, 2]);
+});
+
 test("mobile note controls leave room to read and retain selection for touch formatting", async ({
   browser,
 }, info) => {
@@ -464,15 +1093,17 @@ test("mobile note controls leave room to read and retain selection for touch for
     await page.screenshot({
       path: info.outputPath("compact-reader-mobile.png"),
     });
-    await drawer.getByRole("button", { name: "Edit note", exact: true }).tap();
+    await drawer.getByRole("button", { name: "Write", exact: true }).tap();
     const editor = drawer.getByRole("textbox", {
       name: "What should stay with you?",
     });
     await editor.fill("A soft landing");
     await editor.press("Home");
     for (let i = 0; i < 6; i++) await editor.press("Shift+ArrowRight");
+    await drawer.getByRole("button", { name: "Formatting", exact: true }).tap();
     await drawer.getByRole("button", { name: "Bold", exact: true }).tap();
     await expect(editor).toHaveText("**A soft** landing");
+    await drawer.getByRole("button", { name: "Formatting", exact: true }).tap();
     await drawer.getByRole("button", { name: "Undo", exact: true }).tap();
     await expect(editor).toHaveText("A soft landing");
     await page.setViewportSize({ width: 390, height: 480 });
@@ -492,11 +1123,9 @@ test("mobile note controls leave room to read and retain selection for touch for
     expect(
       await drawer.evaluate((el) => el.scrollWidth <= el.clientWidth),
     ).toBe(true);
-    await drawer
-      .getByRole("button", { name: "Note actions", exact: true })
-      .tap();
     await page
-      .getByRole("button", { name: "Hide note properties", exact: true })
+      .getByRole("dialog", { name: "Note properties", exact: true })
+      .getByRole("button", { name: "Close dialog", exact: true })
       .tap();
     await page.setViewportSize({ width: 320, height: 750 });
     expect(
@@ -657,7 +1286,7 @@ test("one wide note workspace preserves editor history, toggles with shortcuts a
   expect(mobileBounds.x).toBeGreaterThanOrEqual(0);
   expect(mobileBounds.x + mobileBounds.width).toBeLessThanOrEqual(390);
   await expect(
-    drawer.getByRole("button", { name: "Edit note", exact: true }),
+    drawer.getByRole("button", { name: "Write", exact: true }),
   ).toBeInViewport();
   expect(
     (
@@ -1379,7 +2008,7 @@ test("connection evidence compares current notes, preserves the editor, and supp
   expect(
     state.calls.filter((c) => c.path === "/memories" && c.body),
   ).toHaveLength(0);
-  await page.getByRole("button", { name: "Edit note", exact: true }).click();
+  await page.getByRole("button", { name: "Write", exact: true }).click();
   await expect(
     page.getByRole("textbox", { name: "What should stay with you?" }),
   ).toContainText("Keep feedback");
@@ -1570,6 +2199,370 @@ test("connections recover from failed processing, paginate, and reject stale rev
   await expect(inspector.locator("blockquote")).toHaveCount(0);
 });
 
+for (const width of [1440, 768, 390, 320]) {
+  test.describe(`command palette at ${width}px`, () => {
+    test.use({ viewport: { width, height: 850 }, hasTouch: width < 600 });
+    test("groups actions in a stable, accessible desktop and touch surface", async ({
+      page,
+    }, info) => {
+      await fixture(page);
+      await page.goto(`${base}/app/memories/${note.id}`);
+      await expect(
+        page.getByRole("button", { name: "Write", exact: true }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: /^Commands/ }).click();
+      const menu = page.getByRole("dialog", { name: "Command menu" });
+      const input = menu.getByRole("combobox", { name: "Search commands" });
+      await expect(input).toBeFocused();
+      await page.evaluate(() => document.fonts.ready);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await expect(
+        menu.getByRole("group", { name: "This note", exact: true }),
+      ).toBeVisible();
+      await expect(menu.getByRole("option").first()).toContainText("Edit note");
+      await expect(menu.locator(".palette-context")).toHaveText(
+        "Review preferences",
+      );
+      const save = menu.getByRole("option", { name: /Save note/ });
+      await expect(save).toHaveAttribute("aria-disabled", "true");
+      await expect(save).toContainText("All changes saved");
+      const saveBounds = (await save.boundingBox())!;
+      await page.mouse.click(saveBounds.x + 30, saveBounds.y + 15);
+      await expect(input).toBeFocused();
+      await expect(menu).toBeVisible();
+      expect(
+        await menu
+          .getByRole("group", { name: "Manage note" })
+          .getByRole("option")
+          .allTextContents(),
+      ).toEqual(["Move note", "Archive note", "Delete note…"]);
+      const before = await menu.boundingBox();
+      const inputBefore = await input.boundingBox();
+      expect(before!.width).toBeLessThanOrEqual(Math.min(560, width - 24));
+      expect(before!.height).toBeLessThanOrEqual(480);
+      expect(before!.x + before!.width).toBeLessThanOrEqual(
+        await page.evaluate(
+          () => document.documentElement.getBoundingClientRect().right - 12,
+        ),
+      );
+      await page.screenshot({ path: info.outputPath(`palette-${width}.png`) });
+      await input.fill("preferences");
+      await expect(menu.getByRole("option")).toHaveCount(1);
+      await expect(menu.getByRole("option")).toContainText("Open Settings");
+      expect(await menu.boundingBox()).toEqual(before);
+      expect(await input.boundingBox()).toEqual(inputBefore);
+      await input.fill("no-such-action");
+      await expect(menu.getByRole("status")).toHaveText(
+        "No matching commands.",
+      );
+      expect(await menu.boundingBox()).toEqual(before);
+      await page.screenshot({
+        path: info.outputPath(`palette-empty-${width}.png`),
+      });
+      await menu.getByRole("button", { name: "Clear search commands" }).click();
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue("");
+      if (width < 600) {
+        expect(
+          (await menu
+            .getByRole("button", { name: "Close dialog" })
+            .boundingBox())!.height,
+        ).toBeGreaterThanOrEqual(44);
+        expect(
+          await input.evaluate((element) => getComputedStyle(element).fontSize),
+        ).toBe("16px");
+        await expect(menu.getByText("Tap a command to run it")).toBeVisible();
+        await page.setViewportSize({ width, height: 400 });
+        await expect(
+          menu.getByRole("button", { name: "Close dialog" }),
+        ).toBeInViewport();
+        const bounds = (await menu.boundingBox())!;
+        expect(bounds.y).toBeGreaterThanOrEqual(0);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(400);
+        await input.fill("delete");
+        await expect(
+          menu.getByRole("option", { name: "Delete note…", exact: true }),
+        ).toBeInViewport();
+        await page.screenshot({
+          path: info.outputPath(`palette-short-${width}.png`),
+        });
+      }
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("button", { name: /^Commands/ }),
+      ).toBeFocused();
+    });
+  });
+}
+
+test("command search ranks aliases, preserves native text editing and follows notebook context", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto(`${base}/app/projects/${project.id}`);
+  await expect(
+    page.getByRole("heading", { name: project.name, exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Control+Shift+p");
+  const menu = page.getByRole("dialog", { name: "Command menu" });
+  const input = menu.getByRole("combobox", { name: "Search commands" });
+  await input.fill("note");
+  await input.press("ArrowDown");
+  const selected = await input.getAttribute("aria-activedescendant");
+  await input.press("Home");
+  expect(
+    await input.evaluate((element: HTMLInputElement) => element.selectionStart),
+  ).toBe(0);
+  await expect(input).toHaveAttribute("aria-activedescendant", selected!);
+  await input.press("End");
+  expect(
+    await input.evaluate((element: HTMLInputElement) => element.selectionStart),
+  ).toBe(4);
+  await expect(input).toHaveAttribute("aria-activedescendant", selected!);
+  await input.fill("new note");
+  await expect(menu.locator("mark")).toHaveText(["New", "note"]);
+  await input.fill("CREATE");
+  await expect(menu.getByRole("option")).toHaveCount(1);
+  await input.press("Enter");
+  await expect(page).toHaveURL(`${base}/app/notes/new?notebook=${project.id}`);
+  await page.keyboard.press("Control+Shift+p");
+  await input.fill("journal");
+  await input.press("Enter");
+  await expect(page).toHaveURL(
+    `${base}/app/notes/new?from=journal&notebook=${project.id}`,
+  );
+});
+
+test("command selection survives first-save registration changes and skips unavailable actions", async ({
+  page,
+  browserName,
+}) => {
+  const mod = browserName === "webkit" ? "Meta" : "Control";
+  const state = await fixture(page, []);
+  const started = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories", async (route) => {
+    started.resolve();
+    await response.promise;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/notes/new`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("# An idea worth keeping\n\nA draft stays in place.");
+  await editor.press(`${mod}+s`);
+  await started.promise;
+  await editor.press(`${mod}+Shift+p`);
+  const menu = page.getByRole("dialog", { name: "Command menu" });
+  const input = menu.getByRole("combobox", { name: "Search commands" });
+  await expect(menu.getByRole("option", { name: /Save note/ })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await input.press("ArrowDown");
+  const focus = menu.getByRole("option", { name: /^Focus mode/ });
+  await expect(focus).toHaveAttribute("aria-selected", "true");
+  const selected = await input.getAttribute("aria-activedescendant");
+  response.resolve();
+  await expect(page).toHaveURL(/\/memories\/[^/]+\?mode=edit$/);
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute("aria-activedescendant", selected!);
+  await expect(focus).toHaveAttribute("aria-selected", "true");
+  await expect(menu.getByRole("option", { name: /Save note/ })).toContainText(
+    "All changes saved",
+  );
+  await input.press("Enter");
+  await expect(page.locator(".note-editor.editor-focus")).toBeVisible();
+  await expect(editor).toBeFocused();
+  expect(state.records.size).toBe(1);
+});
+
+test("workspace shortcuts respect composition, modifiers and nested dialog scope", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await expect(
+    page.getByRole("button", { name: "Write", exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    for (const extra of [
+      { isComposing: true },
+      { altKey: true },
+      { shiftKey: true },
+      { repeat: true },
+    ]) {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "k",
+          code: "KeyK",
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+          ...extra,
+        }),
+      );
+    }
+  });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.locator(".note-delete-button").click();
+  const confirmation = page.getByRole("dialog", { name: /Delete/ });
+  await expect(confirmation).toBeVisible();
+  await page.keyboard.press("Control+Shift+p");
+  const menu = page.getByRole("dialog", { name: "Command menu" });
+  await expect(menu.getByRole("option")).toHaveCount(1);
+  await expect(menu.getByRole("option")).toContainText("Keyboard shortcuts");
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toBeVisible();
+  await confirmation
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("palettes keep dismissal and results reachable in landscape, zoom and enlarged text", async ({
+  page,
+  browserName,
+}, info) => {
+  await fixture(page, [
+    {
+      ...note,
+      content: `# ${"A long note title to keep in context ".repeat(4)}\n\nUseful words.`,
+    },
+  ]);
+  await page.setViewportSize({ width: 844, height: 260 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: /^Commands/ }).click();
+  const menu = page.getByRole("dialog", { name: "Command menu" });
+  const input = menu.getByRole("combobox", { name: "Search commands" });
+  await expect(input).toBeFocused();
+  await input.fill("show note properties");
+  const option = menu.getByRole("option");
+  await expect(option).toBeInViewport();
+  await expect(
+    menu.getByRole("button", { name: "Close dialog" }),
+  ).toBeInViewport();
+  await page.screenshot({ path: info.outputPath("palette-landscape.png") });
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.addStyleTag({
+    content:
+      ".palette-dialog :is(.palette-option, input) { font-size: 28px; } .palette-context, .palette-footer { font-size: 20px; }",
+  });
+  await expect(option).toBeInViewport();
+  expect(
+    await option.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  const bounds = (await menu.boundingBox())!;
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+  await page.screenshot({ path: info.outputPath("palette-large-text.png") });
+  await page.keyboard.press("Escape");
+  if (browserName === "chromium") {
+    const session = await page.context().newCDPSession(page);
+    await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
+    // CDP pointer hit testing does not account for the panned pinch origin.
+    // Native keyboard activation still exercises opening and closing at 2×.
+    await page.getByRole("button", { name: /^Commands/ }).press("Enter");
+    await expect(input).toBeFocused();
+    await expect
+      .poll(async () =>
+        menu.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const viewport = window.visualViewport!;
+          return (
+            viewport.scale === 2 &&
+            box.left >= viewport.offsetLeft &&
+            box.right <= viewport.offsetLeft + viewport.width &&
+            box.top >= viewport.offsetTop &&
+            box.bottom <= viewport.offsetTop + viewport.height
+          );
+        }),
+      )
+      .toBe(true);
+    await menu.getByRole("button", { name: "Close dialog" }).press("Enter");
+    await expect(menu).toHaveCount(0);
+    await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
+    await session.detach();
+  }
+});
+
+test("note search shares the palette shell through notebook filtering, errors and keyboard retry", async ({
+  page,
+}, info) => {
+  await fixture(page);
+  let failed = true;
+  const searches: unknown[] = [];
+  await page.route("**/api/grove/ask", async (route) => {
+    searches.push(route.request().postDataJSON());
+    await route.fulfill(
+      failed
+        ? {
+            status: 503,
+            json: {
+              success: false,
+              error: {
+                code: "unavailable",
+                message: "Search is temporarily unavailable",
+              },
+            },
+          }
+        : {
+            json: {
+              success: true,
+              data: { sources: [handoff], statements: [] },
+            },
+          },
+    );
+  });
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: /Search anything/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+  const input = dialog.getByRole("textbox", { name: "Search your Grove" });
+  await expect(input).toBeFocused();
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "Search in notebook" }),
+    project.id,
+  );
+  await input.fill("launch");
+  const retry = dialog.getByRole("button", { name: "Try loading again" });
+  await expect(retry).toBeVisible();
+  const bounds = await dialog.boundingBox();
+  failed = false;
+  await retry.focus();
+  await retry.press("Enter");
+  const result = dialog.getByRole("link", { name: /Launch checklist/ });
+  await expect(result).toBeVisible();
+  expect(searches.at(-1)).toMatchObject({
+    query: "launch",
+    projectId: project.id,
+    includePersonal: false,
+  });
+  expect(await dialog.boundingBox()).toEqual(bounds);
+  await page.screenshot({ path: info.outputPath("note-search-mobile.png") });
+  await result.focus();
+  await result.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(`${base}/app/memories/${handoff.id}`);
+});
+
 test("commands and shortcut help work from notes, preserve focus, and create in the current notebook", async ({
   page,
 }, info) => {
@@ -1714,7 +2707,7 @@ test("first-save navigation retains preview and returns shortcut help to the cur
   await page.keyboard.press("Escape");
   await expect(help).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Edit note", exact: true }),
+    page.getByRole("button", { name: "Preview", exact: true }),
   ).toBeFocused();
   await page.keyboard.press(`${mod}+e`);
   await expect(editor).toBeFocused();
@@ -1742,13 +2735,13 @@ test("long notes scroll inside the workspace while the mode toggle and navigatio
       element.scrollTo(0, element.scrollHeight),
     );
     await expect(
-      page.getByRole("button", { name: "Edit note", exact: true }),
+      page.getByRole("button", { name: "Write", exact: true }),
     ).toBeInViewport();
     await expect(
       page.getByRole("button", { name: "Back to notes", exact: true }),
     ).toBeInViewport();
     const position = await paper.evaluate((element) => element.scrollTop);
-    await page.getByRole("button", { name: "Edit note", exact: true }).click();
+    await page.getByRole("button", { name: "Write", exact: true }).click();
     await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect
       .poll(() => paper.evaluate((element) => element.scrollTop))
@@ -2003,6 +2996,10 @@ test("personal prompts save explicit preferences and the editor exposes independ
   await page.getByText("Note options", { exact: true }).click();
   await chooseOption(page.getByLabel("Keep this note"), "ephemeral");
   await chooseOption(page.getByLabel("Expires after"), "7");
+  await page
+    .getByRole("dialog", { name: "Note properties", exact: true })
+    .getByRole("button", { name: "Close dialog", exact: true })
+    .click();
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   expect(
     state.calls.filter((call) => call.path === "/memories").at(-1)?.body
@@ -2546,7 +3543,7 @@ test("sharing an editing note permits revocation while retaining the pending dra
     .filter({ hasText: "Review preferences" })
     .click();
   const drawer = page.getByRole("dialog", { name: "Note", exact: true });
-  await drawer.getByRole("button", { name: "Edit note", exact: true }).click();
+  await drawer.getByRole("button", { name: "Write", exact: true }).click();
   const editor = drawer.getByRole("textbox", {
     name: "What should stay with you?",
   });
@@ -3139,7 +4136,7 @@ test("graph selection and note revisions retain zoom while ordinary wheel input 
   await viewport.evaluate((el) => el.setAttribute("data-retained", "yes"));
   await page.getByRole("button", { name: "Read note", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Note", exact: true });
-  await drawer.getByRole("button", { name: "Edit note", exact: true }).click();
+  await drawer.getByRole("button", { name: "Write", exact: true }).click();
   await drawer
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill("# A revised idea\n\nThe same graph position.");
@@ -3489,6 +4486,12 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
   );
   await page.getByLabel("Include unfiled notes").uncheck();
   const question = page.getByLabel("Ask about your notes");
+  // Touch Enter inserts a newline; modified Enter submits on either layout.
+  const submitKey = (await page.evaluate(
+    () => window.matchMedia("(pointer: coarse)").matches,
+  ))
+    ? "Control+Enter"
+    : "Enter";
   await question.fill("How should I give feedback?");
   await page.getByRole("button", { name: "Send question" }).click();
   await expect(page.locator(".ask-statement")).toContainText("working example");
@@ -3506,13 +4509,17 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
   );
   await page.keyboard.press("Escape");
   await question.fill("Tell me more about that");
-  await question.press("Enter");
+  await question.press(submitKey);
   await expect(page.locator(".ask-statement")).toHaveCount(2);
   expect(
     [...state.chats.values()][0].turns.map((turn) => turn.question),
   ).toEqual(["How should I give feedback?", "Tell me more about that"]);
-  for (const width of [1440, 320]) {
-    await page.setViewportSize({ width, height: 1000 });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(
+      page.getByRole("button", { name: "Send question", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -3531,7 +4538,7 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
     ).violations,
   ).toEqual([]);
   await question.fill("Wait for this");
-  await question.press("Enter");
+  await question.press(submitKey);
   await started.promise;
   await page
     .getByRole("button", { name: "New conversation", exact: true })
@@ -3910,7 +4917,7 @@ test("a changed note preserves the draft for review and restoring history create
 }, info) => {
   const state = await fixture(page, [note]);
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Edit note", exact: true }).click();
+  await page.getByRole("button", { name: "Write", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
     .fill("# My revised note\n\nA reviewed replacement.");
@@ -3969,7 +4976,7 @@ test("reading and Markdown editing keep agent references behind details, with fo
     .locator(".memory-open")
     .filter({ hasText: "Review preferences" })
     .click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "Note", exact: true });
   await expect(dialog.getByRole("textbox")).toHaveCount(0);
   await expect(
     dialog.locator("strong").filter({ hasText: "specific" }),
@@ -3979,9 +4986,12 @@ test("reading and Markdown editing keep agent references behind details, with fo
   await dialog.getByText("Agent details", { exact: true }).click();
   await expect(dialog.getByText(note.id, { exact: true })).toBeVisible();
   await dialog.getByText("Agent details", { exact: true }).click();
-  await dialog.getByRole("button", { name: "Note properties" }).click();
+  await page
+    .getByRole("dialog", { name: "Note properties", exact: true })
+    .getByRole("button", { name: "Close dialog", exact: true })
+    .click();
   await page.screenshot({ path: info.outputPath("reader-desktop.png") });
-  await dialog.getByRole("button", { name: "Edit note", exact: true }).click();
+  await dialog.getByRole("button", { name: "Write", exact: true }).click();
   const editor = dialog.getByLabel("What should stay with you?");
   await editor.fill("A useful note");
   await editor.selectText();
@@ -4026,7 +5036,7 @@ test("reading and Markdown editing keep agent references behind details, with fo
       path: info.outputPath(`editor-preview-${width}.png`),
     });
   }
-  await dialog.getByRole("button", { name: "Edit note", exact: true }).click();
+  await dialog.getByRole("button", { name: "Write", exact: true }).click();
   await editor.fill("# A revised preference\n\nKeep it concise.");
   await dialog.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(dialog.locator(".note-save-status")).toHaveText("Saved");
@@ -4056,7 +5066,7 @@ test("full-page writing keeps formatting, outline, focus and repeated keyboard s
   await page.getByRole("button", { name: "Write", exact: true }).click();
   await page.getByRole("button", { name: "Note outline", exact: true }).click();
   await page
-    .getByRole("complementary", { name: "Note outline" })
+    .getByRole("dialog", { name: "Note outline" })
     .getByRole("button", { name: "Next steps" })
     .click();
   await expect(editor).toBeFocused();
@@ -4125,7 +5135,7 @@ test("full-page drafts survive app navigation and still detect changes to their 
   await page.locator(".memory-open").first().click();
   await page.getByRole("button", { name: "Note actions" }).click();
   await page.getByRole("link", { name: "Open note page" }).click();
-  await page.getByRole("button", { name: "Edit note", exact: true }).click();
+  await page.getByRole("button", { name: "Write", exact: true }).click();
   await expect(editor).toHaveText("My unfinished thought.");
   await editor.press("Control+s");
   await expect(
@@ -4706,7 +5716,7 @@ test("nested notebooks share paths, create and move controls, and preserve note 
   ).toBe(child.id);
   await page
     .getByRole("region", { name: "Your notebooks" })
-    .getByRole("link", { name: "Manage", exact: true })
+    .getByRole("link", { name: "Manage notebooks", exact: true })
     .click();
   await page.setViewportSize({ width: 320, height: 900 });
   await expect(
@@ -4779,7 +5789,7 @@ test("shared dropdowns support keyboard selection, typeahead, modal dismissal an
   }
   await page
     .getByRole("region", { name: "Your notebooks" })
-    .getByRole("link", { name: "Manage", exact: true })
+    .getByRole("link", { name: "Manage notebooks", exact: true })
     .click();
   await page.getByRole("button", { name: "New notebook", exact: true }).click();
   await page.setViewportSize({ width: 320, height: 900 });
@@ -5073,12 +6083,16 @@ test("row actions have one owner, Escape restores focus and an interrupted swipe
   try {
     const state = await fixture(page);
     await page.goto(`${base}/app`);
-    const buttons = page.locator(".row-controls button");
+    const buttons = page.locator(".row-controls > button");
     await buttons.first().tap();
+    await page.getByRole("heading", { name: "Notes", exact: true }).tap();
+    await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
+      0,
+    );
     await buttons.nth(1).tap();
-    await expect(
-      page.getByRole("button", { name: "Close actions", exact: true }),
-    ).toHaveCount(1);
+    await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
+      1,
+    );
     await expect(buttons.nth(1)).toHaveAttribute("aria-expanded", "true");
     await page.keyboard.press("Escape");
     await expect(buttons.nth(1)).toBeFocused();
@@ -5124,9 +6138,9 @@ test("row actions have one owner, Escape restores focus and an interrupted swipe
       touchPoints: [],
     });
     await expect(row).not.toHaveAttribute("data-swiping");
-    await expect(
-      page.getByRole("button", { name: "Close actions" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
+      0,
+    );
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
       0,
@@ -5172,26 +6186,24 @@ test("touch swipe only reveals actions, cancellation stays quiet, and keyboard a
   await touch("touchStart");
   await touch("touchMove", -100);
   await touch("touchEnd");
-  await expect(
-    page.getByRole("button", { name: "Close actions" }),
-  ).toBeVisible();
+  await expect(page.getByRole("group", { name: /^Actions for/ })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.screenshot({
     path: info.outputPath("touch-actions.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Close actions" }).click();
+  await page.keyboard.press("Escape");
   await touch("touchStart");
   await touch("touchMove", -25);
   await touch("touchCancel");
-  await expect(page.getByRole("button", { name: "Close actions" })).toHaveCount(
+  await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
     0,
   );
   await touch("touchStart");
   await touch("touchMove", 2, -80);
   await touch("touchEnd");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Close actions" })).toHaveCount(
+  await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
     0,
   );
   await page

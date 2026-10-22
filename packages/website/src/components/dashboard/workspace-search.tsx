@@ -16,12 +16,16 @@ import { useWorkspaceCache } from "./workspace-cache";
 import { memoryTitle, memoryExcerpt } from "@/lib/memory-display";
 import { notebookPath } from "@/lib/notebooks";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { Dialog } from "./dialog";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
-import { SearchField } from "./ui/search-field";
+import { PaletteDialog } from "./ui/palette-dialog";
 import { LoadError } from "./load-error";
-import { Shortcut } from "./workspace-commands";
+import { Shortcut } from "./ui/shortcut";
+import {
+  matchesShortcut,
+  shortcutHint,
+  shortcuts,
+} from "@/lib/workspace-shortcuts";
 
 export type AskSession = {
   scope: string;
@@ -47,9 +51,7 @@ export function WorkspaceSearch({ children }: { children: ReactNode }) {
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (
-        !event.defaultPrevented &&
-        (event.metaKey || event.ctrlKey) &&
-        event.key.toLowerCase() === "k" &&
+        matchesShortcut(event, shortcuts.search) &&
         !document.querySelector("dialog[open]")
       ) {
         event.preventDefault();
@@ -74,11 +76,13 @@ export function WorkspaceSearchButton() {
     <button
       type="button"
       className="workspace-search-launcher"
+      aria-label="Search anything"
+      title={`Search anything (${shortcutHint(shortcuts.search)})`}
       onClick={context?.open}
     >
-      <Search size={16} />
+      <Search size={16} aria-hidden="true" />
       <span>Search anything</span>
-      <Shortcut>Mod K</Shortcut>
+      <Shortcut>{shortcuts.search}</Shortcut>
     </button>
   );
 }
@@ -115,24 +119,47 @@ function SearchDialog({ close }: { close: () => void }) {
         }
       : undefined;
   return (
-    <Dialog title="Search your Grove" close={close}>
+    <PaletteDialog
+      title="Search your Grove"
+      close={close}
+      search={{
+        label: "Search your Grove",
+        value: query,
+        onChange: setQuery,
+        placeholder: "Search your notes…",
+      }}
+      footer={
+        query.trim() ? (
+          <Link
+            className="quick-search-ask"
+            href="/app/ask"
+            onClick={() => {
+              context.setQuestion(query.trim());
+              close();
+            }}
+          >
+            <MessageSquare size={16} /> Ask Grove about this{" "}
+            <ArrowUpRight size={15} />
+          </Link>
+        ) : (
+          <span>Find a thought. Pick up where you left off.</span>
+        )
+      }
+    >
       <div className="quick-search">
-        <SearchField
-          label="Search your Grove"
-          value={query}
-          onChange={setQuery}
-          placeholder="A title, a phrase, or an idea…"
-        />
-        <NotebookSelect
-          aria-label="Search in notebook"
-          projects={projects}
-          value={scope}
-          onValueChange={setScope}
-          leading={[
-            { value: "all", label: "All notes" },
-            { value: "personal", label: "Unfiled" },
-          ]}
-        />
+        <div className="palette-toolbar">
+          <span>Search in</span>
+          <NotebookSelect
+            aria-label="Search in notebook"
+            projects={projects}
+            value={scope}
+            onValueChange={setScope}
+            leading={[
+              { value: "all", label: "All notes" },
+              { value: "personal", label: "Unfiled" },
+            ]}
+          />
+        </div>
         <div className="quick-search-results" aria-busy={!current}>
           {!current ? (
             <p role="status">Searching…</p>
@@ -145,7 +172,7 @@ function SearchDialog({ close }: { close: () => void }) {
             <>
               <p className="quick-search-caption">
                 {search
-                  ? `${current.items?.length ?? 0} matching notes`
+                  ? `${current.items?.length ?? 0} matching ${current.items?.length === 1 ? "note" : "notes"}`
                   : "Recently updated"}
               </p>
               {current.items?.map((note) => (
@@ -176,23 +203,7 @@ function SearchDialog({ close }: { close: () => void }) {
             </>
           )}
         </div>
-        <div className="quick-search-footer">
-          {query.trim() && (
-            <Link
-              className="quick-search-ask"
-              href="/app/ask"
-              onClick={() => {
-                context.setQuestion(query.trim());
-                close();
-              }}
-            >
-              <MessageSquare size={16} />
-              Ask Grove about this
-              <ArrowUpRight size={15} />
-            </Link>
-          )}
-        </div>
       </div>
-    </Dialog>
+    </PaletteDialog>
   );
 }

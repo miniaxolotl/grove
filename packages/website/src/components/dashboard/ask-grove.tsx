@@ -583,10 +583,7 @@ export function AskGrove({
                 <p role="status">Opening conversation…</p>
               ) : !conversation?.turns.length ? (
                 <div className="ask-welcome">
-                  <span className="ask-mark">
-                    <Sprout size={28} strokeWidth={1.4} />
-                  </span>
-                  <h2>What’s on your mind?</h2>
+                  <h2>Ask your notes</h2>
                   <div className="ask-suggestions">
                     {[
                       "Find my recent plans",

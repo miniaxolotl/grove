@@ -73,6 +73,15 @@ its edge does not. Action menus follow their opener when scrolling/resizing and
 scroll internally in short viewports. Confirmed mutations finish before
 closing; background autosave retains its request and draft when you navigate away.
 
+## Notebook assistance
+
+**Summary** adapts to your notebook's subject and links its sources. Use the icon in
+**Move** to suggest a notebook for an unfiled note. A note or selection of up to six
+notes can **Extract action list**; edit the preview before saving a checklist.
+**Notebook options** includes **Since your last visit** and **Review notebook**.
+Review source excerpts and changes, then apply or keep both; Undo checks later edits.
+These features have independent AI preferences. See [notebook assistance](notebook-assistance.md).
+
 ## Share with a link
 
 Open **Share note** in a saved note's toolbar, the phone's **Note actions** menu, or
@@ -136,11 +145,13 @@ If an automatic PDF download does not start, use **Download PDF** in the chooser
 Closing it cancels preparation. Clipboard denial leaves selectable source text.
 
 Drafts longer than 6,000 characters stay available for export; shorten them to save.
-PDF supports up to 100,000 characters. **Settings → Your data → Export all account
-data** is the separate backup containing notes, revisions and conversations.
+PDF supports up to100,000 characters. **Settings → Your data** prepares a queued
+account export; **Notebook options → Export notebook** exports a notebook, with
+optional sub-notebooks. Icon controls show progress, cancel, retry and download.
+Files include notes and revisions; account exports also contain conversations.
 
 **Delete note…** is also available under a row's Actions button, without opening
-the note. Confirmation names the note and permanently removes its history. Cancel
+the note. Confirmation names the note and hides it and its retained history. Cancel
 keeps your draft. If you have unsaved edits, the confirmation explicitly discards
 them; it pauses autosave and waits for an active save. An uncertain save must be
 resolved with **Retry pending save** first. Concurrent edits require review rather
@@ -221,9 +232,13 @@ up to keep reading older messages, even as a reply arrives or the composer grows
 **Latest reply** returns to the bottom and resumes following. Sending a new question
 also resumes following.
 
-**Settings** groups Preferences, Account, Connections, Search & organization and
+**Settings** groups Preferences, Account, Connections, AI & search and
 Your data under a persistent heading and navigation. Section content scrolls
-independently, keeping navigation in place. Export includes
+independently, keeping navigation in place. AI preference drafts survive visits to
+other settings tabs; **Discard changes** restores saved choices. Save submits only
+changed controls and retains edits made while saving. A dot marks unsaved
+preferences, and clean forms follow changes saved in another tab. **AI & search**
+shows service availability separately from your feature preferences. Export includes
 notes, revisions, conversations and relationship review state. Self-hosted administrators retain provider
 configuration at [Model settings](models.md).
 

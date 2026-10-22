@@ -15,6 +15,7 @@ export async function startServer() {
   const app = createApp({
     memories,
     models: runtime.models,
+    artifacts: runtime.artifacts,
     auth: new Authentication(db, clerkVerifier(env), (account, request) =>
       reporter
         .forIdentity(
@@ -27,9 +28,20 @@ export async function startServer() {
     siteUrl: env.SITE_URL,
     issuer: env.CLERK_ISSUER,
     webhookSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
-    ready: () => probeDatabase(db),
+    ready: async () => {
+      await probeDatabase(db);
+      await runtime.artifacts?.ready?.();
+    },
     telemetry: reporter,
     shareLinkKey: env.SHARE_LINK_KEY,
+    capacity: {
+      concurrency: env.API_MAX_IN_FLIGHT,
+      queued: env.API_MAX_QUEUED,
+      queueTimeoutMs: env.API_QUEUE_TIMEOUT_MS,
+      requestTimeoutMs: env.API_REQUEST_TIMEOUT_MS,
+      interactiveConcurrency: env.API_INTERACTIVE_CONCURRENCY,
+      interactiveTimeoutMs: env.API_INTERACTIVE_TIMEOUT_MS,
+    },
   });
   const server = serve({
     fetch: app.fetch,

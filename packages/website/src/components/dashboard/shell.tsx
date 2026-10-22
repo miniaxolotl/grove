@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { RedirectToSignIn, UserButton, useUser, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,25 +34,39 @@ const links = [
   { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];
+
+function WorkspaceNavLink({
+  item,
+  current,
+  secondary = false,
+}: {
+  item: (typeof links)[number];
+  current: string | undefined;
+  secondary?: boolean;
+}) {
+  const { href, name, icon: Icon } = item;
+  return (
+    <Link
+      href={href}
+      aria-current={href === current ? "page" : undefined}
+      className={`app-nav${secondary ? " app-nav-secondary" : ""}`}
+    >
+      <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
+      <span>{name}</span>
+    </Link>
+  );
+}
+
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const current = /^\/app\/(?:memories|notes|projects|graph)(?:\/|$)/.test(path)
+    ? "/app"
+    : links.find(
+        ({ href }) =>
+          path === href || (href !== "/app" && path.startsWith(`${href}/`)),
+      )?.href;
   const { user, isLoaded, isSignedIn } = useUser();
   const { sessionId } = useAuth();
-  const navigation = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const nav = navigation.current;
-    if (!nav) return;
-    const revealCurrent = () => {
-      const link = nav.querySelector<HTMLElement>('[aria-current="page"]');
-      if (link && nav.scrollWidth > nav.clientWidth)
-        nav.scrollLeft =
-          link.offsetLeft - (nav.clientWidth - link.offsetWidth) / 2;
-    };
-    const observer = new ResizeObserver(revealCurrent);
-    observer.observe(nav);
-    revealCurrent();
-    return () => observer.disconnect();
-  }, [path, isLoaded, isSignedIn]);
   useEffect(() => {
     if (isLoaded) setAccountBoundary(user?.id ?? null);
   }, [isLoaded, user?.id]);
@@ -94,66 +108,45 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 <WorkspaceDrag>
                   <WorkspaceSearch>
                     <div className="grove-app" data-private>
-                      <aside className="app-sidebar">
+                      <aside
+                        className="app-sidebar"
+                        aria-label="Workspace sidebar"
+                      >
                         <div className="app-sidebar-heading">
                           <Brand href="/app" />
+                          <NewNoteLink />
                           <div className="lg:hidden">
                             <UserButton />
                           </div>
                         </div>
-                        <NewNoteLink />
                         <WorkspaceSearchButton />
                         <div className="workspace-utilities">
                           <CommandMenuButton />
                           <ShortcutHelpButton compact />
                         </div>
                         <nav
-                          ref={navigation}
                           aria-label="Notebook navigation"
                           className="app-navigation"
                         >
-                          {links.map(({ href, name, icon: Icon }, index) => (
-                            <Link
-                              key={href}
-                              href={href}
-                              aria-current={
-                                (
-                                  href === "/app"
-                                    ? path === href ||
-                                      path === "/app/graph" ||
-                                      path.startsWith("/app/notes/") ||
-                                      path.startsWith("/app/memories/") ||
-                                      path.startsWith("/app/projects")
-                                    : path.startsWith(href)
-                                )
-                                  ? "page"
-                                  : undefined
-                              }
-                              className={`app-nav${index > 1 ? " app-nav-secondary" : ""}`}
-                            >
-                              <Icon size={17} strokeWidth={1.6} />
-                              {name}
-                            </Link>
+                          {links.map((item, index) => (
+                            <WorkspaceNavLink
+                              key={item.href}
+                              item={item}
+                              current={current}
+                              secondary={index > 1}
+                            />
                           ))}
                         </nav>
                         <NotebookExplorer />
                         <div className="app-sidebar-footer">
                           <nav aria-label="Workspace settings">
-                            {links
-                              .slice(2)
-                              .map(({ href, name, icon: Icon }) => (
-                                <Link
-                                  className="app-nav"
-                                  key={href}
-                                  href={href}
-                                  aria-current={
-                                    path.startsWith(href) ? "page" : undefined
-                                  }
-                                >
-                                  <Icon size={16} />
-                                  {name}
-                                </Link>
-                              ))}
+                            {links.slice(2).map((item) => (
+                              <WorkspaceNavLink
+                                key={item.href}
+                                item={item}
+                                current={current}
+                              />
+                            ))}
                           </nav>
                           <div className="sidebar-account">
                             <UserButton />
@@ -169,18 +162,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <span>Your Grove</span>
                             <span aria-hidden="true">/</span>
                             <strong>
-                              {[
-                                ...links,
-                                { href: "/app/graph", name: "Note graph" },
-                                { href: "/app/profile", name: "About you" },
-                              ].find(({ href }) =>
-                                href === "/app"
-                                  ? path === href ||
-                                    path.startsWith("/app/memories/") ||
-                                    path.startsWith("/app/notes/") ||
-                                    path.startsWith("/app/projects")
-                                  : path.startsWith(href),
-                              )?.name ?? "Your notes"}
+                              {path === "/app/graph"
+                                ? "Note graph"
+                                : path === "/app/profile"
+                                  ? "About you"
+                                  : (links.find(({ href }) => href === current)
+                                      ?.name ?? "Your notes")}
                             </strong>
                           </span>
                           <div className="flex items-center gap-3">
