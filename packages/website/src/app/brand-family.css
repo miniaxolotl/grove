@@ -76,8 +76,8 @@
 }
 .marketing-site .tab-list [role="tab"] {
   border-radius: 4px;
-  min-height: 36px;
-  padding: 6px 12px;
+  min-height: 32px;
+  padding: 4px 12px;
 }
 .marketing-site .library-window .tab-list [role="tab"] {
   flex: 0 0 auto;
@@ -150,7 +150,8 @@
   transform: none;
 }
 .marketing-site .comparison-button {
-  min-height: 36px;
+  min-height: 32px;
+  padding-block: 4px;
   border-radius: 3px;
 }
 .marketing-site .comparison-active {

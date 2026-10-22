@@ -16,6 +16,9 @@ answer and connection entrances respond to selection and respect reduced motion.
 Compact controls use Grove's accent with visible hover, pressed and focus states.
 Consent has explicit primary, secondary and Settings treatments.
 
+Screenshot follow-up: primary actions are 34px high on desktop; header, tabs and
+consent controls are 32px. Cookie settings actions have no underline in any state.
+
 Presentation rules are scoped to public marketing. The authenticated workspace
 keeps its own components and styles. Notes, queries, connections and terminal
 snippets remain labelled examples with no account mutations.

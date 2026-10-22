@@ -19,9 +19,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
+  min-height: 34px;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 6px 14px;
   border: 1px solid transparent;
   border-radius: 5px;
   box-shadow: none;
@@ -70,8 +70,8 @@
 }
 .marketing-site .site-header .button-primary,
 .site-header .navigation-cta {
-  min-height: 36px;
-  padding: 6px 12px;
+  min-height: 32px;
+  padding: 4px 12px;
   font-size: 12px;
 }
 .marketing-site :is(.nav-link, .text-link) {
@@ -128,7 +128,7 @@
 @media (pointer: coarse) {
   .marketing-site :is(.button, .button-primary, .button-secondary),
   .site-header .navigation-cta {
-    min-height: 40px;
+    min-height: 36px;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

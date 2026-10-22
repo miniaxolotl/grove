@@ -34,8 +34,8 @@
   gap: 8px;
 }
 .cookie-notice-actions button {
-  min-height: 36px;
-  padding: 6px 10px;
+  min-height: 32px;
+  padding: 4px 10px;
   border: 1px solid var(--brand-line);
   border-radius: 5px;
   background: transparent;
@@ -69,8 +69,7 @@
   border-color: transparent;
   background: transparent;
   color: var(--brand-ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 .cookie-notice-actions .cookie-notice-settings:is(:hover, :active) {
   background: var(--brand-line);
@@ -85,8 +84,7 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 .cookie-notice button:focus-visible,
 .cookie-settings:focus-visible {
@@ -117,14 +115,14 @@
   --cc-btn-border-radius: 5px;
 }
 #cc-main .pm__btn {
-  min-height: 36px;
-  padding: 8px 12px;
+  min-height: 32px;
+  padding: 6px 12px;
   font-size: 12px;
 }
 @media (pointer: coarse) {
   .cookie-notice-actions button,
   #cc-main .pm__btn {
-    min-height: 40px;
+    min-height: 36px;
   }
 }
 #cc-main .pm {
