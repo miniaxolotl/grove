@@ -8,7 +8,7 @@ export default defineConfig({
   retries: 0,
   workers: 2,
   reporter: "list",
-  grep: /action menus follow|touch hit areas|mobile note controls|first-save navigation|long notes scroll|settings share|long notebook menus|reply and growing|visible row deletion|export downloads|row export reads|PDF|export and delete remain/,
+  grep: /action menus follow|touch hit areas|mobile note controls|first-save navigation|long notes scroll|settings share|categorized AI preferences|preferences retain|long notebook menus|reply and growing|visible row deletion|export downloads|row export reads|PDF|export and delete remain/,
   use: {
     ...devices["iPhone 13"],
     browserName: "webkit",

@@ -117,8 +117,8 @@ export function ModelSettings() {
                 {role === "embedding"
                   ? "Find memories by meaning. A model or dimension change rebuilds the index."
                   : role === "decision"
-                    ? "Classify memories and assess related, duplicate, or conflicting context."
-                    : "Write titles, tags, project briefs, personal profiles, and task handoffs."}
+                    ? "Suggest note types and rank useful context."
+                    : "Write titles, tags, summaries and Ask Grove replies, and explain connections."}
               </p>
               <fieldset
                 disabled={!settings.editable || busy}

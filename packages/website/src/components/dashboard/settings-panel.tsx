@@ -9,20 +9,19 @@ import { LoadError } from "@/components/dashboard/load-error";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
+import { AiPreferences } from "./ai-preferences";
+import {
+  preferenceKeys,
+  preferencesFor,
+  type AccountPreferences,
+  type AiAvailability,
+  type PreferencesUpdate,
+} from "@lib/shared/preferences";
 
-type Settings = {
-  captureEnabled: boolean;
-  recallEnabled: boolean;
-  organizeEnabled: boolean;
-  summariesEnabled: boolean;
+type Settings = PreferencesUpdate & {
   accountId: string;
+  aiAvailability?: AiAvailability;
 };
-const preferenceKeys = [
-  "captureEnabled",
-  "recallEnabled",
-  "organizeEnabled",
-  "summariesEnabled",
-] as const;
 export function SettingsPanel({
   section = "preferences",
 }: {
@@ -34,22 +33,20 @@ export function SettingsPanel({
     ...cache.resource<Settings>("/me"),
     enabled: section === "preferences",
   });
-  const [draft, setDraft] = useState<Settings | null>(null);
-  const settings = draft ?? query.data;
+  const [draft, setDraft] = useState<AccountPreferences | null>(null);
+  const loaded = query.data ? preferencesFor(query.data) : null;
+  const settings = draft ?? loaded;
   const [saveError, setError] = useState("");
   const error = saveError || (query.error ? errorMessage(query.error) : "");
-  const [saved, setSaved] = useState<Settings | null>(null);
+  const [saved, setSaved] = useState<AccountPreferences | null>(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const { signOut } = useClerk();
   const dirty =
     !!settings &&
-    preferenceKeys.some(
-      (key) =>
-        (settings[key] ?? true) !== ((saved ?? query.data)?.[key] ?? true),
-    );
-  function editSettings(value: Settings) {
+    preferenceKeys.some((key) => settings[key] !== (saved ?? loaded)?.[key]);
+  function editSettings(value: AccountPreferences) {
     // Freeze the loaded base on the first edit. Background reads cannot acknowledge it.
     if (!draft && settings) setSaved(settings);
     setDraft(value);
@@ -59,16 +56,12 @@ export function SettingsPanel({
     setBusy(true);
     setError("");
     try {
-      await api(
-        "/account/settings",
-        {
-          captureEnabled: settings.captureEnabled,
-          recallEnabled: settings.recallEnabled,
-          organizeEnabled: settings.organizeEnabled,
-          summariesEnabled: settings.summariesEnabled,
-        },
-        "PATCH",
+      const changed = Object.fromEntries(
+        preferenceKeys
+          .filter((key) => settings[key] !== (saved ?? loaded)?.[key])
+          .map((key) => [key, settings[key]]),
       );
+      await api("/account/settings", changed, "PATCH");
       setSaved(settings);
       toast("Preferences saved.");
     } catch (e) {
@@ -97,75 +90,30 @@ export function SettingsPanel({
       <div className="settings-content">
         {section === "preferences" && (
           <>
-            <section className="app-panel">
+            <section className="app-panel ai-preferences-panel">
               <h2 className="flex items-center gap-3 font-editorial text-2xl">
                 <SlidersHorizontal size={19} />
-                Your preferences
+                AI preferences
               </h2>
+              <p className="ai-preferences-intro">
+                Choose how Grove helps with your notes.
+              </p>
               {settings ? (
                 <form
-                  className="app-form mt-6"
+                  className="app-form ai-preferences-form"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void update();
                   }}
                 >
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.recallEnabled}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          recallEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Let connected agents find useful notes when starting work
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.captureEnabled}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          captureEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Let connected agents save confirmed details
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.organizeEnabled ?? true}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          organizeEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Help organize my notes and find related ideas
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.summariesEnabled ?? true}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          summariesEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Enable Ask Grove and notebook summaries
-                  </label>
+                  <AiPreferences
+                    value={settings}
+                    availability={query.data?.aiAvailability}
+                    onChange={editSettings}
+                  />
                   <p className="text-xs leading-6 text-muted">
-                    You can always write and edit notes yourself. Connected
-                    agents only use the notebooks and permissions you’ve
-                    approved.
+                    Connected agents only use the notebooks and permissions
+                    you’ve approved.
                   </p>
                   <div className="settings-save-row">
                     <button

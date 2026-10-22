@@ -1220,6 +1220,62 @@ html:has(.grove-app) {
 .settings-content .app-panel > h2 {
   font-size: 16px;
 }
+.ai-preferences-panel {
+  max-width: 760px;
+}
+.ai-preferences-intro {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.ai-preferences-form {
+  gap: 20px;
+}
+.ai-preference-group {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+.ai-preference-group legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.app-form .ai-preference {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line);
+  cursor: pointer;
+}
+.ai-preference-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.ai-preference-description {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.ai-preference-unavailable {
+  display: block;
+  margin-top: 3px;
+  font-style: italic;
+}
+.app-form .ai-preference input {
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+.ai-preferences-form .settings-save-row {
+  padding: 12px 0;
+  border-top: 1px solid var(--color-line);
+}
 .connection-setup {
   margin-bottom: 12px;
 }

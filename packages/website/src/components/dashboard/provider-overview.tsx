@@ -8,16 +8,20 @@ export function ProviderOverview({ settings }: { settings: ModelSettings }) {
         {(
           [
             ["embedding", "Search your notes"],
-            ["decision", "Related ideas"],
-            ["generation", "Answers and summaries"],
+            ["decision", "Note classification"],
+            ["generation", "Titles and tags"],
+            ["generation", "Note and notebook connections"],
+            ["generation", "Summaries and Ask Grove"],
           ] as const
         ).map(([role, label]) => (
-          <div key={role}>
+          <div key={label}>
             <span>{label}</span>
             <span>
               {settings.config[role].provider === "disabled"
-                ? "Unavailable"
-                : "Ready"}
+                ? role === "embedding"
+                  ? "Keyword search"
+                  : "Unavailable"
+                : "Available"}
             </span>
           </div>
         ))}

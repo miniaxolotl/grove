@@ -675,17 +675,25 @@ export class WorkspaceCache {
           this.publish?.({});
         }
         this.publish?.(change);
+      } else if (path === "/account/settings") {
+        // Cancel held reads of derived data before refreshing changed preferences.
+        for (const change of [
+          {},
+          { resource: "/me" },
+          { resource: "/conversations" },
+        ]) {
+          this.invalidate(change);
+          this.publish?.(change);
+        }
       } else {
         const resource =
-          path === "/account/settings"
-            ? "/me"
-            : path === "/briefs/refresh"
-              ? "/briefs"
-              : path.startsWith("/connections") || path === "/keys"
-                ? "/connections"
-                : path === "/models"
-                  ? "/models"
-                  : undefined;
+          path === "/briefs/refresh"
+            ? "/briefs"
+            : path.startsWith("/connections") || path === "/keys"
+              ? "/connections"
+              : path === "/models"
+                ? "/models"
+                : undefined;
         if (resource) {
           if (resource === "/models" && path === "/models") {
             void this.client.cancelQueries({
