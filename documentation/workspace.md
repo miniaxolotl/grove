@@ -221,9 +221,13 @@ up to keep reading older messages, even as a reply arrives or the composer grows
 **Latest reply** returns to the bottom and resumes following. Sending a new question
 also resumes following.
 
-**Settings** groups Preferences, Account, Connections, Search & organization and
+**Settings** groups Preferences, Account, Connections, AI & search and
 Your data under a persistent heading and navigation. Section content scrolls
-independently, keeping navigation in place. Export includes
+independently, keeping navigation in place. AI preference drafts survive visits to
+other settings tabs; **Discard changes** restores saved choices. Save submits only
+changed controls and retains edits made while saving. A dot marks unsaved
+preferences, and clean forms follow changes saved in another tab. **AI & search**
+shows service availability separately from your feature preferences. Export includes
 notes, revisions, conversations and relationship review state. Self-hosted administrators retain provider
 configuration at [Model settings](models.md).
 

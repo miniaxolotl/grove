@@ -16,12 +16,18 @@ the controls independently. Disable/re-enable races discard old results. Note
 All **102 database/service** tests, including the populated **012→013 upgrade**,
 and **five packaged-artifact** checks pass. Root/website lint, types and builds,
 bundle budgets, 17 release/deployment contracts and pinned workflow lint pass.
-The integrated Chromium run passed 165 scenarios and exposed one inherited
-marketing-proxy teardown race. Removing its incomplete promise collector and using
-Playwright's teardown handling fixes the race; all 11 marketing cases then pass
-three repetitions (33 runs). Three focused iPhone/WebKit scenarios pass with reviewed
-1440/390/320px layouts, keyboard controls, save races, error recovery and WCAG A/AA
-checks.
+All 166 Chromium scenarios pass in exact-head CI39732842999 on `b09cba8`, including
+the corrected marketing-proxy teardown. Three focused iPhone/WebKit scenarios pass
+with reviewed 1440/390/320px layouts, keyboard controls, save races, error recovery
+and WCAG A/AA checks.
+
+The subsequent settings polish keeps drafts and held saves across settings tabs,
+adds shared Save/Discard feedback, adopts fresh saved preferences, and keeps the
+active tab visible when resizing. Availability badges, switch-style controls,
+provider fields and account/data headings share consistent spacing. This passes
+37 focused Chromium settings/cache checks, nine final settings checks, six focused
+WebKit scenarios and the three-case WebKit tab-rounding follow-up. Root/website
+lint, types and builds, five artifact checks and bundle budgets pass again.
 
 [Screenshots](design/screenshots/ai-preferences/README.md) show the categorized
 controls and save row. [Rollout](deploy.md) requires an explicit owner migration

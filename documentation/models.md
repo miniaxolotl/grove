@@ -31,7 +31,7 @@ MODEL_SETTINGS_KEY=REPLACE_WITH_64_HEX_CHARACTERS
 ```
 
 Generate the encryption key with `openssl rand -hex 32`. Sign in as a listed
-administrator and open **Settings → Model settings**. Settings apply installation-wide,
+administrator and open **Settings → AI & search**. Settings apply installation-wide,
 not per account. Agent credentials and ordinary website users cannot change them.
 Cloud settings are read-only and ignore stored self-hosted overrides.
 
@@ -87,6 +87,10 @@ these values explicitly for an existing installation.
 ## Account AI preferences
 
 **Settings → Preferences** has ten independent controls and one Save action:
+
+Drafts stay in memory while switching settings tabs. **Discard changes** returns
+to saved preferences; failed saves retain edits, and a completed save keeps any
+newer changes you made. Provider configuration uses the same Save/Discard feedback.
 
 | Category         | Controls                                                 | Required provider                                                     |
 | ---------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
