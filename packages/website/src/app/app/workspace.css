@@ -450,6 +450,26 @@ html:has(.grove-app) {
 .ask-composer {
   flex-shrink: 0;
 }
+.ask-toolbar .segmented-control {
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 5px;
+}
+.ask-toolbar .segmented-control > button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 3px;
+  line-height: 20px;
+}
+.ask-toolbar .segmented-control > button > svg {
+  flex-shrink: 0;
+}
+.ask-toolbar .app-select-trigger {
+  height: 36px;
+  padding-block: 6px;
+  border-radius: 5px;
+}
 .ask-composer {
   padding: 8px 10px;
   border-radius: 10px;
@@ -621,6 +641,54 @@ html:has(.grove-app) {
   min-height: 0;
   width: 100%;
   overflow-y: auto;
+  padding-top: 0;
+  padding-bottom: 20px;
+  overscroll-behavior: contain;
+}
+.ask-search-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 20px;
+  background: #fff;
+}
+.ask-search .app-search {
+  min-height: 40px;
+  gap: 8px;
+  padding: 0 6px 0 12px;
+  border-radius: 5px;
+}
+.ask-search .app-search:focus-within {
+  border-color: var(--color-leaf);
+  outline-offset: -1px;
+}
+.ask-search .app-search input {
+  height: 38px;
+  min-height: 0;
+}
+.ask-search .app-search > button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+}
+.ask-search .app-search > button:hover {
+  background: var(--color-sage);
+}
+.ask-search .ask-result-count {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 20px;
+}
+.ask-search .ask-source-list {
+  margin-top: 0;
+}
+.ask-search .ask-search-empty {
+  padding: 32px 12px;
 }
 .app-topbar {
   display: none;
@@ -641,14 +709,18 @@ html:has(.grove-app) {
   border-radius: 6px;
 }
 .notebook-drag-handle {
-  flex: 0 0 18px;
-  width: 18px;
-  padding: 1px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 32px;
+  padding: 0;
+  position: relative;
 }
 .notebook-tree-row .notebook-disclosure,
 .notebook-tree-row .notebook-disclosure-spacer {
-  flex-basis: 18px;
-  width: 18px;
+  flex-basis: 24px;
+  width: 24px;
+  height: 32px;
+  min-height: 32px;
 }
 .notebook-tree-link {
   font-size: 12px;
@@ -660,26 +732,28 @@ html:has(.grove-app) {
   width: 26px;
   min-height: 30px;
 }
-.notebook-tree li[data-dragging] > .notebook-tree-row {
+.notebook-tree li[data-dragging] > .notebook-tree-row,
+.notebook-pages li[data-dragging] {
   opacity: 0.45;
 }
 .notebook-pages {
-  margin: 2px 0 5px 24px;
+  margin: 2px 0 5px 12px;
   border-left: 1px solid var(--color-line);
-  padding-left: 4px;
+  padding-left: 12px;
 }
 .notebook-pages li {
   display: flex;
   align-items: center;
   min-width: 0;
+  border-radius: 6px;
 }
 .notebook-pages a {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  min-height: 30px;
-  padding: 4px;
+  min-height: 32px;
+  padding: 4px 6px;
   font-size: 11px;
   flex: 1;
 }
@@ -688,15 +762,44 @@ html:has(.grove-app) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.notebook-pages li > a:only-child {
+  padding-left: 0;
+}
+.notebook-pages li > a:only-child > svg {
+  width: 24px;
+}
 .notebook-pages svg {
   flex-shrink: 0;
 }
 .notebook-pages .drag-handle {
-  width: 18px;
-  height: 28px;
-  padding: 1px;
+  width: 24px;
+  height: 32px;
+  padding: 0;
+  position: relative;
 }
-.notebook-pages a:hover,
+.note-drag-source {
+  display: flex;
+  flex-shrink: 0;
+}
+.notebook-grip-icon,
+.note-icon-handle .note-grip-icon {
+  position: absolute;
+  opacity: 0;
+}
+.notebook-folder-icon,
+.note-file-icon {
+  display: flex;
+}
+.notebook-drag-handle:is(:hover, :focus-visible, :active) .notebook-folder-icon,
+.note-icon-handle:is(:hover, :focus-visible, :active) .note-file-icon {
+  opacity: 0;
+}
+.notebook-drag-handle:is(:hover, :focus-visible, :active) .notebook-grip-icon,
+.note-icon-handle:is(:hover, :focus-visible, :active) .note-grip-icon {
+  opacity: 1;
+}
+.notebook-pages li:hover,
+.notebook-pages li:has([aria-current="page"]),
 .notebook-personal:hover {
   background: var(--color-sage);
   border-radius: 5px;
@@ -962,6 +1065,8 @@ html:has(.grove-app) {
   padding: 8px 12px;
   min-height: 36px;
   font-size: 13px;
+  line-height: 20px;
+  border-radius: 5px 5px 0 0;
   white-space: nowrap;
   color: var(--color-muted);
   border-bottom: 2px solid transparent;
@@ -1194,8 +1299,12 @@ html:has(.grove-app) {
   background: #fff;
 }
 .editor-focus
-  :is(.editor-heading, .editor-tools, .editor-footer, .note-editor-hint) {
+  :is(.editor-tools, .editor-format-menu, .editor-footer, .note-editor-hint) {
   display: none;
+}
+.editor-focus .editor-heading {
+  justify-content: space-between;
+  background: #fff;
 }
 .editor-focus .note-editor-bar > .app-icon:not(.editor-focus-toggle) {
   display: none;
@@ -1211,18 +1320,6 @@ html:has(.grove-app) {
 .editor-focus .writing-paper {
   max-width: 1300px;
   padding-top: 24px;
-}
-@media (min-width: 1024px) {
-  .notebook-drag-handle,
-  .notebook-pages .drag-handle {
-    opacity: 0;
-  }
-  .notebook-tree-row:hover .notebook-drag-handle,
-  .notebook-tree-row:focus-within .notebook-drag-handle,
-  .notebook-pages li:hover .drag-handle,
-  .notebook-pages li:focus-within .drag-handle {
-    opacity: 1;
-  }
 }
 @media (max-width: 1023px) {
   .workspace-drop-surface {
@@ -1344,10 +1441,12 @@ html:has(.grove-app) {
     padding: 8px 12px;
   }
   .ask-scope {
-    width: 100%;
+    flex: 1;
+    width: auto;
+    min-width: min(100%, 130px);
     gap: 8px;
   }
-  .ask-scope > .app-select {
+  .ask-scope > .app-select-field {
     flex: 1;
   }
   .app-content {
@@ -1386,6 +1485,22 @@ html:has(.grove-app) {
 @media (any-pointer: coarse) {
   .grove-app {
     --touch-target: 44px;
+  }
+  .ask-toolbar .segmented-control > button {
+    min-height: 44px;
+  }
+  .ask-toolbar .app-select-trigger {
+    height: 50px;
+  }
+  .ask-search .app-search input,
+  .ask-search .app-search > button {
+    min-height: 44px;
+  }
+  .ask-search .app-search input {
+    font-size: 16px;
+  }
+  .ask-search .app-search > button {
+    width: 44px;
   }
   .ask-composer .app-icon,
   .ask-composer .ask-send {
