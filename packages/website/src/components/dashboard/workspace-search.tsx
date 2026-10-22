@@ -176,20 +176,22 @@ function SearchDialog({ close }: { close: () => void }) {
             </>
           )}
         </div>
-        {query.trim() && (
-          <Link
-            className="quick-search-ask"
-            href="/app/ask"
-            onClick={() => {
-              context.setQuestion(query.trim());
-              close();
-            }}
-          >
-            <MessageSquare size={16} />
-            Ask Grove about this
-            <ArrowUpRight size={15} />
-          </Link>
-        )}
+        <div className="quick-search-footer">
+          {query.trim() && (
+            <Link
+              className="quick-search-ask"
+              href="/app/ask"
+              onClick={() => {
+                context.setQuestion(query.trim());
+                close();
+              }}
+            >
+              <MessageSquare size={16} />
+              Ask Grove about this
+              <ArrowUpRight size={15} />
+            </Link>
+          )}
+        </div>
       </div>
     </Dialog>
   );

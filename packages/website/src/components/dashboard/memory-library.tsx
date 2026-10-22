@@ -4,8 +4,6 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
-  Archive,
-  FolderInput,
   X,
   Undo2,
   BookOpen,
@@ -28,6 +26,8 @@ import { LoadError } from "./load-error";
 import { LoadingState } from "./loading-state";
 import { MemoryRow } from "./memory-row";
 import { deferredFeature } from "./deferred-feature";
+import { LibrarySelection } from "./library-selection";
+import { useWorkspaceDrag } from "./memory-drag";
 import { WorkspaceNotice } from "./toasts";
 import {
   LibraryFilterBar,
@@ -89,6 +89,7 @@ export function MemoryLibrary({
 }) {
   const cache = useWorkspaceCache();
   const api = cache.api;
+  const workspace = useWorkspaceDrag();
   const [view, setView] = useState(initialView);
   const {
     projects,
@@ -469,55 +470,25 @@ export function MemoryLibrary({
                 ]}
               />
             )}
-            {view === "list" && (
-              <Select
-                className="library-sort"
-                label="Sort"
-                aria-label="Sort notes"
-                value={sort}
-                onValueChange={(value) =>
-                  setFilters({
-                    ...filters,
-                    sort: value as typeof sort,
-                  })
-                }
-                options={[
-                  { value: "updated_desc", label: "Recently updated" },
-                  { value: "updated_asc", label: "Oldest updated" },
-                  { value: "created_desc", label: "Date written" },
-                ]}
-              />
-            )}
+            <Select
+              className={`library-sort${view === "list" ? "" : " library-sort-hidden"}`}
+              disabled={view !== "list"}
+              label="Sort"
+              aria-label="Sort notes"
+              value={sort}
+              onValueChange={(value) =>
+                setFilters({
+                  ...filters,
+                  sort: value as typeof sort,
+                })
+              }
+              options={[
+                { value: "updated_desc", label: "Recently updated" },
+                { value: "updated_asc", label: "Oldest updated" },
+                { value: "created_desc", label: "Date written" },
+              ]}
+            />
           </div>
-          {view === "list" && selectedItems.length > 0 && (
-            <div
-              className="selection-toolbar"
-              role="group"
-              aria-label="Selected notes"
-            >
-              <strong>{selectedItems.length} selected</strong>
-              <button disabled={busy} onClick={() => startMove(selectedItems)}>
-                <FolderInput size={16} />
-                Move
-              </button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  void perform(selectedItems, archive ? "restore" : "archive")
-                }
-              >
-                <Archive size={16} />
-                {archive ? "Restore" : "Archive"}
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => setChecked([])}
-                aria-label="Clear selection"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
           {currentError && (
             <LoadError
               title={
@@ -582,6 +553,20 @@ export function MemoryLibrary({
                     ? "Archived notes stay here until you restore or delete them."
                     : "Start with a thought, a plan, or something you want to remember."}
               </p>
+              {filtered && (
+                <button
+                  type="button"
+                  className="app-button secondary mt-6"
+                  onClick={() =>
+                    setFilters((current) => ({
+                      ...initialFilters(archive),
+                      sort: current.sort,
+                    }))
+                  }
+                >
+                  Clear filters
+                </button>
+              )}
               {!archive && !filtered && (
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   <Link
@@ -609,26 +594,45 @@ export function MemoryLibrary({
                 onOpen={setSelected}
               />
             ) : (
-              <div className="library-list">
-                <label className="select-loaded">
-                  <input
-                    type="checkbox"
-                    disabled={busy}
-                    checked={
-                      items.length > 0 &&
-                      items.slice(0, 50).every((m) => checked.includes(m.id))
-                    }
-                    onChange={(e) =>
-                      setChecked(
-                        e.target.checked
-                          ? items.slice(0, 50).map((m) => m.id)
-                          : [],
-                      )
-                    }
-                  />
-                  Select these notes
-                  {items.length > 50 ? " (first 50)" : ""}
-                </label>
+              <div
+                className="library-list"
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Escape" &&
+                    !event.defaultPrevented &&
+                    !busy &&
+                    !workspace.active &&
+                    selectedItems.length > 0 &&
+                    !document.querySelector(
+                      "[popover]:popover-open, [role=listbox]",
+                    )
+                  ) {
+                    event.preventDefault();
+                    setChecked([]);
+                  }
+                }}
+              >
+                <LibrarySelection
+                  count={selectedItems.length}
+                  allSelected={items
+                    .slice(0, 50)
+                    .every((memory) => checked.includes(memory.id))}
+                  limited={items.length > 50}
+                  busy={busy}
+                  archive={archive}
+                  onSelectAll={(selected) =>
+                    setChecked(
+                      selected
+                        ? items.slice(0, 50).map((memory) => memory.id)
+                        : [],
+                    )
+                  }
+                  onClear={() => setChecked([])}
+                  onMove={() => startMove(selectedItems)}
+                  onArchive={() =>
+                    void perform(selectedItems, archive ? "restore" : "archive")
+                  }
+                />
                 <ul>
                   {items.map((memory, index) => (
                     <Fragment key={memory.id}>
