@@ -15,30 +15,46 @@ type Settings = {
   summariesEnabled: boolean;
   accountId: string;
 };
+const preferenceKeys = [
+  "captureEnabled",
+  "recallEnabled",
+  "organizeEnabled",
+  "summariesEnabled",
+] as const;
 export function SettingsPanel({
   section = "preferences",
 }: {
   section?: "preferences" | "account" | "data";
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [saved, setSaved] = useState<Settings | null>(null);
   const [error, setError] = useState("");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [refresh, setRefresh] = useState(0);
   const { signOut } = useClerk();
+  const dirty =
+    !!settings &&
+    preferenceKeys.some(
+      (key) => (settings[key] ?? true) !== (saved?.[key] ?? true),
+    );
   useEffect(() => {
     if (section !== "preferences") return;
     const controller = new AbortController();
     api<Settings>("/me", undefined, undefined, controller.signal)
-      .then(setSettings)
+      .then((value) => {
+        if (controller.signal.aborted) return;
+        setSettings(value);
+        setSaved(value);
+      })
       .catch((e) => {
         if (!controller.signal.aborted) setError(errorMessage(e));
       });
     return () => controller.abort();
   }, [refresh, section]);
   async function update() {
-    if (!settings) return;
+    if (!settings || busy || !dirty) return;
     setBusy(true);
     setError("");
     try {
@@ -52,9 +68,11 @@ export function SettingsPanel({
         },
         "PATCH",
       );
+      setSaved(settings);
       toast("Preferences saved.");
     } catch (e) {
       setError(errorMessage(e));
+      toast(errorMessage(e), true);
     } finally {
       setBusy(false);
     }
@@ -69,7 +87,7 @@ export function SettingsPanel({
             setRefresh((value) => value + 1);
           }}
         />
-      ) : error ? (
+      ) : error && section !== "preferences" ? (
         <p className="app-error" role="alert">
           {error}
         </p>
@@ -147,9 +165,27 @@ export function SettingsPanel({
                     agents only use the notebooks and permissions you’ve
                     approved.
                   </p>
-                  <button className="app-button w-fit" disabled={busy}>
-                    Save preferences
-                  </button>
+                  <div className="settings-save-row">
+                    <button
+                      className="app-button w-fit"
+                      disabled={busy || !dirty}
+                    >
+                      Save preferences
+                    </button>
+                    <p
+                      className="settings-save-status"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {busy
+                        ? "Saving…"
+                        : error
+                          ? "Couldn’t save. Try again."
+                          : dirty
+                            ? "Unsaved changes"
+                            : "All changes saved"}
+                    </p>
+                  </div>
                 </form>
               ) : (
                 <p

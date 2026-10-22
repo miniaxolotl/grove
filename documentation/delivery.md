@@ -71,6 +71,34 @@ Share uses the common note-action slot and one notebook-action callback across
 page/sidebar/manager controls. Authenticated proxy admission retains both sharing
 and connection routes, while anonymous readers retain their independent scope.
 
+Merge closeout integrates stable interactions #63 at `1e1eb27`. The only textual
+conflict was in this delivery record; both feature histories are retained. The
+combined **121 Chromium** cases and **19 focused iPhone/WebKit** sharing/filter/
+selection/search checks pass. Root/website lint, types and builds plus all five
+artifact checks pass before the user-authorized squash merge.
+
+## Stable selection, filters and workspace feedback (21 October 2026 UTC)
+
+Bulk selection shares the existing list header, with mixed selection and keyboard
+focus recovery. Advanced filters open over the list; their count, search-clear and
+sort controls reserve their geometry. Clearing filters preserves the selected sort
+and empty results provide a direct reset. Native dropdowns stay within the active
+popover and dismiss independently.
+
+Global search and the command menu retain their query position through loading,
+matching and empty states. Preference saves provide in-place status, retain newer
+edits made during a pending save, and report errors without shifting the form.
+[Interaction guidance](development/stable-interactions.md) describes the contracts
+and [reviewed captures](design/screenshots/stable-interactions/README.md) show the
+desktop and narrow layouts.
+
+Root lint/types/build and all five packed-artifact checks pass; website lint/types
+and the telemetry-enabled production build pass. After integrating the landed
+gesture and note-action work (`570c133`), all 108 Chromium scenarios and 11 focused
+WebKit scenarios pass. Refreshed captures were reviewed in both browsers. Geometry
+checks cover 320, 390 and 1440px, mixed/bulk selection, nested overlays, search
+loading and preference-save races. No schema migration is required.
+
 ## Connection and action integration (21 October 2026 UTC)
 
 Integrated landed note actions #61 (`570c133`) after gesture polish #58. The reader

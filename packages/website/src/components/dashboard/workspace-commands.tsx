@@ -343,28 +343,34 @@ function CommandMenu({
             }
           }}
         />
-        <div
-          ref={list}
-          id={id}
-          role="listbox"
-          aria-label="Commands"
-          className="command-results"
-        >
-          {items.map((command, i) => (
-            <div
-              key={command.id}
-              id={`${id}-${i}`}
-              role="option"
-              aria-selected={i === active}
-              onMouseMove={() => setIndex(i)}
-              onClick={() => execute(command)}
-            >
-              <span>{command.label}</span>
-              {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
-            </div>
-          ))}
+        <div className="command-results-frame">
+          <div
+            ref={list}
+            id={id}
+            role="listbox"
+            aria-label="Commands"
+            className="command-results"
+          >
+            {items.map((command, i) => (
+              <div
+                key={command.id}
+                id={`${id}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                onMouseMove={() => setIndex(i)}
+                onClick={() => execute(command)}
+              >
+                <span>{command.label}</span>
+                {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
+              </div>
+            ))}
+          </div>
+          {!items.length && (
+            <p role="status" className="command-empty">
+              No matching commands.
+            </p>
+          )}
         </div>
-        {!items.length && <p role="status">No matching commands.</p>}
         <p className="command-hint">
           ↑ ↓ to choose · Enter to run · Esc to close
         </p>

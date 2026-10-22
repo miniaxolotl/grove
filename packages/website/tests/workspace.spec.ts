@@ -80,6 +80,211 @@ const handoff: Memory = {
   },
 };
 
+for (const width of [1440, 390, 320]) {
+  test.describe(`stable library at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+
+    test("selection stays in place through partial selection, bulk actions and clearing", async ({
+      page,
+    }, info) => {
+      await fixture(page);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(`${base}/app?sort=created_desc`);
+      const rows = page.locator(".memory-row");
+      await expect(rows).toHaveCount(2);
+      await page.evaluate(() => document.fonts.ready);
+      const before = await rows.first().boundingBox();
+      const header = page.locator(".library-selection-header");
+      const headerBefore = await header.boundingBox();
+      const all = page.getByRole("checkbox", {
+        name: "Select these notes",
+        exact: true,
+      });
+      await rows.first().getByRole("checkbox").check();
+      await expect(all).toBeChecked({ indeterminate: true });
+      expect(await rows.first().boundingBox()).toEqual(before);
+      expect(await header.boundingBox()).toEqual(headerBefore);
+      await all.check();
+      await expect(header).toContainText("2 selected");
+      const actions = page.getByRole("group", { name: "Selected notes" });
+      await actions.getByRole("button", { name: "Move", exact: true }).click();
+      await expect(
+        page.getByRole("dialog", { name: "Move 2 notes" }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        actions.getByRole("button", { name: "Move", exact: true }),
+      ).toBeFocused();
+      expect(await rows.first().boundingBox()).toEqual(before);
+      expect(await header.boundingBox()).toEqual(headerBefore);
+      await page.screenshot({
+        path: info.outputPath(`selection-${width}.png`),
+        fullPage: true,
+      });
+      await actions.getByRole("button", { name: "Clear selection" }).click();
+      await expect(all).toBeFocused();
+      await expect(all).not.toBeChecked();
+      expect(await rows.first().boundingBox()).toEqual(before);
+      await all.check();
+      await page.keyboard.press("Escape");
+      await expect(all).not.toBeChecked();
+      await expect(actions).toHaveCount(0);
+      expect(await rows.first().boundingBox()).toEqual(before);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    });
+
+    test("filters overlay the list and nested dropdowns dismiss independently", async ({
+      page,
+    }, info) => {
+      await fixture(page);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(`${base}/app?sort=created_desc`);
+      const rows = page.locator(".memory-row");
+      await expect(rows).toHaveCount(2);
+      await page.evaluate(() => document.fonts.ready);
+      const before = await rows.first().boundingBox();
+      const trigger = page.getByRole("button", {
+        name: "Filters",
+        exact: true,
+      });
+      const triggerBefore = await trigger.boundingBox();
+      await trigger.click();
+      const panel = page.getByRole("dialog", { name: "Filter notes" });
+      await expect(panel).toBeVisible();
+      expect(await rows.first().boundingBox()).toEqual(before);
+      const source = panel.getByRole("combobox", {
+        name: "Source",
+        exact: true,
+      });
+      await source.click();
+      await expect(page.getByRole("listbox")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(panel).toBeVisible();
+      await expect(source).toBeFocused();
+      await chooseOption(source, "opencode");
+      await expect(rows).toHaveCount(2);
+      await expect(
+        panel.getByRole("button", { name: "Remove source filter" }),
+      ).toBeVisible();
+      await panel.getByRole("button", { name: "Done", exact: true }).click();
+      await expect(trigger).toBeFocused();
+      expect(await trigger.boundingBox()).toEqual(triggerBefore);
+      expect(await rows.first().boundingBox()).toEqual(before);
+      await trigger.click();
+      await panel
+        .getByRole("button", { name: "Clear filters", exact: true })
+        .click();
+      await expect(
+        panel.getByRole("button", { name: "Done", exact: true }),
+      ).toBeFocused();
+      await expect(
+        page.getByRole("combobox", { name: "Sort notes" }),
+      ).toHaveText("Date written");
+      await expect(rows).toHaveCount(2);
+      const bounds = (await panel.boundingBox())!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.screenshot({ path: info.outputPath(`filters-${width}.png`) });
+      await page.keyboard.press("Escape");
+      await expect(panel).toBeHidden();
+      await expect(trigger).toBeFocused();
+      expect(await rows.first().boundingBox()).toEqual(before);
+      const sortBefore = await page.locator(".library-sort").boundingBox();
+      await chooseOption(
+        page.getByRole("combobox", { name: "Sort notes" }),
+        "updated_desc",
+      );
+      expect(await page.locator(".library-sort").boundingBox()).toEqual(
+        sortBefore,
+      );
+      const viewBefore = await page
+        .getByRole("group", { name: "Note view" })
+        .boundingBox();
+      await page.getByRole("button", { name: "Graph", exact: true }).click();
+      expect(
+        await page.getByRole("group", { name: "Note view" }).boundingBox(),
+      ).toEqual(viewBefore);
+    });
+  });
+}
+
+test("global search and command dialogs keep their inputs anchored through loading and empty results", async ({
+  page,
+}, info) => {
+  await fixture(page);
+  let release = Promise.withResolvers<void>();
+  let started = Promise.withResolvers<void>();
+  await page.route("**/api/grove/ask", async (route) => {
+    started.resolve();
+    await release.promise;
+    await route.fulfill({
+      json: { success: true, data: { sources: [], statements: [] } },
+    });
+  });
+  await page.goto(`${base}/app`);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.keyboard.press("Control+k");
+    const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+    const input = dialog.getByRole("textbox", { name: "Search your Grove" });
+    await expect(dialog.locator(".quick-search-result")).toHaveCount(2);
+    const before = await dialog.boundingBox();
+    const inputBefore = await input.boundingBox();
+    expect(inputBefore!.height).toBeLessThanOrEqual(50);
+    expect(
+      (await dialog.locator(".app-search").boundingBox())!.height,
+    ).toBeLessThanOrEqual(56);
+    await input.fill("Something missing");
+    await started.promise;
+    await expect(dialog.getByRole("status")).toHaveText("Searching…");
+    expect(await dialog.boundingBox()).toEqual(before);
+    expect(await input.boundingBox()).toEqual(inputBefore);
+    release.resolve();
+    await expect(
+      dialog.getByText("No notes found. Try another phrase or notebook."),
+    ).toBeVisible();
+    expect(await dialog.boundingBox()).toEqual(before);
+    await dialog
+      .getByRole("button", { name: "Clear search your grove" })
+      .click();
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue("");
+    expect(await input.boundingBox()).toEqual(inputBefore);
+    await expect(dialog.locator(".quick-search-result")).toHaveCount(2);
+    await page.screenshot({ path: info.outputPath(`search-${width}.png`) });
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+Shift+p");
+    const commands = page.getByRole("dialog", { name: "Command menu" });
+    const query = commands.getByRole("combobox", { name: "Search commands" });
+    const commandBefore = await commands.boundingBox();
+    const queryBefore = await query.boundingBox();
+    await query.fill("No matching command here");
+    await expect(commands.getByRole("status")).toHaveText(
+      "No matching commands.",
+    );
+    expect(await commands.boundingBox()).toEqual(commandBefore);
+    expect(await query.boundingBox()).toEqual(queryBefore);
+    await query.fill("new note");
+    await expect(commands.getByRole("option")).toHaveCount(1);
+    expect(await commands.boundingBox()).toEqual(commandBefore);
+    await page.keyboard.press("Escape");
+    release = Promise.withResolvers<void>();
+    started = Promise.withResolvers<void>();
+  }
+});
+
 test("action menus follow the anchor and remain reachable in short resized viewports", async ({
   page,
 }) => {
@@ -3180,7 +3385,7 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
   gate.resolve();
   await expect(page.locator(".ask-turn")).toHaveCount(0);
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await page.getByLabel("Search saved notes").fill("feedback");
+  await page.getByLabel("Search saved notes", { exact: true }).fill("feedback");
   await expect(page.locator(".ask-source-list li")).toHaveCount(1);
   expect(calls.at(-1)).toMatchObject({
     mode: "search",
@@ -3381,7 +3586,7 @@ test("workspace search includes personal notes and dialogs light-dismiss only on
   await page.goto(`${base}/app`);
   await page.keyboard.press("Control+k");
   const dialog = page.getByRole("dialog", { name: "Search your Grove" });
-  await dialog.getByLabel("Search your Grove").fill("review");
+  await dialog.getByLabel("Search your Grove", { exact: true }).fill("review");
   await expect(dialog.locator(".quick-search-result")).toContainText(
     "Review preferences",
   );
@@ -3417,7 +3622,9 @@ test("workspace search includes personal notes and dialogs light-dismiss only on
     .click();
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await page.keyboard.press("Control+k");
-  await dialog.getByLabel("Search your Grove").fill("Summarize my review note");
+  await dialog
+    .getByLabel("Search your Grove", { exact: true })
+    .fill("Summarize my review note");
   await dialog.getByRole("link", { name: "Ask Grove about this" }).click();
   await expect(page.getByLabel("Ask about your notes")).toHaveValue(
     "Summarize my review note",
@@ -3830,18 +4037,21 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
   const state = await fixture(page);
   await page.goto(`${base}/app`);
   await expect(page.locator(".memory-open")).toHaveCount(2);
-  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Notebook", exact: true }),
     project.id,
   );
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Note type" }),
     "handoff",
   );
   await page.getByLabel("Topic tag").fill("frontend");
   await page.getByRole("button", { name: "Apply tag" }).click();
-  await page.getByLabel("Search notes").fill("keyboard access");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page
+    .getByLabel("Search notes", { exact: true })
+    .fill("keyboard access");
   await expect(page.locator(".memory-open")).toHaveCount(1);
   await expect(page.locator(".library-caption")).toBeVisible();
   await expect(page.locator(".sidebar-create")).toHaveAttribute(
@@ -3863,6 +4073,7 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
       sort: "updated_desc",
     });
   expect(page.url()).toBe(`${base}/app`);
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
@@ -3909,7 +4120,6 @@ test("pagination discards an old scope response after filters change", async ({
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Load more", exact: true }).click();
   await started.promise;
-  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Notebook", exact: true }),
     project.id,
@@ -4405,6 +4615,14 @@ test("shared dropdowns support keyboard selection, typeahead, modal dismissal an
     fullPage: true,
   });
   await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Close filters" }).click();
+  if (
+    await page
+      .getByRole("button", { name: "Notebooks", exact: true })
+      .isVisible()
+  ) {
+    await page.getByRole("button", { name: "Notebooks", exact: true }).click();
+  }
   await page
     .getByRole("region", { name: "Your notebooks" })
     .getByRole("link", { name: "Manage", exact: true })

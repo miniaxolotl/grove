@@ -23,6 +23,102 @@ const config = () =>
     },
   });
 
+test("preferences retain newer edits during saving and errors do not move the form", async ({
+  page,
+}) => {
+  const preferences = {
+    captureEnabled: true,
+    recallEnabled: true,
+    organizeEnabled: true,
+    summariesEnabled: true,
+  };
+  const release = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  const saves: Record<string, boolean>[] = [];
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/account/settings")) {
+      saves.push(route.request().postDataJSON());
+      if (saves.length === 1) {
+        started.resolve();
+        await release.promise;
+      }
+      if (saves.length === 3) {
+        await route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: {
+              code: "unavailable",
+              message: "Please try again shortly.",
+            },
+          },
+        });
+        return;
+      }
+      await route.fulfill({ json: { success: true, data: saves.at(-1) } });
+      return;
+    }
+    await route.fulfill({
+      json: { success: true, data: path.endsWith("/me") ? preferences : [] },
+    });
+  });
+  await page.goto(`${base}/app/settings`);
+  const button = page.getByRole("button", { name: "Save preferences" });
+  await expect(button).toBeDisabled();
+  const checks = page.getByRole("checkbox");
+  await checks.nth(0).uncheck();
+  const form = page.locator(".settings-content form");
+  await button.scrollIntoViewIfNeeded();
+  // Check layout within the settings scroller, independently of the browser
+  // bringing different controls into view on a short screen.
+  const geometry = () =>
+    form.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const scroll = element.closest(".settings-page")!.scrollTop;
+      return {
+        x: rect.x,
+        y: rect.y + scroll,
+        width: rect.width,
+        height: rect.height,
+      };
+    });
+  const before = await geometry();
+  await button.click();
+  await started.promise;
+  await expect(page.locator(".settings-save-status")).toHaveText("Saving…");
+  expect(await geometry()).toEqual(before);
+  await checks.nth(1).uncheck();
+  release.resolve();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "Unsaved changes",
+  );
+  await expect(button).toBeEnabled();
+  expect(saves[0]).toMatchObject({
+    recallEnabled: false,
+    captureEnabled: true,
+  });
+  await button.click();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "All changes saved",
+  );
+  expect(saves[1]).toMatchObject({
+    recallEnabled: false,
+    captureEnabled: false,
+  });
+  await checks.nth(2).uncheck();
+  await button.click();
+  await expect(page.getByRole("alert")).toHaveText("Please try again shortly.");
+  await expect(checks.nth(2)).not.toBeChecked();
+  expect(await geometry()).toEqual(before);
+  await expect(button).toBeEnabled();
+  await button.click();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "All changes saved",
+  );
+  expect(await geometry()).toEqual(before);
+});
+
 test("settings share persistent navigation and scrolling, and feedback leaves forms in place", async ({
   page,
 }, info) => {
@@ -56,6 +152,7 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
   );
   const tabs = page.getByRole("navigation", { name: "Settings sections" });
   const before = await tabs.boundingBox();
+  await page.getByRole("checkbox").first().uncheck();
   await page
     .getByRole("button", { name: "Save preferences" })
     .scrollIntoViewIfNeeded();
