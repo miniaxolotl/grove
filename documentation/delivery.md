@@ -52,6 +52,43 @@ The [complete release record](release-1.10.0.md) includes exact source/runtime/s
 identities, backup and migration evidence, the bounded browser-network retry, and
 the existing hosting-path logging limitation.
 
+## Command palette, shared search and stable note tools (22 October 2026 UTC)
+
+Commands and note search share a compact, viewport-aware dialog with warm surfaces,
+fixed search/footer positions and independently scrolling results. Commands group
+contextual editing, creation, navigation and note management; labels outrank aliases,
+matches are highlighted, unavailable actions explain why, and selection follows a
+stable command ID through first-save navigation. Shared metadata supplies note-menu
+labels/icons and keyboard shortcuts, help and tooltips use the same definitions.
+
+Reviewed [desktop and mobile captures](design/screenshots/command-palette/) cover
+320–1440px, short landscape, long context, enlarged text and empty results. Browser
+checks also exercise 2× pinch zoom, reduced motion, keyboard/IME guards, nested
+modal scope, disabled-click focus and note-search error/retry/notebook selection.
+
+The note viewer/editor keeps its mode and formatting controls in one persistent row,
+reserves save-feedback space and opens properties/outline in a shared inspector.
+Reader bounds stay fixed through mode changes and saving; focus/expand return keeps
+the reading position. Viewer task buttons edit parsed Markdown source positions
+through the same CodeMirror history and autosave/version-conflict path as writing.
+Nested/repeated tasks, quoted and ordered tasks, fenced examples, CRLF imports,
+keyboard/touch toggles, undo/redo, held saves, retry and conflict review are covered.
+Public sharing, history and comparison remain read-only Markdown consumers.
+
+The sidebar consolidates desktop/mobile styling and navigation, gives notebook names
+two readable lines, keeps hover actions in reserved space and uses inset focus outlines.
+All four destinations fit on phones; enlarged labels can wrap the navigation. Notebook
+management uses an icon and tooltip, while the explorer header remains reachable on scroll.
+Note-row actions share the native dropdown used elsewhere, replacing the expanding
+button strip. Menus overlay the list without shifting rows and restore focus after
+nested action dialogs; swipe reveal and cancellation use the same menu.
+
+After integrating settings/AI-preferences #75, all **193 Chromium** and **39 focused
+iPhone/WebKit** cases pass. Root/website lint, types and builds, all five packed
+artifact checks and the bundle budget pass. Notes entry is **481,536 gzip bytes**;
+the editor remains deferred. Twenty-two reviewed captures cover the final application
+source `a4a6ae6` (test harness `8e9248f`) on Node 24.21.0 / pnpm 10.33.0.
+
 ## Minimal website refresh (22 October 2026)
 
 The public site uses open notebook-led sections, shorter copy, compact family

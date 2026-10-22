@@ -1,0 +1,354 @@
+/* Shared desktop rail and compact mobile workspace navigation. */
+.app-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border-right: 1px solid var(--color-line);
+  background: #f0f3ed;
+}
+.app-sidebar > :not(.notebook-browser) {
+  flex-shrink: 0;
+}
+.app-sidebar :is(a, button):focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -2px;
+}
+.app-sidebar-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.app-sidebar-heading > a:first-child {
+  min-height: 32px;
+  padding-inline: 8px;
+  border-radius: 6px;
+}
+.app-sidebar-heading img {
+  height: 22px;
+}
+.sidebar-create {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 40px;
+  margin: 0;
+  min-width: 0;
+  white-space: normal;
+}
+.sidebar-create > svg {
+  flex-shrink: 0;
+}
+.workspace-search-launcher,
+.workspace-command-launcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-align: left;
+  white-space: normal;
+}
+.workspace-search-launcher {
+  min-height: 40px;
+  border: 1px solid var(--color-line);
+  background: #fcfdfb;
+}
+.workspace-command-launcher {
+  flex: 1;
+  flex-wrap: wrap;
+  min-height: 32px;
+  padding: 6px 8px;
+}
+.workspace-search-launcher:hover,
+.workspace-command-launcher:hover {
+  background: #fff;
+  color: var(--color-forest);
+}
+.workspace-search-launcher > svg,
+.workspace-command-launcher > svg {
+  flex-shrink: 0;
+}
+.app-sidebar .shortcut-keys {
+  margin-left: auto;
+  font-size: 9px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.app-sidebar .shortcut-keys > span {
+  min-width: 17px;
+  min-height: 18px;
+  padding-inline: 3px;
+}
+.workspace-utilities {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.workspace-utilities > .app-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+.app-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.app-nav > svg {
+  flex-shrink: 0;
+}
+.app-nav:hover {
+  background: #e7eddf80;
+}
+.app-nav[aria-current] {
+  background: #e2eadd;
+  color: var(--color-forest);
+  font-weight: 500;
+}
+.app-nav-secondary {
+  display: none;
+}
+.app-sidebar-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-line);
+}
+.sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 0;
+  min-width: 0;
+}
+.notebook-browser {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 120px;
+  margin-top: 8px;
+}
+.notebook-browser-toggle {
+  display: none;
+}
+.notebook-explorer {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scroll-padding-block: 40px 8px;
+  padding: 0 2px 8px;
+}
+.notebook-explorer-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  color: #59664f;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 36px;
+  background: #f0f3ed;
+  font-size: 11px;
+}
+.notebook-explorer-heading .app-icon {
+  width: 28px;
+  min-height: 28px;
+}
+.notebook-manage {
+  margin-left: auto;
+  padding: 0;
+}
+.notebook-explorer .notebook-tree-link {
+  min-height: 36px;
+  font-size: 12px;
+}
+.notebook-explorer .notebook-tree-link > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.notebook-explorer .notebook-tree-actions {
+  padding-right: 0;
+}
+.notebook-explorer .notebook-tree-actions .app-icon {
+  width: 28px;
+}
+.notebook-explorer .notebook-personal {
+  min-height: 36px;
+  margin-bottom: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .notebook-explorer .notebook-tree-actions > .app-icon {
+    opacity: 0;
+  }
+  .notebook-explorer
+    .notebook-tree-row:hover
+    .notebook-tree-actions
+    > .app-icon,
+  .notebook-explorer
+    .notebook-tree-row:focus-within
+    .notebook-tree-actions
+    > .app-icon {
+    opacity: 1;
+  }
+}
+@media (max-width: 1023px) {
+  .app-sidebar {
+    position: static;
+    height: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    padding: 10px 12px 6px;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .app-sidebar-heading {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+  }
+  .app-sidebar-heading > a:first-child {
+    padding: 0;
+    min-height: 44px;
+  }
+  .sidebar-create {
+    margin-left: auto;
+    padding: 8px 12px;
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .workspace-search-launcher {
+    grid-column: 1;
+    min-height: 44px;
+  }
+  .workspace-command-launcher {
+    justify-content: center;
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+  .workspace-command-launcher > span,
+  .app-sidebar .shortcut-keys {
+    display: none;
+  }
+  .workspace-utilities > .app-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .app-navigation {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+    gap: 2px;
+  }
+  .app-nav {
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 6px;
+  }
+  .app-sidebar-footer {
+    display: none;
+  }
+  .notebook-browser {
+    grid-column: 1 / -1;
+    min-height: 0;
+    margin: 0;
+  }
+  .notebook-browser-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 10px;
+    color: var(--color-muted);
+    font-size: 12px;
+    border-radius: 7px;
+  }
+  .notebook-browser-toggle svg:last-child {
+    margin-left: auto;
+  }
+  .notebook-browser-toggle[aria-expanded="true"] svg:last-child {
+    transform: rotate(180deg);
+  }
+  .notebook-explorer {
+    display: none;
+  }
+  .notebook-explorer[data-mobile-open] {
+    display: block;
+    max-height: 45dvh;
+  }
+}
+@media (max-width: 600px) {
+  .app-navigation {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .app-navigation .app-nav {
+    flex: 1 0 calc(25% - 2px);
+    min-width: max-content;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 48px;
+    padding: 5px 4px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+}
+@media (any-pointer: coarse) {
+  .workspace-search-launcher,
+  .workspace-command-launcher,
+  .app-nav,
+  .notebook-browser-toggle,
+  .notebook-manage,
+  .notebook-explorer .notebook-tree-link,
+  .notebook-explorer .notebook-personal {
+    min-height: 44px;
+  }
+  .notebook-explorer .notebook-tree-actions .app-icon {
+    width: 44px;
+    min-height: 44px;
+  }
+  .notebook-explorer-heading .app-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .workspace-utilities > .app-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
