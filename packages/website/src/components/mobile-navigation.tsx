@@ -22,7 +22,7 @@ export function MobileNavigation() {
     function onPointerDown(event: PointerEvent) {
       if (!container.current?.contains(event.target as Node)) setOpen(false);
     }
-    const desktop = window.matchMedia("(min-width: 768px)");
+    const desktop = window.matchMedia("(min-width: 1024px)");
     const closeOnResize = () => setOpen(false);
 
     document.addEventListener("keydown", onKeyDown);
@@ -38,7 +38,7 @@ export function MobileNavigation() {
   return (
     <div
       ref={container}
-      className="md:hidden"
+      className="header-menu"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
@@ -46,13 +46,17 @@ export function MobileNavigation() {
       <button
         ref={toggle}
         type="button"
-        className="grid size-11 place-items-center rounded-full border border-line hover:bg-sage"
+        className="header-menu-toggle"
         aria-expanded={open}
         aria-controls="mobile-navigation"
         aria-label={open ? "Close navigation" : "Open navigation"}
         onClick={() => setOpen(!open)}
       >
-        {open ? <X size={19} /> : <Menu size={19} />}
+        {open ? (
+          <X size={18} aria-hidden="true" />
+        ) : (
+          <Menu size={18} aria-hidden="true" />
+        )}
       </button>
       <nav
         id="mobile-navigation"

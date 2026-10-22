@@ -7,7 +7,10 @@ export function IdeaMap() {
     >
       <svg viewBox="0 0 420 220" aria-hidden="true">
         <g className="idea-map-lines">
-          <path d="M210 100Q150 35 82 52M210 100Q265 28 336 48M210 100Q285 100 340 158M210 100Q195 150 150 180M210 100Q135 135 60 144M82 52Q58 96 60 144M336 48Q368 105 340 158M60 144Q98 185 150 180" />
+          <path
+            pathLength="1"
+            d="M210 100Q150 35 82 52M210 100Q265 28 336 48M210 100Q285 100 340 158M210 100Q195 150 150 180M210 100Q135 135 60 144M82 52Q58 96 60 144M336 48Q368 105 340 158M60 144Q98 185 150 180"
+          />
         </g>
         <g className="idea-map-stars">
           <circle cx="82" cy="52" r="6" />

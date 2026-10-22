@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ArrowUpRight,
-  Check,
-  NotebookPen,
-  Network,
-  Search,
-} from "lucide-react";
-import Link from "next/link";
+import { Check, Search } from "lucide-react";
 import { useState } from "react";
 import { Tabs } from "@/components/tabs";
 import { IdeaMap } from "@/components/idea-map";
@@ -27,34 +20,19 @@ export function LibraryPreview() {
       id="your-library"
     >
       <div className="page-container library-layout">
-        <div data-reveal>
-          <p className="eyebrow">TRY THE NOTEBOOK</p>
-          <h2 className="section-heading mt-4" id="library-heading">
-            Your notes.
-            <br />
-            <em>Easy to find.</em>
-          </h2>
+        <div className="section-intro" data-reveal>
+          <div>
+            <p className="eyebrow">TRY THE NOTEBOOK</p>
+            <h2 className="section-heading mt-4" id="library-heading">
+              Your notes.
+              <br />
+              <em>Easy to find.</em>
+            </h2>
+          </div>
           <p className="library-description">
-            Keep plans, ideas and daily notes together. Browse by notebook, date
-            or connection.
+            A list when you need a list. A page for your day. A map when you
+            want to see how it all connects. Try each view below.
           </p>
-          <ul className="library-benefits">
-            <li>
-              <Search size={17} aria-hidden="true" />
-              <span>Search by meaning</span>
-            </li>
-            <li>
-              <NotebookPen size={17} aria-hidden="true" />
-              <span>Write a daily note</span>
-            </li>
-            <li>
-              <Network size={17} aria-hidden="true" />
-              <span>Explore related ideas</span>
-            </li>
-          </ul>
-          <Link href="/sign-up" className="button-primary">
-            Start your notebook <ArrowUpRight size={16} aria-hidden="true" />
-          </Link>
         </div>
         <div className="library-window" data-reveal>
           <div className="library-title">
@@ -76,7 +54,7 @@ export function LibraryPreview() {
               aria-labelledby={`library-preview-tab-${value}`}
               hidden={view !== value}
               tabIndex={0}
-              className="library-panel"
+              className="library-panel demo-transition"
             >
               <div className="library-panel-heading">
                 <h3>{label}</h3>

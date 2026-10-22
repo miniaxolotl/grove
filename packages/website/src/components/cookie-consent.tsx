@@ -40,10 +40,18 @@ export function WebsiteCookieConsent() {
       <strong>Cookies</strong>
       <p>Optional cookies help improve this site and personalize ads.</p>
       <div className="cookie-notice-actions">
-        <button type="button" onClick={acceptCookies}>
+        <button
+          type="button"
+          className="cookie-notice-accept"
+          onClick={acceptCookies}
+        >
           Accept all
         </button>
-        <button type="button" onClick={dismissCookies}>
+        <button
+          type="button"
+          className="cookie-notice-dismiss"
+          onClick={dismissCookies}
+        >
           No thanks
         </button>
         <button
