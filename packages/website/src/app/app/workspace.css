@@ -8,52 +8,10 @@ html:has(.grove-app) {
 .notebook-explorer {
   overscroll-behavior: contain;
 }
-.app-sidebar {
-  min-height: 0;
-}
-.app-sidebar-heading,
-.sidebar-create,
-.workspace-search-launcher,
-.app-sidebar-footer {
-  flex-shrink: 0;
-}
-.workspace-command-launcher {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  margin: 0;
-  flex: 1;
-  color: var(--color-muted);
-  font-size: 11px;
-  min-height: 32px;
-}
-.workspace-utilities {
-  display: flex;
-  align-items: center;
-  margin: -6px 4px 8px;
-  flex-shrink: 0;
-}
-.workspace-utilities > .app-icon {
-  width: 28px;
-  height: 32px;
-}
-.workspace-command-launcher kbd {
-  margin-left: auto;
-  font-size: 9px;
-}
 .app-footer button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-.app-sidebar-footer > button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--color-muted);
-  padding: 8px 10px;
 }
 .shortcut-list kbd {
   font-size: 11px;
@@ -421,13 +379,6 @@ html:has(.grove-app) {
   .grove-app:has(.app-content > .note-editor-full) {
     grid-template-rows: auto minmax(0, 1fr);
   }
-  .workspace-utilities {
-    grid-column: 1 / -1;
-    margin: 0;
-  }
-  .workspace-command-launcher kbd {
-    font-size: 10px;
-  }
 }
 @media (max-width: 767px) {
   .app-detail-panel:has(.note-editor-drawer) {
@@ -651,53 +602,6 @@ html:has(.grove-app) {
 }
 .app-topbar {
   display: none;
-}
-.sidebar-create {
-  margin: 18px 4px 6px;
-}
-.sidebar-account {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 8px 0;
-  font-size: 12px;
-}
-.workspace-search-launcher {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  margin: 2px 4px 12px;
-  min-height: 36px;
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  color: var(--color-muted);
-  font-size: 12px;
-  background: #fff9;
-}
-.workspace-search-launcher kbd {
-  margin-left: auto;
-  font-size: 10px;
-  white-space: nowrap;
-}
-.app-sidebar .app-navigation {
-  flex-shrink: 0;
-}
-.notebook-explorer {
-  flex: 1;
-}
-.notebook-browser {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-.notebook-browser-toggle {
-  display: none;
-}
-.notebook-manage {
-  margin-left: auto;
-  font-weight: 400;
 }
 .library-date {
   padding: 16px 8px 6px;
@@ -1003,6 +907,10 @@ html:has(.grove-app) {
 .action-menu > :is(a, button):hover {
   background: #edf1e9;
 }
+.action-menu > :is(a, button):focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -2px;
+}
 .action-menu::backdrop {
   background: transparent;
 }
@@ -1123,9 +1031,6 @@ html:has(.grove-app) {
   padding-top: 24px;
 }
 @media (min-width: 1024px) {
-  .app-nav-secondary {
-    display: none;
-  }
   .notebook-drag-handle,
   .notebook-pages .drag-handle {
     opacity: 0;
@@ -1141,55 +1046,6 @@ html:has(.grove-app) {
   .ask-console {
     height: calc(100dvh - 250px);
     min-height: 440px;
-  }
-  .app-sidebar {
-    padding: 10px 12px 6px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-  }
-  .app-sidebar-heading {
-    grid-column: 1 / -1;
-  }
-  .sidebar-create {
-    margin: 0;
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .workspace-search-launcher {
-    margin: 0;
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .app-navigation {
-    grid-column: 1 / -1;
-  }
-  .notebook-browser {
-    grid-column: 1 / -1;
-  }
-  .notebook-browser-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 8px 10px;
-    color: var(--color-muted);
-    font-size: 13px;
-  }
-  .notebook-browser-toggle svg:last-child {
-    margin-left: auto;
-    transition: transform 150ms;
-  }
-  .notebook-browser-toggle[aria-expanded="true"] svg:last-child {
-    transform: rotate(180deg);
-  }
-  .notebook-explorer[data-mobile-open] {
-    display: block;
-    max-height: 45dvh;
-    margin-top: 0;
-  }
-  .app-sidebar-footer {
-    display: none;
   }
   .workspace-drop-surface {
     inset: auto max(8px, env(safe-area-inset-right))
@@ -1321,9 +1177,6 @@ html:has(.grove-app) {
   .filter-notebook {
     flex: 1;
   }
-  .workspace-search-launcher kbd {
-    display: none;
-  }
   .settings-navigation a {
     padding: 8px;
     font-size: 12px;
@@ -1359,8 +1212,6 @@ html:has(.grove-app) {
   .action-menu > :is(a, button),
   .notebook-pages a,
   .notebook-pages .drag-handle,
-  .workspace-search-launcher,
-  .workspace-command-launcher,
   .settings-navigation a,
   .notebook-personal {
     min-height: 44px;
@@ -1373,8 +1224,6 @@ html:has(.grove-app) {
   .notebook-tree-row .notebook-disclosure,
   .notebook-tree-row .notebook-disclosure-spacer,
   .notebook-tree-actions .app-icon,
-  .notebook-explorer-heading .app-icon,
-  .workspace-utilities > .app-icon,
   .editor-tools .app-icon {
     opacity: 1;
     flex: 0 0 var(--touch-target);

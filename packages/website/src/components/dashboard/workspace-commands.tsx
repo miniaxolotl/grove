@@ -218,9 +218,12 @@ export function CommandMenuButton() {
     <button
       className="workspace-command-launcher"
       type="button"
+      aria-label="Commands"
+      title={`Commands (${shortcutHint(shortcuts.commands)})`}
       onClick={context?.open}
     >
-      <Command size={15} aria-hidden="true" /> Commands{" "}
+      <Command size={16} aria-hidden="true" />
+      <span>Commands</span>
       <Shortcut>{shortcuts.commands}</Shortcut>
     </button>
   );

@@ -17,7 +17,6 @@ export function NoteActions({
   before,
   details,
   sharing,
-  row = false,
 }: {
   inactive: boolean;
   locked: boolean;
@@ -29,20 +28,13 @@ export function NoteActions({
   before?: ReactNode;
   details?: ReactNode;
   sharing?: ReactNode;
-  row?: boolean;
 }) {
   function action(command: WorkspaceCommand) {
     return (
       <button
         type="button"
         className={
-          command.danger
-            ? row
-              ? "app-button danger"
-              : "action-group-start action-danger"
-            : row
-              ? "app-button secondary"
-              : undefined
+          command.danger ? "action-group-start action-danger" : undefined
         }
         disabled={command.disabled}
         onClick={command.run}

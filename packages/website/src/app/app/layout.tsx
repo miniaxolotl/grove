@@ -11,6 +11,7 @@ import "./notebooks.css";
 import "./workspace.css";
 import "./actions.css";
 import "./palette.css";
+import "./sidebar.css";
 
 export const dynamic = "force-dynamic";
 export const metadata = {

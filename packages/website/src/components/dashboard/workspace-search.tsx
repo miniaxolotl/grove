@@ -21,7 +21,11 @@ import { NotebookSelect } from "./notebook-select";
 import { PaletteDialog } from "./ui/palette-dialog";
 import { LoadError } from "./load-error";
 import { Shortcut } from "./ui/shortcut";
-import { matchesShortcut, shortcuts } from "@/lib/workspace-shortcuts";
+import {
+  matchesShortcut,
+  shortcutHint,
+  shortcuts,
+} from "@/lib/workspace-shortcuts";
 
 export type AskSession = {
   scope: string;
@@ -72,9 +76,11 @@ export function WorkspaceSearchButton() {
     <button
       type="button"
       className="workspace-search-launcher"
+      aria-label="Search anything"
+      title={`Search anything (${shortcutHint(shortcuts.search)})`}
       onClick={context?.open}
     >
-      <Search size={16} />
+      <Search size={16} aria-hidden="true" />
       <span>Search anything</span>
       <Shortcut>{shortcuts.search}</Shortcut>
     </button>
@@ -166,7 +172,7 @@ function SearchDialog({ close }: { close: () => void }) {
             <>
               <p className="quick-search-caption">
                 {search
-                  ? `${current.items?.length ?? 0} matching notes`
+                  ? `${current.items?.length ?? 0} matching ${current.items?.length === 1 ? "note" : "notes"}`
                   : "Recently updated"}
               </p>
               {current.items?.map((note) => (
