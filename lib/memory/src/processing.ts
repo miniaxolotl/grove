@@ -19,13 +19,26 @@ import {
   type Organization,
   type ModelProfiles,
 } from "@lib/shared/models";
+import {
+  currentRelationshipProfile,
+  enqueueRelationship,
+  legacyRelationshipsFor,
+  relationshipKinds,
+  relationshipProfile,
+} from "./relationship-data.ts";
+import {
+  runRelationshipJob,
+  type RelationshipJob,
+} from "./relationship-jobs.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
-export const providerProfiles = (providers: Providers) =>
-  Object.values(providers)
+export const providerProfiles = (providers: Providers) => [
+  ...Object.values(providers)
     .filter(Boolean)
-    .map((provider) => provider!.profile);
+    .map((provider) => provider!.profile),
+  ...[currentRelationshipProfile(providers)].filter((p): p is string => !!p),
+];
 export async function registerEmbedding(db: Knex, embedder: Embedder) {
   await db("embedding_profiles")
     .insert({
@@ -117,6 +130,17 @@ export async function queueMemory(
   )
     return;
   const account = await trx("accounts").where({ id: row.accountId }).first();
+  const connectionProfile = relationshipProfile(profiles);
+  if (account.organizeEnabled && connectionProfile)
+    await enqueueRelationship(
+      trx,
+      row.accountId,
+      "relationship_scan",
+      row.id,
+      connectionProfile,
+      {},
+      row,
+    );
   for (const [kind, provider] of [
     ["embedding", profiles.embedding],
     ["decision", account.organizeEnabled ? profiles.decision : undefined],
@@ -174,6 +198,7 @@ export async function enrichmentFor(
   trx: Knex.Transaction,
   row: MemoryModel,
   providers: Providers,
+  suppliedRelationships?: Enrichment["relationships"],
 ): Promise<Enrichment> {
   if (
     row.status !== "active" ||
@@ -200,24 +225,9 @@ export async function enrichmentFor(
   const organized = records.find((r) => r.kind === "organization") as
     | { data: Organization }
     | undefined;
-  const relationships: Enrichment["relationships"] = [];
-  const related = classified?.sources.length
-    ? await eligible(trx)
-        .where({ projectId: row.projectId })
-        .whereIn(
-          "id",
-          classified.sources.map((s) => s.id),
-        )
-    : [];
-  for (const relation of classified?.data.relationships ?? []) {
-    const ref = classified!.sources.find((s) => s.id === relation.id);
-    if (
-      ref &&
-      relation.relationship !== "unrelated" &&
-      related.some((r) => r.id === ref.id && r.version === ref.version)
-    )
-      relationships.push({ ...relation, version: ref.version });
-  }
+  const relationships =
+    suppliedRelationships ??
+    (await legacyRelationshipsFor(trx, [row.id], providers)).get(row.id)!;
   return {
     status: pending.some((j) => j.failedAt)
       ? "failed"
@@ -388,16 +398,26 @@ export async function runProcessingJob(
   providers: Providers,
   dailyLimit: number,
   wantedId?: string,
+  resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
 ): Promise<boolean> {
   const profiles = providerProfiles(providers);
   if (!profiles.length) return false;
-  const job = camelRows<Job>(
+  const claimed = camelRows<Job | RelationshipJob>(
     await db.raw("SELECT * FROM grove_claim_job(?::text[], ?::uuid)", [
       profiles,
       wantedId ?? null,
     ]),
   )[0];
-  if (!job) return false;
+  if (!claimed) return false;
+  if ((relationshipKinds as readonly string[]).includes(claimed.kind))
+    return runRelationshipJob(
+      db,
+      providers,
+      dailyLimit,
+      claimed as RelationshipJob,
+      resolveProfiles,
+    );
+  const job = claimed as Job;
   const started = performance.now();
   let completed = false;
   let failed = false;
@@ -599,7 +619,7 @@ export async function runProcessingJob(
           });
         return;
       }
-      if (embedding)
+      if (embedding) {
         await trx("memory_embeddings")
           .insert({
             accountId: job.accountId,
@@ -611,6 +631,25 @@ export async function runProcessingJob(
           })
           .onConflict(["accountId", "memoryId", "version", "profile"])
           .merge(["embedding"]);
+        const profile = currentRelationshipProfile(providers);
+        if (profile && row?.projectId && account.organizeEnabled) {
+          await trx("notebook_profiles")
+            .where({ projectId: row.projectId, profile })
+            .delete();
+          await enqueueRelationship(
+            trx,
+            job.accountId,
+            "notebook_profile",
+            row.projectId,
+            profile,
+            {
+              contentVersion: (
+                await trx("projects").where({ id: row.projectId }).first()
+              ).contentVersion,
+            },
+          );
+        }
+      }
       if (annotation || organization) {
         await trx("memory_enrichments")
           .insert({

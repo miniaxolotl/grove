@@ -22,6 +22,71 @@ WebKit scenarios pass. Refreshed captures were reviewed in both browsers. Geomet
 checks cover 320, 390 and 1440px, mixed/bulk selection, nested overlays, search
 loading and preference-save races. No schema migration is required.
 
+## Connection and action integration (21 October 2026 UTC)
+
+Integrated landed note actions #61 (`570c133`) after gesture polish #58. The reader
+retains Export/Delete alongside compact Linked notes, and Notebook options combines
+creation/organization with Connected notebooks. Both source and delivery histories
+are preserved. Root/website lint, types and builds, five packed-artifact checks,
+all **103 Chromium** scenarios and **20 iPhone/WebKit** scenarios pass on the combined
+tree. Desktop/320px reader and connection captures were reviewed.
+
+## Connection and gesture integration (21 October 2026 UTC)
+
+Integrated gesture polish #58 into the connection feature, retaining stable graph
+zoom, embedded touch scrolling, expanded pan/pinch, contextual Controls and the
+shared evidence inspector. The expanded focus loop includes the connection list.
+Memoized visible nodes keep graph edges mounted while an inspector opens, so
+closing it restores keyboard focus to the original edge.
+
+Root/website lint, types and builds plus all five artifact checks pass. The combined
+90-case Chromium run passed 89 scenarios and exposed the edge-focus regression;
+after the fix all three graph scenarios pass, including nested evidence/reader
+dialogs, focus return and narrow-layout accessibility. All 11 focused iPhone/WebKit
+relationship and gesture cases pass. Desktop and 320px graph/inspector captures
+were reviewed. Final website lint, types and build also pass after the focus fix.
+
+## Quieter connection UI (21 October 2026 UTC)
+
+Connection lists now use compact rows with a title, short reason and quiet category.
+Endpoint lists start with five results. A centered inspector keeps explanations and
+endpoint navigation visible, with excerpts and notebook coverage under **Supporting
+notes**. Partial coverage remains explicit; source revision labels and repetitive
+scope text are removed from the default view. Graph edges are quieter, and guides
+and accessible connection lists are available on demand.
+
+Root/website lint, typechecks and builds, all five packed-artifact checks, the full
+78-case Chromium suite and three iPhone/WebKit scenarios pass. Browser verification
+covers disclosure and keyboard access, retained editor state, comparison focus,
+dismissal/Undo, pagination and stale-source rejection. Updated desktop and 320px
+[captures](design/screenshots/note-relationships/README.md) record the refinement.
+
+## Explainable note and notebook connections (21 October 2026 UTC)
+
+Connections now carry a specific reason and verbatim, revision-checked excerpts.
+The reader and Notes graph share a canonical assessment, comparison and
+version-checked dismissal/Undo. Notebook context and the Notebooks graph explain
+shared threads with explicit source coverage; direct membership remains separate
+from sub-notebooks. Migration `20261021_010_relationship_evidence`, bounded worker
+backfill and review-state recovery are documented in [relationships](relationships.md).
+
+Verification includes real PostgreSQL/RLS, leased-worker races, uncited notebook
+invalidation, bounded retries/budgets, export/reindex/recovery, browser accessibility
+and responsive comparisons. The complete 78-case Chromium suite and three focused
+iPhone/WebKit cases pass. Packed artifacts, release/deployment contracts, workflow
+lint and the API container build pass. All 76 backend tests pass. Additional
+regressions cover discovery beyond 100 notebooks, retry after revised sources,
+deletion after a notebook move and batched legacy relationship reads.
+[Visual review](design/screenshots/note-relationships/README.md) records desktop,
+320px and notebook-graph captures.
+
+A live MiniMax run of 16 explicitly labelled synthetic cases passed all classifications
+and exact-source checks, including four abstentions. Earlier runs exposed false
+conflicts for superseded/tentative decisions and unsupported dependency directions;
+the final level-specific schemas and instructions address those findings. Incidental
+citations in abstentions are discarded; positive claims retain strict validation.
+This small corpus is a regression signal, not a general accuracy estimate.
+
 ## Focused PDF exports (21 October 2026 UTC)
 
 The PDF refinement uses a monochrome type scale, a consistent portrait reading

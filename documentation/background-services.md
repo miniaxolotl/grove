@@ -3,8 +3,16 @@
 The worker periodically checks active accounts for missing embeddings, titles,
 relationships, and summaries. `ORGANIZATION_INTERVAL_SECONDS` defaults to 900
 (allowed: 60–86,400). Each pass claims at most 20 accounts and bounds note/scope
-selection. Existing failed jobs stay failed until explicitly retried; organization
+selection. Existing failed jobs stay failed until explicitly retried (relationship
+assessments also become eligible after their source snapshot changes); organization
 does not rewrite, move, merge, or delete notes.
+
+[Grounded relationships](relationships.md) use separate note-scan, pair-assessment
+and notebook-profile jobs. Notebook contents and candidate collections are processed
+in resumable bounded batches. Generation uses the existing daily inference budget,
+while source discovery stays available independently of summaries. Review metadata
+survives retries and reindexing; workers recheck revisions, settings and leases
+before publishing explanations.
 
 ## CloudAMQP
 

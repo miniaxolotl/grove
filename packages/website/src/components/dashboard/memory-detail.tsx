@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
-import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
+import { dateLabel, isInactive } from "@/lib/memory-display";
 import { isActiveSurface, isTyping } from "@/lib/workspace-keyboard";
 import { Markdown } from "./markdown";
 import { MemoryEditor } from "./memory-editor";
@@ -19,6 +19,7 @@ import { RevisionCompare } from "./revision-compare";
 import { ActionMenu } from "./ui/action-menu";
 import { useToast } from "./toasts";
 import { useWorkspaceCommands } from "./workspace-commands";
+import { ConnectionPanel } from "./connection-panel";
 import { NoteActions } from "./note-actions";
 
 export function MemoryDetail({
@@ -62,7 +63,6 @@ export function MemoryDetail({
   const [history, setHistory] = useState<
     { version: number; content: string; createdAt: string }[] | null
   >(null);
-  const [related, setRelated] = useState<Record<string, string>>({});
   const operations = useRef(new Map<string, string>());
   const setDialogBusy = useDialogBusy();
   const locked = busy || actionBusy || editorLocked;
@@ -71,31 +71,6 @@ export function MemoryDetail({
     const frame = requestAnimationFrame(() => setConfirmDelete(true));
     return () => cancelAnimationFrame(frame);
   }, [initialDelete]);
-  useEffect(() => {
-    const controller = new AbortController();
-    Promise.all(
-      (memory.enrichment?.relationships ?? []).map(async ({ id }) => {
-        try {
-          return [
-            id,
-            memoryTitle(
-              await api<Memory>(
-                `/memories/${id}`,
-                undefined,
-                undefined,
-                controller.signal,
-              ),
-            ),
-          ] as const;
-        } catch {
-          return [id, "Linked note"] as const;
-        }
-      }),
-    ).then((entries) => {
-      if (!controller.signal.aborted) setRelated(Object.fromEntries(entries));
-    });
-    return () => controller.abort();
-  }, [memory]);
   useEffect(() => {
     if (!historyOpen) return;
     const controller = new AbortController();
@@ -383,30 +358,12 @@ export function MemoryDetail({
         }
       >
         <details className="linked-notes">
-          <summary>
-            Linked notes{" "}
-            <span>{memory.enrichment?.relationships.length ?? 0}</span>
-          </summary>
-          {memory.enrichment?.relationships.length ? (
-            <ul className="related-memories">
-              {memory.enrichment.relationships.map((relation) => (
-                <li key={relation.id}>
-                  <Link href={`/app/memories/${relation.id}`}>
-                    {related[relation.id] ?? "Related note"}
-                  </Link>
-                  <span>
-                    {relation.relationship === "complementary"
-                      ? "Related"
-                      : relation.relationship === "conflicting"
-                        ? "May conflict"
-                        : "Possible duplicate"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>Connections appear as Grove finds related ideas.</p>
-          )}
+          <summary>Linked notes</summary>
+          <ConnectionPanel
+            level="note"
+            endpointId={memory.id}
+            revision={memory.version}
+          />
         </details>
       </MemoryEditor>
       {historyOpen && (
