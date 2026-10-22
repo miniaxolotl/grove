@@ -34,7 +34,7 @@ export function SettingsPanel({
     ...cache.resource<Settings>("/me"),
     enabled: section === "preferences",
   });
-  const [draft, setSettings] = useState<Settings | null>(null);
+  const [draft, setDraft] = useState<Settings | null>(null);
   const settings = draft ?? query.data;
   const [saveError, setError] = useState("");
   const error = saveError || (query.error ? errorMessage(query.error) : "");
@@ -49,6 +49,11 @@ export function SettingsPanel({
       (key) =>
         (settings[key] ?? true) !== ((saved ?? query.data)?.[key] ?? true),
     );
+  function editSettings(value: Settings) {
+    // Freeze the loaded base on the first edit. Background reads cannot acknowledge it.
+    if (!draft && settings) setSaved(settings);
+    setDraft(value);
+  }
   async function update() {
     if (!settings || busy || !dirty) return;
     setBusy(true);
@@ -110,7 +115,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.recallEnabled}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           recallEnabled: e.target.checked,
                         })
@@ -123,7 +128,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.captureEnabled}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           captureEnabled: e.target.checked,
                         })
@@ -136,7 +141,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.organizeEnabled ?? true}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           organizeEnabled: e.target.checked,
                         })
@@ -149,7 +154,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.summariesEnabled ?? true}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           summariesEnabled: e.target.checked,
                         })
