@@ -16,6 +16,10 @@ export const preferenceKeys = [
   "askEnabled",
   "recallEnabled",
   "captureEnabled",
+  "filingEnabled",
+  "actionListsEnabled",
+  "digestsEnabled",
+  "cleanupEnabled",
 ] as const;
 export type PreferenceKey = (typeof preferenceKeys)[number];
 export type AccountPreferences = Record<PreferenceKey, boolean>;

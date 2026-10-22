@@ -42,6 +42,8 @@ import {
   summaryProfile,
   type SummaryJob,
 } from "./notebook-summaries.ts";
+import { assistanceProfile } from "./assistance-data.ts";
+import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -51,7 +53,13 @@ export const providerProfiles = (providers: Providers) => [
     .map((provider) => provider!.profile),
   ...[currentRelationshipProfile(providers)].filter((p): p is string => !!p),
   ...(providers.generation
-    ? [notebookSummaryProfile(providers.generation.profile)]
+    ? [
+        notebookSummaryProfile(providers.generation.profile),
+        assistanceProfile(
+          providers.generation.profile,
+          providers.embedding?.profile,
+        ),
+      ]
     : []),
 ];
 export async function registerEmbedding(db: Knex, embedder: Embedder) {
@@ -451,13 +459,21 @@ export async function runProcessingJob(
 ): Promise<boolean> {
   const profiles = providerProfiles(providers);
   if (!profiles.length) return false;
-  const claimed = camelRows<Job | RelationshipJob>(
+  const claimed = camelRows<Job | RelationshipJob | AssistanceJob>(
     await db.raw("SELECT * FROM grove_claim_job(?::text[], ?::uuid)", [
       profiles,
       wantedId ?? null,
     ]),
   )[0];
   if (!claimed) return false;
+  if (claimed.kind === "assistance")
+    return runAssistanceJob(
+      db,
+      providers,
+      dailyLimit,
+      claimed,
+      resolveProfiles,
+    );
   if (
     claimed.kind === "brief" &&
     claimed.scope &&

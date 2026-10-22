@@ -19,16 +19,12 @@ import {
 } from "@lib/shared/conversations";
 import type { MemoryService } from "./index.ts";
 import { budgetedInference } from "./processing.ts";
+import { applyNoteChanges, type NoteUndo } from "./note-changes.ts";
 
 type StoredReply = Omit<ConversationReply, "sources"> & {
   sources: SourceRef[];
 };
-type Undo = {
-  id: string;
-  version: number;
-  content: string;
-  status: Memory["status"];
-}[];
+type Undo = NoteUndo;
 type TurnRow = {
   id: string;
   conversationId: string;
@@ -630,85 +626,37 @@ export class Conversations {
             409,
           );
         const references = undo ? proposal.applied! : proposal.sources;
-        const rows = await MemoryModel.query(trx)
-          .whereIn(
-            "id",
-            references.map((s) => s.id),
-          )
-          .orderBy("id")
-          .forUpdate();
-        if (
-          references.some(
-            (s) =>
-              !rows.some(
-                (r) =>
-                  same(r, s) &&
-                  inScope(conversation.scope, r.projectId) &&
-                  (undo ||
-                    (r.status === "active" &&
-                      (!r.expiresAt || new Date(r.expiresAt) > new Date()))),
-              ),
-          )
-        )
-          throw stale();
-        const originals: Undo = [];
-        const applied: SourceRef[] = [];
-        if (!undo && proposal.kind === "create") {
-          created = true;
-          if (
-            conversation.scope.projectId &&
-            !(await trx("projects")
-              .where({ id: conversation.scope.projectId })
-              .first("id"))
-          )
-            throw stale();
-          const row = await MemoryModel.query(trx)
-            .insert({
-              accountId: account.id,
-              projectId: conversation.scope.projectId ?? null,
-              kind: "fact",
-              autoKind: false,
-              content: proposal.content,
-              source: { agent: "website" },
-            })
-            .returning("*");
-          originals.push({
-            id: row.id,
-            version: row.version,
-            content: row.content,
-            status: "archived",
-          });
-          await this.revise(trx, row);
-          applied.push(ref(row));
-        } else {
-          for (const old of rows) {
-            originals.push({
-              id: old.id,
-              version: old.version,
-              content: old.content,
-              status: old.status,
-            });
-            const before = undo
-              ? turn.undo!.find((r) => r.id === old.id)!
-              : undefined;
-            const row = await MemoryModel.query(trx).patchAndFetchById(old.id, {
-              content: before
-                ? before.content
-                : old.id === proposal.target?.id
-                  ? proposal.content
-                  : old.content,
-              status: before
-                ? before.status
-                : old.id === proposal.target?.id
-                  ? old.status
-                  : "archived",
-              version: old.version + 1,
-              updatedAt: trx.fn.now(),
-            });
-            await this.revise(trx, row);
-            applied.push(ref(row));
-          }
-        }
+        const writes = undo
+          ? turn.undo!.map((before) => ({
+              ...before,
+              version: proposal.applied!.find((r) => r.id === before.id)!
+                .version,
+            }))
+          : proposal.kind === "create"
+            ? [
+                {
+                  content: proposal.content,
+                  projectId: conversation.scope.projectId ?? null,
+                },
+              ]
+            : proposal.sources.map((source) => ({
+                ...source,
+                ...(source.id === proposal.target?.id
+                  ? { content: proposal.content }
+                  : { status: "archived" as const }),
+              }));
+        const { originals, applied } = await applyNoteChanges(
+          trx,
+          account.id,
+          references,
+          writes,
+          this.revise,
+          {
+            undo,
+            allowed: (projectId) => inScope(conversation.scope, projectId),
+          },
+        );
+        created = !undo && proposal.kind === "create";
         result.proposal = {
           ...proposal,
           status: undo ? "undone" : "applied",
