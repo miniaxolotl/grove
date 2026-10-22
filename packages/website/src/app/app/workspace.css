@@ -376,6 +376,7 @@ html:has(.grove-app) {
 @media (max-width: 1023px) {
   .grove-app:has(.note-document),
   .grove-app:has(.settings-frame),
+  .grove-app:has(.ask-console),
   .grove-app:has(.app-content > .note-editor-full) {
     grid-template-rows: auto minmax(0, 1fr);
   }
@@ -394,11 +395,30 @@ html:has(.grove-app) {
   display: flex;
   gap: 8px;
 }
-.ask-console {
+.grove-app:has(.ask-console) {
+  height: 100dvh;
+  min-height: 0;
+}
+.app-main:has(.ask-console) {
+  min-height: 0;
+}
+.app-main:has(.ask-console) > .app-footer {
+  display: none;
+}
+.app-content:has(> .ask-console) {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 108px);
-  min-height: 420px;
+  /* Keep a usable console in short windows; the page can scroll below the nav. */
+  min-height: 480px;
+}
+.app-content:has(> .ask-console) > .app-page-heading {
+  flex-shrink: 0;
+}
+.ask-console {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 .ask-conversation {
   flex: 1;
@@ -435,8 +455,7 @@ html:has(.grove-app) {
   border-radius: 10px;
 }
 .ask-composer:focus-within {
-  border-color: #9cae91;
-  box-shadow: 0 0 0 2px #e9eee3;
+  border-color: var(--color-muted);
 }
 .ask-composer textarea {
   display: block;
@@ -484,8 +503,8 @@ html:has(.grove-app) {
   color: #63725d;
 }
 .ask-composer .app-icon[aria-pressed="true"] {
-  color: #355522;
-  background: #eaf0e3;
+  color: var(--color-forest);
+  background: var(--color-sage);
 }
 .ask-formatting {
   display: flex;
@@ -598,6 +617,9 @@ html:has(.grove-app) {
   margin-left: 12px;
 }
 .ask-search {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   overflow-y: auto;
 }
 .app-topbar {
@@ -879,13 +901,13 @@ html:has(.grove-app) {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 4px;
-  border: 1px solid #dce2d9;
+  border: 1px solid var(--color-line);
   border-radius: 8px;
   background: #fff;
-  color: #293a30;
-  box-shadow: 0 8px 28px #25372020;
+  color: var(--color-forest);
+  box-shadow: 0 8px 24px #15251b18;
   font:
-    12px var(--font-space-grotesk),
+    13px var(--font-space-grotesk),
     Arial,
     sans-serif;
 }
@@ -895,17 +917,17 @@ html:has(.grove-app) {
   justify-content: flex-start;
   gap: 8px;
   width: 100%;
-  min-height: 34px;
+  min-height: 36px;
   padding: 6px 9px;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: inherit;
   text-align: left;
-  font-size: 12px;
+  font-size: inherit;
 }
-.action-menu > :is(a, button):hover {
-  background: #edf1e9;
+.action-menu > :is(a, button):hover:not(:disabled) {
+  background: var(--color-sage);
 }
 .action-menu > :is(a, button):focus-visible {
   outline: 2px solid var(--color-leaf);
@@ -1203,10 +1225,6 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 1023px) {
-  .ask-console {
-    height: calc(100dvh - 250px);
-    min-height: 440px;
-  }
   .workspace-drop-surface {
     inset: auto max(8px, env(safe-area-inset-right))
       calc(8px + env(safe-area-inset-bottom))

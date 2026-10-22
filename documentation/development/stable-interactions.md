@@ -50,6 +50,26 @@ controls and transient feedback should use space already available.
   unsaved. Errors use existing toast feedback and the reserved status line.
   Reverting to persisted values removes the need for another write.
 
+## Visual treatments
+
+- Use typography, spacing and quiet surfaces for hierarchy. Selected palette rows
+  use a full-row fill; avoid decorative coloured edge stripes on controls or content.
+  Forced-colour selection uses a complete inset outline.
+- Workspace overlays share the workspace colour tokens even when rendered outside
+  `.grove-app`. Keep dialog headings compact, shadows restrained and dropdown
+  entrances stationary. Hover feedback must retain text contrast and skip disabled
+  controls.
+- Quotes use inset spacing and a neutral surface across writing, reading, public
+  links and connection evidence. Source lists use divided rows, with excerpts and
+  keyboard focus kept readable at phone widths.
+- Desktop note grips appear on row hover or focus without changing the reserved
+  space. Touch layouts keep the grip visible.
+- Ask Grove fills the space beneath navigation and keeps conversation/search
+  scrolling inside the console. The composer stays visible at ordinary desktop,
+  tablet and phone sizes; short windows can scroll the page to reach its controls.
+- Note rows, search, graphs and source lists share `memoryExcerpt` for compact
+  plain-text previews, including quotes, tasks, fenced code and link labels.
+
 ## Verification
 
 The browser suite checks row/header bounds at 320, 390 and 1440px; partial/all
