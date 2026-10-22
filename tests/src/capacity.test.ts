@@ -100,6 +100,39 @@ test("HTTP search has one admission and cancellation rolls back a pending write"
   );
 });
 
+test("background transactions preserve authorization without charging foreground admission", async () => {
+  const principal = fixture.principals[0];
+  const count = async () =>
+    Number(
+      (
+        await fixture
+          .admin("rate_buckets")
+          .where({ accountId: principal.accountId })
+          .sum("count as total")
+          .first()
+      )?.total ?? 0,
+    );
+  const before = await count();
+  await tenant(fixture.workerDb, principal.accountId, (trx) =>
+    fixture.worker
+      .inTransaction(trx)
+      .access(principal, "memory:read", async () => {}),
+  );
+  assert.equal(await count(), before);
+  const revoked = { ...principal, sessionId: randomUUID() };
+  await fixture.admin("session_revocations").insert({ id: revoked.sessionId });
+  await assert.rejects(
+    tenant(fixture.db, principal.accountId, (trx) =>
+      fixture.service
+        .inTransaction(trx)
+        .access(revoked, "memory:read", async () =>
+          assert.fail("Revoked work ran"),
+        ),
+    ),
+    { code: "unauthorized" },
+  );
+});
+
 const app = (options: Partial<Parameters<typeof createApp>[0]> = {}) =>
   createApp({
     memories: fixture.service,

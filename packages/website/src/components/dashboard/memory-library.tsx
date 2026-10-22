@@ -40,6 +40,9 @@ import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
 import { NoteDeleteDialog } from "./note-delete-dialog";
+import { AssistanceAction } from "./assistance-action";
+import { useNotebookVisit } from "./use-notebook-visit";
+import type { NotebookVisit } from "@lib/shared/assistance";
 const loadDetail = () =>
   import("./memory-detail").then((module) => ({
     default: module.MemoryDetail,
@@ -76,6 +79,7 @@ export function MemoryLibrary({
   initialView = "list",
   initialProject = "all",
   initialSort = "updated_desc",
+  onVisit,
 }: {
   archive?: boolean;
   initialId?: string;
@@ -86,6 +90,7 @@ export function MemoryLibrary({
   initialView?: "list" | "graph";
   initialProject?: string;
   initialSort?: "updated_desc" | "created_desc";
+  onVisit?: (visit: NotebookVisit) => void;
 }) {
   const cache = useWorkspaceCache();
   const api = cache.api;
@@ -153,7 +158,17 @@ export function MemoryLibrary({
     sort,
     lifetime: (lifetime || undefined) as MemoryList["lifetime"],
   });
-  const query = useInfiniteQuery(noteOptions);
+  const query = useInfiniteQuery({
+    ...noteOptions,
+    refetchInterval: (q) =>
+      q.state.data?.pages[0]?.visit?.ready === false ? 500 : false,
+  });
+  useNotebookVisit(
+    query.isSuccess && !query.isFetching
+      ? query.data.pages[0]?.visit
+      : undefined,
+    onVisit,
+  );
   useSetCurrentNotebook(scopedProject);
   const items = useMemo(
     () => [
@@ -612,6 +627,22 @@ export function MemoryLibrary({
                 }}
               >
                 <LibrarySelection
+                  assistance={
+                    !archive && (
+                      <AssistanceAction
+                        compact
+                        disabled={busy || selectedItems.length > 6}
+                        input={{
+                          kind: "actions",
+                          sources: selectedItems.map(({ id, version }) => ({
+                            id,
+                            version,
+                          })),
+                          projectId: scopedProject ?? null,
+                        }}
+                      />
+                    )
+                  }
                   count={selectedItems.length}
                   allSelected={items
                     .slice(0, 50)
@@ -804,6 +835,16 @@ export function MemoryLibrary({
             <p className="text-sm leading-7 text-muted">
               Choose a notebook. Your note and its history stay together.
             </p>
+            {moving.length === 1 && moving[0].projectId === null && (
+              <AssistanceAction
+                compact
+                disabled={busy}
+                input={{
+                  kind: "filing",
+                  sources: [{ id: moving[0].id, version: moving[0].version }],
+                }}
+              />
+            )}
             <NotebookSelect
               label="Destination"
               value={destination}

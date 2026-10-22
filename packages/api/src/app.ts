@@ -60,6 +60,12 @@ import type { ModelRegistry } from "./models.ts";
 import { InferenceError } from "@lib/ai";
 import { settingsUpdateSchema } from "@lib/shared/settings";
 import {
+  assistanceRequestSchema,
+  assistanceApplySchema,
+  assistanceReviewSchema,
+  notebookVisitSchema,
+} from "@lib/shared/assistance";
+import {
   connectionQuerySchema,
   connectionReviewSchema,
   connectionLevelSchema,
@@ -649,12 +655,76 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/assistance", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.request(
+        c.get("principal"),
+        await body(c, assistanceRequestSchema),
+      ),
+    }),
+  );
+  app.get("/v1/assistance/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  for (const action of ["apply", "undo"] as const)
+    app.post(`/v1/assistance/:id/${action}`, async (c) =>
+      c.json({
+        success: true,
+        data: await service.assistance.apply(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          await body(c, assistanceApplySchema),
+          action === "undo",
+        ),
+      }),
+    );
+  app.post("/v1/assistance/:id/review", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.review(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, assistanceReviewSchema),
+      ),
+    }),
+  );
+  app.post("/v1/notebook-visits", async (c) =>
+    c.json({
+      success: true,
+      data: await service.visits.acknowledge(
+        c.get("principal"),
+        await body(c, notebookVisitSchema),
+      ),
+    }),
+  );
   app.get("/v1/memories/:id/revisions", async (c) =>
     c.json({
       success: true,
       data: await service.revisions(
         c.get("principal"),
         uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.get("/v1/memories/:id/revisions/:version", async (c) =>
+    c.json({
+      success: true,
+      data: await service.sourceRevision(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        z.coerce
+          .number()
+          .int()
+          .positive()
+          .max(2147483647)
+          .parse(c.req.param("version")),
       ),
     }),
   );

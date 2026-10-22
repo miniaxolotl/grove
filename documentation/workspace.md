@@ -73,6 +73,15 @@ its edge does not. Action menus follow their opener when scrolling/resizing and
 scroll internally in short viewports. Confirmed mutations finish before
 closing; background autosave retains its request and draft when you navigate away.
 
+## Notebook assistance
+
+**Summary** adapts to your notebook's subject and links its sources. Use the icon in
+**Move** to suggest a notebook for an unfiled note. A note or selection of up to six
+notes can **Extract action list**; edit the preview before saving a checklist.
+**Notebook options** includes **Since your last visit** and **Review notebook**.
+Review source excerpts and changes, then apply or keep both; Undo checks later edits.
+These features have independent AI preferences. See [notebook assistance](notebook-assistance.md).
+
 ## Share with a link
 
 Open **Share note** in a saved note's toolbar, the phone's **Note actions** menu, or

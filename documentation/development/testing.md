@@ -1,5 +1,11 @@
 # Verification
 
+Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
+resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
+[notebook assistance](../notebook-assistance.md#verification) for the bounded scale
+and synthetic live-provider runners. The shared AI preferences now have 14 controls;
+Chromium and focused WebKit cover assistance dialogs at 1440/390/320px.
+
 Queue coverage (`queue.test.ts`, `queue-migration.test.ts`) uses fresh PostgreSQL
 databases and non-owner roles for claims, tenant/provider limits, lease fences,
 dispatch reservations, retained history, checkpointed imports/backfills, and

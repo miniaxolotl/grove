@@ -8,7 +8,7 @@ export default defineConfig({
   retries: 0,
   workers: 2,
   reporter: "list",
-  grep: /sidebar at (320|390)px|sidebar remains|row dropdown at (320|390)px|stable note tools at (320|390)px|viewer tasks at 390px|viewer tasks keep|viewer task save|viewer task conflicts|command palette at (320|390)px|command selection survives|workspace shortcuts respect|palettes keep|note search shares|action menus follow|touch hit areas|mobile note controls|first-save navigation|long notes scroll|settings share|categorized AI preferences|preferences retain|preference drafts|model settings|long notebook menus|reply and growing|Ask Grove cites|visible row deletion|export downloads|row export reads|PDF|export and delete remain|account export|notebook exports|compact export/,
+  grep: /sidebar at (320|390)px|sidebar remains|row dropdown at (320|390)px|stable note tools at (320|390)px|viewer tasks at 390px|viewer tasks keep|viewer task save|viewer task conflicts|command palette at (320|390)px|command selection survives|workspace shortcuts respect|palettes keep|note search shares|action menus follow|touch hit areas|mobile note controls|first-save navigation|long notes scroll|settings share|categorized AI preferences|preferences retain|preference drafts|model settings|long notebook menus|reply and growing|Ask Grove cites|visible row deletion|export downloads|row export reads|PDF|export and delete remain|account export|notebook exports|compact export|action preview is lazy|visible notebook visits|filing suggestion|assistance expiry|notebook summary coverage/,
   use: {
     ...devices["iPhone 13"],
     browserName: "webkit",

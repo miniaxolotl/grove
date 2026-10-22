@@ -87,6 +87,8 @@ Responses use `{success: true, data}` or
 | `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                   |
 | `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                    |
 | `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                     |
+| `GET /v1/memories/:id/revisions/:version`                              | Exact historical revision; current scope, deletion and expiry checks              |
+| `/v1/assistance`, `/v1/notebook-visits`                                | Owning website session; [notebook assistance](notebook-assistance.md)              |
 | `POST /v1/memories/:id/archive`; `…/restore`                           | `memory:write`, operation ID and current version                                 |
 | `POST /v1/memories/delete`                                             | `memory:delete`                                                                  |
 | `POST /v1/recall`                                                      | `memory:read`                                                                    |

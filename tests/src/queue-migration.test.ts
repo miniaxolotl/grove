@@ -55,7 +55,13 @@ test("populated 013 to 014 upgrade preserves authored rows and changes deletion 
     });
     const note = await owner("memories").where({ id: memoryId }).first();
     const revisions = await owner("memory_revisions").where({ memoryId });
-    const [, applied] = await owner.migrate.latest();
+    const [, applied] = await owner.migrate.latest({
+      migrationSource: {
+        ...migrationSource,
+        getMigrations: async () =>
+          all.filter((m) => m.name <= "20261022_014_queue_processing"),
+      },
+    });
     assert.deepEqual(applied, ["20261022_014_queue_processing"]);
     assert.deepEqual(await owner("memories").where({ id: memoryId }).first(), {
       ...note,

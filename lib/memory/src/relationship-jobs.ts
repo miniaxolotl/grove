@@ -126,6 +126,45 @@ async function scanNote(
     .findById(job.memoryId!)
     .where({ version: job.version! });
   if (!note) return;
+  const candidates = await noteCandidates(trx, note, providers);
+  for (const other of candidates)
+    await queuePair(trx, job.accountId, "note", note.id, other.id, job.profile);
+  const previous = await trx("memory_relationships")
+    .where((b) => b.where("leftId", note.id).orWhere("rightId", note.id))
+    .orderBy("updatedAt", "desc")
+    .limit(20);
+  for (const pair of previous)
+    await queuePair(
+      trx,
+      job.accountId,
+      "note",
+      pair.leftId,
+      pair.rightId,
+      job.profile,
+    );
+  const scopeVersion = note.projectId
+    ? (await trx("projects").where({ id: note.projectId }).first())
+        .contentVersion
+    : contentVersion;
+  await trx("memory_enrichments")
+    .insert({
+      accountId: job.accountId,
+      memoryId: note.id,
+      version: note.version,
+      profile: job.profile,
+      kind: "relationship_scan",
+      data: JSON.stringify({ scopeVersion }),
+      sources: "[]",
+    })
+    .onConflict(["accountId", "memoryId", "version", "kind", "profile"])
+    .merge({ data: JSON.stringify({ scopeVersion }), createdAt: trx.fn.now() });
+}
+
+export async function noteCandidates(
+  trx: Knex.Transaction,
+  note: MemoryModel,
+  providers: Providers,
+) {
   const candidates = new Map<string, MemoryModel>();
   const sameScope = () =>
     activeNotes(trx)
@@ -179,37 +218,7 @@ async function scanNote(
       .orderBy("id")
       .limit(3))
       candidates.set(other.id, other);
-  for (const other of [...candidates.values()].slice(0, 8))
-    await queuePair(trx, job.accountId, "note", note.id, other.id, job.profile);
-  const previous = await trx("memory_relationships")
-    .where((b) => b.where("leftId", note.id).orWhere("rightId", note.id))
-    .orderBy("updatedAt", "desc")
-    .limit(20);
-  for (const pair of previous)
-    await queuePair(
-      trx,
-      job.accountId,
-      "note",
-      pair.leftId,
-      pair.rightId,
-      job.profile,
-    );
-  const scopeVersion = note.projectId
-    ? (await trx("projects").where({ id: note.projectId }).first())
-        .contentVersion
-    : contentVersion;
-  await trx("memory_enrichments")
-    .insert({
-      accountId: job.accountId,
-      memoryId: note.id,
-      version: note.version,
-      profile: job.profile,
-      kind: "relationship_scan",
-      data: JSON.stringify({ scopeVersion }),
-      sources: "[]",
-    })
-    .onConflict(["accountId", "memoryId", "version", "kind", "profile"])
-    .merge({ data: JSON.stringify({ scopeVersion }), createdAt: trx.fn.now() });
+  return [...candidates.values()].slice(0, 8);
 }
 async function pairInput(
   trx: Knex.Transaction,

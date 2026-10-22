@@ -27,6 +27,8 @@ import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { ActionMenu } from "./ui/action-menu";
 import { ShareDialog } from "./share-dialog";
 import { NotebookActions } from "./notebook-actions";
+import { AssistanceAction } from "./assistance-action";
+import type { NotebookVisit } from "@lib/shared/assistance";
 const ConnectionPanel = deferredFeature(
   async () => ({
     default: (await import("./connection-panel")).ConnectionPanel,
@@ -74,6 +76,7 @@ export function MemoryContext({
   );
   const [refresh, setRefresh] = useState(0);
   const [sharing, setSharing] = useState(false);
+  const [visit, setVisit] = useState<NotebookVisit | null>(null);
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
@@ -116,6 +119,13 @@ export function MemoryContext({
                     Today’s note
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <AssistanceAction
+                      input={{ kind: "digest", visitId: visit?.id ?? "" }}
+                      disabled={!visit || visit.projectId !== project.id}
+                    />
+                    <AssistanceAction
+                      input={{ kind: "cleanup", projectId: project.id }}
+                    />
                     <NotebookActions
                       project={project}
                       onAction={setNotebookAction}
@@ -258,6 +268,7 @@ export function MemoryContext({
           embedded
           initialView={view === "graph" ? "graph" : "list"}
           projectId={projectId}
+          onVisit={setVisit}
           initialKind={
             view === "preferences"
               ? "preference"

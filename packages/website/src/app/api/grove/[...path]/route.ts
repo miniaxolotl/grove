@@ -5,7 +5,7 @@ import { site } from "@/lib/site";
 export const maxDuration = 180;
 
 const allowed =
-  /^(me|ask|relationships\/(?:search|(?:note|notebook)\/[0-9a-f-]+\/(?:review|retry))|conversations(?:\/[0-9a-f-]+(?:\/turns(?:\/[0-9a-f-]+\/(?:apply|undo))?)?)?|models(?:\/test)?|briefs(?:\/refresh)?|projects(?:\/[0-9a-f-]+(?:\/share)?)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions|archive|restore|reprocess|share))?))?|shares\/[0-9a-f-]+(?:\/rotate)?|recall|connect\/[0-9a-f-]+(?:\/(?:approve|cancel))?|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete|usage))$/;
+  /^(me|ask|relationships\/(?:search|(?:note|notebook)\/[0-9a-f-]+\/(?:review|retry))|conversations(?:\/[0-9a-f-]+(?:\/turns(?:\/[0-9a-f-]+\/(?:apply|undo))?)?)?|models(?:\/test)?|briefs(?:\/refresh)?|projects(?:\/[0-9a-f-]+(?:\/share)?)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions(?:\/[1-9][0-9]*)?|archive|restore|reprocess|share))?))?|shares\/[0-9a-f-]+(?:\/rotate)?|recall|connect\/[0-9a-f-]+(?:\/(?:approve|cancel))?|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete|usage))$/;
 async function forward(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -28,7 +28,7 @@ async function forward(
   const path = (await context.params).path.join("/");
   if (
     !allowed.test(path) &&
-    !/^(exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
+    !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,
     )
   )

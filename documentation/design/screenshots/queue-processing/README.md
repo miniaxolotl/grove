@@ -16,3 +16,5 @@ All three export cases pass in Chromium and iPhone/WebKit. The integrated full
 Chromium suite passes 196 scenarios; the affected WebKit set passes six. The final
 backend integration passes all 138 cases, including artifact-stream cancellation,
 deadlines, storage failure, freshness checks and worker-only import authorization.
+After notebook assistance #80, all eight affected cases pass in each browser engine;
+the backend suite passes 156 cases with one optional S3 check skipped.

@@ -37,6 +37,7 @@ test("isolated restore replays current deletions and revocations without changin
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
     const notebookIds = [randomUUID(), randomUUID()].sort();
+    const assistanceId = randomUUID();
     const deletedChat = randomUUID(),
       retainedChat = randomUUID(),
       accountChat = randomUUID();
@@ -111,6 +112,32 @@ test("isolated restore replays current deletions and revocations without changin
         model: "fixture",
         dimensions: 384,
       });
+      await db("assistance_requests").insert({
+        accountId: a,
+        id: assistanceId,
+        kind: "actions",
+        profile: "fixture",
+        fingerprint: "fixture",
+        input: JSON.stringify({
+          id: assistanceId,
+          kind: "actions",
+          sources: [{ id: keep, version: 1 }],
+          projectId: null,
+        }),
+        status: "ready",
+        result: JSON.stringify({ items: [{ text: "Old generated passage" }] }),
+      });
+      await db("notebook_checkpoints").insert({
+        accountId: a,
+        projectId: notebookIds[0],
+        token: "1",
+      });
+      await db("assistance_reviews").insert({
+        accountId: a,
+        key: "pair",
+        dismissed: false,
+        version: 1,
+      });
       await db("public_shares").insert({
         id: randomUUID(),
         accountId: a,
@@ -165,6 +192,17 @@ test("isolated restore replays current deletions and revocations without changin
       });
     }
     await source("deleted_memories").insert({ accountId: a, id: forgotten });
+    await source("assistance_requests")
+      .where({ id: assistanceId })
+      .update({
+        status: "applied",
+        version: 3,
+        applied: JSON.stringify([{ id: keep, version: 2 }]),
+        result: null,
+      });
+    await source("assistance_reviews")
+      .where({ accountId: a, key: "pair" })
+      .update({ dismissed: true, version: 2 });
     await source("notebook_relationships")
       .where({ accountId: a })
       .update({ dismissedRevision: "a".repeat(64), reviewVersion: 1 });
@@ -207,6 +245,26 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    const operation = await target("assistance_requests")
+      .where({ id: assistanceId })
+      .first();
+    assert.equal(operation.status, "stale");
+    assert.equal(operation.result, null);
+    assert.equal(operation.undo, null);
+    assert.deepEqual(operation.applied, [{ id: keep, version: 2 }]);
+    assert.equal(
+      (
+        await target("assistance_reviews")
+          .where({ accountId: a, key: "pair" })
+          .first()
+      ).dismissed,
+      true,
+    );
+    assert.equal((await target("notebook_checkpoints")).length, 0);
+    assert(
+      BigInt((await target("accounts").where({ id: a }).first()).changeToken) >
+        BigInt(before.find((r) => r.id === a)!.changeToken),
+    );
     const recoveredReview = await target("notebook_relationships")
       .where({ accountId: a })
       .first();

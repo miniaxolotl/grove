@@ -43,6 +43,15 @@ import {
   runRelationshipJob,
   type RelationshipJob,
 } from "./relationship-jobs.ts";
+import {
+  isNotebookSummary,
+  notebookSummaryProfile,
+  runNotebookSummary,
+  summaryProfile,
+  type SummaryJob,
+} from "./notebook-summaries.ts";
+import { assistanceProfile } from "./assistance-data.ts";
+import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -51,6 +60,15 @@ export const providerProfiles = (providers: Providers) => [
     .filter(Boolean)
     .map((provider) => provider!.profile),
   ...[currentRelationshipProfile(providers)].filter((p): p is string => !!p),
+  ...(providers.generation
+    ? [
+        notebookSummaryProfile(providers.generation.profile),
+        assistanceProfile(
+          providers.generation.profile,
+          providers.embedding?.profile,
+        ),
+      ]
+    : []),
 ];
 export async function registerEmbedding(db: Knex, embedder: Embedder) {
   await db("embedding_profiles")
@@ -90,6 +108,7 @@ export async function queueBrief(
 ) {
   const account = await trx("accounts").where({ id: accountId }).first();
   if (!account?.[briefPreference(scope)]) return;
+  profile = summaryProfile(profile, scope);
   await trx("jobs")
     .insert({
       accountId,
@@ -117,12 +136,17 @@ export async function invalidateBriefs(
   trx: Knex.Transaction,
   accountId: string,
 ) {
-  const old = await trx("memory_briefs").select("scope", "profile");
-  await trx("memory_briefs").delete();
+  const scopes = (q: Knex.QueryBuilder) =>
+    q.whereRaw("scope->>'projectId' IS NULL OR scope->>'taskId' IS NOT NULL");
+  const old = await trx("memory_briefs")
+    .modify(scopes)
+    .select("scope", "profile");
+  await trx("memory_briefs").modify(scopes).delete();
   for (const row of old)
     await queueBrief(trx, accountId, row.scope, row.profile);
   await trx("jobs")
     .where({ kind: "brief" })
+    .modify(scopes)
     .update({
       attempts: 0,
       failedAt: null,
@@ -251,11 +275,19 @@ export async function briefFor(
   const account = await trx("accounts").where({ id: accountId }).first();
   if (!account[briefPreference(scope)]) return empty;
   const target = briefTarget(scope),
-    profile = providers.generation.profile;
+    profile = summaryProfile(providers.generation.profile, scope);
   const row = await trx("memory_briefs").where({ target, profile }).first();
+  const notebook = isNotebookSummary(scope)
+    ? await trx("projects")
+        .where({ id: scope.projectId })
+        .first("contentVersion")
+    : undefined;
   if (
     row &&
-    row.contentVersion === account.contentVersion &&
+    (notebook
+      ? row.notebookVersion === notebook.contentVersion
+      : row.contentVersion === account.contentVersion) &&
+    (!row.expiresAt || new Date(row.expiresAt) > new Date()) &&
     (await validSources(trx, row.sources, scope))
   ) {
     return {
@@ -263,7 +295,8 @@ export async function briefFor(
       status: "ready",
       content: row.content,
       updatedAt: new Date(row.createdAt).toISOString(),
-      sourceCount: row.sources.length,
+      sourceCount: row.coverage?.examined ?? row.sources.length,
+      ...(row.coverage ? { coverage: row.coverage } : {}),
       truncated: row.truncated,
     };
   }
@@ -395,7 +428,7 @@ export async function runProcessingJob(
 ): Promise<boolean> {
   const profiles = providerProfiles(providers);
   if (!profiles.length) return false;
-  const claimed = camelRows<Job | RelationshipJob>(
+  const claimed = camelRows<Job | RelationshipJob | AssistanceJob>(
     await db.raw(
       "SELECT * FROM grove_claim_processing(?::text[], ?::uuid, ?, ?, ?)",
       [
@@ -409,6 +442,34 @@ export async function runProcessingJob(
   )[0];
   if (!claimed) return false;
   const lease = processingLease(db, claimed, options.signal);
+  if (
+    claimed.kind === "assistance" ||
+    (claimed.kind === "brief" &&
+      claimed.scope &&
+      isNotebookSummary(claimed.scope as BriefRequest))
+  ) {
+    try {
+      return claimed.kind === "assistance"
+        ? await runAssistanceJob(
+            db,
+            providers,
+            dailyLimit,
+            claimed,
+            resolveProfiles,
+            lease.signal,
+          )
+        : await runNotebookSummary(
+            db,
+            providers,
+            dailyLimit,
+            claimed as SummaryJob,
+            resolveProfiles,
+            lease.signal,
+          );
+    } finally {
+      await lease.close();
+    }
+  }
   if ((relationshipKinds as readonly string[]).includes(claimed.kind)) {
     try {
       return await runRelationshipJob(

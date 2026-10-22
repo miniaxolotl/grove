@@ -34,6 +34,9 @@ import { semanticMatches } from "./search.ts";
 import { admitOperation } from "./operation-context.ts";
 export { withMemoryOperation } from "./operation-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { NotebookAssistance } from "./assistance.ts";
+import { NotebookVisits, recordNotebookExpiry } from "./notebook-digests.ts";
+import { assistancePreferences } from "@lib/shared/assistance";
 import { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
 import { runTask } from "./task-runner.ts";
 import type { QueueLane } from "@lib/shared/jobs";
@@ -120,6 +123,8 @@ export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export class MemoryService {
+  readonly assistance: NotebookAssistance;
+  readonly visits: NotebookVisits;
   private internalWork = false;
   readonly conversations: Conversations;
   readonly relationships: Relationships;
@@ -136,6 +141,8 @@ export class MemoryService {
     readonly dailyRequestLimit = 2000,
   ) {
     this.providers = { ...providers, embedding: embedder };
+    this.assistance = new NotebookAssistance(this);
+    this.visits = new NotebookVisits(this);
     this.relationships = new Relationships(this);
     this.conversations = new Conversations(
       this,
@@ -371,7 +378,7 @@ export class MemoryService {
     await invalidateBriefs(trx, accountId);
   }
 
-  private async revise(trx: Knex.Transaction, row: MemoryModel) {
+  async revise(trx: Knex.Transaction, row: MemoryModel) {
     await trx("memory_revisions").insert({
       accountId: row.accountId,
       memoryId: row.id,
@@ -552,6 +559,28 @@ export class MemoryService {
     });
   }
 
+  async sourceRevision(principal: Principal, id: string, version: number) {
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      const note = await this.query(trx, grant)
+        .findById(id)
+        .where((q) =>
+          q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+        );
+      if (!note) throw missing();
+      const revision = await trx("memory_revisions")
+        .where({ memoryId: id, version })
+        .select("version", "content", "createdAt")
+        .first();
+      if (!revision) throw missing();
+      return {
+        ...revision,
+        id,
+        currentVersion: note.version,
+        expiresAt: note.expiresAt,
+      };
+    });
+  }
+
   private encodeCursor(value: unknown) {
     const payload = Buffer.from(JSON.stringify(value)).toString("base64url");
     return `${payload}.${createHmac("sha256", this.cursorSecret).update(payload).digest("base64url")}`;
@@ -611,8 +640,35 @@ export class MemoryService {
     }
     return this.access(
       principal,
-      "memory:read",
+      principal.type === "session" && input.projectId && !input.cursor
+        ? "admin"
+        : "memory:read",
       async ({ trx, grant, account }) => {
+        let visit: Page<Memory>["visit"];
+        if (
+          principal.type === "session" &&
+          input.projectId &&
+          !input.cursor &&
+          (await trx("projects").where({ id: input.projectId }).first("id"))
+        ) {
+          const ready = await recordNotebookExpiry(
+            trx,
+            account.id,
+            input.projectId,
+          );
+          const checkpoint = await trx("notebook_checkpoints")
+            .where({ projectId: input.projectId })
+            .first();
+          const current = await trx("accounts")
+            .where({ id: account.id })
+            .first("changeToken");
+          visit = {
+            projectId: input.projectId,
+            token: current.changeToken,
+            from: checkpoint?.token ?? null,
+            ready,
+          };
+        }
         const { cursor, limit, ...filters } = input;
         const binding = digest(
           stable({
@@ -708,6 +764,7 @@ export class MemoryService {
         );
         return {
           items,
+          ...(visit ? { visit } : {}),
           ...(input.query
             ? {
                 searchMode: vector ? ("hybrid" as const) : ("lexical" as const),
@@ -1424,6 +1481,22 @@ export class MemoryService {
           leaseUntil: null,
         });
       }
+      for (const [kind, key] of Object.entries(assistancePreferences))
+        if (!next[key]) {
+          await trx("jobs")
+            .where({ kind: "assistance" })
+            .whereRaw("scope->>'feature'=?", [kind])
+            .delete();
+          await trx("assistance_requests")
+            .where({ kind })
+            .whereIn("status", ["pending", "ready", "failed"])
+            .update({
+              status: "stale",
+              state: "{}",
+              result: null,
+              error: "This feature is turned off.",
+            });
+        }
       const background = enabled.filter(
         (key) =>
           ![
@@ -1431,6 +1504,7 @@ export class MemoryService {
             "recallEnabled",
             "captureEnabled",
             "notebookConnectionsEnabled",
+            ...Object.values(assistancePreferences),
           ].includes(key),
       );
       if (background.length) {

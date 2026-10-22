@@ -26,6 +26,7 @@ import { workspaceCommand } from "@/lib/workspace-commands";
 import { ShareDialog } from "./share-dialog";
 import { ConnectionPanel } from "./connection-panel";
 import { NoteActions } from "./note-actions";
+import { AssistanceAction } from "./assistance-action";
 
 export function MemoryDetail({
   memory,
@@ -256,6 +257,14 @@ export function MemoryDetail({
                 }
                 details={
                   <>
+                    <AssistanceAction
+                      disabled={writing || locked || isInactive(memory)}
+                      input={{
+                        kind: "actions",
+                        sources: [{ id: memory.id, version: memory.version }],
+                        projectId: memory.projectId,
+                      }}
+                    />
                     <button type="button" onClick={() => setHistoryOpen(true)}>
                       <History size={15} />
                       Revision history

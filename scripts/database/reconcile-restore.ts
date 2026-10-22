@@ -26,9 +26,28 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "summariesEnabled",
       "askVersion",
       "contentVersion",
+      "changeToken",
     );
     const subjects = await source("subject_authority").select("*");
     const sessions = await source("session_revocations").select("*");
+    const assistanceReviews = await source("assistance_reviews").select("*");
+    const assistanceOperations = await source("assistance_requests")
+      .whereRaw("jsonb_array_length(applied)>0")
+      .select(
+        "accountId",
+        "id",
+        "kind",
+        "input",
+        "fingerprint",
+        "profile",
+        "version",
+        "dependencies",
+        "scopes",
+        "applied",
+        "application",
+        "createdAt",
+        "updatedAt",
+      );
     const deleted = await source("deleted_memories").select("*");
     const deletedConversations = await source("deleted_conversations").select(
       "*",
@@ -123,6 +142,48 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
+      await target("notebook_summary_nodes").delete();
+      await target("notebook_summary_work").delete();
+      // Historical windows cannot describe a restored, older source snapshot.
+      await target("notebook_visits").delete();
+      await target("notebook_checkpoints").delete();
+      await target("assistance_requests").update({
+        status: "stale",
+        version: target.raw("version+1"),
+        result: null,
+        state: "{}",
+        undo: null,
+        error: "Recovery interrupted this preview. Refresh it.",
+      });
+      await target("assistance_reviews").delete();
+      const presentAccounts = new Set(existing.map((row) => row.id));
+      for (const row of assistanceReviews)
+        if (presentAccounts.has(row.accountId))
+          await target("assistance_reviews").insert({
+            ...row,
+            version: row.version + 1,
+          });
+      for (const row of assistanceOperations)
+        if (presentAccounts.has(row.accountId)) {
+          const operation = {
+            ...row,
+            version: row.version + 1,
+            status: "stale",
+            result: null,
+            state: "{}",
+            undo: null,
+            input: JSON.stringify(row.input),
+            dependencies: JSON.stringify(row.dependencies),
+            scopes: JSON.stringify(row.scopes),
+            applied: JSON.stringify(row.applied),
+            error:
+              "Recovery interrupted this operation. Review the current notes.",
+          };
+          await target("assistance_requests")
+            .insert(operation)
+            .onConflict(["accountId", "id"])
+            .merge(operation);
+        }
       // Rebuild explanations, but use current authoritative review decisions.
       const emptyAssessment = JSON.stringify({
         relationship: "unrelated",
@@ -239,6 +300,9 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             ...legacyPreferences(preferencesFor(current)),
             askVersion: current.askVersion + 1,
             contentVersion: Math.max(current.contentVersion, 1) + 1,
+            changeToken: target.raw("greatest(change_token,?::bigint)+1", [
+              current.changeToken,
+            ]),
             organizationDueAt: target.fn.now(),
           });
         if (gone) {
