@@ -11,6 +11,7 @@
     "./models": "./src/models.ts",
     "./preferences": "./src/preferences.ts",
     "./settings": "./src/settings.ts",
+    "./jobs": "./src/jobs.ts",
     "./conversations": "./src/conversations.ts",
     "./relationships": "./src/relationships.ts",
     "./sharing": "./src/sharing.ts",

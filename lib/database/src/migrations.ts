@@ -9,6 +9,7 @@ import { relationships } from "./relationship-migration.ts";
 import { publicSharing } from "./sharing-migration.ts";
 import { shareExpiration } from "./share-expiration-migration.ts";
 import { aiPreferences } from "./preferences-migration.ts";
+import { queueProcessing } from "./queue-migration.ts";
 
 export const migrations = [
   {
@@ -227,6 +228,7 @@ export const migrations = [
   publicSharing,
   shareExpiration,
   aiPreferences,
+  queueProcessing,
 ];
 
 export const migrationSource: Knex.MigrationSource<
