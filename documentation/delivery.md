@@ -8,14 +8,18 @@ and global-error pages use the same visual language and offer a route back to Gr
 Global recovery carries its own styles/fonts and native home links so it remains
 usable outside the root layout. Error details stay out of that fallback's content.
 
-Root/website lint, types and builds, five artifacts, **131 Chromium** and **16
-focused iPhone/WebKit** cases pass. Production deferred retry/bounds/focus and
+After integrating landed stable-library and sharing features, root/website lint,
+types and builds, five artifacts, **149 Chromium** and **35 supported focused
+iPhone/WebKit** cases pass. Release/deployment contracts and workflow lint pass.
+Production deferred retry/bounds/focus and
 sign-in/private-response checks pass at 1440/390/320px. Additional checks cover
 service/404 accessibility, 404 navigation without JavaScript, standalone global
 recovery in both browser engines, keyboard navigation and enlarged text.
-Notes entry is **463,380 gzip bytes (-32.3% original baseline)**, only 200 bytes
-above the previous integrated build. [Reviewed error screenshots](design/screenshots/error-recovery/README.md)
-record the final desktop/mobile presentation and exact source/build.
+Notes entry is **469,016 gzip bytes (-31.5% original baseline)** with all landed
+features included. The error-UI-only increase was 200 bytes before those integrations.
+Preference drafts retain their loaded base across background refreshes and newer
+edits across pending saves. [Reviewed error screenshots](design/screenshots/error-recovery/README.md)
+record the final desktop/mobile presentation, exact source/build and browser coverage.
 
 ## Client caching and loading performance (21 October 2026 UTC)
 

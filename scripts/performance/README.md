@@ -201,3 +201,24 @@ pass. Production drawer bounds/focus/retry and auth checks pass at 1440/390/320p
 extra visual checks cover 200% text, no-JavaScript 404 navigation and standalone
 global recovery in Chromium/WebKit. [Eight screenshots](../../documentation/design/screenshots/error-recovery/README.md)
 document the exact capture setup. Local reports/captures use `errors-*`.
+
+### Landed library and sharing integration
+
+The follow-up integrates stable interactions #63 and public sharing #59 at
+application source `7144d821d841a888a41c6539527782bafee3ea03`, production build
+`LTkngUYz6nYcp3UslQsTO`. Notes entry is **469,016 gzip bytes (-31.5%)**; notebook
+entry is **472,009 (-32.1%)**. Both remain within the entry budget, with the editor
+deferred. These sizes include the added sharing controls and stable library layout;
+the earlier error-UI-only increase remains 200 bytes at `efc3e9f`.
+
+Selection/filter/search geometry composes with cache-owned refresh and retry focus.
+Preferences retain their loaded base through background refreshes and their exact
+submitted snapshot through pending saves. Public readers and fresh owner sharing
+state remain outside the workspace cache. Reports/captures use `errors-combined-*`.
+
+Final verification: **149 Chromium / 35 supported focused iPhone/WebKit** cases,
+root/website lint/types/builds, five artifacts, 17 release/deployment contracts and
+workflow lint pass. One Chromium clipboard-permission case cannot start on WebKit;
+its real clipboard check passes in Chromium. Production auth/chunk/bounds/focus
+checks pass at 1440/390/320px. Updated captures pass accessibility, no-JavaScript
+404 navigation, enlarged text and in-place recovery checks.
