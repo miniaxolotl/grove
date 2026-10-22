@@ -86,6 +86,77 @@ const handoff: Memory = {
   },
 };
 
+test("sidebar remains reachable with long names, short height and enlarged text", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  state.projects[0] = { ...project, name: "Model preferences and research" };
+  state.projects.push(
+    ...Array.from({ length: 16 }, (_, index) => ({
+      ...project,
+      id: crypto.randomUUID(),
+      name: `Notebook ${index}`,
+    })),
+  );
+  await page.setViewportSize({ width: 1440, height: 480 });
+  await page.goto(`${base}/app`);
+  await page.addStyleTag({
+    content:
+      ".app-sidebar :is(.app-nav, .notebook-tree-link, .workspace-search-launcher, .workspace-command-launcher, .sidebar-create) { font-size: 24px; }",
+  });
+  const sidebar = page.getByRole("complementary", {
+    name: "Workspace sidebar",
+  });
+  for (const width of [1440, 320]) {
+    if (width === 320) {
+      await page.setViewportSize({ width, height: 720 });
+      await sidebar
+        .getByRole("button", { name: "Notebooks", exact: true })
+        .click();
+    }
+    await sidebar.getByRole("link", { name: "Notes", exact: true }).focus();
+    expect(
+      await sidebar.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    expect(
+      await sidebar
+        .locator(
+          ".app-nav, .sidebar-create, .workspace-search-launcher, .workspace-command-launcher",
+        )
+        .evaluateAll((elements) =>
+          elements
+            .filter(
+              (element) =>
+                element.getClientRects().length &&
+                element.scrollWidth > element.clientWidth,
+            )
+            .map(
+              (element) =>
+                element.getAttribute("aria-label") || element.textContent,
+            ),
+        ),
+    ).toEqual([]);
+    await sidebar.screenshot({
+      path: info.outputPath(`sidebar-large-text-${width}.png`),
+    });
+    const settings = sidebar.getByRole("link", {
+      name: "Settings",
+      exact: true,
+    });
+    await settings.focus();
+    await expect(settings).toBeInViewport();
+    const manage = sidebar.getByRole("link", { name: "Manage notebooks" });
+    await manage.focus();
+    await expect(manage).toBeInViewport();
+    await manage.press("Enter");
+    await expect(page).toHaveURL(`${base}/app/projects`);
+    if (width === 1440)
+      await sidebar.getByRole("link", { name: "Notes", exact: true }).click();
+  }
+});
+
 for (const width of [1440, 390, 320]) {
   test.describe(`stable library at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
@@ -437,6 +508,225 @@ test("open action menus stay inside the visual viewport at two-times browser pin
 });
 
 for (const width of [1440, 768, 390, 320]) {
+  test.describe(`sidebar at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("keeps navigation, notebook names and contextual actions usable without shifting rows", async ({
+      page,
+    }, info) => {
+      const state = await fixture(page, [
+        { ...note, projectId: project.id },
+        handoff,
+      ]);
+      state.projects[0] = { ...project, name: "Model preferences" };
+      const child = {
+        ...project,
+        id: crypto.randomUUID(),
+        parentId: project.id,
+        name: "Working notes",
+      };
+      state.projects.push(
+        child,
+        ...Array.from({ length: 24 }, (_, index) => ({
+          ...project,
+          id: crypto.randomUUID(),
+          name: `Notebook ${String(index).padStart(2, "0")}`,
+        })),
+      );
+      await page.goto(`${base}/app`);
+      const sidebar = page.getByRole("complementary", {
+        name: "Workspace sidebar",
+      });
+      await page.evaluate(() => document.fonts.ready);
+      const notes = sidebar.getByRole("link", { name: "Notes", exact: true });
+      await notes.focus();
+      await expect(notes).toHaveAttribute("aria-current", "page");
+      await expect(notes).toBeInViewport();
+      if (width < 1024) {
+        expect((await sidebar.boundingBox())!.height).toBeLessThanOrEqual(220);
+        for (const name of ["Notes", "Ask Grove", "Archive", "Settings"]) {
+          const link = sidebar.getByRole("link", { name, exact: true });
+          await expect(link).toBeInViewport();
+          expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        }
+      }
+      await sidebar.screenshot({
+        path: info.outputPath(`sidebar-${width}.png`),
+      });
+      await sidebar
+        .getByRole("button", { name: "Commands", exact: true })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "Command menu", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        sidebar.getByRole("button", { name: "Commands", exact: true }),
+      ).toBeFocused();
+      if (width < 1024)
+        await sidebar
+          .getByRole("button", { name: "Notebooks", exact: true })
+          .click();
+      const notebooks = sidebar.getByRole("region", { name: "Your notebooks" });
+      const book = notebooks.getByRole("link", {
+        name: "Model preferences",
+        exact: true,
+      });
+      expect(
+        await book
+          .locator("span")
+          .evaluate(
+            (element) =>
+              element.scrollHeight <= element.clientHeight &&
+              element.scrollWidth <= element.clientWidth,
+          ),
+      ).toBe(true);
+      const before = await book.boundingBox();
+      const actions = notebooks.getByRole("button", {
+        name: "Notebook actions for Model preferences",
+        exact: true,
+      });
+      await actions.focus();
+      await actions.press("ArrowDown");
+      const menu = notebooks.getByRole("group", {
+        name: "Notebook actions for Model preferences",
+        exact: true,
+      });
+      await expect(
+        menu.getByRole("link", { name: "New note", exact: true }),
+      ).toBeFocused();
+      expect(await book.boundingBox()).toEqual(before);
+      await page.keyboard.press("Escape");
+      await expect(actions).toBeFocused();
+      await book.click();
+      await expect(page).toHaveURL(new RegExp(`/app/projects/${project.id}$`));
+      await expect(sidebar.locator(".sidebar-create")).toHaveAttribute(
+        "href",
+        `/app/notes/new?notebook=${project.id}`,
+      );
+      if (width < 1024)
+        await sidebar
+          .getByRole("button", { name: "Notebooks", exact: true })
+          .click();
+      await expect(
+        notebooks.getByRole("link", { name: "Working notes", exact: true }),
+      ).toBeVisible();
+      await expect(book).toHaveAttribute("aria-current", "page");
+      const heading = await notebooks
+        .locator(".notebook-explorer-heading")
+        .boundingBox();
+      await notebooks.evaluate((element) =>
+        element.scrollTo(0, element.scrollHeight),
+      );
+      await expect
+        .poll(() => notebooks.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
+      expect(
+        await notebooks.locator(".notebook-explorer-heading").boundingBox(),
+      ).toEqual(heading);
+      await expect(
+        notebooks.getByRole("link", { name: "Manage notebooks" }),
+      ).toBeInViewport();
+      expect(
+        await sidebar.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await sidebar.screenshot({
+        path: info.outputPath(`sidebar-scrolled-${width}.png`),
+      });
+    });
+  });
+}
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`row dropdown at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("overlays the list with one menu, keyboard dismissal and dialog focus return", async ({
+      page,
+    }, info) => {
+      await fixture(page);
+      await page.goto(`${base}/app`);
+      const row = page.locator(`[data-note-id="${note.id}"]`);
+      const trigger = row.getByRole("button", {
+        name: "Actions for Review preferences",
+        exact: true,
+      });
+      await trigger.scrollIntoViewIfNeeded();
+      await page.evaluate(() => document.fonts.ready);
+      const bounds = () =>
+        page
+          .locator(".memory-list-item")
+          .evaluateAll((elements) =>
+            elements.map((element) => element.getBoundingClientRect().toJSON()),
+          );
+      const before = await bounds();
+      await trigger.press("ArrowDown");
+      const menu = row.getByRole("group", {
+        name: "Actions for Review preferences",
+        exact: true,
+      });
+      await expect(
+        menu.getByRole("button", { name: "Move", exact: true }),
+      ).toBeFocused();
+      expect(await bounds()).toEqual(before);
+      const box = (await menu.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(
+        await page.evaluate(
+          () => document.documentElement.getBoundingClientRect().right - 8,
+        ),
+      );
+      await menu
+        .getByRole("button", { name: "Move", exact: true })
+        .press("End");
+      await expect(
+        menu.getByRole("button", { name: "Delete note…", exact: true }),
+      ).toBeFocused();
+      await page.screenshot({
+        path: info.outputPath(`row-dropdown-${width}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(trigger).toBeFocused();
+      expect(await bounds()).toEqual(before);
+      await trigger.click();
+      await menu.getByRole("button", { name: "Export…", exact: true }).click();
+      const exportDialog = page.getByRole("dialog", {
+        name: "Export note",
+        exact: true,
+      });
+      await expect(exportDialog).toBeVisible();
+      await exportDialog
+        .getByRole("button", { name: "Done", exact: true })
+        .click();
+      await expect(trigger).toBeFocused();
+      await trigger.click();
+      // The overlay may cover the other row's trigger; keyboard users can still
+      // switch directly, and native auto-popover ownership dismisses the first.
+      const other = page.getByRole("button", {
+        name: "Actions for Launch checklist",
+        exact: true,
+      });
+      await other.focus();
+      await other.press("Enter");
+      await expect(
+        page.getByRole("group", { name: /^Actions for/ }),
+      ).toHaveCount(1);
+      await page.getByRole("heading", { name: "Notes", exact: true }).click();
+      await expect(
+        page.getByRole("group", { name: /^Actions for/ }),
+      ).toHaveCount(0);
+    });
+  });
+}
+
+for (const width of [1440, 768, 390, 320]) {
   test.describe(`stable note tools at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
     test("modes and inspectors preserve document bounds and return reading position", async ({
@@ -687,7 +977,10 @@ test("viewer tasks keep newer checks through a held save and leave revision prev
       .filter((call) => call.path === "/memories")
       .map((call) => call.body.expectedVersion),
   ).toEqual([1, 2]);
-  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Revision history", exact: true })
+    .click();
   const history = page.getByRole("dialog", { name: "Revision history" });
   await expect(history).toBeVisible();
   await expect(history.getByRole("checkbox")).toHaveCount(0);
@@ -5410,7 +5703,7 @@ test("nested notebooks share paths, create and move controls, and preserve note 
   ).toBe(child.id);
   await page
     .getByRole("region", { name: "Your notebooks" })
-    .getByRole("link", { name: "Manage", exact: true })
+    .getByRole("link", { name: "Manage notebooks", exact: true })
     .click();
   await page.setViewportSize({ width: 320, height: 900 });
   await expect(
@@ -5483,7 +5776,7 @@ test("shared dropdowns support keyboard selection, typeahead, modal dismissal an
   }
   await page
     .getByRole("region", { name: "Your notebooks" })
-    .getByRole("link", { name: "Manage", exact: true })
+    .getByRole("link", { name: "Manage notebooks", exact: true })
     .click();
   await page.getByRole("button", { name: "New notebook", exact: true }).click();
   await page.setViewportSize({ width: 320, height: 900 });
@@ -5777,12 +6070,16 @@ test("row actions have one owner, Escape restores focus and an interrupted swipe
   try {
     const state = await fixture(page);
     await page.goto(`${base}/app`);
-    const buttons = page.locator(".row-controls button");
+    const buttons = page.locator(".row-controls > button");
     await buttons.first().tap();
+    await page.getByRole("heading", { name: "Notes", exact: true }).tap();
+    await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
+      0,
+    );
     await buttons.nth(1).tap();
-    await expect(
-      page.getByRole("button", { name: "Close actions", exact: true }),
-    ).toHaveCount(1);
+    await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
+      1,
+    );
     await expect(buttons.nth(1)).toHaveAttribute("aria-expanded", "true");
     await page.keyboard.press("Escape");
     await expect(buttons.nth(1)).toBeFocused();
@@ -5828,9 +6125,9 @@ test("row actions have one owner, Escape restores focus and an interrupted swipe
       touchPoints: [],
     });
     await expect(row).not.toHaveAttribute("data-swiping");
-    await expect(
-      page.getByRole("button", { name: "Close actions" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
+      0,
+    );
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
       0,
@@ -5876,26 +6173,24 @@ test("touch swipe only reveals actions, cancellation stays quiet, and keyboard a
   await touch("touchStart");
   await touch("touchMove", -100);
   await touch("touchEnd");
-  await expect(
-    page.getByRole("button", { name: "Close actions" }),
-  ).toBeVisible();
+  await expect(page.getByRole("group", { name: /^Actions for/ })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.screenshot({
     path: info.outputPath("touch-actions.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Close actions" }).click();
+  await page.keyboard.press("Escape");
   await touch("touchStart");
   await touch("touchMove", -25);
   await touch("touchCancel");
-  await expect(page.getByRole("button", { name: "Close actions" })).toHaveCount(
+  await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
     0,
   );
   await touch("touchStart");
   await touch("touchMove", 2, -80);
   await touch("touchEnd");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Close actions" })).toHaveCount(
+  await expect(page.getByRole("group", { name: /^Actions for/ })).toHaveCount(
     0,
   );
   await page
