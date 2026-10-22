@@ -216,9 +216,13 @@
   background: var(--color-sage);
 }
 .shared-reader .memory-markdown blockquote {
-  border-left: 2px solid var(--color-line);
-  padding-left: 16px;
-  color: var(--color-muted);
+  border: 0;
+  padding: 14px 18px;
+  border-radius: 6px;
+  background: #f2f3ef;
+}
+.shared-reader .memory-markdown blockquote > * + * {
+  margin-top: 10px;
 }
 .shared-reader .markdown-table {
   overflow: auto;

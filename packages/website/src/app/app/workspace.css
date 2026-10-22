@@ -435,8 +435,7 @@ html:has(.grove-app) {
   border-radius: 10px;
 }
 .ask-composer:focus-within {
-  border-color: #9cae91;
-  box-shadow: 0 0 0 2px #e9eee3;
+  border-color: var(--color-muted);
 }
 .ask-composer textarea {
   display: block;
@@ -484,8 +483,8 @@ html:has(.grove-app) {
   color: #63725d;
 }
 .ask-composer .app-icon[aria-pressed="true"] {
-  color: #355522;
-  background: #eaf0e3;
+  color: var(--color-forest);
+  background: var(--color-sage);
 }
 .ask-formatting {
   display: flex;
@@ -879,13 +878,13 @@ html:has(.grove-app) {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 4px;
-  border: 1px solid #dce2d9;
+  border: 1px solid var(--color-line);
   border-radius: 8px;
   background: #fff;
-  color: #293a30;
-  box-shadow: 0 8px 28px #25372020;
+  color: var(--color-forest);
+  box-shadow: 0 8px 24px #15251b18;
   font:
-    12px var(--font-space-grotesk),
+    13px var(--font-space-grotesk),
     Arial,
     sans-serif;
 }
@@ -895,17 +894,17 @@ html:has(.grove-app) {
   justify-content: flex-start;
   gap: 8px;
   width: 100%;
-  min-height: 34px;
+  min-height: 36px;
   padding: 6px 9px;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: inherit;
   text-align: left;
-  font-size: 12px;
+  font-size: inherit;
 }
-.action-menu > :is(a, button):hover {
-  background: #edf1e9;
+.action-menu > :is(a, button):hover:not(:disabled) {
+  background: var(--color-sage);
 }
 .action-menu > :is(a, button):focus-visible {
   outline: 2px solid var(--color-leaf);

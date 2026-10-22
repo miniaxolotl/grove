@@ -615,18 +615,12 @@
   max-height: calc(100dvh - 340px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 18px max(16px, calc((100% - 1000px) / 2));
+  padding: 24px max(16px, calc((100% - 800px) / 2));
   scroll-padding: 28px;
 }
 .ask-welcome {
-  max-width: 540px;
-  margin: 8px auto 20px;
-  text-align: center;
-}
-.ask-mark {
-  display: inline-flex;
-  color: #526e51;
-  margin-bottom: 14px;
+  max-width: 440px;
+  margin: clamp(24px, 6vh, 64px) auto 24px;
 }
 .ask-welcome h2 {
   font-size: 24px;
@@ -642,29 +636,31 @@
   color: var(--color-muted);
 }
 .ask-suggestions {
-  display: grid;
-  gap: 8px;
-  max-width: 420px;
-  margin: 20px auto 0;
+  margin-top: 20px;
   text-align: left;
+}
+.ask-suggestions button + button {
+  border-top: 1px solid var(--color-line);
 }
 .ask-suggestions button {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 14px;
-  padding: 12px 14px;
+  width: 100%;
+  padding: 14px 4px;
   min-height: 44px;
-  border: 1px solid #e1e5dc;
-  border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-muted);
-  background: #fafbf7;
-  transition: background 150ms;
+  text-align: left;
+  transition: color 150ms;
 }
 .ask-suggestions button:hover {
-  background: #eff3e9;
   color: var(--color-forest);
+}
+.ask-suggestions button:hover span {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .ask-suggestions svg {
   flex-shrink: 0;
@@ -690,7 +686,7 @@
 .ask-answer {
   margin-top: 18px;
   font-size: 14px;
-  line-height: 1.9;
+  line-height: 1.75;
   overflow-wrap: anywhere;
 }
 .ask-answer-label {
@@ -712,16 +708,16 @@
   min-height: 24px;
   margin-left: 5px;
   padding: 0 5px;
-  background: #edf1e7;
-  border: 1px solid #d4dfc9;
-  border-radius: 5px;
-  color: #3a5b34;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  color: var(--color-forest);
   font-size: 10px;
   font-weight: 600;
   vertical-align: 2px;
 }
 .ask-citation:hover {
-  background: #dae6cf;
+  background: var(--color-sage);
 }
 .ask-answer-note,
 .ask-pending {
@@ -756,9 +752,10 @@
   content: "−";
 }
 .ask-source-list {
-  display: grid;
-  gap: 8px;
   margin-top: 12px;
+}
+.ask-source-list li + li {
+  border-top: 1px solid var(--color-line);
 }
 .ask-source-list li > button {
   display: flex;
@@ -766,14 +763,15 @@
   align-items: start;
   width: 100%;
   gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-line);
-  border-radius: 9px;
-  background: #fafbf7;
+  padding: 12px 8px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
 }
 .ask-source-list li > button:hover {
-  border-color: #b7c3af;
-  background: #f3f6ee;
+  background: var(--color-paper);
+}
+.ask-source-list li > button:focus-visible {
+  outline-offset: -2px;
 }
 .source-number {
   font-size: 10px;
@@ -807,18 +805,13 @@
   margin-top: 3px;
 }
 .ask-composer {
-  max-width: 1000px;
+  max-width: 800px;
   margin: 8px auto 14px;
   width: calc(100% - 32px);
   padding: 12px 14px 10px;
-  border: 1px solid #c7d1c0;
+  border: 1px solid var(--color-line);
   border-radius: 8px;
   background: #fff;
-  box-shadow: 0 3px 12px #253e3106;
-}
-.ask-composer:focus-within {
-  border-color: #7f9473;
-  box-shadow: 0 0 0 3px #526e5110;
 }
 .ask-composer textarea {
   width: 100%;
@@ -1278,8 +1271,9 @@
 }
 .connection-evidence blockquote {
   margin: 0;
-  border-inline-start: 1px solid var(--color-line);
-  padding-inline-start: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: #fff;
   white-space: pre-wrap;
   font-size: 0.8125rem;
   line-height: 1.75;

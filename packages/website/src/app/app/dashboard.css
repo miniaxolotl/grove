@@ -45,11 +45,20 @@
   padding: 20px;
   gap: 16px;
 }
-.grove-app {
+.grove-app,
+.app-dialog,
+.app-select-content,
+.action-menu,
+.library-filter-popover,
+.toast-region,
+.workspace-drop-surface,
+.memory-drag-preview {
   --color-paper: #f8f9f7;
   --color-line: #e1e5df;
   --color-muted: #626e66;
   --color-sage: #edf1e9;
+}
+.grove-app {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 264px minmax(0, 1fr);
@@ -134,18 +143,25 @@
     background 0.15s;
   white-space: nowrap;
 }
-.app-button:hover {
-  opacity: 0.85;
+.app-button:hover:not(:disabled) {
+  background: #344f40;
 }
 .app-button.secondary {
   background: #fff;
   color: var(--color-forest);
   border-color: var(--color-line);
 }
+.app-button.secondary:hover:not(:disabled) {
+  background: var(--color-paper);
+  border-color: #bac3b9;
+}
 .app-button.danger {
   background: #fff4f0;
   border-color: #e4c7bd;
   color: #833323;
+}
+.app-button.danger:hover:not(:disabled) {
+  background: #f8e8e2;
 }
 .app-button:disabled {
   opacity: 0.5;
@@ -159,7 +175,7 @@
   border-radius: 6px;
   flex-shrink: 0;
 }
-.app-icon:hover {
+.app-icon:hover:not(:disabled) {
   background: var(--color-sage);
 }
 .app-search {
@@ -250,11 +266,24 @@
   background: var(--color-paper);
   overflow-y: auto;
   overscroll-behavior: contain;
-  box-shadow: 0 32px 100px #15251b50;
+  box-shadow: 0 16px 48px #15251b26;
 }
 .app-dialog::backdrop {
-  background: #15251bb3;
-  backdrop-filter: blur(3px);
+  background: #15251b42;
+}
+.app-dialog > .dialog-heading {
+  margin-bottom: 16px;
+}
+.app-dialog > .dialog-heading h2 {
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.grove-app :focus-visible,
+.app-dialog :focus-visible {
+  outline-color: var(--color-leaf);
+  outline-offset: 2px;
 }
 .app-form {
   display: grid;
@@ -732,6 +761,15 @@
 .drag-handle:active {
   cursor: grabbing;
 }
+@media (hover: hover) and (pointer: fine) {
+  .memory-row .drag-handle {
+    opacity: 0;
+  }
+  .memory-row:hover .drag-handle,
+  .memory-row:focus-within .drag-handle {
+    opacity: 1;
+  }
+}
 .memory-row-content {
   min-width: 0;
 }
@@ -741,6 +779,7 @@
   text-align: left;
   overflow-wrap: anywhere;
   min-height: 38px;
+  border-radius: 4px;
 }
 .memory-title {
   display: block;
@@ -799,7 +838,7 @@
 .memory-tags button {
   min-height: 24px;
   padding: 2px 6px;
-  background: #f1f4ee;
+  background: var(--color-paper);
   border-radius: 4px;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -1099,9 +1138,12 @@
 }
 .memory-markdown blockquote {
   padding: 14px 18px;
-  background: #eff0ea;
-  border-radius: 7px;
+  background: var(--color-paper);
+  border-radius: 6px;
   border: 0;
+}
+.memory-markdown blockquote > * + * {
+  margin-top: 10px;
 }
 .memory-markdown code {
   font-size: 0.86em;
