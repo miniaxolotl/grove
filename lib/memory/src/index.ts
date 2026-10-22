@@ -174,19 +174,24 @@ export class MemoryService {
     mutation: boolean,
     touchKey = false,
   ): Promise<Access> {
-    const accountQuery = trx<Account & { sessionRevoked: boolean }>("accounts")
+    const accountQuery = trx<Account>("accounts").where({
+      id: principal.accountId,
+    });
+    // Materialize the locked row first. The VOLATILE revocation function must
+    // take its fresh snapshot after a lock wait, not while projecting its input.
+    const record = await trx
+      .withMaterialized(
+        "authorized_account",
+        mutation ? accountQuery.forUpdate() : accountQuery.forShare(),
+      )
+      .from<Account & { sessionRevoked: boolean }>("authorized_account")
       .select(
-        "accounts.*",
+        "authorized_account.*",
         trx.raw("grove_session_revoked(?) AS session_revoked", [
           principal.sessionId ?? "",
         ]),
       )
-      .where({
-        id: principal.accountId,
-      });
-    const record = await (
-      mutation ? accountQuery.forUpdate() : accountQuery.forShare()
-    ).first();
+      .first();
     if (!record || record.status !== "active")
       throw new GroveError(
         "account_unavailable",

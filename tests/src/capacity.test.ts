@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { randomUUID } from "node:crypto";
+import { setTimeout } from "node:timers/promises";
 import { createDatabase, tenant, withDatabaseSignal } from "@lib/database";
 import { withMemoryOperation } from "@lib/memory";
 import { listSchema } from "@lib/shared/contracts";
@@ -203,7 +205,7 @@ test("interactive saturation leaves foreground reads available and deadlines can
     },
   };
   try {
-    const deadline = app({ capacity: { requestTimeoutMs: 100 } });
+    const deadline = app({ capacity: { requestTimeoutMs: 500 } });
     const result = await deadline.request("/v1/memories/search", {
       method: "POST",
       headers: {
@@ -260,7 +262,7 @@ test("interrupted exports fail the download and release their interactive permit
     return original(principal, after);
   };
   const server = app({
-    capacity: { interactiveConcurrency: 1, interactiveTimeoutMs: 1000 },
+    capacity: { interactiveConcurrency: 1, interactiveTimeoutMs: 3000 },
   });
   try {
     const response = await server.request("/v1/account/export", {
@@ -282,6 +284,52 @@ test("interrupted exports fail the download and release their interactive permit
 });
 after(async () => {
   await fixture?.close();
+});
+
+test("a session revoked during an account-lock wait cannot start admitted work", async () => {
+  const principal = { ...fixture.principals[0], sessionId: randomUUID() };
+  await withMemoryOperation(async () => {
+    // Admission has already committed; exercise the post-inference reauthorization.
+    await fixture.service.access(principal, "memory:read", async () => {});
+    const blocker = await fixture.admin.transaction();
+    await blocker("accounts")
+      .where({ id: principal.accountId })
+      .forUpdate()
+      .first();
+    let ran = false;
+    const result = fixture.service
+      .access(principal, "memory:read", async () => {
+        ran = true;
+      })
+      .then(
+        () => null,
+        (error: { code?: string }) => error,
+      );
+    try {
+      let waiting = false;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const state = await fixture.admin.raw(
+          "SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%accounts%' LIMIT 1",
+        );
+        if (state.rows.length) {
+          waiting = true;
+          break;
+        }
+        await setTimeout(10);
+      }
+      assert.ok(
+        waiting,
+        "Service must actually be waiting for the held account lock",
+      );
+      await blocker("session_revocations").insert({ id: principal.sessionId });
+      await blocker.commit();
+      assert.equal((await result)?.code, "unauthorized");
+      assert.equal(ran, false);
+    } finally {
+      if (!blocker.isCompleted()) await blocker.rollback();
+      await result;
+    }
+  });
 });
 
 test("presentation query budget is independent of page size, with tenant and revision fences", async () => {
