@@ -4486,6 +4486,12 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
   );
   await page.getByLabel("Include unfiled notes").uncheck();
   const question = page.getByLabel("Ask about your notes");
+  // Touch Enter inserts a newline; modified Enter submits on either layout.
+  const submitKey = (await page.evaluate(
+    () => window.matchMedia("(pointer: coarse)").matches,
+  ))
+    ? "Control+Enter"
+    : "Enter";
   await question.fill("How should I give feedback?");
   await page.getByRole("button", { name: "Send question" }).click();
   await expect(page.locator(".ask-statement")).toContainText("working example");
@@ -4503,13 +4509,17 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
   );
   await page.keyboard.press("Escape");
   await question.fill("Tell me more about that");
-  await question.press("Enter");
+  await question.press(submitKey);
   await expect(page.locator(".ask-statement")).toHaveCount(2);
   expect(
     [...state.chats.values()][0].turns.map((turn) => turn.question),
   ).toEqual(["How should I give feedback?", "Tell me more about that"]);
-  for (const width of [1440, 320]) {
-    await page.setViewportSize({ width, height: 1000 });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(
+      page.getByRole("button", { name: "Send question", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -4528,7 +4538,7 @@ test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and
     ).violations,
   ).toEqual([]);
   await question.fill("Wait for this");
-  await question.press("Enter");
+  await question.press(submitKey);
   await started.promise;
   await page
     .getByRole("button", { name: "New conversation", exact: true })
