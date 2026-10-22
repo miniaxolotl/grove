@@ -32,6 +32,8 @@ import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
 import { legacyRelationshipsFor } from "./relationship-data.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
+import { runTask } from "./task-runner.ts";
 import {
   briefFor,
   briefTarget,
@@ -1267,7 +1269,9 @@ export class MemoryService {
             parentId: input.parentId ?? null,
             accountId: account.id,
           })
-          .onConflict(["accountId", "identity"])
+          .onConflict(
+            trx.raw("(account_id, identity) WHERE deleted_at IS NULL"),
+          )
           .merge({ name: input.name })
           .returning(fields);
         created = true;
@@ -1572,70 +1576,12 @@ export class MemoryService {
   }
 
   async maintenance(deleteIdentity: (subject: string) => Promise<void>) {
-    const rows = camelRows<{
-      id: string;
-      status: string;
-      clerkSubject: string;
-      providerDeletedAt: Date | null;
-    }>(await this.db.raw("SELECT * FROM grove_maintenance_accounts()"));
-    for (const account of rows) {
-      let identityDeleted = !!account.providerDeletedAt;
-      if (account.status === "deleting" && !identityDeleted) {
-        try {
-          await deleteIdentity(account.clerkSubject);
-          identityDeleted = true;
-        } catch {
-          /* Purge content while identity deletion retries. */
-        }
-      }
-      await tenant(this.db, account.id, async (trx) => {
-        await trx.raw("SELECT pg_advisory_xact_lock_shared(68142019)");
-        const current = await trx("accounts")
-          .where({ id: account.id })
-          .forUpdate()
-          .first();
-        if (current.status === "deleting" || current.status === "deleted") {
-          await trx("public_shares").delete();
-          await trx("conversations").delete();
-          await trx("transactional_emails").delete();
-          await trx("jobs").delete();
-          await trx("memory_briefs").delete();
-          await trx("inference_usage").delete();
-          await trx("memories").delete();
-          await trx("connections").delete();
-          await trx("projects").delete();
-          await trx("memory_operations").delete();
-          await trx("rate_buckets").delete();
-          const providerGone = identityDeleted || !!current.providerDeletedAt;
-          await trx("accounts")
-            .where({ id: account.id })
-            .update({
-              status: providerGone ? "deleted" : "deleting",
-              ...(providerGone ? { providerDeletedAt: trx.fn.now() } : {}),
-            });
-        } else {
-          const expired = await trx("memories")
-            .where("purgeAt", "<=", trx.fn.now())
-            .forUpdate()
-            .select("id");
-          for (const row of expired)
-            await trx("deleted_memories")
-              .insert({ accountId: account.id, id: row.id })
-              .onConflict(["accountId", "id"])
-              .ignore();
-          await trx("memories")
-            .whereIn(
-              "id",
-              expired.map((r) => r.id),
-            )
-            .delete();
-          if (expired.length) await this.changed(trx, account.id);
-        }
-        await trx("rate_buckets")
-          .where("minute", "<", trx.raw("now() - interval '1 day'"))
-          .delete();
-      });
-    }
+    await scheduleCleanup(this.db);
+    const handlers = cleanupHandlers(this.db, deleteIdentity);
+    // Bounded compatibility entrypoint; the deployed worker gives this lane its
+    // own consumer capacity, independent of dispatch and inference.
+    for (let batch = 0; batch < 20; batch++)
+      if (!(await runTask(this.db, handlers, { lane: "maintenance" }))) break;
   }
 }
 
