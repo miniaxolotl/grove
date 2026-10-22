@@ -272,21 +272,18 @@ export function AssistancePanel({
             {!result.result.items.length && <p>No recorded actions found.</p>}
             {result.result.items.map((item, index) => (
               <section key={index} className="border-b pb-4">
-                <label className="flex items-start gap-2">
-                  <span aria-hidden="true">☐</span>
-                  <textarea
-                    rows={2}
-                    className="app-input w-full"
-                    aria-label={`Action ${index + 1}`}
-                    maxLength={240}
-                    disabled={busy}
-                    value={edits[index] ?? item.text}
-                    onChange={(event) => {
-                      operation.current = null;
-                      setEdits({ ...edits, [index]: event.target.value });
-                    }}
-                  />
-                </label>
+                <textarea
+                  rows={2}
+                  className="app-input w-full"
+                  aria-label={`Action ${index + 1}`}
+                  maxLength={240}
+                  disabled={busy}
+                  value={edits[index] ?? item.text}
+                  onChange={(event) => {
+                    operation.current = null;
+                    setEdits({ ...edits, [index]: event.target.value });
+                  }}
+                />
                 {edits[index] !== undefined && edits[index] !== item.text && (
                   <span className="text-xs text-muted">Edited</span>
                 )}

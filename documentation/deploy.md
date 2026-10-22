@@ -5,6 +5,17 @@ Shared workflow names, action pins, runtime and evidence conventions follow the
 
 ## Topology
 
+### Notebook assistance rollout (015)
+
+Apply `20261022_015_notebook_assistance` with the owner connection after 014 during
+the migration window, then deploy the matching admitted API/worker image and website.
+It preserves authored data and initializes four new preferences from existing choices.
+Runtime readiness requires the new columns. Old workers must be drained before the
+new assistance job kind is admitted. Verify a cited summary, a preview/Apply/Undo,
+private export and visit baseline using a disposable account. Use the updated recovery
+reconciliation to invalidate old previews and reset restored visit windows.
+See [notebook assistance](notebook-assistance.md) for the data and lease contracts.
+
 ### Queue and retained-deletion rollout (014)
 
 1. Back up the database; pause API/worker mutations and retain lifecycle webhooks.

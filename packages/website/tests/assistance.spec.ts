@@ -200,7 +200,7 @@ test("visible notebook visits freeze once; history and cleanup use compact evide
                     content: note.content,
                     sources: [ref],
                     target: ref,
-                    before: note.content,
+                    before: `${note.content}\n\n---\n\n${note.content}`,
                     dismissed: false,
                     reviewVersion: 0,
                   },
@@ -265,7 +265,7 @@ test("visible notebook visits freeze once; history and cleanup use compact evide
 
 test("filing suggestion is requested from the existing move chooser and can abstain", async ({
   page,
-}) => {
+}, info) => {
   let current: Assistance | undefined,
     calls = 0;
   await page.route("**/api/grove/**", async (route) => {
@@ -287,7 +287,22 @@ test("filing suggestion is requested from the existing move chooser and can abst
         status: "ready",
         version: 2,
         result: {
-          filing: { destination: [], reason: "", evidence: [] },
+          filing:
+            calls === 1
+              ? { destination: [], reason: "", evidence: [] }
+              : {
+                  destination: [project.id],
+                  name: project.name,
+                  reason: "Both notes cover Kyoto train plans.",
+                  evidence: [
+                    ref,
+                    {
+                      id: "00000000-0000-4000-8000-000000000054",
+                      version: 1,
+                      quote: "Compare Kyoto train routes for the Japan trip.",
+                    },
+                  ],
+                },
           coverage: { total: 1, examined: 1 },
         },
         applied: [],
@@ -308,6 +323,20 @@ test("filing suggestion is requested from the existing move chooser and can abst
   await expect(dialog.getByRole("button", { name: "Move here" })).toHaveCount(
     0,
   );
+  await dialog.getByRole("button", { name: "Refresh preview" }).click();
+  await expect(dialog.getByRole("button", { name: "Move here" })).toBeVisible();
+  await dialog.getByText("Sources", { exact: true }).click();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(
+      dialog.getByText("Both notes cover Kyoto train plans."),
+    ).toBeVisible();
+    expect(
+      (await new AxeBuilder({ page }).include('[role="dialog"]').analyze())
+        .violations,
+    ).toEqual([]);
+    await page.screenshot({ path: info.outputPath(`filing-${width}.png`) });
+  }
   await dialog.getByRole("button", { name: "Close dialog" }).click();
   await expect(
     page.getByRole("button", { name: "Suggest a notebook" }),
