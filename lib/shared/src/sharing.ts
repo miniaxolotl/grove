@@ -2,6 +2,16 @@ import { z } from "zod";
 import { operationSchema, uuidSchema } from "@lib/shared/contracts";
 
 export const shareTokenSchema = z.string().regex(/^gsh_[A-Za-z0-9_-]{43}$/);
+export const shareDurationSchema = z.enum([
+  "1h",
+  "4h",
+  "1d",
+  "1w",
+  "2w",
+  "1mo",
+]);
+export type ShareDuration = z.infer<typeof shareDurationSchema>;
+export { shareDurations } from "@lib/shared/share-durations";
 export const shareMutationSchema = z
   .object({
     operationId: operationSchema,
@@ -12,10 +22,18 @@ export const shareEnableSchema = shareMutationSchema.extend({
   expectedVersion: z.number().int().min(0),
   expectedTargetVersion: z.number().int().positive(),
   includeDescendants: z.boolean().default(false),
+  duration: shareDurationSchema.nullable().optional(),
 });
-export const shareScopeSchema = shareMutationSchema.extend({
-  includeDescendants: z.boolean(),
-});
+export const shareScopeSchema = shareMutationSchema
+  .extend({
+    includeDescendants: z.boolean().optional(),
+    duration: shareDurationSchema.nullable().optional(),
+  })
+  .refine(
+    (value) =>
+      value.includeDescendants !== undefined || value.duration !== undefined,
+    "Choose a sharing setting to change",
+  );
 export const publicShareQuerySchema = z
   .object({
     cursor: z.string().max(2048).optional(),
@@ -33,6 +51,8 @@ export type ShareState = {
     version: number;
     active: boolean;
     includeDescendants: boolean;
+    duration: ShareDuration | null;
+    expiresAt: string | null;
     url: string | null;
   } | null;
   inherited: { id: string; projectId: string; name: string }[];

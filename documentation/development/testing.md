@@ -4,6 +4,12 @@ Public sharing coverage uses real non-owner database roles for capability scope,
 concurrent revocation, archive/moves/expiry, account purging, token encryption,
 temporary-schema shadowing, separate public quotas and backup invalidation.
 `tests/src/sharing.test.ts` requires all three disposable database URLs below.
+Timed-link checks cover all six durations, exact expiry, retry/rotation deadlines,
+stale settings, expired inheritance/navigation/pagination and renewal with a new
+secret. `share-expiration-migration.test.ts` upgrades a populated 011 database to
+012 and verifies preserved capabilities and non-owner isolation. Run focused
+iPhone/WebKit checks with `playwright.sharing-webkit.config.ts`; its server setup
+retains both the synthetic public upstream and the production Next server.
 
 Website orchestration starts a synthetic sharing upstream on port 4378
 (`SHARING_TEST_PORT` overrides it) alongside the real production-built Next server.

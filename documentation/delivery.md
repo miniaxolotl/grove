@@ -1,5 +1,32 @@
 # Delivery evidence
 
+## Timed public links (22 October 2026 UTC)
+
+Owners can set link expiry to one hour, four hours, one day, one week, two weeks
+or one month (30 days). Existing links retain no expiry. PostgreSQL computes and
+enforces deadlines on every public read, including notebook navigation/pagination.
+Expiry edits keep the URL; retries, scope edits and replacement preserve the saved
+deadline. Renewing an expired link generates a new secret. The dialog shows the
+expiry time, disables copying at expiry and preserves staged/cancelled edits.
+
+The complete **92 database/service** suite and a separate populated **011→012
+upgrade** case pass. After the final database-clock mutation fence, all **17 focused
+sharing/upgrade** cases pass again. Root/website lint, types and builds, five packed
+artifacts, bundle budgets, 17 release/deployment contracts and pinned workflow lint
+pass. All **162 Chromium** scenarios pass, including auth isolation, no-JavaScript
+reading, six duration options, retry deadlines, cancellation, expiry and responsive
+accessibility. Creating a link now scrolls the restored action into view when its
+new URL/tools make the dialog taller.
+The final dependency-free build also passes **12 focused Chromium** and **seven
+iPhone/WebKit** cases. Notes entry is **479,757 gzip bytes**, 474 bytes above the
+authentication-isolation baseline and within the existing bundle budget.
+
+[Reviewed screenshots](design/screenshots/timed-sharing/README.md) show the owner
+dialog at desktop/390px/320px. The duration catalog has a dependency-free client
+entrypoint so adding its six options does not pull server validation schemas into
+the workspace bundle. Migration `20261022_012_share_expiration` is forward-only;
+production activation follows the coordinated rollout in [deploy](deploy.md).
+
 ## Public-reader authentication isolation (22 October 2026 UTC)
 
 Live rollout verification found that the root authentication provider loaded Clerk
