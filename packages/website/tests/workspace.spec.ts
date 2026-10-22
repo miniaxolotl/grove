@@ -2477,7 +2477,9 @@ test("palettes keep dismissal and results reachable in landscape, zoom and enlar
   if (browserName === "chromium") {
     const session = await page.context().newCDPSession(page);
     await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
-    await page.getByRole("button", { name: /^Commands/ }).click();
+    // CDP pointer hit testing does not account for the panned pinch origin.
+    // Native keyboard activation still exercises opening and closing at 2×.
+    await page.getByRole("button", { name: /^Commands/ }).press("Enter");
     await expect(input).toBeFocused();
     await expect
       .poll(async () =>
@@ -2485,6 +2487,7 @@ test("palettes keep dismissal and results reachable in landscape, zoom and enlar
           const box = element.getBoundingClientRect();
           const viewport = window.visualViewport!;
           return (
+            viewport.scale === 2 &&
             box.left >= viewport.offsetLeft &&
             box.right <= viewport.offsetLeft + viewport.width &&
             box.top >= viewport.offsetTop &&
@@ -2493,7 +2496,7 @@ test("palettes keep dismissal and results reachable in landscape, zoom and enlar
         }),
       )
       .toBe(true);
-    await menu.getByRole("button", { name: "Close dialog" }).click();
+    await menu.getByRole("button", { name: "Close dialog" }).press("Enter");
     await expect(menu).toHaveCount(0);
     await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
     await session.detach();
