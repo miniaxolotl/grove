@@ -1,5 +1,32 @@
 # Delivery evidence
 
+## Independent AI preferences (22 October 2026)
+
+Settings groups ten independent controls under Organization, Connections, Summaries,
+Ask Grove and Connected agents. One Save action preserves newer edits and submits
+only changed fields. Missing providers are distinguished from saved preferences;
+related notes/notebooks correctly require generation. Shared preference keys,
+legacy mappings, job/scope guards and a single row renderer reduce duplication.
+
+Migration **013** preserves existing enabled/disabled choices. API reads, queued
+work, worker publication, summary scopes, Ask Grove, reindex and restore enforce
+the controls independently. Disable/re-enable races discard old results. Note
+`autoKind`, explicit types, connection reviews and tenant boundaries are preserved.
+
+All **102 database/service** tests, including the populated **012→013 upgrade**,
+and **five packaged-artifact** checks pass. Root/website lint, types and builds,
+bundle budgets, 17 release/deployment contracts and pinned workflow lint pass.
+The integrated Chromium run passed 165 scenarios and exposed one inherited
+marketing-proxy teardown race. Removing its incomplete promise collector and using
+Playwright's teardown handling fixes the race; all 11 marketing cases then pass
+three repetitions (33 runs). Three focused iPhone/WebKit scenarios pass with reviewed
+1440/390/320px layouts, keyboard controls, save races, error recovery and WCAG A/AA
+checks.
+
+[Screenshots](design/screenshots/ai-preferences/README.md) show the categorized
+controls and save row. [Rollout](deploy.md) requires an explicit owner migration
+and preference-aware API/worker before the website.
+
 ## Minimal website refresh (22 October 2026)
 
 The public site uses open notebook-led sections, shorter copy, compact family
