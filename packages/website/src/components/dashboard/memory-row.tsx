@@ -3,7 +3,12 @@ import { useRef, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
+import {
+  dateLabel,
+  isInactive,
+  memoryExcerpt,
+  memoryTitle,
+} from "@/lib/memory-display";
 import { ActionMenu } from "./ui/action-menu";
 import { useWorkspaceDrag, type WorkspaceDragItem } from "./memory-drag";
 import { NoteActions } from "./note-actions";
@@ -142,10 +147,7 @@ export function MemoryRow({
             <span className="memory-title">{title}</span>
             {memory.enrichment?.title && (
               <span className="memory-excerpt">
-                {memory.content
-                  .replace(/^\s*#{1,6}\s+[^\n]+\n+/, "")
-                  .replace(/[#*`_[\]]/g, "")
-                  .slice(0, 220)}
+                {memoryExcerpt(memory, 220)}
               </span>
             )}
           </button>
