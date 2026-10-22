@@ -8,6 +8,7 @@ import {
   AlignLeft,
   ListTodo,
   Network,
+  Download,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { deferredFeature } from "./deferred-feature";
@@ -26,6 +27,8 @@ import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { ActionMenu } from "./ui/action-menu";
 import { ShareDialog } from "./share-dialog";
 import { NotebookActions } from "./notebook-actions";
+import { AssistanceAction } from "./assistance-action";
+import type { NotebookVisit } from "@lib/shared/assistance";
 const ConnectionPanel = deferredFeature(
   async () => ({
     default: (await import("./connection-panel")).ConnectionPanel,
@@ -53,6 +56,11 @@ const MemoryEditor = deferredFeature(
   "Opening your writing space…",
   { failureTitle: "Your writing space couldn’t open" },
 );
+const ExportTasks = deferredFeature(
+  async () => ({ default: (await import("./export-tasks")).ExportTasks }),
+  "Opening exports…",
+  { failureTitle: "Exports couldn’t open" },
+);
 
 export function MemoryContext({
   projectId = null,
@@ -68,6 +76,8 @@ export function MemoryContext({
   );
   const [refresh, setRefresh] = useState(0);
   const [sharing, setSharing] = useState(false);
+  const [visit, setVisit] = useState<NotebookVisit | null>(null);
+  const [exporting, setExporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
   if (!loading && projectId && !project)
@@ -109,6 +119,13 @@ export function MemoryContext({
                     Today’s note
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <AssistanceAction
+                      input={{ kind: "digest", visitId: visit?.id ?? "" }}
+                      disabled={!visit || visit.projectId !== project.id}
+                    />
+                    <AssistanceAction
+                      input={{ kind: "cleanup", projectId: project.id }}
+                    />
                     <NotebookActions
                       project={project}
                       onAction={setNotebookAction}
@@ -132,6 +149,10 @@ export function MemoryContext({
                     <button onClick={() => setView("handoffs")}>
                       <ListTodo size={15} />
                       Progress notes
+                    </button>
+                    <button onClick={() => setExporting(true)}>
+                      <Download size={15} />
+                      Export notebook
                     </button>
                   </ActionMenu>
                 </>
@@ -247,6 +268,7 @@ export function MemoryContext({
           embedded
           initialView={view === "graph" ? "graph" : "list"}
           projectId={projectId}
+          onVisit={setVisit}
           initialKind={
             view === "preferences"
               ? "preference"
@@ -264,6 +286,11 @@ export function MemoryContext({
         />
       )}
       {view === "ask" && <AskGrove projectId={projectId} embedded />}
+      {project && exporting && (
+        <Dialog title="Export notebook" close={() => setExporting(false)}>
+          <ExportTasks projectId={project.id} />
+        </Dialog>
+      )}
       {project && view === "connections" && (
         <ConnectionPanel level="notebook" endpointId={project.id} />
       )}

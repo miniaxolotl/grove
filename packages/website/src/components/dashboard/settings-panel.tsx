@@ -1,207 +1,51 @@
 "use client";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
-import { Download, SlidersHorizontal } from "lucide-react";
+import { ExportTasks } from "./export-tasks";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
-import { LoadError } from "@/components/dashboard/load-error";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
-
-type Settings = {
-  captureEnabled: boolean;
-  recallEnabled: boolean;
-  organizeEnabled: boolean;
-  summariesEnabled: boolean;
-  accountId: string;
-};
-const preferenceKeys = [
-  "captureEnabled",
-  "recallEnabled",
-  "organizeEnabled",
-  "summariesEnabled",
-] as const;
+import { PreferencesPanel } from "./preferences-panel";
 export function SettingsPanel({
   section = "preferences",
 }: {
   section?: "preferences" | "account" | "data";
 }) {
+  return section === "preferences" ? (
+    <PreferencesPanel />
+  ) : (
+    <AccountSettings section={section} />
+  );
+}
+
+function AccountSettings({ section }: { section: "account" | "data" }) {
   const cache = useWorkspaceCache();
   const api = cache.api;
-  const query = useQuery({
-    ...cache.resource<Settings>("/me"),
-    enabled: section === "preferences",
-  });
-  const [draft, setDraft] = useState<Settings | null>(null);
-  const settings = draft ?? query.data;
-  const [saveError, setError] = useState("");
-  const error = saveError || (query.error ? errorMessage(query.error) : "");
-  const [saved, setSaved] = useState<Settings | null>(null);
+  const [error, setError] = useState("");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const { signOut } = useClerk();
-  const dirty =
-    !!settings &&
-    preferenceKeys.some(
-      (key) =>
-        (settings[key] ?? true) !== ((saved ?? query.data)?.[key] ?? true),
-    );
-  function editSettings(value: Settings) {
-    // Freeze the loaded base on the first edit. Background reads cannot acknowledge it.
-    if (!draft && settings) setSaved(settings);
-    setDraft(value);
-  }
-  async function update() {
-    if (!settings || busy || !dirty) return;
-    setBusy(true);
-    setError("");
-    try {
-      await api(
-        "/account/settings",
-        {
-          captureEnabled: settings.captureEnabled,
-          recallEnabled: settings.recallEnabled,
-          organizeEnabled: settings.organizeEnabled,
-          summariesEnabled: settings.summariesEnabled,
-        },
-        "PATCH",
-      );
-      setSaved(settings);
-      toast("Preferences saved.");
-    } catch (e) {
-      setError(errorMessage(e));
-      toast(errorMessage(e), true);
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <>
-      {error && !settings ? (
-        <LoadError
-          title="Your preferences couldn’t load"
-          message={error}
-          retry={() => {
-            setError("");
-            void query.refetch();
-          }}
-        />
-      ) : error && section !== "preferences" ? (
+      {error ? (
         <p className="app-error" role="alert">
           {error}
         </p>
       ) : null}
       <div className="settings-content">
-        {section === "preferences" && (
-          <>
-            <section className="app-panel">
-              <h2 className="flex items-center gap-3 font-editorial text-2xl">
-                <SlidersHorizontal size={19} />
-                Your preferences
-              </h2>
-              {settings ? (
-                <form
-                  className="app-form mt-6"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void update();
-                  }}
-                >
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.recallEnabled}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          recallEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Let connected agents find useful notes when starting work
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.captureEnabled}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          captureEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Let connected agents save confirmed details
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.organizeEnabled ?? true}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          organizeEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Help organize my notes and find related ideas
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={settings.summariesEnabled ?? true}
-                      onChange={(e) =>
-                        editSettings({
-                          ...settings,
-                          summariesEnabled: e.target.checked,
-                        })
-                      }
-                    />
-                    Enable Ask Grove and notebook summaries
-                  </label>
-                  <p className="text-xs leading-6 text-muted">
-                    You can always write and edit notes yourself. Connected
-                    agents only use the notebooks and permissions you’ve
-                    approved.
-                  </p>
-                  <div className="settings-save-row">
-                    <button
-                      className="app-button w-fit"
-                      disabled={busy || !dirty}
-                    >
-                      Save preferences
-                    </button>
-                    <p
-                      className="settings-save-status"
-                      role="status"
-                      aria-live="polite"
-                    >
-                      {busy
-                        ? "Saving…"
-                        : error
-                          ? "Couldn’t save. Try again."
-                          : dirty
-                            ? "Unsaved changes"
-                            : "All changes saved"}
-                    </p>
-                  </div>
-                </form>
-              ) : (
-                <p
-                  className="settings-loading mt-4 text-sm text-muted"
-                  role="status"
-                >
-                  {error
-                    ? "Your preferences couldn’t be loaded."
-                    : "Loading preferences…"}
-                </p>
-              )}
-            </section>
-          </>
-        )}
+        <div>
+          <h2 className="settings-section-heading">
+            {section === "account" ? "Account" : "Your data"}
+          </h2>
+          <p className="settings-section-description">
+            {section === "account"
+              ? "Manage your sign-in and what Grove remembers about you."
+              : "Keep a copy of your work or manage your account data."}
+          </p>
+        </div>
         {section === "account" && (
           <>
             <section className="app-panel">
@@ -219,29 +63,16 @@ export function SettingsPanel({
         {section === "data" && (
           <>
             <section className="app-panel">
-              <h2 className="font-editorial text-2xl">
-                Take your notes with you
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-muted">
-                Download your notes, earlier versions, and conversations.
-              </p>
-              <a
-                className="app-button secondary mt-5"
-                href="/api/grove/account/export"
-                download
-              >
-                <Download size={15} />
-                Export all account data
-              </a>
+              <ExportTasks />
             </section>
             <section className="app-panel">
               <h2 className="font-editorial text-2xl">
                 Delete your Grove account
               </h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                Access ends immediately. Your notes, history, notebooks,
-                connections, and sign-in account will be permanently removed.
-                This cannot be undone.
+                Access ends immediately and your sign-in is removed. Deleted
+                notes and history are retained privately and hidden from the
+                app.
               </p>
               <form
                 className="app-form mt-5"

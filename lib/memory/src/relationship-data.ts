@@ -194,6 +194,7 @@ export async function enqueueRelationship(
     })
     .onConflict(["accountId", "kind", "target", "profile"]);
   const upsert = query.merge({
+    epoch: trx.raw("(SELECT epoch FROM processing_control WHERE singleton)"),
     scope: JSON.stringify(scope),
     version: note?.version ?? null,
     attempts: 0,
@@ -216,14 +217,18 @@ export async function legacyRelationshipsFor(
   trx: Knex.Transaction,
   ids: string[],
   providers: Providers,
+  enabled?: boolean,
 ) {
   const result = new Map<string, Enrichment["relationships"]>(
     ids.map((id) => [id, []]),
   );
   const profile = currentRelationshipProfile(providers);
   if (!ids.length || !profile) return result;
-  const account = await trx("accounts").first("organizeEnabled");
-  if (!account?.organizeEnabled) return result;
+  const allowed =
+    enabled ??
+    (await trx("accounts").first("noteConnectionsEnabled"))
+      ?.noteConnectionsEnabled;
+  if (!allowed) return result;
   const rows = camelRows<RelationshipRow>(
     await trx.raw(
       `

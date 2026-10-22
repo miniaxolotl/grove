@@ -11,16 +11,16 @@ export function SiteFooter() {
   const shareText = site.shareText;
 
   return (
-    <footer className="border-t border-line bg-paper">
-      <div className="page-container pb-7 pt-12 sm:pt-16">
-        <div className="grid gap-10 pb-12 sm:grid-cols-[1fr_auto_auto] sm:gap-16">
-          <div>
-            <Brand />
+    <footer className="site-footer">
+      <div className="page-container">
+        <div className="footer-main">
+          <div className="footer-brand">
+            <Brand compact />
             <p className="mt-4 max-w-60 text-xs leading-6 text-muted">
               A private notebook for notes, plans and journal entries.
             </p>
           </div>
-          <nav aria-label="Resources">
+          <nav className="footer-links" aria-label="Resources">
             <p className="eyebrow mb-3">EXPLORE</p>
             <Link href="/#features" className="footer-link">
               Why Grove
@@ -35,7 +35,7 @@ export function SiteFooter() {
               Self-host Grove
             </Link>
           </nav>
-          <div>
+          <div className="footer-links">
             <p className="eyebrow mb-3">STAY IN TOUCH</p>
             <a href="mailto:grove@mawa.dev" className="footer-link">
               Say hello <ArrowUpRight size={12} />
@@ -76,10 +76,9 @@ export function SiteFooter() {
           </div>
         </div>
         <BrambleFamily current="grove" />
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[10px] text-muted">
+        <div className="footer-bottom">
           <p>Copyright {new Date().getFullYear()} Bramble Labs Inc.</p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <TelemetryChoice />
+          <nav className="footer-utilities" aria-label="Legal and contact">
             <Link
               href="/privacy"
               className="inline-flex min-h-9 items-center hover:text-forest"
@@ -92,6 +91,7 @@ export function SiteFooter() {
             >
               Terms & conditions
             </Link>
+            <TelemetryChoice />
             <a
               href="mailto:grove@mawa.dev"
               className="inline-flex min-h-9 items-center hover:text-forest"
@@ -110,7 +110,7 @@ export function SiteFooter() {
             >
               Back to top
             </a>
-          </div>
+          </nav>
         </div>
       </div>
     </footer>

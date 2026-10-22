@@ -5,6 +5,39 @@ Shared workflow names, action pins, runtime and evidence conventions follow the
 
 ## Topology
 
+### Notebook assistance rollout (015)
+
+Apply `20261022_015_notebook_assistance` with the owner connection after 014 during
+the migration window, then deploy the matching admitted API/worker image and website.
+It preserves authored data and initializes four new preferences from existing choices.
+Runtime readiness requires the new columns. Old workers must be drained before the
+new assistance job kind is admitted. Verify a cited summary, a preview/Apply/Undo,
+private export and visit baseline using a disposable account. Use the updated recovery
+reconciliation to invalidate old previews and reset restored visit windows.
+See [notebook assistance](notebook-assistance.md) for the data and lease contracts.
+
+### Queue and retained-deletion rollout (014)
+
+1. Back up the database; pause API/worker mutations and retain lifecycle webhooks.
+2. Apply forward migration `20261022_014_queue_processing` with the owner connection,
+   after013. It preserves source rows, adds tombstones/visibility policies and
+   creates durable tasks, epoch fencing and atomic dispatch functions. Index/DDL
+   locks require the maintenance window. Do not run old workers after the cutover.
+3. Configure matching private export storage on API and workers using [jobs](jobs.md).
+   DigitalOcean needs S3-compatible storage, not ephemeral local disks. Keep cloud
+   exports disabled until the bucket/credentials/lifecycle and readiness are verified.
+   Image-only deployments preserve existing provider settings; add these separately
+   through the operator's configuration procedure.
+4. Roll out the admitted API/worker image by digest, then the website. Verify real
+   non-owner roles, retained-but-hidden records, public-link denial, queue fallback,
+   export/download isolation and an incremental backfill. Drain v1 broker deliveries
+   before disabling `WORKER_LEGACY_QUEUE`; allow40s worker shutdown grace.
+5. Recovery must use the updated reconciliation script. It retains authored rows,
+   replays tombstones and invalidates restored leases, exports and credentials.
+
+This is a forward-only lifecycle/API change. The old synchronous account-export
+route returns410; new clients use `/v1/exports` and `/v1/tasks`.
+
 - Next.js website: **https://usegrove.cloud** on Vercel, production Clerk and an authenticated BFF.
 - Hono API: **https://api.usegrove.cloud**, REST `/v1`, MCP `/mcp` on DigitalOcean App Platform.
 - Worker: leased processing, organization, retention, account deletion, and transactional mail.
@@ -15,6 +48,10 @@ One 1-vCPU/1-GB API and one matching worker cost **$20/month combined**, plus Ne
 usage. Worker polling keeps the database active; do not budget it as mostly asleep.
 The published Node 24 image runs both components. Compose remains available for
 self-hosting with pgvector 0.8.2. See [delivery evidence](delivery.md).
+
+API admission, interactive concurrency and per-process database pools are configurable.
+See [capacity settings and verification](development/backend-capacity.md) before
+changing connection counts or resource sizes.
 
 `usegrove.one`, `usegrove.ca`, `grovenote.app` and the four `www` names redirect
 with HTTP 308 to `usegrove.cloud`. Cloudflare hosts `usegrove.cloud` DNS; Porkbun
@@ -96,6 +133,16 @@ owner migration. Roll out API/worker before the website. Conversations use the
 configured generation provider and existing account budgets; the website allows
 180 seconds for a contextual reply. Retain conversation tombstones during recovery;
 the reconciliation tool removes deleted chats and invalidates restored proposals.
+
+Independent AI preferences require `20261022_013_ai_preferences` after 012.
+Verify a backup and migration history, pause API/worker traffic, apply the forward
+migration with the owner role, then deploy matching API/worker replicas before the
+website. The migration preserves each account's legacy choices and retained notes,
+adds independent controls and an Ask Grove cancellation version, and updates the
+reindex function. Verify mixed enabled/disabled controls with the non-owner roles
+before resuming traffic. Retain the additive schema and preference-aware API/worker
+on rollback: older binaries only enforce the grouped organization/summary flags.
+Restore reconciliation requires the same forward schema on authority and target.
 
 Both use the same model configuration. Self-hosted local embeddings need a writable
 model-cache path and use CPU inference. Remote role configuration, encrypted settings
@@ -303,8 +350,9 @@ already delivered to agents. Recovery must replay newer privacy decisions:
    ```
 
    The source transaction is read-only. The target transaction replays permanent
-   memory/account tombstones, identity state and session revocations, purges
-   dependent content, clears cached mutation results and invalidates **all** old
+   memory/account/notebook tombstones, identity state and session revocations,
+   hides retained dependent content, clears cached mutation results, cancels old
+   jobs/downloads and invalidates **all** old
    grants/API keys. Missing authority accounts or mismatched migrations fail closed.
 
 5. Verify non-owner roles/RLS, two-account isolation, deletion absence, worker jobs

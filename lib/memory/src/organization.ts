@@ -1,6 +1,7 @@
 import { camelRows, tenant, type Knex } from "@lib/database";
 import type { Providers } from "@lib/ai";
 import type { BriefRequest, ModelProfiles } from "@lib/shared/models";
+import { summaryPreferences } from "@lib/shared/preferences";
 import { briefFor } from "./processing.ts";
 import { scheduleRelationships } from "./relationship-jobs.ts";
 
@@ -33,7 +34,7 @@ export async function scheduleOrganization(
             generation: providers.generation?.profile,
           };
       let count = 0;
-      if (account.organizeEnabled)
+      if (account.noteConnectionsEnabled || account.notebookConnectionsEnabled)
         count += await scheduleRelationships(trx, accountId, {
           embedding: profiles.embedding ?? null,
           decision: profiles.decision ?? null,
@@ -41,8 +42,8 @@ export async function scheduleOrganization(
         });
       for (const [kind, profile] of [
         ["embedding", profiles.embedding],
-        ["decision", account.organizeEnabled && profiles.decision],
-        ["organization", account.organizeEnabled && profiles.generation],
+        ["decision", account.classificationEnabled && profiles.decision],
+        ["organization", account.titlesTagsEnabled && profiles.generation],
       ] as const) {
         if (!profile) continue;
         const output =
@@ -101,7 +102,7 @@ export async function scheduleOrganization(
       }
       // briefFor verifies exact revisions and expiry even when no API read occurs.
       if (
-        account.summariesEnabled &&
+        summaryPreferences.some((key) => account[key]) &&
         providers.generation &&
         profiles.generation === providers.generation.profile
       ) {

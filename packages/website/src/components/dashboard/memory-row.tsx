@@ -1,10 +1,15 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { GripVertical, MoreHorizontal } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
-import { Button, IconButton } from "./ui/button";
+import {
+  dateLabel,
+  isInactive,
+  memoryExcerpt,
+  memoryTitle,
+} from "@/lib/memory-display";
+import { ActionMenu } from "./ui/action-menu";
 import { useWorkspaceDrag, type WorkspaceDragItem } from "./memory-drag";
 import { NoteActions } from "./note-actions";
 import { useNoteExport } from "./note-export";
@@ -23,8 +28,6 @@ export function MemoryRow({
   onArchive,
   onTag,
   selectedItems,
-  actions,
-  setActions,
 }: {
   memory: Memory;
   projectName: string;
@@ -38,8 +41,6 @@ export function MemoryRow({
   onArchive: () => void;
   onTag: (tag: string) => void;
   selectedItems: Memory[];
-  actions: boolean;
-  setActions: (open: boolean) => void;
 }) {
   const workspace = useWorkspaceDrag();
   const noteExport = useNoteExport();
@@ -54,8 +55,7 @@ export function MemoryRow({
       },
       disabled: busy || workspace.busy,
     });
-  const root = useRef<HTMLLIElement>(null);
-  const actionButton = useRef<HTMLButtonElement>(null);
+  const [actions, setActions] = useState(false);
   const row = useRef<HTMLDivElement>(null);
   const swipe = useRowSwipe(
     row,
@@ -63,45 +63,9 @@ export function MemoryRow({
     () => setActions(true),
   );
   const title = memoryTitle(memory);
-  function act(action: () => void) {
-    actionButton.current?.focus({ preventScroll: true });
-    setActions(false);
-    action();
-  }
-  useEffect(() => {
-    if (!actions) return;
-    if (workspace.active) {
-      setActions(false);
-      return;
-    }
-    const outside = (event: MouseEvent) => {
-      if ((event.target as Element).closest(".row-controls")) return;
-      if (!root.current?.contains(event.target as Node)) setActions(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (
-        event.key !== "Escape" ||
-        event.defaultPrevented ||
-        document.querySelector("dialog[open], [popover]:popover-open")
-      )
-        return;
-      event.preventDefault();
-      setActions(false);
-      actionButton.current?.focus({ preventScroll: true });
-    };
-    document.addEventListener("click", outside);
-    document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("click", outside);
-      document.removeEventListener("keydown", escape);
-    };
-  }, [actions, setActions, workspace.active]);
   return (
     <li
-      ref={(element) => {
-        root.current = element;
-        setNodeRef(element);
-      }}
+      ref={setNodeRef}
       className="memory-list-item"
       data-note-id={memory.id}
       data-selected={selected || undefined}
@@ -183,10 +147,7 @@ export function MemoryRow({
             <span className="memory-title">{title}</span>
             {memory.enrichment?.title && (
               <span className="memory-excerpt">
-                {memory.content
-                  .replace(/^\s*#{1,6}\s+[^\n]+\n+/, "")
-                  .replace(/[#*`_[\]]/g, "")
-                  .slice(0, 220)}
+                {memoryExcerpt(memory, 220)}
               </span>
             )}
           </button>
@@ -238,47 +199,25 @@ export function MemoryRow({
           </div>
         </div>
         <div className="row-controls">
-          <IconButton
-            ref={actionButton}
-            onClick={() => setActions(!actions)}
-            aria-expanded={actions}
+          <ActionMenu
+            open={actions && !workspace.active}
+            onOpenChange={setActions}
             label={`Actions for ${title}`}
           >
-            <MoreHorizontal size={19} />
-          </IconButton>
+            <NoteActions
+              inactive={isInactive(memory)}
+              locked={busy}
+              busy={busy}
+              onMove={onMove}
+              onArchive={onArchive}
+              onDelete={onDelete}
+              onExport={() =>
+                noteExport.open({ key: `note:${memory.id}`, note: memory })
+              }
+            />
+          </ActionMenu>
         </div>
       </div>
-      {actions && (
-        <div
-          className="memory-actions"
-          role="group"
-          aria-label={`Actions for ${title}`}
-        >
-          <NoteActions
-            row
-            inactive={isInactive(memory)}
-            locked={busy}
-            busy={busy}
-            onMove={() => act(onMove)}
-            onArchive={() => act(onArchive)}
-            onDelete={() => act(onDelete)}
-            onExport={() =>
-              act(() =>
-                noteExport.open({ key: `note:${memory.id}`, note: memory }),
-              )
-            }
-          />
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setActions(false);
-              actionButton.current?.focus({ preventScroll: true });
-            }}
-          >
-            Close actions
-          </Button>
-        </div>
-      )}
     </li>
   );
 }

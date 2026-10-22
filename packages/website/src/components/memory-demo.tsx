@@ -70,20 +70,20 @@ export function MemoryDemo() {
       className="page-container section-space"
       aria-labelledby="demo-heading"
     >
-      <div className="mb-10 text-center">
+      <div className="mb-10" data-reveal>
         <p className="eyebrow">MEET ASK GROVE</p>
         <h2 id="demo-heading" className="section-heading mt-4">
           Ask a question.
           <br />
           <em>Find it in your notes.</em>
         </h2>
-        <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-muted">
-          Ask a question in your own words. Grove finds the details you saved
-          and links its answer back to your notes.
+        <p className="mt-5 max-w-lg text-sm leading-7 text-muted">
+          You don&apos;t need the exact words. Ask Grove and follow the answer
+          back to the note you saved.
         </p>
       </div>
 
-      <div className="demo-shell">
+      <div className="demo-shell" data-reveal>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4 sm:px-7">
           <Tabs
             id="memory-example"
@@ -104,7 +104,7 @@ export function MemoryDemo() {
             aria-labelledby={`memory-example-tab-${example.value}`}
             hidden={selected !== example.value}
             tabIndex={0}
-            className="demo-panel"
+            className="demo-panel demo-transition"
           >
             <div className="demo-memory">
               <span className="eyebrow text-leaf">A NOTE YOU SAVED</span>
@@ -145,7 +145,7 @@ export function MemoryDemo() {
               <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
                 <span className="eyebrow text-leaf">ASK GROVE</span>
                 <div
-                  className="inline-flex rounded-full border border-line bg-paper p-1"
+                  className="inline-flex rounded-md border border-line bg-paper p-1"
                   aria-label="Compare answers with and without a saved note"
                 >
                   <button
@@ -172,7 +172,9 @@ export function MemoryDemo() {
                 </span>
                 <div>
                   <span className="text-[11px] text-muted">You</span>
-                  <p className="mt-1 text-sm leading-6">{example.prompt}</p>
+                  <p className="demo-query mt-1 text-sm leading-6">
+                    {example.prompt}
+                  </p>
                 </div>
               </div>
               <div
@@ -180,50 +182,57 @@ export function MemoryDemo() {
                 aria-live="polite"
                 aria-atomic="true"
               >
-                {withGrove ? (
-                  <>
-                    <div className="mb-5 ml-10 flex items-start gap-2 rounded-md border border-line bg-sage/40 px-3 py-2.5 text-[11px] leading-5 text-leaf">
-                      <Search size={12} className="mt-1 shrink-0" />
-                      <span>
-                        Found in{" "}
-                        <span className="text-muted">{example.query}</span>
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-forest text-lime">
-                        <GroveMark className="size-5" />
-                      </span>
+                <div
+                  key={`${example.value}-${withGrove}`}
+                  className="demo-transition"
+                >
+                  {withGrove ? (
+                    <>
+                      <div className="mb-5 ml-10 flex items-start gap-2 rounded-md border border-line bg-sage/40 px-3 py-2.5 text-[11px] leading-5 text-leaf">
+                        <Search size={12} className="mt-1 shrink-0" />
+                        <span>
+                          Found in{" "}
+                          <span className="text-muted">{example.query}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-forest text-lime">
+                          <GroveMark className="size-5" />
+                        </span>
+                        <div>
+                          <span className="text-[11px] font-medium text-leaf">
+                            Ask Grove
+                          </span>
+                          <p className="mt-1 text-sm leading-7">
+                            {example.response}
+                          </p>
+                          <a
+                            href={`#example-note-${example.value}`}
+                            className="demo-source"
+                            aria-label={`View note: ${example.title}`}
+                          >
+                            1. {example.title}
+                          </a>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-start gap-3 rounded-lg bg-paper p-4">
+                      <MessageSquare
+                        size={16}
+                        className="mt-1 shrink-0 text-muted"
+                      />
                       <div>
-                        <span className="text-[11px] font-medium text-leaf">
+                        <span className="text-[11px] text-muted">
                           Ask Grove
                         </span>
-                        <p className="mt-1 text-sm leading-7">
-                          {example.response}
+                        <p className="mt-2 text-sm leading-7 text-muted">
+                          {example.without}
                         </p>
-                        <a
-                          href={`#example-note-${example.value}`}
-                          className="demo-source"
-                          aria-label={`View note: ${example.title}`}
-                        >
-                          1. {example.title}
-                        </a>
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex items-start gap-3 rounded-lg bg-paper p-4">
-                    <MessageSquare
-                      size={16}
-                      className="mt-1 shrink-0 text-muted"
-                    />
-                    <div>
-                      <span className="text-[11px] text-muted">Ask Grove</span>
-                      <p className="mt-2 text-sm leading-7 text-muted">
-                        {example.without}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

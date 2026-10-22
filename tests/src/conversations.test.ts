@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
+import { Readable } from "node:stream";
 import { after, before, test } from "node:test";
 import { createDatabase, tenant, type Knex } from "@lib/database";
-import { MemoryService, sessionPrincipal } from "@lib/memory";
+import {
+  MemoryService,
+  sessionPrincipal,
+  exportHandlers,
+  runTask,
+  type ArtifactStore,
+} from "@lib/memory";
 import { rememberSchema } from "@lib/shared/contracts";
 import {
   conversationCreateSchema,
@@ -134,6 +141,74 @@ async function fixture() {
 }
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
+
+test("chat stays available with summaries off, while disabled chat blocks generation and Apply but permits Undo", async () => {
+  const { service, principal, behavior, save, create } = await fixture();
+  await service.settings(principal, {
+    notebookSummariesEnabled: false,
+    personalSummaryEnabled: false,
+    progressSummariesEnabled: false,
+  });
+  const note = await save("Garden plan");
+  behavior.intent = "edit";
+  const chat = await create();
+  const result = await service.conversations.turn(
+    principal,
+    chat.id,
+    turn("Shorten my garden note"),
+  );
+  assert.equal(result.turns[0].result?.proposal?.status, "proposed");
+  assert.equal(behavior.calls.length, 2);
+  await service.settings(principal, {
+    askEnabled: false,
+    personalSummaryEnabled: true,
+  });
+  await assert.rejects(
+    service.conversations.apply(principal, chat.id, result.turns[0].id),
+    /Enable Ask Grove/,
+  );
+  assert.equal((await service.get(principal, note.id)).version, 1);
+  const another = await create();
+  await service.conversations.turn(principal, another.id, turn("Find garden"));
+  assert.equal(
+    behavior.calls.length,
+    2,
+    "disabled chat makes no generation calls",
+  );
+  await service.settings(principal, { askEnabled: true });
+  await service.conversations.apply(principal, chat.id, result.turns[0].id);
+  await service.settings(principal, { askEnabled: false });
+  await service.conversations.apply(
+    principal,
+    chat.id,
+    result.turns[0].id,
+    true,
+  );
+  assert.equal((await service.get(principal, note.id)).content, "Garden plan");
+});
+
+test("turning chat off and back on cannot publish an old in-flight reply", async () => {
+  const { service, principal, behavior, save, create } = await fixture();
+  await save("Garden plan");
+  const chat = await create();
+  const entered = deferred(),
+    release = deferred();
+  behavior.wait = async () => {
+    entered.resolve();
+    await release.promise;
+  };
+  const request = turn("Find garden notes");
+  const running = service.conversations.turn(principal, chat.id, request);
+  const rejected = assert.rejects(running);
+  await entered.promise;
+  await service.settings(principal, { askEnabled: false });
+  await service.settings(principal, { askEnabled: true });
+  release.resolve();
+  await rejected;
+  const stored = await service.conversations.get(principal, chat.id);
+  assert.equal(stored.turns[0].status, "failed");
+  assert.equal(stored.turns[0].result, null);
+});
 
 test("real tool transport completes greetings, retries invalid responses and normalizes creation previews", async () => {
   const { service, principal, create } = await fixture();
@@ -444,6 +519,22 @@ test("merge applies atomically, preserves originals and lifetimes, and undo is v
 
 test("conversation HTTP routes validate bodies, paginate privately and export saved history", async () => {
   const { service, principal, create, save } = await fixture();
+  const objects = new Map<string, Buffer>();
+  const artifacts: ArtifactStore = {
+    async write(key, data) {
+      const chunks: Buffer[] = [];
+      for await (const chunk of Buffer.isBuffer(data) ? [data] : data)
+        chunks.push(Buffer.from(chunk));
+      objects.set(key, Buffer.concat(chunks));
+    },
+    async read(key) {
+      assert(objects.has(key));
+      return Readable.from([objects.get(key)!]);
+    },
+    async remove(key) {
+      objects.delete(key);
+    },
+  };
   const auth = new Authentication(db, {
     verify: async (token) => ({
       subject:
@@ -454,6 +545,7 @@ test("conversation HTTP routes validate bodies, paginate privately and export sa
   });
   const app = createApp({
     memories: service,
+    artifacts,
     auth,
     origin: "http://localhost",
     siteUrl: "http://localhost",
@@ -527,7 +619,7 @@ test("conversation HTTP routes validate bodies, paginate privately and export sa
   assert(
     !first.items.some((item: { id: string }) => item.id === second.items[0].id),
   );
-  // Export authorizes bounded pages rather than charging one request per chat.
+  // Export pages run in the worker without spending the owner's HTTP quota.
   await admin("conversations").insert(
     Array.from({ length: 190 }, () => ({
       id: randomUUID(),
@@ -535,14 +627,41 @@ test("conversation HTTP routes validate bodies, paginate privately and export sa
       scope: JSON.stringify({ includePersonal: false }),
     })),
   );
-  const exported = await app.request("/v1/account/export", { headers });
+  const requested = await app.request("/v1/exports", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ id: randomUUID() }),
+  });
+  assert.equal(requested.status, 202);
+  const task = (await requested.json()).data;
+  for (let i = 0; i < 30; i++)
+    if (
+      !(await runTask(workerDb, exportHandlers(workerDb, artifacts), {
+        id: task.id,
+      }))
+    )
+      break;
+  const exported = await app.request(`/v1/tasks/${task.id}/download`, {
+    headers,
+  });
+  assert.equal(exported.status, 200);
+  assert.equal(exported.headers.get("cache-control"), "private, no-store");
+  assert.equal(
+    (
+      await app.request(`/v1/tasks/${task.id}/download`, {
+        headers: { authorization: "Bearer other" },
+      })
+    ).status,
+    409,
+  );
   const records = (await exported.text())
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
   assert.equal(records.filter((r) => r.type === "conversation").length, 221);
   assert.equal(
-    records.find((r) => r.id === chat.id).turns[0].question,
+    records.find((r) => r.type === "turn" && r.conversationId === chat.id)
+      .question,
     "Find the garden notes",
   );
 });
@@ -674,7 +793,7 @@ test("conversation replies recheck cancellation, provider settings and session r
   }
 });
 
-test("creation, deleted chats and account deletion retain no replayable content", async () => {
+test("deleted chats and closed accounts retain history that cannot be read or replayed", async () => {
   const { service, principal, behavior, create } = await fixture();
   behavior.intent = "create";
   const chat = await create();
@@ -711,7 +830,7 @@ test("creation, deleted chats and account deletion retain no replayable content"
   assert.equal(
     (await admin("conversation_turns").where({ conversationId: chat.id }))
       .length,
-    0,
+    1,
   );
   const next = await create();
   await service.conversations.turn(
@@ -724,15 +843,20 @@ test("creation, deleted chats and account deletion retain no replayable content"
     async () => {},
   );
   assert.equal(
-    (await admin("conversations").where({ accountId: principal.accountId }))
-      .length,
+    (
+      await admin("conversations")
+        .where({ accountId: principal.accountId })
+        .whereNull("deletedAt")
+    ).length,
     0,
   );
   assert.equal(
     (
-      await admin("conversation_turns").where({
-        accountId: principal.accountId,
-      })
+      await tenant(db, principal.accountId, (trx) =>
+        trx("conversation_turns").where({
+          accountId: principal.accountId,
+        }),
+      )
     ).length,
     0,
   );

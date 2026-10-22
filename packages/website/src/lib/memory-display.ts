@@ -22,8 +22,13 @@ export const noteKindLabel = (kind: Memory["kind"]) =>
 
 export const memoryExcerpt = (memory: Memory, length = 160) => {
   const text = memory.content
-    .replace(/^#{1,6} .+\n+/, "")
-    .replace(/[#*`>]/g, "")
+    .trim()
+    .replace(/^#{1,6}[ \t]+[^\n]+\n+/, "")
+    .replace(/^[ \t]*(?:`{3,}|~{3,})[^\n]*$/gm, "")
+    .replace(/^[ \t]*(?:>[ \t]*)+/gm, "")
+    .replace(/^[ \t]*(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]*)?/gm, "")
+    .replace(/!?\[([^\]\n]+)\]\([^\n)]*\)/g, "$1")
+    .replace(/[#*`_]/g, "")
     .replace(/\s+/g, " ")
     .trim();
   return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text;

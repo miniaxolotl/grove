@@ -22,9 +22,11 @@ import { RevisionCompare } from "./revision-compare";
 import { ActionMenu } from "./ui/action-menu";
 import { useToast } from "./toasts";
 import { useWorkspaceCommands } from "./workspace-commands";
+import { workspaceCommand } from "@/lib/workspace-commands";
 import { ShareDialog } from "./share-dialog";
 import { ConnectionPanel } from "./connection-panel";
 import { NoteActions } from "./note-actions";
+import { AssistanceAction } from "./assistance-action";
 
 export function MemoryDetail({
   memory,
@@ -106,25 +108,24 @@ export function MemoryDetail({
   }
   useWorkspaceCommands(
     [
-      { id: "note-share", label: "Share note", run: () => setSharing(true) },
-      {
-        id: "note-history",
-        label: "Revision history",
-        run: () => setHistoryOpen(true),
-      },
-      { id: "note-move", label: "Move note", disabled: locked, run: onMove },
-      {
-        id: "note-archive",
-        label: isInactive(memory) ? "Restore note" : "Archive note",
+      workspaceCommand("note-share", () => setSharing(true)),
+      workspaceCommand("note-history", () => setHistoryOpen(true)),
+      workspaceCommand("note-move", onMove, {
         disabled: locked,
-        run: onArchive,
-      },
-      {
-        id: "note-delete",
-        label: "Delete note…",
+        disabledReason: "Finish saving your changes first",
+      }),
+      workspaceCommand(
+        isInactive(memory) ? "note-restore" : "note-archive",
+        onArchive,
+        {
+          disabled: locked,
+          disabledReason: "Finish saving your changes first",
+        },
+      ),
+      workspaceCommand("note-delete", () => setConfirmDelete(true), {
         disabled: busy || actionBusy,
-        run: () => setConfirmDelete(true),
-      },
+        disabledReason: "An update is in progress",
+      }),
     ],
     root,
   );
@@ -256,6 +257,14 @@ export function MemoryDetail({
                 }
                 details={
                   <>
+                    <AssistanceAction
+                      disabled={writing || locked || isInactive(memory)}
+                      input={{
+                        kind: "actions",
+                        sources: [{ id: memory.id, version: memory.version }],
+                        projectId: memory.projectId,
+                      }}
+                    />
                     <button type="button" onClick={() => setHistoryOpen(true)}>
                       <History size={15} />
                       Revision history
@@ -344,7 +353,7 @@ export function MemoryDetail({
                 )}
                 {memory.purgeAt && (
                   <>
-                    <dt>Removed permanently</dt>
+                    <dt>Hidden after</dt>
                     <dd>{dateLabel(memory.purgeAt)}</dd>
                   </>
                 )}

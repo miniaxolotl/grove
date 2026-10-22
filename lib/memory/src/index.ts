@@ -5,29 +5,59 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import { MemoryModel, tenant, camelRows, type Knex } from "@lib/database";
+import { MemoryModel, tenant, type Knex } from "@lib/database";
 import { policy } from "@lib/config";
 import { InferenceError, type Embedder, type Providers } from "@lib/ai";
+import {
+  briefPreference,
+  jobPreferences,
+  legacyPreferences,
+  preferenceKeys,
+  preferencePatch,
+  preferencesFor,
+  type AccountPreferences,
+  type PreferencesUpdate,
+} from "@lib/shared/preferences";
+import { settingsUpdateSchema } from "@lib/shared/settings";
 import {
   answerSchema,
   type AskRequest,
   type AskResult,
   type BriefRequest,
   type ModelProfiles,
-  type Enrichment,
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
-import {
-  relationshipKinds,
-  legacyRelationshipsFor,
-} from "./relationship-data.ts";
+import { presentMemories } from "./presentation.ts";
+import { semanticMatches } from "./search.ts";
+import { admitOperation } from "./operation-context.ts";
+export { withMemoryOperation } from "./operation-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { NotebookAssistance } from "./assistance.ts";
+import { NotebookVisits, recordNotebookExpiry } from "./notebook-digests.ts";
+import { assistancePreferences } from "@lib/shared/assistance";
+import { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
+import { runTask } from "./task-runner.ts";
+import type { QueueLane } from "@lib/shared/jobs";
+export { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
+export { Tasks } from "./tasks.ts";
+export { exportHandlers, type ArtifactStore } from "./exports.ts";
+export {
+  importHandlers,
+  enqueueConnectorSync,
+  type ConnectorAdapter,
+} from "./imports.ts";
+export {
+  runTask,
+  TaskError,
+  type TaskHandler,
+  type ClaimedTask,
+} from "./task-runner.ts";
 import {
   briefFor,
+  briefTarget,
   budgetedInference,
-  enrichmentFor,
   invalidateBriefs,
   queueBrief,
   queueMemory,
@@ -63,15 +93,15 @@ type Connection = Omit<Grant, "expiresAt"> & {
   authorizedAfter: Date;
   setup?: unknown;
 };
-type Account = {
+type Account = AccountPreferences & {
+  exportVersion: string;
   id: string;
   clerkSubject: string;
   status: string;
   contentVersion: number;
-  captureEnabled: boolean;
-  recallEnabled: boolean;
   organizeEnabled: boolean;
   summariesEnabled: boolean;
+  askVersion: number;
 };
 type Access = { trx: Knex.Transaction; account: Account; grant?: Connection };
 const missing = () => new GroveError("not_found", "Memory not found", 404);
@@ -81,8 +111,6 @@ const forbidden = () =>
     "This connection does not grant that access",
     403,
   );
-const iso = (value: Date | string | null) =>
-  value === null ? null : new Date(value).toISOString();
 const stable = (value: unknown): string =>
   JSON.stringify(value, (_key, entry) =>
     entry && typeof entry === "object" && !Array.isArray(entry)
@@ -95,6 +123,9 @@ export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export class MemoryService {
+  readonly assistance: NotebookAssistance;
+  readonly visits: NotebookVisits;
+  private internalWork = false;
   readonly conversations: Conversations;
   readonly relationships: Relationships;
   providers: Providers;
@@ -110,10 +141,12 @@ export class MemoryService {
     readonly dailyRequestLimit = 2000,
   ) {
     this.providers = { ...providers, embedding: embedder };
+    this.assistance = new NotebookAssistance(this);
+    this.visits = new NotebookVisits(this);
     this.relationships = new Relationships(this);
     this.conversations = new Conversations(
       this,
-      this.present.bind(this),
+      this.presentMany.bind(this),
       this.revise.bind(this),
     );
   }
@@ -124,6 +157,28 @@ export class MemoryService {
     run: (access: Access) => Promise<T>,
     modelUpdate = false,
   ): Promise<T> {
+    if (!this.internalWork)
+      await admitOperation(this, principal, async () => {
+        const count = await tenant(
+          this.db,
+          principal.accountId,
+          async (trx) => {
+            await this.authorize(trx, principal, capability, false, true);
+            const { rows } = await trx.raw(
+              `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
+          ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
+              [principal.accountId],
+            );
+            return Number(rows[0].count);
+          },
+        );
+        if (count > policy.requestsPerMinute)
+          throw new GroveError(
+            "rate_limited",
+            "Too many requests; retry in one minute",
+            429,
+          );
+      });
     return tenant(this.db, principal.accountId, async (trx) => {
       // Profile cutovers serialize with writes, before account locks. A replica may
       // have refreshed before waiting here; queue() resolves the committed profiles.
@@ -133,93 +188,101 @@ export class MemoryService {
             ? "SELECT pg_advisory_xact_lock(68142019)"
             : "SELECT pg_advisory_xact_lock_shared(68142019)",
         );
-      const accountQuery = trx<Account>("accounts").where({
-        id: principal.accountId,
-      });
-      const account = await (
-        capability === null || capability === "memory:read"
-          ? accountQuery.forShare()
-          : accountQuery.forUpdate()
-      ).first();
-      if (!account || account.status !== "active")
+      const access = await this.authorize(
+        trx,
+        principal,
+        capability,
+        capability !== null && capability !== "memory:read",
+      );
+      return run(access);
+    });
+  }
+
+  private async authorize(
+    trx: Knex.Transaction,
+    principal: Principal,
+    capability: Capability | "admin" | "self" | null,
+    mutation: boolean,
+    touchKey = false,
+  ): Promise<Access> {
+    const accountQuery = trx<Account>("accounts").where({
+      id: principal.accountId,
+    });
+    // Materialize the locked row first. The VOLATILE revocation function must
+    // take its fresh snapshot after a lock wait, not while projecting its input.
+    const record = await trx
+      .withMaterialized(
+        "authorized_account",
+        mutation ? accountQuery.forUpdate() : accountQuery.forShare(),
+      )
+      .from<Account & { sessionRevoked: boolean }>("authorized_account")
+      .select(
+        "authorized_account.*",
+        principal.sessionId
+          ? trx.raw("grove_session_revoked(?) AS session_revoked", [
+              principal.sessionId,
+            ])
+          : trx.raw("false AS session_revoked"),
+      )
+      .first();
+    if (!record || record.status !== "active")
+      throw new GroveError(
+        "account_unavailable",
+        "This account is unavailable",
+        403,
+      );
+    const { sessionRevoked, ...account } = record;
+    if (principal.sessionId && sessionRevoked)
+      throw new GroveError("unauthorized", "Session revoked", 401);
+    let grant: Connection | undefined;
+    if (principal.type !== "session") {
+      if (!principal.connectionId)
         throw new GroveError(
-          "account_unavailable",
-          "This account is unavailable",
+          "connection_required",
+          "Approve this connection in Grove Connections",
           403,
         );
-      if (principal.sessionId) {
-        const result = await trx.raw(
-          "SELECT grove_session_revoked(?) AS revoked",
-          [principal.sessionId],
-        );
-        if (result.rows[0].revoked)
-          throw new GroveError("unauthorized", "Session revoked", 401);
-      }
-      let grant: Connection | undefined;
-      if (principal.type !== "session") {
-        if (!principal.connectionId)
-          throw new GroveError(
-            "connection_required",
-            "Approve this connection in Grove Connections",
-            403,
-          );
-        const connectionQuery = trx<Connection>("connections").where({
-          id: principal.connectionId,
-        });
-        grant = await (
-          principal.type === "key"
-            ? connectionQuery.forUpdate()
-            : connectionQuery.forShare()
-        ).first();
-        if (
-          !grant ||
-          grant.revokedAt ||
-          (grant.expiresAt && new Date(grant.expiresAt) <= new Date())
-        )
-          throw forbidden();
-        if (
-          principal.type === "oauth" &&
-          (principal.clientId !== grant.clientId ||
-            !Number.isFinite(principal.issuedAt) ||
-            principal.issuedAt! < new Date(grant.authorizedAfter).getTime())
-        )
-          throw new GroveError(
-            "connection_revoked",
-            "Reconnect and approve this client in Grove Connections",
-            403,
-          );
-        if (principal.type === "key")
-          await trx("connections")
-            .where({ id: grant.id })
-            .update({ lastUsedAt: trx.fn.now() });
-      }
-      if (capability === "admin" && principal.type !== "session")
-        throw forbidden();
+      const connectionQuery = trx<Connection>("connections").where({
+        id: principal.connectionId,
+      });
+      grant = await (
+        principal.type === "key" && touchKey
+          ? connectionQuery.forUpdate()
+          : connectionQuery.forShare()
+      ).first();
       if (
-        capability &&
-        capability !== "admin" &&
-        capability !== "self" &&
-        (!principal.capabilities.includes(capability) ||
-          (grant && !grant.capabilities.includes(capability)))
+        !grant ||
+        grant.revokedAt ||
+        (grant.expiresAt && new Date(grant.expiresAt) <= new Date())
       )
         throw forbidden();
-      const { rows } = await trx.raw(
-        `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
-        ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
-        [account.id],
-      );
-      // Commit the rate counter even when over limit by returning the error after the transaction.
-      if (rows[0].count > policy.requestsPerMinute)
-        return new GroveError(
-          "rate_limited",
-          "Too many requests; retry in one minute",
-          429,
-        ) as T;
-      return run({ trx, account, grant });
-    }).then((result) => {
-      if (result instanceof GroveError) throw result;
-      return result;
-    });
+      if (
+        principal.type === "oauth" &&
+        (principal.clientId !== grant.clientId ||
+          !Number.isFinite(principal.issuedAt) ||
+          principal.issuedAt! < new Date(grant.authorizedAfter).getTime())
+      )
+        throw new GroveError(
+          "connection_revoked",
+          "Reconnect and approve this client in Grove Connections",
+          403,
+        );
+      if (principal.type === "key" && touchKey)
+        await trx("connections")
+          .where({ id: grant.id })
+          .update({ lastUsedAt: trx.fn.now() });
+    }
+    if (capability === "admin" && principal.type !== "session")
+      throw forbidden();
+    if (
+      capability &&
+      capability !== "admin" &&
+      capability !== "self" &&
+      (!principal.capabilities.includes(capability) ||
+        (grant && !grant.capabilities.includes(capability)))
+    )
+      throw forbidden();
+    return { trx, account, grant };
   }
 
   private scope(grant: Connection | undefined, projectId: string | null) {
@@ -230,6 +293,23 @@ export class MemoryService {
         : !(grant.allProjects || grant.projectIds.includes(projectId)))
     )
       throw forbidden();
+  }
+
+  /** Background writes share mutation/version rules and the enclosing lease transaction. */
+  inTransaction(trx: Knex.Transaction) {
+    const service = new MemoryService(
+      trx,
+      this.cursorSecret,
+      this.providers.embedding ?? undefined,
+      {
+        decision: this.providers.decision,
+        generation: this.providers.generation,
+      },
+      this.dailyRequestLimit,
+    );
+    service.jobProfiles = this.jobProfiles;
+    service.internalWork = true;
+    return service;
   }
 
   private query(trx: Knex.Transaction, grant?: Connection) {
@@ -248,53 +328,16 @@ export class MemoryService {
   private async present(
     trx: Knex.Transaction,
     row: MemoryModel,
-    relationships?: Enrichment["relationships"],
   ): Promise<Memory> {
-    const ready = await trx("memory_embeddings")
-      .where({
-        memoryId: row.id,
-        version: row.version,
-        profile: this.embedder?.profile ?? policy.embeddingProfile,
-      })
-      .first("memoryId");
-    const failed =
-      !ready &&
-      (await trx("jobs")
-        .where({
-          memoryId: row.id,
-          version: row.version,
-          kind: "embedding",
-          profile: this.embedder?.profile ?? policy.embeddingProfile,
-        })
-        .whereNotNull("failedAt")
-        .first("id"));
-    return {
-      id: row.id,
-      projectId: row.projectId,
-      content: row.content,
-      kind: row.kind,
-      autoKind: row.autoKind,
-      status: row.status,
-      version: row.version,
-      source: row.source,
-      taskId: row.taskId,
-      retentionDays: row.retentionDays,
-      expiresAt: iso(row.expiresAt),
-      purgeAt: iso(row.purgeAt),
-      createdAt: iso(row.createdAt)!,
-      updatedAt: iso(row.updatedAt)!,
-      indexing:
-        !this.embedder ||
-        row.status !== "active" ||
-        (row.expiresAt && new Date(row.expiresAt) <= new Date())
-          ? "disabled"
-          : ready
-            ? "ready"
-            : failed
-              ? "failed"
-              : "pending",
-      enrichment: await enrichmentFor(trx, row, this.providers, relationships),
-    };
+    return (await this.presentMany(trx, [row]))[0];
+  }
+
+  private presentMany(
+    trx: Knex.Transaction,
+    rows: MemoryModel[],
+    preferences?: AccountPreferences,
+  ) {
+    return presentMemories(trx, rows, this.providers, preferences);
   }
 
   private async operation<T>(
@@ -335,7 +378,7 @@ export class MemoryService {
     await invalidateBriefs(trx, accountId);
   }
 
-  private async revise(trx: Knex.Transaction, row: MemoryModel) {
+  async revise(trx: Knex.Transaction, row: MemoryModel) {
     await trx("memory_revisions").insert({
       accountId: row.accountId,
       memoryId: row.id,
@@ -361,10 +404,12 @@ export class MemoryService {
         (c) => !grant || grant.capabilities.includes(c),
       ),
       contentVersion: account.contentVersion,
-      captureEnabled: account.captureEnabled,
-      recallEnabled: account.recallEnabled,
-      organizeEnabled: account.organizeEnabled,
-      summariesEnabled: account.summariesEnabled,
+      ...preferencesFor(account),
+      ...legacyPreferences(account),
+      aiAvailability: {
+        classification: !!this.providers.decision,
+        generation: !!this.providers.generation,
+      },
       grant: grant
         ? {
             personal: grant.personal,
@@ -514,6 +559,28 @@ export class MemoryService {
     });
   }
 
+  async sourceRevision(principal: Principal, id: string, version: number) {
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      const note = await this.query(trx, grant)
+        .findById(id)
+        .where((q) =>
+          q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+        );
+      if (!note) throw missing();
+      const revision = await trx("memory_revisions")
+        .where({ memoryId: id, version })
+        .select("version", "content", "createdAt")
+        .first();
+      if (!revision) throw missing();
+      return {
+        ...revision,
+        id,
+        currentVersion: note.version,
+        expiresAt: note.expiresAt,
+      };
+    });
+  }
+
   private encodeCursor(value: unknown) {
     const payload = Buffer.from(JSON.stringify(value)).toString("base64url");
     return `${payload}.${createHmac("sha256", this.cursorSecret).update(payload).digest("base64url")}`;
@@ -571,125 +638,158 @@ export class MemoryService {
         /* Keep text search available during provider outages. */
       }
     }
-    return this.access(principal, "memory:read", async ({ trx, grant }) => {
-      const { cursor, limit, ...filters } = input;
-      const binding = digest(
-        stable({
-          account: principal.accountId,
-          connection: principal.connectionId,
-          filters,
-        }),
-      );
-      const page = cursor
-        ? this.decodeCursor(cursor, binding)
-        : { after: "", ceiling: new Date().toISOString() };
-      const q = this.query(trx, grant).where("createdAt", "<=", page.ceiling);
-      if (input.sort) {
-        const direction = input.sort === "updated_asc" ? "asc" : "desc";
-        const column =
-          input.sort === "created_desc" ? "created_at" : "updated_at";
-        q.select(
-          "memories.*",
-          trx.raw(
-            `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sortTime"`,
-          ),
-        );
-        q.orderBy(column, direction).orderBy("id", direction);
-        if (page.after) {
-          if (!page.updatedAt)
-            throw new GroveError(
-              "invalid_cursor",
-              "Cursor is missing its sort position",
-              400,
-            );
-          q.whereRaw(
-            `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
-            [page.updatedAt, page.after],
+    return this.access(
+      principal,
+      principal.type === "session" && input.projectId && !input.cursor
+        ? "admin"
+        : "memory:read",
+      async ({ trx, grant, account }) => {
+        let visit: Page<Memory>["visit"];
+        if (
+          principal.type === "session" &&
+          input.projectId &&
+          !input.cursor &&
+          (await trx("projects").where({ id: input.projectId }).first("id"))
+        ) {
+          const ready = await recordNotebookExpiry(
+            trx,
+            account.id,
+            input.projectId,
           );
+          const checkpoint = await trx("notebook_checkpoints")
+            .where({ projectId: input.projectId })
+            .first();
+          const current = await trx("accounts")
+            .where({ id: account.id })
+            .first("changeToken");
+          visit = {
+            projectId: input.projectId,
+            token: current.changeToken,
+            from: checkpoint?.token ?? null,
+            ready,
+          };
         }
-      } else {
-        q.orderBy("id");
-        if (page.after) q.where("id", ">", page.after);
-      }
-      if (input.projectId !== undefined) {
-        this.scope(grant, input.projectId);
-        q.where({ projectId: input.projectId });
-      }
-      if (input.kind) q.where({ kind: input.kind });
-      if (input.lifetime === "permanent") q.whereNull("retentionDays");
-      if (input.lifetime === "ephemeral") q.whereNotNull("retentionDays");
-      if (input.sourceAgent)
-        q.whereRaw("source->>'agent' = ?", [input.sourceAgent]);
-      if (input.updatedAfter) q.where("updatedAt", ">=", input.updatedAfter);
-      if (input.tag)
-        q.whereRaw(
-          `EXISTS (SELECT 1 FROM memory_enrichments e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ANY(?::text[]) AND (e.data->'tags' @> ?::jsonb OR e.data->'topics' @> ?::jsonb))`,
-          [
-            [
-              this.providers.decision?.profile,
-              this.providers.generation?.profile,
-            ].filter(Boolean),
-            JSON.stringify([input.tag]),
-            JSON.stringify([input.tag]),
-          ],
+        const { cursor, limit, ...filters } = input;
+        const binding = digest(
+          stable({
+            account: principal.accountId,
+            connection: principal.connectionId,
+            filters,
+          }),
         );
-      if (input.status === "active")
-        q.where({ status: "active" }).where((b) =>
-          b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
-        );
-      if (input.status === "archived") q.where({ status: "archived" });
-      if (input.status === "expired")
-        q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
-      if (input.query)
-        q.where((b) => {
-          b.whereRaw("search @@ websearch_to_tsquery('english', ?)", [
-            input.query!,
-          ]);
-          if (vector)
-            b.orWhereRaw(
-              `EXISTS(SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
-              [
-                embedder!.profile,
-                JSON.stringify(vector),
-                embedder!.distanceThreshold ?? 0.45,
-              ],
+        const page = cursor
+          ? this.decodeCursor(cursor, binding)
+          : { after: "", ceiling: new Date().toISOString() };
+        const q = this.query(trx, grant).where("createdAt", "<=", page.ceiling);
+        if (input.sort) {
+          const direction = input.sort === "updated_asc" ? "asc" : "desc";
+          const column =
+            input.sort === "created_desc" ? "created_at" : "updated_at";
+          q.select(
+            "memories.*",
+            trx.raw(
+              `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sortTime"`,
+            ),
+          );
+          q.orderBy(column, direction).orderBy("id", direction);
+          if (page.after) {
+            if (!page.updatedAt)
+              throw new GroveError(
+                "invalid_cursor",
+                "Cursor is missing its sort position",
+                400,
+              );
+            q.whereRaw(
+              `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
+              [page.updatedAt, page.after],
             );
-        });
-      const rows = await q.limit(limit + 1);
-      const relationships = await legacyRelationshipsFor(
-        trx,
-        rows.slice(0, limit).map((row) => row.id),
-        this.providers,
-      );
-      const items = await Promise.all(
-        rows
-          .slice(0, limit)
-          .map((row) => this.present(trx, row, relationships.get(row.id))),
-      );
-      return {
-        items,
-        ...(input.query
-          ? { searchMode: vector ? ("hybrid" as const) : ("lexical" as const) }
-          : {}),
-        nextCursor:
-          rows.length > limit
-            ? this.encodeCursor({
-                binding,
-                ceiling: page.ceiling,
-                after: items.at(-1)!.id,
-                ...(input.sort
-                  ? {
-                      updatedAt: (
-                        rows[items.length - 1] as MemoryModel & {
-                          sortTime: string;
-                        }
-                      ).sortTime,
-                    }
-                  : {}),
-              })
-            : null,
-      };
-    });
+          }
+        } else {
+          q.orderBy("id");
+          if (page.after) q.where("id", ">", page.after);
+        }
+        if (input.projectId !== undefined) {
+          this.scope(grant, input.projectId);
+          q.where({ projectId: input.projectId });
+        }
+        if (input.kind) q.where({ kind: input.kind });
+        if (input.lifetime === "permanent") q.whereNull("retentionDays");
+        if (input.lifetime === "ephemeral") q.whereNotNull("retentionDays");
+        if (input.sourceAgent)
+          q.whereRaw("source->>'agent' = ?", [input.sourceAgent]);
+        if (input.updatedAfter) q.where("updatedAt", ">=", input.updatedAfter);
+        if (input.tag)
+          q.whereRaw(
+            `EXISTS (SELECT 1 FROM memory_enrichments e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ANY(?::text[]) AND (e.data->'tags' @> ?::jsonb OR e.data->'topics' @> ?::jsonb))`,
+            [
+              account.titlesTagsEnabled
+                ? [
+                    account.classificationEnabled
+                      ? this.providers.decision?.profile
+                      : undefined,
+                    this.providers.generation?.profile,
+                  ].filter(Boolean)
+                : [],
+              JSON.stringify([input.tag]),
+              JSON.stringify([input.tag]),
+            ],
+          );
+        if (input.status === "active")
+          q.where({ status: "active" }).where((b) =>
+            b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+          );
+        if (input.status === "archived") q.where({ status: "archived" });
+        if (input.status === "expired")
+          q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
+        if (input.query)
+          q.where((b) => {
+            b.whereRaw("search @@ websearch_to_tsquery('english', ?)", [
+              input.query!,
+            ]);
+            if (vector)
+              b.orWhereRaw(
+                `EXISTS(SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
+                [
+                  embedder!.profile,
+                  JSON.stringify(vector),
+                  embedder!.distanceThreshold ?? 0.45,
+                ],
+              );
+          });
+        const rows = await q.limit(limit + 1);
+        const items = await this.presentMany(
+          trx,
+          rows.slice(0, limit),
+          account,
+        );
+        return {
+          items,
+          ...(visit ? { visit } : {}),
+          ...(input.query
+            ? {
+                searchMode: vector ? ("hybrid" as const) : ("lexical" as const),
+              }
+            : {}),
+          nextCursor:
+            rows.length > limit
+              ? this.encodeCursor({
+                  binding,
+                  ceiling: page.ceiling,
+                  after: items.at(-1)!.id,
+                  ...(input.sort
+                    ? {
+                        updatedAt: (
+                          rows[items.length - 1] as MemoryModel & {
+                            sortTime: string;
+                          }
+                        ).sortTime,
+                      }
+                    : {}),
+                })
+              : null,
+        };
+      },
+    );
   }
 
   async recall(
@@ -760,21 +860,7 @@ export class MemoryService {
             )
             .limit(40);
           const semantic = vector
-            ? await base()
-                .whereRaw(
-                  `EXISTS (SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id
-          AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
-                  [
-                    embedder!.profile,
-                    JSON.stringify(vector),
-                    embedder!.distanceThreshold ?? 0.45,
-                  ],
-                )
-                .orderByRaw(
-                  `(SELECT e.embedding <=> ?::vector FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ?)`,
-                  [JSON.stringify(vector), embedder!.profile],
-                )
-                .limit(40)
+            ? await semanticMatches(trx, base(), embedder!, vector, 40)
             : [];
           const candidates = new Map<
             string,
@@ -787,7 +873,11 @@ export class MemoryService {
                 score: (candidates.get(row.id)?.score ?? 0) + 1 / (60 + i),
               });
             });
-          if (this.providers.decision && candidates.size) {
+          if (
+            account.classificationEnabled &&
+            this.providers.decision &&
+            candidates.size
+          ) {
             const annotations = await trx("memory_enrichments")
               .where({
                 kind: "decision",
@@ -840,14 +930,8 @@ export class MemoryService {
             }
           }
         }
-        const relationships = await legacyRelationshipsFor(
-          trx,
-          rows.map((row) => row.id),
-          this.providers,
-        );
-        for (const row of rows) {
-          const fingerprint = digest(row.content.trim().toLowerCase());
-          const item = await this.present(trx, row, relationships.get(row.id));
+        for (const item of await this.presentMany(trx, rows, account)) {
+          const fingerprint = digest(item.content.trim().toLowerCase());
           const cost = JSON.stringify(item).length;
           if (seen.has(fingerprint) || cost > remaining) continue;
           seen.add(fingerprint);
@@ -901,12 +985,15 @@ export class MemoryService {
     };
     if (input.mode === "search") return { ...base, status: "search" };
     if (!recalled.items.length) return { ...base, status: "no_evidence" };
-    const enabled = await this.access(
+    const preference = await this.access(
       principal,
       "memory:read",
-      async ({ account }) => account.summariesEnabled,
+      async ({ account }) => ({
+        enabled: account.askEnabled,
+        version: account.askVersion,
+      }),
     );
-    if (!generation || !enabled)
+    if (!generation || !preference.enabled)
       return { ...base, status: "generation_disabled" };
     signal?.throwIfAborted();
     const answer = answerSchema.parse(
@@ -965,7 +1052,8 @@ export class MemoryService {
             b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
           );
         if (
-          !account.summariesEnabled ||
+          !account.askEnabled ||
+          account.askVersion !== preference.version ||
           this.providers.generation?.profile !== generation.profile ||
           account.contentVersion !== recalled.contentVersion ||
           recalled.items.some(
@@ -1239,7 +1327,9 @@ export class MemoryService {
             parentId: input.parentId ?? null,
             accountId: account.id,
           })
-          .onConflict(["accountId", "identity"])
+          .onConflict(
+            trx.raw("(account_id, identity) WHERE deleted_at IS NULL"),
+          )
           .merge({ name: input.name })
           .returning(fields);
         created = true;
@@ -1341,46 +1431,93 @@ export class MemoryService {
       return { revoked: true };
     });
   }
-  async settings(
-    principal: Principal,
-    input: {
-      captureEnabled: boolean;
-      recallEnabled: boolean;
-      organizeEnabled?: boolean;
-      summariesEnabled?: boolean;
-    },
-  ) {
+  async settings(principal: Principal, input: PreferencesUpdate) {
     return this.access(principal, "admin", async ({ trx, account }) => {
+      const next = {
+        ...preferencesFor(account),
+        ...preferencePatch(settingsUpdateSchema.parse(input)),
+      };
+      const enabled = preferenceKeys.filter(
+        (key) => next[key] && !account[key],
+      );
       await trx("accounts")
         .where({ id: account.id })
         .update({
-          ...input,
-          ...(input.organizeEnabled && !account.organizeEnabled
-            ? { organizationDueAt: trx.fn.now() }
-            : {}),
+          ...next,
+          ...legacyPreferences(next),
+          askVersion:
+            account.askVersion +
+            (next.askEnabled !== account.askEnabled ? 1 : 0),
+          ...(enabled.length ? { organizationDueAt: trx.fn.now() } : {}),
         });
-      if (input.summariesEnabled === false) {
-        await trx("memory_briefs").delete();
-        await trx("jobs").where({ kind: "brief" }).delete();
+      const disabledKinds = Object.entries(jobPreferences)
+        .filter(([, key]) => !next[key])
+        .map(([kind]) => kind);
+      if (disabledKinds.length) {
+        await trx("jobs").whereIn("kind", disabledKinds).delete();
+        await trx("memory_enrichments").whereIn("kind", disabledKinds).delete();
       }
-      if (input.organizeEnabled === false) {
-        await trx("jobs")
-          .whereIn("kind", ["decision", "organization", ...relationshipKinds])
+      // Each brief scope is independent; deletion also fences any leased result.
+      for (const table of ["memory_briefs", "jobs"]) {
+        const query = trx(table);
+        if (table === "jobs") query.where({ kind: "brief" });
+        await query
+          .whereRaw(
+            "NOT (CASE WHEN scope->>'taskId' IS NOT NULL THEN ?::boolean WHEN scope->>'projectId' IS NOT NULL THEN ?::boolean ELSE ?::boolean END)",
+            [
+              next.progressSummariesEnabled,
+              next.notebookSummariesEnabled,
+              next.personalSummaryEnabled,
+            ],
+          )
           .delete();
-        await trx("memory_enrichments").delete();
       }
-      if (
-        (input.organizeEnabled && !account.organizeEnabled) ||
-        (input.summariesEnabled && !account.summariesEnabled)
-      ) {
+      if (!next.askEnabled) {
+        await trx("conversation_turns").where({ status: "pending" }).update({
+          status: "failed",
+          error:
+            "Ask Grove is turned off. Enable it in AI preferences to try again.",
+          leaseId: null,
+          leaseUntil: null,
+        });
+      }
+      for (const [kind, key] of Object.entries(assistancePreferences))
+        if (!next[key]) {
+          await trx("jobs")
+            .where({ kind: "assistance" })
+            .whereRaw("scope->>'feature'=?", [kind])
+            .delete();
+          await trx("assistance_requests")
+            .where({ kind })
+            .whereIn("status", ["pending", "ready", "failed"])
+            .update({
+              status: "stale",
+              state: "{}",
+              result: null,
+              error: "This feature is turned off.",
+            });
+        }
+      const background = enabled.filter(
+        (key) =>
+          ![
+            "askEnabled",
+            "recallEnabled",
+            "captureEnabled",
+            "notebookConnectionsEnabled",
+            ...Object.values(assistancePreferences),
+          ].includes(key),
+      );
+      if (background.length) {
         const rows = await MemoryModel.query(trx)
           .where({ status: "active" })
           .where((b) =>
             b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
           );
-        for (const row of rows) await this.queue(trx, row);
+        const profiles = await this.jobProfiles?.(trx);
+        for (const row of rows)
+          await queueMemory(trx, row, this.providers, profiles, background);
       }
-      return input;
+      return { ...next, ...legacyPreferences(next) };
     });
   }
 
@@ -1395,8 +1532,12 @@ export class MemoryService {
           !(await trx("projects").where({ id: scope.projectId }).first("id"))
         )
           throw new GroveError("not_found", "Project not found", 404);
-        if (refresh && this.providers.generation && account.summariesEnabled) {
-          const target = `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
+        if (
+          refresh &&
+          this.providers.generation &&
+          account[briefPreference(scope)]
+        ) {
+          const target = briefTarget(scope);
           await trx("memory_briefs").where({ target }).delete();
           await queueBrief(
             trx,
@@ -1451,39 +1592,47 @@ export class MemoryService {
       await trx("accounts")
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });
-      await trx("connections").update({ revokedAt: trx.fn.now() });
-      await trx("public_shares").update({
-        revokedAt: trx.fn.now(),
-        tokenDigest: null,
-        tokenCiphertext: null,
-        version: trx.raw("version + 1"),
-      });
+      // Every authenticated/public read and worker publication checks account
+      // status. Per-record revocation is handled by bounded cleanup checkpoints.
       return { status: "deleting" };
     });
   }
   async exportPage(principal: Principal, after?: string) {
-    return this.access(principal, "admin", async ({ trx }) => {
+    return this.access(principal, "admin", async ({ trx, account }) => {
       const q = this.query(trx).orderBy("id").limit(50);
       if (after) q.where("id", ">", after);
       const rows = await q;
-      const relationships = await legacyRelationshipsFor(
-        trx,
-        rows.map((row) => row.id),
-        this.providers,
-      );
-      return Promise.all(
-        rows.map(async (row) => ({
-          ...(await this.present(trx, row, relationships.get(row.id))),
-          revisions: await trx("memory_revisions")
-            .where({ memoryId: row.id })
-            .select("version", "content", "source", "createdAt")
-            .orderBy("version"),
-        })),
-      );
+      const items = await this.presentMany(trx, rows, account);
+      const revisions = await trx("memory_revisions")
+        .whereIn(
+          "memoryId",
+          rows.map((row) => row.id),
+        )
+        .select("memoryId", "version", "content", "source", "createdAt")
+        .orderBy("version");
+      return items.map((item) => ({
+        ...item,
+        revisions: revisions
+          .filter((revision) => revision.memoryId === item.id)
+          .map(({ version, content, source, createdAt }) => ({
+            version,
+            content,
+            source,
+            createdAt,
+          })),
+      }));
     });
   }
 
-  async runJob(id?: string): Promise<boolean> {
+  async runJob(
+    id?: string,
+    options: {
+      lane?: QueueLane;
+      accountLimit?: number;
+      providerLimit?: number;
+      signal?: AbortSignal;
+    } = {},
+  ): Promise<boolean> {
     return runProcessingJob(
       this.db,
       this.providers,
@@ -1497,6 +1646,7 @@ export class MemoryService {
               decision: this.providers.decision?.profile ?? null,
               generation: this.providers.generation?.profile ?? null,
             },
+      options,
     );
   }
 
@@ -1510,70 +1660,12 @@ export class MemoryService {
   }
 
   async maintenance(deleteIdentity: (subject: string) => Promise<void>) {
-    const rows = camelRows<{
-      id: string;
-      status: string;
-      clerkSubject: string;
-      providerDeletedAt: Date | null;
-    }>(await this.db.raw("SELECT * FROM grove_maintenance_accounts()"));
-    for (const account of rows) {
-      let identityDeleted = !!account.providerDeletedAt;
-      if (account.status === "deleting" && !identityDeleted) {
-        try {
-          await deleteIdentity(account.clerkSubject);
-          identityDeleted = true;
-        } catch {
-          /* Purge content while identity deletion retries. */
-        }
-      }
-      await tenant(this.db, account.id, async (trx) => {
-        await trx.raw("SELECT pg_advisory_xact_lock_shared(68142019)");
-        const current = await trx("accounts")
-          .where({ id: account.id })
-          .forUpdate()
-          .first();
-        if (current.status === "deleting" || current.status === "deleted") {
-          await trx("public_shares").delete();
-          await trx("conversations").delete();
-          await trx("transactional_emails").delete();
-          await trx("jobs").delete();
-          await trx("memory_briefs").delete();
-          await trx("inference_usage").delete();
-          await trx("memories").delete();
-          await trx("connections").delete();
-          await trx("projects").delete();
-          await trx("memory_operations").delete();
-          await trx("rate_buckets").delete();
-          const providerGone = identityDeleted || !!current.providerDeletedAt;
-          await trx("accounts")
-            .where({ id: account.id })
-            .update({
-              status: providerGone ? "deleted" : "deleting",
-              ...(providerGone ? { providerDeletedAt: trx.fn.now() } : {}),
-            });
-        } else {
-          const expired = await trx("memories")
-            .where("purgeAt", "<=", trx.fn.now())
-            .forUpdate()
-            .select("id");
-          for (const row of expired)
-            await trx("deleted_memories")
-              .insert({ accountId: account.id, id: row.id })
-              .onConflict(["accountId", "id"])
-              .ignore();
-          await trx("memories")
-            .whereIn(
-              "id",
-              expired.map((r) => r.id),
-            )
-            .delete();
-          if (expired.length) await this.changed(trx, account.id);
-        }
-        await trx("rate_buckets")
-          .where("minute", "<", trx.raw("now() - interval '1 day'"))
-          .delete();
-      });
-    }
+    await scheduleCleanup(this.db);
+    const handlers = cleanupHandlers(this.db, deleteIdentity);
+    // Bounded compatibility entrypoint; the deployed worker gives this lane its
+    // own consumer capacity, independent of dispatch and inference.
+    for (let batch = 0; batch < 20; batch++)
+      if (!(await runTask(this.db, handlers, { lane: "maintenance" }))) break;
   }
 }
 

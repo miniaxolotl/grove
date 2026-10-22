@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createDatabase, type Knex } from "@lib/database";
+import {
+  preferenceKeys,
+  preferencesFor,
+  legacyPreferences,
+} from "../../lib/shared/src/preferences.ts";
 
 /** Read current authority without copying memory content into the recovery log. */
 export async function reconcileRestore(authority: Knex, restored: Knex) {
@@ -16,18 +21,48 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "status",
       "deletedAt",
       "providerDeletedAt",
-      "captureEnabled",
-      "recallEnabled",
+      ...preferenceKeys,
       "organizeEnabled",
       "summariesEnabled",
+      "askVersion",
       "contentVersion",
+      "changeToken",
     );
     const subjects = await source("subject_authority").select("*");
     const sessions = await source("session_revocations").select("*");
+    const assistanceReviews = await source("assistance_reviews").select("*");
+    const assistanceOperations = await source("assistance_requests")
+      .whereRaw("jsonb_array_length(applied)>0")
+      .select(
+        "accountId",
+        "id",
+        "kind",
+        "input",
+        "fingerprint",
+        "profile",
+        "version",
+        "dependencies",
+        "scopes",
+        "applied",
+        "application",
+        "createdAt",
+        "updatedAt",
+      );
     const deleted = await source("deleted_memories").select("*");
     const deletedConversations = await source("deleted_conversations").select(
       "*",
     );
+    const tombstones = new Map<
+      string,
+      { id: string; accountId: string; deletedAt: Date }[]
+    >();
+    for (const table of ["projects", "connections"])
+      tombstones.set(
+        table,
+        await source(table)
+          .whereNotNull("deletedAt")
+          .select("id", "accountId", "deletedAt"),
+      );
     const reviews = new Map<
       string,
       {
@@ -107,6 +142,48 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
+      await target("notebook_summary_nodes").delete();
+      await target("notebook_summary_work").delete();
+      // Historical windows cannot describe a restored, older source snapshot.
+      await target("notebook_visits").delete();
+      await target("notebook_checkpoints").delete();
+      await target("assistance_requests").update({
+        status: "stale",
+        version: target.raw("version+1"),
+        result: null,
+        state: "{}",
+        undo: null,
+        error: "Recovery interrupted this preview. Refresh it.",
+      });
+      await target("assistance_reviews").delete();
+      const presentAccounts = new Set(existing.map((row) => row.id));
+      for (const row of assistanceReviews)
+        if (presentAccounts.has(row.accountId))
+          await target("assistance_reviews").insert({
+            ...row,
+            version: row.version + 1,
+          });
+      for (const row of assistanceOperations)
+        if (presentAccounts.has(row.accountId)) {
+          const operation = {
+            ...row,
+            version: row.version + 1,
+            status: "stale",
+            result: null,
+            state: "{}",
+            undo: null,
+            input: JSON.stringify(row.input),
+            dependencies: JSON.stringify(row.dependencies),
+            scopes: JSON.stringify(row.scopes),
+            applied: JSON.stringify(row.applied),
+            error:
+              "Recovery interrupted this operation. Review the current notes.",
+          };
+          await target("assistance_requests")
+            .insert(operation)
+            .onConflict(["accountId", "id"])
+            .merge(operation);
+        }
       // Rebuild explanations, but use current authoritative review decisions.
       const emptyAssessment = JSON.stringify({
         relationship: "unrelated",
@@ -155,9 +232,45 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
         }
       }
       await target("jobs").delete();
+      // Recovered leases and artifact references cannot authorize old work.
+      await target("processing_control").increment("epoch", 1);
+      await target("background_tasks")
+        .whereIn("status", ["pending", "running"])
+        .update({
+          status: "cancelled",
+          errorCode: "recovery_interrupted",
+          leaseId: null,
+          leaseUntil: null,
+          dispatchId: null,
+          dispatchUntil: null,
+          dispatchedAt: null,
+          finishedAt: target.fn.now(),
+          updatedAt: target.fn.now(),
+        });
+      await target("background_tasks")
+        .where({ kind: "export" })
+        .update({ result: null, expiresAt: target.fn.now() });
+      await target("export_objects").update({ expiresAt: target.fn.now() });
+      // Maintenance is safe to replay from its first bounded page. A cancelled
+      // lifecycle task would otherwise prevent the scheduler's dedupe upsert.
+      await target("background_tasks")
+        .whereIn("kind", [
+          "account_cleanup",
+          "retention_cleanup",
+          "artifact_cleanup",
+        ])
+        .update({
+          status: "pending",
+          cursor: "{}",
+          processed: 0,
+          failures: 0,
+          errorCode: null,
+          dueAt: target.fn.now(),
+          finishedAt: null,
+        });
       // Recovery must not replay old account emails or notifications from grant invalidation.
       await target("transactional_emails").delete();
-      let purgedMemories = 0;
+      let softDeletedMemories = 0;
       let blockedAccounts = 0;
       const restoredIds = new Set(existing.map((row) => row.id));
       for (const row of existing) {
@@ -183,19 +296,22 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             providerDeletedAt: subject?.deleted
               ? (current.providerDeletedAt ?? target.fn.now())
               : current.providerDeletedAt,
-            captureEnabled: current.captureEnabled,
-            recallEnabled: current.recallEnabled,
-            organizeEnabled: current.organizeEnabled,
-            summariesEnabled: current.summariesEnabled,
+            ...preferencesFor(current),
+            ...legacyPreferences(preferencesFor(current)),
+            askVersion: current.askVersion + 1,
             contentVersion: Math.max(current.contentVersion, 1) + 1,
+            changeToken: target.raw("greatest(change_token,?::bigint)+1", [
+              current.changeToken,
+            ]),
             organizationDueAt: target.fn.now(),
           });
         if (gone) {
           await target("conversations").where({ accountId: row.id }).delete();
           await target("inference_usage").where({ accountId: row.id }).delete();
-          purgedMemories += await target("memories")
+          softDeletedMemories += await target("memories")
             .where({ accountId: row.id })
-            .delete();
+            .whereNull("deletedAt")
+            .update({ deletedAt: target.fn.now(), status: "archived" });
           await target("connections").where({ accountId: row.id }).delete();
           await target("projects").where({ accountId: row.id }).delete();
           await target("rate_buckets").where({ accountId: row.id }).delete();
@@ -207,10 +323,18 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
           .insert(row)
           .onConflict(["accountId", "id"])
           .ignore();
-        purgedMemories += await target("memories")
+        softDeletedMemories += await target("memories")
           .where({ accountId: row.accountId, id: row.id })
-          .delete();
+          .whereNull("deletedAt")
+          .update({ deletedAt: row.deletedAt, status: "archived" });
       }
+      for (const [table, rows] of tombstones)
+        for (const row of rows)
+          if (restoredIds.has(row.accountId))
+            await target(table)
+              .where({ accountId: row.accountId, id: row.id })
+              .whereNull("deletedAt")
+              .update({ deletedAt: row.deletedAt });
       for (const row of subjects) {
         // A deletion tombstone is permanent, even if another event is newer.
         await target.raw(
@@ -254,7 +378,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       return {
         restoredAccounts: existing.length,
         blockedAccounts,
-        purgedMemories,
+        softDeletedMemories,
         invalidatedConnections,
         invalidatedShares,
         authoritySubjects: subjects.length,

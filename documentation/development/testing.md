@@ -1,5 +1,27 @@
 # Verification
 
+Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
+resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
+[notebook assistance](../notebook-assistance.md#verification) for the bounded scale
+and synthetic live-provider runners. The shared AI preferences now have 14 controls;
+Chromium and focused WebKit cover assistance dialogs at 1440/390/320px.
+
+Queue coverage (`queue.test.ts`, `queue-migration.test.ts`) uses fresh PostgreSQL
+databases and non-owner roles for claims, tenant/provider limits, lease fences,
+dispatch reservations, retained history, checkpointed imports/backfills, and
+bounded exports. The populated 013→014 test verifies unchanged authored records.
+Set `TEST_AMQP_URL` for `broker.test.ts`; CI supplies an isolated RabbitMQ service.
+It checks lane isolation, shared fallback capacity, draining and reconnect.
+`worker.test.ts` starts two real worker processes against a fresh database and an
+unreachable broker, verifies import/export completion, then checks SIGTERM draining.
+`artifacts.test.ts` always tests private atomic local files; optional S3 checks use
+`TEST_STORAGE_ENDPOINT`, `TEST_STORAGE_BUCKET`, `TEST_STORAGE_KEY` and
+`TEST_STORAGE_SECRET` against an owned private Garage bucket (region `garage`).
+These verify 12 MiB multipart streaming, byte identity, anonymous denial and deletion.
+Browser `exports.spec.ts` covers retry identity, notebook scope, cancel/retry,
+actual downloads and accessible 1440/390/320px layouts. It is included in the
+focused WebKit configuration. Cloud provisioning is separate from local tests.
+
 Public sharing coverage uses real non-owner database roles for capability scope,
 concurrent revocation, archive/moves/expiry, account purging, token encryption,
 temporary-schema shadowing, separate public quotas and backup invalidation.
@@ -22,6 +44,20 @@ upstream, never in the application. Rebuild the website before browser checks.
 
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
+
+Backend load tooling and deterministic admission/query-budget checks are documented
+in [backend capacity](backend-capacity.md). Timing runs use their own uniquely named
+disposable databases and should run separately from the correctness/browser suites.
+
+AI preferences coverage includes a populated 012→013 upgrade with all four legacy
+organization/summary combinations, separate summary scopes and connections, partial
+HTTP writes, owner-only permissions, reindex/restore preservation and disabling then
+re-enabling features during inference. Browser cases exercise the five categories,
+ten controls, provider availability, failed/overlapping saves, keyboard operation,
+cross-tab summary invalidation and 1440/390/320px accessibility. Settings cases also
+cover draft retention across tabs, discard, clean-form server updates, session
+replacement and provider credential save/retry. The focused WebKit configuration
+includes categorized preferences, held saves and provider configuration.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -92,6 +128,20 @@ persistence. Geometry tests scroll off-screen controls into view before comparin
 positions, so browser actionability scrolling is not mistaken for layout reflow.
 Held-save cases also verify command availability, preview mode and modal return
 focus when a new note's first save changes the route while a menu remains open.
+
+Palette and editor checks compare visible bounds at 1440/768/390/320px, including
+Chromium's reserved scrollbar gutter. Mode changes and properties/outline overlays
+must preserve the document viewport; focus/expanded return restores reading position.
+Viewer task checks cover exact nested/repeated/quoted/ordered Markdown items, CRLF
+source positions, fenced examples, touch/keyboard, undo/redo and reload. Held saves,
+failure/retry and version conflicts use the regular fixture API; history and comparison
+renderers must remain read-only. The mobile subset also runs in the focused WebKit set.
+
+Sidebar checks cover 320–1440px, long notebook names, expanded trees, short heights,
+enlarged labels, inset keyboard focus, sticky explorer controls and notebook-scoped
+creation. Row dropdowns must leave list rectangles unchanged, dismiss independently,
+restore focus after export/move dialogs and preserve swipe cancellation. Browser
+checks switch overlapping row menus by keyboard and test touch light-dismiss separately.
 
 Client-cache checks cover shared misses/cancellation, account and session teardown,
 fresh revisits, held reads and saves, draft/version conflicts, cross-tab metadata,

@@ -87,7 +87,7 @@ test("fresh Notes, Settings and note-detail revisits reuse snapshots without new
   ).toHaveLength(0);
   await navigate(page, "/app/settings");
   await expect(
-    page.getByText("Let connected agents save confirmed details"),
+    page.getByRole("checkbox", { name: "Automatic capture", exact: true }),
   ).toBeVisible();
   const reads = state.reads.length;
   for (let visit = 0; visit < 3; visit++) {
@@ -95,7 +95,7 @@ test("fresh Notes, Settings and note-detail revisits reuse snapshots without new
     await expect(page.locator(".memory-open")).toHaveText("Cached thought");
     await navigate(page, "/app/settings");
     await expect(
-      page.getByText("Let connected agents save confirmed details"),
+      page.getByRole("checkbox", { name: "Automatic capture", exact: true }),
     ).toBeVisible();
   }
   expect(state.reads).toHaveLength(reads);

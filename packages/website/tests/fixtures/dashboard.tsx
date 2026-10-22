@@ -14,6 +14,7 @@ import { MemoryInspector } from "../../src/components/dashboard/memory-inspector
 import { NoteEditorPage } from "../../src/components/dashboard/note-editor-page";
 import { SettingsPanel } from "../../src/components/dashboard/settings-panel";
 import { SettingsFrame } from "../../src/components/dashboard/settings-frame";
+import { SourceRevision } from "../../src/components/dashboard/source-revision";
 
 function DashboardFixture() {
   const location = useLocation();
@@ -36,6 +37,12 @@ function DashboardFixture() {
       <AskGrove />
     ) : path.endsWith("/journal") ? (
       <MemoryLibrary initialSort="created_desc" />
+    ) : path.startsWith("/app/memories/") &&
+      Number(query.get("revision")) > 0 ? (
+      <SourceRevision
+        id={path.split("/").at(-1)!}
+        version={Number(query.get("revision"))}
+      />
     ) : path.startsWith("/app/memories/") ? (
       <MemoryInspector
         fullPage

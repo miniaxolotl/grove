@@ -1,7 +1,8 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { lockPageScroll } from "./ui/overlay-focus";
+import { fitOverlayViewport, lockPageScroll } from "./ui/overlay-focus";
+import { IconButton } from "./ui/button";
 
 const DialogBusy = createContext<(busy: boolean) => void>(() => {});
 export const useDialogBusy = () => useContext(DialogBusy);
@@ -11,12 +12,16 @@ export function Dialog({
   close,
   panel = false,
   busy = false,
+  variant = "default",
+  header,
 }: {
   title: string;
   children: React.ReactNode;
   close: () => void;
   panel?: boolean;
   busy?: boolean;
+  variant?: "default" | "palette" | "inspector";
+  header?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const backdropPress = useRef<{ id: number; x: number; y: number } | null>(
@@ -29,6 +34,8 @@ export function Dialog({
     const previous = document.activeElement as HTMLElement | null;
     const focusKey = previous?.dataset.focusKey;
     const unlock = lockPageScroll();
+    const releaseViewport =
+      variant !== "default" ? fitOverlayViewport(element) : undefined;
     element.showModal();
     (
       element.querySelector<HTMLElement>("[data-autofocus]") ??
@@ -38,6 +45,7 @@ export function Dialog({
     )?.focus();
     return () => {
       element.close();
+      releaseViewport?.();
       unlock();
       const scope =
         [...document.querySelectorAll("dialog[open]")].at(-1) ?? document;
@@ -50,7 +58,7 @@ export function Dialog({
           : null;
       target?.focus({ preventScroll: true });
     };
-  }, []);
+  }, [variant]);
   return (
     <dialog
       ref={ref}
@@ -104,18 +112,19 @@ export function Dialog({
         if (!locked) close();
       }}
       aria-label={title}
-      className={`app-dialog${panel ? " app-detail-panel" : ""}`}
+      className={`app-dialog${panel ? " app-detail-panel" : ""}${variant !== "default" ? ` ${variant}-dialog` : ""}`}
     >
-      <div className="dialog-heading mb-6 flex items-center justify-between gap-4">
-        <h2 className="font-editorial text-3xl">{title}</h2>
-        <button
-          disabled={locked}
-          onClick={close}
-          className="app-icon"
-          aria-label="Close dialog"
-        >
+      <div
+        className={
+          variant === "palette"
+            ? "palette-heading"
+            : "dialog-heading mb-6 flex items-center justify-between gap-4"
+        }
+      >
+        {header ?? <h2 className="font-editorial text-3xl">{title}</h2>}
+        <IconButton disabled={locked} onClick={close} label="Close dialog">
           <X size={20} />
-        </button>
+        </IconButton>
       </div>
       <DialogBusy.Provider value={setSaving}>{children}</DialogBusy.Provider>
     </dialog>

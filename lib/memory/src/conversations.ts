@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { currentTelemetry } from "@lib/telemetry/context";
-import { MemoryModel, type Knex } from "@lib/database";
+import { MemoryModel, withDatabaseSignal, type Knex } from "@lib/database";
 import { InferenceError } from "@lib/ai";
 import { GroveError, type Memory, type Principal } from "@lib/shared/contracts";
 import type { SourceRef } from "@lib/shared/models";
@@ -19,16 +19,12 @@ import {
 } from "@lib/shared/conversations";
 import type { MemoryService } from "./index.ts";
 import { budgetedInference } from "./processing.ts";
+import { applyNoteChanges, type NoteUndo } from "./note-changes.ts";
 
 type StoredReply = Omit<ConversationReply, "sources"> & {
   sources: SourceRef[];
 };
-type Undo = {
-  id: string;
-  version: number;
-  content: string;
-  status: Memory["status"];
-}[];
+type Undo = NoteUndo;
 type TurnRow = {
   id: string;
   conversationId: string;
@@ -83,8 +79,8 @@ export class Conversations {
     private service: MemoryService,
     private present: (
       trx: Knex.Transaction,
-      row: MemoryModel,
-    ) => Promise<Memory>,
+      rows: MemoryModel[],
+    ) => Promise<Memory[]>,
     private revise: (trx: Knex.Transaction, row: MemoryModel) => Promise<void>,
   ) {}
 
@@ -186,6 +182,11 @@ export class Conversations {
     const turns = await trx<TurnRow>("conversation_turns")
       .where({ conversationId: row.id })
       .orderBy("position");
+    const sources = await this.sourcesFor(
+      trx,
+      turns.flatMap((turn) => turn.result?.sources ?? []),
+      row.scope,
+    );
     return {
       ...summary(row),
       turns: await Promise.all(
@@ -198,35 +199,73 @@ export class Conversations {
           error: turn.error,
           createdAt: new Date(turn.createdAt).toISOString(),
           result: turn.result
-            ? await this.hydrate(trx, turn.result, row.scope)
+            ? await this.hydrate(trx, turn.result, row.scope, sources)
             : null,
         })),
       ),
     };
   }
 
+  private async sourcesFor(
+    trx: Knex.Transaction,
+    refs: SourceRef[],
+    scope: ConversationScope,
+  ) {
+    const result = new Map<string, Memory>();
+    if (!refs.length) return result;
+    const rows = (
+      await MemoryModel.query(trx).whereIn("id", [
+        ...new Set(refs.map((source) => source.id)),
+      ])
+    ).filter((row) => inScope(scope, row.projectId));
+    const current = new Map(
+      (await this.present(trx, rows)).map((item) => [item.id, item]),
+    );
+    const old = refs.filter(
+      (source) =>
+        current.has(source.id) &&
+        current.get(source.id)!.version !== source.version,
+    );
+    const revisions = old.length
+      ? await trx("memory_revisions")
+          .whereIn(
+            ["memoryId", "version"],
+            old.map((source) => [source.id, source.version]),
+          )
+          .select("memoryId", "version", "content")
+      : [];
+    for (const source of refs) {
+      const item = current.get(source.id);
+      if (!item) continue;
+      const revision =
+        item.version === source.version
+          ? item
+          : revisions.find(
+              (row) =>
+                row.memoryId === source.id && row.version === source.version,
+            );
+      if (revision)
+        result.set(`${source.id}:${source.version}`, {
+          ...item,
+          version: source.version,
+          content: revision.content,
+        });
+    }
+    return result;
+  }
+
   private async hydrate(
     trx: Knex.Transaction,
     result: StoredReply,
     scope: ConversationScope,
+    supplied?: Map<string, Memory>,
   ): Promise<ConversationReply> {
-    const sources: Memory[] = [];
-    for (const source of result.sources) {
-      const row = await MemoryModel.query(trx).findById(source.id);
-      if (!row || !inScope(scope, row.projectId)) continue;
-      const revision =
-        row.version === source.version
-          ? row
-          : await trx("memory_revisions")
-              .where({ memoryId: row.id, version: source.version })
-              .first();
-      if (!revision) continue;
-      sources.push({
-        ...(await this.present(trx, row)),
-        version: source.version,
-        content: revision.content,
-      });
-    }
+    const byRevision =
+      supplied ?? (await this.sourcesFor(trx, result.sources, scope));
+    const sources = result.sources.flatMap((source) => {
+      const item = byRevision.get(`${source.id}:${source.version}`);
+      return item ? [item] : [];
+    });
     const proposal = result.proposal && {
       ...result.proposal,
       status: result.proposal.sources.every((r) =>
@@ -331,7 +370,7 @@ export class Conversations {
         return {
           conversation,
           history: history.reverse(),
-          enabled: account.summariesEnabled,
+          enabled: account.askEnabled,
         };
       },
     );
@@ -406,6 +445,11 @@ export class Conversations {
         principal,
         "admin",
         async ({ trx, account }) => {
+          if (generation && !account.askEnabled) throw stale();
+          const pending = await trx("conversation_turns")
+            .where({ id: input.id, leaseId, status: "pending" })
+            .first("id");
+          if (!pending) throw stale();
           const ids = [
             ...new Set([
               ...plan.references,
@@ -418,14 +462,14 @@ export class Conversations {
             .where((q) =>
               q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
             );
-          const sources: Memory[] = [];
-          for (const sourceId of ids) {
+          const ordered = ids.flatMap((sourceId) => {
             const row = rows.find(
               (r) =>
                 r.id === sourceId && inScope(conversation.scope, r.projectId),
             );
-            if (row) sources.push(await this.present(trx, row));
-          }
+            return row ? [row] : [];
+          });
+          const sources = await this.present(trx, ordered);
           return { sources, contentVersion: account.contentVersion };
         },
       );
@@ -514,7 +558,7 @@ export class Conversations {
             throw conflict();
           if (
             generation &&
-            (!account.summariesEnabled ||
+            (!account.askEnabled ||
               this.service.providers.generation?.profile !== generation.profile)
           )
             throw stale();
@@ -564,18 +608,20 @@ export class Conversations {
             ? "Reply stopped. Try again when you’re ready."
             : "Grove couldn’t finish this reply. Try again.";
       // A failed attempt remains retryable after navigation or a dropped response.
-      await this.service
-        .access(principal, "admin", async ({ trx }) => {
-          await trx("conversation_turns")
-            .where({ id: input.id, leaseId })
-            .update({
-              status: "failed",
-              error: message,
-              leaseId: null,
-              leaseUntil: null,
-            });
-        })
-        .catch(() => {});
+      await withDatabaseSignal(undefined, () =>
+        this.service
+          .access(principal, "admin", async ({ trx }) => {
+            await trx("conversation_turns")
+              .where({ id: input.id, leaseId })
+              .update({
+                status: "failed",
+                error: message,
+                leaseId: null,
+                leaseUntil: null,
+              });
+          })
+          .catch(() => {}),
+      );
       throw error;
     }
   }
@@ -602,6 +648,12 @@ export class Conversations {
         const proposal = result.proposal!;
         if (undo ? proposal.status === "undone" : proposal.status === "applied")
           return this.read(trx, conversation);
+        if (!undo && !account.askEnabled)
+          throw new GroveError(
+            "feature_disabled",
+            "Enable Ask Grove in AI preferences to apply this preview.",
+            409,
+          );
         if (
           undo
             ? proposal.status !== "applied" || !turn.undo
@@ -619,85 +671,37 @@ export class Conversations {
             409,
           );
         const references = undo ? proposal.applied! : proposal.sources;
-        const rows = await MemoryModel.query(trx)
-          .whereIn(
-            "id",
-            references.map((s) => s.id),
-          )
-          .orderBy("id")
-          .forUpdate();
-        if (
-          references.some(
-            (s) =>
-              !rows.some(
-                (r) =>
-                  same(r, s) &&
-                  inScope(conversation.scope, r.projectId) &&
-                  (undo ||
-                    (r.status === "active" &&
-                      (!r.expiresAt || new Date(r.expiresAt) > new Date()))),
-              ),
-          )
-        )
-          throw stale();
-        const originals: Undo = [];
-        const applied: SourceRef[] = [];
-        if (!undo && proposal.kind === "create") {
-          created = true;
-          if (
-            conversation.scope.projectId &&
-            !(await trx("projects")
-              .where({ id: conversation.scope.projectId })
-              .first("id"))
-          )
-            throw stale();
-          const row = await MemoryModel.query(trx)
-            .insert({
-              accountId: account.id,
-              projectId: conversation.scope.projectId ?? null,
-              kind: "fact",
-              autoKind: false,
-              content: proposal.content,
-              source: { agent: "website" },
-            })
-            .returning("*");
-          originals.push({
-            id: row.id,
-            version: row.version,
-            content: row.content,
-            status: "archived",
-          });
-          await this.revise(trx, row);
-          applied.push(ref(row));
-        } else {
-          for (const old of rows) {
-            originals.push({
-              id: old.id,
-              version: old.version,
-              content: old.content,
-              status: old.status,
-            });
-            const before = undo
-              ? turn.undo!.find((r) => r.id === old.id)!
-              : undefined;
-            const row = await MemoryModel.query(trx).patchAndFetchById(old.id, {
-              content: before
-                ? before.content
-                : old.id === proposal.target?.id
-                  ? proposal.content
-                  : old.content,
-              status: before
-                ? before.status
-                : old.id === proposal.target?.id
-                  ? old.status
-                  : "archived",
-              version: old.version + 1,
-              updatedAt: trx.fn.now(),
-            });
-            await this.revise(trx, row);
-            applied.push(ref(row));
-          }
-        }
+        const writes = undo
+          ? turn.undo!.map((before) => ({
+              ...before,
+              version: proposal.applied!.find((r) => r.id === before.id)!
+                .version,
+            }))
+          : proposal.kind === "create"
+            ? [
+                {
+                  content: proposal.content,
+                  projectId: conversation.scope.projectId ?? null,
+                },
+              ]
+            : proposal.sources.map((source) => ({
+                ...source,
+                ...(source.id === proposal.target?.id
+                  ? { content: proposal.content }
+                  : { status: "archived" as const }),
+              }));
+        const { originals, applied } = await applyNoteChanges(
+          trx,
+          account.id,
+          references,
+          writes,
+          this.revise,
+          {
+            undo,
+            allowed: (projectId) => inScope(conversation.scope, projectId),
+          },
+        );
+        created = !undo && proposal.kind === "create";
         result.proposal = {
           ...proposal,
           status: undo ? "undone" : "applied",

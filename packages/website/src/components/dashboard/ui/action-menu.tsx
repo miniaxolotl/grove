@@ -7,19 +7,34 @@ import {
   type ReactNode,
 } from "react";
 import { MoreHorizontal } from "lucide-react";
+import { overlayViewport } from "./overlay-focus";
 
 /** Native popover gives all action menus light-dismiss, Escape and focus return. */
 export function ActionMenu({
   label,
   children,
+  icon = <MoreHorizontal size={18} />,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   label: string;
   children: ReactNode;
+  icon?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const id = useId();
   const popup = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (controlledOpen === undefined) return;
+    const element = popup.current!;
+    if (controlledOpen && !element.matches(":popover-open")) {
+      anchor.current?.focus({ preventScroll: true });
+      element.showPopover();
+    } else if (!controlledOpen) element.hidePopover();
+  }, [controlledOpen]);
   useLayoutEffect(() => {
     if (!open) return;
     const element = popup.current!;
@@ -31,10 +46,11 @@ export function ActionMenu({
         return;
       }
       const edge = 8;
-      const left = (viewport?.offsetLeft ?? 0) + edge;
-      const top = (viewport?.offsetTop ?? 0) + edge;
-      const right = left + (viewport?.width ?? window.innerWidth) - edge * 2;
-      const bottom = top + (viewport?.height ?? window.innerHeight) - edge * 2;
+      const bounds = overlayViewport();
+      const left = bounds.left + edge;
+      const top = bounds.top + edge;
+      const right = left + bounds.width - edge * 2;
+      const bottom = top + bounds.height - edge * 2;
       const rect = trigger.getBoundingClientRect();
       element.style.maxWidth = `${Math.max(0, right - left)}px`;
       element.style.maxHeight = `${Math.max(0, bottom - top)}px`;
@@ -83,6 +99,7 @@ export function ActionMenu({
         className="app-icon"
         aria-label={label}
         title={label}
+        aria-expanded={open}
         popoverTarget={id}
         onKeyDown={(event) => {
           if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
@@ -92,7 +109,7 @@ export function ActionMenu({
           (event.key === "ArrowDown" ? choices[0] : choices.at(-1))?.focus();
         }}
       >
-        <MoreHorizontal size={18} />
+        {icon}
       </button>
       <div
         ref={popup}
@@ -101,15 +118,21 @@ export function ActionMenu({
         className="action-menu"
         role="group"
         aria-label={label}
-        onToggle={(event) => setOpen(event.newState === "open")}
+        onToggle={(event) => {
+          const next = event.newState === "open";
+          setOpen(next);
+          onOpenChange?.(next);
+        }}
         onClickCapture={(event) => {
           // Close before the action runs so a child dialog remembers its opener.
           if (
             (event.target as HTMLElement).closest(
               "button:not(:disabled), a[href]",
             )
-          )
+          ) {
             popup.current?.hidePopover();
+            anchor.current?.focus({ preventScroll: true });
+          }
         }}
         onKeyDown={(event) => {
           if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))

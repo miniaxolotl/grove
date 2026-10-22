@@ -98,8 +98,8 @@ export const privacy: LegalDocument = {
           <p>
             Hosted memories belong to your account. Connections require
             authentication and the scope you approve. You can inspect memories,
-            correct them, view revisions, archive or restore them, permanently
-            delete them, and revoke connections in Your Grove.
+            correct them, view revisions, archive or restore them, delete them,
+            and revoke connections in Your Grove.
           </p>
           <p>
             When an agent recalls a memory, the selected content is sent to that
@@ -221,18 +221,18 @@ export const privacy: LegalDocument = {
       content: (
         <>
           <p>
-            Durable memories and revisions remain until you change or delete
-            them or delete your account. Archiving is reversible and keeps the
-            record; it is not permanent deletion. Task handoffs have an expiry
-            and are subject to retention cleanup.
+            Durable memories and revisions are retained. Archiving is
+            reversible. Deletion and expired-record cleanup hide notes and their
+            history from the app, connected agents and public links; retained
+            source records have no automatic deletion deadline.
           </p>
           <p>
-            Permanent deletion removes live memory content, revisions, vectors,
-            and pending associated jobs. Account cleanup is asynchronous and can
-            require provider follow-up. Minimal deletion, revocation, and
-            recovery records are retained to prevent deleted information from
-            reappearing after recovery. Infrastructure logs and provider records
-            have separate operational lifecycles.
+            Account deletion immediately blocks access. Background cleanup hides
+            retained account content and removes the sign-in identity. Deletion
+            removes derived vectors and pending associated work. Tombstones
+            prevent deleted information from reappearing after recovery.
+            Generated export files expire after one day; infrastructure logs and
+            provider records have separate operational lifecycles.
           </p>
           <p>
             The hosted database currently has a one-day point-in-time recovery
