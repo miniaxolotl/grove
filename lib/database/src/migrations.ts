@@ -10,6 +10,7 @@ import { publicSharing } from "./sharing-migration.ts";
 import { shareExpiration } from "./share-expiration-migration.ts";
 import { aiPreferences } from "./preferences-migration.ts";
 import { queueProcessing } from "./queue-migration.ts";
+import { notebookAssistance } from "./assistance-migration.ts";
 
 export const migrations = [
   {
@@ -229,6 +230,7 @@ export const migrations = [
   shareExpiration,
   aiPreferences,
   queueProcessing,
+  notebookAssistance,
 ];
 
 export const migrationSource: Knex.MigrationSource<

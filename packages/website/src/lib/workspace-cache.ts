@@ -388,7 +388,7 @@ export class WorkspaceCache {
     if (kind === "resource" && typeof key === "string") {
       // Any source can add/remove a pair, including notebook coverage outside its excerpts.
       if (key === "/relationships/search") return true;
-      if (/^\/memories\/[^/]+\/revisions$/.test(key))
+      if (/^\/memories\/[^/]+\/revisions(?:\/\d+)?$/.test(key))
         return !change.ids || change.ids.includes(key.split("/")[2]);
       if (["/ask", "/briefs"].includes(key)) {
         const scope = body as {
@@ -422,10 +422,13 @@ export class WorkspaceCache {
     this.deleted.add(id);
     this.client.setQueryData(workspaceKeys.note(id), null);
     this.patchPages(new Map([[id, null]]));
-    this.client.removeQueries({
-      queryKey: workspaceKeys.resource(`/memories/${id}/revisions`),
-      exact: true,
-    });
+    const revisions = (query: Query) =>
+      query.queryKey[1] === "resource" &&
+      typeof query.queryKey[2] === "string" &&
+      (query.queryKey[2] === `/memories/${id}/revisions` ||
+        query.queryKey[2].startsWith(`/memories/${id}/revisions/`));
+    this.client.setQueriesData({ predicate: revisions }, null);
+    this.client.removeQueries({ predicate: revisions });
   }
   private patchPages(notes: Map<string, Memory | null>) {
     for (const query of this.client

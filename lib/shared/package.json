@@ -10,6 +10,7 @@
     "./contracts": "./src/contracts.ts",
     "./models": "./src/models.ts",
     "./preferences": "./src/preferences.ts",
+    "./summaries": "./src/summaries.ts",
     "./settings": "./src/settings.ts",
     "./jobs": "./src/jobs.ts",
     "./conversations": "./src/conversations.ts",

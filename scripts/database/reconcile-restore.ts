@@ -112,6 +112,8 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
+      await target("notebook_summary_nodes").delete();
+      await target("notebook_summary_work").delete();
       // Rebuild explanations, but use current authoritative review decisions.
       const emptyAssessment = JSON.stringify({
         relationship: "unrelated",

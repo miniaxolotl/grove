@@ -27,6 +27,7 @@ import { resetModelData } from "../../scripts/database/models.ts";
 import { formatContext } from "@lib/integration-core";
 import { noteAssessmentSchema } from "@lib/shared/relationships";
 import { preferencesFor } from "@lib/shared/preferences";
+import { notebookSummarySchema } from "@lib/shared/summaries";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { createApp } from "../../packages/api/src/app.ts";
 
@@ -114,6 +115,25 @@ async function fixture(
               version: s.version,
               quote: s.content,
             })),
+          });
+        if (Object.is(schema, notebookSummarySchema))
+          return schema.parse({
+            title: "Current context",
+            sections: [
+              {
+                heading: "Recorded facts",
+                statements: sources.slice(0, 3).map((s) => ({
+                  text: s.content.slice(0, 500),
+                  sources: [
+                    {
+                      id: s.id,
+                      version: s.version,
+                      quote: s.content.slice(0, 600),
+                    },
+                  ],
+                })),
+              },
+            ],
           });
         return schema.parse(
           Object.is(schema, organizationSchema)
@@ -985,6 +1005,15 @@ test("encrypted installation settings mask keys, enforce administrators, switch 
   assert.equal(cloud.generation.model, "MiniMax-M3.1-Flash");
   const reset = await resetModelData(admin);
   assert(reset.before.memories > 0);
-  assert(Object.values(reset.after).every((count) => count === 0));
+  for (const table of ["memories", "memory_revisions"])
+    assert.equal(
+      reset.after[table],
+      reset.before[table],
+      `${table} must be retained`,
+    );
+  for (const [table, count] of Object.entries(reset.after))
+    if (!["memories", "memory_revisions"].includes(table))
+      assert.equal(count, 0, `${table} derived data must be cleared`);
+  assert.equal((await admin("memories").whereNull("deletedAt")).length, 0);
   assert((await admin("accounts").count("id as count").first())?.count);
 });

@@ -160,6 +160,28 @@ test("deleting a source removes cached connection evidence and fences a held old
   );
 });
 
+test("source revision evidence is removed on deletion and a held historical read cannot restore it", async () => {
+  const path = `/memories/${note.id}/revisions/1`;
+  const held = Promise.withResolvers<unknown>();
+  let hold = false;
+  let signal: AbortSignal | undefined;
+  const cache = cacheWith(async (url, _body, _method, abort) => {
+    if (url === "/memories/delete") return { results: [{ id: note.id, outcome: "deleted" }] };
+    if (hold) { signal = abort; return held.promise; }
+    return { id: note.id, version: 1, content: "Original source" };
+  });
+  const options = cache.resource(path);
+  await cache.client.fetchQuery(options);
+  hold = true;
+  await cache.client.invalidateQueries({ queryKey: options.queryKey, refetchType: "none" });
+  const pending = cache.client.fetchQuery(options).catch(() => undefined);
+  await cache.api("/memories/delete", { items: [{ id: note.id, expectedVersion: 1 }] });
+  expect(signal?.aborted).toBe(true);
+  held.resolve({ id: note.id, version: 1, content: "Original source" });
+  await pending;
+  expect(cache.client.getQueryData(options.queryKey)).toBeUndefined();
+});
+
 test("account teardown rejects a late successful save and clears every snapshot", async () => {
   const response = Promise.withResolvers<Memory>();
   const old = cacheWith(async () => response.promise);

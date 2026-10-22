@@ -35,6 +35,13 @@ import {
   runRelationshipJob,
   type RelationshipJob,
 } from "./relationship-jobs.ts";
+import {
+  isNotebookSummary,
+  notebookSummaryProfile,
+  runNotebookSummary,
+  summaryProfile,
+  type SummaryJob,
+} from "./notebook-summaries.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -43,6 +50,9 @@ export const providerProfiles = (providers: Providers) => [
     .filter(Boolean)
     .map((provider) => provider!.profile),
   ...[currentRelationshipProfile(providers)].filter((p): p is string => !!p),
+  ...(providers.generation
+    ? [notebookSummaryProfile(providers.generation.profile)]
+    : []),
 ];
 export async function registerEmbedding(db: Knex, embedder: Embedder) {
   await db("embedding_profiles")
@@ -82,6 +92,7 @@ export async function queueBrief(
 ) {
   const account = await trx("accounts").where({ id: accountId }).first();
   if (!account?.[briefPreference(scope)]) return;
+  profile = summaryProfile(profile, scope);
   await trx("jobs")
     .insert({
       accountId,
@@ -105,12 +116,17 @@ export async function invalidateBriefs(
   trx: Knex.Transaction,
   accountId: string,
 ) {
-  const old = await trx("memory_briefs").select("scope", "profile");
-  await trx("memory_briefs").delete();
+  const scopes = (q: Knex.QueryBuilder) =>
+    q.whereRaw("scope->>'projectId' IS NULL OR scope->>'taskId' IS NOT NULL");
+  const old = await trx("memory_briefs")
+    .modify(scopes)
+    .select("scope", "profile");
+  await trx("memory_briefs").modify(scopes).delete();
   for (const row of old)
     await queueBrief(trx, accountId, row.scope, row.profile);
   await trx("jobs")
     .where({ kind: "brief" })
+    .modify(scopes)
     .update({
       attempts: 0,
       failedAt: null,
@@ -292,11 +308,19 @@ export async function briefFor(
   const account = await trx("accounts").where({ id: accountId }).first();
   if (!account[briefPreference(scope)]) return empty;
   const target = briefTarget(scope),
-    profile = providers.generation.profile;
+    profile = summaryProfile(providers.generation.profile, scope);
   const row = await trx("memory_briefs").where({ target, profile }).first();
+  const notebook = isNotebookSummary(scope)
+    ? await trx("projects")
+        .where({ id: scope.projectId })
+        .first("contentVersion")
+    : undefined;
   if (
     row &&
-    row.contentVersion === account.contentVersion &&
+    (notebook
+      ? row.notebookVersion === notebook.contentVersion
+      : row.contentVersion === account.contentVersion) &&
+    (!row.expiresAt || new Date(row.expiresAt) > new Date()) &&
     (await validSources(trx, row.sources, scope))
   ) {
     return {
@@ -304,7 +328,8 @@ export async function briefFor(
       status: "ready",
       content: row.content,
       updatedAt: new Date(row.createdAt).toISOString(),
-      sourceCount: row.sources.length,
+      sourceCount: row.coverage?.examined ?? row.sources.length,
+      ...(row.coverage ? { coverage: row.coverage } : {}),
       truncated: row.truncated,
     };
   }
@@ -433,6 +458,18 @@ export async function runProcessingJob(
     ]),
   )[0];
   if (!claimed) return false;
+  if (
+    claimed.kind === "brief" &&
+    claimed.scope &&
+    isNotebookSummary(claimed.scope as BriefRequest)
+  )
+    return runNotebookSummary(
+      db,
+      providers,
+      dailyLimit,
+      claimed as SummaryJob,
+      resolveProfiles,
+    );
   if ((relationshipKinds as readonly string[]).includes(claimed.kind))
     return runRelationshipJob(
       db,

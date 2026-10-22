@@ -8,6 +8,7 @@ import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { LoadError } from "./load-error";
 import { dateLabel } from "@/lib/memory-display";
+import { IconButton } from "./ui/button";
 
 export function BriefPanel({
   projectId = null,
@@ -39,6 +40,20 @@ export function BriefPanel({
     started.current = 0;
     void query.refetch();
   };
+  const refresh = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      if (brief?.status !== "pending")
+        await api<Brief>("/briefs/refresh", { projectId, taskId });
+      started.current = 0;
+      await query.refetch();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const sources = [
     ...new Set(
       brief?.content?.sections.flatMap((section) =>
@@ -58,15 +73,29 @@ export function BriefPanel({
               ? "Notebook summary"
               : "A little about you"}
         </h2>
-        <span className="text-xs text-muted">
-          {brief?.status === "ready"
-            ? "Up to date"
-            : brief?.status === "pending"
-              ? "Updating"
-              : brief?.status === "failed"
-                ? "Needs attention"
-                : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted" role="status">
+            {brief?.status === "ready"
+              ? "Up to date"
+              : brief?.status === "pending"
+                ? "Updating"
+                : brief?.status === "failed"
+                  ? "Needs attention"
+                  : ""}
+          </span>
+          {brief && brief.status !== "disabled" && (
+            <IconButton
+              label={
+                brief.status === "pending" ? "Check status" : "Refresh summary"
+              }
+              disabled={busy}
+              aria-busy={busy}
+              onClick={() => void refresh()}
+            >
+              <RefreshCw size={16} />
+            </IconButton>
+          )}
+        </div>
       </div>
       {error && (
         <LoadError
@@ -105,7 +134,7 @@ export function BriefPanel({
                         <Link
                           key={`${source.id}:${source.version}`}
                           className="underline"
-                          href={`/app/memories/${source.id}`}
+                          href={`/app/memories/${source.id}?revision=${source.version}`}
                         >
                           Source {sources.indexOf(source.id) + 1} · revision{" "}
                           {source.version}
@@ -118,13 +147,11 @@ export function BriefPanel({
             </div>
           ))}
           <p className="mt-6 text-xs leading-6 text-muted">
-            Based on {brief.sourceCount} current{" "}
-            {brief.sourceCount === 1 ? "note" : "notes"}
-            {brief.updatedAt ? ` · ${dateLabel(brief.updatedAt)}` : ""}.
-            {brief.truncated
-              ? " This summary covers your most recent notes."
-              : ""}{" "}
-            Review the linked sources for context.
+            {brief.coverage
+              ? `${brief.coverage.examined} of ${brief.coverage.total} notes examined · ${brief.coverage.cited} cited`
+              : `Based on ${brief.sourceCount} current ${brief.sourceCount === 1 ? "note" : "notes"}`}
+            {brief.updatedAt ? ` · ${dateLabel(brief.updatedAt)}` : ""}
+            {brief.truncated ? " · Partial coverage" : ""}
           </p>
         </>
       ) : (
@@ -135,41 +162,6 @@ export function BriefPanel({
               : "Updating this summary. You can keep working."}
           </p>
         )
-      )}
-      {brief && brief.status !== "disabled" && (
-        <div className="mt-5 flex flex-wrap gap-3">
-          {brief.status !== "ready" && (
-            <button
-              className="app-button secondary"
-              disabled={busy}
-              onClick={() => {
-                setError("");
-                check();
-              }}
-            >
-              Check status
-            </button>
-          )}
-          <button
-            className="app-button secondary"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              setError("");
-              try {
-                await api<Brief>("/briefs/refresh", { projectId, taskId });
-                check();
-              } catch (e) {
-                setError(errorMessage(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <RefreshCw size={14} />
-            {busy ? "Updating…" : "Refresh summary"}
-          </button>
-        </div>
       )}
     </section>
   );

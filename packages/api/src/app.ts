@@ -585,6 +585,21 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.get("/v1/memories/:id/revisions/:version", async (c) =>
+    c.json({
+      success: true,
+      data: await service.sourceRevision(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        z.coerce
+          .number()
+          .int()
+          .positive()
+          .max(2147483647)
+          .parse(c.req.param("version")),
+      ),
+    }),
+  );
   app.post("/v1/memories/:id/reprocess", async (c) => {
     const input = await body(
       c,

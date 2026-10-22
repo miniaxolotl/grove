@@ -5,7 +5,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import { MemoryModel, tenant, camelRows, type Knex } from "@lib/database";
+import { MemoryModel, tenant, type Knex } from "@lib/database";
 import { policy } from "@lib/config";
 import { InferenceError, type Embedder, type Providers } from "@lib/ai";
 import {
@@ -523,6 +523,28 @@ export class MemoryService {
         .select("version", "content", "source", "createdAt")
         .orderBy("version", "desc")
         .limit(100);
+    });
+  }
+
+  async sourceRevision(principal: Principal, id: string, version: number) {
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      const note = await this.query(trx, grant)
+        .findById(id)
+        .where((q) =>
+          q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+        );
+      if (!note) throw missing();
+      const revision = await trx("memory_revisions")
+        .where({ memoryId: id, version })
+        .select("version", "content", "createdAt")
+        .first();
+      if (!revision) throw missing();
+      return {
+        ...revision,
+        id,
+        currentVersion: note.version,
+        expiresAt: note.expiresAt,
+      };
     });
   }
 
