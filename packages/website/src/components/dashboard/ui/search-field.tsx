@@ -29,15 +29,18 @@ export function SearchField({
         placeholder={placeholder}
         maxLength={1000}
       />
-      {value && (
-        <button
-          type="button"
-          aria-label={`Clear ${label.toLowerCase()}`}
-          onClick={() => onChange("")}
-        >
-          <X size={15} />
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label={`Clear ${label.toLowerCase()}`}
+        style={{ visibility: value ? "visible" : "hidden" }}
+        disabled={!value}
+        onClick={(event) => {
+          event.currentTarget.parentElement?.querySelector("input")?.focus();
+          onChange("");
+        }}
+      >
+        <X size={15} />
+      </button>
       {submit && <button type="submit">Search</button>}
     </div>
   );

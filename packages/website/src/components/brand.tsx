@@ -15,11 +15,17 @@ export function GroveMark({ className = "size-9" }: { className?: string }) {
   );
 }
 
-export function Brand({ light = false }: { light?: boolean }) {
+export function Brand({
+  light = false,
+  href = "/",
+}: {
+  light?: boolean;
+  href?: string;
+}) {
   return (
     <Link
-      href="/"
-      aria-label="Grove home"
+      href={href}
+      aria-label={href === "/app" ? "Grove notes" : "Grove home"}
       className="inline-flex shrink-0 items-center transition-opacity hover:opacity-70"
     >
       <Image

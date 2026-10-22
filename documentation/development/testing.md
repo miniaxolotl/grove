@@ -1,5 +1,19 @@
 # Verification
 
+Public sharing coverage uses real non-owner database roles for capability scope,
+concurrent revocation, archive/moves/expiry, account purging, token encryption,
+temporary-schema shadowing, separate public quotas and backup invalidation.
+`tests/src/sharing.test.ts` requires all three disposable database URLs below.
+
+Website orchestration starts a synthetic sharing upstream on port 4378
+(`SHARING_TEST_PORT` overrides it) alongside the real production-built Next server.
+`sharing.spec.ts` verifies signed-out reads, scoped links, live edits, revoked-link
+reload/history, metadata/headers and safe Markdown. Workspace tests cover owner
+scope controls, retry/conflict handling, inherited access and revocation during
+pending saves. Telemetry tests inspect actual SDK payloads for capability/content
+canaries and disabled replay. Synthetic fixture routes exist only in the test
+upstream, never in the application. Rebuild the website before browser checks.
+
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
@@ -64,6 +78,97 @@ Daily writing uses the same editor/library, with date grouping and scoped creati
 mobile notebook browsing keeps nested organization accessible. The browser build
 above uses synthetic telemetry identifiers: Playwright intercepts their traffic
 and verifies the real SDKs without sending events to production projects.
+
+Unified-workspace checks also cover persistent edit/preview history and scroll,
+drawer bounds, note-list/drawer keyboard navigation, confirmed deletion, command
+menu and shortcut-help focus, clipboard toast geometry, and settings header/tab
+persistence. Geometry tests scroll off-screen controls into view before comparing
+positions, so browser actionability scrolling is not mistaken for layout reflow.
+Held-save cases also verify command availability, preview mode and modal return
+focus when a new note's first save changes the route while a menu remains open.
+
+Client-cache checks cover shared misses/cancellation, account and session teardown,
+fresh revisits, held reads and saves, draft/version conflicts, cross-tab metadata,
+expiry and bounded retention. See [cache ownership](client-cache.md) and
+[production performance measurements](../../scripts/performance/README.md) for the
+real Next/Clerk runner, deferred-chunk retry and CI bundle budget.
+Held initial reads also check that loading never shows a false zero count; interrupted
+background reads preserve row geometry, selection and keyboard retry focus. The
+production runner checks stable drawer bounds across pending, failed and ready views
+at desktop and narrow mobile widths.
+Canonical connection checks also cover collapsed-panel idleness, batched title-page
+reuse, normalized graph keys, family-only review invalidation and deletion fencing
+of a held evidence read. Row-delete replay must retain conflict review across reopen.
+
+Relationship checks use non-owner API/worker roles for pair uniqueness, symmetric
+reads, review replay, scoped grants, stale publication, budgets/retries, notebook
+batch resumption, uncited-source invalidation and deletion scrubbing. Recovery
+replays authoritative review state while invalidating explanations. Browser checks
+cover shared graph/context inspectors, exact excerpts, comparison focus return,
+dismissal/Undo and partial notebook coverage at 320px. The bounded synthetic
+live-provider runner is documented in [relationships](../relationships.md#quality-evaluation).
+
+Run the focused iPhone/WebKit checks after the website production build:
+
+```sh
+pnpm --filter website exec playwright test --config playwright.relationships-webkit.config.ts
+```
+
+On Linux hosts missing WebKit system libraries, run the same committed config in
+the Playwright image (from the worktree root):
+
+```sh
+docker run --rm --ipc=host --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD:$PWD" -w "$PWD/packages/website" \
+  mcr.microsoft.com/playwright:v1.64.1-noble \
+  node node_modules/@playwright/test/cli.js test --config playwright.relationships-webkit.config.ts
+```
+
+Gesture checks use trusted Chromium touch/pen events alongside mouse and keyboard:
+one-row swipe ownership, second-contact cancellation, handle activation, destination
+autoscroll, delayed notebook expansion, route interruption, pinch and modifier-wheel
+zoom, and selection/read/edit viewport retention. Menu bounds are checked at narrow,
+short and 2× pinch-zoom viewports. Mobile formatting retains selected text; held
+chat replies preserve older reading positions. Move Undo stays actionable alongside
+copy feedback in the active dialog's shared notification stack.
+Graph guidance is checked with keyboard/touch disclosure and expanded focus
+wrapping; opening and closing it retains the graph's focal point. The touch move
+case covers the integrated destination/cancel panel and edge autoscroll.
+Expanded graph checks also open connection evidence from a focused edge, restore
+that edge on dismissal and include the connection-list disclosure in focus wrapping.
+
+After building production CSS, run the focused iPhone/WebKit set with:
+
+```sh
+pnpm --filter website exec playwright install webkit
+pnpm test:website --config playwright.webkit.config.ts
+```
+
+WebKit requires its system libraries; verification can also run in
+`mcr.microsoft.com/playwright:v1.64.1-noble` with Node 24 and the worktree mounted.
+`DASHBOARD_TEST_PORT` selects an isolated fixture port for concurrent work. The
+fixture serves production CSS and bundles current components, so rebuild the site
+after CSS changes. Browser emulation does not qualify physical software keyboards,
+OS text-selection handles, back-edge gestures or trackpad/pen feel.
+
+Note-action checks cover direct toolbar/row deletion, Cancel focus, stale versions,
+dirty/oversized drafts, held saves and same-identity retries after a lost response.
+Export checks inspect actual UTF-8 downloads and clipboard results, first-save
+snapshot retention, row freshness, denied clipboard fallback, deferred PDF failure
+and cancellation. PDFs are parsed with pdfjs: searchable text, links, every table
+cell, page counts and text bounds are checked. Visual review uses the generated
+multi-page PDF plus desktop/390px/320px captures. The iPhone/WebKit set includes
+download and focus checks; physical iOS/Android file delivery remains a separate
+device qualification.
+Download assertions save a local test artifact with Playwright `saveAs`, so they
+also work when the browser runs in a remote Playwright container.
+
+PDF refinement checks inspect the actual embedded JetBrains Mono face and section
+bookmarks, single-page folio omission, landscape table/prose transitions and heading
+placement. Local code-font loading is deferred until export; a failed font request
+keeps Markdown available and a fresh attempt retries successfully. Ordinary table
+cells must remain complete/searchable across page boundaries. Reviewed ordinary-note
+and stress-case renders live with the note-actions captures.
 
 For a disposable Clerk development account, complete `grove login --client cli`
 and approve a grant in Connections. Save a personal memory containing `concise`.

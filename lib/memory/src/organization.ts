@@ -2,6 +2,7 @@ import { camelRows, tenant, type Knex } from "@lib/database";
 import type { Providers } from "@lib/ai";
 import type { BriefRequest, ModelProfiles } from "@lib/shared/models";
 import { briefFor } from "./processing.ts";
+import { scheduleRelationships } from "./relationship-jobs.ts";
 
 /** Repair missing derived data without rewriting notes or resetting failed jobs. */
 export async function scheduleOrganization(
@@ -32,6 +33,12 @@ export async function scheduleOrganization(
             generation: providers.generation?.profile,
           };
       let count = 0;
+      if (account.organizeEnabled)
+        count += await scheduleRelationships(trx, accountId, {
+          embedding: profiles.embedding ?? null,
+          decision: profiles.decision ?? null,
+          generation: profiles.generation ?? null,
+        });
       for (const [kind, profile] of [
         ["embedding", profiles.embedding],
         ["decision", account.organizeEnabled && profiles.decision],

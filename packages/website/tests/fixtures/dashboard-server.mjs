@@ -47,13 +47,20 @@ const fixtureConfig = {
                   ? 'export { usePathname, useRouter } from "./tests/fixtures/navigation";'
                   : args.path === "next/image"
                     ? 'import React from "react"; export default function Image({unoptimized, ...props}) { return <img {...props}/> }'
-                    : 'import React from "react"; export const useUser = () => ({isLoaded:true,isSignedIn:true,user: {id: "fixture-user", firstName: "Alex"}}); export const RedirectToSignIn = () => <a href="/sign-in">Sign in</a>; export const UserButton = () => <button aria-label="Account" style={{borderRadius:"50%",background:"#e3eadf",width:32,height:32}}>A</button>; export const useClerk = () => ({signOut: async () => {}, openUserProfile: () => {}});',
+                    : 'export { useUser, useAuth, RedirectToSignIn, UserButton, useClerk } from "./tests/fixtures/workspace-account";',
         }));
       },
     },
   ],
 };
 const result = await build(fixtureConfig);
+const pdfWorker = await build({
+  entryPoints: [join(root, "src/lib/note-pdf.worker.ts")],
+  bundle: true,
+  write: false,
+  platform: "browser",
+  format: "iife",
+});
 const telemetryResult = await build({
   ...fixtureConfig,
   entryPoints: [join(root, "tests/fixtures/telemetry-dashboard.tsx")],
@@ -103,6 +110,18 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   try {
+    if (path === "/brand-kit/fonts/jetbrains-mono-regular.ttf") {
+      response
+        .writeHead(200, { "Content-Type": "font/ttf" })
+        .end(await readFile(join(root, "public", path)));
+      return;
+    }
+    if (path === "/note-pdf.worker.ts") {
+      response
+        .writeHead(200, { "Content-Type": "application/javascript" })
+        .end(pdfWorker.outputFiles[0].contents);
+      return;
+    }
     if (path === "/telemetry-fixture.js") {
       response
         .writeHead(200, { "Content-Type": "application/javascript" })

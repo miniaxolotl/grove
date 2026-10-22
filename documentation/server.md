@@ -6,7 +6,7 @@ CLI is an API-only stdio bridge; it has no database credentials or local databas
 
 ## Authentication
 
-Every data endpoint requires `Authorization: Bearer …`:
+Private `/v1` data endpoints and `/mcp` require `Authorization: Bearer …`:
 
 - Website: Clerk session JWT, fixed issuer/JWKS, RS256, expiry, session ID and exact
   authorized website origin. No cookies are accepted directly by the API.
@@ -27,6 +27,11 @@ Protected-resource discovery: `/.well-known/oauth-protected-resource/mcp`.
 Anonymous requests receive 401 and `WWW-Authenticate`. Provider outages return 503,
 not a fabricated connected state. Live Clerk development OAuth passed; production
 configuration remains a deployment gate. See [delivery evidence](delivery.md).
+
+Public read-only sharing uses separate capability-checked `/public/shares/*`
+routes. Link management requires the owning website session; OAuth/API keys cannot
+publish content. See [sharing](sharing.md) for routes, permissions, live membership,
+pagination, independent public limits and revocation.
 
 ## Four everyday tools
 

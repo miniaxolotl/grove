@@ -70,6 +70,11 @@ export function createAppSpec(env) {
     "CURSOR_SECRET is too short",
   );
   const publishableKey = required(env, "CLERK_PUBLISHABLE_KEY");
+  if (env.SHARE_LINK_KEY)
+    assert(
+      /^[0-9a-f]{64}$/i.test(env.SHARE_LINK_KEY),
+      "SHARE_LINK_KEY must be 32 bytes in hex",
+    );
   assert.match(publishableKey, /^pk_live_/);
   const clerkHost = Buffer.from(publishableKey.slice(8), "base64")
     .toString("utf8")
@@ -113,6 +118,13 @@ export function createAppSpec(env) {
     ];
     if (env.GROVE_IMAGE_DIGEST)
       component.image.digest = imageDigest(env.GROVE_IMAGE_DIGEST);
+    if (role === "grove_api" && env.SHARE_LINK_KEY)
+      component.envs.push({
+        key: "SHARE_LINK_KEY",
+        value: env.SHARE_LINK_KEY,
+        scope: "RUN_TIME",
+        type: "SECRET",
+      });
   }
   return spec;
 }

@@ -17,6 +17,7 @@ export function useUser() {
     user: { id: account, firstName: "PRIVATE_NAME" },
   };
 }
+export const useAuth = () => ({ sessionId: "telemetry-fixture-session" });
 export const RedirectToSignIn = () => <Link href="/sign-in">Sign in</Link>;
 export const UserButton = () => (
   <button onClick={changeAccount}>Switch account</button>

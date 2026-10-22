@@ -11,7 +11,10 @@ import {
   type SetStateAction,
 } from "react";
 import { usePathname } from "next/navigation";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { errorMessage, type Project } from "@/lib/dashboard-api";
+import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceCache } from "./workspace-cache";
+import { workspaceKeys } from "@/lib/workspace-cache";
 
 type NotebookLocation = { path: string; projectId: string | null | undefined };
 type Notebooks = {
@@ -19,46 +22,26 @@ type Notebooks = {
   loading: boolean;
   error: string;
   reload: () => void;
-  saved: (project: Project) => void;
   location: NotebookLocation | undefined;
   setLocation: Dispatch<SetStateAction<NotebookLocation | undefined>>;
 };
 const Context = createContext<Notebooks | null>(null);
 
 export function NotebooksProvider({ children }: { children: ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [revision, setRevision] = useState(0);
+  const cache = useWorkspaceCache();
+  const query = useQuery(cache.resource<Project[]>("/projects"));
+  const projects = query.data ?? [];
+  const loading = query.isPending;
+  const error = query.error ? errorMessage(query.error) : "";
   const [location, setLocation] = useState<NotebookLocation>();
   const reload = useCallback(() => {
-    setLoading(true);
-    setError("");
-    setRevision((value) => value + 1);
-  }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Project[]>("/projects", undefined, undefined, controller.signal)
-      .then((list) => {
-        if (!controller.signal.aborted) setProjects(list);
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [revision]);
-  const saved = useCallback((project: Project) => {
-    setProjects((previous) => [
-      ...previous.filter((p) => p.id !== project.id),
-      project,
-    ]);
-  }, []);
+    void cache.client.invalidateQueries({
+      queryKey: workspaceKeys.resource("/projects"),
+    });
+  }, [cache]);
   return (
     <Context.Provider
-      value={{ projects, loading, error, reload, saved, location, setLocation }}
+      value={{ projects, loading, error, reload, location, setLocation }}
     >
       {children}
     </Context.Provider>

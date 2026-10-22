@@ -11,20 +11,23 @@ export const useLocation = () =>
     () => window.location.pathname + window.location.search,
   );
 export const usePathname = () => useLocation().split("?")[0];
-function navigate(href: string, replace = false) {
+function navigate(href: string, replace = false, scroll = true) {
   window.history[replace ? "replaceState" : "pushState"]({}, "", href);
   window.dispatchEvent(new PopStateEvent("popstate"));
-  window.scrollTo(0, 0);
+  if (scroll) window.scrollTo(0, 0);
 }
 export const useRouter = () => ({
-  push: (href: string) => navigate(href),
-  replace: (href: string) => navigate(href, true),
+  push: (href: string, options?: { scroll?: boolean }) =>
+    navigate(href, false, options?.scroll),
+  replace: (href: string, options?: { scroll?: boolean }) =>
+    navigate(href, true, options?.scroll),
 });
 export function FixtureLink({
   href = "",
   onClick,
+  scroll = true,
   ...props
-}: AnchorHTMLAttributes<HTMLAnchorElement>) {
+}: AnchorHTMLAttributes<HTMLAnchorElement> & { scroll?: boolean }) {
   return (
     <a
       {...props}
@@ -45,7 +48,7 @@ export function FixtureLink({
         const url = new URL(href, window.location.href);
         if (url.origin !== window.location.origin || url.hash) return;
         event.preventDefault();
-        navigate(url.pathname + url.search);
+        navigate(url.pathname + url.search, false, scroll);
       }}
     />
   );

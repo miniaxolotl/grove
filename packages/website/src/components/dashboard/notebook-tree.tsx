@@ -23,6 +23,7 @@ export function NotebookTree({
   renderItem,
   defaultExpanded = false,
   showNotes = false,
+  notesVisible = true,
 }: {
   projects: readonly Project[];
   selectedId?: string | null;
@@ -31,6 +32,7 @@ export function NotebookTree({
   renderItem?: (project: Project) => ReactNode;
   defaultExpanded?: boolean;
   showNotes?: boolean;
+  notesVisible?: boolean;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name));
@@ -123,7 +125,9 @@ export function NotebookTree({
               {hasChildren && open && (
                 <>
                   {branch(project.id, depth + 1)}
-                  {showNotes && <NotebookPages projectId={project.id} />}
+                  {showNotes && notesVisible && (
+                    <NotebookPages projectId={project.id} />
+                  )}
                 </>
               )}
             </NotebookBranch>

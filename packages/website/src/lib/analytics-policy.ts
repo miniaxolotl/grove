@@ -44,6 +44,7 @@ export function pagePath(value: string): string {
   try {
     const path = new URL(value, origin).pathname.replace(/\/$/, "") || "/";
     if (publicRoutes.has(path) || workspaceRoutes.has(path)) return path;
+    if (path.startsWith("/s/")) return "/s/:token";
     const dynamic = path.match(
       /^\/(app\/(notes|memories|projects|connect)|sign-in|sign-up)(?:\/|$)/,
     );
@@ -65,6 +66,7 @@ export function surface(value: string): "website" | "workspace" {
 }
 export function operationForRequest(path: string, method: string): Operation {
   const route = path.split("?")[0];
+  if (route === "/memories/search") return "memory_recall";
   if (/^\/(recall|search|context)(\/|$)/.test(route)) return "memory_recall";
   if (/^\/(chat|conversations)(\/|$)/.test(route)) return "chat";
   if (/^\/(connections|connect|keys|grants)(\/|$)/.test(route))

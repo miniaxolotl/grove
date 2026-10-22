@@ -22,6 +22,217 @@ const config = () =>
       model: "MiniMax-M3.1-Flash",
     },
   });
+
+test("preferences retain newer edits during saving and errors do not move the form", async ({
+  page,
+}) => {
+  const preferences = {
+    captureEnabled: true,
+    recallEnabled: true,
+    organizeEnabled: true,
+    summariesEnabled: true,
+  };
+  const release = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  const saves: Record<string, boolean>[] = [];
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/account/settings")) {
+      saves.push(route.request().postDataJSON());
+      if (saves.length === 1) {
+        started.resolve();
+        await release.promise;
+      }
+      if (saves.length === 3) {
+        await route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: {
+              code: "unavailable",
+              message: "Please try again shortly.",
+            },
+          },
+        });
+        return;
+      }
+      await route.fulfill({ json: { success: true, data: saves.at(-1) } });
+      return;
+    }
+    await route.fulfill({
+      json: { success: true, data: path.endsWith("/me") ? preferences : [] },
+    });
+  });
+  await page.goto(`${base}/app/settings`);
+  const button = page.getByRole("button", { name: "Save preferences" });
+  await expect(button).toBeDisabled();
+  const checks = page.getByRole("checkbox");
+  await checks.nth(0).uncheck();
+  // Another tab can refresh /me to the same values as our unsaved draft.
+  // Reverting still compares with our loaded base, not that background snapshot.
+  preferences.recallEnabled = false;
+  const refreshed = page.waitForResponse("**/api/grove/me");
+  await page.evaluate(() => {
+    const channel = new BroadcastChannel("grove-workspace:fixture-user");
+    channel.postMessage({ resource: "/me" });
+    channel.close();
+  });
+  await (await refreshed).finished();
+  await checks.nth(0).check();
+  await expect(button).toBeDisabled();
+  await checks.nth(0).uncheck();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "Unsaved changes",
+  );
+  const form = page.locator(".settings-content form");
+  await button.scrollIntoViewIfNeeded();
+  // Check layout within the settings scroller, independently of the browser
+  // bringing different controls into view on a short screen.
+  const geometry = () =>
+    form.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const scroll = element.closest(".settings-page")!.scrollTop;
+      return {
+        x: rect.x,
+        y: rect.y + scroll,
+        width: rect.width,
+        height: rect.height,
+      };
+    });
+  const before = await geometry();
+  await button.click();
+  await started.promise;
+  await expect(page.locator(".settings-save-status")).toHaveText("Saving…");
+  expect(await geometry()).toEqual(before);
+  await checks.nth(1).uncheck();
+  release.resolve();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "Unsaved changes",
+  );
+  await expect(button).toBeEnabled();
+  expect(saves[0]).toMatchObject({
+    recallEnabled: false,
+    captureEnabled: true,
+  });
+  await button.click();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "All changes saved",
+  );
+  expect(saves[1]).toMatchObject({
+    recallEnabled: false,
+    captureEnabled: false,
+  });
+  await checks.nth(2).uncheck();
+  await button.click();
+  await expect(page.getByRole("alert")).toHaveText("Please try again shortly.");
+  await expect(checks.nth(2)).not.toBeChecked();
+  expect(await geometry()).toEqual(before);
+  await expect(button).toBeEnabled();
+  await button.click();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "All changes saved",
+  );
+  expect(await geometry()).toEqual(before);
+});
+
+test("settings share persistent navigation and scrolling, and feedback leaves forms in place", async ({
+  page,
+}, info) => {
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data = path.endsWith("/me")
+      ? {
+          captureEnabled: true,
+          recallEnabled: true,
+          organizeEnabled: true,
+          summariesEnabled: true,
+        }
+      : path.endsWith("/models")
+        ? {
+            edition: "cloud",
+            editable: false,
+            config: config(),
+            version: 1,
+            credentials: {},
+            profiles: {},
+          }
+        : path.endsWith("/usage")
+          ? { today: [], dailyRequestLimit: 2000, failedJobs: 0 }
+          : [];
+    await route.fulfill({ json: { success: true, data } });
+  });
+  await page.goto(`${base}/app/settings`);
+  const header = page.locator(".settings-header");
+  await header.evaluate((element) =>
+    element.setAttribute("data-retained", "yes"),
+  );
+  const tabs = page.getByRole("navigation", { name: "Settings sections" });
+  const before = await tabs.boundingBox();
+  await page.getByRole("checkbox").first().uncheck();
+  await page
+    .getByRole("button", { name: "Save preferences" })
+    .scrollIntoViewIfNeeded();
+  const formBefore = await page
+    .getByRole("button", { name: "Save preferences" })
+    .boundingBox();
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(page.locator(".workspace-toast")).toContainText(
+    "Preferences saved",
+  );
+  expect(
+    await page.getByRole("button", { name: "Save preferences" }).boundingBox(),
+  ).toEqual(formBefore);
+  await page
+    .locator(".workspace-toast")
+    .getByRole("button", { name: "Dismiss notification" })
+    .click();
+  for (const name of [
+    "Account",
+    "Connections",
+    "Search & organization",
+    "Your data",
+    "Preferences",
+  ]) {
+    await tabs.getByRole("link", { name, exact: true }).click();
+    await expect(tabs.getByRole("link", { name, exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(header).toHaveAttribute("data-retained", "yes");
+    await expect(
+      page.getByRole("heading", { name: "Settings", exact: true }),
+    ).toHaveCount(1);
+    expect(await tabs.boundingBox()).toEqual(before);
+  }
+  await page.setViewportSize({ width: 320, height: 750 });
+  await tabs.getByRole("link", { name: "Your data", exact: true }).click();
+  await page
+    .locator(".settings-page")
+    .evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true }),
+  ).toBeInViewport();
+  await expect(tabs).toBeInViewport();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page
+    .locator(".settings-page")
+    .evaluate((element) => element.scrollTo(0, 0));
+  await page.screenshot({
+    path: info.outputPath("settings-mobile-stable.png"),
+  });
+});
 for (const editable of [true, false])
   test(`model settings ${editable ? "save masked credentials and diagnose saved providers" : "show deployment-managed cloud configuration"}`, async ({
     page,
@@ -77,7 +288,7 @@ for (const editable of [true, false])
     await page.goto(`${base}/app/settings/models`);
     await expect(
       page.getByRole("heading", {
-        name: editable ? "Model settings" : "Search & organization",
+        name: "Search & organization",
       }),
     ).toBeVisible();
     if (editable) {
@@ -91,9 +302,9 @@ for (const editable of [true, false])
       await page
         .getByRole("button", { name: "Save model settings", exact: true })
         .click();
-      await expect(page.locator("main").getByRole("status")).toContainText(
-        "Model settings saved",
-      );
+      await expect(
+        page.locator(".workspace-toast").getByRole("status"),
+      ).toContainText("Model settings saved");
       await expect(
         page.getByLabel("API key", { exact: true }).first(),
       ).toHaveValue("");
@@ -101,9 +312,9 @@ for (const editable of [true, false])
       await page
         .getByRole("button", { name: "Test saved embedding configuration" })
         .click();
-      await expect(page.locator("main").getByRole("status")).toContainText(
-        "4096 dimensions",
-      );
+      await expect(
+        page.locator(".workspace-toast").getByRole("status"),
+      ).toContainText("4096 dimensions");
     } else {
       await expect(page.getByText(/4,096 dimensions/)).not.toBeVisible();
       await expect(

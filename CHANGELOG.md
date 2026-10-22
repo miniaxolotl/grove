@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.9.0](https://github.com/miniaxolotl/grove/compare/v1.8.1...v1.9.0) (2026-10-22)
+
+
+### Features
+
+* add public read-only note and notebook sharing ([#59](https://github.com/miniaxolotl/grove/issues/59)) ([7e8ff5e](https://github.com/miniaxolotl/grove/commit/7e8ff5e61c978879b915ea6aed20e5112aa8d0dd))
+* **relationships:** explain note and notebook connections ([#60](https://github.com/miniaxolotl/grove/issues/60)) ([5edcb42](https://github.com/miniaxolotl/grove/commit/5edcb42839349c535089aaa8fa054396f54cfae2))
+* **website:** add compact consent choices and gated marketing tags ([#64](https://github.com/miniaxolotl/grove/issues/64)) ([9bd1593](https://github.com/miniaxolotl/grove/commit/9bd1593791c6be3136d378502424918be6b66d45))
+* **website:** unify note workspace and keyboard commands ([54f2cb4](https://github.com/miniaxolotl/grove/commit/54f2cb4a81891fc4d8c50c5ee5a2a5d4c7a835d1))
+* **website:** unify note workspace and keyboard commands ([94efe44](https://github.com/miniaxolotl/grove/commit/94efe44fd3701c6b1345f237519857422dc4b72b))
+* **workspace:** add note exports and reachable actions ([#61](https://github.com/miniaxolotl/grove/issues/61)) ([570c133](https://github.com/miniaxolotl/grove/commit/570c133315f165be6fc530a83af817a06eb3c3c0))
+* **workspace:** keep selection search and filters in place ([#63](https://github.com/miniaxolotl/grove/issues/63)) ([1e1eb27](https://github.com/miniaxolotl/grove/commit/1e1eb27c8c072ec12333fbe8829baf20cb0c1247))
+* **workspace:** polish gestures and mobile interactions ([#58](https://github.com/miniaxolotl/grove/issues/58)) ([0fe3ed8](https://github.com/miniaxolotl/grove/commit/0fe3ed8ff82d02aa782d8a43cbbf2767e25addc9))
+
+
+### Bug Fixes
+
+* **website:** retain commands and focus across first note save ([baa6c45](https://github.com/miniaxolotl/grove/commit/baa6c45d02a9a81575b8a81af4792b222cfdcee9))
+
+
+### Performance Improvements
+
+* **website:** cache workspace reads and defer note loading ([#62](https://github.com/miniaxolotl/grove/issues/62)) ([e46d206](https://github.com/miniaxolotl/grove/commit/e46d206b715eed7fe631594379aa9da32d7fd526))
+
 ## [1.8.1](https://github.com/miniaxolotl/grove/compare/v1.8.0...v1.8.1) (2026-10-21)
 
 

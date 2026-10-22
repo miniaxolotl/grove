@@ -1,5 +1,398 @@
 # Delivery evidence
 
+## Error-page refinement (22 October 2026 UTC)
+
+Deferred views and service failures share a restrained recovery layout with
+context-specific headings, a clear retry action and responsive spacing. The 404
+and global-error pages use the same visual language and offer a route back to Grove.
+Global recovery carries its own styles/fonts and native home links so it remains
+usable outside the root layout. Error details stay out of that fallback's content.
+
+After integrating landed stable-library and sharing features, root/website lint,
+types and builds, five artifacts, **149 Chromium** and **35 supported focused
+iPhone/WebKit** cases pass. Release/deployment contracts and workflow lint pass.
+Production deferred retry/bounds/focus and
+sign-in/private-response checks pass at 1440/390/320px. Additional checks cover
+service/404 accessibility, 404 navigation without JavaScript, standalone global
+recovery in both browser engines, keyboard navigation and enlarged text.
+Notes entry is **469,016 gzip bytes (-31.5% original baseline)** with all landed
+features included. The error-UI-only increase was 200 bytes before those integrations.
+Preference drafts retain their loaded base across background refreshes and newer
+edits across pending saves. [Reviewed error screenshots](design/screenshots/error-recovery/README.md)
+record the final desktop/mobile presentation, exact source/build and browser coverage.
+
+## Client caching and loading performance (21 October 2026 UTC)
+
+The workspace now shares account/session-owned, in-memory read snapshots. Durable
+changes reconcile affected notes, notebook lists, history, search, briefs and
+conversation views. Retained drafts keep their original versions and uncertain
+operation IDs; newer edits and later-version save replays require explicit review.
+Metadata-only cross-tab invalidation, visible refresh, bounded retention and expiry
+preserve freshness. The authenticated transport remains private and `no-store`.
+
+Notes defers the drawer/editor, notebook secondary views and collapsed linked-note
+title reads. Independent notebook/note reads start together. In-place chunk retry,
+intent preloading, hidden-mobile preview gating and demand-loaded monospace fonts
+reduce opening work. New list rows render at full contrast immediately.
+
+The cache-delivery build reduced Notes-entry JavaScript to
+**684,469 → 454,146 gzip bytes (-33.6%)**; notebook entry
+is **695,542 → 456,830 (-34.3%)**. The first Settings→Notes round trip makes **2 → 1**
+application reads; subsequent fresh repeated visits make zero. CI enforces the
+513,351-byte Notes-entry ceiling and keeps editor code out of that entry. Exact
+paired p75 is **227→85ms** for desktop return-to-Notes and **7762→6141ms (-20.9%)**
+for mobile cold Notes. First drawer opening is slower (**437ms / 2291ms** desktop/
+mobile), and mobile return-to-Notes is **512→612ms**. Production-build timing,
+memory, long-task and layout evidence is recorded in
+[performance verification](../scripts/performance/README.md).
+
+Initial cache delivery passed **97 Chromium** scenarios and **nine selected iPhone/WebKit** cases,
+including cache ownership/cancellation, late responses, expiry, drafts/conflicts,
+mutation retries, pagination, keyboard/focus, dragging, responsive accessibility and
+telemetry privacy. Real production Next/Clerk checks verify sign-in, account controls,
+deferred editor loading, failed-chunk recovery and anonymous private/no-store denial.
+Root lint/types/build, five artifact checks, website lint/types/production build,
+twelve release-script contracts and actionlint/ShellCheck pass. WebKit uses the
+Playwright 1.64.1 Noble browser container. Node is 24.21.0; pnpm is 10.33.0.
+
+The visual refinement keeps the drawer's width consistent through
+loading, failure and successful retry. Static placeholders, an honest loading label
+and a reserved refresh/retry slot keep Notes calm while data arrives. Background
+failures preserve rows and selection; pagination retries its original cursor.
+Keyboard recovery retains focus and reduced-motion feedback stays static.
+With the merged gesture refinement, the ready compact toolbar takes keyboard focus
+from the temporary loading header.
+The follow-up passes **100 Chromium** scenarios, **eight selected iPhone/WebKit**
+cases and production drawer/auth/retry checks at **1440, 390 and 320px**. Required
+root/website checks and five artifacts pass. Before gesture integration, Notes entry is **454,807 gzip
+bytes (-33.6%)**, including 661 bytes for the refinement; the editor remains deferred.
+Current application source/build and reviewed synthetic captures are recorded in
+the performance verification linked above.
+The integrated gesture/cache build is **457,678 gzip Notes bytes (-33.1%)** and
+**460,613 notebook bytes (-33.8%)**; the same CI budget and deferred boundary pass.
+Combined verification passes **112 Chromium** and **15 selected iPhone/WebKit**
+cases, plus production drawer/auth/focus recovery at **1440, 390 and 320px**.
+
+Final integration includes landed actions and canonical relationships. Connection
+pages stay idle while collapsed, share cached batched titles/evidence, and reconcile
+review/source changes with cancellation and deletion fencing. Row-delete retries
+retain the original draft base when a later agent version requires review. The
+combined tree passes **131 Chromium**, **32 selected iPhone/WebKit**, root/website
+lint/types/builds and five artifacts. Production auth/deferred retry/focus checks
+pass at **1440, 390 and 320px**. Notes entry is **463,180 gzip bytes (-32.3%)**;
+notebook entry is **466,081 (-33.0%)**. Both editor and PDF renderer remain deferred.
+[Final synthetic screenshots](design/screenshots/client-performance/README.md)
+show quiet loading, background recovery and desktop/mobile editing.
+
+See [cache ownership and integration](development/client-cache.md) when adding
+workspace actions or resource families. No schema migration is required.
+
+## Public read-only sharing (21 October 2026 UTC)
+
+Owners can share live saved notes/notebooks, choose direct-only or descendant
+notebook scope, recopy stable links, replace or revoke them. The shared dialog is
+available from note toolbar/commands and notebook page/sidebar/manager actions.
+It identifies covering notebook links and allows revocation during pending saves.
+Public readers render independently of Clerk, inference and the private workspace
+cache. [Sharing](sharing.md) records the permissions, API and key lifecycle.
+
+Local verification on Node 24.21.0 / pnpm 10.33.0:
+
+- Root `pnpm lint`, `pnpm check-types`, `pnpm build`, all **74** database/service
+  tests and all **5** packed-artifact tests passed. PostgreSQL 17 / pgvector 0.8.2 used
+  separate non-owner API/worker roles in a newly created disposable `_test` database.
+  Coverage includes cross-account/RLS denial, concurrent rotation/revocation,
+  encrypted retry-safe tokens, scope narrowing/moves, expiry/restore/deletion,
+  account/limiter purging, temporary-schema shadowing and backup invalidation.
+- Website lint/types and telemetry-enabled production build passed. The full
+  Chromium suite passed **83/83**; after the final long-heading reader correction,
+  all **6** targeted reader/privacy checks passed, including the added no-JavaScript
+  case. All **5** public-reader checks also passed on iPhone 13 / WebKit using the
+  Playwright 1.64.1 Noble image with Node 24.21.0.
+- Browser checks verify stable copy, uncertain-response retry, stale settings,
+  inherited access and revocation while saving; anonymous/deep-link navigation,
+  live edits, revoked-link reload/history, no-store/no-referrer/no-index headers,
+  scoped Markdown links and safe failure recovery. Malformed upstream responses
+  emit only generic errors. Real SDK payloads contain neither capability nor
+  content canaries, and public-reader replay is absent.
+- Desktop 1440px and mobile 390px/320px reader/dialog screenshots were reviewed.
+  Automated WCAG 2A/AA/2.1AA and horizontal-overflow checks passed.
+- A synthetic 10,000-note notebook returned ten 30-note pages in **9.1–15.6ms**
+  locally. The listing used `memories_owner_page`, visited 31 rows and completed
+  in 0.045ms under `EXPLAIN ANALYZE`, with no sort or temporary blocks.
+- All **17** release/DigitalOcean contract tests, pinned actionlint with
+  ShellCheck 0.11.0, and `docker build -t grove-public-sharing:test .` passed.
+
+Rollout requires owner migration `20261021_011_public_sharing`, an API-only
+`SHARE_LINK_KEY`, API/worker rollout and then the matching website. Actual host
+capability-log redaction and live signed-in/signed-out checks remain rollout
+verification, as detailed in [deploy](deploy.md#public-sharing-rollout).
+
+### Sharing interface refinement
+
+After screenshot review, the sharing dialog uses a compact 540px layout, grouped
+settings and quiet inherited-access rows. Its primary action follows the current
+state: Create link, Save changes, Turn off direct link, Copy link or Done. Cancel
+restores staged settings without writing. Copy/Open remain unavailable while
+permissions are pending. Copy feedback stays on the button; saves/replacement use
+inline status, keeping mobile actions clear. Clipboard denial selects the URL for
+manual copying, and completed mutations preserve keyboard focus.
+
+Public readers have a tighter reading rhythm, aligned checklists, quiet notebook
+rows with update dates, and explicit focus states. All navigation retains fresh
+server reads. [Reviewed screenshots](design/screenshots/public-sharing/README.md)
+cover desktop and mobile, including long names and short-viewport scrolling.
+
+Follow-up verification on integrated development `5edcb42`: root/website
+lint/types/builds, all **five artifact**, **88 database/service**, **113 Chromium**
+and **28 iPhone/WebKit** scenarios pass. The disposable PostgreSQL database applies
+relationship migration 010 before sharing migration 011 and exercises real non-owner
+roles, public-scope/lifecycle/recovery and cross-account denial. Browser checks cover
+scope conflicts, staged cancellation, clipboard denial, pending-save revocation,
+no-JavaScript reading, and desktop/390px/320px accessibility and overflow. Mobile
+review exposed the success-toast overlap that inline feedback resolves.
+
+Handoff integrates landed gesture #58, actions #61 and connections #60. Phone
+sharing uses the compact Note actions menu; desktop retains its toolbar button.
+Share uses the common note-action slot and one notebook-action callback across
+page/sidebar/manager controls. Authenticated proxy admission retains both sharing
+and connection routes, while anonymous readers retain their independent scope.
+
+Merge closeout integrates stable interactions #63 at `1e1eb27`. The only textual
+conflict was in this delivery record; both feature histories are retained. The
+combined **121 Chromium** cases and **19 focused iPhone/WebKit** sharing/filter/
+selection/search checks pass. Root/website lint, types and builds plus all five
+artifact checks pass before the user-authorized squash merge.
+
+## Stable selection, filters and workspace feedback (21 October 2026 UTC)
+
+Bulk selection shares the existing list header, with mixed selection and keyboard
+focus recovery. Advanced filters open over the list; their count, search-clear and
+sort controls reserve their geometry. Clearing filters preserves the selected sort
+and empty results provide a direct reset. Native dropdowns stay within the active
+popover and dismiss independently.
+
+Global search and the command menu retain their query position through loading,
+matching and empty states. Preference saves provide in-place status, retain newer
+edits made during a pending save, and report errors without shifting the form.
+[Interaction guidance](development/stable-interactions.md) describes the contracts
+and [reviewed captures](design/screenshots/stable-interactions/README.md) show the
+desktop and narrow layouts.
+
+Root lint/types/build and all five packed-artifact checks pass; website lint/types
+and the telemetry-enabled production build pass. After integrating the landed
+gesture and note-action work (`570c133`), all 108 Chromium scenarios and 11 focused
+WebKit scenarios pass. Refreshed captures were reviewed in both browsers. Geometry
+checks cover 320, 390 and 1440px, mixed/bulk selection, nested overlays, search
+loading and preference-save races. No schema migration is required.
+
+## Connection and action integration (21 October 2026 UTC)
+
+Integrated landed note actions #61 (`570c133`) after gesture polish #58. The reader
+retains Export/Delete alongside compact Linked notes, and Notebook options combines
+creation/organization with Connected notebooks. Both source and delivery histories
+are preserved. Root/website lint, types and builds, five packed-artifact checks,
+all **103 Chromium** scenarios and **20 iPhone/WebKit** scenarios pass on the combined
+tree. Desktop/320px reader and connection captures were reviewed.
+
+## Connection and gesture integration (21 October 2026 UTC)
+
+Integrated gesture polish #58 into the connection feature, retaining stable graph
+zoom, embedded touch scrolling, expanded pan/pinch, contextual Controls and the
+shared evidence inspector. The expanded focus loop includes the connection list.
+Memoized visible nodes keep graph edges mounted while an inspector opens, so
+closing it restores keyboard focus to the original edge.
+
+Root/website lint, types and builds plus all five artifact checks pass. The combined
+90-case Chromium run passed 89 scenarios and exposed the edge-focus regression;
+after the fix all three graph scenarios pass, including nested evidence/reader
+dialogs, focus return and narrow-layout accessibility. All 11 focused iPhone/WebKit
+relationship and gesture cases pass. Desktop and 320px graph/inspector captures
+were reviewed. Final website lint, types and build also pass after the focus fix.
+
+## Quieter connection UI (21 October 2026 UTC)
+
+Connection lists now use compact rows with a title, short reason and quiet category.
+Endpoint lists start with five results. A centered inspector keeps explanations and
+endpoint navigation visible, with excerpts and notebook coverage under **Supporting
+notes**. Partial coverage remains explicit; source revision labels and repetitive
+scope text are removed from the default view. Graph edges are quieter, and guides
+and accessible connection lists are available on demand.
+
+Root/website lint, typechecks and builds, all five packed-artifact checks, the full
+78-case Chromium suite and three iPhone/WebKit scenarios pass. Browser verification
+covers disclosure and keyboard access, retained editor state, comparison focus,
+dismissal/Undo, pagination and stale-source rejection. Updated desktop and 320px
+[captures](design/screenshots/note-relationships/README.md) record the refinement.
+
+## Explainable note and notebook connections (21 October 2026 UTC)
+
+Connections now carry a specific reason and verbatim, revision-checked excerpts.
+The reader and Notes graph share a canonical assessment, comparison and
+version-checked dismissal/Undo. Notebook context and the Notebooks graph explain
+shared threads with explicit source coverage; direct membership remains separate
+from sub-notebooks. Migration `20261021_010_relationship_evidence`, bounded worker
+backfill and review-state recovery are documented in [relationships](relationships.md).
+
+Verification includes real PostgreSQL/RLS, leased-worker races, uncited notebook
+invalidation, bounded retries/budgets, export/reindex/recovery, browser accessibility
+and responsive comparisons. The complete 78-case Chromium suite and three focused
+iPhone/WebKit cases pass. Packed artifacts, release/deployment contracts, workflow
+lint and the API container build pass. All 76 backend tests pass. Additional
+regressions cover discovery beyond 100 notebooks, retry after revised sources,
+deletion after a notebook move and batched legacy relationship reads.
+[Visual review](design/screenshots/note-relationships/README.md) records desktop,
+320px and notebook-graph captures.
+
+A live MiniMax run of 16 explicitly labelled synthetic cases passed all classifications
+and exact-source checks, including four abstentions. Earlier runs exposed false
+conflicts for superseded/tentative decisions and unsupported dependency directions;
+the final level-specific schemas and instructions address those findings. Incidental
+citations in abstentions are discarded; positive claims retain strict validation.
+This small corpus is a regression signal, not a general accuracy estimate.
+
+## Focused PDF exports (21 October 2026 UTC)
+
+The PDF refinement uses a monochrome type scale, a consistent portrait reading
+measure and compact list rhythm. Real task checkboxes, subtle quote/table rules,
+content-weighted columns and padded monospace code retain the note's structure.
+Only multi-page documents show a quiet folio. Section bookmarks aid navigation.
+Six-to-eight-column tables and their introductory headings occupy landscape
+sheets; prose returns to portrait. Ordinary rows stay together, while unusually
+tall cells can continue across pages. Text wraps at measured edges without
+injected zero-width spaces, and Markdown soft line endings flow naturally.
+
+Code uses pinned JetBrains Mono 2.304 TTF under its existing OFL attribution,
+requested from the same origin only for exports containing code. It is subset
+into the PDF; rare missing glyphs fall back to the embedded prose face. A failed
+font request leaves source export usable and can be retried. The production
+Turbopack worker was exercised with actual code: it produced a parsed one-page
+PDF with an embedded JetBrains Mono face and exactly one local font request.
+The renderer remains deferred (about 754KB gzip) and absent from initial Notes
+chunks.
+
+The updated [PDF captures](design/screenshots/note-notebook-actions/README.md)
+include an ordinary one-page note and a wide-table sheet. Browser checks inspect
+actual font embedding, bookmarks, selectable text, single-page output, table
+heading placement, mixed page orientations, every wide-table cell, oversized
+record continuation, content bounds and font-load recovery.
+
+Root lint/types/build and five artifact checks pass, as do website lint/types and
+the telemetry-enabled production build. The 100-case Chromium run found one
+ordinary table row split; after the row-keeping fix, all six export regressions
+pass. Six distinct iPhone/WebKit export scenarios pass as well, including a final
+repeat of the mixed-orientation/oversized-record case. Fresh single-page and
+seven-page stress PDFs were parsed and visually reviewed.
+
+## Note and notebook actions (21 October 2026 UTC)
+
+Notes expose Export and confirmed Delete directly in the toolbar and row actions.
+Deletion pauses autosave, settles active/uncertain saves with their original retry
+identity, checks the saved version and explicitly discards local edits. Cancel
+retains drafts; success focuses the next row or the empty-state heading. Notebook
+Create/Rename/Move use distinct controls, reject no-op moves and preserve inputs
+while reviewing a concurrent change.
+
+Export downloads exact UTF-8 Markdown, copies it with a selectable fallback, or
+generates a real paginated PDF. Local snapshots survive first-save routing and
+identify unsaved content. pdfmake 0.3.12 (MIT) embeds its bundled Roboto fonts in a
+cancellable worker; Markdown parsing is loaded on demand too. Images become links,
+raw HTML is ignored and unavailable glyphs get explicit Unicode codes. Renderer
+and fonts are absent from initial Notes chunks: the deferred worker is about
+753KB gzip; Notes client-reference chunks grew about 8KB gzip against the integrated
+gesture baseline. A production Turbopack worker was separately started and produced
+an `application/pdf` Blob successfully.
+
+Node 24.21.0 / pnpm 10.33.0: root lint/types/build and five artifact tests pass;
+website lint/types and telemetry-enabled production build pass; 98 Chromium tests
+pass, with five focused deletion checks repeated after the empty-state focus fix.
+Fourteen focused iPhone/WebKit scenarios pass (the PDF filename assertion accounts
+for WebKit replacing spaces with underscores). PDF checks parse selectable text,
+links, pagination and all 280 cells in a wide table, checking text bounds as well
+as real downloads. Deferred-load failure, cancellation, clipboard denial, stale
+versions and lost save responses are covered. Final focused PDF checks also ensure
+a title-only first-save snapshot produces one page rather than a blank leading page.
+
+[Reviewed captures](design/screenshots/note-notebook-actions/README.md) show the
+desktop/390px/320px reader, export chooser and PDF layouts. Physical-device download
+and clipboard behavior remains unqualified. The feature requires no schema migration.
+
+## Gesture and interaction polish (21 October 2026 UTC)
+
+Native action menus measure, flip and clamp to the visual viewport; touch targets
+reserve independent 44px areas. Backdrop dismissal requires an intentional primary
+press/release. Note swipes reveal one action strip, preserve page scrolling and
+cancel on capture loss or a second contact. Mouse, touch, pen and keyboard handles
+share validated destinations, a scrollable touch tray and visible cancellation.
+
+Graph selection, reading and same-scope note revisions retain zoom. Ordinary wheel
+input and embedded touch gestures scroll the page; modifier-wheel and expanded
+pinch zoom are deliberate. Expanded exploration has an in-app fallback, focus
+return and nested reader support. The phone note header consolidates secondary
+controls: the 390×844 reader begins at y=134 instead of y=280. Chat replies preserve
+older-message reading/selection, with an explicit Latest reply action. Move/bulk
+Undo and copy feedback share the active dialog's notification stack.
+
+The screenshot-review follow-up simplifies presentation: one mobile move panel
+contains destinations and cancellation, the smaller drag preview only identifies
+the item, saved controls are neutral, and compact success feedback sits at the
+lower right. Graph instructions are available through **Controls**, with explicit
+Expand/Done labels and only relevant legends. Empty-state guidance stays below
+the canvas. Independent touch targets and durable Undo remain available.
+The follow-up passes all 87 Chromium and eight iPhone/WebKit scenarios, with the
+three graph scenarios rechecked after the final 320px toolbar/accessible-label
+adjustments. All required static, build and artifact gates pass; six refreshed
+captures record the visual review.
+
+Node 24.21.0 / pnpm 10.33.0 verification passes root lint, types, build and all five
+packed-artifact checks; website lint, types and telemetry-enabled production build;
+87 Chromium browser/accessibility/privacy scenarios; eight focused iPhone/WebKit
+scenarios; and 25 memory/conversation database/API tests with non-owner roles in a
+new disposable PostgreSQL database. Tests cover trusted mouse/touch/pen input,
+second-contact interruption, autoscroll/hover expansion, 2× pinch-zoom menu bounds,
+graph pan/pinch and nested focus, mobile text formatting/Undo, held replies and
+version-fenced mutation Undo. The focused WebKit config is reproducible from
+[testing guidance](development/testing.md).
+
+[Reviewed captures](design/screenshots/gesture-polish/README.md) use synthetic notes
+and production CSS. Physical iOS/Android keyboards, OS selection handles,
+back-edge navigation and hybrid-device/trackpad/pen feel remain unverified. No
+schema migration is required; this records feature verification, not a release.
+
+## Google Search Console (21 October 2026 UTC)
+
+The `sc-domain:usegrove.cloud` property is DNS-verified. Google successfully
+processed the production sitemap and discovered five public pages. Cloudflare,
+public DNS and Google owner/sitemap readbacks are accepted; ongoing checks are in
+[product observability](product-observability.md#google-search-console).
+
+## Unified note workspace and keyboard navigation (21 October 2026 UTC)
+
+Reading and editing now share one persistent editor on the canonical note page and
+in a wider drawer. The mode toggle retains editor history and scroll positions;
+drawer autosave uses the same retained drafts, operation IDs and version checks as
+full-page writing. Linked notes are collapsed; agent references are within Note
+properties. History, comparison and restore remain contextual.
+
+The workspace adds a searchable command menu, platform-aware shortcut help, scoped
+arrow/Delete controls, and non-reflowing toast feedback. Text editing, native
+selection and accessible notebook dragging retain their own key handling. Nested
+dialogs dismiss independently, restore focus and release reference-counted scroll
+locks. The sidebar logo returns to Notes. Settings share a persistent layout with
+consistent navigation and independently scrolling content.
+
+Verification on Node 24.21.0 / pnpm 10.33.0: root lint, types, build and all five
+packed-artifact checks pass; website lint, types and telemetry-enabled production
+build pass. All 75 Chromium browser scenarios pass, including privacy/telemetry
+regressions, draft recovery, version conflicts, keyboard commands, confirmation
+before deletion, mode switching, responsive geometry and accessibility. Hosted CI
+exposed a first-save focus race: the command registry now follows the mounted
+workspace, preview survives routing, and modal dismissal restores focus by a stable
+key. Deterministic held-save tests verify that transition. Seven iPhone/WebKit
+checks pass for settings, notes, mode/scroll retention, mobile notebooks, touch
+menus and the first-save regressions. [Visual review](design/screenshots/note-workspace/README.md)
+records the captures. No schema migration is required.
+
 ## Product observability 1.7.1 (21 October 2026 UTC)
 
 Repair #45, coordinated release #46 and frozen production #47 are merged.

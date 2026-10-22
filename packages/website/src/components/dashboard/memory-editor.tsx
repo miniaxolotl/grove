@@ -1,6 +1,12 @@
 "use client";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-import Link from "next/link";
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ArrowLeft,
   Maximize2,
@@ -8,11 +14,11 @@ import {
   PanelRight,
   Focus,
   Check,
-  History,
+  Save,
+  Download,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import {
-  api,
   DashboardApiError,
   errorMessage,
   type Project,
@@ -20,14 +26,18 @@ import {
 import { MarkdownEditor } from "./markdown-editor";
 import { useDialogBusy } from "./dialog";
 import { Button } from "./ui/button";
+import { ActionMenu } from "./ui/action-menu";
 import { RevisionCompare } from "./revision-compare";
-import { useNoteDrafts, type NoteValues } from "./note-drafts";
+import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
+import { NoteDeleteDialog } from "./note-delete-dialog";
+import { useNoteExport } from "./note-export";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { NotebookDialog } from "./notebook-dialog";
-import { useWorkspaceDrag } from "./memory-drag";
+import { useWorkspaceApi } from "./workspace-cache";
 import { useSetCurrentNotebook } from "./notebooks-provider";
+import { useWorkspaceCommands } from "./workspace-commands";
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
 
@@ -41,6 +51,15 @@ export function MemoryEditor({
   personal = false,
   fullPage = false,
   draftKey,
+  initialPreview = false,
+  workspace = false,
+  toolbar,
+  details,
+  children,
+  onLockChange,
+  deleteRequested = false,
+  cancelDelete,
+  onDeleted,
   done,
   cancel,
 }: {
@@ -53,11 +72,41 @@ export function MemoryEditor({
   personal?: boolean;
   fullPage?: boolean;
   draftKey?: string;
-  done: (memory: Memory) => void;
+  initialPreview?: boolean;
+  workspace?: boolean;
+  toolbar?: (state: {
+    locked: boolean;
+    content: string;
+    onExport: () => void;
+    secondary: ReactNode;
+  }) => ReactNode;
+  details?: ReactNode;
+  children?: ReactNode;
+  onLockChange?: (locked: boolean) => void;
+  deleteRequested?: boolean;
+  cancelDelete?: () => void;
+  onDeleted?: () => void;
+  done: (memory: Memory, view?: { preview: boolean }) => void;
   cancel: () => void;
 }) {
   const drafts = useNoteDrafts();
-  const { refresh: refreshNotes } = useWorkspaceDrag();
+  const noteExport = useNoteExport();
+  const root = useRef<HTMLFormElement>(null);
+  useLayoutEffect(() => {
+    // Carry deferred-shell focus into the compact toolbar when it becomes ready.
+    const heading = root.current
+      ?.closest("dialog")
+      ?.querySelector(".dialog-heading");
+    if (
+      heading?.contains(document.activeElement) &&
+      !heading.getClientRects().length
+    )
+      root.current
+        ?.querySelector<HTMLButtonElement>(".note-back")
+        ?.focus({ preventScroll: true });
+  }, []);
+  const [preview, setPreview] = useState(initialPreview);
+  const api = useWorkspaceApi();
   const [draft] = useState(() =>
     draftKey ? drafts?.get(draftKey) : undefined,
   );
@@ -65,7 +114,8 @@ export function MemoryEditor({
     draft?.content ?? memory?.content ?? initialContent,
   );
   const [base, setBase] = useState(draft ? draft.base : memory);
-  const [latest, setLatest] = useState<Memory>();
+  const [latest, setLatest] = useState<Memory | undefined>(draft?.latest);
+  const held = useDraftHeld(base ? `note:${base.id}` : (draftKey ?? ""));
   const [kind, setKind] = useState(draft?.kind ?? memory?.kind ?? initialKind);
   const [retention, setRetention] = useState(
     draft?.retention ??
@@ -92,7 +142,8 @@ export function MemoryEditor({
   const [properties, setProperties] = useState(false);
   const [createNotebook, setCreateNotebook] = useState(false);
   const submitted = useRef<NoteValues | undefined>(draft?.submitted);
-  const pageView = fullPage || expanded;
+  const pageView = fullPage || expanded || workspace;
+  const autoSave = fullPage || workspace;
   const setDialogBusy = useDialogBusy();
   const task = useRef(draft?.task ?? memory?.taskId ?? "");
   const pending = useRef<{
@@ -108,6 +159,28 @@ export function MemoryEditor({
       retention !==
         String(base.retentionDays ?? (base.expiresAt ? 30 : "permanent"))
     : content.trim().length > 0 && content !== initialContent;
+  const receiveSnapshot = useEffectEvent(() => {
+    if (!memory || !base || memory.version <= base.version || saving) return;
+    // A revalidation must never silently rebase a retained draft or an uncertain save.
+    // A response may be lost after our own commit: retry its original operation first.
+    if (pending.current) return;
+    if (dirty) {
+      setLatest(memory);
+      return;
+    }
+    setBase(memory);
+    setContent(memory.content);
+    setKind(memory.kind);
+    setAutoKind(memory.autoKind ?? false);
+    setProjectId(memory.projectId ?? "");
+    setRetention(
+      String(memory.retentionDays ?? (memory.expiresAt ? 30 : "permanent")),
+    );
+  });
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => receiveSnapshot());
+    return () => cancelAnimationFrame(frame);
+  }, [memory, saving]);
   useEffect(() => {
     if (!focused) return;
     const navigation = [
@@ -127,10 +200,11 @@ export function MemoryEditor({
     const key =
       draftKey.startsWith("new:") && base ? `note:${base.id}` : draftKey;
     if (key !== draftKey) drafts.delete(draftKey);
-    if (dirty || saving)
+    if (dirty || saving || latest)
       drafts.set(key, {
         content,
         base,
+        latest,
         kind,
         retention,
         autoKind,
@@ -148,6 +222,7 @@ export function MemoryEditor({
     dirty,
     content,
     base,
+    latest,
     kind,
     retention,
     autoKind,
@@ -170,6 +245,38 @@ export function MemoryEditor({
           ? { content, kind, retention, autoKind, projectId }
           : retained;
         if (!values) return;
+        const operationVersion =
+          Number(
+            pending.current?.input?.expectedVersion ?? base?.version ?? 0,
+          ) + 1;
+        if (saved.version > operationVersion) {
+          // Idempotent replay can return an agent's later version. A successful
+          // retry confirms our operation, not permission to overwrite that edit.
+          const message =
+            "This note changed after your save. Review the newer version before saving again.";
+          if (draftKey && drafts) {
+            drafts.set(base ? draftKey : `note:${saved.id}`, {
+              ...values,
+              base: base ?? saved,
+              latest: saved,
+              task: task.current,
+              pending: null,
+              error: message,
+            });
+            if (!base) drafts.delete(draftKey);
+          }
+          if (active()) {
+            pending.current = null;
+            submitted.current = undefined;
+            setLatest(saved);
+            setError(message);
+            if (!base) {
+              setBase(saved);
+              if (fullPage && draftKey) done(saved, { preview });
+            }
+          }
+          return;
+        }
         const sent = submitted.current;
         const next = {
           ...values,
@@ -207,8 +314,8 @@ export function MemoryEditor({
         setAutoKind(next.autoKind);
         pending.current = null;
         submitted.current = undefined;
-        refreshNotes();
-        done(saved);
+        if (draftKey) noteExport.followSave(draftKey, saved.id);
+        done(saved, { preview });
       } catch (e) {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.error = errorMessage(e);
@@ -229,6 +336,7 @@ export function MemoryEditor({
       } finally {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.saving = undefined;
+        drafts?.notify();
         if (active()) {
           setSaving(undefined);
           setDialogBusy(false);
@@ -266,9 +374,14 @@ export function MemoryEditor({
   }, [dirty]);
   const saveDisabled =
     busy || !!latest || !content.trim() || content.length > 6000 || !dirty;
+  useEffect(() => {
+    onLockChange?.(busy || dirty || !!latest);
+  }, [onLockChange, busy, dirty, latest]);
   function persist() {
-    if (saveDisabled) return;
-    setDialogBusy(!fullPage);
+    // Retrying an uncertain save must use its original payload even if newer
+    // local edits are empty or exceed the save limit.
+    if (saveDisabled && !(pending.current?.input && !busy && !latest)) return;
+    setDialogBusy(!autoSave);
     setError("");
     if (kind === "handoff" && !task.current)
       task.current = `task-${crypto.randomUUID()}`;
@@ -311,12 +424,17 @@ export function MemoryEditor({
       });
   }
   const autosave = useEffectEvent(persist);
+  const openExport = () =>
+    noteExport.open({
+      key: draftKey ?? (base ? `note:${base.id}` : "new:compact"),
+      snapshot: { content, unsaved: dirty || busy || !base },
+    });
   useEffect(() => {
-    if (!fullPage || saveDisabled || error) return;
+    if (!autoSave || saveDisabled || error || held || deleteRequested) return;
     const timer = setTimeout(() => autosave(), 900);
     return () => clearTimeout(timer);
   }, [
-    fullPage,
+    autoSave,
     saveDisabled,
     error,
     content,
@@ -324,16 +442,88 @@ export function MemoryEditor({
     retention,
     autoKind,
     projectId,
+    held,
+    deleteRequested,
   ]);
+  useWorkspaceCommands(
+    [
+      { id: "note-export", label: "Export note…", run: openExport },
+      {
+        id: "note-mode",
+        label: preview ? "Edit note" : "Preview note",
+        shortcut: "Mod E",
+        key: "e",
+        run: () => setPreview(!preview),
+      },
+      {
+        id: "note-save",
+        label: "Save note",
+        shortcut: "Mod S",
+        key: "s",
+        disabled: saveDisabled,
+        run: persist,
+      },
+      {
+        id: "note-focus",
+        label: focused ? "Exit focus mode" : "Focus mode",
+        shortcut: "Mod Shift F",
+        key: "f",
+        shift: true,
+        run: () => setFocused(!focused),
+      },
+      {
+        id: "note-properties",
+        label: properties ? "Hide note properties" : "Show note properties",
+        run: () => setProperties(!properties),
+      },
+    ],
+    root,
+  );
   const saveButton = (
-    <Button type="submit" disabled={saveDisabled}>
-      {busy ? "Saving…" : "Save note"}
+    <Button
+      type="submit"
+      disabled={saveDisabled}
+      className="note-save-button"
+      aria-label={busy ? "Saving note" : "Save note"}
+      title={busy ? "Saving…" : "Save note (⌘ / Ctrl S)"}
+    >
+      <Save size={16} aria-hidden="true" />
+      <span>{busy ? "Saving…" : "Save note"}</span>
     </Button>
+  );
+  const secondary = (
+    <>
+      <button
+        type="button"
+        className="note-mobile-menu-item"
+        onClick={() => setProperties(!properties)}
+      >
+        <PanelRight size={16} />{" "}
+        {properties ? "Hide note properties" : "Note properties"}
+      </button>
+      <button
+        type="button"
+        className="note-mobile-menu-item"
+        onClick={() => setFocused(!focused)}
+      >
+        <Focus size={16} /> {focused ? "Exit focus mode" : "Focus mode"}
+      </button>
+      {workspace && !fullPage && !expanded && (
+        <button
+          type="button"
+          className="note-mobile-menu-item"
+          onClick={() => setExpanded(true)}
+        >
+          <Maximize2 size={16} /> Expand editor
+        </button>
+      )}
+    </>
   );
   return (
     <>
       <form
-        className={`app-form note-editor${pageView ? " note-editor-full" : ""}${focused ? " editor-focus" : ""}`}
+        ref={root}
+        className={`app-form note-editor${pageView ? " note-editor-full" : ""}${workspace && !fullPage && !expanded && !focused ? " note-editor-drawer" : ""}${focused ? " editor-focus" : ""}`}
         onKeyDown={(event) => {
           if (
             (event.metaKey || event.ctrlKey) &&
@@ -359,12 +549,16 @@ export function MemoryEditor({
             <>
               <button
                 type="button"
-                className="app-icon"
+                className="app-icon note-back"
                 aria-label={
-                  expanded ? "Return to compact editor" : "Back to notes"
+                  expanded
+                    ? "Return to compact editor"
+                    : workspace && !fullPage
+                      ? "Close dialog"
+                      : "Back to notes"
                 }
                 title={expanded ? "Return to compact editor" : "Back to notes"}
-                disabled={busy && !fullPage}
+                disabled={busy && !autoSave}
                 onClick={() => {
                   if (expanded) {
                     setExpanded(false);
@@ -378,7 +572,8 @@ export function MemoryEditor({
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
                 <h1>
                   {content.match(/^#\s+(.+)/m)?.[1] ||
-                    (base ? "Edit note" : "New note")}
+                    content.trim().split("\n")[0].slice(0, 110) ||
+                    (base ? "Untitled note" : "New note")}
                 </h1>
               </div>
               <span className="note-save-status" role="status">
@@ -387,7 +582,11 @@ export function MemoryEditor({
                 ) : dirty ? (
                   error ? (
                     "Not saved · retry"
-                  ) : fullPage ? (
+                  ) : content.length > 6000 ? (
+                    "Over save limit"
+                  ) : !content.trim() ? (
+                    "Empty draft"
+                  ) : autoSave ? (
                     "Waiting to save…"
                   ) : (
                     "Unsaved changes"
@@ -395,24 +594,42 @@ export function MemoryEditor({
                 ) : base ? (
                   <>
                     <Check size={13} /> Saved
+                    {base.status === "archived" && " · Archived"}
                   </>
                 ) : (
                   "Start a note"
                 )}
               </span>
-              {base && draftKey && (
-                <Link
-                  className="app-icon"
-                  aria-label="Read note and history"
-                  title="Read note and history"
-                  href={`/app/memories/${base.id}`}
-                >
-                  <History size={17} />
-                </Link>
+              <button
+                type="button"
+                className="app-button secondary note-export-button"
+                data-focus-key="note-export"
+                onClick={openExport}
+              >
+                <Download size={16} />
+                Export
+              </button>
+              {toolbar ? (
+                toolbar({
+                  locked: busy || dirty || !!latest,
+                  content,
+                  secondary,
+                  onExport: openExport,
+                })
+              ) : (
+                <span className="note-mobile-actions">
+                  <ActionMenu label="Note actions">
+                    <button type="button" onClick={openExport}>
+                      <Download size={15} />
+                      Export…
+                    </button>
+                    {secondary}
+                  </ActionMenu>
+                </span>
               )}
               <button
                 type="button"
-                className="app-icon"
+                className="app-icon note-secondary-control"
                 aria-label="Note properties"
                 title="Note properties"
                 aria-expanded={properties}
@@ -422,7 +639,7 @@ export function MemoryEditor({
               </button>
               <button
                 type="button"
-                className="app-icon editor-focus-toggle"
+                className="app-icon editor-focus-toggle note-secondary-control"
                 aria-label={focused ? "Exit focus mode" : "Focus mode"}
                 title={focused ? "Exit focus mode" : "Focus mode"}
                 aria-pressed={focused}
@@ -432,6 +649,17 @@ export function MemoryEditor({
                 {focused && <span>Exit focus</span>}
               </button>
               {saveButton}
+              {workspace && !fullPage && !expanded && (
+                <button
+                  type="button"
+                  className="app-icon note-secondary-control"
+                  aria-label="Expand editor"
+                  title="Expand editor"
+                  onClick={() => setExpanded(true)}
+                >
+                  <Maximize2 size={16} />
+                </button>
+              )}
             </>
           ) : (
             <button
@@ -444,7 +672,7 @@ export function MemoryEditor({
           )}
         </div>
         <fieldset
-          disabled={busy && !fullPage}
+          disabled={busy && !autoSave}
           className="editor-fields"
           aria-busy={busy}
         >
@@ -517,14 +745,18 @@ export function MemoryEditor({
                 setContent(value);
                 if (!latest) setError("");
               }}
-              disabled={busy && !fullPage}
+              disabled={busy && !autoSave}
               fullPage={pageView}
+              preview={preview}
+              onPreviewChange={setPreview}
               placeholder={
                 kind === "handoff"
                   ? "# Task name\n\n## Progress\nWhat’s done so far?\n\n## Next steps\n- [ ] What should happen next?"
                   : "Start writing…"
               }
-            />
+            >
+              {children}
+            </MarkdownEditor>
             <div
               className="note-editor-properties"
               hidden={pageView && !properties}
@@ -621,6 +853,7 @@ export function MemoryEditor({
                   </label>
                 )}
               </details>
+              {details}
             </div>
           </div>
           {error && (
@@ -643,7 +876,7 @@ export function MemoryEditor({
           )}
           {pageView && (
             <p className="note-editor-hint">
-              {fullPage ? "Saves automatically" : "⌘ / Ctrl S to save"}
+              {autoSave ? "Saves automatically" : "⌘ / Ctrl S to save"}
               {draftKey && dirty
                 ? " · Draft kept while you move around Grove"
                 : " · Earlier versions stay in History"}
@@ -651,9 +884,18 @@ export function MemoryEditor({
           )}
         </fieldset>
       </form>
+      {deleteRequested && base && cancelDelete && onDeleted && (
+        <NoteDeleteDialog
+          memory={base}
+          close={cancelDelete}
+          onDeleted={onDeleted}
+          retrySave={persist}
+          conflict={!!latest}
+        />
+      )}
       {createNotebook && (
         <NotebookDialog
-          action={{}}
+          action={{ mode: "create" }}
           close={() => setCreateNotebook(false)}
           onSaved={(project) => setProjectId(project.id)}
         />

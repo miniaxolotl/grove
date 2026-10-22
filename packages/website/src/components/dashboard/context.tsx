@@ -3,30 +3,56 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Plus,
-  Pencil,
-  FolderInput,
   CalendarDays,
   MessageSquare,
   AlignLeft,
   ListTodo,
+  Network,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { BriefPanel } from "./brief";
+import { deferredFeature } from "./deferred-feature";
 import { MemoryLibrary } from "./memory-library";
-import { MemoryEditor } from "./memory-editor";
+import { useToast } from "./toasts";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { NotebookTree } from "./notebook-tree";
-import { Handoffs } from "./handoffs";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
-import { AskGrove } from "./ask-grove";
 import { ActionMenu } from "./ui/action-menu";
+import { ShareDialog } from "./share-dialog";
+import { NotebookActions } from "./notebook-actions";
+const ConnectionPanel = deferredFeature(
+  async () => ({
+    default: (await import("./connection-panel")).ConnectionPanel,
+  }),
+  "Opening connections…",
+  { failureTitle: "Connections couldn’t open" },
+);
+const BriefPanel = deferredFeature(
+  async () => ({ default: (await import("./brief")).BriefPanel }),
+  "Opening summary…",
+  { failureTitle: "This summary couldn’t open" },
+);
+const Handoffs = deferredFeature(
+  async () => ({ default: (await import("./handoffs")).Handoffs }),
+  "Opening progress notes…",
+  { failureTitle: "Progress notes couldn’t open" },
+);
+const AskGrove = deferredFeature(
+  async () => ({ default: (await import("./ask-grove")).AskGrove }),
+  "Opening Ask Grove…",
+  { failureTitle: "Ask Grove couldn’t open" },
+);
+const MemoryEditor = deferredFeature(
+  async () => ({ default: (await import("./memory-editor")).MemoryEditor }),
+  "Opening your writing space…",
+  { failureTitle: "Your writing space couldn’t open" },
+);
 
 export function MemoryContext({
   projectId = null,
@@ -41,14 +67,15 @@ export function MemoryContext({
     null,
   );
   const [refresh, setRefresh] = useState(0);
-  const [notice, setNotice] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
-  if (loading) return <p role="status">Opening notebook…</p>;
-  if (projectId && !project)
+  if (!loading && projectId && !project)
     return (
       <>
         <h1 className="font-editorial text-4xl">Notebook unavailable</h1>
         <LoadError
+          title="This notebook couldn’t open"
           message={error || "This notebook could not be found in your account."}
           retry={reload}
         />
@@ -63,7 +90,7 @@ export function MemoryContext({
         <NotebookBreadcrumbs projects={projects} id={projectId} current />
       )}
       <PageHeading
-        title={project?.name ?? "About you"}
+        title={project?.name ?? (projectId ? "Opening notebook…" : "About you")}
         description={
           project
             ? undefined
@@ -82,6 +109,18 @@ export function MemoryContext({
                     Today’s note
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <NotebookActions
+                      project={project}
+                      onAction={setNotebookAction}
+                      onShare={() => setSharing(true)}
+                    />
+                    <button
+                      className="action-group-start"
+                      onClick={() => setView("connections")}
+                    >
+                      <Network size={15} />
+                      Connected notebooks
+                    </button>
                     <button onClick={() => setView("ask")}>
                       <MessageSquare size={15} />
                       Ask about these notes
@@ -94,29 +133,6 @@ export function MemoryContext({
                       <ListTodo size={15} />
                       Progress notes
                     </button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setNotebookAction({ project })}
-                    >
-                      <Pencil size={15} />
-                      Rename
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setNotebookAction({ project, move: true })}
-                    >
-                      <FolderInput size={15} />
-                      Move
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        setNotebookAction({ parentId: project.id })
-                      }
-                    >
-                      <Plus size={15} />
-                      Sub-notebook
-                    </Button>
                   </ActionMenu>
                 </>
               )}
@@ -135,12 +151,13 @@ export function MemoryContext({
           )
         }
       />
-      {notice && (
-        <p role="status" className="app-notice">
-          {notice}
-        </p>
+      {error && (
+        <LoadError
+          title="Your notebooks couldn’t load"
+          message={error}
+          retry={reload}
+        />
       )}
-      {error && <LoadError message={error} retry={reload} />}
       {project && view !== "memories" && (
         <button
           className="text-button mb-4"
@@ -149,7 +166,7 @@ export function MemoryContext({
           Back to notes
         </button>
       )}
-      {!project && (
+      {!projectId && (
         <nav className="workspace-tabs" aria-label="Workspace views">
           {[
             { id: "context", label: "Overview" },
@@ -247,6 +264,9 @@ export function MemoryContext({
         />
       )}
       {view === "ask" && <AskGrove projectId={projectId} embedded />}
+      {project && view === "connections" && (
+        <ConnectionPanel level="notebook" endpointId={project.id} />
+      )}
       {project && (
         <details className="agent-details project-agent-details">
           <summary>Agent details</summary>
@@ -279,7 +299,7 @@ export function MemoryContext({
             cancel={() => setCreate(null)}
             done={() => {
               setCreate(null);
-              setNotice("Note saved.");
+              toast("Note saved.");
               setRefresh((v) => v + 1);
             }}
           />
@@ -289,6 +309,12 @@ export function MemoryContext({
         <NotebookDialog
           action={notebookAction}
           close={() => setNotebookAction(null)}
+        />
+      )}
+      {sharing && project && (
+        <ShareDialog
+          target={{ kind: "notebook", id: project.id }}
+          close={() => setSharing(false)}
         />
       )}
     </>

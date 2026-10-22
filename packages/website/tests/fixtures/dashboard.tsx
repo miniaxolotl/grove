@@ -13,7 +13,7 @@ import { AskGrove } from "../../src/components/dashboard/ask-grove";
 import { MemoryInspector } from "../../src/components/dashboard/memory-inspector";
 import { NoteEditorPage } from "../../src/components/dashboard/note-editor-page";
 import { SettingsPanel } from "../../src/components/dashboard/settings-panel";
-import { SettingsNavigation } from "../../src/components/dashboard/settings-navigation";
+import { SettingsFrame } from "../../src/components/dashboard/settings-frame";
 
 function DashboardFixture() {
   const location = useLocation();
@@ -26,7 +26,9 @@ function DashboardFixture() {
         journal={query.get("from") === "journal"}
       />
     ) : path.startsWith("/app/memories/") && path.endsWith("/edit") ? (
-      <NoteEditorPage
+      <MemoryInspector
+        fullPage
+        initialPreview={false}
         id={path.split("/")[3]}
         journal={query.get("from") === "journal"}
       />
@@ -35,12 +37,14 @@ function DashboardFixture() {
     ) : path.endsWith("/journal") ? (
       <MemoryLibrary initialSort="created_desc" />
     ) : path.startsWith("/app/memories/") ? (
-      <MemoryInspector fullPage id={path.split("/").at(-1)!} />
+      <MemoryInspector
+        fullPage
+        id={path.split("/").at(-1)!}
+        initialPreview={query.get("mode") !== "edit"}
+        journal={query.get("from") === "journal"}
+      />
     ) : path.endsWith("/settings/models") ? (
-      <>
-        <SettingsNavigation />
-        <ModelSettings />
-      </>
+      <ModelSettings />
     ) : path.endsWith("/settings/account") ? (
       <SettingsPanel section="account" />
     ) : path.endsWith("/settings/data") ? (
@@ -71,7 +75,15 @@ function DashboardFixture() {
       />
     );
   return (
-    <DashboardShell>{cloneElement(content, { key: location })}</DashboardShell>
+    <DashboardShell>
+      {path.startsWith("/app/settings") || path === "/app/connections" ? (
+        <SettingsFrame>
+          {cloneElement(content, { key: location })}
+        </SettingsFrame>
+      ) : (
+        cloneElement(content, { key: location })
+      )}
+    </DashboardShell>
   );
 }
 createRoot(document.getElementById("root")!).render(<DashboardFixture />);

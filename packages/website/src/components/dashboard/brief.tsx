@@ -1,9 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import type { Brief } from "@lib/shared/models";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { LoadError } from "./load-error";
 import { dateLabel } from "@/lib/memory-display";
 
@@ -14,55 +16,29 @@ export function BriefPanel({
   projectId?: string | null;
   taskId?: string;
 }) {
-  const [brief, setBrief] = useState<Brief | null>(null);
-  const [error, setError] = useState("");
+  const cache = useWorkspaceCache();
+  const api = cache.api;
+  const [saveError, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [check, setCheck] = useState(0);
-  const activeRequest = useRef<AbortController | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    activeRequest.current = controller;
-    let timer: ReturnType<typeof setTimeout>;
-    let attempts = 0;
-    const load = async () => {
-      try {
-        const value = await api<Brief>(
-          "/briefs",
-          { projectId, taskId },
-          undefined,
-          controller.signal,
-        );
-        if (controller.signal.aborted) return;
-        setBrief(value);
-        setError("");
-        if (value.status !== "pending") attempts = 0;
-        if (value.status === "pending" && ++attempts < 10)
-          timer = setTimeout(() => {
-            if (!document.hidden) void load();
-          }, 3000);
-      } catch (e) {
-        if (!controller.signal.aborted) setError(errorMessage(e));
+  const started = useRef(0);
+  const options = cache.resource<Brief>("/briefs", { projectId, taskId });
+  const query = useQuery({
+    ...options,
+    refetchInterval: (query) => {
+      if (query.state.data?.status !== "pending") {
+        started.current = 0;
+        return false;
       }
-    };
-    const resume = () => {
-      if (
-        !document.hidden &&
-        !controller.signal.aborted &&
-        attempts > 0 &&
-        attempts < 10
-      ) {
-        clearTimeout(timer);
-        void load();
-      }
-    };
-    document.addEventListener("visibilitychange", resume);
-    void load();
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", resume);
-    };
-  }, [projectId, taskId, check]);
+      started.current ||= Date.now();
+      return Date.now() - started.current < 30_000 ? 3000 : false;
+    },
+  });
+  const brief = query.data;
+  const error = saveError || (query.error ? errorMessage(query.error) : "");
+  const check = () => {
+    started.current = 0;
+    void query.refetch();
+  };
   const sources = [
     ...new Set(
       brief?.content?.sections.flatMap((section) =>
@@ -97,7 +73,7 @@ export function BriefPanel({
           message={error}
           retry={() => {
             setError("");
-            setCheck((n) => n + 1);
+            check();
           }}
         />
       )}
@@ -164,7 +140,7 @@ export function BriefPanel({
               disabled={busy}
               onClick={() => {
                 setError("");
-                setCheck((n) => n + 1);
+                check();
               }}
             >
               Check status
@@ -174,14 +150,11 @@ export function BriefPanel({
             className="app-button secondary"
             disabled={busy}
             onClick={async () => {
-              activeRequest.current?.abort();
               setBusy(true);
               setError("");
               try {
-                setBrief(
-                  await api<Brief>("/briefs/refresh", { projectId, taskId }),
-                );
-                setCheck((n) => n + 1);
+                await api<Brief>("/briefs/refresh", { projectId, taskId });
+                check();
               } catch (e) {
                 setError(errorMessage(e));
               } finally {

@@ -14,9 +14,15 @@ import {
   type AskResult,
   type BriefRequest,
   type ModelProfiles,
+  type Enrichment,
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
+import { Relationships } from "./relationships.ts";
+import {
+  relationshipKinds,
+  legacyRelationshipsFor,
+} from "./relationship-data.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
@@ -29,7 +35,7 @@ import {
   runProcessingJob,
 } from "./processing.ts";
 export type { Embedder } from "@lib/ai";
-export { budgetedInference } from "./processing.ts";
+export { budgetedInference, providerProfiles } from "./processing.ts";
 import {
   GroveError,
   capabilities,
@@ -46,6 +52,7 @@ import {
 } from "@lib/shared/contracts";
 
 export { ConnectionSetup } from "./connect.ts";
+export { Sharing } from "./sharing.ts";
 
 type Connection = Omit<Grant, "expiresAt"> & {
   id: string;
@@ -89,6 +96,7 @@ export const digest = (value: string) =>
 
 export class MemoryService {
   readonly conversations: Conversations;
+  readonly relationships: Relationships;
   providers: Providers;
   jobProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>;
   get embedder() {
@@ -102,6 +110,7 @@ export class MemoryService {
     readonly dailyRequestLimit = 2000,
   ) {
     this.providers = { ...providers, embedding: embedder };
+    this.relationships = new Relationships(this);
     this.conversations = new Conversations(
       this,
       this.present.bind(this),
@@ -239,6 +248,7 @@ export class MemoryService {
   private async present(
     trx: Knex.Transaction,
     row: MemoryModel,
+    relationships?: Enrichment["relationships"],
   ): Promise<Memory> {
     const ready = await trx("memory_embeddings")
       .where({
@@ -283,7 +293,7 @@ export class MemoryService {
             : failed
               ? "failed"
               : "pending",
-      enrichment: await enrichmentFor(trx, row, this.providers),
+      enrichment: await enrichmentFor(trx, row, this.providers, relationships),
     };
   }
 
@@ -646,8 +656,15 @@ export class MemoryService {
             );
         });
       const rows = await q.limit(limit + 1);
+      const relationships = await legacyRelationshipsFor(
+        trx,
+        rows.slice(0, limit).map((row) => row.id),
+        this.providers,
+      );
       const items = await Promise.all(
-        rows.slice(0, limit).map((row) => this.present(trx, row)),
+        rows
+          .slice(0, limit)
+          .map((row) => this.present(trx, row, relationships.get(row.id))),
       );
       return {
         items,
@@ -823,9 +840,14 @@ export class MemoryService {
             }
           }
         }
+        const relationships = await legacyRelationshipsFor(
+          trx,
+          rows.map((row) => row.id),
+          this.providers,
+        );
         for (const row of rows) {
           const fingerprint = digest(row.content.trim().toLowerCase());
-          const item = await this.present(trx, row);
+          const item = await this.present(trx, row, relationships.get(row.id));
           const cost = JSON.stringify(item).length;
           if (seen.has(fingerprint) || cost > remaining) continue;
           seen.add(fingerprint);
@@ -1329,14 +1351,21 @@ export class MemoryService {
     },
   ) {
     return this.access(principal, "admin", async ({ trx, account }) => {
-      await trx("accounts").where({ id: account.id }).update(input);
+      await trx("accounts")
+        .where({ id: account.id })
+        .update({
+          ...input,
+          ...(input.organizeEnabled && !account.organizeEnabled
+            ? { organizationDueAt: trx.fn.now() }
+            : {}),
+        });
       if (input.summariesEnabled === false) {
         await trx("memory_briefs").delete();
         await trx("jobs").where({ kind: "brief" }).delete();
       }
       if (input.organizeEnabled === false) {
         await trx("jobs")
-          .whereIn("kind", ["decision", "organization"])
+          .whereIn("kind", ["decision", "organization", ...relationshipKinds])
           .delete();
         await trx("memory_enrichments").delete();
       }
@@ -1423,6 +1452,12 @@ export class MemoryService {
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });
       await trx("connections").update({ revokedAt: trx.fn.now() });
+      await trx("public_shares").update({
+        revokedAt: trx.fn.now(),
+        tokenDigest: null,
+        tokenCiphertext: null,
+        version: trx.raw("version + 1"),
+      });
       return { status: "deleting" };
     });
   }
@@ -1431,9 +1466,14 @@ export class MemoryService {
       const q = this.query(trx).orderBy("id").limit(50);
       if (after) q.where("id", ">", after);
       const rows = await q;
+      const relationships = await legacyRelationshipsFor(
+        trx,
+        rows.map((row) => row.id),
+        this.providers,
+      );
       return Promise.all(
         rows.map(async (row) => ({
-          ...(await this.present(trx, row)),
+          ...(await this.present(trx, row, relationships.get(row.id))),
           revisions: await trx("memory_revisions")
             .where({ memoryId: row.id })
             .select("version", "content", "source", "createdAt")
@@ -1449,6 +1489,14 @@ export class MemoryService {
       this.providers,
       this.dailyRequestLimit,
       id,
+      async (trx) =>
+        this.jobProfiles
+          ? this.jobProfiles(trx)
+          : {
+              embedding: this.providers.embedding?.profile ?? null,
+              decision: this.providers.decision?.profile ?? null,
+              generation: this.providers.generation?.profile ?? null,
+            },
     );
   }
 
@@ -1485,6 +1533,7 @@ export class MemoryService {
           .forUpdate()
           .first();
         if (current.status === "deleting" || current.status === "deleted") {
+          await trx("public_shares").delete();
           await trx("conversations").delete();
           await trx("transactional_emails").delete();
           await trx("jobs").delete();

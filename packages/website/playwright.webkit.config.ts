@@ -1,0 +1,24 @@
+import { defineConfig, devices } from "@playwright/test";
+
+// Focused iPhone/WebKit checks; trusted CDP gesture cases run in the Chromium suite.
+export default defineConfig({
+  testDir: "./tests",
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: 0,
+  workers: 2,
+  reporter: "list",
+  grep: /action menus follow|touch hit areas|mobile note controls|first-save navigation|long notes scroll|settings share|long notebook menus|reply and growing|visible row deletion|export downloads|row export reads|PDF|export and delete remain/,
+  use: {
+    ...devices["iPhone 13"],
+    browserName: "webkit",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  },
+  webServer: {
+    command: "node tests/fixtures/dashboard-server.mjs",
+    url: `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`,
+    reuseExistingServer: false,
+    timeout: 30000,
+  },
+});

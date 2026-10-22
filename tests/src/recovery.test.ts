@@ -35,6 +35,7 @@ test("isolated restore replays current deletions and revocations without changin
       forgotten = randomUUID(),
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
+    const notebookIds = [randomUUID(), randomUUID()].sort();
     const deletedChat = randomUUID(),
       retainedChat = randomUUID(),
       accountChat = randomUUID();
@@ -43,6 +44,27 @@ test("isolated restore replays current deletions and revocations without changin
         { id: a, clerkSubject: "recovery_a" },
         { id: b, clerkSubject: "recovery_b" },
       ]);
+      await db("projects").insert(
+        notebookIds.map((id) => ({
+          accountId: a,
+          id,
+          name: "Recovery notebook",
+          identity: id,
+        })),
+      );
+      await db("notebook_relationships").insert({
+        accountId: a,
+        leftId: notebookIds[0],
+        rightId: notebookIds[1],
+        leftVersion: 0,
+        rightVersion: 0,
+        revision: "a".repeat(64),
+        profile: "fixture",
+        assessment: JSON.stringify({
+          evidence: [{ quote: "Old derived passage" }],
+          coverage: {},
+        }),
+      });
       await db("conversations").insert([
         { id: deletedChat, accountId: a, scope: "{}" },
         { id: retainedChat, accountId: a, scope: "{}" },
@@ -87,6 +109,13 @@ test("isolated restore replays current deletions and revocations without changin
         id: "fixture",
         model: "fixture",
         dimensions: 384,
+      });
+      await db("public_shares").insert({
+        id: randomUUID(),
+        accountId: a,
+        memoryId: keep,
+        tokenDigest: "f".repeat(64),
+        tokenCiphertext: "encrypted-backup-fixture",
       });
       for (const [id, accountId] of [
         [forgotten, a],
@@ -135,6 +164,9 @@ test("isolated restore replays current deletions and revocations without changin
       });
     }
     await source("deleted_memories").insert({ accountId: a, id: forgotten });
+    await source("notebook_relationships")
+      .where({ accountId: a })
+      .update({ dismissedRevision: "a".repeat(64), reviewVersion: 1 });
     await source("deleted_conversations").insert({
       accountId: a,
       id: deletedChat,
@@ -160,10 +192,36 @@ test("isolated restore replays current deletions and revocations without changin
       id: "session_revoked_after_snapshot",
     });
     await source("connections").update({ capabilities: ["memory:read"] });
+    await source("public_shares").update({
+      revokedAt: source.fn.now(),
+      tokenDigest: null,
+      tokenCiphertext: null,
+    });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    const recoveredReview = await target("notebook_relationships")
+      .where({ accountId: a })
+      .first();
+    assert.equal(recoveredReview.dismissedRevision, "a".repeat(64));
+    assert.equal(recoveredReview.reviewVersion, 2);
+    assert.equal(recoveredReview.profile, "recovery-pending");
+    assert.deepEqual(recoveredReview.assessment.evidence, []);
     assert.equal(result.purgedMemories, 2);
     assert.equal(result.blockedAccounts, 1);
+    assert.equal(result.invalidatedShares, 1);
+    const restoredShare = await target("public_shares").first();
+    assert(restoredShare.revokedAt);
+    assert.equal(restoredShare.tokenDigest, null);
+    assert.equal(restoredShare.tokenCiphertext, null);
+    assert.equal(
+      (
+        await target.raw(
+          "SELECT grove_public_share(?, 'root', NULL, NULL, NULL, NULL, 30) AS value",
+          ["f".repeat(64)],
+        )
+      ).rows[0].value,
+      null,
+    );
     assert.deepEqual(await source("accounts").orderBy("id"), before);
     assert.equal((await source("connections").first()).capabilities.length, 1);
     assert.deepEqual(await target("memories").pluck("id"), [keep]);

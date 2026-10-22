@@ -30,6 +30,25 @@ export const test = base.extend<{
   telemetrySettings: [{ replay: false, variant: false }, { option: true }],
   telemetry: [
     async ({ context, telemetrySettings }, use, testInfo) => {
+      // Returning analytics consent; first-visit choices are covered by tag-manager.spec.ts.
+      await context.addCookies(
+        ["127.0.0.1", "localhost"].map((domain) => ({
+          name: "cc_cookie",
+          domain,
+          path: "/",
+          value: encodeURIComponent(
+            JSON.stringify({
+              categories: ["necessary", "analytics"],
+              revision: 1,
+              consentId: "7cb1f2a0-1b21-43b3-9d36-6bbf71224239",
+              services: {},
+              consentTimestamp: new Date().toISOString(),
+              lastConsentTimestamp: new Date().toISOString(),
+              expirationTime: Date.now() + 86400000,
+            }),
+          ),
+        })),
+      );
       const events: CapturedEvent[] = [],
         sentry: SentryItem[] = [],
         requests: string[] = [];
