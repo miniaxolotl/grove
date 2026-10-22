@@ -25,6 +25,12 @@ export function cleanupHandlers(
       "transactional_emails",
       "inference_usage",
       "rate_buckets",
+      "assistance_requests",
+      "assistance_reviews",
+      "notebook_changes",
+      "notebook_visits",
+      "notebook_checkpoints",
+      "notebook_expiries",
     ] as const;
     const stage = Number(task.cursor.stage ?? 0);
     const table = tables[stage];

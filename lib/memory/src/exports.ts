@@ -27,6 +27,10 @@ const stages = [
   "turn",
   "note_relationship",
   "notebook_relationship",
+  "notebook_checkpoint",
+  "notebook_visit",
+  "assistance_review",
+  "assistance_operation",
 ] as const;
 const pageSize = 100;
 const assertVersion = async (trx: Knex.Transaction, task: ClaimedTask) => {
@@ -77,6 +81,49 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
     : null;
   const after = task.cursor.afterId as string | undefined;
   const kind = stages[stage];
+  if (kind === "notebook_checkpoint" || kind === "notebook_visit") {
+    const checkpoint = kind === "notebook_checkpoint";
+    const column = checkpoint ? "projectId" : "id";
+    const q = trx(checkpoint ? "notebook_checkpoints" : "notebook_visits")
+      .select(
+        checkpoint
+          ? ["projectId", "token"]
+          : ["id", "projectId", "fromToken", "toToken", "baseline", "at"],
+      )
+      .whereIn("projectId", projects ?? trx("projects").select("id"))
+      .orderBy(column)
+      .limit(pageSize);
+    if (after) q.where(column, ">", after);
+    return q;
+  }
+  if (kind === "assistance_review" || kind === "assistance_operation") {
+    // These records can span notebooks; scoped exports must not reveal another scope.
+    if (projects) return [];
+    const review = kind === "assistance_review",
+      column = review ? "key" : "id";
+    const q = trx(review ? "assistance_reviews" : "assistance_requests")
+      .select(
+        review
+          ? ["key", "version", "dismissed"]
+          : [
+              "id",
+              "kind",
+              "status",
+              "version",
+              "dependencies",
+              "scopes",
+              "applied",
+              "application",
+              "createdAt",
+              "updatedAt",
+            ],
+      )
+      .orderBy(column)
+      .limit(pageSize);
+    if (!review) q.whereRaw("jsonb_array_length(applied)>0");
+    if (after) q.where(column, ">", after);
+    return q;
+  }
   if (kind === "revision") {
     const q = trx("memory_revisions as r")
       .join("memories as m", function () {
@@ -244,7 +291,8 @@ export function exportHandlers(
             part: part + 1,
             ...(rows.length === pageSize
               ? {
-                  afterId: last.id ?? last.memoryId,
+                  afterId:
+                    last.id ?? last.memoryId ?? last.projectId ?? last.key,
                   afterVersion: last.version,
                 }
               : {}),

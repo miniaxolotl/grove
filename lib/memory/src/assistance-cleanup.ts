@@ -118,7 +118,10 @@ export async function cleanupStep(
         sources: refs,
         key: relationHash(refs),
         target: { id: target.id, version: target.version },
-        before: target.content,
+        before:
+          assessment.kind === "superseded"
+            ? target.content
+            : sources.map((source) => source.content).join("\n\n---\n\n"),
         dismissed: false,
         reviewVersion: 0,
       };

@@ -11,7 +11,8 @@ import {
 import { actionStep } from "./assistance-actions.ts";
 import { filingStep } from "./assistance-filing.ts";
 import { cleanupStep } from "./assistance-cleanup.ts";
-import { digestStep } from "./notebook-digests.ts";
+import { digestStep, redactDigest } from "./notebook-digests.ts";
+import type { ActionItem, DigestChange } from "@lib/shared/assistance";
 import { budgetedInference } from "./processing.ts";
 
 export type AssistanceJob = {
@@ -70,14 +71,12 @@ export async function runAssistanceJob(
       ) {
         await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
         if (row?.status === "pending")
-          await trx("assistance_requests")
-            .where({ id: row.id })
-            .update({
-              status: "stale",
-              result: null,
-              state: "{}",
-              error: "Settings changed. Refresh the preview.",
-            });
+          await trx("assistance_requests").where({ id: row.id }).update({
+            status: "stale",
+            result: null,
+            state: "{}",
+            error: "Settings changed. Refresh the preview.",
+          });
         return;
       }
       await validAssistance(trx, row);
@@ -90,17 +89,15 @@ export async function runAssistanceJob(
     if (current.status !== "pending")
       await trx("jobs").where({ id: job.id }).delete();
     else
-      await trx("jobs")
-        .where({ id: job.id })
-        .update({
-          attempts: 0,
-          leaseId: null,
-          leaseUntil: null,
-          dispatchId: null,
-          dispatchUntil: null,
-          dispatchedAt: null,
-          dueAt: trx.fn.now(),
-        });
+      await trx("jobs").where({ id: job.id }).update({
+        attempts: 0,
+        leaseId: null,
+        leaseUntil: null,
+        dispatchId: null,
+        dispatchUntil: null,
+        dispatchedAt: null,
+        dueAt: trx.fn.now(),
+      });
   };
   try {
     const step = await owned(async (trx, row) => {
@@ -130,6 +127,19 @@ export async function runAssistanceJob(
     );
     const next = step.finish(generated);
     await owned(async (trx, row) => {
+      if (row.kind === "digest" && next.state?.changes) {
+        const redacted = {
+          ...row,
+          result: {
+            coverage: { total: 0, examined: 0 },
+            changes: next.state.changes as DigestChange[],
+            summary: { items: next.state.items as ActionItem[] },
+          },
+        };
+        await redactDigest(trx, redacted);
+        next.state.changes = redacted.result.changes;
+        next.state.items = redacted.result.summary.items;
+      }
       await trx("assistance_requests")
         .where({ id: row.id })
         .update({
@@ -151,6 +161,10 @@ export async function runAssistanceJob(
       await trx("accounts").where({ id: job.accountId }).forUpdate().first();
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .where("leaseUntil", ">", trx.fn.now())
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .first();
       if (!lease) return;
       const stale =

@@ -41,7 +41,7 @@ export async function actionStep(
         .slice(0, 12);
       const examined = progress + sources.length;
       return examined < row.dependencies.length
-        ? { state: { items, progress: examined } }
+        ? { state: { ...row.state, items, progress: examined } }
         : {
             result: {
               items,

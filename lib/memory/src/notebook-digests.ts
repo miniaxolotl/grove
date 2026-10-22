@@ -146,24 +146,39 @@ async function digestChanges(trx: Knex.Transaction, row: AssistanceRow) {
     .countDistinct("memoryId as count")
     .first();
   const changes: DigestChange[] = [];
+  const ids = groups.slice(0, 20).map((group) => group.memoryId);
+  const visible = await MemoryModel.query(trx)
+    .whereIn("id", ids)
+    .where((q) =>
+      q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+    );
+  const revisions = visible.length
+    ? await trx("memory_revisions")
+        .whereIn(
+          "memoryId",
+          visible.map((note) => note.id),
+        )
+        .where((q) => {
+          for (const group of groups.slice(0, 20))
+            q.orWhere((pair) =>
+              pair.where({ memoryId: group.memoryId }).whereIn(
+                "version",
+                [group.before, group.after].filter(
+                  (v): v is number => v !== null,
+                ),
+              ),
+            );
+        })
+    : [];
   for (const group of groups.slice(0, 20)) {
-    const current = await MemoryModel.query(trx)
-      .findById(group.memoryId)
-      .where((q) =>
-        q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
-      );
-    const revisions = current
-      ? await trx("memory_revisions")
-          .where({ memoryId: group.memoryId })
-          .whereIn(
-            "version",
-            [group.before, group.after].filter((v): v is number => v !== null),
-          )
-      : [];
     const beforeContent =
-      revisions.find((r) => r.version === group.before)?.content ?? null;
+      revisions.find(
+        (r) => r.memoryId === group.memoryId && r.version === group.before,
+      )?.content ?? null;
     const afterContent =
-      revisions.find((r) => r.version === group.after)?.content ?? null;
+      revisions.find(
+        (r) => r.memoryId === group.memoryId && r.version === group.after,
+      )?.content ?? null;
     changes.push({
       id: group.memoryId,
       kind: group.kind,
@@ -193,6 +208,17 @@ export async function digestStep(
   const saved = row.state.changes
     ? (row.state as unknown as Awaited<ReturnType<typeof digestChanges>>)
     : await digestChanges(trx, row);
+  const redacted = {
+    ...row,
+    result: {
+      changes: saved.changes,
+      summary: { items: (row.state.items ?? []) as ActionItem[] },
+      coverage: { total: saved.total, examined: saved.changes.length },
+    },
+  };
+  await redactDigest(trx, redacted);
+  saved.changes = redacted.result.changes;
+  row.state.items = redacted.result.summary.items;
   const progress = Number(row.state.progress ?? 0);
   const batch = saved.changes.slice(progress, progress + 2);
   const sources = batch.flatMap((change) => [
@@ -303,6 +329,12 @@ export async function redactDigest(trx: Knex.Transaction, row: AssistanceRow) {
       q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
     );
   const ids = new Set(visible.map((n) => n.id));
+  row.expiresAt =
+    visible
+      .map((n) => n.expiresAt)
+      .filter((at): at is Date => !!at)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
+      ?.toISOString() ?? null;
   row.result.changes = row.result.changes.map((change) =>
     ids.has(change.id)
       ? change

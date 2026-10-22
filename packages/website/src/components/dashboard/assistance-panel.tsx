@@ -78,6 +78,27 @@ export function AssistancePanel({
   const setResult = (value: Assistance) =>
     cache.client.setQueryData(cache.resource(path).queryKey, value);
   useEffect(() => {
+    if (!result?.expiresAt || result.status !== "ready") return;
+    const timer = setTimeout(
+      () => {
+        const key = cache.resource(path).queryKey;
+        void cache.client.cancelQueries({ queryKey: key, exact: true });
+        cache.client.setQueryData(key, {
+          ...result,
+          result: null,
+          status: "stale",
+          error: "Sources expired. Refresh the preview.",
+        });
+        void cache.client.invalidateQueries({ queryKey: key, exact: true });
+      },
+      Math.min(
+        2_147_483_647,
+        Math.max(0, Date.parse(result.expiresAt) - Date.now()),
+      ),
+    );
+    return () => clearTimeout(timer);
+  }, [cache, path, result]);
+  useEffect(() => {
     const controller = new AbortController();
     void cache
       .api<Assistance>("/assistance", request, "POST", controller.signal)
@@ -253,7 +274,8 @@ export function AssistancePanel({
               <section key={index} className="border-b pb-4">
                 <label className="flex items-start gap-2">
                   <span aria-hidden="true">☐</span>
-                  <input
+                  <textarea
+                    rows={2}
                     className="app-input w-full"
                     aria-label={`Action ${index + 1}`}
                     maxLength={240}
@@ -314,8 +336,19 @@ export function AssistancePanel({
                     <RevisionCompare
                       before={candidate.before}
                       after={candidate.content}
+                      beforeLabel={
+                        candidate.kind === "superseded"
+                          ? "Current note"
+                          : "Original notes"
+                      }
                       afterLabel="Proposed note"
                     />
+                    {candidate.kind !== "superseded" && (
+                      <p className="my-2 text-xs text-muted">
+                        The combined note stays here; the other note moves to
+                        Archive.
+                      </p>
+                    )}
                   </details>
                   <div className="app-actions">
                     {candidate.dismissed ? (

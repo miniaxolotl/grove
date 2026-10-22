@@ -53,6 +53,7 @@ export const notebookAssistance = {
         PRIMARY KEY(account_id,memory_id),
         FOREIGN KEY(account_id,memory_id) REFERENCES memories(account_id,id) ON DELETE CASCADE
       );
+      CREATE INDEX notebook_expiries_due ON notebook_expiries(account_id,project_id,due_at,memory_id);
       INSERT INTO notebook_expiries(account_id,memory_id,version,project_id,due_at)
         SELECT account_id,id,version,project_id,expires_at FROM memories
         WHERE project_id IS NOT NULL AND expires_at>now() AND deleted_at IS NULL;
@@ -112,7 +113,8 @@ export const notebookAssistance = {
             undo=CASE WHEN applied @> jsonb_build_array(jsonb_build_object('id',COALESCE(NEW.id,OLD.id))) THEN NULL ELSE undo END,
             status=CASE WHEN status IN ('applied','undone') AND NOT applied @> jsonb_build_array(jsonb_build_object('id',COALESCE(NEW.id,OLD.id))) THEN status ELSE 'stale' END,
             error='Source removed'
-            WHERE account_id=aid AND (dependencies @> jsonb_build_array(jsonb_build_object('id',COALESCE(NEW.id,OLD.id)))
+            WHERE account_id=aid AND (applied @> jsonb_build_array(jsonb_build_object('id',COALESCE(NEW.id,OLD.id)))
+              OR dependencies @> jsonb_build_array(jsonb_build_object('id',COALESCE(NEW.id,OLD.id)))
               OR scopes @> jsonb_build_array(jsonb_build_object('id',OLD.project_id)));
         END IF;
         RETURN NULL;
@@ -129,7 +131,27 @@ export const notebookAssistance = {
       REVOKE ALL ON FUNCTION grove_catalog_changed() FROM PUBLIC;
       CREATE TRIGGER assistance_catalog_changed AFTER INSERT OR DELETE OR UPDATE OF name,parent_id,deleted_at
         ON projects FOR EACH ROW EXECUTE FUNCTION grove_catalog_changed();
+      CREATE FUNCTION grove_assistance_export_changed() RETURNS trigger LANGUAGE plpgsql
+        SET search_path=pg_catalog,public,pg_temp AS $$
+      BEGIN
+        IF TG_TABLE_NAME='assistance_requests' THEN
+          IF COALESCE(jsonb_array_length(NEW.applied),0)=0 AND COALESCE(jsonb_array_length(OLD.applied),0)=0 THEN RETURN NULL; END IF;
+        END IF;
+          UPDATE accounts SET export_version=export_version+1 WHERE id=COALESCE(NEW.account_id,OLD.account_id);
+        RETURN NULL;
+      END $$;
+      REVOKE ALL ON FUNCTION grove_assistance_export_changed() FROM PUBLIC;
     `);
+    for (const table of [
+      "assistance_requests",
+      "assistance_reviews",
+      "notebook_checkpoints",
+      "notebook_visits",
+    ])
+      await db.raw(
+        "CREATE TRIGGER assistance_export_changed AFTER INSERT OR UPDATE OR DELETE ON ?? FOR EACH ROW EXECUTE FUNCTION grove_assistance_export_changed()",
+        [table],
+      );
     await db.raw(`
       ALTER TABLE memory_briefs ADD COLUMN notebook_version integer,
         ADD COLUMN coverage jsonb, ADD COLUMN expires_at timestamptz;

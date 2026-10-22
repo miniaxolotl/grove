@@ -166,16 +166,25 @@ test("source revision evidence is removed on deletion and a held historical read
   let hold = false;
   let signal: AbortSignal | undefined;
   const cache = cacheWith(async (url, _body, _method, abort) => {
-    if (url === "/memories/delete") return { results: [{ id: note.id, outcome: "deleted" }] };
-    if (hold) { signal = abort; return held.promise; }
+    if (url === "/memories/delete")
+      return { results: [{ id: note.id, outcome: "deleted" }] };
+    if (hold) {
+      signal = abort;
+      return held.promise;
+    }
     return { id: note.id, version: 1, content: "Original source" };
   });
   const options = cache.resource(path);
   await cache.client.fetchQuery(options);
   hold = true;
-  await cache.client.invalidateQueries({ queryKey: options.queryKey, refetchType: "none" });
+  await cache.client.invalidateQueries({
+    queryKey: options.queryKey,
+    refetchType: "none",
+  });
   const pending = cache.client.fetchQuery(options).catch(() => undefined);
-  await cache.api("/memories/delete", { items: [{ id: note.id, expectedVersion: 1 }] });
+  await cache.api("/memories/delete", {
+    items: [{ id: note.id, expectedVersion: 1 }],
+  });
   expect(signal?.aborted).toBe(true);
   held.resolve({ id: note.id, version: 1, content: "Original source" });
   await pending;
@@ -196,6 +205,42 @@ test("account teardown rejects a late successful save and clears every snapshot"
   expect((await next.client.fetchQuery(next.note(note.id)))?.content).toBe(
     "Account B",
   );
+});
+
+test("source edits immediately hide assistance evidence and fence a held preview read", async () => {
+  const held = Promise.withResolvers<unknown>();
+  let hold = false;
+  const preview = {
+    id: "preview",
+    status: "ready",
+    result: {
+      items: [{ text: "Old task", sources: [{ id: note.id, version: 1 }] }],
+    },
+  };
+  const cache = cacheWith(async (path) =>
+    path === "/memories"
+      ? { ...note, version: 2 }
+      : hold
+        ? held.promise
+        : preview,
+  );
+  const options = cache.resource<typeof preview>("/assistance/preview");
+  await cache.client.fetchQuery(options);
+  hold = true;
+  await cache.client.invalidateQueries({
+    queryKey: options.queryKey,
+    refetchType: "none",
+  });
+  const pending = cache.client.fetchQuery(options).catch(() => undefined);
+  await cache.api("/memories", {
+    id: note.id,
+    expectedVersion: 1,
+    content: "Changed",
+  });
+  expect(cache.client.getQueryData(options.queryKey)?.result).toBeNull();
+  held.resolve(preview);
+  await pending;
+  expect(cache.client.getQueryData(options.queryKey)?.result).toBeNull();
 });
 
 test("teardown also releases imperative readers and inactive snapshots have a bounded cap", async () => {

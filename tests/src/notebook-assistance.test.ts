@@ -1,10 +1,14 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
 import { createDatabase, tenant, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
 import type { Providers } from "@lib/ai";
 import { rememberSchema, listSchema } from "@lib/shared/contracts";
+import { exportHandlers } from "../../lib/memory/src/exports.ts";
+import { Tasks } from "../../lib/memory/src/tasks.ts";
+import { runTask } from "../../lib/memory/src/task-runner.ts";
 import {
   actionListSchema,
   filingSchema,
@@ -223,8 +227,12 @@ test("a settings toggle fences held assistance even when it is reenabled before 
   const f = await fixture(),
     note = await f.save("Book the tour.");
   let enter!: () => void, release!: () => void;
-  const entered = new Promise<void>((resolve) => { enter = resolve; });
-  const held = new Promise<void>((resolve) => { release = resolve; });
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const generate = f.providers.generation!.generate;
   f.providers.generation!.generate = async (...args) => {
     enter();
@@ -443,4 +451,148 @@ test("visit expiry recording is bounded and backdated imports use commit tokens"
       .first();
     assert(BigInt(row.changeToken) >= BigInt(visit.to));
   });
+});
+
+test("private exports retain paged review/checkpoint/operation metadata and fence later reviews", async () => {
+  const f = await fixture(),
+    note = await f.save("Book the airport bus.");
+  const preview = await f.request({
+    id: randomUUID(),
+    kind: "actions",
+    sources: [{ id: note.id, version: 1 }],
+    projectId: f.project.id,
+  });
+  await f.service.assistance.apply(f.principal, preview.id, {
+    expectedVersion: preview.version,
+  });
+  await f.visit();
+  await admin("assistance_reviews").insert(
+    Array.from({ length: 105 }, (_, i) => ({
+      accountId: f.principal.accountId,
+      key: `review-${String(i).padStart(3, "0")}`,
+      version: 1,
+      dismissed: true,
+    })),
+  );
+  const pieces = new Map<string, Buffer>();
+  const handlers = exportHandlers(workerDb, {
+    async write(key, data) {
+      const chunks: Buffer[] = [];
+      for await (const chunk of Buffer.isBuffer(data) ? [data] : data)
+        chunks.push(Buffer.from(chunk));
+      pieces.set(key, Buffer.concat(chunks));
+    },
+    async read(key) {
+      return Readable.from([pieces.get(key)!]);
+    },
+    async remove(key) {
+      pieces.delete(key);
+    },
+  });
+  const tasks = new Tasks(f.service, true),
+    task = await tasks.export(f.principal, {
+      id: randomUUID(),
+      includeDescendants: false,
+    });
+  for (let i = 0; i < 40; i++) {
+    await runTask(workerDb, handlers, { id: task.id });
+    if ((await tasks.get(f.principal, task.id)).status === "succeeded") break;
+  }
+  assert.equal((await tasks.get(f.principal, task.id)).status, "succeeded");
+  const stored = await admin("background_tasks").where({ id: task.id }).first();
+  const rows = pieces
+    .get(stored.result.key)!
+    .toString()
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(rows.filter((r) => r.type === "assistance_review").length, 105);
+  assert.equal(rows.filter((r) => r.type === "notebook_checkpoint").length, 1);
+  assert.equal(rows.filter((r) => r.type === "notebook_visit").length, 1);
+  const operation = rows.find((r) => r.type === "assistance_operation");
+  assert.equal(operation.id, preview.id);
+  assert.equal(operation.status, "applied");
+  assert.equal(operation.undo, undefined);
+  await tasks.artifact(f.principal, task.id);
+  await admin("assistance_reviews")
+    .where({ accountId: f.principal.accountId, key: "review-000" })
+    .update({ version: 2, dismissed: false });
+  assert.equal((await tasks.get(f.principal, task.id)).error, "export_changed");
+  await assert.rejects(tasks.artifact(f.principal, task.id), {
+    code: "export_unavailable",
+  });
+});
+
+test("applied previews clear generated excerpts and deleting a created personal note fences its Undo", async () => {
+  const f = await fixture(),
+    note = await f.save("Book the plane.", { projectId: null });
+  const preview = await f.request({
+    id: randomUUID(),
+    kind: "actions",
+    sources: [{ id: note.id, version: 1 }],
+    projectId: null,
+  });
+  const applied = await f.service.assistance.apply(f.principal, preview.id, {
+    expectedVersion: preview.version,
+  });
+  assert.equal(applied.result, null);
+  await f.service.forget(f.principal, {
+    operationId: randomUUID(),
+    items: [{ id: applied.applied[0].id, expectedVersion: 1 }],
+  });
+  const stored = await admin("assistance_requests")
+    .where({ id: preview.id })
+    .first();
+  assert.equal(stored.status, "stale");
+  assert.equal(stored.undo, null);
+  await assert.rejects(
+    f.service.assistance.apply(
+      f.principal,
+      preview.id,
+      { expectedVersion: applied.version },
+      true,
+    ),
+  );
+});
+
+test("invalid action quotes and age-only replacement claims fail closed", async () => {
+  const f = await fixture(),
+    a = await f.save("Book Japan train tickets at 100 yen."),
+    b = await f.save("Japan train tickets cost 200 yen.");
+  f.providers.generation!.generate = async (schema, _prompt, sources) =>
+    Object.is(schema, actionListSchema)
+      ? schema.parse({
+          items: [
+            {
+              text: "Invented owner must pay today.",
+              sources: [{ id: a.id, version: 1, quote: "Not in the source" }],
+            },
+          ],
+        })
+      : schema.parse({
+          kind: "superseded",
+          reason: "The second note is newer.",
+          replacement: [b.id],
+          content: "Japan train tickets cost 200 yen.",
+          evidence: sources.map((s) => ({
+            id: s.id,
+            version: s.version,
+            quote: s.content,
+          })),
+        });
+  const actions = await f.request({
+    id: randomUUID(),
+    kind: "actions",
+    sources: [{ id: a.id, version: 1 }],
+    projectId: f.project.id,
+  });
+  assert.equal(actions.status, "failed");
+  assert.equal(actions.result, null);
+  const cleanup = await f.request({
+    id: randomUUID(),
+    kind: "cleanup",
+    projectId: f.project.id,
+  });
+  assert.equal(cleanup.status, "failed");
+  assert.equal(cleanup.result, null);
 });

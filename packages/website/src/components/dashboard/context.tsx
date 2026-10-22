@@ -121,7 +121,7 @@ export function MemoryContext({
                   <ActionMenu label="Notebook options">
                     <AssistanceAction
                       input={{ kind: "digest", visitId: visit?.id ?? "" }}
-                      disabled={!visit}
+                      disabled={!visit || visit.projectId !== project.id}
                     />
                     <AssistanceAction
                       input={{ kind: "cleanup", projectId: project.id }}

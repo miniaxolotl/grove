@@ -489,13 +489,33 @@ export async function runProcessingJob(
   )[0];
   if (!claimed) return false;
   const lease = processingLease(db, claimed, options.signal);
-  if (claimed.kind === "assistance" ||
-    (claimed.kind === "brief" && claimed.scope && isNotebookSummary(claimed.scope as BriefRequest))) {
+  if (
+    claimed.kind === "assistance" ||
+    (claimed.kind === "brief" &&
+      claimed.scope &&
+      isNotebookSummary(claimed.scope as BriefRequest))
+  ) {
     try {
       return claimed.kind === "assistance"
-        ? await runAssistanceJob(db, providers, dailyLimit, claimed, resolveProfiles, lease.signal)
-        : await runNotebookSummary(db, providers, dailyLimit, claimed as SummaryJob, resolveProfiles, lease.signal);
-    } finally { await lease.close(); }
+        ? await runAssistanceJob(
+            db,
+            providers,
+            dailyLimit,
+            claimed,
+            resolveProfiles,
+            lease.signal,
+          )
+        : await runNotebookSummary(
+            db,
+            providers,
+            dailyLimit,
+            claimed as SummaryJob,
+            resolveProfiles,
+            lease.signal,
+          );
+    } finally {
+      await lease.close();
+    }
   }
   if ((relationshipKinds as readonly string[]).includes(claimed.kind)) {
     try {

@@ -100,7 +100,15 @@ export class NotebookAssistance {
               })
               .min("expiresAt as expiresAt")
               .first()) as unknown as { expiresAt: Date | null })
-          : undefined;
+          : {
+              expiresAt:
+                sources
+                  .map((note) => note.expiresAt)
+                  .filter((at): at is Date => !!at)
+                  .sort(
+                    (a, b) => new Date(a).getTime() - new Date(b).getTime(),
+                  )[0] ?? null,
+            };
       const state = {
         ...(input.kind === "filing"
           ? {
@@ -185,14 +193,12 @@ export class NotebookAssistance {
         row.status = "stale";
         row.result = null;
         row.error = "These notes changed. Refresh the preview.";
-        await trx("assistance_requests")
-          .where({ id: row.id })
-          .update({
-            status: row.status,
-            result: null,
-            state: "{}",
-            error: row.error,
-          });
+        await trx("assistance_requests").where({ id: row.id }).update({
+          status: row.status,
+          result: null,
+          state: "{}",
+          error: row.error,
+        });
         await trx("jobs")
           .where({ kind: "assistance", target: row.id })
           .delete();
@@ -333,12 +339,16 @@ export class NotebookAssistance {
       row.status = undo ? "undone" : "applied";
       row.version++;
       row.applied = applied.applied;
+      row.result = null;
+      row.state = {};
       await trx("assistance_requests")
         .where({ id })
         .update({
           status: row.status,
           version: row.version,
           applied: JSON.stringify(row.applied),
+          result: null,
+          state: "{}",
           application: undo ? row.application : application,
           undo: undo ? null : JSON.stringify(applied.originals),
           updatedAt: trx.fn.now(),

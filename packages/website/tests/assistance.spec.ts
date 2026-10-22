@@ -313,3 +313,55 @@ test("filing suggestion is requested from the existing move chooser and can abst
     page.getByRole("button", { name: "Suggest a notebook" }),
   ).toBeFocused();
 });
+
+test("assistance expiry removes visible evidence even when the refresh is offline", async ({
+  page,
+}) => {
+  let current: Assistance | undefined;
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    let data: unknown = {};
+    if (path.endsWith("/projects")) data = [project];
+    else if (path.endsWith("/me"))
+      data = { accountId: "expiry-owner", ...preferencesFor({}) };
+    else if (path.endsWith("/memories/search"))
+      data = { items: [note], nextCursor: null };
+    else if (path.endsWith("/assistance")) {
+      current = {
+        id: route.request().postDataJSON().id,
+        kind: "actions",
+        status: "ready",
+        version: 2,
+        result: {
+          items: [{ text: note.content, sources: [ref] }],
+          coverage: { total: 1, examined: 1 },
+        },
+        applied: [],
+        error: null,
+        progress: 1,
+        expiresAt: new Date(Date.now() + 1800).toISOString(),
+      };
+      data = current;
+    } else if (path.includes("/assistance/")) {
+      if (current?.expiresAt && Date.parse(current.expiresAt) <= Date.now()) {
+        await route.abort();
+        return;
+      }
+      data = current;
+    }
+    await route.fulfill({ json: { success: true, data } });
+  });
+  await page.goto(`${base}/app`);
+  await page.getByRole("checkbox", { name: "Select these notes" }).check();
+  await page
+    .getByRole("button", { name: "Extract action list", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Action list", exact: true });
+  await expect(dialog.getByRole("textbox", { name: "Action 1" })).toBeVisible();
+  await expect(dialog.getByRole("textbox", { name: "Action 1" })).toHaveCount(
+    0,
+  );
+  await expect(
+    dialog.getByText("Sources expired. Refresh the preview.", { exact: true }),
+  ).toBeVisible();
+});

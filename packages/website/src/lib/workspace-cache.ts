@@ -428,6 +428,23 @@ export class WorkspaceCache {
         exceptDetails.has(query.queryKey[2] as string)
       );
     void this.client.cancelQueries({ predicate });
+    for (const query of this.client.getQueryCache().getAll()) {
+      if (
+        !predicate(query) ||
+        query.queryKey[1] !== "resource" ||
+        typeof query.queryKey[2] !== "string" ||
+        !query.queryKey[2].startsWith("/assistance/")
+      )
+        continue;
+      const old = query.state.data as { status: string } | undefined;
+      if (old?.status === "ready")
+        this.client.setQueryData(query.queryKey, {
+          ...old,
+          result: null,
+          status: "stale",
+          error: "Checking the latest sources…",
+        });
+    }
     void this.client.invalidateQueries({ predicate });
   }
   private forget(id: string) {

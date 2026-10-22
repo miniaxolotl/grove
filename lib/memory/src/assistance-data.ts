@@ -124,4 +124,9 @@ export const presentAssistance = (row: AssistanceRow): Assistance => ({
   error: row.error,
   applied: row.applied,
   progress: Number(row.state.progress ?? 0),
+  expiresAt:
+    row.expiresAt ??
+    (row.state.expiresAt
+      ? new Date(row.state.expiresAt as string).toISOString()
+      : null),
 });

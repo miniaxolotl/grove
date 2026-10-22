@@ -125,6 +125,7 @@ export type Assistance = {
   error: string | null;
   applied: SourceRef[];
   progress: number;
+  expiresAt?: string | null;
 };
 export const assistanceApplySchema = z
   .object({
