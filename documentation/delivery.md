@@ -14,12 +14,18 @@ cooperative deadlines, rollback checks and failed interrupted-download streams
 support predictable recovery. Database pool/acquisition/statement settings are
 validated and forwarded through runtime/Compose. No new migration is required.
 
-All **110 backend/service tests**, **193 integrated Chromium scenarios**, five
+All **115 backend/service tests**, **193 integrated Chromium scenarios**, five
 packaged-artifact checks, root/website lint/types/builds and bundle budgets pass.
 Seventeen release/deployment contracts, pinned actionlint/ShellCheck and Compose
 validation pass. Browser coverage includes navigation, search, held saves/newer
 typing, cache refresh, mobile controls and retry recovery. The pre-workspace-merge
 build also passed one focused iPhone/WebKit first-save navigation check.
+
+PR review reproduced and fixed stalled-body admission/deadline bypasses, an
+understated Content-Length bypass of the body-size limit, and model diagnostics
+replacing caller cancellation. Five new cases cover both upload encodings, actual
+received bytes, the Node HTTP adapter and cancellation/usage across provider roles.
+The merged workspace-polish #77 delivery record is integrated below.
 
 The final local 20 requests/s, two-minute run completed **2,398/2,400 successfully**
 at **209 ms p95**, with no generator drops. The **50 sustained / 100 burst targets

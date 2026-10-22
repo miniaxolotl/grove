@@ -23,8 +23,13 @@ lane. Full/expired queues return **503 / Retry-After: 1**; account quotas return
 **429 / Retry-After: 60**. Clients retain a mutation's operation ID when retrying.
 The server does not replay a save automatically.
 
-Cancellation reaches queue waits, inference and tenant transaction boundaries.
-Cancelled transactions roll back before commit; active SQL settles under its
+Request bodies are read only after admission, with a **128 KiB received-byte cap**
+regardless of Content-Length. The request deadline interrupts stalled fixed-length
+and chunked uploads, releases their permit and leaves health checks available.
+
+Cancellation reaches body reads, queue waits, inference (including model
+diagnostics) and tenant transaction boundaries. Cancelled transactions roll back
+before commit; active SQL settles under its
 statement timeout. A permit is retained until its work settles. Identity SDK calls
 retain their own transport behavior. Interrupted exports fail the response stream,
 so a partial backup cannot look like a completed download. Health/liveness and
@@ -69,8 +74,10 @@ latency; a fast rejection is not a successful operation.
 
 `tests/src/capacity.test.ts` gates constant query budgets, same-account overlap,
 single-operation accounting, cancellation rollback, pool exhaustion, overload
-recovery, interactive separation and interrupted downloads. Existing database tests
-cover revocation, profile changes, stale evidence and tenant isolation. Browser
+recovery, stalled uploads through the Node HTTP adapter, received-byte limits,
+interactive separation and interrupted downloads. Model tests verify provider
+cancellation and retained usage accounting for all three roles. Existing database
+tests cover revocation, profile changes, stale evidence and tenant isolation. Browser
 cache/editor tests cover stable navigation, typing during saves, focus and retry.
 
 Capacity changes add no schema migration beyond the current AI-preferences **013**

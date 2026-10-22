@@ -50,8 +50,10 @@ pnpm perf:backend --accounts 5 --notes 10000 --rate 5 --seconds 20 --workload re
 
 The relay case adds **2 ms per TCP chunk in each direction** between the fixture
 and disposable PostgreSQL. It is simulated transport delay, not a Neon measurement.
-All cited source trees were clean. `260d90b` includes the final post-lock revocation
-fix; subsequent workspace integration changes only website/documentation files.
+All cited source trees were clean. `260d90b` includes the post-lock revocation fix.
+The later PR review adds admitted body reads, upload deadlines/size enforcement
+and preserved diagnostic cancellation (`1a1ed04`, `073755f`); those fixes are
+correctness-tested, and the timing rows below retain their original source IDs.
 The canonical local plan retains full JSON, EXPLAIN and logs for every row.
 
 ## Query scaling and exact search
@@ -169,9 +171,10 @@ automatic production recommendation. Do not increase connections simply to hide
 queueing. Set product capacity only when ordinary and search latency targets,
 error/drop budgets and processing backlog all hold together.
 
-Correctness verification passes **110 backend/service tests**, including the
-post-lock session-revocation race, plus root lint/types/build and five packaged
-artifacts. Browser checks cover navigation, stable search, typing through held
+Correctness verification passes **115 backend/service tests**, including the
+post-lock session-revocation race, stalled/oversized uploads and model-diagnostic
+cancellation, plus root lint/types/build and five packaged artifacts. Browser checks
+cover navigation, stable search, typing through held
 saves, cache invalidation and overload recovery; they use controlled workspace
 fixtures, not a new live Clerk/Neon end-to-end timing measurement. See
 [delivery evidence](../delivery.md) for the final integrated browser counts.
