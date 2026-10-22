@@ -3,6 +3,29 @@ const locks = new WeakMap<HTMLElement, { count: number; original: boolean }>();
 let scrollLocks = 0;
 let previousOverflow = "";
 
+/** Keep search dialogs inside the visible viewport during keyboard/zoom changes. */
+export function fitPaletteViewport(element: HTMLElement) {
+  const viewport = window.visualViewport;
+  const place = () => {
+    for (const [name, value] of Object.entries({
+      top: viewport?.offsetTop ?? 0,
+      left: viewport?.offsetLeft ?? 0,
+      height: viewport?.height ?? window.innerHeight,
+      width: viewport?.width ?? window.innerWidth,
+    }))
+      element.style.setProperty(`--palette-viewport-${name}`, `${value}px`);
+  };
+  place();
+  window.addEventListener("resize", place);
+  viewport?.addEventListener("resize", place);
+  viewport?.addEventListener("scroll", place);
+  return () => {
+    window.removeEventListener("resize", place);
+    viewport?.removeEventListener("resize", place);
+    viewport?.removeEventListener("scroll", place);
+  };
+}
+
 /** Nested dialogs and expanded canvases release only their own scroll lock. */
 export function lockPageScroll() {
   if (scrollLocks++ === 0)

@@ -1081,91 +1081,23 @@ html:has(.grove-app) {
 .action-menu::backdrop {
   background: transparent;
 }
-.app-dialog[open]:has(.quick-search, .command-menu) {
+.app-dialog[open]:has(.command-menu) {
   display: flex;
   flex-direction: column;
   height: min(620px, calc(100dvh - 48px));
   overflow: hidden;
 }
-.app-dialog:has(.quick-search, .command-menu) > .dialog-heading {
+.app-dialog:has(.command-menu) > .dialog-heading {
   flex-shrink: 0;
 }
-.quick-search,
 .command-menu {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
 }
-.quick-search {
-  gap: 10px;
-}
-.quick-search > :not(.quick-search-results),
 .command-menu > :not(.command-results-frame) {
   flex: 0 0 auto;
-}
-.quick-search-results {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-}
-.quick-search-footer {
-  min-height: 40px;
-}
-.quick-search-caption,
-.quick-search-empty {
-  font-size: 12px;
-  color: var(--color-muted);
-  padding: 8px 0;
-}
-.quick-search-result {
-  display: flex;
-  gap: 10px;
-  padding: 10px 6px;
-  border-bottom: 1px solid var(--color-line);
-}
-.quick-search-result:hover {
-  background: var(--color-sage);
-}
-.quick-search-result > span {
-  flex: 1;
-  min-width: 0;
-}
-.quick-search-result > svg {
-  flex-shrink: 0;
-  margin-top: 3px;
-}
-.quick-search-result strong {
-  font-size: 13px;
-  font-weight: 500;
-}
-.quick-search-result small {
-  display: block;
-  font-size: 10px;
-  color: var(--color-muted);
-}
-.quick-search-result p {
-  font-size: 12px;
-  color: var(--color-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 4px;
-}
-.quick-search-ask {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: var(--color-sage);
-  border-radius: 6px;
-  font-size: 12px;
-  min-height: 40px;
-}
-.quick-search-ask svg:last-child {
-  margin-left: auto;
 }
 .settings-navigation {
   display: flex;
