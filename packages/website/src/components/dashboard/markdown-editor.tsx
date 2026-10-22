@@ -22,6 +22,9 @@ import {
   historyKeymap,
   redo,
   undo,
+  undoDepth,
+  redoDepth,
+  isolateHistory,
 } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -38,14 +41,66 @@ import {
   Undo2,
   Redo2,
   ListTree,
-  Eye,
-  Pencil,
+  Type,
 } from "lucide-react";
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
 import { SegmentedControl } from "./ui/segmented-control";
-import { shortcutHint, shortcuts } from "@/lib/workspace-shortcuts";
+import {
+  matchesShortcut,
+  shortcutHint,
+  shortcuts,
+} from "@/lib/workspace-shortcuts";
+import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { IconButton } from "./ui/button";
+import { ActionMenu } from "./ui/action-menu";
+import { InspectorDialog } from "./ui/inspector-dialog";
+
+const formattingActions = [
+  { name: "Undo", icon: Undo2, run: undo, reading: true },
+  { name: "Redo", icon: Redo2, run: redo, reading: true },
+  {
+    name: "Heading",
+    icon: Heading2,
+    run: (view: EditorView) => prefixLines(view, "## "),
+  },
+  {
+    name: "Bold",
+    icon: Bold,
+    run: (view: EditorView) => wrapSelection(view, "**"),
+  },
+  {
+    name: "Italic",
+    icon: Italic,
+    run: (view: EditorView) => wrapSelection(view, "_"),
+  },
+  {
+    name: "Bullet list",
+    icon: List,
+    run: (view: EditorView) => prefixLines(view, "- "),
+  },
+  {
+    name: "Checklist",
+    icon: ListChecks,
+    run: (view: EditorView) => prefixLines(view, "- [ ] "),
+  },
+  {
+    name: "Quote",
+    icon: Quote,
+    run: (view: EditorView) => prefixLines(view, "> "),
+  },
+  {
+    name: "Code",
+    icon: Code,
+    run: (view: EditorView) => wrapSelection(view, "`"),
+  },
+  {
+    name: "Link",
+    icon: LinkIcon,
+    run: (view: EditorView) =>
+      wrapSelection(view, "[", "](https://example.com)", "link text"),
+  },
+];
 
 const highlighting = HighlightStyle.define([
   { tag: tags.heading, class: "cm-note-heading-text" },
@@ -65,6 +120,7 @@ export function MarkdownEditor({
   fullPage = false,
   preview = false,
   onPreviewChange,
+  presentation = "page",
   children,
 }: {
   value: string;
@@ -74,14 +130,17 @@ export function MarkdownEditor({
   fullPage?: boolean;
   preview?: boolean;
   onPreviewChange?: (preview: boolean) => void;
+  presentation?: "page" | "drawer" | "expanded" | "focus";
   children?: ReactNode;
 }) {
   const id = useId();
+  const documentValue = value.replace(/\r\n?/g, "\n");
   const host = useRef<HTMLDivElement>(null);
   const layout = useRef<HTMLDivElement>(null);
-  const scrollPositions = useRef({ preview: 0, edit: 0 });
+  const scrollPositions = useRef(new Map<string, number>());
+  const previousScroll = useRef(0);
   const view = useRef<EditorView | null>(null);
-  const initial = useRef({ value, placeholder });
+  const initial = useRef({ value: documentValue, placeholder });
   const change = useRef(onChange);
   const compartments = useRef({
     mode: new Compartment(),
@@ -90,6 +149,10 @@ export function MarkdownEditor({
   const [writingMode, setWritingMode] = useState<"live" | "source">("live");
   const mode = preview ? "preview" : writingMode;
   const [outline, setOutline] = useState(false);
+  const [historyState, setHistoryState] = useState({
+    undo: false,
+    redo: false,
+  });
   const limit = value.length > 6000;
   useEffect(() => {
     change.current = onChange;
@@ -133,6 +196,15 @@ export function MarkdownEditor({
             if (update.docChanged) {
               change.current(update.state.doc.toString());
             }
+            const next = {
+              undo: undoDepth(update.state) > 0,
+              redo: redoDepth(update.state) > 0,
+            };
+            setHistoryState((current) =>
+              current.undo === next.undo && current.redo === next.redo
+                ? current
+                : next,
+            );
           }),
         ],
       }),
@@ -145,13 +217,17 @@ export function MarkdownEditor({
   }, [id]);
   useEffect(() => {
     const editor = view.current;
-    if (editor && editor.state.doc.toString() !== value) {
+    if (editor && editor.state.doc.toString() !== documentValue) {
       editor.dispatch({
-        changes: { from: 0, to: editor.state.doc.length, insert: value },
+        changes: {
+          from: 0,
+          to: editor.state.doc.length,
+          insert: documentValue,
+        },
         annotations: Transaction.addToHistory.of(false),
       });
     }
-  }, [value]);
+  }, [documentValue]);
   useEffect(() => {
     view.current?.dispatch({
       effects: [
@@ -172,14 +248,16 @@ export function MarkdownEditor({
   useLayoutEffect(() => {
     const element = layout.current;
     if (!element) return;
-    const key = preview ? "preview" : "edit";
-    element.scrollTop = scrollPositions.current[key];
+    const key = `${presentation}:${preview ? "preview" : "edit"}`;
+    element.scrollTop =
+      scrollPositions.current.get(key) ?? previousScroll.current;
     const remember = () => {
-      scrollPositions.current[key] = element.scrollTop;
+      scrollPositions.current.set(key, element.scrollTop);
+      previousScroll.current = element.scrollTop;
     };
     element.addEventListener("scroll", remember);
     return () => element.removeEventListener("scroll", remember);
-  }, [preview]);
+  }, [preview, presentation]);
   const headings = useMemo(() => {
     const result: { title: string; from: number; level: number }[] = [];
     markdownLanguage.parser.parse(value).iterate({
@@ -202,116 +280,94 @@ export function MarkdownEditor({
   function command(run: (editor: EditorView) => unknown) {
     if (view.current && !disabled) {
       run(view.current);
-      view.current.focus();
+      if (!preview) view.current.focus();
     }
+  }
+  function formatButton(
+    { name, icon: Icon, run, reading }: (typeof formattingActions)[number],
+    menu = false,
+  ) {
+    return (
+      <button
+        key={name}
+        type="button"
+        className={menu ? undefined : "app-icon"}
+        aria-label={name}
+        title={name}
+        disabled={
+          disabled ||
+          (preview && !reading) ||
+          (name === "Undo" && !historyState.undo) ||
+          (name === "Redo" && !historyState.redo)
+        }
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => command(run)}
+      >
+        <Icon size={16} aria-hidden="true" />
+        {menu && name}
+      </button>
+    );
   }
   return (
     <div
       className={`markdown-editor live-editor${fullPage ? " page-writing" : ""}`}
       data-mode={mode}
+      onKeyDown={(event) => {
+        if (!preview || !isActiveSurface(host.current)) return;
+        const run = matchesShortcut(event.nativeEvent, shortcuts.undo)
+          ? undo
+          : matchesShortcut(event.nativeEvent, shortcuts.redo)
+            ? redo
+            : undefined;
+        if (run) {
+          event.preventDefault();
+          command(run);
+        }
+      }}
     >
       <div className="editor-heading">
-        <span id={`${id}-label`}>{preview ? "Reading" : "Your words"}</span>
-        {!preview && (
+        <div
+          className="editor-modes"
+          title={`Edit / preview (${shortcutHint(shortcuts.mode)})`}
+        >
           <SegmentedControl
             label="Editor mode"
-            value={writingMode}
-            onChange={setWritingMode}
+            value={mode}
+            focusKey="note-mode"
+            onChange={(next) => {
+              if (next !== "preview") setWritingMode(next);
+              onPreviewChange?.(next === "preview");
+            }}
             options={[
               { value: "live", label: "Write" },
               { value: "source", label: "Markdown" },
+              { value: "preview", label: "Preview" },
             ]}
           />
-        )}
-        <button
-          type="button"
-          className="app-button secondary mode-toggle"
-          data-focus-key="note-mode"
-          title={`Edit / preview (${shortcutHint(shortcuts.mode)})`}
-          aria-keyshortcuts="Control+e Meta+e"
-          onClick={() => onPreviewChange?.(!preview)}
-        >
-          {preview ? <Pencil size={15} /> : <Eye size={15} />}
-          {preview ? "Edit note" : "Preview"}
-        </button>
-      </div>
-      <div className="editor-surface">
+        </div>
         <div
-          hidden={preview}
           className="editor-tools"
           role="group"
           aria-label="Markdown formatting"
         >
-          {[
-            { name: "Undo", icon: Undo2, run: undo },
-            { name: "Redo", icon: Redo2, run: redo },
-            {
-              name: "Heading",
-              icon: Heading2,
-              run: (v: EditorView) => prefixLines(v, "## "),
-            },
-            {
-              name: "Bold",
-              icon: Bold,
-              run: (v: EditorView) => wrapSelection(v, "**"),
-            },
-            {
-              name: "Italic",
-              icon: Italic,
-              run: (v: EditorView) => wrapSelection(v, "_"),
-            },
-            {
-              name: "Bullet list",
-              icon: List,
-              run: (v: EditorView) => prefixLines(v, "- "),
-            },
-            {
-              name: "Checklist",
-              icon: ListChecks,
-              run: (v: EditorView) => prefixLines(v, "- [ ] "),
-            },
-            {
-              name: "Quote",
-              icon: Quote,
-              run: (v: EditorView) => prefixLines(v, "> "),
-            },
-            {
-              name: "Code",
-              icon: Code,
-              run: (v: EditorView) => wrapSelection(v, "`"),
-            },
-            {
-              name: "Link",
-              icon: LinkIcon,
-              run: (v: EditorView) =>
-                wrapSelection(v, "[", "](https://example.com)", "link text"),
-            },
-          ].map(({ name, icon: Icon, run }) => (
-            <IconButton
-              key={name}
-              label={name}
-              disabled={disabled || mode === "preview"}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => command(run)}
-            >
-              <Icon size={16} />
-            </IconButton>
-          ))}
-          <button
-            type="button"
-            className="app-icon editor-outline-toggle"
-            aria-label="Note outline"
-            title="Note outline"
-            aria-expanded={outline}
-            onClick={() => setOutline(!outline)}
-          >
-            <ListTree size={16} />
-          </button>
+          {formattingActions.map((action) => formatButton(action))}
         </div>
-        <div
-          ref={layout}
-          className={`writing-layout${outline ? " with-outline" : ""}`}
+        <span className="editor-format-menu">
+          <ActionMenu label="Formatting" icon={<Type size={18} />}>
+            {formattingActions.map((action) => formatButton(action, true))}
+          </ActionMenu>
+        </span>
+        <IconButton
+          label="Note outline"
+          className="editor-outline-toggle"
+          aria-expanded={outline}
+          onClick={() => setOutline(true)}
         >
+          <ListTree size={17} />
+        </IconButton>
+      </div>
+      <div className="editor-surface">
+        <div ref={layout} className="writing-layout">
           <div className="writing-paper">
             <div
               ref={host}
@@ -324,7 +380,43 @@ export function MarkdownEditor({
                 aria-label="Markdown preview"
               >
                 {value ? (
-                  <Markdown>{value}</Markdown>
+                  <Markdown
+                    disabled={disabled}
+                    onToggleTask={(offset, checked) => {
+                      const editor = view.current;
+                      // CodeMirror uses LF positions, including notes imported with CRLF.
+                      if (
+                        !editor ||
+                        disabled ||
+                        editor.state.readOnly ||
+                        editor.state.doc.toString() !== documentValue
+                      )
+                        return;
+                      const position = value
+                        .slice(0, offset)
+                        .replace(/\r\n?/g, "\n").length;
+                      const marker = editor.state.sliceDoc(
+                        position - 1,
+                        position + 2,
+                      );
+                      if (
+                        !/^\[[ xX]\]$/.test(marker) ||
+                        (marker[1].toLowerCase() === "x") === checked
+                      )
+                        return;
+                      editor.dispatch({
+                        changes: {
+                          from: position,
+                          to: position + 1,
+                          insert: checked ? "x" : " ",
+                        },
+                        annotations: isolateHistory.of("full"),
+                        userEvent: "input.task",
+                      });
+                    }}
+                  >
+                    {value}
+                  </Markdown>
                 ) : (
                   <p className="text-muted">
                     Your formatted note will appear here.
@@ -334,12 +426,13 @@ export function MarkdownEditor({
             )}
             {children}
           </div>
-          {outline && (
-            <aside className="writing-outline" aria-label="Note outline">
-              <h2>On this page</h2>
+        </div>
+        {outline && (
+          <InspectorDialog title="Note outline" close={() => setOutline(false)}>
+            <div className="writing-outline">
               {headings.length ? (
                 <ul>
-                  {headings.map((heading) => (
+                  {headings.map((heading, index) => (
                     <li key={heading.from}>
                       <button
                         type="button"
@@ -348,19 +441,29 @@ export function MarkdownEditor({
                           paddingLeft: Math.min(heading.level - 1, 3) * 12,
                         }}
                         onClick={() => {
-                          setWritingMode("live");
-                          onPreviewChange?.(false);
-                          requestAnimationFrame(() =>
-                            command((editor) =>
-                              editor.dispatch({
-                                selection: { anchor: heading.from },
-                                effects: EditorView.scrollIntoView(
-                                  heading.from,
-                                  { y: "center" },
-                                ),
-                              }),
-                            ),
-                          );
+                          setOutline(false);
+                          requestAnimationFrame(() => {
+                            if (preview) {
+                              const target =
+                                layout.current?.querySelectorAll<HTMLElement>(
+                                  ".editor-preview :is(h1, h2, h3, h4, h5, h6)",
+                                )[index];
+                              if (target) {
+                                target.tabIndex = -1;
+                                target.focus({ preventScroll: true });
+                                target.scrollIntoView({ block: "start" });
+                              }
+                            } else
+                              command((editor) =>
+                                editor.dispatch({
+                                  selection: { anchor: heading.from },
+                                  effects: EditorView.scrollIntoView(
+                                    heading.from,
+                                    { y: "center" },
+                                  ),
+                                }),
+                              );
+                          });
                         }}
                       >
                         {heading.title || "Untitled heading"}
@@ -371,9 +474,9 @@ export function MarkdownEditor({
               ) : (
                 <p>Add a heading to find your way around.</p>
               )}
-            </aside>
-          )}
-        </div>
+            </div>
+          </InspectorDialog>
+        )}
         <div className="editor-footer" id={`${id}-help`}>
           <span>
             {mode === "live"

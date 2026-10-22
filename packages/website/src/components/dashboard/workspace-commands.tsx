@@ -186,7 +186,10 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
               ["Open focused note or command", "Enter"],
               ["Delete note (with confirmation)", "Delete"],
               ["Close menu, drawer or focus mode", "Esc"],
-              ["Undo / redo writing", "Mod Z / Mod Shift Z"],
+              [
+                "Undo / redo note changes",
+                `${shortcuts.undo} / ${shortcuts.redo}`,
+              ],
               ["Bold / italic", "Mod B / Mod I"],
               ["Insert link while writing", "Mod K"],
             ].map(([label, keys]) => (

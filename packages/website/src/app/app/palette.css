@@ -8,20 +8,20 @@
   );
   --palette-width: min(
     560px,
-    calc(var(--palette-viewport-width, 100vw) - var(--palette-inset) * 2)
+    calc(var(--overlay-viewport-width, 100vw) - var(--palette-inset) * 2)
   );
   position: fixed;
   inset: auto;
-  top: calc(var(--palette-viewport-top, 0px) + var(--palette-gap));
+  top: calc(var(--overlay-viewport-top, 0px) + var(--palette-gap));
   left: calc(
-    var(--palette-viewport-left, 0px) +
-      (var(--palette-viewport-width, 100vw) - var(--palette-width)) / 2
+    var(--overlay-viewport-left, 0px) +
+      (var(--overlay-viewport-width, 100vw) - var(--palette-width)) / 2
   );
   width: var(--palette-width);
   height: 480px;
   max-width: none;
   max-height: calc(
-    var(--palette-viewport-height, 100dvh) - var(--palette-gap) -
+    var(--overlay-viewport-height, 100dvh) - var(--palette-gap) -
       max(16px, env(safe-area-inset-bottom))
   );
   margin: 0;

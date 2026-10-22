@@ -8,6 +8,8 @@ export const shortcuts = {
   mode: "Mod E",
   save: "Mod S",
   focus: "Mod Shift F",
+  undo: "Mod Z",
+  redo: "Mod Shift Z",
 } as const;
 
 export const shortcutHint = (shortcut: string) =>

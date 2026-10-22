@@ -1156,6 +1156,9 @@
   list-style: none;
   padding-left: 0;
 }
+.memory-markdown li > .contains-task-list {
+  padding-left: 28px;
+}
 .markdown-task {
   display: inline-flex;
   vertical-align: -3px;

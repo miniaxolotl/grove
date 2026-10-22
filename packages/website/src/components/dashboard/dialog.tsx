@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { fitPaletteViewport, lockPageScroll } from "./ui/overlay-focus";
+import { fitOverlayViewport, lockPageScroll } from "./ui/overlay-focus";
 import { IconButton } from "./ui/button";
 
 const DialogBusy = createContext<(busy: boolean) => void>(() => {});
@@ -20,7 +20,7 @@ export function Dialog({
   close: () => void;
   panel?: boolean;
   busy?: boolean;
-  variant?: "default" | "palette";
+  variant?: "default" | "palette" | "inspector";
   header?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -35,7 +35,7 @@ export function Dialog({
     const focusKey = previous?.dataset.focusKey;
     const unlock = lockPageScroll();
     const releaseViewport =
-      variant === "palette" ? fitPaletteViewport(element) : undefined;
+      variant !== "default" ? fitOverlayViewport(element) : undefined;
     element.showModal();
     (
       element.querySelector<HTMLElement>("[data-autofocus]") ??
@@ -112,7 +112,7 @@ export function Dialog({
         if (!locked) close();
       }}
       aria-label={title}
-      className={`app-dialog${panel ? " app-detail-panel" : ""}${variant === "palette" ? " palette-dialog" : ""}`}
+      className={`app-dialog${panel ? " app-detail-panel" : ""}${variant !== "default" ? ` ${variant}-dialog` : ""}`}
     >
       <div
         className={

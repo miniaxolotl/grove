@@ -161,10 +161,10 @@ html:has(.grove-app) {
   padding: 24px;
 }
 .note-workspace .note-editor-bar {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .note-workspace .note-editor-location {
-  min-width: 100px;
+  min-width: 0;
 }
 .note-save-button > svg {
   display: none;
@@ -341,18 +341,6 @@ html:has(.grove-app) {
     visibility: visible;
   }
 }
-.live-editor .editor-heading {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.live-editor .mode-toggle {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.live-editor .editor-tools[hidden] {
-  display: none;
-}
 .linked-notes {
   border-top: 1px solid var(--color-line);
   margin-top: 32px;
@@ -442,30 +430,9 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 767px) {
-  .note-editor-full .note-save-button {
-    padding: 8px;
-    min-width: 34px;
-  }
-  .note-editor-full .note-save-button > svg {
-    display: block;
-  }
-  .note-editor-full .note-save-button > span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-  }
   .app-detail-panel:has(.note-editor-drawer) {
     width: 100vw;
     border-radius: 0;
-  }
-  .note-workspace .note-editor-location {
-    min-width: 0;
   }
   .shortcut-list > div {
     flex-wrap: wrap;
@@ -1137,20 +1104,8 @@ html:has(.grove-app) {
   background: #fff;
 }
 .editor-focus
-  :is(
-    .editor-heading,
-    .editor-tools,
-    .editor-footer,
-    .note-editor-hint,
-    .note-editor-properties,
-    .writing-outline
-  ) {
+  :is(.editor-heading, .editor-tools, .editor-footer, .note-editor-hint) {
   display: none;
-}
-.editor-focus .note-editor-workspace.has-properties,
-.editor-focus .writing-layout.with-outline {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
 }
 .editor-focus .note-editor-bar > .app-icon:not(.editor-focus-toggle) {
   display: none;
@@ -1316,10 +1271,6 @@ html:has(.grove-app) {
     grid-column: 4;
     grid-row: 1 / 3;
   }
-  .note-mobile-actions,
-  .action-menu > .note-mobile-menu-item {
-    display: flex;
-  }
   .note-editor-bar .app-icon {
     width: 44px;
     height: 44px;
@@ -1332,14 +1283,6 @@ html:has(.grove-app) {
     grid-column: 1 / -1;
     width: auto;
   }
-  .note-save-button > svg {
-    display: block;
-  }
-  .note-save-button > span,
-  .live-editor:not([data-mode="preview"]) .editor-heading > span {
-    display: none;
-  }
-  .live-editor .mode-toggle,
   .live-editor .segmented-control button {
     min-height: 44px;
   }

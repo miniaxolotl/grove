@@ -27,6 +27,8 @@ import { MarkdownEditor } from "./markdown-editor";
 import { useDialogBusy } from "./dialog";
 import { Button } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
+import { InspectorDialog } from "./ui/inspector-dialog";
+import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { RevisionCompare } from "./revision-compare";
 import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
 import { NoteDeleteDialog } from "./note-delete-dialog";
@@ -46,6 +48,27 @@ import {
 } from "@/lib/workspace-shortcuts";
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
+
+function PropertiesPanel({
+  overlay,
+  open,
+  close,
+  children,
+}: {
+  overlay: boolean;
+  open: boolean;
+  close: () => void;
+  children: ReactNode;
+}) {
+  const fields = <div className="note-editor-properties">{children}</div>;
+  return overlay
+    ? open && (
+        <InspectorDialog title="Note properties" close={close}>
+          {fields}
+        </InspectorDialog>
+      )
+    : fields;
+}
 
 export function MemoryEditor({
   memory,
@@ -145,6 +168,7 @@ export function MemoryEditor({
   const [error, setError] = useState(draft?.error ?? "");
   const [expanded, setExpanded] = useState(false);
   const [focused, setFocused] = useState(false);
+  const focusOrigin = useRef<HTMLElement | null>(null);
   const [properties, setProperties] = useState(false);
   const [createNotebook, setCreateNotebook] = useState(false);
   const submitted = useRef<NoteValues | undefined>(draft?.submitted);
@@ -187,8 +211,10 @@ export function MemoryEditor({
     const frame = requestAnimationFrame(() => receiveSnapshot());
     return () => cancelAnimationFrame(frame);
   }, [memory, saving]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!focused) return;
+    const element = root.current;
+    const origin = focusOrigin.current;
     const navigation = [
       ...document.querySelectorAll<HTMLElement>(".app-sidebar, .app-topbar"),
     ];
@@ -196,10 +222,33 @@ export function MemoryEditor({
     navigation.forEach((node) => {
       node.inert = true;
     });
-    return () =>
+    const active = document.activeElement as HTMLElement | null;
+    if (
+      !active ||
+      !element?.contains(active) ||
+      !active.getClientRects().length
+    )
+      element
+        ?.querySelector<HTMLElement>(".editor-focus-toggle")
+        ?.focus({ preventScroll: true });
+    return () => {
       navigation.forEach((node, index) => {
         node.inert = previous[index];
       });
+      requestAnimationFrame(() => {
+        if (!element?.isConnected || !isActiveSurface(element)) return;
+        const target =
+          origin?.isConnected && origin.getClientRects().length
+            ? origin
+            : (element.querySelector<HTMLElement>(
+                ".codemirror-host:not([hidden]) .cm-content",
+              ) ??
+              element.querySelector<HTMLElement>(
+                ".editor-modes [aria-pressed=true]",
+              ));
+        target?.focus({ preventScroll: true });
+      });
+    };
   }, [focused]);
   useEffect(() => {
     if (!draftKey || !drafts) return;
@@ -455,6 +504,11 @@ export function MemoryEditor({
     content.match(/^#\s+(.+)/m)?.[1] ||
     content.trim().split("\n")[0].slice(0, 110) ||
     (base ? "Untitled note" : "New note");
+  function toggleFocus() {
+    if (!focused)
+      focusOrigin.current = document.activeElement as HTMLElement | null;
+    setFocused(!focused);
+  }
   useWorkspaceCommands(
     [
       workspaceCommand("note-export", openExport),
@@ -478,9 +532,12 @@ export function MemoryEditor({
                   ? "All changes saved"
                   : undefined,
       },
-      workspaceCommand("note-focus", () => setFocused(!focused), {
+      {
+        ...commandDefinitions["note-focus"],
+        id: "note-focus",
+        run: toggleFocus,
         label: focused ? "Exit focus mode" : "Focus mode",
-      }),
+      },
       workspaceCommand("note-properties", () => setProperties(!properties), {
         label: properties ? "Hide note properties" : "Show note properties",
       }),
@@ -488,6 +545,21 @@ export function MemoryEditor({
     root,
     noteTitle,
   );
+  const saveStatus = busy
+    ? "Saving…"
+    : dirty
+      ? error
+        ? "Not saved · retry"
+        : content.length > 6000
+          ? "Over save limit"
+          : !content.trim()
+            ? "Empty draft"
+            : autoSave
+              ? "Waiting to save…"
+              : "Unsaved changes"
+      : base
+        ? `Saved${base.status === "archived" ? " · Archived" : ""}`
+        : "Start a note";
   const saveButton = (
     <Button
       type="submit"
@@ -513,7 +585,7 @@ export function MemoryEditor({
       <button
         type="button"
         className="note-mobile-menu-item"
-        onClick={() => setFocused(!focused)}
+        onClick={toggleFocus}
       >
         <Focus size={16} /> {focused ? "Exit focus mode" : "Focus mode"}
       </button>
@@ -538,7 +610,13 @@ export function MemoryEditor({
             event.preventDefault();
             if (!saveDisabled) event.currentTarget.requestSubmit();
           }
-          if (event.key === "Escape" && focused) {
+          if (
+            event.key === "Escape" &&
+            focused &&
+            !event.defaultPrevented &&
+            isActiveSurface(root.current) &&
+            !document.querySelector(":popover-open")
+          ) {
             event.preventDefault();
             event.stopPropagation();
             setFocused(false);
@@ -579,28 +657,14 @@ export function MemoryEditor({
                 <h1>{noteTitle}</h1>
               </div>
               <span className="note-save-status" role="status">
-                {busy ? (
-                  "Saving…"
-                ) : dirty ? (
-                  error ? (
-                    "Not saved · retry"
-                  ) : content.length > 6000 ? (
-                    "Over save limit"
-                  ) : !content.trim() ? (
-                    "Empty draft"
-                  ) : autoSave ? (
-                    "Waiting to save…"
-                  ) : (
-                    "Unsaved changes"
-                  )
-                ) : base ? (
-                  <>
-                    <Check size={13} /> Saved
-                    {base.status === "archived" && " · Archived"}
-                  </>
-                ) : (
-                  "Start a note"
-                )}
+                <Check
+                  size={13}
+                  aria-hidden="true"
+                  style={{
+                    visibility: !busy && !dirty && base ? "visible" : "hidden",
+                  }}
+                />
+                <span title={saveStatus}>{saveStatus}</span>
               </span>
               <button
                 type="button"
@@ -645,7 +709,7 @@ export function MemoryEditor({
                 aria-label={focused ? "Exit focus mode" : "Focus mode"}
                 title={focused ? "Exit focus mode" : "Focus mode"}
                 aria-pressed={focused}
-                onClick={() => setFocused(!focused)}
+                onClick={toggleFocus}
               >
                 {focused ? <Minimize2 size={17} /> : <Focus size={17} />}
                 {focused && <span>Exit focus</span>}
@@ -738,9 +802,7 @@ export function MemoryEditor({
             </section>
           )}
           {guidance && <p className="editor-guidance">{guidance}</p>}
-          <div
-            className={`note-editor-workspace${pageView && properties ? " has-properties" : ""}`}
-          >
+          <div className="note-editor-workspace">
             <MarkdownEditor
               value={content}
               onChange={(value) => {
@@ -749,6 +811,15 @@ export function MemoryEditor({
               }}
               disabled={busy && !autoSave}
               fullPage={pageView}
+              presentation={
+                focused
+                  ? "focus"
+                  : expanded
+                    ? "expanded"
+                    : workspace && !fullPage
+                      ? "drawer"
+                      : "page"
+              }
               preview={preview}
               onPreviewChange={setPreview}
               placeholder={
@@ -759,9 +830,10 @@ export function MemoryEditor({
             >
               {children}
             </MarkdownEditor>
-            <div
-              className="note-editor-properties"
-              hidden={pageView && !properties}
+            <PropertiesPanel
+              overlay={pageView}
+              open={properties}
+              close={() => setProperties(false)}
             >
               {!personal && (
                 <NotebookSelect
@@ -856,10 +928,10 @@ export function MemoryEditor({
                 )}
               </details>
               {details}
-            </div>
+            </PropertiesPanel>
           </div>
           {error && (
-            <p role="alert" className="app-error">
+            <p role="alert" className="app-error note-save-error">
               {error}
             </p>
           )}

@@ -3,8 +3,8 @@ const locks = new WeakMap<HTMLElement, { count: number; original: boolean }>();
 let scrollLocks = 0;
 let previousOverflow = "";
 
-/** Keep search dialogs inside the visible viewport during keyboard/zoom changes. */
-export function fitPaletteViewport(element: HTMLElement) {
+/** Keep compact overlays inside the visible viewport during keyboard/zoom changes. */
+export function fitOverlayViewport(element: HTMLElement) {
   const viewport = window.visualViewport;
   const place = () => {
     for (const [name, value] of Object.entries({
@@ -14,10 +14,10 @@ export function fitPaletteViewport(element: HTMLElement) {
       // The visual viewport includes a reserved scrollbar gutter in Chromium.
       width: Math.min(
         viewport?.width ?? window.innerWidth,
-        document.documentElement.clientWidth,
+        document.documentElement.getBoundingClientRect().width,
       ),
     }))
-      element.style.setProperty(`--palette-viewport-${name}`, `${value}px`);
+      element.style.setProperty(`--overlay-viewport-${name}`, `${value}px`);
   };
   place();
   window.addEventListener("resize", place);

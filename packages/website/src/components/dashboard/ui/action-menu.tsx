@@ -12,9 +12,11 @@ import { MoreHorizontal } from "lucide-react";
 export function ActionMenu({
   label,
   children,
+  icon = <MoreHorizontal size={18} />,
 }: {
   label: string;
   children: ReactNode;
+  icon?: ReactNode;
 }) {
   const id = useId();
   const popup = useRef<HTMLDivElement>(null);
@@ -92,7 +94,7 @@ export function ActionMenu({
           (event.key === "ArrowDown" ? choices[0] : choices.at(-1))?.focus();
         }}
       >
-        <MoreHorizontal size={18} />
+        {icon}
       </button>
       <div
         ref={popup}
