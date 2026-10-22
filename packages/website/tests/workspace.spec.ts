@@ -907,7 +907,7 @@ test("viewer checkbox saves start immediately and drain newer toggles without a 
   await expect(task).toBeFocused();
 });
 
-test("first autosave keeps the document, selection, focus and undo history through routing", async ({
+test("first autosave keeps the document, focus, scroll and undo history through routing", async ({
   page,
   browserName,
 }) => {
@@ -934,17 +934,25 @@ test("first autosave keeps the document, selection, focus and undo history throu
   await expect.poll(() => started).toBe(true);
   // Separate the next keystroke from the initial paste's undo group.
   await page.clock.runFor(100);
+  await page.clock.resume();
   await editor.press("End");
   await editor.press("x");
   // Finish CodeMirror's cursor-reveal measurement before choosing a reading position.
-  await page.clock.runFor(32);
-  await page.locator(".writing-layout").evaluate((node) => {
-    node.scrollTop = 180;
-  });
-  await page.clock.runFor(100);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   const scroll = await page
     .locator(".writing-layout")
-    .evaluate((node) => node.scrollTop);
+    .evaluate(async (node) => {
+      node.scrollTop = 180;
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      return node.scrollTop;
+    });
   const before = await page.locator(".writing-layout").boundingBox();
   release.resolve();
   await expect(page).toHaveURL(/\/memories\/[^/]+\?mode=edit$/);
@@ -956,7 +964,6 @@ test("first autosave keeps the document, selection, focus and undo history throu
   expect(
     await page.locator(".writing-layout").evaluate((node) => node.scrollTop),
   ).toBe(scroll);
-  await page.clock.resume();
   await editor.press(`${browserName === "webkit" ? "Meta" : "Control"}+z`);
   await expect(page.locator(".editor-footer")).toContainText(
     `${content.length.toLocaleString()} / 6,000`,
@@ -5773,7 +5780,7 @@ test("autosave retries a lost first response before saving newer typing and clea
   await editor.fill(saved.content);
   await expect(page.locator(".note-save-status")).toContainText("Not saved");
   await editor.fill("The first draft, with a newer thought.");
-  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  // New typing restarts autosave; don't race its completed save with a manual click.
   await expect(page).toHaveURL(`${base}/app/memories/${saved.id}?mode=edit`);
   await expect(page.locator(".note-save-status")).toContainText("Saved");
   expect(attempts[1]).toEqual(attempts[0]);
@@ -6081,6 +6088,7 @@ test("shared dropdowns support keyboard selection, typeahead, modal dismissal an
   page,
 }, info) => {
   await fixture(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Filters", exact: true }).click();
   const source = page.getByRole("combobox", { name: "Source", exact: true });
