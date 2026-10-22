@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
 import { modelConfigSchema, type ModelSettings } from "@lib/shared/models";
+import { preferencesFor } from "@lib/shared/preferences";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const config = () =>
@@ -66,8 +67,19 @@ test("preferences retain newer edits during saving and errors do not move the fo
   await page.goto(`${base}/app/settings`);
   const button = page.getByRole("button", { name: "Save preferences" });
   await expect(button).toBeDisabled();
-  const checks = page.getByRole("checkbox");
-  await checks.nth(0).uncheck();
+  const recall = page.getByRole("checkbox", {
+    name: "Automatic recall",
+    exact: true,
+  });
+  const capture = page.getByRole("checkbox", {
+    name: "Automatic capture",
+    exact: true,
+  });
+  const titles = page.getByRole("checkbox", {
+    name: "Titles and tags",
+    exact: true,
+  });
+  await recall.uncheck();
   // Another tab can refresh /me to the same values as our unsaved draft.
   // Reverting still compares with our loaded base, not that background snapshot.
   preferences.recallEnabled = false;
@@ -78,9 +90,9 @@ test("preferences retain newer edits during saving and errors do not move the fo
     channel.close();
   });
   await (await refreshed).finished();
-  await checks.nth(0).check();
+  await recall.check();
   await expect(button).toBeDisabled();
-  await checks.nth(0).uncheck();
+  await recall.uncheck();
   await expect(page.locator(".settings-save-status")).toHaveText(
     "Unsaved changes",
   );
@@ -104,28 +116,22 @@ test("preferences retain newer edits during saving and errors do not move the fo
   await started.promise;
   await expect(page.locator(".settings-save-status")).toHaveText("Saving…");
   expect(await geometry()).toEqual(before);
-  await checks.nth(1).uncheck();
+  await capture.uncheck();
   release.resolve();
   await expect(page.locator(".settings-save-status")).toHaveText(
     "Unsaved changes",
   );
   await expect(button).toBeEnabled();
-  expect(saves[0]).toMatchObject({
-    recallEnabled: false,
-    captureEnabled: true,
-  });
+  expect(saves[0]).toEqual({ recallEnabled: false });
   await button.click();
   await expect(page.locator(".settings-save-status")).toHaveText(
     "All changes saved",
   );
-  expect(saves[1]).toMatchObject({
-    recallEnabled: false,
-    captureEnabled: false,
-  });
-  await checks.nth(2).uncheck();
+  expect(saves[1]).toEqual({ captureEnabled: false });
+  await titles.uncheck();
   await button.click();
   await expect(page.getByRole("alert")).toHaveText("Please try again shortly.");
-  await expect(checks.nth(2)).not.toBeChecked();
+  await expect(titles).not.toBeChecked();
   expect(await geometry()).toEqual(before);
   await expect(button).toBeEnabled();
   await button.click();
@@ -133,6 +139,245 @@ test("preferences retain newer edits during saving and errors do not move the fo
     "All changes saved",
   );
   expect(await geometry()).toEqual(before);
+});
+
+test("categorized AI preferences persist independently with provider availability and accessible mobile controls", async ({
+  page,
+}, info) => {
+  const preferences = preferencesFor({
+    organizeEnabled: false,
+    summariesEnabled: false,
+  });
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/account/settings"))
+      Object.assign(preferences, route.request().postDataJSON());
+    await route.fulfill({
+      json: {
+        success: true,
+        data: path.endsWith("/me")
+          ? {
+              ...preferences,
+              aiAvailability: { classification: false, generation: true },
+            }
+          : path.endsWith("/account/settings")
+            ? preferences
+            : [],
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings`);
+  for (const name of [
+    "Organization",
+    "Connections",
+    "Summaries",
+    "Ask Grove",
+    "Connected agents",
+  ])
+    await expect(page.getByRole("group", { name, exact: true })).toBeVisible();
+  await expect(page.getByRole("checkbox")).toHaveCount(10);
+  const titles = page.getByRole("checkbox", {
+    name: "Titles and tags",
+    exact: true,
+  });
+  await expect(titles).not.toBeChecked();
+  await titles.focus();
+  await page.keyboard.press("Space");
+  await expect(titles).toBeChecked();
+  await page
+    .getByRole("checkbox", { name: "Linked notes", exact: true })
+    .check();
+  await page
+    .getByRole("checkbox", { name: "Notebook summaries", exact: true })
+    .check();
+  await expect(
+    page.getByRole("checkbox", { name: "Connected notebooks", exact: true }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: "Personal summary", exact: true }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
+  ).not.toBeChecked();
+  const unavailable = page.getByRole("checkbox", {
+    name: "Note classification",
+    exact: true,
+  });
+  await expect(unavailable).toHaveAccessibleDescription(
+    /Currently unavailable/,
+  );
+  await expect(unavailable).toBeEnabled();
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await page.reload();
+  await expect(titles).toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
+  ).not.toBeChecked();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page
+      .locator(".settings-page")
+      .evaluate((element) => element.scrollTo(0, 0));
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    for (const label of await page.locator(".ai-preference").all()) {
+      const bounds = await label.boundingBox();
+      expect(bounds!.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`ai-preferences-${width}.png`),
+    });
+    await page
+      .locator(".settings-page")
+      .evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await expect(
+      page.getByRole("button", { name: "Save preferences" }),
+    ).toBeInViewport();
+    await page.screenshot({
+      path: info.outputPath(`ai-preferences-${width}-bottom.png`),
+    });
+  }
+});
+
+test("preference drafts survive settings tabs, discard restores saved choices, and clean forms follow server updates", async ({
+  page,
+}) => {
+  const preferences = preferencesFor({});
+  const saves: Record<string, boolean>[] = [];
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/account/settings")) {
+      const patch = route.request().postDataJSON();
+      saves.push(patch);
+      if (saves.length === 1) {
+        started.resolve();
+        await release.promise;
+      }
+      Object.assign(preferences, patch);
+    }
+    await route.fulfill({
+      json: {
+        success: true,
+        data: path.endsWith("/models")
+          ? { config: config(), edition: "cloud", editable: false }
+          : path.endsWith("/me") || path.endsWith("/account/settings")
+            ? preferences
+            : [],
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings`);
+  const tabs = page.getByRole("navigation", { name: "Settings sections" });
+  const titles = page.getByRole("checkbox", {
+    name: "Titles and tags",
+    exact: true,
+  });
+  const capture = page.getByRole("checkbox", {
+    name: "Automatic capture",
+    exact: true,
+  });
+  const save = page.getByRole("button", {
+    name: "Save preferences",
+    exact: true,
+  });
+  const discard = page.getByRole("button", {
+    name: "Discard changes",
+    exact: true,
+  });
+  await titles.uncheck();
+  await page.getByRole("link", { name: "AI availability" }).click();
+  await expect(
+    tabs.getByRole("link", { name: "Preferences", exact: true }),
+  ).toHaveAccessibleDescription("Unsaved preference changes");
+  await tabs.getByRole("link", { name: "Preferences", exact: true }).click();
+  await expect(titles).not.toBeChecked();
+  await discard.click();
+  await expect(titles).toBeChecked();
+  await expect(save).toBeDisabled();
+  expect(saves).toEqual([]);
+
+  await titles.uncheck();
+  await save.click();
+  await started.promise;
+  await tabs.getByRole("link", { name: "Account", exact: true }).click();
+  await tabs.getByRole("link", { name: "Preferences", exact: true }).click();
+  await expect(discard).toBeDisabled();
+  await expect(page.locator(".settings-save-status")).toHaveText("Saving…");
+  await capture.uncheck();
+  release.resolve();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "Unsaved changes",
+  );
+  await save.click();
+  await expect(page.locator(".settings-save-status")).toHaveText(
+    "All changes saved",
+  );
+  expect(saves).toEqual([
+    { titlesTagsEnabled: false },
+    { captureEnabled: false },
+  ]);
+  await expect(titles).not.toBeChecked();
+  await expect(capture).not.toBeChecked();
+
+  preferences.classificationEnabled = false;
+  await page.evaluate(() => {
+    const channel = new BroadcastChannel("grove-workspace:fixture-user");
+    channel.postMessage({ resource: "/me" });
+    channel.close();
+  });
+  await expect(
+    page.getByRole("checkbox", { name: "Note classification", exact: true }),
+  ).not.toBeChecked();
+  await expect(save).toBeDisabled();
+
+  await titles.check();
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        switchWorkspaceAccount: (account: string, session: string) => void;
+      }
+    ).switchWorkspaceAccount("fixture-user", "replacement-session"),
+  );
+  await expect(titles).not.toBeChecked();
+  await expect(discard).toBeDisabled();
+});
+
+test("provider availability attributes connections to generation and keeps keyword search available", async ({
+  page,
+}) => {
+  const models = config();
+  models.embedding.provider = "disabled";
+  models.generation.provider = "disabled";
+  await page.route("**/api/grove/**", async (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        data: route.request().url().endsWith("/models")
+          ? { config: models, editable: false, edition: "self-hosted" }
+          : { today: [], failedJobs: 0 },
+      },
+    }),
+  );
+  await page.goto(`${base}/app/settings/models`);
+  const row = (text: string) =>
+    page.locator(".feature-availability > div").filter({ hasText: text });
+  await expect(row("Search your notes")).toContainText("Keyword search");
+  await expect(row("Note classification")).toContainText("Available");
+  await expect(row("Note and notebook connections")).toContainText(
+    "Unavailable",
+  );
 });
 
 test("settings share persistent navigation and scrolling, and feedback leaves forms in place", async ({
@@ -189,7 +434,7 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
   for (const name of [
     "Account",
     "Connections",
-    "Search & organization",
+    "AI & search",
     "Your data",
     "Preferences",
   ]) {
@@ -203,6 +448,8 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toHaveCount(1);
     expect(await tabs.boundingBox()).toEqual(before);
+    if (name === "Account")
+      await page.screenshot({ path: info.outputPath("settings-account.png") });
   }
   await page.setViewportSize({ width: 320, height: 750 });
   await tabs.getByRole("link", { name: "Your data", exact: true }).click();
@@ -250,6 +497,7 @@ for (const editable of [true, false])
       },
     };
     let saved = false;
+    let attempts = 0;
     await page.route("**/api/grove/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
       let data: unknown = settings;
@@ -272,6 +520,19 @@ for (const editable of [true, false])
         const body = route.request().postDataJSON();
         expect(body.expectedVersion).toBe(1);
         expect(body.config.embedding.apiKey).toBe("new-secret-fixture");
+        if (++attempts === 1) {
+          await route.fulfill({
+            status: 503,
+            json: {
+              success: false,
+              error: {
+                code: "unavailable",
+                message: "Provider settings could not save. Try again.",
+              },
+            },
+          });
+          return;
+        }
         settings = {
           ...settings,
           version: 2,
@@ -288,17 +549,42 @@ for (const editable of [true, false])
     await page.goto(`${base}/app/settings/models`);
     await expect(
       page.getByRole("heading", {
-        name: "Search & organization",
+        name: "AI & search",
       }),
     ).toBeVisible();
     if (editable) {
+      const save = page.getByRole("button", {
+        name: "Save model settings",
+        exact: true,
+      });
+      const discard = page.getByRole("button", {
+        name: "Discard changes",
+        exact: true,
+      });
+      await expect(save).toBeDisabled();
       await expect(page.getByLabel("Dimensions", { exact: true })).toHaveValue(
         "4096",
       );
       await page
         .getByLabel("API key", { exact: true })
         .first()
+        .fill("discarded-secret-fixture");
+      await discard.click();
+      await expect(
+        page.getByLabel("API key", { exact: true }).first(),
+      ).toHaveValue("");
+      await expect(save).toBeDisabled();
+      await page
+        .getByLabel("API key", { exact: true })
+        .first()
         .fill("new-secret-fixture");
+      await save.click();
+      await expect(page.getByRole("alert")).toContainText(
+        "Provider settings could not save",
+      );
+      await expect(
+        page.getByLabel("API key", { exact: true }).first(),
+      ).toHaveValue("new-secret-fixture");
       await page
         .getByRole("button", { name: "Save model settings", exact: true })
         .click();
@@ -315,6 +601,10 @@ for (const editable of [true, false])
       await expect(
         page.locator(".workspace-toast").getByRole("status"),
       ).toContainText("4096 dimensions");
+      await page
+        .locator(".workspace-toast")
+        .getByRole("button", { name: "Dismiss notification" })
+        .click();
     } else {
       await expect(page.getByText(/4,096 dimensions/)).not.toBeVisible();
       await expect(
@@ -330,8 +620,16 @@ for (const editable of [true, false])
         page.getByText(/Qwen|MiniMax|embedding|dimensions/i),
       ).toHaveCount(0);
     }
-    for (const width of [320, 1440]) {
+    for (const width of [1440, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
+      await expect(
+        page
+          .getByRole("navigation", { name: "Settings sections" })
+          .getByRole("link", { name: "AI & search", exact: true }),
+      ).toBeInViewport({ ratio: 1 });
+      await page
+        .locator(".settings-page")
+        .evaluate((element) => element.scrollTo(0, 0));
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
@@ -344,12 +642,60 @@ for (const editable of [true, false])
             .analyze()
         ).violations,
       ).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`model-settings-${width}.png`),
+      });
+      if (editable) {
+        await page
+          .getByRole("button", { name: "Save model settings", exact: true })
+          .scrollIntoViewIfNeeded();
+        await page.screenshot({
+          path: testInfo.outputPath(`model-settings-${width}-bottom.png`),
+        });
+      }
     }
-    await page.screenshot({
-      path: testInfo.outputPath("model-settings.png"),
-      fullPage: true,
-    });
   });
+
+test("saving a summary preference refreshes derived content in another open tab", async ({
+  page,
+  context,
+}) => {
+  const preferences = preferencesFor({});
+  await context.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/account/settings"))
+      Object.assign(preferences, route.request().postDataJSON());
+    const data =
+      path.endsWith("/me") || path.endsWith("/account/settings")
+        ? preferences
+        : path.endsWith("/briefs")
+          ? {
+              scope: { projectId: null },
+              status: preferences.personalSummaryEnabled ? "ready" : "disabled",
+              content: preferences.personalSummaryEnabled
+                ? { title: "Saved personal context", sections: [] }
+                : null,
+              sourceCount: 0,
+              updatedAt: null,
+              truncated: false,
+            }
+          : [];
+    await route.fulfill({ json: { success: true, data } });
+  });
+  const other = await context.newPage();
+  await other.goto(`${base}/app/profile`);
+  await expect(other.getByText("Saved personal context")).toBeVisible();
+  await page.goto(`${base}/app/settings`);
+  await page
+    .getByRole("checkbox", { name: "Personal summary", exact: true })
+    .uncheck();
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(other.getByText("Saved personal context")).toHaveCount(0);
+  await expect(
+    other.getByRole("link", { name: "AI preferences", exact: true }),
+  ).toBeVisible();
+  await other.close();
+});
 
 test("source-linked personal context exposes current revision links and honest queued refresh", async ({
   page,

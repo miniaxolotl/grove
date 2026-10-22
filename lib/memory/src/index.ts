@@ -9,6 +9,17 @@ import { MemoryModel, tenant, camelRows, type Knex } from "@lib/database";
 import { policy } from "@lib/config";
 import { InferenceError, type Embedder, type Providers } from "@lib/ai";
 import {
+  briefPreference,
+  jobPreferences,
+  legacyPreferences,
+  preferenceKeys,
+  preferencePatch,
+  preferencesFor,
+  type AccountPreferences,
+  type PreferencesUpdate,
+} from "@lib/shared/preferences";
+import { settingsUpdateSchema } from "@lib/shared/settings";
+import {
   answerSchema,
   type AskRequest,
   type AskResult,
@@ -19,13 +30,11 @@ import {
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
-import {
-  relationshipKinds,
-  legacyRelationshipsFor,
-} from "./relationship-data.ts";
+import { legacyRelationshipsFor } from "./relationship-data.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
+  briefTarget,
   budgetedInference,
   enrichmentFor,
   invalidateBriefs,
@@ -63,15 +72,14 @@ type Connection = Omit<Grant, "expiresAt"> & {
   authorizedAfter: Date;
   setup?: unknown;
 };
-type Account = {
+type Account = AccountPreferences & {
   id: string;
   clerkSubject: string;
   status: string;
   contentVersion: number;
-  captureEnabled: boolean;
-  recallEnabled: boolean;
   organizeEnabled: boolean;
   summariesEnabled: boolean;
+  askVersion: number;
 };
 type Access = { trx: Knex.Transaction; account: Account; grant?: Connection };
 const missing = () => new GroveError("not_found", "Memory not found", 404);
@@ -361,10 +369,12 @@ export class MemoryService {
         (c) => !grant || grant.capabilities.includes(c),
       ),
       contentVersion: account.contentVersion,
-      captureEnabled: account.captureEnabled,
-      recallEnabled: account.recallEnabled,
-      organizeEnabled: account.organizeEnabled,
-      summariesEnabled: account.summariesEnabled,
+      ...preferencesFor(account),
+      ...legacyPreferences(account),
+      aiAvailability: {
+        classification: !!this.providers.decision,
+        generation: !!this.providers.generation,
+      },
       grant: grant
         ? {
             personal: grant.personal,
@@ -571,125 +581,135 @@ export class MemoryService {
         /* Keep text search available during provider outages. */
       }
     }
-    return this.access(principal, "memory:read", async ({ trx, grant }) => {
-      const { cursor, limit, ...filters } = input;
-      const binding = digest(
-        stable({
-          account: principal.accountId,
-          connection: principal.connectionId,
-          filters,
-        }),
-      );
-      const page = cursor
-        ? this.decodeCursor(cursor, binding)
-        : { after: "", ceiling: new Date().toISOString() };
-      const q = this.query(trx, grant).where("createdAt", "<=", page.ceiling);
-      if (input.sort) {
-        const direction = input.sort === "updated_asc" ? "asc" : "desc";
-        const column =
-          input.sort === "created_desc" ? "created_at" : "updated_at";
-        q.select(
-          "memories.*",
-          trx.raw(
-            `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sortTime"`,
-          ),
+    return this.access(
+      principal,
+      "memory:read",
+      async ({ trx, grant, account }) => {
+        const { cursor, limit, ...filters } = input;
+        const binding = digest(
+          stable({
+            account: principal.accountId,
+            connection: principal.connectionId,
+            filters,
+          }),
         );
-        q.orderBy(column, direction).orderBy("id", direction);
-        if (page.after) {
-          if (!page.updatedAt)
-            throw new GroveError(
-              "invalid_cursor",
-              "Cursor is missing its sort position",
-              400,
-            );
-          q.whereRaw(
-            `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
-            [page.updatedAt, page.after],
+        const page = cursor
+          ? this.decodeCursor(cursor, binding)
+          : { after: "", ceiling: new Date().toISOString() };
+        const q = this.query(trx, grant).where("createdAt", "<=", page.ceiling);
+        if (input.sort) {
+          const direction = input.sort === "updated_asc" ? "asc" : "desc";
+          const column =
+            input.sort === "created_desc" ? "created_at" : "updated_at";
+          q.select(
+            "memories.*",
+            trx.raw(
+              `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sortTime"`,
+            ),
           );
-        }
-      } else {
-        q.orderBy("id");
-        if (page.after) q.where("id", ">", page.after);
-      }
-      if (input.projectId !== undefined) {
-        this.scope(grant, input.projectId);
-        q.where({ projectId: input.projectId });
-      }
-      if (input.kind) q.where({ kind: input.kind });
-      if (input.lifetime === "permanent") q.whereNull("retentionDays");
-      if (input.lifetime === "ephemeral") q.whereNotNull("retentionDays");
-      if (input.sourceAgent)
-        q.whereRaw("source->>'agent' = ?", [input.sourceAgent]);
-      if (input.updatedAfter) q.where("updatedAt", ">=", input.updatedAfter);
-      if (input.tag)
-        q.whereRaw(
-          `EXISTS (SELECT 1 FROM memory_enrichments e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ANY(?::text[]) AND (e.data->'tags' @> ?::jsonb OR e.data->'topics' @> ?::jsonb))`,
-          [
-            [
-              this.providers.decision?.profile,
-              this.providers.generation?.profile,
-            ].filter(Boolean),
-            JSON.stringify([input.tag]),
-            JSON.stringify([input.tag]),
-          ],
-        );
-      if (input.status === "active")
-        q.where({ status: "active" }).where((b) =>
-          b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
-        );
-      if (input.status === "archived") q.where({ status: "archived" });
-      if (input.status === "expired")
-        q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
-      if (input.query)
-        q.where((b) => {
-          b.whereRaw("search @@ websearch_to_tsquery('english', ?)", [
-            input.query!,
-          ]);
-          if (vector)
-            b.orWhereRaw(
-              `EXISTS(SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
-              [
-                embedder!.profile,
-                JSON.stringify(vector),
-                embedder!.distanceThreshold ?? 0.45,
-              ],
+          q.orderBy(column, direction).orderBy("id", direction);
+          if (page.after) {
+            if (!page.updatedAt)
+              throw new GroveError(
+                "invalid_cursor",
+                "Cursor is missing its sort position",
+                400,
+              );
+            q.whereRaw(
+              `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
+              [page.updatedAt, page.after],
             );
-        });
-      const rows = await q.limit(limit + 1);
-      const relationships = await legacyRelationshipsFor(
-        trx,
-        rows.slice(0, limit).map((row) => row.id),
-        this.providers,
-      );
-      const items = await Promise.all(
-        rows
-          .slice(0, limit)
-          .map((row) => this.present(trx, row, relationships.get(row.id))),
-      );
-      return {
-        items,
-        ...(input.query
-          ? { searchMode: vector ? ("hybrid" as const) : ("lexical" as const) }
-          : {}),
-        nextCursor:
-          rows.length > limit
-            ? this.encodeCursor({
-                binding,
-                ceiling: page.ceiling,
-                after: items.at(-1)!.id,
-                ...(input.sort
-                  ? {
-                      updatedAt: (
-                        rows[items.length - 1] as MemoryModel & {
-                          sortTime: string;
-                        }
-                      ).sortTime,
-                    }
-                  : {}),
-              })
-            : null,
-      };
-    });
+          }
+        } else {
+          q.orderBy("id");
+          if (page.after) q.where("id", ">", page.after);
+        }
+        if (input.projectId !== undefined) {
+          this.scope(grant, input.projectId);
+          q.where({ projectId: input.projectId });
+        }
+        if (input.kind) q.where({ kind: input.kind });
+        if (input.lifetime === "permanent") q.whereNull("retentionDays");
+        if (input.lifetime === "ephemeral") q.whereNotNull("retentionDays");
+        if (input.sourceAgent)
+          q.whereRaw("source->>'agent' = ?", [input.sourceAgent]);
+        if (input.updatedAfter) q.where("updatedAt", ">=", input.updatedAfter);
+        if (input.tag)
+          q.whereRaw(
+            `EXISTS (SELECT 1 FROM memory_enrichments e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ANY(?::text[]) AND (e.data->'tags' @> ?::jsonb OR e.data->'topics' @> ?::jsonb))`,
+            [
+              account.titlesTagsEnabled
+                ? [
+                    account.classificationEnabled
+                      ? this.providers.decision?.profile
+                      : undefined,
+                    this.providers.generation?.profile,
+                  ].filter(Boolean)
+                : [],
+              JSON.stringify([input.tag]),
+              JSON.stringify([input.tag]),
+            ],
+          );
+        if (input.status === "active")
+          q.where({ status: "active" }).where((b) =>
+            b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+          );
+        if (input.status === "archived") q.where({ status: "archived" });
+        if (input.status === "expired")
+          q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
+        if (input.query)
+          q.where((b) => {
+            b.whereRaw("search @@ websearch_to_tsquery('english', ?)", [
+              input.query!,
+            ]);
+            if (vector)
+              b.orWhereRaw(
+                `EXISTS(SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
+                [
+                  embedder!.profile,
+                  JSON.stringify(vector),
+                  embedder!.distanceThreshold ?? 0.45,
+                ],
+              );
+          });
+        const rows = await q.limit(limit + 1);
+        const relationships = await legacyRelationshipsFor(
+          trx,
+          rows.slice(0, limit).map((row) => row.id),
+          this.providers,
+        );
+        const items = await Promise.all(
+          rows
+            .slice(0, limit)
+            .map((row) => this.present(trx, row, relationships.get(row.id))),
+        );
+        return {
+          items,
+          ...(input.query
+            ? {
+                searchMode: vector ? ("hybrid" as const) : ("lexical" as const),
+              }
+            : {}),
+          nextCursor:
+            rows.length > limit
+              ? this.encodeCursor({
+                  binding,
+                  ceiling: page.ceiling,
+                  after: items.at(-1)!.id,
+                  ...(input.sort
+                    ? {
+                        updatedAt: (
+                          rows[items.length - 1] as MemoryModel & {
+                            sortTime: string;
+                          }
+                        ).sortTime,
+                      }
+                    : {}),
+                })
+              : null,
+        };
+      },
+    );
   }
 
   async recall(
@@ -787,7 +807,11 @@ export class MemoryService {
                 score: (candidates.get(row.id)?.score ?? 0) + 1 / (60 + i),
               });
             });
-          if (this.providers.decision && candidates.size) {
+          if (
+            account.classificationEnabled &&
+            this.providers.decision &&
+            candidates.size
+          ) {
             const annotations = await trx("memory_enrichments")
               .where({
                 kind: "decision",
@@ -901,12 +925,15 @@ export class MemoryService {
     };
     if (input.mode === "search") return { ...base, status: "search" };
     if (!recalled.items.length) return { ...base, status: "no_evidence" };
-    const enabled = await this.access(
+    const preference = await this.access(
       principal,
       "memory:read",
-      async ({ account }) => account.summariesEnabled,
+      async ({ account }) => ({
+        enabled: account.askEnabled,
+        version: account.askVersion,
+      }),
     );
-    if (!generation || !enabled)
+    if (!generation || !preference.enabled)
       return { ...base, status: "generation_disabled" };
     signal?.throwIfAborted();
     const answer = answerSchema.parse(
@@ -965,7 +992,8 @@ export class MemoryService {
             b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
           );
         if (
-          !account.summariesEnabled ||
+          !account.askEnabled ||
+          account.askVersion !== preference.version ||
           this.providers.generation?.profile !== generation.profile ||
           account.contentVersion !== recalled.contentVersion ||
           recalled.items.some(
@@ -1341,46 +1369,76 @@ export class MemoryService {
       return { revoked: true };
     });
   }
-  async settings(
-    principal: Principal,
-    input: {
-      captureEnabled: boolean;
-      recallEnabled: boolean;
-      organizeEnabled?: boolean;
-      summariesEnabled?: boolean;
-    },
-  ) {
+  async settings(principal: Principal, input: PreferencesUpdate) {
     return this.access(principal, "admin", async ({ trx, account }) => {
+      const next = {
+        ...preferencesFor(account),
+        ...preferencePatch(settingsUpdateSchema.parse(input)),
+      };
+      const enabled = preferenceKeys.filter(
+        (key) => next[key] && !account[key],
+      );
       await trx("accounts")
         .where({ id: account.id })
         .update({
-          ...input,
-          ...(input.organizeEnabled && !account.organizeEnabled
-            ? { organizationDueAt: trx.fn.now() }
-            : {}),
+          ...next,
+          ...legacyPreferences(next),
+          askVersion:
+            account.askVersion +
+            (next.askEnabled !== account.askEnabled ? 1 : 0),
+          ...(enabled.length ? { organizationDueAt: trx.fn.now() } : {}),
         });
-      if (input.summariesEnabled === false) {
-        await trx("memory_briefs").delete();
-        await trx("jobs").where({ kind: "brief" }).delete();
+      const disabledKinds = Object.entries(jobPreferences)
+        .filter(([, key]) => !next[key])
+        .map(([kind]) => kind);
+      if (disabledKinds.length) {
+        await trx("jobs").whereIn("kind", disabledKinds).delete();
+        await trx("memory_enrichments").whereIn("kind", disabledKinds).delete();
       }
-      if (input.organizeEnabled === false) {
-        await trx("jobs")
-          .whereIn("kind", ["decision", "organization", ...relationshipKinds])
+      // Each brief scope is independent; deletion also fences any leased result.
+      for (const table of ["memory_briefs", "jobs"]) {
+        const query = trx(table);
+        if (table === "jobs") query.where({ kind: "brief" });
+        await query
+          .whereRaw(
+            "NOT (CASE WHEN scope->>'taskId' IS NOT NULL THEN ?::boolean WHEN scope->>'projectId' IS NOT NULL THEN ?::boolean ELSE ?::boolean END)",
+            [
+              next.progressSummariesEnabled,
+              next.notebookSummariesEnabled,
+              next.personalSummaryEnabled,
+            ],
+          )
           .delete();
-        await trx("memory_enrichments").delete();
       }
-      if (
-        (input.organizeEnabled && !account.organizeEnabled) ||
-        (input.summariesEnabled && !account.summariesEnabled)
-      ) {
+      if (!next.askEnabled) {
+        await trx("conversation_turns").where({ status: "pending" }).update({
+          status: "failed",
+          error:
+            "Ask Grove is turned off. Enable it in AI preferences to try again.",
+          leaseId: null,
+          leaseUntil: null,
+        });
+      }
+      const background = enabled.filter(
+        (key) =>
+          ![
+            "askEnabled",
+            "recallEnabled",
+            "captureEnabled",
+            "notebookConnectionsEnabled",
+          ].includes(key),
+      );
+      if (background.length) {
         const rows = await MemoryModel.query(trx)
           .where({ status: "active" })
           .where((b) =>
             b.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
           );
-        for (const row of rows) await this.queue(trx, row);
+        const profiles = await this.jobProfiles?.(trx);
+        for (const row of rows)
+          await queueMemory(trx, row, this.providers, profiles, background);
       }
-      return input;
+      return { ...next, ...legacyPreferences(next) };
     });
   }
 
@@ -1395,8 +1453,12 @@ export class MemoryService {
           !(await trx("projects").where({ id: scope.projectId }).first("id"))
         )
           throw new GroveError("not_found", "Project not found", 404);
-        if (refresh && this.providers.generation && account.summariesEnabled) {
-          const target = `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
+        if (
+          refresh &&
+          this.providers.generation &&
+          account[briefPreference(scope)]
+        ) {
+          const target = briefTarget(scope);
           await trx("memory_briefs").where({ target }).delete();
           await queueBrief(
             trx,

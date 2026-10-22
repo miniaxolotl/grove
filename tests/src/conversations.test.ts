@@ -135,6 +135,74 @@ async function fixture() {
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
 
+test("chat stays available with summaries off, while disabled chat blocks generation and Apply but permits Undo", async () => {
+  const { service, principal, behavior, save, create } = await fixture();
+  await service.settings(principal, {
+    notebookSummariesEnabled: false,
+    personalSummaryEnabled: false,
+    progressSummariesEnabled: false,
+  });
+  const note = await save("Garden plan");
+  behavior.intent = "edit";
+  const chat = await create();
+  const result = await service.conversations.turn(
+    principal,
+    chat.id,
+    turn("Shorten my garden note"),
+  );
+  assert.equal(result.turns[0].result?.proposal?.status, "proposed");
+  assert.equal(behavior.calls.length, 2);
+  await service.settings(principal, {
+    askEnabled: false,
+    personalSummaryEnabled: true,
+  });
+  await assert.rejects(
+    service.conversations.apply(principal, chat.id, result.turns[0].id),
+    /Enable Ask Grove/,
+  );
+  assert.equal((await service.get(principal, note.id)).version, 1);
+  const another = await create();
+  await service.conversations.turn(principal, another.id, turn("Find garden"));
+  assert.equal(
+    behavior.calls.length,
+    2,
+    "disabled chat makes no generation calls",
+  );
+  await service.settings(principal, { askEnabled: true });
+  await service.conversations.apply(principal, chat.id, result.turns[0].id);
+  await service.settings(principal, { askEnabled: false });
+  await service.conversations.apply(
+    principal,
+    chat.id,
+    result.turns[0].id,
+    true,
+  );
+  assert.equal((await service.get(principal, note.id)).content, "Garden plan");
+});
+
+test("turning chat off and back on cannot publish an old in-flight reply", async () => {
+  const { service, principal, behavior, save, create } = await fixture();
+  await save("Garden plan");
+  const chat = await create();
+  const entered = deferred(),
+    release = deferred();
+  behavior.wait = async () => {
+    entered.resolve();
+    await release.promise;
+  };
+  const request = turn("Find garden notes");
+  const running = service.conversations.turn(principal, chat.id, request);
+  const rejected = assert.rejects(running);
+  await entered.promise;
+  await service.settings(principal, { askEnabled: false });
+  await service.settings(principal, { askEnabled: true });
+  release.resolve();
+  await rejected;
+  const stored = await service.conversations.get(principal, chat.id);
+  assert.equal(stored.turns[0].status, "failed");
+  assert.equal(stored.turns[0].result, null);
+});
+
 test("real tool transport completes greetings, retries invalid responses and normalizes creation previews", async () => {
   const { service, principal, create } = await fixture();
   let malformed: unknown = { message: "Hey!", statements: [], proposal: {} };

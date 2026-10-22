@@ -222,8 +222,8 @@ export async function legacyRelationshipsFor(
   );
   const profile = currentRelationshipProfile(providers);
   if (!ids.length || !profile) return result;
-  const account = await trx("accounts").first("organizeEnabled");
-  if (!account?.organizeEnabled) return result;
+  const account = await trx("accounts").first("noteConnectionsEnabled");
+  if (!account?.noteConnectionsEnabled) return result;
   const rows = camelRows<RelationshipRow>(
     await trx.raw(
       `

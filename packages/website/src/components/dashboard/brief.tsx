@@ -84,7 +84,11 @@ export function BriefPanel({
       )}
       {brief?.status === "disabled" ? (
         <p className="mt-4 text-sm leading-7 text-muted">
-          Summaries are turned off. You can enable them in Settings.
+          This summary is unavailable. Check your{" "}
+          <Link className="underline" href="/app/settings">
+            AI preferences
+          </Link>
+          .
         </p>
       ) : brief?.content ? (
         <>

@@ -356,7 +356,7 @@ html:has(.grove-app) {
 }
 .settings-page > *,
 .settings-content {
-  max-width: 1000px;
+  max-width: 760px;
 }
 .settings-section-heading {
   font-size: 16px;
@@ -926,6 +926,8 @@ html:has(.grove-app) {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
 }
 .settings-save-status {
   min-height: 1.5em;
@@ -941,6 +943,21 @@ html:has(.grove-app) {
   white-space: nowrap;
   color: var(--color-muted);
   border-bottom: 2px solid transparent;
+  gap: 6px;
+}
+.settings-navigation a:hover {
+  color: var(--color-forest);
+  background: var(--color-sage);
+}
+.settings-draft-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+}
+.settings-draft-dot[data-dirty="true"] {
+  opacity: 1;
 }
 .settings-navigation a[aria-current] {
   color: var(--color-forest);
@@ -949,7 +966,7 @@ html:has(.grove-app) {
 .settings-content {
   display: grid;
   gap: 14px;
-  max-width: 1000px;
+  max-width: 760px;
 }
 .settings-content .app-form {
   margin-top: 14px;
@@ -966,6 +983,147 @@ html:has(.grove-app) {
 }
 .settings-content .app-panel > h2 {
   font-size: 16px;
+}
+.settings-panel-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.settings-panel-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.settings-panel-description {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.settings-panel-heading > a {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.settings-note,
+.settings-refresh-error {
+  padding: 10px 12px;
+  margin-top: 14px;
+  border-radius: 6px;
+  background: var(--color-sage);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.settings-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--color-line);
+  border-radius: 5px;
+  color: var(--color-muted);
+  font-size: 10px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.settings-badge[data-available="true"] {
+  background: var(--color-sage);
+  color: var(--color-forest);
+}
+.ai-preferences-form {
+  gap: 22px;
+}
+.ai-preference-group {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+.ai-preference-group legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.app-form .ai-preference {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--color-line);
+  cursor: pointer;
+}
+.ai-preference:last-child {
+  border-bottom: 0;
+}
+.ai-preference:hover,
+.ai-preference:has(input:focus-visible) {
+  background: var(--color-paper);
+}
+.ai-preference-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.ai-preference-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.ai-preference-description {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.app-form .ai-preference input[type="checkbox"] {
+  appearance: none;
+  width: 34px;
+  height: 20px;
+  padding: 2px;
+  border: 1px solid var(--color-muted);
+  border-radius: 12px;
+  background: var(--color-muted);
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.app-form .ai-preference input::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+}
+.app-form .ai-preference input:checked {
+  border-color: var(--color-forest);
+  background: var(--color-forest);
+}
+.app-form .ai-preference input:checked::before {
+  transform: translateX(14px);
+}
+.settings-provider-fields {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+@media (min-width: 601px) {
+  .settings-provider-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .settings-provider-fields > .check {
+    grid-column: 1 / -1;
+  }
+}
+@media (forced-colors: active) {
+  .app-form .ai-preference input[type="checkbox"] {
+    appearance: auto;
+  }
+  .app-form .ai-preference input::before {
+    display: none;
+  }
 }
 .connection-setup {
   margin-bottom: 12px;
@@ -995,6 +1153,8 @@ html:has(.grove-app) {
   padding: 10px 0;
   border-bottom: 1px solid var(--color-line);
   font-size: 13px;
+  align-items: center;
+  gap: 12px;
 }
 .feature-availability > div:last-child {
   border: 0;
@@ -1090,8 +1250,16 @@ html:has(.grove-app) {
 }
 @media (max-width: 600px) {
   .settings-save-row {
-    flex-direction: column;
-    align-items: flex-start;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .settings-save-row > button {
+    flex: 1;
+    padding-inline: 10px;
+    white-space: normal;
+  }
+  .settings-save-status {
+    flex-basis: 100%;
   }
   .note-editor-full .note-editor-bar {
     display: grid;

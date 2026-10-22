@@ -9,6 +9,8 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
     "./models": "./src/models.ts",
+    "./preferences": "./src/preferences.ts",
+    "./settings": "./src/settings.ts",
     "./conversations": "./src/conversations.ts",
     "./relationships": "./src/relationships.ts",
     "./sharing": "./src/sharing.ts",

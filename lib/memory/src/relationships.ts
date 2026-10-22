@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { MemoryService } from "./index.ts";
 import { GroveError, type Principal } from "@lib/shared/contracts";
+import { connectionPreference } from "@lib/shared/preferences";
 import type {
   ConnectionLevel,
   ConnectionPage,
@@ -46,7 +47,8 @@ export class Relationships {
           ? await activeNotes(trx).findById(endpointId)
           : await trx("projects").where({ id: endpointId }).first();
       if (!endpoint) throw unavailable();
-      if (!account.organizeEnabled || !profile) return { status: "disabled" };
+      if (!account[connectionPreference(level)] || !profile)
+        return { status: "disabled" };
       if (level === "notebook")
         await trx("notebook_profiles")
           .where({ projectId: endpointId, profile })
@@ -93,7 +95,7 @@ export class Relationships {
       "memory:read",
       async ({ trx, grant, account }) => {
         const profile = currentRelationshipProfile(this.service.providers);
-        if (!account.organizeEnabled || !profile)
+        if (!account[connectionPreference(input.level)] || !profile)
           return { items: [], nextCursor: null, status: "disabled" };
         const allowed = (id: string | null) =>
           !grant ||
@@ -301,7 +303,7 @@ export class Relationships {
         .first();
       if (
         !row ||
-        !account.organizeEnabled ||
+        !account[connectionPreference(level)] ||
         row.profile !== currentRelationshipProfile(this.service.providers)
       )
         throw unavailable();
