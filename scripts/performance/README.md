@@ -187,3 +187,17 @@ Verification: **131 Chromium / 32 selected iPhone/WebKit** cases, root and websi
 lint/types/builds, five artifacts, and production auth/chunk/bounds/focus recovery
 at 1440/390/320px pass. Seven [reviewed screenshots](../../documentation/design/screenshots/client-performance/README.md)
 are committed for the chat/PR handoff.
+
+## Error-page refinement
+
+Application source `efc3e9f223254e07e775c4497f49f219d8cbfc31`, production build
+`UpJFqxXdLGN3bgNn9nYze`, refines deferred-view/service recovery plus 404/global
+error pages. Notes entry is **463,380 gzip bytes (-32.3%)**, 200 bytes above the
+previous integration; notebook entry is **466,315 (-33.0%)**. The entry budget and
+editor deferral pass. This follow-up does not replace the earlier paired timings.
+
+Root/website gates, five artifacts, 131 Chromium and 16 focused iPhone/WebKit cases
+pass. Production drawer bounds/focus/retry and auth checks pass at 1440/390/320px;
+extra visual checks cover 200% text, no-JavaScript 404 navigation and standalone
+global recovery in Chromium/WebKit. [Eight screenshots](../../documentation/design/screenshots/error-recovery/README.md)
+document the exact capture setup. Local reports/captures use `errors-*`.

@@ -1,5 +1,22 @@
 # Delivery evidence
 
+## Error-page refinement (22 October 2026 UTC)
+
+Deferred views and service failures share a restrained recovery layout with
+context-specific headings, a clear retry action and responsive spacing. The 404
+and global-error pages use the same visual language and offer a route back to Grove.
+Global recovery carries its own styles/fonts and native home links so it remains
+usable outside the root layout. Error details stay out of that fallback's content.
+
+Root/website lint, types and builds, five artifacts, **131 Chromium** and **16
+focused iPhone/WebKit** cases pass. Production deferred retry/bounds/focus and
+sign-in/private-response checks pass at 1440/390/320px. Additional checks cover
+service/404 accessibility, 404 navigation without JavaScript, standalone global
+recovery in both browser engines, keyboard navigation and enlarged text.
+Notes entry is **463,380 gzip bytes (-32.3% original baseline)**, only 200 bytes
+above the previous integrated build. [Reviewed error screenshots](design/screenshots/error-recovery/README.md)
+record the final desktop/mobile presentation and exact source/build.
+
 ## Client caching and loading performance (21 October 2026 UTC)
 
 The workspace now shares account/session-owned, in-memory read snapshots. Durable
