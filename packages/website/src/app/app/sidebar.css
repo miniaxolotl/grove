@@ -315,6 +315,7 @@
 @media (max-width: 600px) {
   .app-navigation {
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
   }
   .app-navigation .app-nav {
