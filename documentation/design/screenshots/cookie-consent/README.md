@@ -9,6 +9,10 @@ unchanged; no customer data or new fixture images are included.
 - [Mobile notice](mobile.png)
 - [Mobile preferences](preferences.png)
 
+The preferences capture reflects the owner's shorter Analytics description:
+"Understand site usage and performance." It was refreshed from the local
+production build on 22 October 2026, at 390 × 844 in Chromium.
+
 The compact notice has equally accessible Accept all and No thanks actions.
 Settings separates analytics from advertising. Optional collection starts only
 after consent, respects browser privacy signals and fails closed when storage is

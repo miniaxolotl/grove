@@ -13,7 +13,12 @@ import {
   Link2,
   RefreshCw,
 } from "lucide-react";
-import type { ShareState, ShareTarget } from "@lib/shared/sharing";
+import { shareDurations } from "@lib/shared/share-durations";
+import type {
+  ShareDuration,
+  ShareState,
+  ShareTarget,
+} from "@lib/shared/sharing";
 import { api, DashboardApiError, errorMessage } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { Select } from "./ui/select";
@@ -76,6 +81,8 @@ function ShareSettings({
   const [state, setState] = useState<ShareState | null>(null);
   const [access, setAccess] = useState("restricted");
   const [descendants, setDescendants] = useState(false);
+  const [duration, setDuration] = useState<ShareDuration | null>(null);
+  const [now, setNow] = useState(Date.now);
   const [action, setAction] = useState<"save" | "rotate" | null>(null);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -84,11 +91,26 @@ function ShareSettings({
   const [revision, setRevision] = useState(0);
   const accessId = useId();
   const scopeId = useId();
+  const expiryId = useId();
   const linkInput = useRef<HTMLInputElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const operations = useRef(new Map<string, string>());
   const pending = useRef(false);
   const busy = action !== null;
+  const expiresAt = state?.direct?.expiresAt;
+  const expired = !!expiresAt && Date.parse(expiresAt) <= now;
+  const active = !!state?.direct?.active && !expired;
+  useEffect(() => {
+    if (!expiresAt || expired) return;
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.min(
+        Math.max(0, Date.parse(expiresAt) - Date.now()) + 10,
+        2_147_483_647,
+      ),
+    );
+    return () => clearTimeout(timer);
+  }, [expiresAt, expired, now]);
   useEffect(() => {
     if (busy || !returnFocus.current) return;
     const control = returnFocus.current;
@@ -98,13 +120,19 @@ function ShareSettings({
       (document.activeElement === document.body ||
         document.activeElement === control.closest("dialog") ||
         document.activeElement === control)
-    )
+    ) {
       control.focus({ preventScroll: true });
+      // Creating a link adds its URL/tools. Keep the restored action visible
+      // when that extra content makes a short dialog scroll.
+      control.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
   }, [busy]);
   function accept(value: ShareState) {
     setState(value);
     setAccess(value.direct?.active ? "anyone" : "restricted");
     setDescendants(value.direct?.includeDescendants ?? false);
+    setDuration(value.direct?.duration ?? null);
+    setNow(Date.now());
     setCopiedUrl(null);
     setFeedback("");
     setCopyError("");
@@ -133,11 +161,11 @@ function ShareSettings({
     const route =
       action === "rotate"
         ? `/shares/${direct!.id}/rotate`
-        : revoke || direct?.active
+        : revoke || active
           ? `/shares/${direct!.id}`
           : path;
     const method =
-      action === "rotate" || (!revoke && !direct?.active)
+      action === "rotate" || (!revoke && !active)
         ? "POST"
         : revoke
           ? "DELETE"
@@ -148,9 +176,17 @@ function ShareSettings({
         ? {
             expectedTargetVersion: state.target.version,
             includeDescendants: descendants,
+            duration,
           }
         : {}),
-      ...(method === "PATCH" ? { includeDescendants: descendants } : {}),
+      ...(method === "PATCH"
+        ? {
+            ...(target.kind === "notebook"
+              ? { includeDescendants: descendants }
+              : {}),
+            ...(duration !== (direct?.duration ?? null) ? { duration } : {}),
+          }
+        : {}),
     };
     const identity = JSON.stringify({ route, method, body });
     if (!operations.current.has(identity))
@@ -173,7 +209,7 @@ function ShareSettings({
           ? "Link replaced"
           : revoke
             ? "Link turned off"
-            : direct?.active
+            : active
               ? "Changes saved"
               : "Link ready",
       );
@@ -220,12 +256,12 @@ function ShareSettings({
         )}
       </>
     );
-  const active = !!state.direct?.active;
   const changed =
     (access === "anyone") !== active ||
     (active &&
       access === "anyone" &&
-      descendants !== state.direct?.includeDescendants);
+      (descendants !== state.direct?.includeDescendants ||
+        duration !== (state.direct?.duration ?? null)));
   const cannotPublish = blocked || !state.available || !state.canShare;
   const url = state.direct?.url;
   const canCopy = active && !!url && !changed;
@@ -273,6 +309,11 @@ function ShareSettings({
         <p className="app-notice">
           Finish saving or resolve the note conflict before enabling sharing or
           replacing its link. You can still turn off an existing link.
+        </p>
+      )}
+      {expired && (
+        <p className="app-notice">
+          This link has expired. Create a new link to share again.
         </p>
       )}
       <div className="share-fields">
@@ -329,6 +370,42 @@ function ShareSettings({
                 : "Only notes filed directly in this notebook."}{" "}
               New notes are included when saved; archived and expired notes stay
               hidden.
+            </p>
+          </div>
+        )}
+        {access === "anyone" && (
+          <div className="share-field">
+            <Select
+              id={expiryId}
+              label="Link expires"
+              aria-describedby={`${expiryId}-help`}
+              value={duration ?? "never"}
+              onValueChange={(value) =>
+                setDuration(value === "never" ? null : (value as ShareDuration))
+              }
+              disabled={busy || cannotPublish}
+              options={[
+                { value: "never", label: "No expiry" },
+                ...Object.entries(shareDurations).map(([value, option]) => ({
+                  value,
+                  label: option.label,
+                })),
+              ]}
+            />
+            <p className="share-help" id={`${expiryId}-help`}>
+              {active && expiresAt && duration === state.direct?.duration ? (
+                <>
+                  Expires{" "}
+                  <time dateTime={expiresAt}>
+                    {new Date(expiresAt).toLocaleString()}
+                  </time>
+                  .
+                </>
+              ) : duration ? (
+                `Starts when you save.${duration === "1mo" ? " 1 month is 30 days." : ""}`
+              ) : (
+                "Available until you turn off the link."
+              )}
             </p>
           </div>
         )}

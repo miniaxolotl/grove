@@ -15,6 +15,15 @@ in notebook options, sidebar actions and the notebook manager.
   current and future descendants. New or moved-in saved notes become visible.
 - Copy/Open reuse the same URL. Replace invalidates the previous URL immediately.
   Select Restricted and **Turn off direct link** to revoke. Re-enabling makes a new URL.
+- **Link expires** offers **1 hour**, **4 hours**, **1 day**, **1 week**, **2 weeks**
+  and **1 month** (30 days), alongside **No expiry**. Existing links keep no expiry.
+  A timed link's deadline starts when the server saves it; the dialog shows the
+  local expiry date/time. Expiry applies to every note, notebook and pagination
+  read. Another independently active notebook link can still provide access.
+- Changing the duration on an active link starts the new duration when saved and
+  keeps its URL. Scope-only saves, retries and **Replace link** keep the deadline.
+  An expired link is unavailable; **Create link** renews with a new secret so the
+  expired URL never regains access. Expiry does not delete the note/notebook.
 - Permission changes are staged until **Save changes** or **Turn off direct link**.
   **Cancel** restores the saved settings without a write. Copy/Open are unavailable
   while changes are pending, so the current URL cannot imply unsaved permissions.
@@ -47,19 +56,26 @@ navigate only within this capability's scope.
 Management requires the owning **website session**; API keys and OAuth grants
 cannot publish content, even with every memory capability.
 
-| Route                                                     | Purpose / request                                                                                                                        |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/memories/:id/share`                              | Note's direct and covering links                                                                                                         |
-| `GET /v1/projects/:id/share`                              | Notebook's direct and covering links                                                                                                     |
-| `POST /v1/memories/:id/share` or `/v1/projects/:id/share` | Enable: `operationId`, `expectedVersion` (0 if no share), `expectedTargetVersion`, `includeDescendants` (default false; false for notes) |
-| `PATCH /v1/shares/:id`                                    | Scope: `operationId`, `expectedVersion`, `includeDescendants`                                                                            |
-| `POST /v1/shares/:id/rotate`                              | Replace: `operationId`, `expectedVersion`                                                                                                |
-| `DELETE /v1/shares/:id`                                   | Revoke: `operationId`, `expectedVersion`                                                                                                 |
+| Route                                                     | Purpose / request                                                                                                                                             |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/memories/:id/share`                              | Note's direct and covering links                                                                                                                              |
+| `GET /v1/projects/:id/share`                              | Notebook's direct and covering links                                                                                                                          |
+| `POST /v1/memories/:id/share` or `/v1/projects/:id/share` | Enable: `operationId`, `expectedVersion` (0 if no share), `expectedTargetVersion`, `includeDescendants` (default false; false for notes), optional `duration` |
+| `PATCH /v1/shares/:id`                                    | Settings: `operationId`, `expectedVersion`, `includeDescendants` and/or `duration`                                                                            |
+| `POST /v1/shares/:id/rotate`                              | Replace: `operationId`, `expectedVersion`                                                                                                                     |
+| `DELETE /v1/shares/:id`                                   | Revoke: `operationId`, `expectedVersion`                                                                                                                      |
 
 All return `ShareState`: availability, target eligibility/name/version, direct share
 (URL only for the owner) and covering notebook IDs/names. Share versions are
 independent of target versions. Non-secret receipts reauthorize and resolve the
 current share on retries; stale replay cannot resurrect an older link.
+
+`duration` accepts `1h`, `4h`, `1d`, `1w`, `2w`, `1mo`, or `null` for no expiry.
+Omission on create means no expiry; omission on update retains the deadline.
+The server chooses `expiresAt`; clients cannot supply an absolute deadline.
+Direct state includes `duration` and ISO `expiresAt` (nullable). An expired share
+has `active: false`, no owner-copy URL and no inherited-access entry. Changing a
+deadline is version-checked, retry-safe and invalidates older pagination cursors.
 
 Anonymous read endpoints:
 
@@ -70,7 +86,7 @@ Anonymous read endpoints:
 Notebook reads accept `limit` (default 30, maximum 100) and signed `cursor`.
 Cursors bind the token digest, share/version, route and page size. Scope changes
 invalidate earlier cursors; membership remains live between pages. Missing,
-revoked and out-of-scope resources share one 404 response. A 400 cursor error
+revoked, expired and out-of-scope resources share one 404 response. A 400 cursor error
 requires restarting pagination; service errors return 503.
 
 Public admission is separate from owner quotas: **1,200 requests/minute globally**
@@ -90,6 +106,13 @@ project permitted content directly; they never return an owner grant. Only the
 API runtime may execute them. Fixed search paths put temporary schemas last.
 Account locks serialize public reads with revocation, moves and deletion.
 
+Timed links additionally require forward migration **`20261022_012_share_expiration`**
+before API/worker deployment. It adds nullable duration/deadline columns and replaces
+the narrow reader with a wall-clock expiry check after acquiring the account/share
+locks. Existing rows, token digests, encrypted tokens and versions are preserved.
+Already-applied migrations must not be replayed. All replicas must run the timed-link
+implementation before exposing the matching website controls.
+
 Set **`SHARE_LINK_KEY`** on the API only: 32 random bytes encoded as 64 hexadecimal
 characters (`openssl rand -hex 32`), distinct from cursor/model keys. All API
 replicas must agree. Compose and initial DigitalOcean provisioning accept it;
@@ -103,6 +126,11 @@ secret backup. Changing it does **not** revoke capabilities: replace/revoke link
 separately. With a different key, recopy is unavailable but replace/revoke works.
 Backup reconciliation clears encrypted copies/digests and increments versions.
 
+The URL remains `/s/<secret>`, with no JavaScript required to read it. This is an
+opaque server-validated capability, not a self-contained signed expiry payload:
+clients cannot alter its permissions/deadline, and every read checks the stored
+scope, revocation and expiry. Pagination cursors are separately HMAC-signed.
+
 Deploy API/worker after the owner migration, then the matching website. Rollback
 retains the additive schema. Public routes use no-store fetches/responses, generic
 preview metadata, no-index/no-follow/no-archive and no-referrer policy. They are
@@ -110,4 +138,6 @@ excluded from the sitemap. History restoration rechecks live access. Application
 telemetry normalizes `/s/:token`, strips content/identifiers and blocks reader/dialog
 replay. Configure edge/access logs to omit or redact capability segments in **both
 `/s/*` and `/public/shares/*`**, and verify on the actual hosts during rollout.
+The October 22 hosting canary appeared in Vercel request-path logs; hosting-path
+redaction is not currently verified. Application filtering does not redact those logs.
 See [deployment](deploy.md) and [testing](development/testing.md).
