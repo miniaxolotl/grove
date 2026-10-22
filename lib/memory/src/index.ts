@@ -25,18 +25,16 @@ import {
   type AskResult,
   type BriefRequest,
   type ModelProfiles,
-  type Enrichment,
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
-import { legacyRelationshipsFor } from "./relationship-data.ts";
+import { presentMemories } from "./presentation.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
   briefTarget,
   budgetedInference,
-  enrichmentFor,
   invalidateBriefs,
   queueBrief,
   queueMemory,
@@ -121,7 +119,7 @@ export class MemoryService {
     this.relationships = new Relationships(this);
     this.conversations = new Conversations(
       this,
-      this.present.bind(this),
+      this.presentMany.bind(this),
       this.revise.bind(this),
     );
   }
@@ -256,53 +254,12 @@ export class MemoryService {
   private async present(
     trx: Knex.Transaction,
     row: MemoryModel,
-    relationships?: Enrichment["relationships"],
   ): Promise<Memory> {
-    const ready = await trx("memory_embeddings")
-      .where({
-        memoryId: row.id,
-        version: row.version,
-        profile: this.embedder?.profile ?? policy.embeddingProfile,
-      })
-      .first("memoryId");
-    const failed =
-      !ready &&
-      (await trx("jobs")
-        .where({
-          memoryId: row.id,
-          version: row.version,
-          kind: "embedding",
-          profile: this.embedder?.profile ?? policy.embeddingProfile,
-        })
-        .whereNotNull("failedAt")
-        .first("id"));
-    return {
-      id: row.id,
-      projectId: row.projectId,
-      content: row.content,
-      kind: row.kind,
-      autoKind: row.autoKind,
-      status: row.status,
-      version: row.version,
-      source: row.source,
-      taskId: row.taskId,
-      retentionDays: row.retentionDays,
-      expiresAt: iso(row.expiresAt),
-      purgeAt: iso(row.purgeAt),
-      createdAt: iso(row.createdAt)!,
-      updatedAt: iso(row.updatedAt)!,
-      indexing:
-        !this.embedder ||
-        row.status !== "active" ||
-        (row.expiresAt && new Date(row.expiresAt) <= new Date())
-          ? "disabled"
-          : ready
-            ? "ready"
-            : failed
-              ? "failed"
-              : "pending",
-      enrichment: await enrichmentFor(trx, row, this.providers, relationships),
-    };
+    return (await this.presentMany(trx, [row]))[0];
+  }
+
+  private presentMany(trx: Knex.Transaction, rows: MemoryModel[]) {
+    return presentMemories(trx, rows, this.providers);
   }
 
   private async operation<T>(
@@ -673,16 +630,7 @@ export class MemoryService {
               );
           });
         const rows = await q.limit(limit + 1);
-        const relationships = await legacyRelationshipsFor(
-          trx,
-          rows.slice(0, limit).map((row) => row.id),
-          this.providers,
-        );
-        const items = await Promise.all(
-          rows
-            .slice(0, limit)
-            .map((row) => this.present(trx, row, relationships.get(row.id))),
-        );
+        const items = await this.presentMany(trx, rows.slice(0, limit));
         return {
           items,
           ...(input.query
@@ -864,14 +812,8 @@ export class MemoryService {
             }
           }
         }
-        const relationships = await legacyRelationshipsFor(
-          trx,
-          rows.map((row) => row.id),
-          this.providers,
-        );
-        for (const row of rows) {
-          const fingerprint = digest(row.content.trim().toLowerCase());
-          const item = await this.present(trx, row, relationships.get(row.id));
+        for (const item of await this.presentMany(trx, rows)) {
+          const fingerprint = digest(item.content.trim().toLowerCase());
           const cost = JSON.stringify(item).length;
           if (seen.has(fingerprint) || cost > remaining) continue;
           seen.add(fingerprint);
@@ -1528,20 +1470,25 @@ export class MemoryService {
       const q = this.query(trx).orderBy("id").limit(50);
       if (after) q.where("id", ">", after);
       const rows = await q;
-      const relationships = await legacyRelationshipsFor(
-        trx,
-        rows.map((row) => row.id),
-        this.providers,
-      );
-      return Promise.all(
-        rows.map(async (row) => ({
-          ...(await this.present(trx, row, relationships.get(row.id))),
-          revisions: await trx("memory_revisions")
-            .where({ memoryId: row.id })
-            .select("version", "content", "source", "createdAt")
-            .orderBy("version"),
-        })),
-      );
+      const items = await this.presentMany(trx, rows);
+      const revisions = await trx("memory_revisions")
+        .whereIn(
+          "memoryId",
+          rows.map((row) => row.id),
+        )
+        .select("memoryId", "version", "content", "source", "createdAt")
+        .orderBy("version");
+      return items.map((item) => ({
+        ...item,
+        revisions: revisions
+          .filter((revision) => revision.memoryId === item.id)
+          .map(({ version, content, source, createdAt }) => ({
+            version,
+            content,
+            source,
+            createdAt,
+          })),
+      }));
     });
   }
 
