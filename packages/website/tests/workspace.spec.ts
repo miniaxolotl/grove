@@ -245,7 +245,8 @@ test("global search and command dialogs keep their inputs anchored through loadi
     expect(
       (await dialog.locator(".app-search").boundingBox())!.height,
     ).toBeLessThanOrEqual(56);
-    await input.fill("Something missing");
+    // Each viewport needs a cold query; a repeated phrase reuses the fresh cache.
+    await input.fill(`Something missing at ${width}px`);
     await started.promise;
     await expect(dialog.getByRole("status")).toHaveText("Searching…");
     expect(await dialog.boundingBox()).toEqual(before);

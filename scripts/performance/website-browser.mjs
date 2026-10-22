@@ -105,17 +105,18 @@ if (process.env.PERF_VERIFY_LAZY)
   await expect(signIn.locator('input[name="identifier"]')).toBeVisible({
     timeout: 15000,
   });
+// Validate the real sign-in UI, then redeem outside it: a mounted SignIn can
+// consume/reset the same mutable resource while the ticket is being activated.
+await signIn.goto(`${origin}/`);
+await signIn.waitForFunction(() => window.Clerk?.loaded);
 await signIn.evaluate(async (ticket) => {
   const result = await window.Clerk.client.signIn.create({
     strategy: "ticket",
     ticket,
   });
-  // The mounted SignIn UI can activate the ticket and reset this mutable resource.
-  // Verify the intended active account below rather than relying on that race.
-  if (result.status !== "complete" && result.status !== null)
+  if (result.status !== "complete" || !result.createdSessionId)
     throw new Error(`Sign-in: ${result.status}`);
-  if (result.createdSessionId)
-    await window.Clerk.setActive({ session: result.createdSessionId });
+  await window.Clerk.setActive({ session: result.createdSessionId });
 }, token);
 await signIn.waitForFunction(
   (userId) => !!window.Clerk?.session && window.Clerk.user?.id === userId,
