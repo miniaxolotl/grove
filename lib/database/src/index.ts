@@ -63,12 +63,10 @@ export async function tenant<T>(
   signal?.throwIfAborted();
   return db.transaction(async (trx) => {
     signal?.throwIfAborted();
-    await trx.raw("SELECT set_config('grove.account_id', ?, true)", [
-      accountId,
-    ]);
-    await trx.raw("SELECT set_config('statement_timeout', ?, true)", [
-      String(statementTimeouts.get(db) ?? 10000),
-    ]);
+    await trx.raw(
+      "SELECT set_config('grove.account_id', ?, true), set_config('statement_timeout', ?, true)",
+      [accountId, String(statementTimeouts.get(db) ?? 10000)],
+    );
     const result = await run(trx);
     // An aborted save must roll back, including when cancellation arrived during SQL.
     signal?.throwIfAborted();

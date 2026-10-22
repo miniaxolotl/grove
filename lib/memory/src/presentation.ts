@@ -2,6 +2,7 @@ import type { Providers } from "@lib/ai";
 import type { Knex, MemoryModel } from "@lib/database";
 import type { Memory } from "@lib/shared/contracts";
 import type { Annotation, Organization } from "@lib/shared/models";
+import type { AccountPreferences } from "@lib/shared/preferences";
 import { legacyRelationshipsFor } from "./relationship-data.ts";
 
 /** Read page metadata in bounded batches. RLS and exact revision/profile matches
@@ -10,6 +11,7 @@ export async function presentMemories(
   trx: Knex.Transaction,
   rows: MemoryModel[],
   providers: Providers,
+  preferences?: AccountPreferences,
 ): Promise<Memory[]> {
   if (!rows.length) return [];
   const now = Date.now();
@@ -19,7 +21,9 @@ export async function presentMemories(
       (!row.expiresAt || new Date(row.expiresAt).getTime() > now),
   );
   const revisions = active.map((row) => [row.id, row.version]);
-  const account = active.length ? await trx("accounts").first() : undefined;
+  const account = active.length
+    ? (preferences ?? (await trx("accounts").first()))
+    : undefined;
   const decision = account?.classificationEnabled
     ? providers.decision?.profile
     : undefined;
@@ -62,6 +66,7 @@ export async function presentMemories(
     trx,
     active.map((row) => row.id),
     providers,
+    account?.noteConnectionsEnabled,
   );
   const ready = new Set(embeddings.map((row) => row.memoryId));
   const iso = (value: Date | string | null) =>

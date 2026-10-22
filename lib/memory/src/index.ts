@@ -174,26 +174,28 @@ export class MemoryService {
     mutation: boolean,
     touchKey = false,
   ): Promise<Access> {
-    const accountQuery = trx<Account>("accounts").where({
-      id: principal.accountId,
-    });
-    const account = await (
+    const accountQuery = trx<Account & { sessionRevoked: boolean }>("accounts")
+      .select(
+        "accounts.*",
+        trx.raw("grove_session_revoked(?) AS session_revoked", [
+          principal.sessionId ?? "",
+        ]),
+      )
+      .where({
+        id: principal.accountId,
+      });
+    const record = await (
       mutation ? accountQuery.forUpdate() : accountQuery.forShare()
     ).first();
-    if (!account || account.status !== "active")
+    if (!record || record.status !== "active")
       throw new GroveError(
         "account_unavailable",
         "This account is unavailable",
         403,
       );
-    if (principal.sessionId) {
-      const result = await trx.raw(
-        "SELECT grove_session_revoked(?) AS revoked",
-        [principal.sessionId],
-      );
-      if (result.rows[0].revoked)
-        throw new GroveError("unauthorized", "Session revoked", 401);
-    }
+    const { sessionRevoked, ...account } = record;
+    if (principal.sessionId && sessionRevoked)
+      throw new GroveError("unauthorized", "Session revoked", 401);
     let grant: Connection | undefined;
     if (principal.type !== "session") {
       if (!principal.connectionId)
@@ -275,8 +277,12 @@ export class MemoryService {
     return (await this.presentMany(trx, [row]))[0];
   }
 
-  private presentMany(trx: Knex.Transaction, rows: MemoryModel[]) {
-    return presentMemories(trx, rows, this.providers);
+  private presentMany(
+    trx: Knex.Transaction,
+    rows: MemoryModel[],
+    preferences?: AccountPreferences,
+  ) {
+    return presentMemories(trx, rows, this.providers, preferences);
   }
 
   private async operation<T>(
@@ -647,7 +653,11 @@ export class MemoryService {
               );
           });
         const rows = await q.limit(limit + 1);
-        const items = await this.presentMany(trx, rows.slice(0, limit));
+        const items = await this.presentMany(
+          trx,
+          rows.slice(0, limit),
+          account,
+        );
         return {
           items,
           ...(input.query
@@ -815,7 +825,7 @@ export class MemoryService {
             }
           }
         }
-        for (const item of await this.presentMany(trx, rows)) {
+        for (const item of await this.presentMany(trx, rows, account)) {
           const fingerprint = digest(item.content.trim().toLowerCase());
           const cost = JSON.stringify(item).length;
           if (seen.has(fingerprint) || cost > remaining) continue;
@@ -1469,11 +1479,11 @@ export class MemoryService {
     });
   }
   async exportPage(principal: Principal, after?: string) {
-    return this.access(principal, "admin", async ({ trx }) => {
+    return this.access(principal, "admin", async ({ trx, account }) => {
       const q = this.query(trx).orderBy("id").limit(50);
       if (after) q.where("id", ">", after);
       const rows = await q;
-      const items = await this.presentMany(trx, rows);
+      const items = await this.presentMany(trx, rows, account);
       const revisions = await trx("memory_revisions")
         .whereIn(
           "memoryId",
