@@ -29,20 +29,22 @@ export function SourceEvidence({ sources }: { sources: SummaryEvidence[] }) {
   return (
     <details className="connection-support">
       <summary>Sources</summary>
-      {sources.map((source, index) => (
-        <blockquote
-          key={`${source.id}:${source.version}:${index}`}
-          className="my-3 border-l pl-3 text-sm"
-        >
-          <p>{source.quote}</p>
-          <Link
-            className="text-button"
-            href={`/app/memories/${source.id}?revision=${source.version}`}
-          >
-            Revision {source.version}
-          </Link>
-        </blockquote>
-      ))}
+      <div className="connection-evidence">
+        <section className="col-span-full">
+          {sources.map((source, index) => (
+            <figure key={`${source.id}:${source.version}:${index}`}>
+              <figcaption>
+                <Link
+                  href={`/app/memories/${source.id}?revision=${source.version}`}
+                >
+                  Revision {source.version}
+                </Link>
+              </figcaption>
+              <blockquote>{source.quote}</blockquote>
+            </figure>
+          ))}
+        </section>
+      </div>
     </details>
   );
 }
