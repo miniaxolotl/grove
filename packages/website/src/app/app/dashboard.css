@@ -425,12 +425,12 @@
 .app-search button {
   min-height: 36px;
 }
-.app-retry {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+.load-error {
+  margin-block: 16px;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fff;
 }
 .memory-workspace {
   display: grid;

@@ -44,6 +44,7 @@ const MemoryInspector = deferredFeature(
     default: (await import("./memory-inspector")).MemoryInspector,
   }),
   "Opening your note…",
+  { failureTitle: "Your note couldn’t open" },
 );
 
 function reconcileReply(

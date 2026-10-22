@@ -88,6 +88,9 @@ export function MemoryInspector({
     <>
       {error && (
         <LoadError
+          title={
+            current ? "This note couldn’t update" : "This note couldn’t open"
+          }
           message={error}
           retry={() => {
             setError("");

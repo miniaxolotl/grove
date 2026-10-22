@@ -16,6 +16,8 @@ class FeatureBoundary extends Component<
     children: ReactNode;
     label: string;
     loadingClass: string;
+    failureTitle?: string;
+    failureDescription?: string;
   },
   { failed: boolean }
 > {
@@ -29,6 +31,8 @@ class FeatureBoundary extends Component<
         label={this.props.label}
         className={this.props.loadingClass}
         failed
+        failureTitle={this.props.failureTitle}
+        failureDescription={this.props.failureDescription}
         retry={this.props.retry}
       />
     ) : (
@@ -41,7 +45,15 @@ class FeatureBoundary extends Component<
 export function deferredFeature<P extends object>(
   load: () => Promise<{ default: ComponentType<P> }>,
   label: string,
-  loadingClass = "",
+  {
+    className = "",
+    failureTitle,
+    failureDescription,
+  }: {
+    className?: string;
+    failureTitle?: string;
+    failureDescription?: string;
+  } = {},
 ) {
   function Deferred(props: P) {
     const [attempt, setAttempt] = useState(0);
@@ -53,11 +65,13 @@ export function deferredFeature<P extends object>(
       <FeatureBoundary
         key={attempt}
         label={label}
-        loadingClass={loadingClass}
+        loadingClass={className}
+        failureTitle={failureTitle}
+        failureDescription={failureDescription}
         retry={() => setAttempt((value) => value + 1)}
       >
         <Suspense
-          fallback={<LoadingState label={label} className={loadingClass} />}
+          fallback={<LoadingState label={label} className={className} />}
         >
           <Feature {...props} />
         </Suspense>

@@ -44,14 +44,15 @@ const loadDetail = () =>
   import("./memory-detail").then((module) => ({
     default: module.MemoryDetail,
   }));
-const MemoryDetail = deferredFeature(
-  loadDetail,
-  "Opening your note…",
-  "note-editor-drawer",
-);
+const MemoryDetail = deferredFeature(loadDetail, "Opening your note…", {
+  className: "note-editor-drawer",
+  failureTitle: "Your note couldn’t open",
+  failureDescription: "Try again, or close this view to return to your notes.",
+});
 const MemoryEditor = deferredFeature(
   async () => ({ default: (await import("./memory-editor")).MemoryEditor }),
   "Opening your writing space…",
+  { failureTitle: "Your writing space couldn’t open" },
 );
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
@@ -519,6 +520,11 @@ export function MemoryLibrary({
           )}
           {currentError && (
             <LoadError
+              title={
+                archive
+                  ? "Your archive couldn’t load"
+                  : "Your notes couldn’t load"
+              }
               message={currentError}
               retry={() => {
                 setError("");

@@ -62,6 +62,7 @@ export function SettingsPanel({
     <>
       {error && !settings ? (
         <LoadError
+          title="Your preferences couldn’t load"
           message={error}
           retry={() => {
             setError("");

@@ -263,9 +263,15 @@ html:has(.grove-app) {
   font-weight: 500;
   margin-bottom: 6px;
 }
-.feature-placeholder-content > button {
-  margin-top: 20px;
-  min-height: 44px;
+.feature-placeholder.is-error {
+  display: grid;
+  align-content: center;
+  min-height: 320px;
+  padding-block: 40px;
+}
+.feature-placeholder.is-error.note-editor-drawer {
+  min-height: 0;
+  padding-bottom: clamp(40px, 10dvh, 100px);
 }
 .feature-placeholder-lines {
   display: grid;
