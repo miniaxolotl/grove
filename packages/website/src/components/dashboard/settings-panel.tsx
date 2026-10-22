@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { LoadError } from "@/components/dashboard/load-error";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
 
 type Settings = {
@@ -26,33 +28,32 @@ export function SettingsPanel({
 }: {
   section?: "preferences" | "account" | "data";
 }) {
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const cache = useWorkspaceCache();
+  const api = cache.api;
+  const query = useQuery({
+    ...cache.resource<Settings>("/me"),
+    enabled: section === "preferences",
+  });
+  const [draft, setDraft] = useState<Settings | null>(null);
+  const settings = draft ?? query.data;
+  const [saveError, setError] = useState("");
+  const error = saveError || (query.error ? errorMessage(query.error) : "");
   const [saved, setSaved] = useState<Settings | null>(null);
-  const [error, setError] = useState("");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
-  const [refresh, setRefresh] = useState(0);
   const { signOut } = useClerk();
   const dirty =
     !!settings &&
     preferenceKeys.some(
-      (key) => (settings[key] ?? true) !== (saved?.[key] ?? true),
+      (key) =>
+        (settings[key] ?? true) !== ((saved ?? query.data)?.[key] ?? true),
     );
-  useEffect(() => {
-    if (section !== "preferences") return;
-    const controller = new AbortController();
-    api<Settings>("/me", undefined, undefined, controller.signal)
-      .then((value) => {
-        if (controller.signal.aborted) return;
-        setSettings(value);
-        setSaved(value);
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      });
-    return () => controller.abort();
-  }, [refresh, section]);
+  function editSettings(value: Settings) {
+    // Freeze the loaded base on the first edit. Background reads cannot acknowledge it.
+    if (!draft && settings) setSaved(settings);
+    setDraft(value);
+  }
   async function update() {
     if (!settings || busy || !dirty) return;
     setBusy(true);
@@ -81,10 +82,11 @@ export function SettingsPanel({
     <>
       {error && !settings ? (
         <LoadError
+          title="Your preferences couldn’t load"
           message={error}
           retry={() => {
             setError("");
-            setRefresh((value) => value + 1);
+            void query.refetch();
           }}
         />
       ) : error && section !== "preferences" ? (
@@ -113,7 +115,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.recallEnabled}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           recallEnabled: e.target.checked,
                         })
@@ -126,7 +128,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.captureEnabled}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           captureEnabled: e.target.checked,
                         })
@@ -139,7 +141,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.organizeEnabled ?? true}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           organizeEnabled: e.target.checked,
                         })
@@ -152,7 +154,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.summariesEnabled ?? true}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           summariesEnabled: e.target.checked,
                         })

@@ -22,7 +22,9 @@ import type {
   ConversationTurnRequest,
 } from "@lib/shared/conversations";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
+import { useQuery } from "@tanstack/react-query";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
 import { memoryExcerpt, memoryTitle } from "@/lib/memory-display";
@@ -31,13 +33,19 @@ import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 import { SegmentedControl } from "./ui/segmented-control";
 import { SearchField } from "./ui/search-field";
-import { MemoryInspector } from "./memory-inspector";
+import { deferredFeature } from "./deferred-feature";
 import { useWorkspaceSearch } from "./workspace-search";
 import { AskComposer } from "./ask-composer";
 import { Dialog } from "./dialog";
 import { Markdown } from "./markdown";
 import { RevisionCompare } from "./revision-compare";
-import { useWorkspaceDrag } from "./memory-drag";
+const MemoryInspector = deferredFeature(
+  async () => ({
+    default: (await import("./memory-inspector")).MemoryInspector,
+  }),
+  "Opening your note…",
+  { failureTitle: "Your note couldn’t open" },
+);
 
 function reconcileReply(
   chat: Conversation,
@@ -71,7 +79,8 @@ export function AskGrove({
   const sessionKey = `ask:${projectId === undefined ? "global" : (projectId ?? "personal")}`;
   const [session] = useState(() => sessions?.get(sessionKey));
   const { projects, error: projectError } = useNotebooks();
-  const { refresh: refreshNotes } = useWorkspaceDrag();
+  const cache = useWorkspaceCache();
+  const api = cache.api;
   const [scope, setScope] = useState(
     session?.scope ??
       (projectId === undefined ? "all" : (projectId ?? "personal")),
@@ -98,20 +107,47 @@ export function AskGrove({
   const [unconfirmed, setUnconfirmed] = useState(session?.unconfirmed);
   const [loading, setLoading] = useState(!!session?.conversationId);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
+  const [actionError, setError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<ConversationPage>();
   const [historyError, setHistoryError] = useState("");
   const [historyBusy, setHistoryBusy] = useState(false);
   const [deleting, setDeleting] = useState<string>();
   const [actionBusy, setActionBusy] = useState<string>();
+  const chatQuery = useQuery({
+    ...cache.resource<Conversation>(`/conversations/${conversationId ?? ""}`),
+    enabled:
+      !!conversationId && !pending && !loading && !unconfirmed && !actionBusy,
+  });
+  const [seenChat, setSeenChat] = useState<Conversation>();
+  if (chatQuery.data !== seenChat) {
+    setSeenChat(chatQuery.data);
+    if (
+      chatQuery.data &&
+      !pending &&
+      !unconfirmed &&
+      chatQuery.data.id === conversationId
+    )
+      setConversation(chatQuery.data);
+  }
+  const unavailable =
+    chatQuery.error instanceof DashboardApiError &&
+    [403, 404].includes(chatQuery.error.status);
+  if (unavailable && conversation && !pending) setConversation(undefined);
+  const error =
+    actionError || (chatQuery.error ? errorMessage(chatQuery.error) : "");
   const [query, setQuery] = useState(session?.query ?? "");
   const search = useDebouncedValue(query.trim());
-  const [searchState, setSearch] = useState<{
-    key: string;
-    result?: AskResult;
-    error?: string;
-  }>();
+  const searchQuery = useQuery({
+    ...cache.resource<AskResult>("/ask", {
+      query: search,
+      projectId:
+        scope === "all" ? undefined : scope === "personal" ? null : scope,
+      includePersonal: scope === "all" || includePersonal,
+      mode: "search",
+    }),
+    enabled: mode === "search" && !!search,
+  });
   const [selected, setSelected] = useState<Pick<
     Memory,
     "id" | "version"
@@ -127,7 +163,6 @@ export function AskGrove({
       scope === "all" ? undefined : scope === "personal" ? null : scope,
     includePersonal,
   };
-  const searchKey = JSON.stringify({ search, scope, includePersonal });
   useEffect(() => {
     consumeQuestion?.("");
   }, [consumeQuestion, workspace?.question]);
@@ -177,7 +212,7 @@ export function AskGrove({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [session]);
+  }, [session, api]);
   const followReply = useEffectEvent(() => {
     const element = conversationElement.current;
     if (!element || !conversation?.turns.length) return;
@@ -202,30 +237,6 @@ export function AskGrove({
     observer.observe(element);
     return () => observer.disconnect();
   }, [mode]);
-  useEffect(() => {
-    if (mode !== "search" || !search) return;
-    const controller = new AbortController();
-    void api<AskResult>(
-      "/ask",
-      {
-        query: search,
-        projectId:
-          scope === "all" ? undefined : scope === "personal" ? null : scope,
-        includePersonal: scope === "all" || includePersonal,
-        mode: "search",
-      },
-      undefined,
-      controller.signal,
-    )
-      .then((result) => {
-        if (!controller.signal.aborted) setSearch({ key: searchKey, result });
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted)
-          setSearch({ key: searchKey, error: errorMessage(e) });
-      });
-    return () => controller.abort();
-  }, [mode, search, scope, includePersonal, searchKey]);
   function reset(clearDraft = true) {
     following.current = true;
     setShowLatest(false);
@@ -423,7 +434,6 @@ export function AskGrove({
           {},
         ),
       );
-      refreshNotes();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -431,8 +441,13 @@ export function AskGrove({
     }
   }
   const visibleSearch =
-    search === query.trim() && searchState?.key === searchKey
-      ? searchState
+    search === query.trim() && !searchQuery.isPending
+      ? {
+          result: searchQuery.data,
+          error: searchQuery.error
+            ? errorMessage(searchQuery.error)
+            : undefined,
+        }
       : undefined;
   const historyButton = (
     <Button

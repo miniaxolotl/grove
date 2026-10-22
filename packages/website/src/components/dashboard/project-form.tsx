@@ -1,7 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
 import {
-  api,
   DashboardApiError,
   errorMessage,
   type Project,
@@ -10,6 +9,7 @@ import { useDialogBusy } from "./dialog";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks } from "./notebooks-provider";
 import { LoadError } from "./load-error";
+import { useWorkspaceApi } from "./workspace-cache";
 import { notebookOptions, notebookPath } from "@/lib/notebooks";
 
 export function ProjectForm({
@@ -25,6 +25,7 @@ export function ProjectForm({
   done: (project: Project) => void;
   cancel: () => void;
 }) {
+  const api = useWorkspaceApi();
   const [base, setBase] = useState(project);
   const [name, setName] = useState(project?.name ?? "");
   const [identity, setIdentity] = useState(project?.identity ?? "");
@@ -82,7 +83,6 @@ export function ProjectForm({
             },
             base ? "PATCH" : "POST",
           );
-          notebooks.saved(saved);
           done(saved);
         } catch (e) {
           setError(errorMessage(e));

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -10,7 +11,8 @@ import {
   Share2,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { errorMessage, type Project } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { dateLabel, isInactive } from "@/lib/memory-display";
 import { isActiveSurface, isTyping } from "@/lib/workspace-keyboard";
 import { Markdown } from "./markdown";
@@ -53,6 +55,8 @@ export function MemoryDetail({
   onDeleted: () => void;
   close: () => void;
 }) {
+  const cache = useWorkspaceCache();
+  const api = cache.api;
   const root = useRef<HTMLElement>(null);
   const toast = useToast();
   const [compare, setCompare] = useState<number | null>(null);
@@ -61,11 +65,18 @@ export function MemoryDetail({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [historyError, setHistoryError] = useState("");
   const [editorRevision, setEditorRevision] = useState(0);
-  const [history, setHistory] = useState<
-    { version: number; content: string; createdAt: string }[] | null
-  >(null);
+  const historyQuery = useQuery({
+    ...cache.resource<
+      { version: number; content: string; createdAt: string }[]
+    >(`/memories/${memory.id}/revisions`),
+    enabled: historyOpen,
+  });
+  const history = historyQuery.data;
+  const historyError = historyQuery.error
+    ? errorMessage(historyQuery.error)
+    : "";
+  const [relatedOpen, setRelatedOpen] = useState(false);
   const operations = useRef(new Map<string, string>());
   const setDialogBusy = useDialogBusy();
   const locked = busy || actionBusy || editorLocked;
@@ -74,26 +85,6 @@ export function MemoryDetail({
     const frame = requestAnimationFrame(() => setConfirmDelete(true));
     return () => cancelAnimationFrame(frame);
   }, [initialDelete]);
-  useEffect(() => {
-    if (!historyOpen) return;
-    const controller = new AbortController();
-    api<typeof history>(
-      `/memories/${memory.id}/revisions`,
-      undefined,
-      undefined,
-      controller.signal,
-    )
-      .then((value) => {
-        if (!controller.signal.aborted) {
-          setHistory(value);
-          setHistoryError("");
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setHistoryError(errorMessage(error));
-      });
-    return () => controller.abort();
-  }, [historyOpen, memory.id, memory.version]);
   async function run(action: () => Promise<void>) {
     if (locked) return;
     setBusy(true);
@@ -379,13 +370,14 @@ export function MemoryDetail({
           </>
         }
       >
-        <details className="linked-notes">
+        <details
+          className="linked-notes"
+          onToggle={(event) => setRelatedOpen(event.currentTarget.open)}
+        >
           <summary>Linked notes</summary>
-          <ConnectionPanel
-            level="note"
-            endpointId={memory.id}
-            revision={memory.version}
-          />
+          {relatedOpen && (
+            <ConnectionPanel level="note" endpointId={memory.id} />
+          )}
         </details>
       </MemoryEditor>
       {sharing && (

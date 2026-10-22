@@ -26,7 +26,8 @@ import {
 } from "@dnd-kit/core";
 import { FolderInput, GripVertical, Undo2, X } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage, type Project } from "@/lib/dashboard-api";
+import { errorMessage, type Project } from "@/lib/dashboard-api";
+import { useWorkspaceApi } from "./workspace-cache";
 import { memoryTitle, moveMemoryInput } from "@/lib/memory-display";
 import { notebookPath, notebookOptions } from "@/lib/notebooks";
 import { useNotebooks } from "./notebooks-provider";
@@ -41,9 +42,7 @@ type Undo =
 const Context = createContext<{
   active: WorkspaceDragItem | null;
   busy: boolean;
-  revision: number;
-  refresh: () => void;
-}>({ active: null, busy: false, revision: 0, refresh: () => {} });
+}>({ active: null, busy: false });
 export const useWorkspaceDrag = () => useContext(Context);
 
 type Destination =
@@ -196,6 +195,7 @@ const destinationCoordinates: KeyboardCoordinateGetter = (
 
 /** One drag surface spans navigation, notes and notebook organization. */
 export function WorkspaceDrag({ children }: { children: ReactNode }) {
+  const api = useWorkspaceApi();
   const notebooks = useNotebooks();
   const path = usePathname();
   const origin = useRef<{ path: string; source: Element | null } | null>(null);
@@ -203,7 +203,6 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
   const pickingUp = useRef(false);
-  const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
   const [failures, setFailures] = useState<string[]>([]);
   const [undo, setUndo] = useState<Undo[]>([]);
@@ -264,7 +263,6 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
       },
       "PATCH",
     );
-    notebooks.saved(saved);
     return saved;
   }
   async function move(item: WorkspaceDragItem, destination: string | null) {
@@ -322,7 +320,6 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           ? "Could not complete the move."
           : "Already in this notebook.",
     );
-    setRevision((value) => value + 1);
     setBusy(false);
     working.current = false;
   }
@@ -351,7 +348,6 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     );
     if (remaining.some((record) => record.kind === "notebook"))
       notebooks.reload();
-    setRevision((value) => value + 1);
     setBusy(false);
     working.current = false;
   }
@@ -360,8 +356,6 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
       value={{
         active,
         busy,
-        revision,
-        refresh: () => setRevision((value) => value + 1),
       }}
     >
       <DndContext

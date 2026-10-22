@@ -66,6 +66,7 @@ export function surface(value: string): "website" | "workspace" {
 }
 export function operationForRequest(path: string, method: string): Operation {
   const route = path.split("?")[0];
+  if (route === "/memories/search") return "memory_recall";
   if (/^\/(recall|search|context)(\/|$)/.test(route)) return "memory_recall";
   if (/^\/(chat|conversations)(\/|$)/.test(route)) return "chat";
   if (/^\/(connections|connect|keys|grants)(\/|$)/.test(route))

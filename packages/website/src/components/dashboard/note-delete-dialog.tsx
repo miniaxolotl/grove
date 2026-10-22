@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceApi } from "./workspace-cache";
 import { memoryTitle } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { useNoteDrafts, useNoteDraftRevision } from "./note-drafts";
@@ -21,6 +22,7 @@ export function NoteDeleteDialog({
   retrySave?: () => void;
   conflict?: boolean;
 }) {
+  const api = useWorkspaceApi();
   const drafts = useNoteDrafts();
   useNoteDraftRevision();
   const key = `note:${memory.id}`;
@@ -64,6 +66,7 @@ export function NoteDeleteDialog({
       memory,
     );
   const uncertain = !!draft?.pending;
+  const needsReview = conflict || reviewRequired || !!draft?.latest;
   async function retry() {
     if (retrySave) {
       retrySave();
@@ -81,13 +84,19 @@ export function NoteDeleteDialog({
     try {
       const saved = await request;
       const latest = drafts!.get(key);
+      const newer =
+        saved.version > Number(retained.pending.input.expectedVersion) + 1;
+      if (newer) setReviewRequired(true);
       if (latest?.saving === request)
         drafts!.set(key, {
           ...latest,
-          base: saved,
+          base: newer ? latest.base : saved,
+          latest: newer ? saved : latest.latest,
           saving: undefined,
           pending: null,
-          error: undefined,
+          error: newer
+            ? "This note changed after your save. Review the newer version before saving again."
+            : undefined,
         });
       setSettled(saved);
     } catch (reason) {
@@ -102,8 +111,7 @@ export function NoteDeleteDialog({
     }
   }
   async function remove() {
-    if (saving || uncertain || conflict || reviewRequired || submitting.current)
-      return;
+    if (saving || uncertain || needsReview || submitting.current) return;
     submitting.current = true;
     setBusy(true);
     setError("");
@@ -142,7 +150,7 @@ export function NoteDeleteDialog({
           Your local draft will also be discarded. Cancel keeps your changes.
         </p>
       )}
-      {conflict || reviewRequired ? (
+      {needsReview ? (
         <p className="app-error" role="alert">
           This note changed elsewhere. Cancel and review the saved version
           before deleting.
@@ -184,7 +192,7 @@ export function NoteDeleteDialog({
         <button
           type="button"
           className="app-button danger"
-          disabled={busy || !!saving || uncertain || conflict || reviewRequired}
+          disabled={busy || !!saving || uncertain || needsReview}
           onClick={() => void remove()}
         >
           {busy
