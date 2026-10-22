@@ -9,6 +9,7 @@ import "vanilla-cookieconsent/dist/cookieconsent.css";
 import "./globals.css";
 import "./brand-family.css";
 import "./marketing-ui.css";
+import "./site-chrome.css";
 import "./cookie-consent.css";
 
 const space = localFont({
