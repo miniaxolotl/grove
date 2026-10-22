@@ -1,5 +1,8 @@
 # Backend capacity
 
+[Measured results and sizing decision](backend-capacity-results.md) retain successful
+and overloaded runs. The 50/s sustained and 100/s burst targets remain unqualified.
+
 The API batches note metadata, revisions and conversation sources. Exact semantic
 recall scores each eligible 4,096-dimensional vector once and fetches note bodies
 after top-k selection. Tenant, grant, current-revision, expiry and AI-preference

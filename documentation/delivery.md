@@ -1,5 +1,34 @@
 # Delivery evidence
 
+## Backend capacity and responsiveness (22 October 2026)
+
+List presentation is constant at **15 SQL queries** for 1, 30 or 100 notes, down
+from **15/131/411** with the integrated preference guards. Revision exports and
+conversation sources are batched. Exact semantic recall scores eligible vectors
+once before fetching note bodies. Short account/minute admission commits before
+work; each subsequent authorization still checks current grants and revocation,
+including a session revoked while waiting for an account lock.
+
+Ordinary and interactive HTTP lanes have bounded, cancellable queues. Retry-After,
+cooperative deadlines, rollback checks and failed interrupted-download streams
+support predictable recovery. Database pool/acquisition/statement settings are
+validated and forwarded through runtime/Compose. No new migration is required.
+
+All **110 backend/service tests**, **193 integrated Chromium scenarios**, five
+packaged-artifact checks, root/website lint/types/builds and bundle budgets pass.
+Seventeen release/deployment contracts, pinned actionlint/ShellCheck and Compose
+validation pass. Browser coverage includes navigation, search, held saves/newer
+typing, cache refresh, mobile controls and retry recovery. The pre-workspace-merge
+build also passed one focused iPhone/WebKit first-save navigation check.
+
+The final local 20 requests/s, two-minute run completed **2,398/2,400 successfully**
+at **209 ms p95**, with no generator drops. The **50 sustained / 100 burst targets
+remain unqualified**, and sustainable background processing/real-provider chat
+capacity remains a queue-workstream follow-up. The
+[measurement report](development/backend-capacity-results.md) retains exact
+configurations, unsuccessful iterations and sizing limits. These are synthetic
+HTTP/database and browser-fixture observations; production resources were not changed.
+
 ## Independent AI preferences (22 October 2026)
 
 Settings groups ten independent controls under Organization, Connections, Summaries,

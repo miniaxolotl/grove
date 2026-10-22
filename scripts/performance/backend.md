@@ -21,6 +21,12 @@ latency in milliseconds. Chat has the normal one-turn-per-conversation rule and
 100-turn lifetime; select accounts/rate/duration accordingly and inspect every
 status. Rate limits are real and remain visible in the report.
 
+The account/minute allowance is unchanged. The fixture raises the separate daily
+inference allowance to 1,000,000 so it does not mask provider/SQL throughput. With
+20 accounts the fixed mixed schedule concentrates saves on one hot writer; this
+is not a balanced multi-account write workload. Published observations and limits
+are in [the capacity report](../../documentation/development/backend-capacity-results.md).
+
 `--query` selects lexical input; `--query-seed 999` selects an unmatched dense
 query vector (seed1 matches one eighth of fixture vectors). Combine them to
 exercise empty full-vector scans. `--explain` captures actual recall SQL and runs
