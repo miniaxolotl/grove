@@ -36,7 +36,8 @@ Presentation rules are scoped to public marketing. The authenticated workspace
 keeps its own components and styles. Notes, queries, connections and terminal
 snippets remain labelled examples with no account mutations.
 
-Verification includes 160 browser cases, root/website lint, types and builds,
+Verification after integrating the timed-sharing/auth-isolation baseline includes
+163 browser cases, root/website lint, types and builds,
 and five shipped-artifact checks. Responsive review covers WCAG A/AA axe,
 overflow and console errors at 320/390/768/1440px. The Settings regression test
 first reproduced 1:1 hover contrast on the previous build. Existing illustrations

@@ -11,7 +11,8 @@
     "./models": "./src/models.ts",
     "./conversations": "./src/conversations.ts",
     "./relationships": "./src/relationships.ts",
-    "./sharing": "./src/sharing.ts"
+    "./sharing": "./src/sharing.ts",
+    "./share-durations": "./src/share-durations.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",

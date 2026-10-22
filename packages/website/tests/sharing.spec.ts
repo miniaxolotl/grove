@@ -7,6 +7,49 @@ const one = "00000000-0000-4000-a000-000000000011";
 const two = "00000000-0000-4000-a000-000000000012";
 const hidden = "00000000-0000-4000-a000-000000000099";
 
+test("configured authentication stays off public readers and marketing pages", async ({
+  page,
+  context,
+  request,
+}) => {
+  const identity = /clerk-isolation\.clerk\.accounts\.dev/;
+  // Positive control: this build really has a configured provider on account routes.
+  const account = await context.newPage();
+  await account.route(identity, (route) => route.abort());
+  const provider = account.waitForRequest(identity);
+  await account.goto("/sign-in");
+  await provider;
+  await account.close();
+
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (identity.test(request.url())) requests.push(request.url());
+  });
+  await page.route(identity, (route) => route.abort());
+  const failure = token("E");
+  await request.post(`${fixture}/_fixture/${failure}`, {
+    data: { failed: true },
+  });
+  try {
+    for (const path of [
+      `/s/${token("A")}`,
+      `/s/${token("B")}`,
+      `/s/${token("B")}/notes/${one}`,
+      `/s/${token("Z")}`,
+      `/s/${failure}`,
+      "/",
+      "/privacy",
+    ]) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      expect(requests, path).toEqual([]);
+      await expect(page.locator("script[data-clerk-js-script]")).toHaveCount(0);
+    }
+  } finally {
+    await request.post(`${fixture}/_fixture/${failure}`, { data: {} });
+  }
+});
+
 test("public note is readable signed out, safe, responsive and not indexed", async ({
   page,
 }, info) => {

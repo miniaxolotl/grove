@@ -7,6 +7,48 @@ controls and responsive demo transitions. Cookie Settings now remains readable
 on hover, press and keyboard focus. The workspace retains its independent styles.
 See the [screenshots and verification](design/screenshots/website-minimal-refresh/README.md).
 
+## Timed public links (22 October 2026 UTC)
+
+Owners can set link expiry to one hour, four hours, one day, one week, two weeks
+or one month (30 days). Existing links retain no expiry. PostgreSQL computes and
+enforces deadlines on every public read, including notebook navigation/pagination.
+Expiry edits keep the URL; retries, scope edits and replacement preserve the saved
+deadline. Renewing an expired link generates a new secret. The dialog shows the
+expiry time, disables copying at expiry and preserves staged/cancelled edits.
+
+The complete **92 database/service** suite and a separate populated **011→012
+upgrade** case pass. After the final database-clock mutation fence, all **17 focused
+sharing/upgrade** cases pass again. Root/website lint, types and builds, five packed
+artifacts, bundle budgets, 17 release/deployment contracts and pinned workflow lint
+pass. All **162 Chromium** scenarios pass, including auth isolation, no-JavaScript
+reading, six duration options, retry deadlines, cancellation, expiry and responsive
+accessibility. Creating a link now scrolls the restored action into view when its
+new URL/tools make the dialog taller.
+The final dependency-free build also passes **12 focused Chromium** and **seven
+iPhone/WebKit** cases. Notes entry is **479,757 gzip bytes**, 474 bytes above the
+authentication-isolation baseline and within the existing bundle budget.
+
+[Reviewed screenshots](design/screenshots/timed-sharing/README.md) show the owner
+dialog at desktop/390px/320px. The duration catalog has a dependency-free client
+entrypoint so adding its six options does not pull server validation schemas into
+the workspace bundle. Migration `20261022_012_share_expiration` is forward-only;
+production activation follows the coordinated rollout in [deploy](deploy.md).
+
+## Public-reader authentication isolation (22 October 2026 UTC)
+
+Live rollout verification found that the root authentication provider loaded Clerk
+on anonymous shared readers. The provider now belongs to account/workspace layouts.
+A configured synthetic-key regression first reproduced the issue, then passed with
+the fix: sign-in loads the provider, while successful/missing/failed shared readers
+and marketing pages make no authentication-provider requests. Existing secret-path
+links and server-rendered, no-JavaScript reading are preserved.
+
+Root/website lint, types and builds, all five artifact checks, bundle budgets and
+all 160 Chromium scenarios pass. This records local verification; production
+acceptance requires the coordinated follow-up release. A separate hosting canary
+was visible in Vercel request-path logs: hosting capability redaction is **not**
+verified and must not be inferred from application telemetry filtering.
+
 ## Error-page refinement (22 October 2026 UTC)
 
 Deferred views and service failures share a restrained recovery layout with

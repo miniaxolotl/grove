@@ -10,6 +10,8 @@ import {
 } from "@lib/shared/contracts";
 import {
   shareEnableSchema,
+  shareScopeSchema,
+  shareDurationSchema,
   type ShareState,
   type ShareTarget,
 } from "@lib/shared/sharing";
@@ -146,6 +148,229 @@ test("owner-only management keeps tokens encrypted, stable and retry-safe", asyn
   });
   assert.notEqual(secret(on), secret(first));
   assert.equal((await sharing.read(secret(on))).note!.content, note.content);
+});
+
+test("timed links use server deadlines for all six durations and retries never extend them", async () => {
+  for (const [duration, seconds] of [
+    ["1h", 3600],
+    ["4h", 14400],
+    ["1d", 86400],
+    ["1w", 604800],
+    ["2w", 1209600],
+    ["1mo", 2592000],
+  ] as const) {
+    const note = await save(alice);
+    const target = { kind: "note", id: note.id } as const;
+    const input = shareEnableSchema.parse({
+      operationId: randomUUID(),
+      expectedVersion: 0,
+      expectedTargetVersion: 1,
+      duration,
+    });
+    const before = Date.now();
+    const state = await sharing.enable(alice, target, input);
+    const deadline = Date.parse(state.direct!.expiresAt!);
+    assert(deadline >= before + seconds * 1000);
+    assert(deadline <= Date.now() + seconds * 1000);
+    assert.equal(state.direct!.duration, duration);
+    assert.equal((await sharing.read(secret(state))).note!.id, note.id);
+    assert.deepEqual(await sharing.enable(alice, target, input), state);
+    // A concurrent first enable with a different duration must not silently agree.
+    await assert.rejects(
+      sharing.enable(alice, target, {
+        ...input,
+        operationId: randomUUID(),
+        duration: null,
+      }),
+      { code: "version_conflict" },
+    );
+    const rotate = { operationId: randomUUID(), expectedVersion: 1 };
+    const rotated = await sharing.change(
+      alice,
+      state.direct!.id,
+      "rotate",
+      rotate,
+    );
+    assert.equal(rotated.direct!.expiresAt, state.direct!.expiresAt);
+    assert.deepEqual(
+      await sharing.change(alice, state.direct!.id, "rotate", rotate),
+      rotated,
+    );
+    await assert.rejects(sharing.read(secret(state)), { code: "not_found" });
+  }
+  for (const invalid of [0, -1, 3600, "2h", "forever", "", {}])
+    assert.equal(shareDurationSchema.safeParse(invalid).success, false);
+  assert.equal(
+    shareScopeSchema.safeParse({
+      operationId: randomUUID(),
+      expectedVersion: 1,
+    }).success,
+    false,
+  );
+  assert.equal(
+    shareEnableSchema.safeParse({
+      operationId: randomUUID(),
+      expectedVersion: 0,
+      expectedTargetVersion: 1,
+      expiresAt: "2099-01-01T00:00:00Z",
+    }).success,
+    false,
+  );
+});
+
+test("expiry edits preserve the URL, fence stale writes and keep scope-only saves from extending access", async () => {
+  const root = await notebook("Timed settings");
+  await save(alice, "# One", root.id);
+  await save(alice, "# Two", root.id);
+  const state = await enable({ kind: "notebook", id: root.id });
+  assert.equal(state.direct!.duration, null);
+  assert.equal(state.direct!.expiresAt, null);
+  const input = {
+    operationId: randomUUID(),
+    expectedVersion: 1,
+    duration: "1h" as const,
+  };
+  await assert.rejects(sharing.change(bob, state.direct!.id, "scope", input), {
+    code: "not_found",
+  });
+  const timed = await sharing.change(alice, state.direct!.id, "scope", input);
+  assert.equal(timed.direct!.url, state.direct!.url);
+  assert.deepEqual(
+    await sharing.change(alice, state.direct!.id, "scope", input),
+    timed,
+  );
+  await assert.rejects(
+    sharing.change(alice, state.direct!.id, "scope", {
+      ...input,
+      operationId: randomUUID(),
+      duration: "1w",
+    }),
+    { code: "version_conflict" },
+  );
+  const page = await sharing.read(secret(timed), "root", undefined, {
+    limit: 1,
+  });
+  const scope = await sharing.change(alice, state.direct!.id, "scope", {
+    operationId: randomUUID(),
+    expectedVersion: 2,
+    includeDescendants: true,
+    duration: "1h",
+  });
+  assert.equal(scope.direct!.expiresAt, timed.direct!.expiresAt);
+  await assert.rejects(
+    sharing.read(secret(timed), "root", undefined, {
+      limit: 1,
+      cursor: page.nextCursor!,
+    }),
+    { code: "invalid_cursor" },
+  );
+  const unlimited = await sharing.change(alice, state.direct!.id, "scope", {
+    operationId: randomUUID(),
+    expectedVersion: 3,
+    duration: null,
+  });
+  assert.equal(unlimited.direct!.expiresAt, null);
+  assert.equal(unlimited.direct!.url, state.direct!.url);
+});
+
+test("expired note and notebook links deny every public route and inherited access; renewal creates a new secret", async () => {
+  const root = await notebook("Timed root");
+  const child = await notebook("Timed child", root.id);
+  const note = await save(alice, "# Nested", child.id);
+  await save(alice, "# First", root.id);
+  await save(alice, "# Second", root.id);
+  const target = { kind: "notebook", id: root.id } as const;
+  const input = shareEnableSchema.parse({
+    operationId: randomUUID(),
+    expectedVersion: 0,
+    expectedTargetVersion: 1,
+    includeDescendants: true,
+    duration: "1h",
+  });
+  const state = await sharing.enable(alice, target, input);
+  const direct = await sharing.enable(
+    alice,
+    { kind: "note", id: note.id },
+    { ...input, operationId: randomUUID(), includeDescendants: false },
+  );
+  const page = await sharing.read(secret(state), "root", undefined, {
+    limit: 1,
+  });
+  assert.equal(
+    (await sharing.get(alice, { kind: "note", id: note.id })).inherited.length,
+    1,
+  );
+  await admin("public_shares")
+    .whereIn("id", [state.direct!.id, direct.direct!.id])
+    .update({
+      expiresAt: admin.raw("clock_timestamp() - interval '1 second'"),
+    });
+  for (const [kind, id] of [
+    ["root", undefined],
+    ["note", note.id],
+    ["notebook", child.id],
+  ] as const)
+    await assert.rejects(sharing.read(secret(state), kind, id), {
+      code: "not_found",
+    });
+  await assert.rejects(
+    sharing.read(secret(state), "root", undefined, {
+      limit: 1,
+      cursor: page.nextCursor!,
+    }),
+    { code: "not_found" },
+  );
+  await assert.rejects(sharing.read(secret(direct)), { code: "not_found" });
+  const current = await sharing.get(alice, { kind: "note", id: note.id });
+  assert.equal(current.direct!.active, false);
+  assert.equal(current.direct!.url, null);
+  assert.equal(current.inherited.length, 0);
+  for (const action of ["rotate", "scope"] as const)
+    await assert.rejects(
+      sharing.change(alice, state.direct!.id, action, {
+        operationId: randomUUID(),
+        expectedVersion: 1,
+        duration: null,
+      }),
+      { code: "version_conflict" },
+    );
+  // Retry a completed create after expiration: it must not renew the deadline.
+  assert.equal(
+    (await sharing.enable(alice, target, input)).direct!.active,
+    false,
+  );
+  const renewed = await sharing.enable(alice, target, {
+    ...input,
+    operationId: randomUUID(),
+    expectedVersion: 1,
+  });
+  assert.notEqual(secret(renewed), secret(state));
+  await assert.rejects(sharing.read(secret(state)), { code: "not_found" });
+  assert.equal(
+    (await sharing.read(secret(renewed), "note", note.id)).note!.id,
+    note.id,
+  );
+  await sharing.change(alice, direct.direct!.id, "revoke", {
+    operationId: randomUUID(),
+    expectedVersion: 1,
+  });
+});
+
+test("public SQL checks wall-clock expiry even inside a transaction started before the deadline", async () => {
+  const note = await save(alice);
+  const state = await enable({ kind: "note", id: note.id });
+  await db.transaction(async (trx) => {
+    // Fix transaction-start now() before installing a deadline in the past.
+    await trx.raw("SELECT now()");
+    await admin("public_shares")
+      .where({ id: state.direct!.id })
+      .update({ duration: "1h", expiresAt: admin.raw("clock_timestamp()") });
+    const { rows } = await trx.raw(
+      "SELECT grove_public_share(?, 'root', NULL, NULL, NULL, NULL, 30) AS value",
+      [createHash("sha256").update(secret(state)).digest("hex")],
+    );
+    assert.equal(rows[0].value, null);
+  });
 });
 
 test("public HTTP reads bypass identity services but never authorize private APIs or writes", async () => {
