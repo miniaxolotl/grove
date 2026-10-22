@@ -2,6 +2,7 @@ import { createDatabase, closeDatabase, probeDatabase } from "@lib/database";
 import { readServerEnvironment } from "@lib/environment";
 import { MemoryService } from "@lib/memory";
 import { ModelRegistry } from "./models.ts";
+import { createArtifacts } from "./artifacts.ts";
 
 export async function createRuntime() {
   const env = readServerEnvironment();
@@ -24,6 +25,7 @@ export async function createRuntime() {
       db,
       memories,
       models,
+      artifacts: createArtifacts(env),
       close: () => closeDatabase(db),
     };
   } catch (error) {

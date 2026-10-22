@@ -1,7 +1,16 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { MemoryService, sessionPrincipal } from "@lib/memory";
+import {
+  MemoryService,
+  sessionPrincipal,
+  Tasks,
+  exportHandlers,
+  importHandlers,
+  enqueueConnectorSync,
+} from "@lib/memory";
+import { mkdtemp, rm } from "node:fs/promises";
+import { localArtifacts } from "../../packages/api/src/artifacts.ts";
 import { rememberSchema, listSchema } from "@lib/shared/contracts";
 import {
   cleanupHandlers,
@@ -243,7 +252,7 @@ test("account cleanup checkpoints soft deletion independently of identity-provid
   const handlers = cleanupHandlers(worker, async () => {
     throw new Error("provider offline");
   });
-  for (let i = 0; i < 5; i++)
+  for (let i = 0; i < 10; i++)
     await runTask(worker, handlers, { id: task.id, lane: "maintenance" });
   assert((await admin("memories").where({ id: note.id }).first()).deletedAt);
   assert.equal(
@@ -265,6 +274,169 @@ test("account cleanup checkpoints soft deletion independently of identity-provid
   assert.equal(
     (await admin("accounts").where({ id: f.accountId }).first()).status,
     "deleted",
+  );
+});
+
+test("exports page notes and history into private artifacts; source changes, cancellation and other tenants fence downloads", async () => {
+  const f = await fixture();
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const principal = sessionPrincipal(f.accountId, account.clerkSubject);
+  const service = new MemoryService(api, "queue-tests");
+  const root = await mkdtemp("/tmp/opencode/grove-exports-");
+  try {
+    const store = localArtifacts(root),
+      tasks = new Tasks(service, true),
+      handlers = exportHandlers(worker, store);
+    const project = await service.project(principal, {
+      identity: "export",
+      name: "Export",
+    });
+    const note = await service.remember(
+      principal,
+      rememberSchema.parse({
+        operationId: randomUUID(),
+        content: "Export me",
+        projectId: project.id,
+      }),
+    );
+    await service.remember(
+      principal,
+      rememberSchema.parse({
+        operationId: randomUUID(),
+        id: note.id,
+        expectedVersion: note.version,
+        content: "Export revision",
+        projectId: project.id,
+      }),
+    );
+    const other = await service.remember(
+      principal,
+      rememberSchema.parse({
+        operationId: randomUUID(),
+        content: "Outside notebook",
+      }),
+    );
+    const request = {
+      id: randomUUID(),
+      projectId: project.id,
+      includeDescendants: true,
+    };
+    const task = await tasks.export(principal, request);
+    assert.equal((await tasks.export(principal, request)).id, task.id);
+    for (let i = 0; i < 20; i++)
+      if (!(await runTask(worker, handlers, { id: task.id }))) break;
+    assert.equal(
+      (await tasks.get(principal, task.id)).downloadable,
+      true,
+      JSON.stringify(await tasks.get(principal, task.id)),
+    );
+    const artifact = await tasks.artifact(principal, task.id);
+    const chunks = [];
+    for await (const chunk of await store.read(artifact.key))
+      chunks.push(chunk);
+    const content = Buffer.concat(chunks).toString();
+    assert(content.includes("Export revision"));
+    assert(!content.includes("Outside notebook"));
+    assert.equal(
+      content
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line))
+        .filter((row) => row.type === "revision").length,
+      2,
+    );
+    const stranger = await fixture();
+    const strangerAccount = await admin("accounts")
+      .where({ id: stranger.accountId })
+      .first();
+    await assert.rejects(
+      tasks.artifact(
+        sessionPrincipal(stranger.accountId, strangerAccount.clerkSubject),
+        task.id,
+      ),
+    );
+    await service.forget(principal, {
+      operationId: randomUUID(),
+      items: [{ id: other.id, expectedVersion: other.version }],
+    });
+    assert.equal((await tasks.get(principal, task.id)).error, "export_changed");
+    await assert.rejects(tasks.artifact(principal, task.id));
+    await tasks.action(principal, task.id, "retry");
+    await runTask(worker, handlers, { id: task.id });
+    await tasks.action(principal, task.id, "cancel");
+    assert.equal(await runTask(worker, handlers, { id: task.id }), false);
+    assert.equal((await tasks.get(principal, task.id)).status, "cancelled");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("imports and connector checkpoints commit with source mappings, avoid duplicates and preserve local edits", async () => {
+  const f = await fixture(),
+    account = await admin("accounts").where({ id: f.accountId }).first();
+  const principal = sessionPrincipal(f.accountId, account.clerkSubject),
+    service = new MemoryService(api, "queue-tests");
+  const tasks = new Tasks(service, false),
+    handlers = importHandlers(new MemoryService(worker, "queue-tests"));
+  const submit = (content: string) =>
+    tasks.import(principal, {
+      id: randomUUID(),
+      source: "fixture",
+      records: [{ sourceId: "one", content, projectId: null }],
+    });
+  for (const content of ["First", "Second", "First", "First"]) {
+    const task = await submit(content);
+    await runTask(worker, handlers, { id: task.id });
+    assert.equal(
+      (await tasks.get(principal, task.id)).status,
+      "succeeded",
+      JSON.stringify(await tasks.get(principal, task.id)),
+    );
+  }
+  const notes = await service.list(principal, listSchema.parse({}));
+  assert.equal(notes.items.length, 1);
+  assert.equal(notes.items[0].version, 3);
+  await service.remember(
+    principal,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      id: notes.items[0].id,
+      expectedVersion: 3,
+      content: "Local edit",
+    }),
+  );
+  const conflict = await submit("Remote edit");
+  await runTask(worker, handlers, { id: conflict.id });
+  assert.equal(
+    (await tasks.get(principal, conflict.id)).error,
+    "import_conflict",
+  );
+  const id = await tenant(api, f.accountId, (trx) =>
+    enqueueConnectorSync(trx, f.accountId, "connector"),
+  );
+  const adapter = {
+    page: async () => ({
+      records: [{ sourceId: "two", content: "Synced", projectId: null }],
+      cursor: { page: 1 },
+      complete: true,
+    }),
+  };
+  await runTask(
+    worker,
+    importHandlers(
+      new MemoryService(worker, "queue-tests"),
+      new Map([["connector", adapter]]),
+    ),
+    { id },
+  );
+  assert.equal((await tasks.get(principal, id!)).status, "succeeded");
+  assert.deepEqual(
+    (
+      await admin("connector_checkpoints")
+        .where({ accountId: f.accountId, source: "connector" })
+        .first()
+    ).cursor,
+    { page: 1 },
   );
 });
 
@@ -335,4 +507,82 @@ test("dispatch claims are exclusive across replicas and publisher outcomes are t
     [id, again.dispatch_id],
   );
   assert((await admin("background_tasks").where({ id }).first()).dispatchedAt);
+});
+
+test("model switches enqueue a constant-size backfill, fence old generations and resume bounded pages", async () => {
+  const f = await fixture();
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const principal = sessionPrincipal(f.accountId, account.clerkSubject);
+  const embedding = {
+    profile: "queue-old",
+    model: "test",
+    dimensions: 384,
+    embed: async () => [1, ...Array(383).fill(0)],
+  };
+  const service = new MemoryService(api, "queue-tests", embedding);
+  for (let i = 0; i < 7; i++)
+    await service.remember(
+      principal,
+      rememberSchema.parse({
+        operationId: randomUUID(),
+        content: `Backfill note ${i}`,
+      }),
+    );
+  await api.raw("SELECT grove_reprocess(?,NULL,NULL)", ["queue-new"]);
+  assert.equal(
+    (
+      await admin("jobs").where({
+        accountId: f.accountId,
+        profile: "queue-new",
+      })
+    ).length,
+    0,
+    "settings do not fan out synchronously",
+  );
+  assert.equal(
+    await new MemoryService(worker, "queue-tests", embedding).runJob(),
+    false,
+  );
+  const task = await admin("background_tasks")
+    .where({ kind: "model_backfill", status: "pending" })
+    .first();
+  for (let i = 0; i < 100; i++) {
+    if (
+      !(await runTask(
+        worker,
+        {
+          model_backfill: async (claimed) => {
+            await worker.raw("SELECT grove_backfill_batch(?::uuid,?::uuid,2)", [
+              claimed.id,
+              claimed.leaseId,
+            ]);
+          },
+        },
+        { id: task.id },
+      ))
+    )
+      break;
+  }
+  assert.equal(
+    (await admin("background_tasks").where({ id: task.id }).first()).status,
+    "succeeded",
+  );
+  assert.equal(
+    (
+      await admin("jobs").where({
+        accountId: f.accountId,
+        profile: "queue-new",
+      })
+    ).length,
+    7,
+  );
+  await api.raw("SELECT grove_reprocess(?,NULL,NULL)", ["queue-next"]);
+  const older = await admin("background_tasks")
+    .where({ kind: "model_backfill", status: "pending" })
+    .first();
+  await api.raw("SELECT grove_reprocess(?,NULL,NULL)", ["queue-final"]);
+  assert.equal(
+    (await admin("background_tasks").where({ id: older.id }).first()).status,
+    "cancelled",
+  );
 });

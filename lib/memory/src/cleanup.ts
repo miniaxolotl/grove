@@ -16,22 +16,25 @@ export function cleanupHandlers(
       "conversations",
       "projects",
       "connections",
+      "public_shares",
+      "public_share_operations",
+      "api_keys",
+      "memory_operations",
+      "memory_briefs",
     ] as const;
     const stage = Number(task.cursor.stage ?? 0);
     const table = tables[stage];
     if (table) {
       await taskTransaction(db, task, async (trx) => {
         signal.throwIfAborted();
+        // ctid is used only within this transaction; some scratch tables have
+        // composite keys. Authored tables intercept DELETE with tombstones.
         const rows = await trx(table)
-          .select("id")
-          .orderBy("id")
+          .select(trx.raw("ctid::text AS row_id"))
           .limit(batchSize);
         if (rows.length)
           await trx(table)
-            .whereIn(
-              "id",
-              rows.map((row) => row.id),
-            )
+            .whereRaw("ctid=ANY(?::tid[])", [rows.map((row) => row.rowId)])
             .delete();
         return {
           cursor: { stage: rows.length === batchSize ? stage : stage + 1 },

@@ -15,6 +15,7 @@ export async function startServer() {
   const app = createApp({
     memories,
     models: runtime.models,
+    artifacts: runtime.artifacts,
     auth: new Authentication(db, clerkVerifier(env), (account, request) =>
       reporter
         .forIdentity(

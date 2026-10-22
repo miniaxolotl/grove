@@ -29,11 +29,13 @@ export async function runAssistanceJob(
   dailyLimit: number,
   job: AssistanceJob,
   resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
+  signal?: AbortSignal,
 ) {
   const owned = async <T>(
     run: (trx: Knex.Transaction, row: AssistanceRow) => Promise<T>,
   ) =>
     tenant(db, job.accountId, async (trx) => {
+      signal?.throwIfAborted();
       await trx.raw("SELECT pg_advisory_xact_lock_shared(68142019)");
       const account = await trx("accounts")
         .where({ id: job.accountId, status: "active" })
@@ -123,6 +125,7 @@ export async function runAssistanceJob(
         providers.generation!.generate(step.schema, step.prompt, step.sources, {
           ...options,
           context: step.context,
+          signal,
         }),
     );
     const next = step.finish(generated);

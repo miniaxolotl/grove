@@ -183,9 +183,11 @@ export async function runNotebookSummary(
   dailyLimit: number,
   job: SummaryJob,
   resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
+  signal?: AbortSignal,
 ) {
   try {
     const input = await tenant(db, job.accountId, async (trx) => {
+      signal?.throwIfAborted();
       const state = await owned(trx, job, providers, resolveProfiles);
       if (!state) return;
       let work = await trx<Work>("notebook_summary_work")
@@ -279,13 +281,14 @@ export async function runNotebookSummary(
                   notebookSummarySchema,
                   notebookSummaryPrompt,
                   input.sources,
-                  options,
+                  { ...options, signal },
                 ),
             ),
           )
         : empty);
     const evidence = evidenceOf(content, input.sources);
     await tenant(db, job.accountId, async (trx) => {
+      signal?.throwIfAborted();
       const state = await owned(trx, job, providers, resolveProfiles);
       if (!state) return;
       if (

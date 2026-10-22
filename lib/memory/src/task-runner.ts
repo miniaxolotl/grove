@@ -69,6 +69,7 @@ export async function taskTransaction(
 ) {
   if (!task.accountId) throw new TaskError("task_account_required", false);
   await tenant(db, task.accountId, async (trx) => {
+    await trx.raw("SELECT pg_advisory_xact_lock_shared(68142019)");
     await trx("accounts").where({ id: task.accountId }).forUpdate().first();
     const owned = await trx("background_tasks")
       .where({ id: task.id, leaseId: task.leaseId, status: "running" })

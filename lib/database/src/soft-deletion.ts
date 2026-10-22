@@ -18,6 +18,20 @@ export async function softDeletion(db: Knex) {
       [`${table}_visible`, table],
     );
   }
+  for (const [table, parent] of [
+    ["memory_relationships", "memories"],
+    ["notebook_relationships", "projects"],
+  ]) {
+    await db.raw(
+      `CREATE POLICY visible_endpoints ON ?? AS RESTRICTIVE USING
+      (EXISTS(SELECT 1 FROM ?? p WHERE p.account_id=??.account_id AND p.id=??.left_id AND p.deleted_at IS NULL)
+      AND EXISTS(SELECT 1 FROM ?? p WHERE p.account_id=??.account_id AND p.id=??.right_id AND p.deleted_at IS NULL)) WITH CHECK(true)`,
+      [table, parent, table, table, parent, table, table],
+    );
+  }
+  await db.raw(`CREATE POLICY visible_target ON public_shares AS RESTRICTIVE USING
+    ((memory_id IS NOT NULL AND EXISTS(SELECT 1 FROM memories m WHERE m.account_id=public_shares.account_id AND m.id=public_shares.memory_id AND m.deleted_at IS NULL))
+    OR (project_id IS NOT NULL AND EXISTS(SELECT 1 FROM projects p WHERE p.account_id=public_shares.account_id AND p.id=public_shares.project_id AND p.deleted_at IS NULL))) WITH CHECK(true)`);
   await db.raw(`
     DROP INDEX memories_task;
     CREATE UNIQUE INDEX memories_task ON memories(account_id,COALESCE(project_id,'00000000-0000-4000-8000-000000000000'::uuid),task_id)
@@ -45,6 +59,7 @@ export async function softDeletion(db: Knex) {
       IF OLD.deleted_at IS NOT NULL OR NEW.deleted_at IS NULL THEN RETURN NULL; END IF;
       IF TG_TABLE_NAME='memories' THEN
         INSERT INTO deleted_memories(account_id,id) VALUES(NEW.account_id,NEW.id) ON CONFLICT DO NOTHING;
+        DELETE FROM public_share_rates WHERE bucket IN (SELECT id::text FROM public_shares WHERE account_id=NEW.account_id AND memory_id=NEW.id);
         DELETE FROM jobs WHERE account_id=NEW.account_id AND memory_id=NEW.id;
         DELETE FROM memory_embeddings WHERE account_id=NEW.account_id AND memory_id=NEW.id;
         DELETE FROM notebook_profiles WHERE account_id=NEW.account_id AND project_id=NEW.project_id;
@@ -56,6 +71,7 @@ export async function softDeletion(db: Knex) {
       ELSIF TG_TABLE_NAME='conversations' THEN
         INSERT INTO deleted_conversations(account_id,id) VALUES(NEW.account_id,NEW.id) ON CONFLICT DO NOTHING;
       ELSIF TG_TABLE_NAME='projects' THEN
+        DELETE FROM public_share_rates WHERE bucket IN (SELECT id::text FROM public_shares WHERE account_id=NEW.account_id AND project_id=NEW.id);
         UPDATE public_shares SET revoked_at=now(),token_digest=NULL,token_ciphertext=NULL,version=version+1
           WHERE account_id=NEW.account_id AND project_id=NEW.id;
       END IF;
