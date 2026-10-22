@@ -22,9 +22,11 @@ export function SettingsNavigation() {
     const reveal = () => {
       const bounds = nav.getBoundingClientRect();
       const item = active.getBoundingClientRect();
-      if (item.left < bounds.left) nav.scrollLeft += item.left - bounds.left;
-      else if (item.right > bounds.right)
-        nav.scrollLeft += item.right - bounds.right;
+      // Leave room for focus rings and browsers that round horizontal scrolling.
+      if (item.left < bounds.left + 4)
+        nav.scrollLeft -= Math.ceil(bounds.left + 4 - item.left);
+      else if (item.right > bounds.right - 4)
+        nav.scrollLeft += Math.ceil(item.right - bounds.right + 4);
     };
     reveal();
     const observer = new ResizeObserver(reveal);
