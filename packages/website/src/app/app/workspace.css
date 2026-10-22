@@ -376,6 +376,7 @@ html:has(.grove-app) {
 @media (max-width: 1023px) {
   .grove-app:has(.note-document),
   .grove-app:has(.settings-frame),
+  .grove-app:has(.ask-console),
   .grove-app:has(.app-content > .note-editor-full) {
     grid-template-rows: auto minmax(0, 1fr);
   }
@@ -394,11 +395,30 @@ html:has(.grove-app) {
   display: flex;
   gap: 8px;
 }
-.ask-console {
+.grove-app:has(.ask-console) {
+  height: 100dvh;
+  min-height: 0;
+}
+.app-main:has(.ask-console) {
+  min-height: 0;
+}
+.app-main:has(.ask-console) > .app-footer {
+  display: none;
+}
+.app-content:has(> .ask-console) {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 108px);
-  min-height: 420px;
+  /* Keep a usable console in short windows; the page can scroll below the nav. */
+  min-height: 480px;
+}
+.app-content:has(> .ask-console) > .app-page-heading {
+  flex-shrink: 0;
+}
+.ask-console {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 .ask-conversation {
   flex: 1;
@@ -597,6 +617,9 @@ html:has(.grove-app) {
   margin-left: 12px;
 }
 .ask-search {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   overflow-y: auto;
 }
 .app-topbar {
@@ -1202,10 +1225,6 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 1023px) {
-  .ask-console {
-    height: calc(100dvh - 250px);
-    min-height: 440px;
-  }
   .workspace-drop-surface {
     inset: auto max(8px, env(safe-area-inset-right))
       calc(8px + env(safe-area-inset-bottom))

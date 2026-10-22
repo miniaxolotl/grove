@@ -41,7 +41,7 @@
   color: #6a786c;
   transition: transform 140ms;
 }
-.app-select-trigger:hover {
+.app-select-trigger:hover:not(:disabled) {
   border-color: #9ba995;
   background: #fafcf8;
 }
