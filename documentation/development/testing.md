@@ -1,5 +1,16 @@
 # Verification
 
+Workspace refinement adds timer-paused viewer-checkbox saves, a held first save
+that preserves the editor node, viewport and undo/redo, and fresh creation after
+the saved route is adopted. The real shared `(notes)` layout owns the document;
+the browser fixture mirrors that persistent layout. Search checks cover pending
+request clearing, empty results, retry, control alignment and accessible layouts
+at 1440/390/320px. Sidebar note-drag checks verify a readable preview, source-row
+feedback and version-fenced Undo. Focus/outline navigation includes CRLF and
+formatted/setext headings. These cases extend the existing save-race, history,
+gesture and viewport regressions; the focused WebKit configuration includes the
+new editor/search cases and lost-response/return-to-draft paths.
+
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale

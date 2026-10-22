@@ -1,5 +1,39 @@
 # Delivery evidence
 
+## Workspace refinement (22 October 2026)
+
+Notebook titles gain space from combined folder/file drag handles, aligned disclosure
+and action controls, and a wider desktop sidebar. Commands and shortcut help share
+one row. Buttons follow the landing page's flat, 5px-radius styling; desktop note
+tools use 36px controls while touch targets retain separate 44px areas. Note dragging
+has a readable pointer-positioned preview and whole-row source feedback.
+
+Viewer checklist changes save immediately through the existing version/operation-aware
+path; typing autosaves after 450ms. A shared `(notes)` layout and document controller
+preserve the editor, focus, scroll and undo history through the first saved URL.
+Starting another note resets document identity while retained drafts and uncertain
+save retries keep their original identities. Focus mode retains view/edit controls.
+The content-sized outline shows heading hierarchy and the current section, with
+normalized CRLF positions and keyboard navigation.
+
+Ask/Search aligns its mode and notebook controls and retains the search field/status
+through pending, empty, ready and retry states. Clearing a pending query immediately
+returns to the empty search state. Shared recovery and control components are reused.
+
+Verification on application source `e31e438`: root/website lint, types and builds,
+all five packaged artifacts, bundle budgets and the full **210 Chromium** suite pass.
+**17 focused iPhone/WebKit** scenarios pass, followed by **three final first-save/recovery**
+checks. Repeated affected Chromium checks also pass after correcting synthetic shifted-Z,
+paused animation-clock measurement and a manual-click/automatic-save test race.
+Dropdown description contrast uses the shared muted colour token.
+
+The telemetry-enabled production build is `bb1JRm4mEIK8YwzqY7LrK`; Notes entry is
+**484,414 gzip bytes**, with the editor deferred. Verification used an exact-source
+disposable checkout on Node 24.21.0 / pnpm 10.33.0 because the worktree filesystem
+was nearly full. [Fourteen reviewed captures](design/screenshots/workspace-refinement/README.md)
+cover desktop, 390px and 320px; browser checks additionally cover 768px, enlarged text,
+short windows, keyboard/touch, accessible contrast and save/conflict/retry behavior.
+
 ## Notebook assistance (22 October 2026)
 
 Five contextual tools share concise previews and exact source evidence: subject-aware
