@@ -1,5 +1,20 @@
 # Delivery evidence
 
+## Public-reader authentication isolation (22 October 2026 UTC)
+
+Live rollout verification found that the root authentication provider loaded Clerk
+on anonymous shared readers. The provider now belongs to account/workspace layouts.
+A configured synthetic-key regression first reproduced the issue, then passed with
+the fix: sign-in loads the provider, while successful/missing/failed shared readers
+and marketing pages make no authentication-provider requests. Existing secret-path
+links and server-rendered, no-JavaScript reading are preserved.
+
+Root/website lint, types and builds, all five artifact checks, bundle budgets and
+all 160 Chromium scenarios pass. This records local verification; production
+acceptance requires the coordinated follow-up release. A separate hosting canary
+was visible in Vercel request-path logs: hosting capability redaction is **not**
+verified and must not be inferred from application telemetry filtering.
+
 ## Error-page refinement (22 October 2026 UTC)
 
 Deferred views and service failures share a restrained recovery layout with
