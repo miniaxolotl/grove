@@ -1,5 +1,37 @@
 # Delivery evidence
 
+## Notebook assistance (22 October 2026)
+
+Five contextual tools share concise previews and exact source evidence: subject-aware
+notebook summaries, suggested filing in Move, editable source-linked action lists,
+fixed-window visit digests and reviewed cleanup with both-original comparisons.
+Apply/Undo rechecks versions; supporting sources do not authorize writes. Four
+independent AI preferences inherit existing choices once. On-demand assistance
+reuses the existing dialogs, profiles, worker limits and enrichment lane.
+
+Migration **015**, after queue **014**, adds tenant-isolated previews/reviews,
+transactional change tokens, frozen visit checkpoints and resumable summary fragments.
+Source/profile/preference/lease guards prevent stale publication. Deletion and expiry
+remove evidence immediately, including offline browser previews. Exports/recovery
+retain authoritative decisions and operation references while invalidating previews.
+See [feature/API documentation](notebook-assistance.md) and [rollout](deploy.md).
+
+Verification passes on integrated source `1542c08`: **138 backend/service tests**
+(two optional RabbitMQ/S3 checks skipped locally), root/website lint, types and builds,
+five packaged artifacts, 17 release/deployment contracts and pinned workflow lint.
+The full **203 Chromium** suite and **five focused iPhone/WebKit** assistance/source
+scenarios pass; the final queue integration also passes **eight affected cases in
+each engine**. Bundle budgets pass; Notes entry is **483,060 gzip bytes**.
+[Fourteen reviewed captures](design/screenshots/notebook-assistance/README.md)
+cover desktop, 390px and 320px.
+
+The six labelled live-model subjects produced all 30 ready feature results, including
+six expected actions, three filing matches/three abstentions and the expected
+duplicate/conflict/explicit-replacement cleanup cases. The synthetic 10,000-note
+unchanged refresh took **69 ms / zero model calls**; one edit rebuilt 12 fragments
+in 804 ms. [Quality and scale evidence](development/notebook-assistance-results.md)
+records the initial failures, remaining wording limitations and measurement scope.
+
 ## Workspace polish follow-up (22 October 2026)
 
 Commands use full-row selection without a coloured edge stripe. Dialogs, dropdowns

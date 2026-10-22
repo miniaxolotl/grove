@@ -104,3 +104,6 @@ from `tests/fixtures/assistance-quality.ts`. Inspect every output against its ru
 supported summary themes, filing precision/abstention, action precision/recall,
 both-sided changed decisions and cleanup false positives. Blanket abstention does
 not meet positive cases. Record actual provider/profile and results in delivery evidence.
+
+See the [recorded quality and scale results](development/notebook-assistance-results.md)
+and [reviewed desktop/mobile captures](design/screenshots/notebook-assistance/README.md).
