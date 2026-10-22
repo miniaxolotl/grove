@@ -107,7 +107,7 @@ export async function runTask(
   const signal = AbortSignal.any([
     lost.signal,
     ...(options.signal ? [options.signal] : []),
-    AbortSignal.timeout(110000),
+    AbortSignal.timeout(15 * 60 * 1000),
   ]);
   const heartbeat = (async () => {
     try {

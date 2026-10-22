@@ -75,7 +75,6 @@ async function main() {
       const profiles = modelProfiles(config);
       await db.transaction(async (trx) => {
         await trx.raw("SELECT pg_advisory_xact_lock(68142019)");
-        await trx("accounts").orderBy("id").forUpdate().select("id");
         await trx.raw("SELECT grove_reprocess(?, ?, ?)", [
           profiles.embedding,
           profiles.decision,

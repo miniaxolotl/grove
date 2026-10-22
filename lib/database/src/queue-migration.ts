@@ -43,12 +43,13 @@ export const queueProcessing = {
         attempts integer NOT NULL DEFAULT 0, failures integer NOT NULL DEFAULT 0,
         due_at timestamptz NOT NULL DEFAULT now(), lease_id uuid, lease_until timestamptz,
         dispatch_id uuid, dispatch_until timestamptz, dispatched_at timestamptz,
-        error_code text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+        error_code text, claimed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
         finished_at timestamptz, expires_at timestamptz,
         UNIQUE NULLS NOT DISTINCT(account_id,kind,dedupe_key),
         CHECK(account_id IS NOT NULL OR kind='model_backfill')
       );
       ALTER TABLE background_tasks ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE background_tasks FORCE ROW LEVEL SECURITY;
       CREATE POLICY tenant ON background_tasks USING(account_id = NULLIF(current_setting('grove.account_id',true),'')::uuid)
         WITH CHECK(account_id = NULLIF(current_setting('grove.account_id',true),'')::uuid);
       GRANT SELECT,INSERT,UPDATE ON background_tasks TO grove_runtime;
@@ -61,39 +62,42 @@ export const queueProcessing = {
         SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
         SELECT (t.account_id IS NULL AND t.kind='model_backfill') OR EXISTS(
           SELECT 1 FROM accounts a WHERE a.id=t.account_id AND
-            (a.status='active' OR (t.kind IN ('account_cleanup','artifact_cleanup') AND a.status IN ('deleting','deleted'))))
+            (t.kind='artifact_cleanup' OR (a.status='active' AND t.kind<>'account_cleanup') OR (t.kind='account_cleanup' AND a.status IN ('deleting','deleted'))))
       $$;
       REVOKE ALL ON FUNCTION grove_task_allowed(background_tasks) FROM PUBLIC;
 
       CREATE FUNCTION grove_claim_task(wanted uuid, requested_lane text, account_limit integer) RETURNS SETOF background_tasks
         LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-      DECLARE selected uuid; owner_id uuid; selected_lane text;
+      DECLARE candidate record; selected uuid; owner_id uuid; selected_lane text;
       BEGIN
         -- Expired attempts are reclaimed; the failure count bounds consecutive crashes.
         UPDATE background_tasks SET status='failed',error_code='lease_exhausted',finished_at=now(),updated_at=now(),lease_id=NULL,lease_until=NULL
           WHERE status IN ('pending','running') AND failures>=5 AND (lease_until IS NULL OR lease_until<now());
-        SELECT t.id,t.account_id,t.lane INTO selected,owner_id,selected_lane FROM background_tasks t LEFT JOIN accounts a ON a.id=t.account_id
+        FOR candidate IN SELECT t.id,t.account_id,t.lane FROM background_tasks t LEFT JOIN accounts a ON a.id=t.account_id
           WHERE (wanted IS NULL OR t.id=wanted) AND (requested_lane IS NULL OR t.lane=requested_lane)
             AND t.status IN ('pending','running') AND t.failures<5 AND t.due_at<=now()
             AND (t.lease_until IS NULL OR t.lease_until<now()) AND grove_task_allowed(t)
             AND (t.account_id IS NULL OR (SELECT count(*) FROM background_tasks busy WHERE busy.account_id=t.account_id
               AND busy.lane=t.lane AND busy.status='running' AND busy.lease_until>now()) < greatest(1,least(account_limit,32)))
-          ORDER BY a.work_claimed_at NULLS FIRST,t.due_at,t.id LIMIT 1;
-        IF selected IS NULL THEN RETURN; END IF;
+          ORDER BY coalesce(a.work_claimed_at,t.claimed_at) NULLS FIRST,t.due_at,t.id LIMIT 32
+        LOOP
+        selected:=candidate.id; owner_id:=candidate.account_id; selected_lane:=candidate.lane;
         IF owner_id IS NOT NULL THEN
           -- Match mutation lock order: account before task. Recheck capacity after locking.
           PERFORM 1 FROM accounts WHERE id=owner_id FOR UPDATE SKIP LOCKED;
-          IF NOT FOUND THEN RETURN; END IF;
+          IF NOT FOUND THEN CONTINUE; END IF;
           IF (SELECT count(*) FROM background_tasks WHERE account_id=owner_id AND status='running' AND lease_until>now()
-            AND lane=selected_lane) >= greatest(1,least(account_limit,32)) THEN RETURN; END IF;
+            AND lane=selected_lane) >= greatest(1,least(account_limit,32)) THEN CONTINUE; END IF;
         END IF;
         PERFORM 1 FROM background_tasks t WHERE t.id=selected AND t.status IN ('pending','running')
           AND (t.lease_until IS NULL OR t.lease_until<now()) AND t.failures<5 AND t.due_at<=now()
           AND grove_task_allowed(t) FOR UPDATE SKIP LOCKED;
-        IF NOT FOUND THEN RETURN; END IF;
+        IF NOT FOUND THEN CONTINUE; END IF;
         IF owner_id IS NOT NULL THEN UPDATE accounts SET work_claimed_at=now() WHERE id=owner_id; END IF;
         RETURN QUERY UPDATE background_tasks SET status='running',lease_id=gen_random_uuid(),lease_until=now()+interval '120 seconds',
-          attempts=attempts+1,failures=failures+1,updated_at=now() WHERE id=selected RETURNING *;
+          attempts=attempts+1,failures=failures+1,claimed_at=now(),updated_at=now() WHERE id=selected RETURNING *;
+        RETURN;
+        END LOOP;
       END $$;
       REVOKE ALL ON FUNCTION grove_claim_task(uuid,text,integer) FROM PUBLIC;
       GRANT EXECUTE ON FUNCTION grove_claim_task(uuid,text,integer) TO grove_worker;

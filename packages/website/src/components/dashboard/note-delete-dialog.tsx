@@ -131,7 +131,7 @@ export function NoteDeleteDialog({
         );
       drafts?.delete(key);
       onDeleted();
-      toast("Note permanently deleted.");
+      toast("Note deleted.");
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -142,8 +142,8 @@ export function NoteDeleteDialog({
   return (
     <Dialog title="Delete note?" close={close} busy={busy}>
       <p className="mb-4 text-sm">
-        Permanently delete “{memoryTitle(current)}” and its history? This cannot
-        be undone.
+        Delete “{memoryTitle(current)}”? It and its history will be hidden from
+        your Grove.
       </p>
       {!!draft && (
         <p className="mb-4 text-sm">

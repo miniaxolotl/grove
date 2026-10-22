@@ -52,7 +52,8 @@ automatic capture is paused; explicit user-requested saves use `"explicit"`.
 removed; 1–365 selects a temporary lifetime. New handoffs default to 30 days and
 other kinds to permanent. Omission on correction preserves retention and expiry.
 Changing retention restarts it; restore renews it. Expired notes are hidden from
-recall and retained for a 60-day restoration window before permanent deletion.
+recall and retained for a60-day restoration window before soft deletion. Hidden
+source records and their revisions remain retained.
 
 Use a new UUID operation ID per mutation and keep it across retries. Reusing an ID
 with different arguments returns 409. Replaying a deleted save returns 410 and
@@ -75,33 +76,34 @@ No server content cache can outlive deletion or revocation.
 Responses use `{success: true, data}` or
 `{success: false, error: {code, message, requestId}}`. Export is NDJSON.
 
-| Routes                                                                            | Access                                                                           |
-| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `GET /v1/me`                                                                      | Authenticated identity/effective grant and settings                              |
-| `POST /v1/connect`                                                                | Agent starts/resumes its own connection request; API keys require existing scope |
-| `GET /v1/connect/:id`                                                             | Request's agent connection or owning website session                             |
-| `POST /v1/connect/:id/approve`                                                    | Owning website session; transactional project link and grant                     |
-| `POST /v1/connect/:id/cancel`                                                     | Request's agent connection or owning website session                             |
-| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                                | Approved scope; create needs all-project access or website session               |
-| `POST /v1/memories`; `PATCH /v1/memories/:id`                                     | `memory:write`                                                                   |
-| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id`            | `memory:read`                                                                    |
-| `GET /v1/memories/:id/revisions`                                                  | `memory:read`, current scope                                                     |
-| `POST /v1/memories/:id/archive`; `…/restore`                                      | `memory:write`, operation ID and current version                                 |
-| `POST /v1/memories/delete`                                                        | `memory:delete`                                                                  |
-| `POST /v1/recall`                                                                 | `memory:read`                                                                    |
-| `POST /v1/ask`                                                                    | Scoped `memory:read`; cited answer or source search                              |
-| `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`                | Owning website session only; saved chat history                                  |
-| `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`             | Owning website session only; contextual replies and previewed note changes       |
-| `POST /v1/briefs`; `POST /v1/briefs/refresh`                                      | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
-| `POST /v1/memories/:id/reprocess`                                                 | Scoped `memory:write`; body `{expectedVersion}`                                  |
-| `GET /v1/models`; `GET /v1/account/usage`                                         | Website session; masked settings / account usage                                 |
-| `PATCH /v1/models`; `POST /v1/models/test`                                        | Configured self-hosted installation administrator only                           |
-| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`                  | Website session only                                                             |
-| `POST /v1/keys`                                                                   | Website session only; secret returned once                                       |
-| `POST /v1/logout`                                                                 | Revoke calling agent's connection                                                |
-| `PATCH /v1/account/settings`; `GET /v1/account/export`; `POST /v1/account/delete` | Website session only                                                             |
-| `POST /v1/webhooks/clerk`                                                         | Svix signature, replay receipt and event ordering                                |
-| `GET /health/live`, `/health/ready`                                               | Public, content-free                                                             |
+| Routes                                                                 | Access                                                                           |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `GET /v1/me`                                                           | Authenticated identity/effective grant and settings                              |
+| `POST /v1/connect`                                                     | Agent starts/resumes its own connection request; API keys require existing scope |
+| `GET /v1/connect/:id`                                                  | Request's agent connection or owning website session                             |
+| `POST /v1/connect/:id/approve`                                         | Owning website session; transactional project link and grant                     |
+| `POST /v1/connect/:id/cancel`                                          | Request's agent connection or owning website session                             |
+| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                     | Approved scope; create needs all-project access or website session               |
+| `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                   |
+| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                    |
+| `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                     |
+| `POST /v1/memories/:id/archive`; `…/restore`                           | `memory:write`, operation ID and current version                                 |
+| `POST /v1/memories/delete`                                             | `memory:delete`                                                                  |
+| `POST /v1/recall`                                                      | `memory:read`                                                                    |
+| `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                              |
+| `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`     | Owning website session only; saved chat history                                  |
+| `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`  | Owning website session only; contextual replies and previewed note changes       |
+| `POST /v1/briefs`; `POST /v1/briefs/refresh`                           | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
+| `POST /v1/memories/:id/reprocess`                                      | Scoped `memory:write`; body `{expectedVersion}`                                  |
+| `GET /v1/models`; `GET /v1/account/usage`                              | Website session; masked settings / account usage                                 |
+| `PATCH /v1/models`; `POST /v1/models/test`                             | Configured self-hosted installation administrator only                           |
+| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`       | Website session only                                                             |
+| `POST /v1/keys`                                                        | Website session only; secret returned once                                       |
+| `POST /v1/logout`                                                      | Revoke calling agent's connection                                                |
+| `PATCH /v1/account/settings`; `POST /v1/account/delete`                | Website session only                                                             |
+| `/v1/exports`, `/v1/imports`, `/v1/tasks`                              | Session-owner durable work; see [jobs](jobs.md)                                  |
+| `POST /v1/webhooks/clerk`                                              | Svix signature, replay receipt and event ordering                                |
+| `GET /health/live`, `/health/ready`                                    | Public, content-free                                                             |
 
 Use POST search so query text stays out of URLs. Cursors are signed and bound to
 account, connection, filters, and creation-time ceiling. Pagination is bounded,
@@ -130,8 +132,8 @@ scoped evidence. Replies cite exact revisions and can propose one explicit creat
 edit or merge. `apply` and `undo` take `{}` and atomically fence every affected
 note version; merges archive other originals. Generation runs outside transactions,
 with final account/session, provider/settings and source checks. A conversation is
-limited to 100 turns with five-minute attempt leases. Deleted conversations retain
-only deletion tombstones; account deletion purges conversation content, and account
+limited to100 turns with five-minute attempt leases. Deleted conversations retain
+hidden history; account deletion revokes access and soft deletes content, and account
 exports include saved history. Migration 009 and restore rules are in [deploy](deploy.md).
 
 ## Persistence and jobs
@@ -151,7 +153,7 @@ narrow, fixed-search-path functions with public execution revoked.
 
 The worker claims jobs with `FOR UPDATE SKIP LOCKED`, a 120-second lease, revision
 identity, bounded retries and terminal failure. Completion rechecks the lease,
-account and current revision in one transaction. Deletion cascades prevent stale
+account and current revision in one transaction. Tombstones and generation fences prevent stale
 worker completion from restoring content. Embedding profiles carry checked dimensions;
 Cloud uses full 4,096-dimensional Qwen vectors with scoped exact search. Self-hosted
 defaults to local MiniLM and can configure each inference role. `disabled` embedding
@@ -159,7 +161,7 @@ mode is explicitly lexical. Classification and generation use revision-fenced jo
 source-linked artifacts obey the same scope and lifecycle. See [models](models.md)
 for provider settings, enrichment/brief contracts, quotas, reset and reindex operations.
 
-Account deletion first revokes access, then purges application content even during
+Account deletion first revokes access, then hides retained application content even during
 an identity-provider outage. Clerk deletion retries separately. Minimal subject and
 operation tombstones prevent delayed webhook/retry reprovisioning. Backups require
 the retention and deletion procedures in the deployment guide.

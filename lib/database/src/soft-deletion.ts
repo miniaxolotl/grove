@@ -133,6 +133,28 @@ export async function softDeletion(db: Knex) {
   );
 
   await db.raw(`
+    CREATE OR REPLACE FUNCTION grove_webhook(event_id text,event_type text,subject text,event_at bigint) RETURNS void
+      LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
+    BEGIN
+      INSERT INTO webhook_receipts(id) VALUES(event_id) ON CONFLICT DO NOTHING;
+      IF NOT FOUND THEN RETURN; END IF;
+      IF event_type IN ('session.revoked','session.ended','session.removed') THEN
+        INSERT INTO session_revocations(id) VALUES(subject) ON CONFLICT DO NOTHING;
+        RETURN;
+      END IF;
+      PERFORM pg_advisory_xact_lock(hashtextextended(subject,1));
+      IF event_type='user.deleted' THEN
+        INSERT INTO subject_authority(subject,event_at,deleted) VALUES(subject,event_at,true)
+          ON CONFLICT ON CONSTRAINT subject_authority_pkey DO UPDATE SET deleted=true;
+        UPDATE accounts SET status='deleting',deleted_at=now(),provider_deleted_at=now()
+          WHERE clerk_subject=subject AND status<>'deleted';
+      ELSIF event_type IN ('user.created','user.updated') THEN
+        INSERT INTO subject_authority(subject,event_at,deleted) VALUES(subject,event_at,false)
+          ON CONFLICT ON CONSTRAINT subject_authority_pkey DO UPDATE SET event_at=EXCLUDED.event_at
+          WHERE subject_authority.event_at<EXCLUDED.event_at AND NOT subject_authority.deleted;
+      END IF;
+    END $$;
+
     CREATE FUNCTION grove_schedule_cleanup() RETURNS integer LANGUAGE plpgsql
       SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
     DECLARE added integer;
@@ -164,7 +186,6 @@ export async function softDeletion(db: Knex) {
           ON CONFLICT(account_id,kind,dedupe_key) DO NOTHING;
         UPDATE background_tasks SET status='cancelled',lease_id=NULL,lease_until=NULL,updated_at=now(),finished_at=now()
           WHERE account_id=NEW.id AND kind NOT IN ('account_cleanup','artifact_cleanup') AND status IN ('pending','running');
-        DELETE FROM jobs WHERE account_id=NEW.id;
       END IF;
       RETURN NULL;
     END $$;

@@ -637,10 +637,12 @@ test("live reads respect edits, archive, expiry, deletion and account state", as
     items: [{ id: note.id, expectedVersion: restored.version }],
   });
   await assert.rejects(sharing.read(token), { code: "not_found" });
-  assert.equal(
-    (await admin("public_shares").where({ id: state.direct!.id })).length,
-    0,
-  );
+  const revoked = await admin("public_shares")
+    .where({ id: state.direct!.id })
+    .first();
+  assert(revoked.revokedAt);
+  assert.equal(revoked.tokenDigest, null);
+  assert.equal(revoked.tokenCiphertext, null);
 });
 
 test("public traffic has a separate bounded budget and key rotation permits owner recovery", async () => {
@@ -813,7 +815,7 @@ test("security-definer readers cannot be shadowed with temporary relations", asy
   });
 });
 
-test("account deletion purges sharing records and rate state using the worker role", async () => {
+test("account deletion hides revoked shares and removes rate state using the worker role", async () => {
   const workerUrl = process.env.TEST_WORKER_DATABASE_URL;
   assert(workerUrl, "Use a disposable worker connection");
   const workerDb = createDatabase(workerUrl);
@@ -844,7 +846,7 @@ test("account deletion purges sharing records and rate state using the worker ro
     );
     for (const table of ["public_shares", "public_share_operations"])
       assert.equal(
-        (await admin(table).where({ accountId: principal.accountId })).length,
+        (await tenant(db, principal.accountId, (trx) => trx(table))).length,
         0,
       );
     assert.equal(

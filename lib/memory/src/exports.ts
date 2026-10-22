@@ -9,13 +9,15 @@ import {
 } from "./task-runner.ts";
 
 export interface ArtifactStore {
+  ready?(): Promise<void>;
+  close?(): void;
   write(
     key: string,
     data: Buffer | Readable,
     signal: AbortSignal,
   ): Promise<void>;
   read(key: string, signal?: AbortSignal): Promise<Readable>;
-  remove(key: string): Promise<void>;
+  remove(key: string, signal?: AbortSignal): Promise<void>;
 }
 const stages = [
   "notebook",
@@ -56,7 +58,23 @@ async function prepare(db: Knex, task: ClaimedTask, key: string) {
   });
 }
 async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
-  const projects = task.payload.projectIds as string[] | null;
+  // Keep notebook trees in PostgreSQL rather than loading an unbounded scope
+  // into the request/task payload. Each retry resolves the current tree.
+  const projects = task.payload.projectId
+    ? trx
+        .withRecursive(
+          "export_scope",
+          trx.raw(
+            `
+        SELECT id FROM projects WHERE id=?::uuid
+        UNION SELECT p.id FROM projects p JOIN export_scope s ON p.parent_id=s.id WHERE ?::boolean
+      `,
+            [String(task.payload.projectId), !!task.payload.includeDescendants],
+          ),
+        )
+        .select("id")
+        .from("export_scope")
+    : null;
   const after = task.cursor.afterId as string | undefined;
   const kind = stages[stage];
   if (kind === "revision") {
@@ -248,7 +266,7 @@ export function exportHandlers(
     );
     for (const object of objects) {
       signal.throwIfAborted();
-      await store.remove(object.objectKey);
+      await store.remove(object.objectKey, signal);
     }
     await taskTransaction(db, task, async (trx) => {
       if (objects.length)

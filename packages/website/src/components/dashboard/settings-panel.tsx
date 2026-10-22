@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { ExportTasks } from "./export-tasks";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
@@ -63,29 +63,16 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
         {section === "data" && (
           <>
             <section className="app-panel">
-              <h2 className="font-editorial text-2xl">
-                Take your notes with you
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-muted">
-                Download your notes, earlier versions, and conversations.
-              </p>
-              <a
-                className="app-button secondary mt-5"
-                href="/api/grove/account/export"
-                download
-              >
-                <Download size={15} />
-                Export all account data
-              </a>
+              <ExportTasks />
             </section>
             <section className="app-panel">
               <h2 className="font-editorial text-2xl">
                 Delete your Grove account
               </h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                Access ends immediately. Your notes, history, notebooks,
-                connections, and sign-in account will be permanently removed.
-                This cannot be undone.
+                Access ends immediately and your sign-in is removed. Deleted
+                notes and history are retained privately and hidden from the
+                app.
               </p>
               <form
                 className="app-form mt-5"

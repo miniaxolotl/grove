@@ -167,6 +167,13 @@ createServer(async (request, response) => {
         .end(await readFile(file));
       return;
     }
+    // Native downloads bypass Chromium's page-route interception. This fixture
+    // streams synthetic data; real authorization is exercised by the API tests.
+    if (/^\/api\/grove\/tasks\/[0-9a-f-]+\/download$/.test(path)) {
+      response.writeHead(200, { "Content-Type": "application/x-ndjson", "Content-Disposition": 'attachment; filename="grove-account.ndjson"' })
+        .end('{"type":"note","content":"Exported writing"}\n');
+      return;
+    }
     if (path.startsWith("/api/")) {
       response.writeHead(503).end();
       return;

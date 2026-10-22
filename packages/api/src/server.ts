@@ -28,7 +28,10 @@ export async function startServer() {
     siteUrl: env.SITE_URL,
     issuer: env.CLERK_ISSUER,
     webhookSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
-    ready: () => probeDatabase(db),
+    ready: async () => {
+      await probeDatabase(db);
+      await runtime.artifacts?.ready?.();
+    },
     telemetry: reporter,
     shareLinkKey: env.SHARE_LINK_KEY,
   });

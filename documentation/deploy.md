@@ -5,6 +5,28 @@ Shared workflow names, action pins, runtime and evidence conventions follow the
 
 ## Topology
 
+### Queue and retained-deletion rollout (014)
+
+1. Back up the database; pause API/worker mutations and retain lifecycle webhooks.
+2. Apply forward migration `20261022_014_queue_processing` with the owner connection,
+   after013. It preserves source rows, adds tombstones/visibility policies and
+   creates durable tasks, epoch fencing and atomic dispatch functions. Index/DDL
+   locks require the maintenance window. Do not run old workers after the cutover.
+3. Configure matching private export storage on API and workers using [jobs](jobs.md).
+   DigitalOcean needs S3-compatible storage, not ephemeral local disks. Keep cloud
+   exports disabled until the bucket/credentials/lifecycle and readiness are verified.
+   Image-only deployments preserve existing provider settings; add these separately
+   through the operator's configuration procedure.
+4. Roll out the admitted API/worker image by digest, then the website. Verify real
+   non-owner roles, retained-but-hidden records, public-link denial, queue fallback,
+   export/download isolation and an incremental backfill. Drain v1 broker deliveries
+   before disabling `WORKER_LEGACY_QUEUE`; allow40s worker shutdown grace.
+5. Recovery must use the updated reconciliation script. It retains authored rows,
+   replays tombstones and invalidates restored leases, exports and credentials.
+
+This is a forward-only lifecycle/API change. The old synchronous account-export
+route returns410; new clients use `/v1/exports` and `/v1/tasks`.
+
 - Next.js website: **https://usegrove.cloud** on Vercel, production Clerk and an authenticated BFF.
 - Hono API: **https://api.usegrove.cloud**, REST `/v1`, MCP `/mcp` on DigitalOcean App Platform.
 - Worker: leased processing, organization, retention, account deletion, and transactional mail.
@@ -313,8 +335,9 @@ already delivered to agents. Recovery must replay newer privacy decisions:
    ```
 
    The source transaction is read-only. The target transaction replays permanent
-   memory/account tombstones, identity state and session revocations, purges
-   dependent content, clears cached mutation results and invalidates **all** old
+   memory/account/notebook tombstones, identity state and session revocations,
+   hides retained dependent content, clears cached mutation results, cancels old
+   jobs/downloads and invalidates **all** old
    grants/API keys. Missing authority accounts or mismatched migrations fail closed.
 
 5. Verify non-owner roles/RLS, two-account isolation, deletion absence, worker jobs

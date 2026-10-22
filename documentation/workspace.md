@@ -136,11 +136,13 @@ If an automatic PDF download does not start, use **Download PDF** in the chooser
 Closing it cancels preparation. Clipboard denial leaves selectable source text.
 
 Drafts longer than 6,000 characters stay available for export; shorten them to save.
-PDF supports up to 100,000 characters. **Settings → Your data → Export all account
-data** is the separate backup containing notes, revisions and conversations.
+PDF supports up to100,000 characters. **Settings → Your data** prepares a queued
+account export; **Notebook options → Export notebook** exports a notebook, with
+optional sub-notebooks. Icon controls show progress, cancel, retry and download.
+Files include notes and revisions; account exports also contain conversations.
 
 **Delete note…** is also available under a row's Actions button, without opening
-the note. Confirmation names the note and permanently removes its history. Cancel
+the note. Confirmation names the note and hides it and its retained history. Cancel
 keeps your draft. If you have unsaved edits, the confirmation explicitly discards
 them; it pauses autosave and waits for an active save. An uncertain save must be
 resolved with **Retry pending save** first. Concurrent edits require review rather

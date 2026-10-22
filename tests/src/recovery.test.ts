@@ -214,7 +214,7 @@ test("isolated restore replays current deletions and revocations without changin
     assert.equal(recoveredReview.reviewVersion, 2);
     assert.equal(recoveredReview.profile, "recovery-pending");
     assert.deepEqual(recoveredReview.assessment.evidence, []);
-    assert.equal(result.purgedMemories, 2);
+    assert.equal(result.softDeletedMemories, 2);
     assert.equal(result.blockedAccounts, 1);
     assert.equal(result.invalidatedShares, 1);
     const restoredShare = await target("public_shares").first();
@@ -232,13 +232,22 @@ test("isolated restore replays current deletions and revocations without changin
     );
     assert.deepEqual(await source("accounts").orderBy("id"), before);
     assert.equal((await source("connections").first()).capabilities.length, 1);
-    assert.deepEqual(await target("memories").pluck("id"), [keep]);
-    assert.deepEqual(await target("conversations").pluck("id"), [retainedChat]);
+    assert.deepEqual(
+      await target("memories").whereNull("deletedAt").pluck("id"),
+      [keep],
+    );
+    assert.equal(
+      (await target("memories").whereNotNull("deletedAt")).length,
+      2,
+    );
+    assert.deepEqual(
+      await target("conversations").whereNull("deletedAt").pluck("id"),
+      [retainedChat],
+    );
     const restoredTurn = await target("conversation_turns").first();
     assert.equal(restoredTurn.status, "failed");
     assert.equal(restoredTurn.result.proposal.status, "unavailable");
     for (const table of [
-      "memory_revisions",
       "memory_embeddings",
       "jobs",
       "memory_operations",
@@ -287,7 +296,10 @@ test("isolated restore replays current deletions and revocations without changin
       await trx.raw("SELECT set_config('grove.account_id', ?, true)", [a]);
       assert.deepEqual(await trx("memories").pluck("id"), [keep]);
     });
-    assert.equal((await reconcileRestore(source, target)).purgedMemories, 0);
+    assert.equal(
+      (await reconcileRestore(source, target)).softDeletedMemories,
+      0,
+    );
     await target("accounts").insert({
       clerkSubject: "unexpected_recovery_account",
     });

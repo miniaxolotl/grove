@@ -2,7 +2,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDatabase, type Knex } from "@lib/database";
-import { MemoryService, sessionPrincipal } from "@lib/memory";
+import { MemoryService, sessionPrincipal, runTask } from "@lib/memory";
 import { InferenceError, type Providers } from "@lib/ai";
 import {
   answerSchema,
@@ -417,6 +417,30 @@ test("each summary scope and Ask Grove are independent across save, refresh and 
     f.providers.decision!.profile,
     f.providers.generation!.profile,
   ]);
+  const backfill = await admin("background_tasks")
+    .where({ kind: "model_backfill", status: "pending" })
+    .first();
+  for (let i = 0; i < 100; i++) {
+    if (
+      !(await runTask(
+        workerDb,
+        {
+          model_backfill: async (task) => {
+            await workerDb.raw(
+              "SELECT grove_backfill_batch(?::uuid,?::uuid,100)",
+              [task.id, task.leaseId],
+            );
+          },
+        },
+        { id: backfill.id },
+      ))
+    )
+      break;
+  }
+  assert.equal(
+    (await admin("background_tasks").where({ id: backfill.id }).first()).status,
+    "succeeded",
+  );
   const jobs = await admin("jobs").where({ accountId: f.principal.accountId });
   assert(!jobs.some((j) => j.kind === "decision"));
   assert.deepEqual(

@@ -26,6 +26,12 @@ const workStop = new AbortController();
 const stop = () => {
   controller.abort();
   globalThis.setTimeout(() => workStop.abort(), 25000).unref();
+  globalThis
+    .setTimeout(() => {
+      console.error(JSON.stringify({ code: "shutdown_lease_recovery" }));
+      process.exit(1);
+    }, 35000)
+    .unref();
 };
 process.once("SIGTERM", stop);
 process.once("SIGINT", stop);
