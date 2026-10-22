@@ -1,6 +1,12 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { MemoryService, sessionPrincipal } from "@lib/memory";
+import { rememberSchema, listSchema } from "@lib/shared/contracts";
+import {
+  cleanupHandlers,
+  scheduleCleanup,
+} from "../../lib/memory/src/cleanup.ts";
 import { createDatabase, tenant, camelRows, type Knex } from "@lib/database";
 import {
   checkpointTask,
@@ -165,4 +171,168 @@ test("deleting accounts block exports but retain a claimable cleanup path", asyn
     .update({ status: "deleting" });
   assert.equal(await claim(exportId), undefined);
   assert(await claim(cleanupId, "maintenance"));
+});
+
+test("soft deletion retains note and conversation history while RLS hides them from normal and scoped reads", async () => {
+  const f = await fixture();
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const principal = sessionPrincipal(f.accountId, account.clerkSubject);
+  const service = new MemoryService(api, "queue-tests");
+  const note = await service.remember(
+    principal,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      content: "Keep this source and its history.",
+    }),
+  );
+  const chat = await service.conversations.create(principal, {
+    id: randomUUID(),
+    includePersonal: false,
+  });
+  await service.forget(principal, {
+    operationId: randomUUID(),
+    items: [{ id: note.id, expectedVersion: note.version }],
+  });
+  await service.conversations.remove(principal, chat.id);
+  assert((await admin("memories").where({ id: note.id }).first()).deletedAt);
+  assert.equal(
+    (await admin("memory_revisions").where({ memoryId: note.id })).length,
+    1,
+  );
+  assert(
+    (await admin("conversations").where({ id: chat.id }).first()).deletedAt,
+  );
+  assert.equal(
+    (await service.list(principal, listSchema.parse({ status: "all" }))).items
+      .length,
+    0,
+  );
+  await assert.rejects(service.get(principal, note.id), { code: "not_found" });
+  await assert.rejects(service.conversations.get(principal, chat.id), {
+    code: "not_found",
+  });
+  assert.equal(
+    (
+      await tenant(worker, f.accountId, (trx) =>
+        trx("memory_revisions").where({ memoryId: note.id }),
+      )
+    ).length,
+    0,
+  );
+});
+
+test("account cleanup checkpoints soft deletion independently of identity-provider failures", async () => {
+  const f = await fixture();
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const principal = sessionPrincipal(f.accountId, account.clerkSubject);
+  const service = new MemoryService(api, "queue-tests");
+  const note = await service.remember(
+    principal,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      content: "Retained after account closure.",
+    }),
+  );
+  await service.deleteAccount(principal);
+  await assert.rejects(service.get(principal, note.id), {
+    code: "account_unavailable",
+  });
+  const task = await admin("background_tasks")
+    .where({ accountId: f.accountId, kind: "account_cleanup" })
+    .first();
+  const handlers = cleanupHandlers(worker, async () => {
+    throw new Error("provider offline");
+  });
+  for (let i = 0; i < 5; i++)
+    await runTask(worker, handlers, { id: task.id, lane: "maintenance" });
+  assert((await admin("memories").where({ id: note.id }).first()).deletedAt);
+  assert.equal(
+    (await admin("memory_revisions").where({ memoryId: note.id })).length,
+    1,
+  );
+  assert.equal(
+    (await admin("background_tasks").where({ id: task.id }).first()).errorCode,
+    "identity_unavailable",
+  );
+  await admin("background_tasks")
+    .where({ id: task.id })
+    .update({ dueAt: admin.fn.now() });
+  await runTask(
+    worker,
+    cleanupHandlers(worker, async () => {}),
+    { id: task.id, lane: "maintenance" },
+  );
+  assert.equal(
+    (await admin("accounts").where({ id: f.accountId }).first()).status,
+    "deleted",
+  );
+});
+
+test("retention cleanup marks expired records without physically removing source versions", async () => {
+  const f = await fixture();
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const service = new MemoryService(api, "queue-tests");
+  const note = await service.remember(
+    sessionPrincipal(f.accountId, account.clerkSubject),
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      content: "Expired history.",
+      retentionDays: 1,
+    }),
+  );
+  await admin("memories")
+    .where({ id: note.id })
+    .update({
+      expiresAt: admin.raw("now()-interval '2 days'"),
+      purgeAt: admin.raw("now()-interval '1 day'"),
+    });
+  await scheduleCleanup(worker);
+  const task = await admin("background_tasks")
+    .where({ accountId: f.accountId, kind: "retention_cleanup" })
+    .first();
+  await runTask(
+    worker,
+    cleanupHandlers(worker, async () => {}),
+    { id: task.id, lane: "maintenance" },
+  );
+  assert((await admin("memories").where({ id: note.id }).first()).deletedAt);
+  assert.equal(
+    (await admin("memory_revisions").where({ memoryId: note.id })).length,
+    1,
+  );
+});
+
+test("dispatch claims are exclusive across replicas and publisher outcomes are token-fenced", async () => {
+  const f = await fixture();
+  const id = await f.enqueue();
+  const dispatch = () =>
+    worker.raw(
+      "SELECT * FROM grove_dispatch_claim('task','bulk','{}'::text[],100)",
+    );
+  const results = await Promise.all([dispatch(), dispatch()]);
+  const claims = results
+    .flatMap((r) => r.rows)
+    .filter((r: { id: string }) => r.id === id);
+  assert.equal(claims.length, 1);
+  await worker.raw(
+    "SELECT grove_dispatch_finish('task',?::uuid,?::uuid,true)",
+    [id, randomUUID()],
+  );
+  assert.equal(
+    (await admin("background_tasks").where({ id }).first()).dispatchedAt,
+    null,
+  );
+  await worker.raw(
+    "SELECT grove_dispatch_finish('task',?::uuid,?::uuid,false)",
+    [id, claims[0].dispatch_id],
+  );
+  const again = (await dispatch()).rows.find(
+    (r: { id: string }) => r.id === id,
+  );
+  assert(again);
+  await worker.raw(
+    "SELECT grove_dispatch_finish('task',?::uuid,?::uuid,true)",
+    [id, again.dispatch_id],
+  );
+  assert((await admin("background_tasks").where({ id }).first()).dispatchedAt);
 });

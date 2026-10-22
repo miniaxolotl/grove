@@ -1,4 +1,6 @@
 import type { Knex } from "knex";
+import { softDeletion } from "./soft-deletion.ts";
+import { queueDispatch } from "./queue-dispatch.ts";
 
 export const queueProcessing = {
   name: "20261022_014_queue_processing",
@@ -127,6 +129,8 @@ export const queueProcessing = {
       REVOKE ALL ON FUNCTION grove_task_failure(uuid,uuid,text,boolean,integer) FROM PUBLIC;
       GRANT EXECUTE ON FUNCTION grove_task_failure(uuid,uuid,text,boolean,integer) TO grove_worker;
     `);
+    await softDeletion(db);
+    await queueDispatch(db);
   },
   async down() {
     throw new Error("Use a forward migration");

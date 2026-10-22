@@ -1,5 +1,5 @@
 import { setTimeout } from "node:timers/promises";
-import { camelRows, type Knex } from "@lib/database";
+import { camelRows, tenant, type Knex } from "@lib/database";
 import type { QueueLane, TaskKind } from "@lib/shared/jobs";
 
 export interface ClaimedTask {
@@ -25,7 +25,7 @@ export interface TaskCheckpoint {
 export type TaskHandler = (
   task: ClaimedTask,
   signal: AbortSignal,
-) => Promise<TaskCheckpoint>;
+) => Promise<TaskCheckpoint | void>;
 export class TaskError extends Error {
   constructor(
     readonly code: string,
@@ -59,6 +59,27 @@ export async function checkpointTask(
     ],
   );
   return rows[0].saved as boolean;
+}
+
+/** Acquire account then task, matching API cancellation and lifecycle writes. */
+export async function taskTransaction(
+  db: Knex,
+  task: ClaimedTask,
+  run: (trx: Knex.Transaction) => Promise<TaskCheckpoint>,
+) {
+  if (!task.accountId) throw new TaskError("task_account_required", false);
+  await tenant(db, task.accountId, async (trx) => {
+    await trx("accounts").where({ id: task.accountId }).forUpdate().first();
+    const owned = await trx("background_tasks")
+      .where({ id: task.id, leaseId: task.leaseId, status: "running" })
+      .where("leaseUntil", ">", trx.fn.now())
+      .forUpdate()
+      .first();
+    if (!owned) throw new TaskError("task_superseded", false);
+    const next = await run(trx);
+    if (!(await checkpointTask(trx, task, next)))
+      throw new TaskError("task_superseded", false);
+  });
 }
 
 export async function runTask(
@@ -112,7 +133,7 @@ export async function runTask(
     if (!handler) throw new TaskError("handler_unavailable", false);
     const next = await handler(task, signal);
     signal.throwIfAborted();
-    await checkpointTask(db, task, next);
+    if (next) await checkpointTask(db, task, next);
   } catch (error) {
     await db.raw("SELECT grove_task_failure(?::uuid,?::uuid,?,?,?)", [
       task.id,
