@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/miniaxolotl/grove/compare/v1.9.1...v1.10.0) (2026-10-22)
+
+
+### Features
+
+* **sharing:** add timed links and isolate public readers ([#70](https://github.com/miniaxolotl/grove/issues/70)) ([18cc9dc](https://github.com/miniaxolotl/grove/commit/18cc9dce8654584dd54031f06d59b0ae97c2b2b3))
+
 ## [1.9.1](https://github.com/miniaxolotl/grove/compare/v1.9.0...v1.9.1) (2026-10-22)
 
 
