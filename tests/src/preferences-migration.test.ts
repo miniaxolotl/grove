@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { createDatabase, migrationSource, tenant } from "@lib/database";
-import { preferencesFor } from "@lib/shared/preferences";
+import {
+  organizationPreferences,
+  summaryPreferences,
+} from "@lib/shared/preferences";
 
 test("AI preference upgrade preserves all legacy choices, content and tenant isolation", async () => {
   const ownerUrl = process.env.TEST_MIGRATION_DATABASE_URL;
@@ -62,7 +65,12 @@ test("AI preference upgrade preserves all legacy choices, content and tenant iso
       const current = await tenant(runtime, old.id, (trx) =>
         trx("accounts").where({ id: old.id }).first(),
       );
-      assert.deepEqual(preferencesFor(current), preferencesFor(old));
+      for (const key of organizationPreferences)
+        assert.equal(current[key], old.organizeEnabled, key);
+      for (const key of [...summaryPreferences, "askEnabled"])
+        assert.equal(current[key], old.summariesEnabled, key);
+      assert.equal(current.captureEnabled, old.captureEnabled);
+      assert.equal(current.recallEnabled, old.recallEnabled);
       assert.equal(current.organizeEnabled, old.organizeEnabled);
       assert.equal(current.summariesEnabled, old.summariesEnabled);
     }

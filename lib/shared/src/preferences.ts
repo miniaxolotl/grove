@@ -20,50 +20,38 @@ export const preferenceKeys = [
 export type PreferenceKey = (typeof preferenceKeys)[number];
 export type AccountPreferences = Record<PreferenceKey, boolean>;
 export type AiAvailability = { classification: boolean; generation: boolean };
-export type LegacyPreferences = {
-  organizeEnabled?: boolean;
-  summariesEnabled?: boolean;
-};
+const legacyGroups = {
+  organizeEnabled: organizationPreferences,
+  summariesEnabled: [...summaryPreferences, "askEnabled"],
+} as const;
+export type LegacyPreferences = Partial<
+  Record<keyof typeof legacyGroups, boolean>
+>;
 export type PreferencesUpdate = Partial<AccountPreferences> & LegacyPreferences;
+const defaults = Object.fromEntries(
+  preferenceKeys.map((key) => [key, true]),
+) as AccountPreferences;
 
 /** Legacy API clients can still read/write their original grouped switches. */
 export function preferencesFor(input: PreferencesUpdate): AccountPreferences {
-  return {
-    titlesTagsEnabled: input.titlesTagsEnabled ?? input.organizeEnabled ?? true,
-    classificationEnabled:
-      input.classificationEnabled ?? input.organizeEnabled ?? true,
-    noteConnectionsEnabled:
-      input.noteConnectionsEnabled ?? input.organizeEnabled ?? true,
-    notebookConnectionsEnabled:
-      input.notebookConnectionsEnabled ?? input.organizeEnabled ?? true,
-    notebookSummariesEnabled:
-      input.notebookSummariesEnabled ?? input.summariesEnabled ?? true,
-    personalSummaryEnabled:
-      input.personalSummaryEnabled ?? input.summariesEnabled ?? true,
-    progressSummariesEnabled:
-      input.progressSummariesEnabled ?? input.summariesEnabled ?? true,
-    askEnabled: input.askEnabled ?? input.summariesEnabled ?? true,
-    recallEnabled: input.recallEnabled ?? true,
-    captureEnabled: input.captureEnabled ?? true,
-  };
+  return { ...defaults, ...preferencePatch(input) };
 }
 
 export function preferencePatch(input: PreferencesUpdate) {
   const patch: Partial<AccountPreferences> = {};
-  if (input.organizeEnabled !== undefined)
-    for (const key of organizationPreferences)
-      patch[key] = input.organizeEnabled;
-  if (input.summariesEnabled !== undefined)
-    for (const key of [...summaryPreferences, "askEnabled"] as const)
-      patch[key] = input.summariesEnabled;
+  for (const group of ["organizeEnabled", "summariesEnabled"] as const) {
+    const value = input[group];
+    if (value !== undefined)
+      for (const key of legacyGroups[group]) patch[key] = value;
+  }
   for (const key of preferenceKeys)
     if (input[key] !== undefined) patch[key] = input[key];
   return patch;
 }
 
 export const legacyPreferences = (preferences: AccountPreferences) => ({
-  organizeEnabled: organizationPreferences.some((key) => preferences[key]),
-  summariesEnabled: [...summaryPreferences, "askEnabled" as const].some(
+  organizeEnabled: legacyGroups.organizeEnabled.some((key) => preferences[key]),
+  summariesEnabled: legacyGroups.summariesEnabled.some(
     (key) => preferences[key],
   ),
 });

@@ -34,6 +34,7 @@ import { legacyRelationshipsFor } from "./relationship-data.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
+  briefTarget,
   budgetedInference,
   enrichmentFor,
   invalidateBriefs,
@@ -1457,7 +1458,7 @@ export class MemoryService {
           this.providers.generation &&
           account[briefPreference(scope)]
         ) {
-          const target = `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
+          const target = briefTarget(scope);
           await trx("memory_briefs").where({ target }).delete();
           await queueBrief(
             trx,

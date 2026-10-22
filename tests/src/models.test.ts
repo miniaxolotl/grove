@@ -207,6 +207,8 @@ test("settings HTTP updates are partial, legacy-compatible and restricted to the
   });
   assert.equal(legacy.status, 200);
   const partial = await update({
+    organizeEnabled: false,
+    summariesEnabled: false,
     askEnabled: true,
     noteConnectionsEnabled: true,
   });
