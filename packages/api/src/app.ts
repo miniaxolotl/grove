@@ -231,7 +231,10 @@ export function createApp(deps: AppDependencies) {
     c.set("finish", finish);
     try {
       release = await (long ? interactive : foreground).acquire(signal);
-      await withMemoryOperation(next, signal);
+      await withMemoryOperation(async () => {
+        await next();
+        if (!c.get("streaming") && !c.error) signal.throwIfAborted();
+      }, signal);
     } finally {
       if (!c.get("streaming")) finish();
     }
@@ -847,55 +850,75 @@ export function createApp(deps: AppDependencies) {
       'attachment; filename="grove-memories.ndjson"',
     );
     c.set("streaming", true);
-    return streamText(c, async (stream) => {
-      const abort = () => stream.abort();
-      c.get("signal").addEventListener("abort", abort, { once: true });
-      try {
-        let page = first;
-        while (page.length && !stream.aborted) {
-          for (const memory of page)
-            await stream.writeln(JSON.stringify(memory));
-          if (page.length < 50) break;
-          page = await service.exportPage(principal, page.at(-1)!.id);
-        }
-        let chats = await service.conversations.exportPage(principal);
-        while (!stream.aborted) {
-          for (const chat of chats) {
-            if (stream.aborted) break;
-            await stream.writeln(
-              JSON.stringify({
-                type: "conversation",
-                ...chat,
-              }),
-            );
-          }
-          if (chats.length < 10) break;
-          chats = await service.conversations.exportPage(
-            principal,
-            chats.at(-1)!.id,
-          );
-        }
-        for (const level of ["note", "notebook"] as const) {
-          let after: string | undefined;
-          while (!stream.aborted) {
-            const pairs = await service.relationships.exportPage(
-              principal,
-              level,
-              after,
-            );
-            for (const pair of pairs)
-              await stream.writeln(
-                JSON.stringify({ type: "relationship", level, ...pair }),
+    const cancelled = new AbortController();
+    const signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
+    const response = streamText(
+      c,
+      async (stream) => {
+        stream.onAbort(() => cancelled.abort());
+        try {
+          await withDatabaseSignal(signal, async () => {
+            let page = first;
+            while (page.length && !stream.aborted) {
+              for (const memory of page)
+                await stream.writeln(JSON.stringify(memory));
+              if (page.length < 50) break;
+              page = await service.exportPage(principal, page.at(-1)!.id);
+            }
+            let chats = await service.conversations.exportPage(principal);
+            while (!stream.aborted) {
+              for (const chat of chats) {
+                if (stream.aborted) break;
+                await stream.writeln(
+                  JSON.stringify({
+                    type: "conversation",
+                    ...chat,
+                  }),
+                );
+              }
+              if (chats.length < 10) break;
+              chats = await service.conversations.exportPage(
+                principal,
+                chats.at(-1)!.id,
               );
-            if (pairs.length < 50) break;
-            after = pairs.at(-1)!.id;
-          }
+            }
+            for (const level of ["note", "notebook"] as const) {
+              let after: string | undefined;
+              while (!stream.aborted) {
+                const pairs = await service.relationships.exportPage(
+                  principal,
+                  level,
+                  after,
+                );
+                for (const pair of pairs)
+                  await stream.writeln(
+                    JSON.stringify({ type: "relationship", level, ...pair }),
+                  );
+                if (pairs.length < 50) break;
+                after = pairs.at(-1)!.id;
+              }
+            }
+          });
+        } finally {
+          c.get("finish")();
         }
-      } finally {
-        c.get("signal").removeEventListener("abort", abort);
-        c.get("finish")();
-      }
-    });
+      },
+      async (_error, stream) => {
+        console.error(
+          JSON.stringify({
+            requestId: c.get("requestId"),
+            code: "export_interrupted",
+          }),
+        );
+        cancelled.abort();
+        stream.abort();
+      },
+    );
+    // An interrupted backup must fail the download, not look like a complete file.
+    return new Response(
+      response.body!.pipeThrough(new TransformStream(), { signal }),
+      response,
+    );
   });
   app.all("/mcp", async (c) => {
     const principal = c.get("principal");

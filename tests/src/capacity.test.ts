@@ -247,6 +247,39 @@ test("pool acquisition and SQL timeouts are bounded and connections recover", as
     await db.destroy();
   }
 });
+
+test("interrupted exports fail the download and release their interactive permit", async () => {
+  const original = fixture.service.exportPage.bind(fixture.service);
+  const entered = deferred(),
+    release = deferred();
+  fixture.service.exportPage = async (principal, after) => {
+    if (after) {
+      entered.resolve();
+      await release.promise;
+    }
+    return original(principal, after);
+  };
+  const server = app({
+    capacity: { interactiveConcurrency: 1, interactiveTimeoutMs: 1000 },
+  });
+  try {
+    const response = await server.request("/v1/account/export", {
+      headers: { authorization: "Bearer 0" },
+    });
+    assert.equal(response.status, 200);
+    const download = assert.rejects(response.text(), /too long/);
+    await entered.promise;
+    await download;
+  } finally {
+    fixture.service.exportPage = original;
+    release.resolve();
+  }
+  const next = await server.request("/v1/account/export", {
+    headers: { authorization: "Bearer 0" },
+  });
+  assert.equal(next.status, 200);
+  await next.body!.cancel();
+});
 after(async () => {
   await fixture?.close();
 });
