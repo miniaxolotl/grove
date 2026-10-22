@@ -12,6 +12,7 @@ import { useWorkspaceCache } from "./workspace-cache";
 import { LoadError } from "./load-error";
 import { ProviderOverview } from "./provider-overview";
 import { useToast } from "./toasts";
+import { SettingsSaveRow } from "./settings-save-row";
 
 type Usage = {
   dailyRequestLimit: number;
@@ -23,12 +24,33 @@ type Usage = {
     outputTokens: string;
   }[];
 };
-const roles: ModelRole[] = ["embedding", "decision", "generation"];
+const roles: { role: ModelRole; label: string; description: string }[] = [
+  {
+    role: "embedding",
+    label: "Search by meaning",
+    description:
+      "Find notes by meaning. Changing the model or dimensions rebuilds the search index.",
+  },
+  {
+    role: "decision",
+    label: "Note classification",
+    description: "Suggest note types and rank useful context.",
+  },
+  {
+    role: "generation",
+    label: "Writing and connections",
+    description:
+      "Create titles, tags, summaries and Ask Grove replies, and explain connections.",
+  },
+];
 export function ModelSettings() {
   const cache = useWorkspaceCache();
   const api = cache.api;
   const query = useQuery(cache.resource<Settings>("/models"));
-  const usageQuery = useQuery(cache.resource<Usage>("/account/usage"));
+  const usageQuery = useQuery({
+    ...cache.resource<Usage>("/account/usage"),
+    enabled: !!query.data?.editable,
+  });
   const [draftSettings, setSettings] = useState<Settings | null>(null);
   const [draftConfig, setConfig] = useState<ModelConfig | null>(null);
   const settings = draftSettings ?? query.data;
@@ -36,47 +58,50 @@ export function ModelSettings() {
   const usage = usageQuery.data;
   const [clearKeys, setClearKeys] = useState<ModelRole[]>([]);
   const [actionError, setError] = useState("");
-  const error =
-    actionError ||
-    (query.error || usageQuery.error
-      ? errorMessage(query.error || usageQuery.error)
-      : "");
   const toast = useToast();
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"save" | "test" | null>(null);
+  const busy = pending !== null;
+  const dirty =
+    clearKeys.length > 0 ||
+    JSON.stringify(config) !== JSON.stringify(settings?.config);
   function change<R extends ModelRole>(
     role: R,
     patch: Partial<ModelConfig[R]>,
   ) {
     if (!settings || !config) return;
+    setError("");
     setSettings(settings);
     setConfig({ ...config, [role]: { ...config[role], ...patch } });
   }
-  async function run(action: () => Promise<void>) {
-    setBusy(true);
+  async function run(
+    action: () => Promise<void>,
+    kind: "save" | "test" = "save",
+  ) {
+    if (busy) return;
+    setPending(kind);
     setError("");
     try {
       await action();
     } catch (e) {
       setError(errorMessage(e));
+      toast(errorMessage(e), true);
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   }
   return (
     <>
-      <h2 className="settings-section-heading">Search & organization</h2>
-      {error && (
+      <h2 className="settings-section-heading">AI &amp; search</h2>
+      {query.error && (
         <LoadError
-          message={error}
+          message={errorMessage(query.error)}
           retry={() => {
-            setError("");
             void query.refetch();
-            void usageQuery.refetch();
           }}
         />
       )}
       {!config || !settings ? (
-        !error && (
+        !query.error && (
           <p role="status" className="settings-loading">
             Loading settings…
           </p>
@@ -85,9 +110,10 @@ export function ModelSettings() {
         <ProviderOverview settings={settings} />
       ) : (
         <form
-          className="app-form max-w-3xl"
+          className="app-form settings-provider-form"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!dirty) return;
             void run(async () => {
               await api<Settings>(
                 "/models",
@@ -104,25 +130,17 @@ export function ModelSettings() {
           }}
         >
           <p className="text-sm leading-7 text-muted">
-            {settings.edition === "cloud"
-              ? "Grove Cloud manages these providers for your account."
-              : settings.editable
-                ? "These settings apply to this installation. Keys are encrypted on the server; leave a key blank to keep it."
-                : "Your installation administrator manages these providers."}
+            These providers serve the whole installation. Keys are encrypted;
+            leave a key blank to keep it. Choose your account’s features in
+            Preferences.
           </p>
-          {roles.map((role) => (
+          {roles.map(({ role, label, description }) => (
             <section key={role} className="app-panel min-w-0">
-              <h2 className="font-editorial text-2xl capitalize">{role}</h2>
-              <p className="mt-2 text-sm text-muted">
-                {role === "embedding"
-                  ? "Find memories by meaning. A model or dimension change rebuilds the index."
-                  : role === "decision"
-                    ? "Classify memories and assess related, duplicate, or conflicting context."
-                    : "Write titles, tags, project briefs, personal profiles, and task handoffs."}
-              </p>
+              <h3 className="settings-section-heading">{label}</h3>
+              <p className="mt-2 text-sm text-muted">{description}</p>
               <fieldset
                 disabled={!settings.editable || busy}
-                className="mt-5 space-y-4"
+                className="settings-provider-fields"
               >
                 <legend className="sr-only">{role} provider settings</legend>
                 <Select
@@ -407,7 +425,7 @@ export function ModelSettings() {
                       toast(
                         `${role} connection verified in ${result.latencyMs} ms${result.dimensions ? ` · ${result.dimensions} dimensions` : ""}.`,
                       );
-                    })
+                    }, "test")
                   }
                 >
                   Test saved {role} configuration
@@ -415,12 +433,29 @@ export function ModelSettings() {
               )}
             </section>
           ))}
-          {settings.editable && (
-            <button className="app-button w-fit" disabled={busy}>
-              {busy ? "Working…" : "Save model settings"}
-            </button>
-          )}
+          <SettingsSaveRow
+            label="Save model settings"
+            dirty={dirty}
+            busy={busy}
+            error={actionError}
+            busyMessage={
+              pending === "test" ? "Checking connection…" : "Saving…"
+            }
+            onDiscard={() => {
+              setSettings(null);
+              setConfig(null);
+              setClearKeys([]);
+              setError("");
+            }}
+          />
         </form>
+      )}
+      {settings?.editable && usageQuery.error && (
+        <LoadError
+          title="Usage couldn’t refresh"
+          message={errorMessage(usageQuery.error)}
+          retry={() => void usageQuery.refetch()}
+        />
       )}
       {settings?.editable && usage && (
         <section className="app-panel mt-6 max-w-3xl">

@@ -31,7 +31,7 @@ MODEL_SETTINGS_KEY=REPLACE_WITH_64_HEX_CHARACTERS
 ```
 
 Generate the encryption key with `openssl rand -hex 32`. Sign in as a listed
-administrator and open **Settings → Model settings**. Settings apply installation-wide,
+administrator and open **Settings → AI & search**. Settings apply installation-wide,
 not per account. Agent credentials and ordinary website users cannot change them.
 Cloud settings are read-only and ignore stored self-hosted overrides.
 
@@ -84,6 +84,53 @@ components. Missing credentials fail startup. Initial DigitalOcean provisioning 
 this configuration; image-only updates preserve existing variables, so configure
 these values explicitly for an existing installation.
 
+## Account AI preferences
+
+**Settings → Preferences** has ten independent controls and one Save action:
+
+Drafts stay in memory while switching settings tabs. **Discard changes** returns
+to saved preferences; failed saves retain edits, and a completed save keeps any
+newer changes you made. Provider configuration uses the same Save/Discard feedback.
+
+| Category         | Controls                                                 | Required provider                                                     |
+| ---------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
+| Organization     | Titles and tags; note classification                     | Generation for titles/tags; decision for classification               |
+| Connections      | Linked notes; connected notebooks                        | Generation; embeddings improve candidate discovery                    |
+| Summaries        | Notebook summaries; personal summary; progress summaries | Generation                                                            |
+| Ask Grove        | Answers and writing                                      | Generation                                                            |
+| Connected agents | Automatic recall; automatic capture                      | Existing agent integration; keyword recall works without AI providers |
+
+Classification changes a note's type only when its `autoKind` is enabled. Explicit
+types and handoffs remain explicit. Disabling classification does not revert a type
+already applied. Connection controls preserve saved reviews, hiding their derived
+results while disabled. Summary controls distinguish notebook scope, personal scope
+and task handoffs, including summaries supplied to connected agents.
+
+Disabling a feature cancels its queued work and fences its in-flight output.
+Re-enabling schedules that feature for active notes without resetting unrelated
+jobs. Ask Grove can be disabled independently of summaries; existing conversations
+remain readable, keyword search remains usable, and Undo remains available for
+already-applied edits. Automatic agent controls keep explicit saves and reads usable
+within the connection's approved scope.
+
+Provider availability is separate from the saved preference. The UI identifies
+unconfigured providers while retaining the user's choices. Availability describes
+configuration, not a successful provider health check or remaining quota.
+
+`GET /v1/me` includes all ten booleans and `aiAvailability`. Session-only
+`PATCH /v1/account/settings` accepts a non-empty partial update; omitted fields keep
+their values. The website submits only changed fields. The keys are
+`titlesTagsEnabled`, `classificationEnabled`, `noteConnectionsEnabled`,
+`notebookConnectionsEnabled`, `notebookSummariesEnabled`, `personalSummaryEnabled`,
+`progressSummariesEnabled`, `askEnabled`, `recallEnabled`, and `captureEnabled`.
+
+For older clients, `organizeEnabled` updates the four organization/connection
+controls and `summariesEnabled` updates all three summary controls plus Ask Grove.
+Explicit independent fields take precedence in the same request. Legacy reads are
+true when any member of the corresponding group is enabled. Migration 013 copies
+each account's legacy choices into its new controls; agent choices are preserved.
+Reindex and restore reconciliation honor these independent preferences.
+
 ## Organization, summaries and recall
 
 - `remember` accepts `autoKind: true`. Explicit kinds are kept by default. Handoff
@@ -120,9 +167,8 @@ these values explicitly for an existing installation.
   budget, leaving room for source memories. Hooks format these as generated reference
   data. Generation never runs synchronously on recall; query embedding has an 850 ms
   provider deadline within the existing 1.5-second automatic-hook budget.
-- Account Settings can disable organization or summaries. Disabling clears those
-  derived results/jobs; re-enabling schedules active memories. **Retry processing**
-  and brief regeneration are version/scope checked. Failed jobs stop after five
+- **Retry processing** and brief regeneration respect the relevant preference and
+  are version/scope checked. Failed jobs stop after five
   attempts; exhausted daily budgets defer until the next database day (UTC in the
   supplied deployment). Token counts are provider-reported, not billing estimates.
 

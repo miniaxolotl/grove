@@ -140,6 +140,80 @@ async function seed(
     return row;
   });
 }
+test("note and notebook connections have independent read, retry and discovery controls", async () => {
+  const f = await fixture();
+  const left = await f.service.project(f.principal, {
+    name: "Trip",
+    identity: randomUUID(),
+  });
+  const right = await f.service.project(f.principal, {
+    name: "Budget",
+    identity: randomUUID(),
+  });
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip itinerary.", { projectId: left.id }),
+  );
+  const b = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip hotel.", { projectId: left.id }),
+  );
+  const c = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip budget.", { projectId: right.id }),
+  );
+  const notePair = await seed(f, [a.id, b.id]);
+  const notebookPair = await seed(f, [a.id, c.id], "notebook");
+  await f.service.settings(f.principal, {
+    noteConnectionsEnabled: false,
+    titlesTagsEnabled: false,
+    classificationEnabled: false,
+  });
+  const list = (level: ConnectionLevel) =>
+    f.service.relationships.list(
+      f.principal,
+      connectionQuerySchema.parse({ level }),
+    );
+  assert.equal((await list("note")).status, "disabled");
+  assert.equal((await list("notebook")).items[0].id, notebookPair.id);
+  assert.equal(
+    (await f.service.relationships.retry(f.principal, "note", a.id)).status,
+    "disabled",
+  );
+  await f.worker.scheduleOrganization(60);
+  let jobs = await admin("jobs").where({ accountId: f.principal.accountId });
+  assert(jobs.some((j) => j.kind === "notebook_profile"));
+  assert(
+    !jobs.some((j) =>
+      ["relationship_scan", "note_relationship"].includes(j.kind),
+    ),
+  );
+  await f.service.settings(f.principal, {
+    noteConnectionsEnabled: true,
+    notebookConnectionsEnabled: false,
+  });
+  assert.equal((await list("notebook")).status, "disabled");
+  assert.equal((await list("note")).items[0].id, notePair.id);
+  // Links remain visible when both title generation and classification are off.
+  assert.equal(
+    (await f.service.get(f.principal, a.id)).enrichment?.relationships[0].id,
+    b.id,
+  );
+  await f.worker.scheduleOrganization(60);
+  jobs = await admin("jobs").where({ accountId: f.principal.accountId });
+  assert(jobs.some((j) => j.kind === "relationship_scan"));
+  assert(
+    !jobs.some((j) =>
+      ["notebook_profile", "notebook_relationship"].includes(j.kind),
+    ),
+  );
+  assert(
+    await admin("notebook_relationships")
+      .where({ id: notebookPair.id })
+      .first(),
+  );
+});
+
 test("canonical reads are symmetric, tenant-isolated, and review replay/undo is version-fenced", async () => {
   const f = await fixture(),
     other = await fixture();
@@ -383,7 +457,7 @@ test("late evidence cannot publish after a source edit, settings disable, or com
       await f.service.settings(f.principal, {
         captureEnabled: true,
         recallEnabled: true,
-        organizeEnabled: false,
+        noteConnectionsEnabled: false,
       });
     if (change === "profile")
       f.worker.jobProfiles = async () => ({
@@ -844,12 +918,12 @@ test("notebook candidate discovery resumes beyond the first hundred collections"
   await f.service.settings(f.principal, {
     captureEnabled: true,
     recallEnabled: true,
-    organizeEnabled: false,
+    notebookConnectionsEnabled: false,
   });
   await f.service.settings(f.principal, {
     captureEnabled: true,
     recallEnabled: true,
-    organizeEnabled: true,
+    notebookConnectionsEnabled: true,
   });
   await f.worker.scheduleOrganization(60);
   await drain(f, ["notebook_profile"]);

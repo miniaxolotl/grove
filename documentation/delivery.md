@@ -1,5 +1,38 @@
 # Delivery evidence
 
+## Independent AI preferences (22 October 2026)
+
+Settings groups ten independent controls under Organization, Connections, Summaries,
+Ask Grove and Connected agents. One Save action preserves newer edits and submits
+only changed fields. Missing providers are distinguished from saved preferences;
+related notes/notebooks correctly require generation. Shared preference keys,
+legacy mappings, job/scope guards and a single row renderer reduce duplication.
+
+Migration **013** preserves existing enabled/disabled choices. API reads, queued
+work, worker publication, summary scopes, Ask Grove, reindex and restore enforce
+the controls independently. Disable/re-enable races discard old results. Note
+`autoKind`, explicit types, connection reviews and tenant boundaries are preserved.
+
+All **102 database/service** tests, including the populated **012→013 upgrade**,
+and **five packaged-artifact** checks pass. Root/website lint, types and builds,
+bundle budgets, 17 release/deployment contracts and pinned workflow lint pass.
+All 166 Chromium scenarios pass in exact-head CI39732842999 on `b09cba8`, including
+the corrected marketing-proxy teardown. Three focused iPhone/WebKit scenarios pass
+with reviewed 1440/390/320px layouts, keyboard controls, save races, error recovery
+and WCAG A/AA checks.
+
+The subsequent settings polish keeps drafts and held saves across settings tabs,
+adds shared Save/Discard feedback, adopts fresh saved preferences, and keeps the
+active tab visible when resizing. Availability badges, switch-style controls,
+provider fields and account/data headings share consistent spacing. This passes
+37 focused Chromium settings/cache checks, nine final settings checks, six focused
+WebKit scenarios and the three-case WebKit tab-rounding follow-up. Root/website
+lint, types and builds, five artifact checks and bundle budgets pass again.
+
+[Screenshots](design/screenshots/ai-preferences/README.md) show the categorized
+controls and save row. [Rollout](deploy.md) requires an explicit owner migration
+and preference-aware API/worker before the website.
+
 ## v1.10.0 production acceptance (22 October 2026 UTC)
 
 The timed-link, public-reader isolation and short-consent-copy release is live.
