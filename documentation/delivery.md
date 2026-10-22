@@ -1,5 +1,12 @@
 # Delivery evidence
 
+## Minimal website refresh (22 October 2026)
+
+The public site uses open notebook-led sections, shorter copy, compact family
+controls and responsive demo transitions. Cookie Settings now remains readable
+on hover, press and keyboard focus. The workspace retains its independent styles.
+See the [screenshots and verification](design/screenshots/website-minimal-refresh/README.md).
+
 ## Timed public links (22 October 2026 UTC)
 
 Owners can set link expiry to one hour, four hours, one day, one week, two weeks

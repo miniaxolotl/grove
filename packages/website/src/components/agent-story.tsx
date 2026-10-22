@@ -17,12 +17,9 @@ export function AgentStory() {
             <em>Same context.</em>
           </h2>
           <p className="agent-story-copy">
-            Save project decisions and notes so your coding agent can use them
-            in later sessions.
-          </p>
-          <p className="agent-story-copy">
-            Connect OpenCode, Claude Code or Codex. Choose which notebooks it
-            can access. Review and edit what it saves.
+            Give OpenCode, Claude Code or Codex the project notes it needs.
+            Choose its notebooks, review what it saves and pick up where you
+            left off.
           </p>
           <div className="agent-story-actions">
             <Link href="/install" className="button-primary">
