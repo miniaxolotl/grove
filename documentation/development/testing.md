@@ -107,6 +107,20 @@ positions, so browser actionability scrolling is not mistaken for layout reflow.
 Held-save cases also verify command availability, preview mode and modal return
 focus when a new note's first save changes the route while a menu remains open.
 
+Palette and editor checks compare visible bounds at 1440/768/390/320px, including
+Chromium's reserved scrollbar gutter. Mode changes and properties/outline overlays
+must preserve the document viewport; focus/expanded return restores reading position.
+Viewer task checks cover exact nested/repeated/quoted/ordered Markdown items, CRLF
+source positions, fenced examples, touch/keyboard, undo/redo and reload. Held saves,
+failure/retry and version conflicts use the regular fixture API; history and comparison
+renderers must remain read-only. The mobile subset also runs in the focused WebKit set.
+
+Sidebar checks cover 320–1440px, long notebook names, expanded trees, short heights,
+enlarged labels, inset keyboard focus, sticky explorer controls and notebook-scoped
+creation. Row dropdowns must leave list rectangles unchanged, dismiss independently,
+restore focus after export/move dialogs and preserve swipe cancellation. Browser
+checks switch overlapping row menus by keyboard and test touch light-dismiss separately.
+
 Client-cache checks cover shared misses/cancellation, account and session teardown,
 fresh revisits, held reads and saves, draft/version conflicts, cross-tab metadata,
 expiry and bounded retention. See [cache ownership](client-cache.md) and

@@ -21,12 +21,30 @@ controls and transient feedback should use space already available.
 - Clearing filters preserves sort order. Empty results have a direct Clear
   filters action; the search draft reconciles that external reset. Removing a
   chip focuses its next/previous chip, or Done when it was the last chip.
+- Row dots and swipe reveal share `ActionMenu`. Native auto-popovers own dismissal
+  and single-menu visibility; actions close before opening a dialog so focus returns
+  to the row trigger. Menus overlay the list rather than adding a second row.
+
+## Navigation and note tools
+
+- `sidebar.css` owns desktop/mobile navigation. Reserve row action space, allow two
+  notebook-label lines and keep focus outlines inset. The explorer header stays
+  reachable while its tree scrolls; phone navigation wraps when text is enlarged.
+- Note modes share one persistent toolbar and editor instance. Properties and
+  outline use `InspectorDialog`; save feedback has reserved width. Switching
+  presentation or returning from focus mode restores the corresponding scroll.
+- Viewer task toggles use parsed source positions and the normal editor history,
+  autosave and conflict path. Pass task editing only to the editable note viewer;
+  shared readers, revision history and comparisons keep read-only Markdown.
 
 ## Search, commands and preferences
 
 - Global search and the command menu have a viewport-bounded, stable dialog
   height. Results scroll within it. Loading, empty results and the contextual Ask
   link do not move the query input. Clearing search keeps focus in the input.
+- Command labels, icons, aliases and shortcuts come from the shared command and
+  shortcut definitions. Keep selection keyed by command identity during first-save
+  routing and availability updates, and leave native text-editing keys to the input.
 - Preferences show save state beside a stable Save button. A completed save only
   acknowledges the submitted snapshot; changes made while it is pending remain
   unsaved. Errors use existing toast feedback and the reserved status line.

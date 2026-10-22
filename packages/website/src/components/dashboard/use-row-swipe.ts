@@ -65,7 +65,7 @@ export function useRowSwipe(
         event.clientX < 24 ||
         event.clientX > window.innerWidth - 24 ||
         (event.target as Element).closest(
-          "input, label, a, .drag-handle, .memory-actions, .memory-tags, .row-controls",
+          "input, label, a, .drag-handle, .memory-tags, .row-controls",
         ) ||
         window.getSelection()?.isCollapsed === false
       )

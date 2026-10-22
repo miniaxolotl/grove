@@ -128,7 +128,6 @@ export function MemoryLibrary({
   const [deleting, setDeleting] = useState<Memory | null>(null);
   const focusAfterDelete = useRef<string | null | undefined>(undefined);
   const [checked, setChecked] = useState<string[]>([]);
-  const [actionRow, setActionRow] = useState<string | null>(null);
   const [moving, setMoving] = useState<Memory[] | null>(null);
   const [destination, setDestination] = useState("personal");
   const [busy, setBusy] = useState(false);
@@ -649,10 +648,6 @@ export function MemoryLibrary({
                           void loadDetail().catch(() => {});
                         }}
                         memory={memory}
-                        actions={actionRow === memory.id}
-                        setActions={(open) =>
-                          setActionRow(open ? memory.id : null)
-                        }
                         projectName={
                           projects.find((p) => p.id === memory.projectId)
                             ?.name ?? "Unfiled"
