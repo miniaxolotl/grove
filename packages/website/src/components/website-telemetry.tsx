@@ -2,6 +2,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
+import { CookieSettings } from "./cookie-consent";
+import { consentAllowed, showCookieSettings } from "@/lib/cookie-consent";
 import {
   captureCtaExposure,
   captureLinkClick,
@@ -36,18 +38,25 @@ export function TelemetryChoice() {
     () => false,
   );
   return (
-    <button
-      type="button"
-      className="text-xs underline underline-offset-4"
-      disabled={optedOut && browserOptOut()}
-      onClick={() => setTelemetryOptOut(!optedOut)}
-    >
-      {optedOut
-        ? browserOptOut()
-          ? "Telemetry disabled by browser"
-          : "Enable website telemetry"
-        : "Disable website telemetry"}
-    </button>
+    <>
+      <CookieSettings />
+      <button
+        type="button"
+        className="text-xs underline underline-offset-4"
+        disabled={optedOut && browserOptOut()}
+        onClick={() =>
+          optedOut && !consentAllowed("analytics")
+            ? showCookieSettings()
+            : setTelemetryOptOut(!optedOut)
+        }
+      >
+        {optedOut
+          ? browserOptOut()
+            ? "Telemetry disabled by browser"
+            : "Enable website telemetry"
+          : "Disable website telemetry"}
+      </button>
+    </>
   );
 }
 export function HeroCtaCopy() {

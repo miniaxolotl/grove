@@ -3,8 +3,12 @@ import { ClerkProvider } from "@clerk/nextjs";
 import localFont from "next/font/local";
 import { site } from "@/lib/site";
 import { WebsiteTelemetry } from "@/components/website-telemetry";
+import { WebsiteTagManager } from "@/components/website-tag-manager";
+import { WebsiteCookieConsent } from "@/components/cookie-consent";
+import "vanilla-cookieconsent/dist/cookieconsent.css";
 import "./globals.css";
 import "./brand-family.css";
+import "./cookie-consent.css";
 
 const space = localFont({
   src: [
@@ -85,6 +89,8 @@ export default function RootLayout({
     <html lang="en">
       <body id="top" className={`${space.variable} ${mono.variable}`}>
         <WebsiteTelemetry />
+        <WebsiteCookieConsent />
+        <WebsiteTagManager />
         <a href="#main" className="skip-link">
           Skip to content
         </a>

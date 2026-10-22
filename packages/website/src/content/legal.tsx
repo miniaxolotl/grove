@@ -122,16 +122,13 @@ export const privacy: LegalDocument = {
       content: (
         <>
           <p>
-            We use Clerk for sign-in, sessions, and account identity; Neon for
-            hosted PostgreSQL and recovery history; DigitalOcean for API and
-            worker hosting; Vercel for the website; PostHog for anonymous
-            product analytics and masked public-page replay; Sentry for
-            sanitized diagnostics; and Porkbun for domain/DNS services. These
-            providers process information needed to perform their roles. Grove
-            Cloud uses DeepInfra to process query and memory text for embeddings
-            and classification, and MiniMax to generate titles, tags, and
-            source-linked summaries from selected memories. You can disable
-            organization and summaries in Settings.
+            We use providers for sign-in, hosting, database storage and
+            recovery, analytics, diagnostics and domain services. These
+            providers process information needed to perform their roles. Our AI
+            providers process query and memory text for embeddings and
+            classification, and generate titles, tags and source-linked
+            summaries from selected memories. You can disable organization and
+            summaries in Settings.
           </p>
           <p>
             Authorized support and operations personnel may access information
@@ -155,28 +152,44 @@ export const privacy: LegalDocument = {
       content: (
         <>
           <p>
-            Production pages use PostHog for explicit page views, installation
-            copies, referral links and bounded operation outcomes. A random
-            browser identity is stored locally, without account identification
-            or person profiles. Account changes reset it. URLs omit queries,
-            fragments and private route IDs. Sentry receives sanitized errors,
-            sampled traces, timing metrics and operation logs. Note text,
-            prompts, responses, credentials, clipboard contents, request bodies,
-            headers and email addresses are excluded. Browser identities are not
-            joined to CLI identities or other Bramble products.
+            With your permission, advertising partners use cookies and device
+            information, including IP addresses and public-page visits, to
+            measure advertising and build audiences for ads on other sites.
+            Advertising runs only on public marketing pages after you accept
+            advertising cookies. Cookie settings in the footer lets you choose
+            analytics and advertising separately, or turn both off. An essential
+            first-party cookie stores your choice for 180 days. Optional
+            analytics, diagnostics and advertising stay off until you agree.
+            Global Privacy Control and Do Not Track prevent them from loading.
+            Disabling tracking refreshes the page to unload active tags. Tags
+            are excluded from sign-in, private workspaces and shared-note pages;
+            account emails, notes and prompts are not configured as advertising
+            data.
           </p>
           <p>
-            PostHog samples 10% of public-page sessions for replay, retained for
-            30 days. Text and inputs are masked; images, media, iframes and
-            private regions are blocked. Recording is disabled on authenticated
-            and sign-in screens. Console logs and network bodies/headers are not
-            recorded. Both providers process data in the United States. Use
-            &quot;Disable website telemetry&quot; in the public or workspace
-            footer to stop browser collection and clear its analytics identity.
-            Global Privacy Control and Do Not Track also disable collection.
-            Opt-out does not erase data already received; contact us for privacy
-            requests. Hosted server diagnostics are managed separately and
-            contain no memory text.
+            With your permission, website analytics measures page views,
+            installation copies, referral links and bounded operation outcomes.
+            A random browser identity is stored locally, without account
+            identification or person profiles. Account changes reset it. URLs
+            omit queries, fragments and private route IDs. Diagnostics receives
+            sanitized errors, sampled traces, timing metrics and operation logs.
+            Note text, prompts, responses, credentials, clipboard contents,
+            request bodies, headers and email addresses are excluded. Browser
+            identities are not joined to CLI identities or other Bramble
+            products.
+          </p>
+          <p>
+            With your permission, analytics samples 10% of public-page sessions
+            for replay, retained for 30 days. Text and inputs are masked;
+            images, media, iframes and private regions are blocked. Recording is
+            disabled on authenticated and sign-in screens. Console logs and
+            network bodies/headers are not recorded. Both providers process data
+            in the United States. Use &quot;Disable website telemetry&quot; in
+            the public or workspace footer to stop browser collection and clear
+            its analytics identity. Global Privacy Control and Do Not Track also
+            disable collection. Opt-out does not erase data already received;
+            contact us for privacy requests. Hosted server diagnostics are
+            managed separately and contain no memory text.
           </p>
           <p>
             Official production CLI and agent integrations collect anonymous,
