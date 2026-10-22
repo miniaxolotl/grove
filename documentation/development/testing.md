@@ -23,6 +23,14 @@ upstream, never in the application. Rebuild the website before browser checks.
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
+AI preferences coverage includes a populated 012→013 upgrade with all four legacy
+organization/summary combinations, separate summary scopes and connections, partial
+HTTP writes, owner-only permissions, reindex/restore preservation and disabling then
+re-enabling features during inference. Browser cases exercise the five categories,
+ten controls, provider availability, failed/overlapping saves, keyboard operation,
+cross-tab summary invalidation and 1440/390/320px accessibility. The focused WebKit
+configuration includes categorized preferences and held-save cases.
+
 ```sh
 pnpm install --frozen-lockfile
 docker run -d --name grove-memory-test -p 127.0.0.1:26432:5432 \
