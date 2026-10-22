@@ -26,7 +26,13 @@ async function forward(
   )
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
-  if (!allowed.test(path)) return fail(404, "Route not found");
+  if (
+    !allowed.test(path) &&
+    !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits)$/.test(
+      path,
+    )
+  )
+    return fail(404, "Route not found");
   const token = await session.getToken();
   if (!token) return fail(401, "Sign in to Grove to continue");
   const origin = new URL(process.env.GROVE_API_URL);

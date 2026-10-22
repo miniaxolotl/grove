@@ -375,7 +375,10 @@ export class WorkspaceCache {
         (key === change.resource ||
           (change.resource === "/conversations" &&
             typeof key === "string" &&
-            key.startsWith("/conversations")))
+            key.startsWith("/conversations")) ||
+          (change.resource === "/assistance" &&
+            typeof key === "string" &&
+            key.startsWith("/assistance")))
       );
     if (kind === "note")
       return !change.ids || change.ids.includes(key as string);
@@ -386,6 +389,7 @@ export class WorkspaceCache {
         change.scopes.includes((key as Filters).projectId!)
       );
     if (kind === "resource" && typeof key === "string") {
+      if (key.startsWith("/assistance/")) return true;
       // Any source can add/remove a pair, including notebook coverage outside its excerpts.
       if (key === "/relationships/search") return true;
       if (/^\/memories\/[^/]+\/revisions(?:\/\d+)?$/.test(key))
@@ -419,6 +423,23 @@ export class WorkspaceCache {
     void this.client.invalidateQueries({ predicate });
   }
   private forget(id: string) {
+    this.client.setQueriesData(
+      {
+        predicate: (query) =>
+          query.queryKey[1] === "resource" &&
+          typeof query.queryKey[2] === "string" &&
+          query.queryKey[2].startsWith("/assistance/"),
+      },
+      (old: Record<string, unknown> | undefined) =>
+        old
+          ? {
+              ...old,
+              result: null,
+              status: "stale",
+              error: "Source removed. Refresh the preview.",
+            }
+          : old,
+    );
     this.deleted.add(id);
     this.client.setQueryData(workspaceKeys.note(id), null);
     this.patchPages(new Map([[id, null]]));
@@ -632,6 +653,14 @@ export class WorkspaceCache {
         this.patchPages(records);
         this.invalidate(change, new Set(records.keys()));
         this.publish?.(change);
+      } else if (path.startsWith("/assistance")) {
+        if (/\/(apply|undo)$/.test(path)) {
+          this.invalidate({});
+          this.publish?.({});
+        } else if (path.endsWith("/review")) {
+          this.invalidate({ resource: "/assistance" });
+          this.publish?.({ resource: "/assistance" });
+        }
       } else if (path.startsWith("/projects")) {
         const project = result as Notebook;
         const key = workspaceKeys.resource("/projects");
@@ -653,6 +682,8 @@ export class WorkspaceCache {
           );
         else this.invalidate({ resource: "/projects" });
         this.publish?.({ resource: "/projects" });
+        this.invalidate({ resource: "/assistance" });
+        this.publish?.({ resource: "/assistance" });
         this.invalidate({ resource: "/relationships/search" });
         this.publish?.({ resource: "/relationships/search" });
       } else if (path.startsWith("/relationships/")) {
