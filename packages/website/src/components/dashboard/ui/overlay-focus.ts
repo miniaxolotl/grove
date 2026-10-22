@@ -11,7 +11,11 @@ export function fitPaletteViewport(element: HTMLElement) {
       top: viewport?.offsetTop ?? 0,
       left: viewport?.offsetLeft ?? 0,
       height: viewport?.height ?? window.innerHeight,
-      width: viewport?.width ?? window.innerWidth,
+      // The visual viewport includes a reserved scrollbar gutter in Chromium.
+      width: Math.min(
+        viewport?.width ?? window.innerWidth,
+        document.documentElement.clientWidth,
+      ),
     }))
       element.style.setProperty(`--palette-viewport-${name}`, `${value}px`);
   };

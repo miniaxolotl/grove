@@ -55,53 +55,11 @@ html:has(.grove-app) {
   color: var(--color-muted);
   padding: 8px 10px;
 }
-.command-menu > input {
-  width: 100%;
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  padding: 12px;
-  background: white;
-  font-size: 16px;
-}
-.command-results {
-  height: 100%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-}
-.command-results-frame {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  margin: 12px 0;
-}
-.command-empty {
-  position: absolute;
-  inset: 0;
-  padding: 12px;
-  font-size: 13px;
-  color: var(--color-muted);
-}
-.command-results [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: space-between;
-  padding: 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-}
-.command-results [aria-selected="true"] {
-  background: var(--color-sage);
-}
-.command-results kbd,
 .shortcut-list kbd {
   font-size: 11px;
   color: var(--color-muted);
   white-space: nowrap;
 }
-.command-hint,
 .shortcut-intro {
   font-size: 12px;
   line-height: 1.7;
@@ -1080,24 +1038,6 @@ html:has(.grove-app) {
 }
 .action-menu::backdrop {
   background: transparent;
-}
-.app-dialog[open]:has(.command-menu) {
-  display: flex;
-  flex-direction: column;
-  height: min(620px, calc(100dvh - 48px));
-  overflow: hidden;
-}
-.app-dialog:has(.command-menu) > .dialog-heading {
-  flex-shrink: 0;
-}
-.command-menu {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-.command-menu > :not(.command-results-frame) {
-  flex: 0 0 auto;
 }
 .settings-navigation {
   display: flex;

@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
 import {
-  Archive,
-  ArchiveRestore,
-  Download,
-  FolderInput,
-  Trash2,
-} from "lucide-react";
+  workspaceCommand,
+  type WorkspaceCommand,
+} from "@/lib/workspace-commands";
+import { CommandIcon } from "./ui/command-icon";
 
 /** Common order for list actions and the reader's overflow menu. */
 export function NoteActions({
@@ -33,45 +31,42 @@ export function NoteActions({
   sharing?: ReactNode;
   row?: boolean;
 }) {
-  const style = row ? "app-button secondary" : undefined;
-  return (
-    <>
-      {before}
-      <button
-        type="button"
-        className={style}
-        disabled={locked}
-        onClick={onMove}
-      >
-        <FolderInput size={15} />
-        Move
-      </button>
-      <button type="button" className={style} onClick={onExport}>
-        <Download size={15} />
-        Export…
-      </button>
-      {sharing}
-      {details}
-      <button
-        type="button"
-        className={style}
-        disabled={locked}
-        onClick={onArchive}
-      >
-        {inactive ? <ArchiveRestore size={15} /> : <Archive size={15} />}
-        {inactive ? "Restore" : "Archive"}
-      </button>
+  function action(command: WorkspaceCommand) {
+    return (
       <button
         type="button"
         className={
-          row ? "app-button danger" : "action-group-start action-danger"
+          command.danger
+            ? row
+              ? "app-button danger"
+              : "action-group-start action-danger"
+            : row
+              ? "app-button secondary"
+              : undefined
         }
-        disabled={busy}
-        onClick={onDelete}
+        disabled={command.disabled}
+        onClick={command.run}
       >
-        <Trash2 size={15} />
-        Delete note…
+        <CommandIcon name={command.icon} />
+        {command.menuLabel ?? command.label}
       </button>
+    );
+  }
+  return (
+    <>
+      {before}
+      {action(workspaceCommand("note-move", onMove, { disabled: locked }))}
+      {action(workspaceCommand("note-export", onExport))}
+      {sharing}
+      {details}
+      {action(
+        workspaceCommand(
+          inactive ? "note-restore" : "note-archive",
+          onArchive,
+          { disabled: locked },
+        ),
+      )}
+      {action(workspaceCommand("note-delete", onDelete, { disabled: busy }))}
     </>
   );
 }

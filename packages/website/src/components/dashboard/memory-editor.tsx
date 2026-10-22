@@ -38,6 +38,12 @@ import { NotebookDialog } from "./notebook-dialog";
 import { useWorkspaceApi } from "./workspace-cache";
 import { useSetCurrentNotebook } from "./notebooks-provider";
 import { useWorkspaceCommands } from "./workspace-commands";
+import { commandDefinitions, workspaceCommand } from "@/lib/workspace-commands";
+import {
+  matchesShortcut,
+  shortcuts,
+  shortcutHint,
+} from "@/lib/workspace-shortcuts";
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
 
@@ -445,39 +451,42 @@ export function MemoryEditor({
     held,
     deleteRequested,
   ]);
+  const noteTitle =
+    content.match(/^#\s+(.+)/m)?.[1] ||
+    content.trim().split("\n")[0].slice(0, 110) ||
+    (base ? "Untitled note" : "New note");
   useWorkspaceCommands(
     [
-      { id: "note-export", label: "Export note…", run: openExport },
-      {
-        id: "note-mode",
+      workspaceCommand("note-export", openExport),
+      workspaceCommand("note-mode", () => setPreview(!preview), {
         label: preview ? "Edit note" : "Preview note",
-        shortcut: "Mod E",
-        key: "e",
-        run: () => setPreview(!preview),
-      },
+      }),
       {
+        ...commandDefinitions["note-save"],
         id: "note-save",
-        label: "Save note",
-        shortcut: "Mod S",
-        key: "s",
-        disabled: saveDisabled,
         run: persist,
+        disabled: saveDisabled,
+        disabledReason: busy
+          ? "Saving…"
+          : latest
+            ? "Review the newer version first"
+            : !content.trim()
+              ? "Write something first"
+              : content.length > 6000
+                ? "Over the save limit"
+                : !dirty
+                  ? "All changes saved"
+                  : undefined,
       },
-      {
-        id: "note-focus",
+      workspaceCommand("note-focus", () => setFocused(!focused), {
         label: focused ? "Exit focus mode" : "Focus mode",
-        shortcut: "Mod Shift F",
-        key: "f",
-        shift: true,
-        run: () => setFocused(!focused),
-      },
-      {
-        id: "note-properties",
+      }),
+      workspaceCommand("note-properties", () => setProperties(!properties), {
         label: properties ? "Hide note properties" : "Show note properties",
-        run: () => setProperties(!properties),
-      },
+      }),
     ],
     root,
+    noteTitle,
   );
   const saveButton = (
     <Button
@@ -485,7 +494,7 @@ export function MemoryEditor({
       disabled={saveDisabled}
       className="note-save-button"
       aria-label={busy ? "Saving note" : "Save note"}
-      title={busy ? "Saving…" : "Save note (⌘ / Ctrl S)"}
+      title={busy ? "Saving…" : `Save note (${shortcutHint(shortcuts.save)})`}
     >
       <Save size={16} aria-hidden="true" />
       <span>{busy ? "Saving…" : "Save note"}</span>
@@ -525,10 +534,7 @@ export function MemoryEditor({
         ref={root}
         className={`app-form note-editor${pageView ? " note-editor-full" : ""}${workspace && !fullPage && !expanded && !focused ? " note-editor-drawer" : ""}${focused ? " editor-focus" : ""}`}
         onKeyDown={(event) => {
-          if (
-            (event.metaKey || event.ctrlKey) &&
-            event.key.toLowerCase() === "s"
-          ) {
+          if (matchesShortcut(event.nativeEvent, shortcuts.save)) {
             event.preventDefault();
             if (!saveDisabled) event.currentTarget.requestSubmit();
           }
@@ -570,11 +576,7 @@ export function MemoryEditor({
               </button>
               <div className="note-editor-location">
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
-                <h1>
-                  {content.match(/^#\s+(.+)/m)?.[1] ||
-                    content.trim().split("\n")[0].slice(0, 110) ||
-                    (base ? "Untitled note" : "New note")}
-                </h1>
+                <h1>{noteTitle}</h1>
               </div>
               <span className="note-save-status" role="status">
                 {busy ? (
@@ -876,7 +878,9 @@ export function MemoryEditor({
           )}
           {pageView && (
             <p className="note-editor-hint">
-              {autoSave ? "Saves automatically" : "⌘ / Ctrl S to save"}
+              {autoSave
+                ? "Saves automatically"
+                : `${shortcutHint(shortcuts.save)} to save`}
               {draftKey && dirty
                 ? " · Draft kept while you move around Grove"
                 : " · Earlier versions stay in History"}

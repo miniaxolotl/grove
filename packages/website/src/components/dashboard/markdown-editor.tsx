@@ -44,6 +44,7 @@ import {
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
 import { SegmentedControl } from "./ui/segmented-control";
+import { shortcutHint, shortcuts } from "@/lib/workspace-shortcuts";
 import { IconButton } from "./ui/button";
 
 const highlighting = HighlightStyle.define([
@@ -226,7 +227,7 @@ export function MarkdownEditor({
           type="button"
           className="app-button secondary mode-toggle"
           data-focus-key="note-mode"
-          title="Edit / preview (⌘ / Ctrl E)"
+          title={`Edit / preview (${shortcutHint(shortcuts.mode)})`}
           aria-keyshortcuts="Control+e Meta+e"
           onClick={() => onPreviewChange?.(!preview)}
         >

@@ -10,6 +10,9 @@ export const shortcuts = {
   focus: "Mod Shift F",
 } as const;
 
+export const shortcutHint = (shortcut: string) =>
+  shortcut.replaceAll("Mod", "⌘ / Ctrl");
+
 export function matchesShortcut(event: KeyboardEvent, shortcut: string) {
   if (
     event.defaultPrevented ||

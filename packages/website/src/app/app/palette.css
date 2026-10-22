@@ -1,9 +1,14 @@
 /* Shared search-led surface for Commands and note search. */
 .app-dialog.palette-dialog {
   --palette-gap: min(11vh, 88px);
+  --palette-inset: max(
+    16px,
+    env(safe-area-inset-left),
+    env(safe-area-inset-right)
+  );
   --palette-width: min(
     560px,
-    calc(var(--palette-viewport-width, 100vw) - 32px)
+    calc(var(--palette-viewport-width, 100vw) - var(--palette-inset) * 2)
   );
   position: fixed;
   inset: auto;
@@ -87,8 +92,136 @@
   min-height: 0;
   overflow: hidden;
 }
+.palette-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.palette-context svg {
+  flex-shrink: 0;
+}
+.palette-context span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.command-results-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.command-results {
+  height: 100%;
+  padding: 6px 8px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.palette-group-heading {
+  padding: 10px 10px 5px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.command-results [role="group"] + [role="group"] {
+  margin-top: 4px;
+}
+.palette-option {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  gap: 10px;
+  border-radius: 7px;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.palette-option > svg {
+  flex-shrink: 0;
+  color: var(--color-muted);
+}
+.palette-option-copy {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.palette-option-copy small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.palette-option[aria-selected="true"] {
+  background: var(--color-sage);
+  box-shadow: inset 2px 0 var(--color-leaf);
+}
+.palette-option:active:not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-sage), var(--color-forest) 7%);
+}
+.palette-option mark {
+  color: inherit;
+  background: transparent;
+  font-weight: 600;
+}
+.palette-option .palette-enter {
+  opacity: 0;
+}
+.palette-option[aria-selected="true"] .palette-enter {
+  opacity: 1;
+}
+.palette-option-danger,
+.palette-option-danger > svg {
+  color: #873b2f;
+}
+.palette-option[aria-disabled="true"] {
+  cursor: default;
+  color: var(--color-muted);
+}
+.command-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 12px;
+  pointer-events: none;
+}
+.command-empty p:first-child {
+  font-size: 14px;
+  color: var(--color-forest);
+  font-weight: 500;
+}
+.palette-keyboard-hint {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.palette-keyboard-hint .shortcut-keys + .shortcut-keys {
+  margin-left: 6px;
+}
+.palette-touch-hint {
+  display: none;
+}
+.palette-result-count {
+  white-space: nowrap;
+}
 .palette-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   flex: 0 0 auto;
@@ -224,7 +357,11 @@
 @media (max-width: 600px) {
   .app-dialog.palette-dialog {
     --palette-gap: max(12px, env(safe-area-inset-top));
-    --palette-width: calc(var(--palette-viewport-width, 100vw) - 24px);
+    --palette-inset: max(
+      12px,
+      env(safe-area-inset-left),
+      env(safe-area-inset-right)
+    );
     border-radius: 12px;
   }
   .palette-heading {
@@ -236,6 +373,9 @@
   }
 }
 @media (any-pointer: coarse) {
+  .palette-option {
+    min-height: 44px;
+  }
   .palette-search button,
   .palette-heading > .app-icon {
     width: 44px;
@@ -245,6 +385,16 @@
     min-height: 44px;
   }
 }
+@media (hover: none) and (pointer: coarse) {
+  .palette-keyboard-hint,
+  .palette-option .shortcut-keys,
+  .palette-option .palette-enter {
+    display: none;
+  }
+  .palette-touch-hint {
+    display: inline;
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .palette-dialog[open] {
     animation: palette-enter 140ms ease-out;
@@ -252,11 +402,9 @@
   @keyframes palette-enter {
     from {
       opacity: 0;
-      translate: 0 -4px;
     }
     to {
       opacity: 1;
-      translate: 0 0;
     }
   }
 }
