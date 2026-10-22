@@ -6,8 +6,8 @@ import { navigation } from "@/content/site";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur-lg">
-      <div className="page-container flex h-16 items-center justify-between gap-5">
+    <header className="site-header sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur-lg">
+      <div className="page-container flex h-18 items-center justify-between gap-5">
         <Brand />
         <nav
           className="hidden items-center gap-8 md:flex"
@@ -20,10 +20,7 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2 sm:gap-5">
-          <Link
-            href="/app"
-            className="button-primary hidden min-h-10! gap-3! px-4! py-2! text-xs! min-[360px]:inline-flex"
-          >
+          <Link href="/app" className="button-primary navigation-account">
             Your Grove <ArrowRight size={15} />
           </Link>
           <MobileNavigation />

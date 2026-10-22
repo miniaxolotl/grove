@@ -10,18 +10,21 @@ export function Features() {
       className="page-container section-space"
       aria-labelledby="features-heading"
     >
-      <div className="section-intro">
+      <div className="section-intro" data-reveal>
         <div>
           <p className="eyebrow">WHAT YOU CAN DO</p>
           <h2 id="features-heading" className="section-heading mt-4">
-            Write, organize
+            Less searching.
             <br />
-            <em>and find your notes.</em>
+            <em>More space to think.</em>
           </h2>
         </div>
-        <p>Keep a journal, search by meaning and explore related ideas.</p>
+        <p>Keep the details close, without keeping them all in your head.</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
+      <div
+        className="feature-grid grid gap-8 md:grid-cols-2 lg:gap-12"
+        data-stagger
+      >
         <article className="feature-card bg-white/60" data-reveal>
           <h3>Search in your own words.</h3>
           <p>
@@ -69,7 +72,7 @@ export function Features() {
             Edit, restore earlier versions and export your notes. Choose which
             connected tools can access them.
           </p>
-          <Link href="/sign-up" className="button-primary mt-7">
+          <Link href="/sign-up" className="button-primary mt-7 self-start">
             Start your notebook <ArrowRight size={16} aria-hidden="true" />
           </Link>
           <p>
