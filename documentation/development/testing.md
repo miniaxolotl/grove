@@ -23,6 +23,10 @@ upstream, never in the application. Rebuild the website before browser checks.
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
+Backend load tooling and deterministic admission/query-budget checks are documented
+in [backend capacity](backend-capacity.md). Timing runs use their own uniquely named
+disposable databases and should run separately from the correctness/browser suites.
+
 AI preferences coverage includes a populated 012→013 upgrade with all four legacy
 organization/summary combinations, separate summary scopes and connections, partial
 HTTP writes, owner-only permissions, reindex/restore preservation and disabling then

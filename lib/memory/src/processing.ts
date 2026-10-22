@@ -1,4 +1,11 @@
-import { MemoryModel, camelRows, tenant, type Knex } from "@lib/database";
+import {
+  MemoryModel,
+  camelRows,
+  tenant,
+  databaseSignal,
+  withDatabaseSignal,
+  type Knex,
+} from "@lib/database";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefPreference,
@@ -17,7 +24,6 @@ import {
   organizationSchema,
   type Brief,
   type BriefRequest,
-  type Enrichment,
   type SourceRef,
   type Usage,
   type Annotation,
@@ -27,7 +33,6 @@ import {
 import {
   currentRelationshipProfile,
   enqueueRelationship,
-  legacyRelationshipsFor,
   relationshipKinds,
   relationshipProfile,
 } from "./relationship-data.ts";
@@ -217,62 +222,6 @@ async function validSources(
     ),
   );
 }
-export async function enrichmentFor(
-  trx: Knex.Transaction,
-  row: MemoryModel,
-  providers: Providers,
-  suppliedRelationships?: Enrichment["relationships"],
-): Promise<Enrichment> {
-  if (
-    row.status !== "active" ||
-    (row.expiresAt && new Date(row.expiresAt) <= new Date())
-  )
-    return { status: "disabled", tags: [], relationships: [], profiles: [] };
-  const account = await trx("accounts").where({ id: row.accountId }).first();
-  const profiles = [
-    account.classificationEnabled ? providers.decision?.profile : undefined,
-    account.titlesTagsEnabled ? providers.generation?.profile : undefined,
-  ].filter((p): p is string => !!p);
-  const records = await trx("memory_enrichments")
-    .where({ memoryId: row.id, version: row.version })
-    .whereIn("profile", profiles);
-  const pending = await trx("jobs")
-    .where({ memoryId: row.id, version: row.version })
-    .whereIn("kind", ["decision", "organization"])
-    .whereIn("profile", profiles)
-    .select("failedAt");
-  const classified = records.find((r) => r.kind === "decision") as
-    | { data: Annotation; sources: SourceRef[] }
-    | undefined;
-  const organized = records.find((r) => r.kind === "organization") as
-    | { data: Organization }
-    | undefined;
-  const relationships =
-    suppliedRelationships ??
-    (await legacyRelationshipsFor(trx, [row.id], providers)).get(row.id)!;
-  return {
-    status: pending.some((j) => j.failedAt)
-      ? "failed"
-      : pending.length
-        ? "pending"
-        : records.length
-          ? "ready"
-          : "disabled",
-    title: organized?.data.title,
-    tags: account.titlesTagsEnabled
-      ? [
-          ...new Set([
-            ...(classified?.data.topics ?? []),
-            ...(organized?.data.tags ?? []),
-          ]),
-        ].slice(0, 10)
-      : [],
-    suggestedKind: classified?.data.kind,
-    salience: classified?.data.salience,
-    relationships,
-    profiles: records.map((r) => r.profile),
-  };
-}
 export async function briefFor(
   trx: Knex.Transaction,
   accountId: string,
@@ -373,6 +322,7 @@ export async function queryEmbedding(
       ...options,
       signal: AbortSignal.any([
         AbortSignal.timeout(850),
+        ...(options.signal ? [options.signal] : []),
         ...(signal ? [signal] : []),
       ]),
     }),
@@ -392,12 +342,15 @@ export async function budgetedInference<T>(
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
   try {
     return await run({
+      signal: databaseSignal(),
       onUsage: (value) => {
         usage = value;
       },
     });
   } finally {
-    await recordUsage(db, accountId, role, usage);
+    await withDatabaseSignal(undefined, () =>
+      recordUsage(db, accountId, role, usage),
+    );
   }
 }
 async function recordUsage(

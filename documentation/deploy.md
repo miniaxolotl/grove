@@ -16,6 +16,10 @@ usage. Worker polling keeps the database active; do not budget it as mostly asle
 The published Node 24 image runs both components. Compose remains available for
 self-hosting with pgvector 0.8.2. See [delivery evidence](delivery.md).
 
+API admission, interactive concurrency and per-process database pools are configurable.
+See [capacity settings and verification](development/backend-capacity.md) before
+changing connection counts or resource sizes.
+
 `usegrove.one`, `usegrove.ca`, `grovenote.app` and the four `www` names redirect
 with HTTP 308 to `usegrove.cloud`. Cloudflare hosts `usegrove.cloud` DNS; Porkbun
 remains its registrar and hosts the other redirect domains. Vercel handles redirects.

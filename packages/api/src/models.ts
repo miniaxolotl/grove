@@ -324,7 +324,13 @@ export class ModelRegistry {
       role,
       this.env.AI_DAILY_REQUEST_LIMIT,
       async (options) => {
-        const request = { ...options, signal: AbortSignal.timeout(10000) };
+        const request = {
+          ...options,
+          signal: AbortSignal.any([
+            AbortSignal.timeout(10000),
+            ...(options.signal ? [options.signal] : []),
+          ]),
+        };
         const start = Date.now();
         const providers = this.service.providers;
         if (role === "embedding" && providers.embedding) {

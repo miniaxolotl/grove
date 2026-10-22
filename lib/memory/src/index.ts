@@ -25,18 +25,19 @@ import {
   type AskResult,
   type BriefRequest,
   type ModelProfiles,
-  type Enrichment,
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { Relationships } from "./relationships.ts";
-import { legacyRelationshipsFor } from "./relationship-data.ts";
+import { presentMemories } from "./presentation.ts";
+import { semanticMatches } from "./search.ts";
+import { admitOperation } from "./operation-context.ts";
+export { withMemoryOperation } from "./operation-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import {
   briefFor,
   briefTarget,
   budgetedInference,
-  enrichmentFor,
   invalidateBriefs,
   queueBrief,
   queueMemory,
@@ -89,8 +90,6 @@ const forbidden = () =>
     "This connection does not grant that access",
     403,
   );
-const iso = (value: Date | string | null) =>
-  value === null ? null : new Date(value).toISOString();
 const stable = (value: unknown): string =>
   JSON.stringify(value, (_key, entry) =>
     entry && typeof entry === "object" && !Array.isArray(entry)
@@ -121,7 +120,7 @@ export class MemoryService {
     this.relationships = new Relationships(this);
     this.conversations = new Conversations(
       this,
-      this.present.bind(this),
+      this.presentMany.bind(this),
       this.revise.bind(this),
     );
   }
@@ -132,6 +131,23 @@ export class MemoryService {
     run: (access: Access) => Promise<T>,
     modelUpdate = false,
   ): Promise<T> {
+    await admitOperation(this, principal, async () => {
+      const count = await tenant(this.db, principal.accountId, async (trx) => {
+        await this.authorize(trx, principal, capability, false, true);
+        const { rows } = await trx.raw(
+          `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
+          ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
+          [principal.accountId],
+        );
+        return Number(rows[0].count);
+      });
+      if (count > policy.requestsPerMinute)
+        throw new GroveError(
+          "rate_limited",
+          "Too many requests; retry in one minute",
+          429,
+        );
+    });
     return tenant(this.db, principal.accountId, async (trx) => {
       // Profile cutovers serialize with writes, before account locks. A replica may
       // have refreshed before waiting here; queue() resolves the committed profiles.
@@ -141,93 +157,99 @@ export class MemoryService {
             ? "SELECT pg_advisory_xact_lock(68142019)"
             : "SELECT pg_advisory_xact_lock_shared(68142019)",
         );
-      const accountQuery = trx<Account>("accounts").where({
-        id: principal.accountId,
-      });
-      const account = await (
-        capability === null || capability === "memory:read"
-          ? accountQuery.forShare()
-          : accountQuery.forUpdate()
-      ).first();
-      if (!account || account.status !== "active")
+      const access = await this.authorize(
+        trx,
+        principal,
+        capability,
+        capability !== null && capability !== "memory:read",
+      );
+      return run(access);
+    });
+  }
+
+  private async authorize(
+    trx: Knex.Transaction,
+    principal: Principal,
+    capability: Capability | "admin" | "self" | null,
+    mutation: boolean,
+    touchKey = false,
+  ): Promise<Access> {
+    const accountQuery = trx<Account>("accounts").where({
+      id: principal.accountId,
+    });
+    // Materialize the locked row first. The VOLATILE revocation function must
+    // take its fresh snapshot after a lock wait, not while projecting its input.
+    const record = await trx
+      .withMaterialized(
+        "authorized_account",
+        mutation ? accountQuery.forUpdate() : accountQuery.forShare(),
+      )
+      .from<Account & { sessionRevoked: boolean }>("authorized_account")
+      .select(
+        "authorized_account.*",
+        trx.raw("grove_session_revoked(?) AS session_revoked", [
+          principal.sessionId ?? "",
+        ]),
+      )
+      .first();
+    if (!record || record.status !== "active")
+      throw new GroveError(
+        "account_unavailable",
+        "This account is unavailable",
+        403,
+      );
+    const { sessionRevoked, ...account } = record;
+    if (principal.sessionId && sessionRevoked)
+      throw new GroveError("unauthorized", "Session revoked", 401);
+    let grant: Connection | undefined;
+    if (principal.type !== "session") {
+      if (!principal.connectionId)
         throw new GroveError(
-          "account_unavailable",
-          "This account is unavailable",
+          "connection_required",
+          "Approve this connection in Grove Connections",
           403,
         );
-      if (principal.sessionId) {
-        const result = await trx.raw(
-          "SELECT grove_session_revoked(?) AS revoked",
-          [principal.sessionId],
-        );
-        if (result.rows[0].revoked)
-          throw new GroveError("unauthorized", "Session revoked", 401);
-      }
-      let grant: Connection | undefined;
-      if (principal.type !== "session") {
-        if (!principal.connectionId)
-          throw new GroveError(
-            "connection_required",
-            "Approve this connection in Grove Connections",
-            403,
-          );
-        const connectionQuery = trx<Connection>("connections").where({
-          id: principal.connectionId,
-        });
-        grant = await (
-          principal.type === "key"
-            ? connectionQuery.forUpdate()
-            : connectionQuery.forShare()
-        ).first();
-        if (
-          !grant ||
-          grant.revokedAt ||
-          (grant.expiresAt && new Date(grant.expiresAt) <= new Date())
-        )
-          throw forbidden();
-        if (
-          principal.type === "oauth" &&
-          (principal.clientId !== grant.clientId ||
-            !Number.isFinite(principal.issuedAt) ||
-            principal.issuedAt! < new Date(grant.authorizedAfter).getTime())
-        )
-          throw new GroveError(
-            "connection_revoked",
-            "Reconnect and approve this client in Grove Connections",
-            403,
-          );
-        if (principal.type === "key")
-          await trx("connections")
-            .where({ id: grant.id })
-            .update({ lastUsedAt: trx.fn.now() });
-      }
-      if (capability === "admin" && principal.type !== "session")
-        throw forbidden();
+      const connectionQuery = trx<Connection>("connections").where({
+        id: principal.connectionId,
+      });
+      grant = await (
+        principal.type === "key" && touchKey
+          ? connectionQuery.forUpdate()
+          : connectionQuery.forShare()
+      ).first();
       if (
-        capability &&
-        capability !== "admin" &&
-        capability !== "self" &&
-        (!principal.capabilities.includes(capability) ||
-          (grant && !grant.capabilities.includes(capability)))
+        !grant ||
+        grant.revokedAt ||
+        (grant.expiresAt && new Date(grant.expiresAt) <= new Date())
       )
         throw forbidden();
-      const { rows } = await trx.raw(
-        `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
-        ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
-        [account.id],
-      );
-      // Commit the rate counter even when over limit by returning the error after the transaction.
-      if (rows[0].count > policy.requestsPerMinute)
-        return new GroveError(
-          "rate_limited",
-          "Too many requests; retry in one minute",
-          429,
-        ) as T;
-      return run({ trx, account, grant });
-    }).then((result) => {
-      if (result instanceof GroveError) throw result;
-      return result;
-    });
+      if (
+        principal.type === "oauth" &&
+        (principal.clientId !== grant.clientId ||
+          !Number.isFinite(principal.issuedAt) ||
+          principal.issuedAt! < new Date(grant.authorizedAfter).getTime())
+      )
+        throw new GroveError(
+          "connection_revoked",
+          "Reconnect and approve this client in Grove Connections",
+          403,
+        );
+      if (principal.type === "key" && touchKey)
+        await trx("connections")
+          .where({ id: grant.id })
+          .update({ lastUsedAt: trx.fn.now() });
+    }
+    if (capability === "admin" && principal.type !== "session")
+      throw forbidden();
+    if (
+      capability &&
+      capability !== "admin" &&
+      capability !== "self" &&
+      (!principal.capabilities.includes(capability) ||
+        (grant && !grant.capabilities.includes(capability)))
+    )
+      throw forbidden();
+    return { trx, account, grant };
   }
 
   private scope(grant: Connection | undefined, projectId: string | null) {
@@ -256,53 +278,16 @@ export class MemoryService {
   private async present(
     trx: Knex.Transaction,
     row: MemoryModel,
-    relationships?: Enrichment["relationships"],
   ): Promise<Memory> {
-    const ready = await trx("memory_embeddings")
-      .where({
-        memoryId: row.id,
-        version: row.version,
-        profile: this.embedder?.profile ?? policy.embeddingProfile,
-      })
-      .first("memoryId");
-    const failed =
-      !ready &&
-      (await trx("jobs")
-        .where({
-          memoryId: row.id,
-          version: row.version,
-          kind: "embedding",
-          profile: this.embedder?.profile ?? policy.embeddingProfile,
-        })
-        .whereNotNull("failedAt")
-        .first("id"));
-    return {
-      id: row.id,
-      projectId: row.projectId,
-      content: row.content,
-      kind: row.kind,
-      autoKind: row.autoKind,
-      status: row.status,
-      version: row.version,
-      source: row.source,
-      taskId: row.taskId,
-      retentionDays: row.retentionDays,
-      expiresAt: iso(row.expiresAt),
-      purgeAt: iso(row.purgeAt),
-      createdAt: iso(row.createdAt)!,
-      updatedAt: iso(row.updatedAt)!,
-      indexing:
-        !this.embedder ||
-        row.status !== "active" ||
-        (row.expiresAt && new Date(row.expiresAt) <= new Date())
-          ? "disabled"
-          : ready
-            ? "ready"
-            : failed
-              ? "failed"
-              : "pending",
-      enrichment: await enrichmentFor(trx, row, this.providers, relationships),
-    };
+    return (await this.presentMany(trx, [row]))[0];
+  }
+
+  private presentMany(
+    trx: Knex.Transaction,
+    rows: MemoryModel[],
+    preferences?: AccountPreferences,
+  ) {
+    return presentMemories(trx, rows, this.providers, preferences);
   }
 
   private async operation<T>(
@@ -673,15 +658,10 @@ export class MemoryService {
               );
           });
         const rows = await q.limit(limit + 1);
-        const relationships = await legacyRelationshipsFor(
+        const items = await this.presentMany(
           trx,
-          rows.slice(0, limit).map((row) => row.id),
-          this.providers,
-        );
-        const items = await Promise.all(
-          rows
-            .slice(0, limit)
-            .map((row) => this.present(trx, row, relationships.get(row.id))),
+          rows.slice(0, limit),
+          account,
         );
         return {
           items,
@@ -780,21 +760,7 @@ export class MemoryService {
             )
             .limit(40);
           const semantic = vector
-            ? await base()
-                .whereRaw(
-                  `EXISTS (SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id
-          AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
-                  [
-                    embedder!.profile,
-                    JSON.stringify(vector),
-                    embedder!.distanceThreshold ?? 0.45,
-                  ],
-                )
-                .orderByRaw(
-                  `(SELECT e.embedding <=> ?::vector FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND e.profile = ?)`,
-                  [JSON.stringify(vector), embedder!.profile],
-                )
-                .limit(40)
+            ? await semanticMatches(trx, base(), embedder!, vector, 40)
             : [];
           const candidates = new Map<
             string,
@@ -864,14 +830,8 @@ export class MemoryService {
             }
           }
         }
-        const relationships = await legacyRelationshipsFor(
-          trx,
-          rows.map((row) => row.id),
-          this.providers,
-        );
-        for (const row of rows) {
-          const fingerprint = digest(row.content.trim().toLowerCase());
-          const item = await this.present(trx, row, relationships.get(row.id));
+        for (const item of await this.presentMany(trx, rows, account)) {
+          const fingerprint = digest(item.content.trim().toLowerCase());
           const cost = JSON.stringify(item).length;
           if (seen.has(fingerprint) || cost > remaining) continue;
           seen.add(fingerprint);
@@ -1524,24 +1484,29 @@ export class MemoryService {
     });
   }
   async exportPage(principal: Principal, after?: string) {
-    return this.access(principal, "admin", async ({ trx }) => {
+    return this.access(principal, "admin", async ({ trx, account }) => {
       const q = this.query(trx).orderBy("id").limit(50);
       if (after) q.where("id", ">", after);
       const rows = await q;
-      const relationships = await legacyRelationshipsFor(
-        trx,
-        rows.map((row) => row.id),
-        this.providers,
-      );
-      return Promise.all(
-        rows.map(async (row) => ({
-          ...(await this.present(trx, row, relationships.get(row.id))),
-          revisions: await trx("memory_revisions")
-            .where({ memoryId: row.id })
-            .select("version", "content", "source", "createdAt")
-            .orderBy("version"),
-        })),
-      );
+      const items = await this.presentMany(trx, rows, account);
+      const revisions = await trx("memory_revisions")
+        .whereIn(
+          "memoryId",
+          rows.map((row) => row.id),
+        )
+        .select("memoryId", "version", "content", "source", "createdAt")
+        .orderBy("version");
+      return items.map((item) => ({
+        ...item,
+        revisions: revisions
+          .filter((revision) => revision.memoryId === item.id)
+          .map(({ version, content, source, createdAt }) => ({
+            version,
+            content,
+            source,
+            createdAt,
+          })),
+      }));
     });
   }
 
