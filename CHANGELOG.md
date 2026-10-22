@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/miniaxolotl/grove/compare/v1.9.0...v1.9.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **website:** shorten analytics consent description ([#66](https://github.com/miniaxolotl/grove/issues/66)) ([d483ecd](https://github.com/miniaxolotl/grove/commit/d483ecdbc8be1e32dfaab8c7f60010a01fd9fe22))
+
 ## [1.9.0](https://github.com/miniaxolotl/grove/compare/v1.8.1...v1.9.0) (2026-10-22)
 
 
