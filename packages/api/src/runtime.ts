@@ -8,6 +8,9 @@ export async function createRuntime() {
   const env = readServerEnvironment();
   const db = createDatabase(env.DATABASE_URL, {
     ssl: env.DATABASE_SSL === "require",
+    max: env.DATABASE_POOL_MAX,
+    acquireTimeoutMs: env.DATABASE_ACQUIRE_TIMEOUT_MS,
+    statementTimeoutMs: env.DATABASE_STATEMENT_TIMEOUT_MS,
   });
   try {
     await probeDatabase(db);

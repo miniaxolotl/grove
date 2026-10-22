@@ -32,6 +32,50 @@ unchanged refresh took **69 ms / zero model calls**; one edit rebuilt 12 fragmen
 in 804 ms. [Quality and scale evidence](development/notebook-assistance-results.md)
 records the initial failures, remaining wording limitations and measurement scope.
 
+Conflict-resolution follow-up integrates backend capacity #78 (`be49db9`). Queued
+downloads retain interactive admission until completion and propagate cancellation
+to artifact storage; background work preserves authorization without foreground
+rate accounting. Session-revocation checks run only for principals with sessions,
+preserving worker-role permissions. The integrated suite passes **154 backend tests**
+(two optional-service skips), **eight focused Chromium cases**, all required static,
+build and artifact gates, bundle budgets and release/workflow checks. New regressions
+cover worker authorization and download deadlines, cancellation and storage failures.
+
+## Backend capacity and responsiveness (22 October 2026)
+
+List presentation is constant at **15 SQL queries** for 1, 30 or 100 notes, down
+from **15/131/411** with the integrated preference guards. Revision exports and
+conversation sources are batched. Exact semantic recall scores eligible vectors
+once before fetching note bodies. Short account/minute admission commits before
+work; each subsequent authorization still checks current grants and revocation,
+including a session revoked while waiting for an account lock.
+
+Ordinary and interactive HTTP lanes have bounded, cancellable queues. Retry-After,
+cooperative deadlines, rollback checks and failed interrupted-download streams
+support predictable recovery. Database pool/acquisition/statement settings are
+validated and forwarded through runtime/Compose. No new migration is required.
+
+All **115 backend/service tests**, **193 integrated Chromium scenarios**, five
+packaged-artifact checks, root/website lint/types/builds and bundle budgets pass.
+Seventeen release/deployment contracts, pinned actionlint/ShellCheck and Compose
+validation pass. Browser coverage includes navigation, search, held saves/newer
+typing, cache refresh, mobile controls and retry recovery. The pre-workspace-merge
+build also passed one focused iPhone/WebKit first-save navigation check.
+
+PR review reproduced and fixed stalled-body admission/deadline bypasses, an
+understated Content-Length bypass of the body-size limit, and model diagnostics
+replacing caller cancellation. Five new cases cover both upload encodings, actual
+received bytes, the Node HTTP adapter and cancellation/usage across provider roles.
+The merged workspace-polish #77 delivery record is integrated below.
+
+The final local 20 requests/s, two-minute run completed **2,398/2,400 successfully**
+at **209 ms p95**, with no generator drops. The **50 sustained / 100 burst targets
+remain unqualified**, and sustainable background processing/real-provider chat
+capacity remains a queue-workstream follow-up. The
+[measurement report](development/backend-capacity-results.md) retains exact
+configurations, unsuccessful iterations and sizing limits. These are synthetic
+HTTP/database and browser-fixture observations; production resources were not changed.
+
 ## Workspace polish follow-up (22 October 2026)
 
 Commands use full-row selection without a coloured edge stripe. Dialogs, dropdowns

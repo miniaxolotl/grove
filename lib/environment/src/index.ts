@@ -29,6 +29,40 @@ export const serverEnvironmentSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(26080),
   DATABASE_URL: z.string().min(1),
   DATABASE_SSL: z.enum(["require", "disable"]).default("disable"),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(64).default(8),
+  DATABASE_ACQUIRE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(30000)
+    .default(2000),
+  DATABASE_STATEMENT_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(30000)
+    .default(10000),
+  API_MAX_IN_FLIGHT: z.coerce.number().int().min(1).max(256).default(32),
+  API_MAX_QUEUED: z.coerce.number().int().min(0).max(256).default(32),
+  API_QUEUE_TIMEOUT_MS: z.coerce.number().int().min(1).max(5000).default(250),
+  API_REQUEST_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(60000)
+    .default(10000),
+  API_INTERACTIVE_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(32)
+    .default(4),
+  API_INTERACTIVE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(180000)
+    .default(90000),
   API_ORIGIN: origin,
   SITE_URL: origin,
   CLERK_PUBLISHABLE_KEY: z.string().startsWith("pk_"),
