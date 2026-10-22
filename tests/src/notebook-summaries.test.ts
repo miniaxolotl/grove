@@ -113,7 +113,7 @@ async function fixture() {
     return worker.runJob();
   };
   const drain = async () => {
-    for (let i = 0; i < 1000; i++) if (!(await step())) return;
+    for (let i = 0; i < 1000; i++) if (!(await step())) return i;
     assert.fail("Summary did not converge");
   };
   const brief = () => service.brief(principal, { projectId: project.id });
@@ -157,17 +157,28 @@ test("summaries examine older notes beyond the old cap, resume after restart, an
   assert(f.calls.every((c) => c.instruction.includes("actual subject")));
   const firstCalls = f.calls.length;
   await f.service.brief(f.principal, { projectId: f.project.id }, true);
-  await f.drain();
+  assert.equal(
+    await f.drain(),
+    1,
+    "unchanged root reuses the whole subtree in one lease",
+  );
   assert.equal(f.calls.length, firstCalls);
   await f.save("IMPORTANT: Book the daytime train to Kyoto.", {
     id: important.id,
     expectedVersion: 1,
   });
-  await f.drain();
+  assert((await f.drain()) < 40, "one edit traverses its path, not every leaf");
   assert(f.calls.length > firstCalls);
   assert(
     f.calls.length - firstCalls < firstCalls / 2,
     "one edit should only rebuild its branch",
+  );
+  await f.save("New research on coastal wildlife.");
+  await f.drain();
+  assert.equal(
+    (await f.brief()).coverage?.examined,
+    87,
+    "new notes invalidate cached ancestors",
   );
   assert.equal((await f.brief()).status, "ready");
   assert(
@@ -315,6 +326,12 @@ test("uncited expiry invalidates a ready summary without waiting for maintenance
     [row.expiresAt],
   );
   assert.equal((await f.brief()).status, "pending");
+  await f.drain();
+  assert.equal(
+    (await f.brief()).coverage?.examined,
+    3,
+    "expired uncited input cannot survive subtree reuse",
+  );
 });
 
 test("exact source reads reach old revisions and enforce current scope, expiry and deletion", async () => {

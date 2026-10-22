@@ -119,11 +119,21 @@ export async function runAssistanceJob(
       "generation",
       dailyLimit,
       (options) =>
-        providers.generation!.generate(step.schema, step.prompt, step.sources, {
-          ...options,
-          context: step.context,
-          signal,
-        }),
+        providers.generation!.generate(
+          step.schema,
+          step.prompt,
+          step.sources.map(({ id, version, content, kind }) => ({
+            id,
+            version,
+            content,
+            kind,
+          })),
+          {
+            ...options,
+            context: step.context,
+            signal,
+          },
+        ),
     );
     const next = step.finish(generated);
     await owned(async (trx, row) => {

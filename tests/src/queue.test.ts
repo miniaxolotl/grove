@@ -826,15 +826,25 @@ test("large exports keep batches bounded while foreground reads remain available
     initialRss = process.memoryUsage().rss,
     underLoad = [];
   try {
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 200; i++) {
       const [worked, ms] = await Promise.all([
         runTask(worker, handlers, { id: task.id }),
         latency(),
       ]);
       underLoad.push(ms);
-      if (!worked) break;
+      // A foreground account lock can make SKIP LOCKED decline this claim.
+      // Only a terminal task means the export is finished.
+      if (
+        !worked &&
+        !["pending", "running"].includes(
+          (await tasks.get(principal, task.id)).status,
+        )
+      )
+        break;
     }
-    assert.equal((await tasks.get(principal, task.id)).processed, 2000);
+    const complete = await tasks.get(principal, task.id);
+    assert.equal(complete.status, "succeeded", JSON.stringify(complete));
+    assert.equal(complete.processed, 2000);
     assert.equal((await tasks.get(principal, task.id)).downloadable, true);
     assert(maxBatch < 1024 * 1024);
     const p95 = (values: number[]) =>

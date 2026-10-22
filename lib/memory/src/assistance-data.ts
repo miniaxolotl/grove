@@ -19,7 +19,7 @@ import {
 } from "./note-changes.ts";
 
 export const assistanceProfile = (generation: string, embedding?: string) =>
-  profileId("assistance-v1", { generation, embedding: embedding ?? null });
+  profileId("assistance-v2", { generation, embedding: embedding ?? null });
 export type ScopeDependency = {
   id: string;
   version?: number;

@@ -596,3 +596,61 @@ test("invalid action quotes and age-only replacement claims fail closed", async 
   assert.equal(cleanup.status, "failed");
   assert.equal(cleanup.result, null);
 });
+
+test("a stale model replica cannot read or apply assistance after a committed profile switch", async () => {
+  const f = await fixture(),
+    note = await f.save("Book the train.");
+  const preview = await f.request({
+    id: randomUUID(),
+    kind: "actions",
+    sources: [{ id: note.id, version: 1 }],
+    projectId: f.project.id,
+  });
+  f.service.jobProfiles = async () => ({
+    embedding: null,
+    decision: null,
+    generation: "new-generation",
+  });
+  await assert.rejects(
+    f.service.assistance.apply(f.principal, preview.id, {
+      expectedVersion: preview.version,
+    }),
+    { code: "sources_changed" },
+  );
+  assert.equal(
+    (await f.service.assistance.get(f.principal, preview.id)).status,
+    "stale",
+  );
+  assert.equal(
+    (await admin("memories").where({ accountId: f.principal.accountId }))
+      .length,
+    1,
+  );
+});
+
+test("digest edits require both historical revisions even when labelled as ordinary changes", async () => {
+  const f = await fixture(),
+    note = await f.save("Book the night train.");
+  await f.visit();
+  await f.save("Book the daytime train.", { id: note.id, expectedVersion: 1 });
+  const visit = await f.visit();
+  f.providers.generation!.generate = async (schema) =>
+    schema.parse({
+      items: [
+        {
+          kind: "change",
+          text: "The plan changed.",
+          sources: [
+            { id: note.id, version: 2, quote: "Book the daytime train." },
+          ],
+        },
+      ],
+    });
+  const digest = await f.request({
+    id: randomUUID(),
+    kind: "digest",
+    visitId: visit.id,
+  });
+  assert.equal(digest.status, "failed");
+  assert.equal(digest.result, null);
+});

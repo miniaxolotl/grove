@@ -45,6 +45,16 @@ export async function resetModelData(db: Knex) {
     await trx("notebook_profiles").delete();
     await trx("memories").delete();
     await trx("memory_operations").delete();
+    await trx("assistance_requests").update({
+      status: "stale",
+      version: trx.raw("version+1"),
+      result: null,
+      state: "{}",
+      undo: null,
+      error: "Notes were reset. Refresh this preview.",
+    });
+    await trx("notebook_visits").delete();
+    await trx("notebook_checkpoints").delete();
     await trx("accounts").increment("contentVersion", 1);
     return { before, after: await modelDataCounts(trx) };
   });

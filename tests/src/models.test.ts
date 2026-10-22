@@ -1027,7 +1027,29 @@ test("encrypted installation settings mask keys, enforce administrators, switch 
   assert.equal(cloud.embedding.dimensions, 4096);
   assert.equal(cloud.decision.model, "Cloudflare/clef-flash");
   assert.equal(cloud.generation.model, "MiniMax-M3.1-Flash");
+  const assistanceId = randomUUID();
+  await admin("assistance_requests").insert({
+    accountId: f.principal.accountId,
+    id: assistanceId,
+    kind: "actions",
+    input: "{}",
+    fingerprint: "reset-fixture",
+    profile: "reset-fixture",
+    status: "applied",
+    result: "{}",
+    undo: "[]",
+    applied: JSON.stringify([
+      { id: concurrent.id, version: concurrent.version },
+    ]),
+  });
   const reset = await resetModelData(admin);
+  const operation = await admin("assistance_requests")
+    .where({ id: assistanceId })
+    .first();
+  assert.equal(operation.status, "stale");
+  assert.equal(operation.result, null);
+  assert.equal(operation.undo, null);
+  assert.equal(operation.applied[0].id, concurrent.id);
   assert(reset.before.memories > 0);
   for (const table of ["memories", "memory_revisions"])
     assert.equal(

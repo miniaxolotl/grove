@@ -158,7 +158,7 @@ export const notebookAssistance = {
       CREATE TABLE notebook_summary_nodes (
         account_id uuid NOT NULL, project_id uuid NOT NULL, profile text NOT NULL,
         path text NOT NULL, fingerprint text NOT NULL, content jsonb NOT NULL,
-        evidence jsonb NOT NULL, examined integer NOT NULL,
+        evidence jsonb NOT NULL, examined integer NOT NULL, expires_at timestamptz,
         PRIMARY KEY(account_id,project_id,profile,path),
         FOREIGN KEY(account_id,project_id) REFERENCES projects(account_id,id) ON DELETE CASCADE
       );
@@ -191,10 +191,15 @@ export const notebookAssistance = {
     await db.raw(`
       CREATE FUNCTION grove_summary_changed() RETURNS trigger LANGUAGE plpgsql
         SET search_path=pg_catalog,public,pg_temp AS $$
-      DECLARE old_project uuid; new_project uuid;
+      DECLARE old_project uuid; new_project uuid; bits text;
       BEGIN
         IF TG_OP<>'INSERT' THEN old_project:=OLD.project_id; END IF;
         IF TG_OP<>'DELETE' THEN new_project:=NEW.project_id; END IF;
+        bits:=(('x'||replace(COALESCE(NEW.id,OLD.id)::text,'-',''))::bit(128))::text;
+        -- Invalidate the changed leaf and its ancestors, retaining independent subtrees.
+        DELETE FROM notebook_summary_nodes WHERE account_id=COALESCE(NEW.account_id,OLD.account_id)
+          AND project_id IN(old_project,new_project)
+          AND path IN(SELECT left(bits,n) FROM generate_series(0,128) AS n);
         INSERT INTO jobs(account_id,kind,target,profile,scope,due_at)
           SELECT account_id,'brief',target,profile,scope,now()+interval '5 seconds'
           FROM memory_briefs WHERE account_id=COALESCE(NEW.account_id,OLD.account_id)

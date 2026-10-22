@@ -47,7 +47,12 @@ export class NotebookAssistance {
           409,
         );
       const profiles = await this.service.jobProfiles?.(trx);
-      if (profiles && profiles.generation !== generation.profile)
+      if (
+        profiles &&
+        (profiles.generation !== generation.profile ||
+          profiles.embedding !==
+            (this.service.providers.embedding?.profile ?? null))
+      )
         throw conflict();
       const refs = "sources" in input ? input.sources : [];
       const sources = await activeNotes(trx).whereIn(
@@ -164,15 +169,7 @@ export class NotebookAssistance {
   private async read(trx: Knex.Transaction, row: AssistanceRow) {
     if (["ready", "pending"].includes(row.status)) {
       try {
-        if (
-          !this.service.providers.generation ||
-          row.profile !==
-            assistanceProfile(
-              this.service.providers.generation.profile,
-              this.service.providers.embedding?.profile,
-            )
-        )
-          throw changedSources();
+        await this.checkProfile(trx, row);
         await validAssistance(trx, row);
         const job =
           row.status === "pending"
@@ -221,6 +218,19 @@ export class NotebookAssistance {
     if (row.kind === "digest") await redactDigest(trx, row);
     return presentAssistance(row);
   }
+  private async checkProfile(trx: Knex.Transaction, row: AssistanceRow) {
+    const { generation, embedding } = this.service.providers;
+    const committed = await this.service.jobProfiles?.(trx);
+    if (
+      !generation ||
+      row.profile !==
+        assistanceProfile(generation.profile, embedding?.profile) ||
+      (committed &&
+        (committed.generation !== generation.profile ||
+          committed.embedding !== (embedding?.profile ?? null)))
+    )
+      throw changedSources();
+  }
   async apply(
     principal: Principal,
     id: string,
@@ -259,15 +269,7 @@ export class NotebookAssistance {
           version: row.applied.find((r) => r.id === before.id)!.version,
         }));
       } else {
-        if (
-          !this.service.providers.generation ||
-          row.profile !==
-            assistanceProfile(
-              this.service.providers.generation.profile,
-              this.service.providers.embedding?.profile,
-            )
-        )
-          throw changedSources();
+        await this.checkProfile(trx, row);
         await validAssistance(trx, row);
         if (row.input.kind === "actions") {
           const items = row.result!.items!;
