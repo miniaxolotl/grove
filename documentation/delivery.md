@@ -33,6 +33,25 @@ lint, types and builds, five artifact checks and bundle budgets pass again.
 controls and save row. [Rollout](deploy.md) requires an explicit owner migration
 and preference-aware API/worker before the website.
 
+## v1.10.0 production acceptance (22 October 2026 UTC)
+
+The timed-link, public-reader isolation and short-consent-copy release is live.
+Source `cb9b1a44` and protected production `8cea4497` have identical trees;
+source/production CI and Deploy **39726145131** pass. Migration **012** preserved all
+**29 retained-table fingerprints** and actual non-owner isolation. API/worker image `7901fa69`,
+all five published packages and the exact Vercel production alias verify.
+
+Live synthetic checks pass for authenticated sharing controls, no-JavaScript and
+phone readers, database-clock expiry, stable URLs/deadlines, new-secret renewal,
+scope changes, revocation, authentication/tracking isolation, worker indexing and
+relationship processing. Synthetic links are revoked and newly created test notes
+removed. Live consent, matching AdRoll pixel HTTP 200 and revocation pass; the
+Analytics description is **“Understand site usage and performance.”**
+
+The [complete release record](release-1.10.0.md) includes exact source/runtime/site
+identities, backup and migration evidence, the bounded browser-network retry, and
+the existing hosting-path logging limitation.
+
 ## Minimal website refresh (22 October 2026)
 
 The public site uses open notebook-led sections, shorter copy, compact family
@@ -65,7 +84,7 @@ authentication-isolation baseline and within the existing bundle budget.
 dialog at desktop/390px/320px. The duration catalog has a dependency-free client
 entrypoint so adding its six options does not pull server validation schemas into
 the workspace bundle. Migration `20261022_012_share_expiration` is forward-only;
-production activation follows the coordinated rollout in [deploy](deploy.md).
+production activation is verified in the [v1.10.0 release record](release-1.10.0.md).
 
 ## Public-reader authentication isolation (22 October 2026 UTC)
 
@@ -77,8 +96,8 @@ and marketing pages make no authentication-provider requests. Existing secret-pa
 links and server-rendered, no-JavaScript reading are preserved.
 
 Root/website lint, types and builds, all five artifact checks, bundle budgets and
-all 160 Chromium scenarios pass. This records local verification; production
-acceptance requires the coordinated follow-up release. A separate hosting canary
+all 160 Chromium scenarios pass. These local checks are complemented by the
+[v1.10.0 production acceptance](release-1.10.0.md). A separate hosting canary
 was visible in Vercel request-path logs: hosting capability redaction is **not**
 verified and must not be inferred from application telemetry filtering.
 
