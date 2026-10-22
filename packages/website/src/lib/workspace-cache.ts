@@ -676,6 +676,13 @@ export class WorkspaceCache {
         }
         this.publish?.(change);
       } else if (path === "/account/settings") {
+        const key = workspaceKeys.resource("/me");
+        void this.client.cancelQueries({ queryKey: key });
+        this.client.setQueryData(
+          key,
+          (old: Record<string, unknown> | undefined) =>
+            old ? { ...old, ...result } : undefined,
+        );
         // Cancel held reads of derived data before refreshing changed preferences.
         for (const change of [
           {},

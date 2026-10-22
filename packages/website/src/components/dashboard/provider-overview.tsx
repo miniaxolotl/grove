@@ -4,6 +4,12 @@ import type { ModelSettings } from "@lib/shared/models";
 export function ProviderOverview({ settings }: { settings: ModelSettings }) {
   return (
     <div className="settings-content">
+      <p className="settings-section-description">
+        {settings.edition === "cloud"
+          ? "Grove Cloud manages these services for you."
+          : "Your installation administrator manages these services."}{" "}
+        Availability is separate from the features you enable in Preferences.
+      </p>
       <section className="app-panel feature-availability">
         {(
           [
@@ -16,7 +22,10 @@ export function ProviderOverview({ settings }: { settings: ModelSettings }) {
         ).map(([role, label]) => (
           <div key={label}>
             <span>{label}</span>
-            <span>
+            <span
+              className="settings-badge"
+              data-available={settings.config[role].provider !== "disabled"}
+            >
               {settings.config[role].provider === "disabled"
                 ? role === "embedding"
                   ? "Keyword search"
@@ -27,7 +36,7 @@ export function ProviderOverview({ settings }: { settings: ModelSettings }) {
         ))}
       </section>
       <Link className="text-button" href="/app/settings">
-        Preferences
+        Choose AI preferences
       </Link>
     </div>
   );
