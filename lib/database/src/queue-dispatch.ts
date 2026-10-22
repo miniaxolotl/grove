@@ -21,7 +21,7 @@ export async function queueDispatch(db: Knex) {
     $$;
     REVOKE ALL ON FUNCTION grove_job_due(jobs,text[]) FROM PUBLIC;
 
-    CREATE FUNCTION grove_claim_processing(profiles text[], wanted uuid, requested_lane text, account_limit integer) RETURNS SETOF jobs
+    CREATE FUNCTION grove_claim_processing(profiles text[], wanted uuid, requested_lane text, account_limit integer, provider_limit integer DEFAULT 8) RETURNS SETOF jobs
       LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
     DECLARE selected uuid; owner_id uuid; selected_lane text;
     BEGIN
@@ -31,6 +31,11 @@ export async function queueDispatch(db: Knex) {
             < greatest(1,least(account_limit,32))
         ORDER BY a.work_claimed_at NULLS FIRST,j.due_at,j.id LIMIT 1;
       IF selected IS NULL THEN RETURN; END IF;
+      -- One short cross-replica admission lock per provider lane, never held
+      -- while calling a provider. Active leases are the durable reservations.
+      IF NOT pg_try_advisory_xact_lock(hashtextextended(selected_lane,68142020)) THEN RETURN; END IF;
+      IF (SELECT count(*) FROM jobs WHERE lane=selected_lane AND lease_until>now())
+        >= greatest(1,least(provider_limit,128)) THEN RETURN; END IF;
       PERFORM 1 FROM accounts WHERE id=owner_id AND status='active' FOR UPDATE SKIP LOCKED;
       IF NOT FOUND THEN RETURN; END IF;
       IF (SELECT count(*) FROM jobs WHERE account_id=owner_id AND lane=selected_lane AND lease_until>now())
@@ -41,14 +46,34 @@ export async function queueDispatch(db: Knex) {
       RETURN QUERY UPDATE jobs SET lease_id=gen_random_uuid(),lease_until=now()+interval '120 seconds',attempts=attempts+1
         WHERE id=selected RETURNING *;
     END $$;
-    REVOKE ALL ON FUNCTION grove_claim_processing(text[],uuid,text,integer) FROM PUBLIC;
-    GRANT EXECUTE ON FUNCTION grove_claim_processing(text[],uuid,text,integer) TO grove_worker;
+    REVOKE ALL ON FUNCTION grove_claim_processing(text[],uuid,text,integer,integer) FROM PUBLIC;
+    GRANT EXECUTE ON FUNCTION grove_claim_processing(text[],uuid,text,integer,integer) TO grove_worker;
     CREATE OR REPLACE FUNCTION grove_claim_job(profiles text[] DEFAULT NULL,wanted uuid DEFAULT NULL) RETURNS SETOF jobs
       LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
       SELECT * FROM grove_claim_processing(profiles,wanted,NULL,2)
     $$;
 
     CREATE INDEX jobs_active_leases ON jobs(account_id,lane,lease_until) WHERE lease_id IS NOT NULL;
+    CREATE INDEX jobs_provider_leases ON jobs(lane,lease_until) WHERE lease_id IS NOT NULL;
+    CREATE OR REPLACE FUNCTION grove_claim_email(wanted uuid DEFAULT NULL) RETURNS SETOF transactional_emails
+      LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
+    DECLARE selected uuid; owner_id uuid;
+    BEGIN
+      UPDATE transactional_emails SET failed_at=now(),error_code='delivery_exhausted'
+        WHERE sent_at IS NULL AND failed_at IS NULL AND (attempts>=5 OR created_at<now()-interval '23 hours')
+          AND (lease_until IS NULL OR lease_until<now());
+      SELECT e.id,e.account_id INTO selected,owner_id FROM transactional_emails e JOIN accounts a ON a.id=e.account_id
+        WHERE a.status='active' AND e.sent_at IS NULL AND e.failed_at IS NULL AND e.due_at<=now()
+          AND (wanted IS NULL OR e.id=wanted) AND (e.lease_until IS NULL OR e.lease_until<now())
+          AND NOT EXISTS(SELECT 1 FROM transactional_emails busy WHERE busy.account_id=e.account_id AND busy.lease_until>now())
+        ORDER BY a.work_claimed_at NULLS FIRST,e.due_at,e.id LIMIT 1;
+      IF selected IS NULL THEN RETURN; END IF;
+      PERFORM 1 FROM accounts WHERE id=owner_id AND status='active' FOR UPDATE SKIP LOCKED;
+      IF NOT FOUND OR EXISTS(SELECT 1 FROM transactional_emails WHERE account_id=owner_id AND lease_until>now()) THEN RETURN; END IF;
+      UPDATE accounts SET work_claimed_at=now() WHERE id=owner_id;
+      RETURN QUERY UPDATE transactional_emails SET lease_id=gen_random_uuid(),lease_until=now()+interval '120 seconds',attempts=attempts+1
+        WHERE id=selected AND sent_at IS NULL AND failed_at IS NULL AND (lease_until IS NULL OR lease_until<now()) RETURNING *;
+    END $$;
     CREATE FUNCTION grove_dispatch_claim(source text, requested_lane text, profiles text[], batch_size integer)
       RETURNS TABLE(id uuid,account_id uuid,kind text,lane text,dispatch_id uuid)
       LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$

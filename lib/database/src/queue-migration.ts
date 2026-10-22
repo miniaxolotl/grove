@@ -1,6 +1,8 @@
 import type { Knex } from "knex";
 import { softDeletion } from "./soft-deletion.ts";
 import { queueDispatch } from "./queue-dispatch.ts";
+import { incrementalBackfills } from "./backfill-migration.ts";
+import { bulkWork } from "./bulk-migration.ts";
 
 export const queueProcessing = {
   name: "20261022_014_queue_processing",
@@ -131,6 +133,8 @@ export const queueProcessing = {
     `);
     await softDeletion(db);
     await queueDispatch(db);
+    await incrementalBackfills(db);
+    await bulkWork(db);
   },
   async down() {
     throw new Error("Use a forward migration");

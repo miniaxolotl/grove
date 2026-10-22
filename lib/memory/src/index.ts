@@ -5,7 +5,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import { MemoryModel, tenant, camelRows, type Knex } from "@lib/database";
+import { MemoryModel, tenant, type Knex } from "@lib/database";
 import { policy } from "@lib/config";
 import { InferenceError, type Embedder, type Providers } from "@lib/ai";
 import {
@@ -34,6 +34,21 @@ import { legacyRelationshipsFor } from "./relationship-data.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
 import { runTask } from "./task-runner.ts";
+import type { QueueLane } from "@lib/shared/jobs";
+export { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
+export { Tasks } from "./tasks.ts";
+export { exportHandlers, type ArtifactStore } from "./exports.ts";
+export {
+  importHandlers,
+  enqueueConnectorSync,
+  type ConnectorAdapter,
+} from "./imports.ts";
+export {
+  runTask,
+  TaskError,
+  type TaskHandler,
+  type ClaimedTask,
+} from "./task-runner.ts";
 import {
   briefFor,
   briefTarget,
@@ -75,6 +90,7 @@ type Connection = Omit<Grant, "expiresAt"> & {
   setup?: unknown;
 };
 type Account = AccountPreferences & {
+  exportVersion: string;
   id: string;
   clerkSubject: string;
   status: string;
@@ -105,6 +121,7 @@ export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export class MemoryService {
+  private internalWork = false;
   readonly conversations: Conversations;
   readonly relationships: Relationships;
   providers: Providers;
@@ -213,11 +230,13 @@ export class MemoryService {
           (grant && !grant.capabilities.includes(capability)))
       )
         throw forbidden();
-      const { rows } = await trx.raw(
-        `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
+      const { rows } = this.internalWork
+        ? { rows: [{ count: 0 }] }
+        : await trx.raw(
+            `INSERT INTO rate_buckets(account_id, minute, count) VALUES (?, date_trunc('minute', now()), 1)
         ON CONFLICT (account_id, minute) DO UPDATE SET count = rate_buckets.count + 1 RETURNING count`,
-        [account.id],
-      );
+            [account.id],
+          );
       // Commit the rate counter even when over limit by returning the error after the transaction.
       if (rows[0].count > policy.requestsPerMinute)
         return new GroveError(
@@ -240,6 +259,23 @@ export class MemoryService {
         : !(grant.allProjects || grant.projectIds.includes(projectId)))
     )
       throw forbidden();
+  }
+
+  /** Background writes share mutation/version rules and the enclosing lease transaction. */
+  inTransaction(trx: Knex.Transaction) {
+    const service = new MemoryService(
+      trx,
+      this.cursorSecret,
+      this.providers.embedding ?? undefined,
+      {
+        decision: this.providers.decision,
+        generation: this.providers.generation,
+      },
+      this.dailyRequestLimit,
+    );
+    service.jobProfiles = this.jobProfiles;
+    service.internalWork = true;
+    return service;
   }
 
   private query(trx: Knex.Transaction, grant?: Connection) {
@@ -1549,7 +1585,15 @@ export class MemoryService {
     });
   }
 
-  async runJob(id?: string): Promise<boolean> {
+  async runJob(
+    id?: string,
+    options: {
+      lane?: QueueLane;
+      accountLimit?: number;
+      providerLimit?: number;
+      signal?: AbortSignal;
+    } = {},
+  ): Promise<boolean> {
     return runProcessingJob(
       this.db,
       this.providers,
@@ -1563,6 +1607,7 @@ export class MemoryService {
               decision: this.providers.decision?.profile ?? null,
               generation: this.providers.generation?.profile ?? null,
             },
+      options,
     );
   }
 

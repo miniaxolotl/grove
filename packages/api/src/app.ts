@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
 import {
   requestCollectionAllowed,
@@ -7,7 +8,6 @@ import {
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { streamText } from "hono/streaming";
 import { z, ZodError } from "zod";
 import { Webhook } from "svix";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -28,7 +28,14 @@ import {
   uuidSchema,
   type Principal,
 } from "@lib/shared/contracts";
-import { ConnectionSetup, Sharing, type MemoryService } from "@lib/memory";
+import {
+  ConnectionSetup,
+  Sharing,
+  Tasks,
+  type ArtifactStore,
+  type MemoryService,
+} from "@lib/memory";
+import { exportRequestSchema, importRequestSchema } from "@lib/shared/jobs";
 import {
   publicShareQuerySchema,
   shareEnableSchema,
@@ -55,6 +62,7 @@ import {
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
+  artifacts?: ArtifactStore | null;
   memories: MemoryService;
   models?: ModelRegistry;
   auth: Pick<Authentication, "principal">;
@@ -770,55 +778,98 @@ export function createApp(deps: AppDependencies) {
       202,
     );
   });
+  const tasks = new Tasks(service, !!deps.artifacts);
   app.get("/v1/account/export", async (c) => {
-    const principal = c.get("principal");
-    // Authorize before committing download headers, then reauthorize each page.
-    const first = await service.exportPage(principal);
+    await service.access(c.get("principal"), "admin", async () => {});
+    throw new GroveError(
+      "export_moved",
+      "Create an export with POST /v1/exports",
+      410,
+    );
+  });
+  app.post("/v1/exports", async (c) =>
+    c.json(
+      {
+        success: true,
+        data: await tasks.export(
+          c.get("principal"),
+          await body(c, exportRequestSchema),
+        ),
+      },
+      202,
+    ),
+  );
+  app.post("/v1/imports", async (c) =>
+    c.json(
+      {
+        success: true,
+        data: await tasks.import(
+          c.get("principal"),
+          await body(c, importRequestSchema),
+        ),
+      },
+      202,
+    ),
+  );
+  app.get("/v1/tasks", async (c) =>
+    c.json({
+      success: true,
+      data: await tasks.list(
+        c.get("principal"),
+        z.uuid().optional().parse(c.req.query("projectId")),
+      ),
+    }),
+  );
+  app.get("/v1/tasks/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await tasks.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  for (const action of ["cancel", "retry"] as const)
+    app.post(`/v1/tasks/:id/${action}`, async (c) =>
+      c.json({
+        success: true,
+        data: await tasks.action(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          action,
+        ),
+      }),
+    );
+  app.get("/v1/tasks/:id/download", async (c) => {
+    const principal = c.get("principal"),
+      id = uuidSchema.parse(c.req.param("id"));
+    const artifact = await tasks.artifact(principal, id);
+    if (!deps.artifacts)
+      throw new GroveError(
+        "exports_unavailable",
+        "Export storage is not configured",
+        503,
+      );
+    const source = await deps.artifacts.read(artifact.key, c.req.raw.signal);
+    const stream = Readable.from(
+      (async function* () {
+        let checked = Date.now();
+        for await (const chunk of source) {
+          if (Date.now() - checked >= 5000) {
+            await tasks.artifact(principal, id);
+            checked = Date.now();
+          }
+          yield chunk;
+        }
+      })(),
+    );
     c.header(
       "Content-Disposition",
-      'attachment; filename="grove-memories.ndjson"',
+      `attachment; filename="${artifact.filename}"`,
     );
-    return streamText(c, async (stream) => {
-      let page = first;
-      while (page.length && !stream.aborted) {
-        for (const memory of page) await stream.writeln(JSON.stringify(memory));
-        if (page.length < 50) break;
-        page = await service.exportPage(principal, page.at(-1)!.id);
-      }
-      let chats = await service.conversations.exportPage(principal);
-      while (!stream.aborted) {
-        for (const chat of chats) {
-          if (stream.aborted) break;
-          await stream.writeln(
-            JSON.stringify({
-              type: "conversation",
-              ...chat,
-            }),
-          );
-        }
-        if (chats.length < 10) break;
-        chats = await service.conversations.exportPage(
-          principal,
-          chats.at(-1)!.id,
-        );
-      }
-      for (const level of ["note", "notebook"] as const) {
-        let after: string | undefined;
-        while (!stream.aborted) {
-          const pairs = await service.relationships.exportPage(
-            principal,
-            level,
-            after,
-          );
-          for (const pair of pairs)
-            await stream.writeln(
-              JSON.stringify({ type: "relationship", level, ...pair }),
-            );
-          if (pairs.length < 50) break;
-          after = pairs.at(-1)!.id;
-        }
-      }
-    });
+    c.header("Content-Type", "application/x-ndjson");
+    c.header("Content-Length", String(artifact.bytes));
+    return c.body(Readable.toWeb(stream) as ReadableStream);
   });
   app.all("/mcp", async (c) => {
     const principal = c.get("principal");

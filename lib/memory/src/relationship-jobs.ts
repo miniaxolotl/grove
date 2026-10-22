@@ -3,6 +3,7 @@ import { InferenceError, type Providers } from "@lib/ai";
 import { processingEnabled } from "@lib/shared/preferences";
 import type { ModelProfiles } from "@lib/shared/models";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { retryDelay } from "./task-runner.ts";
 import {
   groundRelationship,
   noteRelationshipInstructions,
@@ -293,6 +294,7 @@ export async function runRelationshipJob(
   dailyLimit: number,
   job: RelationshipJob,
   resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
+  signal?: AbortSignal,
 ) {
   const started = performance.now();
   let outcome: "success" | "cancelled" | "unavailable" = "cancelled";
@@ -310,6 +312,9 @@ export async function runRelationshipJob(
         .first();
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .where("leaseUntil", ">", trx.fn.now())
         .forUpdate()
         .first();
@@ -369,7 +374,7 @@ export async function runRelationshipJob(
               ...s,
               kind: "fact",
             })),
-            options,
+            { ...options, signal },
           ),
       ),
     );
@@ -455,7 +460,7 @@ export async function runRelationshipJob(
           dueAt: budget
             ? trx.raw("date_trunc('day', now()) + interval '1 day'")
             : trx.raw("now() + (? * interval '1 second')", [
-                Math.min(3600, 2 ** job.attempts * 10),
+                retryDelay(job.attempts),
               ]),
           failedAt:
             !budget &&

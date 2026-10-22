@@ -82,6 +82,41 @@ export const serverEnvironmentSchema = z.object({
     .max(1000000)
     .default(2000),
   AI_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+  INDEXING_CONCURRENCY: z.coerce.number().int().min(0).max(32).default(2),
+  EMAIL_CONCURRENCY: z.coerce.number().int().min(0).max(8).default(1),
+  MAINTENANCE_CONCURRENCY: z.coerce.number().int().min(0).max(8).default(1),
+  BULK_CONCURRENCY: z.coerce.number().int().min(0).max(8).default(1),
+  JOB_ACCOUNT_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(2),
+  JOB_PROVIDER_CONCURRENCY: z.coerce.number().int().min(1).max(128).default(8),
+  WORKER_LANES: z
+    .string()
+    .default("indexing,enrichment,email,maintenance,bulk")
+    .refine(
+      (value) =>
+        value
+          .split(",")
+          .every((lane) =>
+            ["indexing", "enrichment", "email", "maintenance", "bulk"].includes(
+              lane,
+            ),
+          ),
+      "Unknown worker lane",
+    ),
+  WORKER_LEGACY_QUEUE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  EXPORT_STORAGE: z.enum(["disabled", "local", "s3"]).optional(),
+  EXPORT_DIRECTORY: z.string().default("./data/exports"),
+  EXPORT_S3_ENDPOINT: z.url().optional(),
+  EXPORT_S3_REGION: z.string().default("us-east-1"),
+  EXPORT_S3_BUCKET: z.string().optional(),
+  EXPORT_S3_ACCESS_KEY_ID: z.string().optional(),
+  EXPORT_S3_SECRET_ACCESS_KEY: z.string().optional(),
+  EXPORT_S3_PATH_STYLE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   AMQP_URL: z
     .url()
     .refine(

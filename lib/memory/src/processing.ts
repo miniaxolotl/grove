@@ -1,5 +1,8 @@
 import { MemoryModel, camelRows, tenant, type Knex } from "@lib/database";
 import { currentTelemetry } from "@lib/telemetry/context";
+import { processingLease } from "./job-lease.ts";
+import { retryDelay } from "./task-runner.ts";
+import type { QueueLane } from "@lib/shared/jobs";
 import {
   briefPreference,
   processingEnabled,
@@ -93,6 +96,7 @@ export async function queueBrief(
     })
     .onConflict(["accountId", "kind", "target", "profile"])
     .merge({
+      epoch: trx.raw("(SELECT epoch FROM processing_control WHERE singleton)"),
       attempts: 0,
       failedAt: null,
       errorCode: null,
@@ -423,24 +427,43 @@ export async function runProcessingJob(
   dailyLimit: number,
   wantedId?: string,
   resolveProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>,
+  options: {
+    lane?: QueueLane;
+    accountLimit?: number;
+    providerLimit?: number;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<boolean> {
   const profiles = providerProfiles(providers);
   if (!profiles.length) return false;
   const claimed = camelRows<Job | RelationshipJob>(
-    await db.raw("SELECT * FROM grove_claim_job(?::text[], ?::uuid)", [
-      profiles,
-      wantedId ?? null,
-    ]),
+    await db.raw(
+      "SELECT * FROM grove_claim_processing(?::text[], ?::uuid, ?, ?, ?)",
+      [
+        profiles,
+        wantedId ?? null,
+        options.lane ?? null,
+        options.accountLimit ?? 2,
+        options.providerLimit ?? 8,
+      ],
+    ),
   )[0];
   if (!claimed) return false;
-  if ((relationshipKinds as readonly string[]).includes(claimed.kind))
-    return runRelationshipJob(
-      db,
-      providers,
-      dailyLimit,
-      claimed as RelationshipJob,
-      resolveProfiles,
-    );
+  const lease = processingLease(db, claimed, options.signal);
+  if ((relationshipKinds as readonly string[]).includes(claimed.kind)) {
+    try {
+      return await runRelationshipJob(
+        db,
+        providers,
+        dailyLimit,
+        claimed as RelationshipJob,
+        resolveProfiles,
+        lease.signal,
+      );
+    } finally {
+      await lease.close();
+    }
+  }
   const job = claimed as Job;
   const started = performance.now();
   let completed = false;
@@ -462,6 +485,9 @@ export async function runProcessingJob(
         trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .where("leaseUntil", ">", trx.fn.now())
         .first("id");
       if (!lease) return;
@@ -541,6 +567,7 @@ export async function runProcessingJob(
     });
     if (!input) return true;
     const options = {
+      signal: lease.signal,
       onUsage: (value: Usage) => {
         usage = value;
       },
@@ -612,6 +639,9 @@ export async function runProcessingJob(
         : undefined;
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
         .where("leaseUntil", ">", trx.fn.now())
         .forUpdate()
         .first();
@@ -731,7 +761,7 @@ export async function runProcessingJob(
           leaseId: null,
           leaseUntil: null,
           dueAt: trx.raw("now() + (? * interval '1 second')", [
-            Math.min(3600, 2 ** job.attempts * 10),
+            retryDelay(job.attempts),
           ]),
           errorCode: code,
           failedAt:
@@ -742,6 +772,7 @@ export async function runProcessingJob(
         });
     });
   } finally {
+    await lease.close();
     currentTelemetry().operation(
       "job_run",
       started,
