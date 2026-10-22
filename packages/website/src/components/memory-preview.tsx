@@ -11,6 +11,7 @@ export function MemoryPreview() {
   return (
     <figure
       className="notebook-preview"
+      data-parallax
       aria-label="Example notebook with weekend plans and an answer from a saved note"
     >
       <div className="notebook-preview-bar">
@@ -25,26 +26,21 @@ export function MemoryPreview() {
         <div className="notebook-preview-heading">
           <div>
             <span>Personal notebook</span>
-            <h2>Everyday ideas</h2>
+            <h2>Weekend plans</h2>
           </div>
           <Plus size={18} aria-hidden="true" />
-        </div>
-        <div className="notebook-preview-tabs" aria-hidden="true">
-          <span>All notes</span>
-          <span>Plans</span>
-          <span>Little discoveries</span>
         </div>
         <article className="preview-note">
           <div className="preview-note-label">
             <BookOpen size={13} /> Weekend plans
           </div>
-          <h3>A slower Saturday</h3>
+          <h3>Saturday</h3>
           <p>
             A long walk by the river. A visit to the bookshop on Maple Street.
             Leave the rest of the day open.
           </p>
           <div className="preview-note-footer">
-            <span>Room for a little spontaneity</span>
+            <span>Saved to Weekend plans</span>
             <Check size={13} aria-label="Saved" />
           </div>
         </article>
@@ -63,7 +59,7 @@ export function MemoryPreview() {
             <span>
               Take a walk by the river and visit the bookshop on Maple Street.
               Keep the rest of Saturday open.
-              <small>1. A slower Saturday</small>
+              <small>1. Saturday</small>
             </span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 @import "../../design-kit/tokens.css";
 
-/* Collection 04. Notebook-first, with a clear path into connected-agent memory. */
+/* Notebook-led editorial layout, using the approved Space Grotesk identity. */
 :root,
 .marketing-site {
   --color-paper: var(--brand-paper);
@@ -10,6 +10,7 @@
   --color-muted: var(--brand-muted);
   --color-line: var(--brand-line);
   --color-sage: #eaf0df;
+  --action-hover: #1c3929;
 }
 .marketing-site em {
   font-style: normal;
@@ -31,26 +32,141 @@
 .marketing-site .hero-grid {
   padding-block: clamp(48px, 6vw, 88px);
 }
-.marketing-site .button-primary,
-.marketing-site .button-secondary {
-  border-radius: 12px;
-  font-size: 14px;
-  box-shadow: none;
-}
 .marketing-site .nav-link {
   font-size: 13px;
 }
 .marketing-site .notebook-preview {
-  border-radius: 20px;
-  background: #eaf0df;
-  box-shadow: 0 30px 70px -44px #284c3870;
+  border-radius: 8px;
+  background: var(--brand-surface);
+  box-shadow: 0 16px 40px -32px #284c3850;
 }
 .marketing-site .preview-note {
   background: var(--brand-surface);
-  border-radius: 12px;
+  border-radius: 5px;
+  margin-top: 20px;
 }
 .marketing-site .bramble-family {
-  border-radius: 20px;
+  border-radius: 0;
+}
+.marketing-site .library-section {
+  background: transparent;
+}
+.marketing-site .library-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.marketing-site .library-window {
+  border-radius: 8px;
+  box-shadow: none;
+}
+.marketing-site .library-title {
+  background: transparent;
+  color: var(--brand-ink);
+  border-bottom: 1px solid var(--brand-line);
+}
+.marketing-site .library-title span:last-child {
+  color: var(--brand-muted);
+}
+.marketing-site .library-window .tab-list {
+  display: flex;
+  width: fit-content;
+  border: 0;
+  gap: 6px;
+  padding: 16px 24px 0;
+}
+.marketing-site .tab-list [role="tab"] {
+  border-radius: 4px;
+  min-height: 32px;
+  padding: 4px 12px;
+}
+.marketing-site .library-window .tab-list [role="tab"] {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.marketing-site .tab-list [aria-selected="true"] {
+  background: var(--brand-accent);
+  color: #fff;
+}
+.marketing-site .tab-list [aria-selected="true"]:hover {
+  background: var(--action-hover);
+  color: #fff;
+}
+.marketing-site .library-panel:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+.marketing-site
+  :is(
+    .library-panel-heading,
+    .library-search,
+    .library-explainer,
+    .library-footnote,
+    .library-panel > .idea-map
+  ) {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.marketing-site .library-panel > .idea-map {
+  max-width: 640px;
+  justify-self: center;
+}
+.marketing-site .library-memory {
+  margin: 0;
+  padding: 24px;
+  border-radius: 5px;
+  background: var(--brand-paper);
+}
+.marketing-site .library-memory h4 {
+  font-size: 16px;
+}
+.marketing-site .library-memory p {
+  font-size: 13px;
+}
+.marketing-site .feature-card:nth-child(n) {
+  padding: 28px 0 0;
+  border: 0;
+  border-top: 1px solid var(--brand-line);
+  border-radius: 0;
+  background: transparent;
+}
+.marketing-site .feature-icon {
+  border: 0;
+  background: transparent;
+  justify-content: start;
+}
+.marketing-site .demo-shell {
+  border-radius: 8px;
+  background: var(--brand-surface);
+}
+.marketing-site .demo-memory {
+  background: var(--brand-paper);
+  background-image: none;
+}
+.marketing-site .memory-note {
+  box-shadow: none;
+  background: var(--brand-surface);
+  transform: none;
+}
+.marketing-site .comparison-button {
+  min-height: 32px;
+  padding-block: 4px;
+  border-radius: 3px;
+}
+.marketing-site .comparison-active {
+  background: var(--brand-accent);
+  color: #fff;
+}
+.marketing-site .comparison-active:hover {
+  background: var(--action-hover);
+  color: #fff;
+}
+.marketing-site .idea-map {
+  background: #20372a;
+}
+.marketing-site .idea-map-stars {
+  filter: none;
 }
 .agent-story {
   padding-block: clamp(64px, 8vw, 112px);
@@ -80,7 +196,7 @@
 }
 .agent-terminal {
   border: 1px solid #365742;
-  border-radius: 20px;
+  border-radius: 8px;
   background: #20372a;
   color: #faf9f3;
   padding: clamp(24px, 3vw, 36px);
@@ -134,13 +250,40 @@
   .agent-story-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  .marketing-site .library-panel:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
+  .marketing-site .demo-panel:not([hidden]) .demo-query {
+    animation: query-reveal 650ms steps(24, end);
+  }
+  .marketing-site [data-reveal-state="visible"] .idea-map-lines path,
+  .marketing-site [role="tabpanel"]:not([hidden]) .idea-map-lines path {
+    stroke-dasharray: 1;
+    animation: connect-notes 800ms ease both;
+  }
   .hero-grid > div:first-child {
     animation: family-arrive 0.7s cubic-bezier(0.2, 0.65, 0.3, 1) both;
   }
   .notebook-preview {
     animation: family-arrive 0.9s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+  }
+}
+@keyframes query-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes connect-notes {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
   }
 }
 @keyframes family-arrive {

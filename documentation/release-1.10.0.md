@@ -72,6 +72,12 @@ cleaned up and evidence retained; the final harness retries only that specific
 read-only navigation error, with at most two retries. The passing run used two
 such retries for its no-JavaScript reader and retained every acceptance assertion.
 
+### Owner confirmation
+
+After the production rollout, the owner reported: **“I tested grove and it works
+fine.”** This records their successful Grove check alongside the detailed automated
+sharing, expiry and relationship acceptance above.
+
 ## Delivered behavior
 
 - Owners can choose **1 hour, 4 hours, 1 day, 1 week, 2 weeks or 1 month** (30 days),

@@ -19,6 +19,13 @@ The [complete release record](release-1.10.0.md) includes exact source/runtime/s
 identities, backup and migration evidence, the bounded browser-network retry, and
 the existing hosting-path logging limitation.
 
+## Minimal website refresh (22 October 2026)
+
+The public site uses open notebook-led sections, shorter copy, compact family
+controls and responsive demo transitions. Cookie Settings now remains readable
+on hover, press and keyboard focus. The workspace retains its independent styles.
+See the [screenshots and verification](design/screenshots/website-minimal-refresh/README.md).
+
 ## Timed public links (22 October 2026 UTC)
 
 Owners can set link expiry to one hour, four hours, one day, one week, two weeks
