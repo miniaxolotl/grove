@@ -7,6 +7,7 @@ import { nestedNotebooks } from "./notebook-migration.ts";
 import { conversations } from "./conversation-migration.ts";
 import { relationships } from "./relationship-migration.ts";
 import { publicSharing } from "./sharing-migration.ts";
+import { shareExpiration } from "./share-expiration-migration.ts";
 
 export const migrations = [
   {
@@ -223,6 +224,7 @@ export const migrations = [
   conversations,
   relationships,
   publicSharing,
+  shareExpiration,
 ];
 
 export const migrationSource: Knex.MigrationSource<

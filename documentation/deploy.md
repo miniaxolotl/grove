@@ -125,10 +125,20 @@ replace/revoke links separately. Recovery revokes every restored link, including
 its encrypted copy, before serving traffic. Rollback retains the additive schema.
 See [sharing](sharing.md) for the key-backup and permission contract.
 
+Timed-link rollout additionally requires `20261022_012_share_expiration`. Take and
+verify the production backup, confirm only this forward migration is pending, apply
+it as the migration owner, and verify retained share tokens/versions and tenant
+policies. The additive migration preserves no-expiry links and enforces deadlines
+inside the public SQL reader. Deploy matching API/worker replicas before the website;
+keep this migration when rolling application code back. Do not repeat 010/011.
+
 Redact capability segments in edge/proxy logs for `/s/*` and `/public/shares/*`.
 Verify no-store/no-index/no-referrer headers, signed-out access, live edits, scope
 narrowing and revoked-link reload/history on the actual Vercel/API hosts. Public
 readers do not call Clerk or inference providers.
+The October22 Vercel canary was visible in request-path logs; actual host-path
+redaction remains unverified. Authentication providers are scoped to account and
+workspace layouts so shared-reader success/error/404 pages do not load their SDK.
 
 ### Resources and provisioning
 

@@ -27,6 +27,8 @@ export default defineConfig({
       command: `pnpm start --port ${port}`,
       env: {
         GROVE_API_URL: `http://127.0.0.1:${process.env.SHARING_TEST_PORT || 4378}`,
+        // Nonexistent instance: exercise configured provider boundaries without credentials.
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_test_${Buffer.from("clerk-isolation.clerk.accounts.dev$").toString("base64")}`,
       },
       url: baseURL,
       reuseExistingServer: false,
