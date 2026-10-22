@@ -1,5 +1,5 @@
 import { Search, X } from "lucide-react";
-import type { Ref } from "react";
+import type { InputHTMLAttributes, Ref } from "react";
 
 export function SearchField({
   label,
@@ -9,7 +9,11 @@ export function SearchField({
   inputRef,
   submit = false,
   className = "",
-}: {
+  ...inputProps
+}: Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange" | "className"
+> & {
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -22,12 +26,13 @@ export function SearchField({
     <div className={`app-search ${className}`}>
       <Search size={17} aria-hidden="true" />
       <input
+        {...inputProps}
         ref={inputRef}
         aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        maxLength={1000}
+        maxLength={inputProps.maxLength ?? 1000}
       />
       <button
         type="button"
