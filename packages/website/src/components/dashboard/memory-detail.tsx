@@ -344,7 +344,7 @@ export function MemoryDetail({
                 )}
                 {memory.purgeAt && (
                   <>
-                    <dt>Removed permanently</dt>
+                    <dt>Hidden after</dt>
                     <dd>{dateLabel(memory.purgeAt)}</dd>
                   </>
                 )}

@@ -8,6 +8,7 @@ import {
   AlignLeft,
   ListTodo,
   Network,
+  Download,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { deferredFeature } from "./deferred-feature";
@@ -53,6 +54,11 @@ const MemoryEditor = deferredFeature(
   "Opening your writing space…",
   { failureTitle: "Your writing space couldn’t open" },
 );
+const ExportTasks = deferredFeature(
+  async () => ({ default: (await import("./export-tasks")).ExportTasks }),
+  "Opening exports…",
+  { failureTitle: "Exports couldn’t open" },
+);
 
 export function MemoryContext({
   projectId = null,
@@ -68,6 +74,7 @@ export function MemoryContext({
   );
   const [refresh, setRefresh] = useState(0);
   const [sharing, setSharing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
   if (!loading && projectId && !project)
@@ -132,6 +139,10 @@ export function MemoryContext({
                     <button onClick={() => setView("handoffs")}>
                       <ListTodo size={15} />
                       Progress notes
+                    </button>
+                    <button onClick={() => setExporting(true)}>
+                      <Download size={15} />
+                      Export notebook
                     </button>
                   </ActionMenu>
                 </>
@@ -264,6 +275,11 @@ export function MemoryContext({
         />
       )}
       {view === "ask" && <AskGrove projectId={projectId} embedded />}
+      {project && exporting && (
+        <Dialog title="Export notebook" close={() => setExporting(false)}>
+          <ExportTasks projectId={project.id} />
+        </Dialog>
+      )}
       {project && view === "connections" && (
         <ConnectionPanel level="notebook" endpointId={project.id} />
       )}

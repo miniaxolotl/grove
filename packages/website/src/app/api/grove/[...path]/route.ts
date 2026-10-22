@@ -26,7 +26,13 @@ async function forward(
   )
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
-  if (!allowed.test(path)) return fail(404, "Route not found");
+  if (
+    !allowed.test(path) &&
+    !/^(exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
+      path,
+    )
+  )
+    return fail(404, "Route not found");
   const token = await session.getToken();
   if (!token) return fail(401, "Sign in to Grove to continue");
   const origin = new URL(process.env.GROVE_API_URL);
@@ -51,6 +57,11 @@ async function forward(
     const after = request.nextUrl.searchParams.get("after");
     if (path === "conversations" && after)
       target.searchParams.set("after", after);
+    if (path === "tasks" && request.nextUrl.searchParams.has("projectId"))
+      target.searchParams.set(
+        "projectId",
+        request.nextUrl.searchParams.get("projectId")!,
+      );
     const upstream = await fetch(target, {
       method: request.method,
       headers: {
@@ -69,7 +80,9 @@ async function forward(
       signal: AbortSignal.any([
         request.signal,
         AbortSignal.timeout(
-          /^conversations\/[0-9a-f-]+\/turns$/.test(path)
+          /^(conversations\/[0-9a-f-]+\/turns|tasks\/[0-9a-f-]+\/download)$/.test(
+            path,
+          )
             ? 175000
             : path === "account/export" || path === "ask"
               ? 60000
@@ -78,7 +91,12 @@ async function forward(
       ]),
     });
     const outgoing = new Headers(headers);
-    for (const name of ["content-type", "content-disposition", "retry-after"]) {
+    for (const name of [
+      "content-type",
+      "content-disposition",
+      "content-length",
+      "retry-after",
+    ]) {
       const value = upstream.headers.get(name);
       if (value) outgoing.set(name, value);
     }

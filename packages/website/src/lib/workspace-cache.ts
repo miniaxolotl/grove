@@ -369,6 +369,14 @@ export class WorkspaceCache {
 
   private affected(query: Query, change: Change) {
     const [, kind, key, body] = query.queryKey;
+    if (
+      kind === "resource" &&
+      typeof key === "string" &&
+      key.startsWith("/tasks") &&
+      (!change.resource ||
+        ["/tasks", "/projects", "/conversations"].includes(change.resource))
+    )
+      return true;
     if (change.resource)
       return (
         kind === "resource" &&
@@ -675,6 +683,13 @@ export class WorkspaceCache {
           this.publish?.({});
         }
         this.publish?.(change);
+      } else if (
+        path.startsWith("/tasks/") ||
+        path === "/exports" ||
+        path === "/imports"
+      ) {
+        this.invalidate({ resource: "/tasks" });
+        this.publish?.({ resource: "/tasks" });
       } else if (path === "/account/settings") {
         const key = workspaceKeys.resource("/me");
         void this.client.cancelQueries({ queryKey: key });

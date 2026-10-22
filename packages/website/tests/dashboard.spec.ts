@@ -148,7 +148,7 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
     .click();
   await page.getByRole("button", { name: "Delete this note" }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "permanently deleted" }),
+    page.getByRole("status").filter({ hasText: "Note deleted" }),
   ).toBeVisible();
   await expect(page.getByText("Good things start small.")).toBeVisible();
 });
