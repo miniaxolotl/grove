@@ -31,7 +31,9 @@ async function fixture(
     );
     const body = route.request().postDataJSON();
     let data: unknown = [];
-    if (path === "/memories/search")
+    if (path === "/relationships/search")
+      data = { items: [], nextCursor: null, status: "ready" };
+    else if (path === "/memories/search")
       data = {
         items: memories.filter(
           (memory) =>
@@ -126,18 +128,24 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
     .getByLabel("What should stay with you?")
     .fill("I prefer examples in TypeScript.");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await page.getByRole("button", { name: /^I prefer examples/ }).click();
-  await page.getByRole("button", { name: "Revision history" }).click();
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  await page.getByRole("button", { name: "History", exact: true }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Note actions" }).click();
   await page.getByRole("button", { name: "Archive", exact: true }).click();
   await expect(page.getByText("Good things start small.")).toBeVisible();
   await page.goto(`${base}/app/archive`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
+  await page.getByRole("button", { name: "Note actions" }).click();
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
-  await page.getByText("Delete note", { exact: true }).click();
-  await page.getByRole("button", { name: "Delete permanently" }).click();
+  await page.getByRole("button", { name: "Note actions" }).click();
+  await page
+    .getByRole("group", { name: "Note actions", exact: true })
+    .getByRole("button", { name: "Delete note…", exact: true })
+    .click();
   await page.getByRole("button", { name: "Delete this note" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "permanently deleted" }),

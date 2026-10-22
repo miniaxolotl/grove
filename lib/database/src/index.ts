@@ -5,6 +5,7 @@ import { migrationSource } from "./migrations.ts";
 
 export { migrationSource };
 export type { Knex };
+export type { QueryBuilder } from "objection";
 
 export function createDatabase(
   url: string,

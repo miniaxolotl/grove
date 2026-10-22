@@ -345,7 +345,7 @@
 .grove-app:has(.editor-focus) > .app-sidebar {
   display: none;
 }
-.app-dialog:has(.note-editor-full) {
+.app-dialog:has(.note-editor-full:not(.note-editor-drawer)) {
   width: 100vw;
   max-width: none;
   height: 100dvh;
@@ -355,7 +355,7 @@
   border: 0;
   border-radius: 0;
 }
-.app-dialog:has(.note-editor-full) > .dialog-heading {
+.app-dialog:has(.note-editor-full:not(.note-editor-drawer)) > .dialog-heading {
   display: none;
 }
 .app-dialog > .note-editor-full {

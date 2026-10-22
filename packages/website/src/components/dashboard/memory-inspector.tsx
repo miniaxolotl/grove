@@ -1,62 +1,57 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
-import {
-  isInactive,
-  memoryTitle,
-  moveMemoryInput,
-  noteKindLabel,
-} from "@/lib/memory-display";
+import { isInactive, moveMemoryInput } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { MemoryDetail } from "./memory-detail";
 import { LoadError } from "./load-error";
-import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
+import { useToast } from "./toasts";
+import { useWorkspaceCache } from "./workspace-cache";
 
 export function MemoryInspector({
   id,
   close,
   fullPage = false,
   citedVersion,
+  initialPreview = true,
+  journal = false,
 }: {
   id: string;
   close?: () => void;
   fullPage?: boolean;
   citedVersion?: number;
+  initialPreview?: boolean;
+  journal?: boolean;
 }) {
   const router = useRouter();
-  const [memory, setMemory] = useState<Memory>();
+  const toast = useToast();
+  const cache = useWorkspaceCache();
+  const api = cache.api;
+  const query = useQuery(cache.note(id));
   const { projects } = useNotebooks();
-  const [error, setError] = useState("");
-  const [refresh, setRefresh] = useState(0);
+  const [actionError, setError] = useState("");
+  const error =
+    actionError ||
+    (query.error
+      ? errorMessage(query.error)
+      : query.data === null
+        ? "This note is no longer available."
+        : "");
   const [busy, setBusy] = useState(false);
   const [moving, setMoving] = useState(false);
   const [destination, setDestination] = useState("personal");
-  const [notice, setNotice] = useState("");
   const operations = useRef(new Map<string, string>());
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Memory>(`/memories/${id}`, undefined, undefined, controller.signal)
-      .then((record) => {
-        if (!controller.signal.aborted) {
-          setMemory(record);
-          setError("");
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
-      });
-    return () => controller.abort();
-  }, [id, refresh]);
-  const current = memory?.id === id ? memory : undefined;
+  const current = query.data;
   async function mutate(action: "move" | "archive" | "restore") {
     if (!current || busy) return;
+    if (action === "move" && (current.projectId ?? "personal") === destination)
+      return;
     const body =
       action === "move"
         ? moveMemoryInput(
@@ -71,14 +66,12 @@ export function MemoryInspector({
     setBusy(true);
     setError("");
     try {
-      setMemory(
-        await api<Memory>(path, {
-          ...body,
-          operationId: operations.current.get(key),
-        }),
-      );
+      await api<Memory>(path, {
+        ...body,
+        operationId: operations.current.get(key),
+      });
       setMoving(false);
-      setNotice(
+      toast(
         action === "move"
           ? "Note moved."
           : action === "archive"
@@ -95,14 +88,15 @@ export function MemoryInspector({
     <>
       {error && (
         <LoadError
+          title={
+            current ? "This note couldn’t update" : "This note couldn’t open"
+          }
           message={error}
-          retry={() => setRefresh((value) => value + 1)}
+          retry={() => {
+            setError("");
+            void query.refetch();
+          }}
         />
-      )}
-      {notice && (
-        <p className="app-notice" role="status">
-          {notice}
-        </p>
       )}
       {!current && !error && <p role="status">Opening your note…</p>}
       {current &&
@@ -136,7 +130,12 @@ export function MemoryInspector({
               Connected agents with access to this notebook can read this note.
             </p>
             <div className="flex gap-3">
-              <Button type="submit" disabled={busy}>
+              <Button
+                type="submit"
+                disabled={
+                  busy || (current.projectId ?? "personal") === destination
+                }
+              >
                 Move here
               </Button>
               <Button
@@ -150,18 +149,35 @@ export function MemoryInspector({
           </form>
         ) : (
           <MemoryDetail
-            key={`${id}:${current.version}`}
+            key={`${id}:${current.status}`}
             fullPage={fullPage}
+            initialPreview={initialPreview}
             memory={current}
             projects={projects}
             busy={busy}
-            onSaved={(message) => {
-              setNotice(message);
-              setRefresh((value) => value + 1);
-            }}
+            onSaved={() => {}}
+            close={
+              close ??
+              (() =>
+                router.push(
+                  current.projectId
+                    ? `/app/projects/${current.projectId}`
+                    : journal
+                      ? "/app?sort=created_desc"
+                      : "/app",
+                ))
+            }
             onDeleted={() => {
               if (close) close();
-              else router.push("/app");
+              else
+                router.push(
+                  current.projectId &&
+                    projects.some((project) => project.id === current.projectId)
+                    ? `/app/projects/${current.projectId}`
+                    : isInactive(current)
+                      ? "/app/archive"
+                      : "/app",
+                );
             }}
             onArchive={() =>
               void mutate(isInactive(current) ? "restore" : "archive")
@@ -175,29 +191,7 @@ export function MemoryInspector({
     </>
   );
   return fullPage ? (
-    <div className="memory-document">
-      <Link
-        className="workspace-back"
-        href={
-          current?.projectId ? `/app/projects/${current.projectId}` : "/app"
-        }
-      >
-        <ArrowLeft size={15} />
-        {current?.projectId
-          ? (projects.find((project) => project.id === current.projectId)
-              ?.name ?? "Notebook")
-          : "Notes"}
-      </Link>
-      <PageHeading
-        title={current ? memoryTitle(current) : "Note"}
-        description={
-          current
-            ? `${noteKindLabel(current.kind)}${isInactive(current) ? (current.status === "archived" ? " · Archived" : " · Expired") : ""}`
-            : undefined
-        }
-      />
-      {contents}
-    </div>
+    <div className="note-document">{contents}</div>
   ) : (
     <Dialog title="Your note" panel busy={busy} close={close!}>
       {contents}

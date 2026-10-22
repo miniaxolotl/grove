@@ -12,6 +12,7 @@ export type SelectOption = {
   disabled?: boolean;
 };
 export type SelectProps = {
+  autoFocus?: boolean;
   value: string;
   onValueChange: (value: string) => void;
   options: readonly SelectOption[];
@@ -46,7 +47,9 @@ export function Select({
   const attach = useCallback((element: HTMLButtonElement | null) => {
     if (!element) return;
     setContainer(
-      element.closest("dialog, .memory-graph, .grove-app, .connect-shell"),
+      element.closest(
+        "[popover], dialog, .memory-graph, .grove-app, .connect-shell",
+      ),
     );
     setFont(getComputedStyle(element).fontFamily);
   }, []);

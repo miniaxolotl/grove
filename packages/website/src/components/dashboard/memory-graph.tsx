@@ -2,6 +2,7 @@
 import { Select } from "./ui/select";
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -16,7 +17,6 @@ import {
   Handle,
   Position,
   useNodesState,
-  useNodesInitialized,
   useReactFlow,
   useStore,
   type Node,
@@ -35,27 +35,39 @@ import {
 } from "d3-force";
 import {
   ArrowUpRight,
+  CircleHelp,
   Maximize2,
   Minimize2,
-  Network,
   Type,
   X,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import type { Project } from "@/lib/dashboard-api";
 import {
+  relationshipLabels,
+  type NoteConnection,
+} from "@lib/shared/relationships";
+import {
+  ConnectionList,
+  ConnectionInspector,
+  ConnectionStatus,
+  useConnections,
+} from "./connection-panel";
+import { NotebookGraph } from "./notebook-graph";
+import {
   memoryTitle,
   memoryExcerpt,
   noteKindLabel,
 } from "@/lib/memory-display";
 import { Button } from "./ui/button";
+import { isolateOverlay, lockPageScroll } from "./ui/overlay-focus";
 import "@xyflow/react/dist/style.css";
 
 type Relationship = "complementary" | "duplicate" | "conflicting";
-const labels: Record<Relationship, string> = {
-  complementary: "Related",
-  duplicate: "Possible duplicate",
-  conflicting: "Conflicting",
+const labels = {
+  complementary: relationshipLabels.complementary,
+  duplicate: relationshipLabels.duplicate,
+  conflicting: relationshipLabels.conflicting,
 };
 const colors: Record<Relationship, string> = {
   complementary: "#5a8875",
@@ -160,7 +172,7 @@ function MemoryConnection({
         id={id}
         path={path}
         className="graph-connection-line"
-        interactionWidth={0}
+        interactionWidth={24}
       />
       {data?.emphasized && (
         <path className="graph-connection-spark" d={path} aria-hidden="true" />
@@ -170,32 +182,30 @@ function MemoryConnection({
 }
 const edgeTypes = { connection: MemoryConnection };
 
-function graphEdges(items: Memory[]): ConnectionEdge[] {
-  const edges = new Map<string, ConnectionEdge>();
-  const byId = new Map(items.map((item) => [item.id, item]));
-  for (const memory of items)
-    for (const relation of memory.enrichment?.relationships ?? []) {
-      const other = byId.get(relation.id);
-      if (
-        relation.relationship === "unrelated" ||
-        relation.id === memory.id ||
-        !other ||
-        other.version !== relation.version ||
-        other.projectId !== memory.projectId
-      )
-        continue;
-      const [source, target] = [memory.id, relation.id].sort();
-      const id = `${source}:${target}:${relation.relationship}`;
-      edges.set(id, {
-        id,
-        source,
-        target,
-        type: "connection",
-        data: { relationship: relation.relationship },
-        ariaLabel: `${labels[relation.relationship]}: ${memoryTitle(memory)} and ${memoryTitle(other)}`,
-      });
-    }
-  return [...edges.values()];
+function graphEdges(
+  items: Memory[],
+  connections: NoteConnection[],
+): ConnectionEdge[] {
+  return connections
+    .filter(
+      (c) =>
+        c.type !== "connected" &&
+        [c.from.id, c.to.id].every((id) =>
+          items.some(
+            (n) =>
+              n.id === id &&
+              c.evidence.every((e) => e.id !== id || e.version === n.version),
+          ),
+        ),
+    )
+    .map((c) => ({
+      id: c.id,
+      source: c.from.id,
+      target: c.to.id,
+      type: "connection",
+      data: { relationship: c.type as Relationship },
+      ariaLabel: `${relationshipLabels[c.type]}: ${c.from.title} and ${c.to.title}. Press Enter for evidence.`,
+    }));
 }
 function layout(
   items: Memory[],
@@ -270,35 +280,163 @@ export default function MemoryGraph({
   projects: Project[];
   onOpen: (memory: Memory) => void;
 }) {
+  const [level, setLevel] = useState("note");
+  const [offset, setOffset] = useState(0);
+  const start = Math.min(
+    offset,
+    Math.max(0, Math.floor((items.length - 1) / 100) * 100),
+  );
+  return (
+    <>
+      <nav className="workspace-tabs" aria-label="Connection level">
+        <button
+          aria-pressed={level === "note"}
+          onClick={() => setLevel("note")}
+        >
+          Notes
+        </button>
+        <button
+          aria-pressed={level === "notebook"}
+          onClick={() => setLevel("notebook")}
+        >
+          Notebooks
+        </button>
+      </nav>
+      {level === "note" ? (
+        <NoteGraph
+          items={items.slice(start, start + 100)}
+          projects={projects}
+          onOpen={onOpen}
+        />
+      ) : (
+        <NotebookGraph projects={projects} />
+      )}
+      {level === "note" && items.length > 100 && (
+        <p className="graph-notice">
+          Notes {start + 1}–{Math.min(items.length, start + 100)} of{" "}
+          {items.length} loaded.
+        </p>
+      )}
+      {level === "note" && items.length > 100 && (
+        <nav className="connection-actions" aria-label="Graph note pages">
+          <button
+            className="text-button"
+            disabled={!start}
+            onClick={() => setOffset(start - 100)}
+          >
+            Previous notes
+          </button>
+          <button
+            className="text-button"
+            disabled={start + 100 >= items.length}
+            onClick={() => setOffset(start + 100)}
+          >
+            Next notes
+          </button>
+        </nav>
+      )}
+    </>
+  );
+}
+function NoteGraph({
+  items,
+  projects,
+  onOpen,
+}: {
+  items: Memory[];
+  projects: Project[];
+  onOpen: (memory: Memory) => void;
+}) {
   const [relationship, setRelationship] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
+  const helpId = useId();
   const [expanded, setExpanded] = useState(false);
-  const [canExpand, setCanExpand] = useState(false);
-  const [fullscreenError, setFullscreenError] = useState("");
+  const [fallback, setFallback] = useState(false);
+  const [inspected, setInspected] = useState<NoteConnection>();
+  const connections = useConnections({
+    level: "note",
+    endpointIds: items.map((n) => n.id).sort(),
+    limit: 100,
+  });
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
     const element = section.current;
-    setCanExpand(
-      Boolean(document.fullscreenEnabled && element?.requestFullscreen),
-    );
     const changed = () => setExpanded(document.fullscreenElement === element);
     document.addEventListener("fullscreenchange", changed);
     return () => document.removeEventListener("fullscreenchange", changed);
   }, []);
+  useEffect(() => {
+    if (!expanded || !section.current) return;
+    const element = section.current;
+    const previous = document.activeElement as HTMLElement | null;
+    const restore = isolateOverlay(element);
+    const unlock = lockPageScroll();
+    element
+      .querySelector<HTMLElement>(".graph-expand")
+      ?.focus({ preventScroll: true });
+    const key = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        document.querySelector("dialog[open], [popover]:popover-open")
+      )
+        return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setExpanded(false);
+        if (document.fullscreenElement === element)
+          void document.exitFullscreen();
+      }
+      if (event.key === "Tab") {
+        const controls = [
+          ...element.querySelectorAll<HTMLElement>(
+            "button:not(:disabled), a[href], summary, [tabindex]",
+          ),
+        ].filter(
+          (control) => control.tabIndex >= 0 && control.getClientRects().length,
+        );
+        const first = controls[0],
+          last = controls.at(-1);
+        if (
+          (event.shiftKey && document.activeElement === first) ||
+          (!event.shiftKey && document.activeElement === last)
+        ) {
+          event.preventDefault();
+          (event.shiftKey ? last : first)?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      restore();
+      unlock();
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [expanded]);
   async function toggleFullscreen() {
-    setFullscreenError("");
-    try {
+    if (expanded) {
+      setExpanded(false);
       if (document.fullscreenElement === section.current)
         await document.exitFullscreen();
-      else await section.current?.requestFullscreen();
+      return;
+    }
+    setExpanded(true);
+    setFallback(
+      !document.fullscreenEnabled || !section.current?.requestFullscreen,
+    );
+    try {
+      if (document.fullscreenEnabled && section.current?.requestFullscreen)
+        await section.current.requestFullscreen();
     } catch {
-      setFullscreenError(
-        "Full screen couldn't open. You can still explore the graph here.",
-      );
+      setFallback(true);
     }
   }
-  const edges = useMemo(() => graphEdges(items), [items]);
+  const edges = useMemo(
+    () => graphEdges(items, connections.page?.items ?? []),
+    [items, connections.page],
+  );
   const visibleEdges = useMemo(
     () =>
       relationship
@@ -323,6 +461,17 @@ export default function MemoryGraph({
     () => layout(items, projects, edges),
     [items, projects, edges],
   );
+  const visibleNodes = useMemo(
+    () =>
+      relationship
+        ? initialNodes.filter((node) =>
+            visibleEdges.some(
+              (edge) => edge.source === node.id || edge.target === node.id,
+            ),
+          )
+        : initialNodes,
+    [initialNodes, relationship, visibleEdges],
+  );
   const notebooks = [
     ...new Set(visibleItems.map((item) => item.projectId)),
   ].map((id) => ({
@@ -334,38 +483,41 @@ export default function MemoryGraph({
   return (
     <section
       className="memory-graph"
+      data-expanded={expanded || undefined}
+      role={expanded && fallback ? "dialog" : undefined}
+      aria-modal={expanded && fallback ? true : undefined}
       aria-label="Linked notes graph"
       ref={section}
     >
       <div className="graph-toolbar">
         <div className="graph-heading">
-          <span className="graph-heading-icon">
-            <Network size={18} />
-          </span>
           <div>
             <strong>Connected ideas</strong>
             <span>
-              {visibleItems.length} notes · {visibleEdges.length}{" "}
+              {visibleItems.length} loaded notes · {visibleEdges.length}
+              {connections.page?.nextCursor ? "+" : ""}{" "}
               {visibleEdges.length === 1 ? "connection" : "connections"}
             </span>
           </div>
         </div>
         <div className="graph-tools">
-          <Select
-            aria-label="Graph relationships"
-            value={relationship}
-            onValueChange={(value) => {
-              setRelationship(value);
-              setSelected(null);
-            }}
-            options={[
-              { value: "", label: "All connections" },
-              ...Object.entries(labels).map(([value, label]) => ({
-                value,
-                label,
-              })),
-            ]}
-          />
+          {(edges.length > 0 || relationship) && (
+            <Select
+              aria-label="Graph relationships"
+              value={relationship}
+              onValueChange={(value) => {
+                setRelationship(value);
+                setSelected(null);
+              }}
+              options={[
+                { value: "", label: "All connections" },
+                ...Object.entries(labels).map(([value, label]) => ({
+                  value,
+                  label,
+                })),
+              ]}
+            />
+          )}
           <button
             type="button"
             className="graph-tool-button"
@@ -380,41 +532,30 @@ export default function MemoryGraph({
           <button
             type="button"
             className="graph-tool-button graph-expand"
-            aria-label={expanded ? "Exit full screen" : "Expand graph"}
-            title={
-              canExpand
-                ? expanded
-                  ? "Exit full screen"
-                  : "Expand graph"
-                : "Full screen is unavailable in this browser"
-            }
-            disabled={!canExpand}
+            aria-label={expanded ? "Done exploring graph" : "Expand graph"}
+            title={expanded ? "Done exploring graph" : "Expand graph"}
             onClick={() => void toggleFullscreen()}
           >
             {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            <span>{expanded ? "Done" : "Expand"}</span>
           </button>
         </div>
       </div>
       <div className={`graph-layout${active ? " has-selection" : ""}`}>
         <div className="graph-canvas">
           <Canvas
-            key={`${items.map((item) => `${item.id}:${item.version}`).join()}:${relationship}:${visibleEdges.map((edge) => edge.id).join()}`}
-            initialNodes={initialNodes.filter((node) =>
-              visibleItems.some((item) => item.id === node.id),
-            )}
+            key={relationship}
+            expanded={expanded}
+            initialNodes={visibleNodes}
             edges={visibleEdges}
             selected={selected}
             showTitles={showTitles}
             onSelect={setSelected}
             onOpen={onOpen}
+            onConnection={(id) =>
+              setInspected(connections.page?.items.find((c) => c.id === id))
+            }
           />
-          {!visibleEdges.length && (
-            <p className="graph-hint" role="status">
-              {relationship
-                ? "No matching connections here."
-                : "Connections appear as Grove finds related ideas."}
-            </p>
-          )}
         </div>
         {active && (
           <aside className="graph-inspector" aria-label="Selected note">
@@ -442,35 +583,22 @@ export default function MemoryGraph({
               <ArrowUpRight size={15} />
             </Button>
             <h4>Linked notes</h4>
-            <ul>
-              {visibleEdges
-                .filter(
+            <ConnectionList
+              items={(connections.page?.items ?? []).filter((c) =>
+                visibleEdges.some(
                   (edge) =>
-                    edge.source === active.id || edge.target === active.id,
-                )
-                .map((edge) => {
-                  const other = items.find(
-                    (item) =>
-                      item.id ===
-                      (edge.source === active.id ? edge.target : edge.source),
-                  )!;
-                  return (
-                    <li key={edge.id}>
-                      <button onClick={() => setSelected(other.id)}>
-                        <small>
-                          {labels[edge.data!.relationship as Relationship]}
-                        </small>
-                        <span>{memoryTitle(other)}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-            </ul>
+                    edge.id === c.id &&
+                    (edge.source === active.id || edge.target === active.id),
+                ),
+              )}
+              endpointId={active.id}
+              onInspect={setInspected}
+            />
             {!neighbors.size && <p>No recorded connections in this view.</p>}
           </aside>
         )}
       </div>
-      {notebooks.length > 0 && (
+      {notebooks.length > 1 && (
         <div className="graph-notebooks" aria-label="Notebook colors">
           {notebooks.map((notebook) => (
             <span key={notebook.id ?? "personal"} title={notebook.name}>
@@ -482,28 +610,82 @@ export default function MemoryGraph({
         </div>
       )}
       <div className="graph-footer">
-        <div className="graph-legend">
-          {Object.entries(labels).map(([key, label]) => (
-            <span key={key}>
-              <i
-                className={`relationship-${key}`}
-                style={{ borderColor: colors[key as Relationship] }}
-              />
-              {label}
-            </span>
-          ))}
+        {visibleEdges.length > 0 ? (
+          <div
+            className="graph-legend"
+            role="group"
+            aria-label="Connection types"
+          >
+            {Object.entries(labels)
+              .filter(([key]) =>
+                visibleEdges.some((edge) => edge.data?.relationship === key),
+              )
+              .map(([key, label]) => (
+                <span key={key}>
+                  <i
+                    className={`relationship-${key}`}
+                    style={{ borderColor: colors[key as Relationship] }}
+                  />
+                  {label}
+                </span>
+              ))}
+          </div>
+        ) : (
+          <p className="graph-hint" role="status">
+            {connections.loading
+              ? "Loading connections…"
+              : relationship
+                ? "No matching connections here."
+                : "Connections appear as Grove finds related ideas."}
+          </p>
+        )}
+        <button
+          type="button"
+          className="graph-tool-button graph-help-toggle"
+          aria-expanded={showHelp}
+          aria-controls={helpId}
+          onClick={() => setShowHelp(!showHelp)}
+        >
+          <CircleHelp size={14} aria-hidden="true" /> Controls
+        </button>
+        <div id={helpId} className="graph-help" hidden={!showHelp}>
+          <p className="graph-help-pointer">
+            {expanded
+              ? "Drag to pan · Scroll to zoom · Click a note to select"
+              : "Drag to pan · Ctrl/⌘ + scroll to zoom · Click a note to select"}
+          </p>
+          <p className="graph-help-touch">
+            {expanded
+              ? "Drag to pan · Pinch to zoom · Tap a note to select"
+              : "Tap a note to select · Expand to pan and zoom"}
+          </p>
+          <p>Tab to a note · Space to select · Enter to read · Esc to close</p>
         </div>
-        <p className="graph-help-pointer">
-          Drag to explore · Hover to trace · Click to read more
-        </p>
-        <p className="graph-help-touch">
-          Drag to explore · Pinch to zoom · Tap a note
-        </p>
       </div>
-      {fullscreenError && (
-        <p className="graph-notice" role="status">
-          {fullscreenError}
-        </p>
+      <details className="graph-connection-list">
+        <summary>Connection list</summary>
+        <ConnectionStatus state={connections} />
+        <ConnectionList
+          items={(connections.page?.items ?? []).filter((c) =>
+            visibleEdges.some((e) => e.id === c.id),
+          )}
+          onInspect={setInspected}
+        />
+        {connections.page?.nextCursor && (
+          <button
+            className="text-button"
+            disabled={connections.loading}
+            onClick={() => void connections.more()}
+          >
+            More connections
+          </button>
+        )}
+      </details>
+      {inspected && (
+        <ConnectionInspector
+          connection={inspected}
+          close={() => setInspected(undefined)}
+        />
       )}
     </section>
   );
@@ -513,17 +695,32 @@ function Canvas({
   edges,
   selected,
   showTitles,
+  expanded,
   onSelect,
   onOpen,
+  onConnection,
 }: {
   initialNodes: GraphNode[];
   edges: ConnectionEdge[];
   selected: string | null;
   showTitles: boolean;
+  expanded: boolean;
   onSelect: (id: string | null) => void;
   onOpen: (memory: Memory) => void;
+  onConnection: (id: string) => void;
 }) {
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [source, setSource] = useState(initialNodes);
+  if (source !== initialNodes) {
+    setSource(initialNodes);
+    const previous = new Map(nodes.map((node) => [node.id, node]));
+    setNodes(
+      initialNodes.map((node) => ({
+        ...node,
+        position: previous.get(node.id)?.position ?? node.position,
+      })),
+    );
+  }
   const [hovered, setHovered] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
   const focused = hovered ?? selected;
@@ -537,6 +734,12 @@ function Canvas({
     <div
       className="graph-flow"
       ref={container}
+      onTouchStartCapture={(event) => {
+        if (!expanded) event.stopPropagation();
+      }}
+      onTouchMoveCapture={(event) => {
+        if (!expanded) event.stopPropagation();
+      }}
       onFocusCapture={(event) =>
         setHovered(
           (event.target as HTMLElement)
@@ -546,6 +749,15 @@ function Canvas({
       }
       onBlurCapture={() => setHovered(null)}
       onKeyDownCapture={(event) => {
+        const edgeId = (event.target as HTMLElement)
+          .closest(".react-flow__edge")
+          ?.getAttribute("data-id");
+        if (edgeId && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          event.stopPropagation();
+          onConnection(edgeId);
+          return;
+        }
         const id = (event.target as HTMLElement)
           .closest(".react-flow__node")
           ?.getAttribute("data-id");
@@ -561,6 +773,8 @@ function Canvas({
           onSelect(node.id);
         }
         if (event.key === "Escape" && selected) {
+          event.preventDefault();
+          event.stopPropagation();
           onSelect(null);
           setHovered(null);
         }
@@ -603,12 +817,24 @@ function Canvas({
         onNodeDragStart={() => setHovered(null)}
         onNodeClick={(_, node) => onSelect(node.id)}
         onNodeDoubleClick={(_, node) => onOpen(node.data.memory)}
+        onEdgeClick={(_, edge) => onConnection(edge.id)}
         onPaneClick={() => {
           onSelect(null);
           setHovered(null);
         }}
         nodesConnectable={false}
-        edgesFocusable={false}
+        nodesDraggable={false}
+        selectNodesOnDrag={false}
+        panOnDrag
+        paneClickDistance={6}
+        nodeClickDistance={6}
+        zoomOnScroll={expanded}
+        zoomOnPinch
+        zoomOnDoubleClick={false}
+        zoomActivationKeyCode={["Control", "Meta"]}
+        panOnScroll={false}
+        preventScrolling={expanded}
+        edgesFocusable
         deleteKeyCode={null}
         ariaLabelConfig={{
           "node.a11yDescription.default":
@@ -623,26 +849,36 @@ function Canvas({
       >
         <Background color="#718c8555" gap={28} size={0.8} />
         <Controls showInteractive={false} />
-        <FitOnResize container={container} />
+        <KeepGraphCenter container={container} />
       </ReactFlow>
     </div>
   );
 }
 
-function FitOnResize({
+function KeepGraphCenter({
   container,
 }: {
   container: RefObject<HTMLDivElement | null>;
 }) {
-  const { fitView } = useReactFlow();
-  const initialized = useNodesInitialized();
+  const { getViewport, setViewport } = useReactFlow();
   useEffect(() => {
-    if (!container.current || !initialized) return;
+    if (!container.current) return;
+    let previous = container.current.getBoundingClientRect();
     let frame = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        void fitView({ padding: 0.18, maxZoom: 1.15 });
+        const next = container.current!.getBoundingClientRect();
+        if (next.width === previous.width && next.height === previous.height)
+          return;
+        const view = getViewport();
+        // Preserve the world point at the canvas center, including inspector changes.
+        void setViewport({
+          ...view,
+          x: view.x + (next.width - previous.width) / 2,
+          y: view.y + (next.height - previous.height) / 2,
+        });
+        previous = next;
       });
     });
     observer.observe(container.current);
@@ -650,6 +886,6 @@ function FitOnResize({
       observer.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [container, fitView, initialized]);
+  }, [container, getViewport, setViewport]);
   return null;
 }

@@ -1,0 +1,207 @@
+/* Self-contained so root-layout failures retain a usable, branded recovery page. */
+@font-face {
+  font-family: "Grove Recovery";
+  src: url("/brand-kit/fonts/space-grotesk-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Grove Recovery";
+  src: url("/brand-kit/fonts/space-grotesk-500.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+.recovery-state {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  width: min(100%, 400px);
+  margin-inline: auto;
+  color: var(--color-forest, #253e31);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.recovery-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--color-line, #dce0d3);
+  border-radius: 14px;
+  background: var(--color-sage, #e8eee6);
+  color: var(--color-leaf, #326349);
+}
+.recovery-copy {
+  min-width: 0;
+}
+.recovery-title {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 1.375rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.recovery-description {
+  max-width: 36ch;
+  margin: 10px auto 0;
+  color: var(--color-muted, #5d6962);
+  font-size: 0.875rem;
+  line-height: 1.75;
+}
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+}
+.recovery-actions > :is(button, a) {
+  min-height: 44px;
+}
+.recovery-state.is-compact {
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr);
+  justify-items: start;
+  align-items: start;
+  gap: 12px 14px;
+  text-align: left;
+}
+.recovery-state.is-compact .recovery-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+.recovery-state.is-compact .recovery-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.recovery-state.is-compact .recovery-title {
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+.recovery-state.is-compact .recovery-description {
+  max-width: 65ch;
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+}
+.recovery-state.is-compact .recovery-actions {
+  grid-column: 2;
+  justify-content: flex-start;
+}
+.recovery-document {
+  margin: 0;
+  background: #f7f6f0;
+}
+.recovery-page {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100svh;
+  padding: 0 clamp(20px, 5vw, 64px);
+  background: var(--color-paper, #f7f6f0);
+  color: var(--color-forest, #253e31);
+  font-family: var(--font-space-grotesk, "Grove Recovery"), Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.recovery-page * {
+  box-sizing: border-box;
+}
+.recovery-header,
+.recovery-footer {
+  width: min(100%, 1120px);
+  margin-inline: auto;
+}
+.recovery-header {
+  padding-block: 24px;
+}
+.recovery-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.recovery-brand svg {
+  width: 24px;
+  height: 24px;
+}
+.recovery-main {
+  display: grid;
+  align-content: center;
+  padding-block: 48px 80px;
+}
+.recovery-main .recovery-state {
+  width: min(100%, 440px);
+  gap: 24px;
+}
+.recovery-label {
+  margin: 0 0 12px;
+  color: var(--color-muted, #5d6962);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.recovery-main .recovery-title {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+}
+.recovery-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 11px 18px;
+  border: 1px solid var(--color-forest, #253e31);
+  border-radius: 8px;
+  background: var(--color-forest, #253e31);
+  color: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.recovery-button.secondary {
+  border-color: var(--color-line, #dce0d3);
+  background: transparent;
+  color: inherit;
+}
+.recovery-button:hover {
+  background: var(--color-leaf, #326349);
+}
+.recovery-button.secondary:hover {
+  background: var(--color-sage, #e8eee6);
+}
+.recovery-page :focus-visible {
+  outline: 2px solid #7b944d;
+  outline-offset: 4px;
+}
+.recovery-footer {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-block: 12px;
+  border-top: 1px solid var(--color-line, #dce0d3);
+  color: var(--color-muted, #5d6962);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.recovery-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-forest, #253e31);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

@@ -1,13 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { LoadError } from "@/components/dashboard/load-error";
-import { api, errorMessage } from "@/lib/dashboard-api";
-import { PageHeading } from "@/components/dashboard/ui/page-heading";
-import { SettingsNavigation } from "./settings-navigation";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
+import { useToast } from "./toasts";
 
 type Settings = {
   captureEnabled: boolean;
@@ -16,30 +17,45 @@ type Settings = {
   summariesEnabled: boolean;
   accountId: string;
 };
+const preferenceKeys = [
+  "captureEnabled",
+  "recallEnabled",
+  "organizeEnabled",
+  "summariesEnabled",
+] as const;
 export function SettingsPanel({
   section = "preferences",
 }: {
   section?: "preferences" | "account" | "data";
 }) {
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const cache = useWorkspaceCache();
+  const api = cache.api;
+  const query = useQuery({
+    ...cache.resource<Settings>("/me"),
+    enabled: section === "preferences",
+  });
+  const [draft, setDraft] = useState<Settings | null>(null);
+  const settings = draft ?? query.data;
+  const [saveError, setError] = useState("");
+  const error = saveError || (query.error ? errorMessage(query.error) : "");
+  const [saved, setSaved] = useState<Settings | null>(null);
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
-  const [refresh, setRefresh] = useState(0);
   const { signOut } = useClerk();
-  useEffect(() => {
-    if (section !== "preferences") return;
-    const controller = new AbortController();
-    api<Settings>("/me", undefined, undefined, controller.signal)
-      .then(setSettings)
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      });
-    return () => controller.abort();
-  }, [refresh, section]);
+  const dirty =
+    !!settings &&
+    preferenceKeys.some(
+      (key) =>
+        (settings[key] ?? true) !== ((saved ?? query.data)?.[key] ?? true),
+    );
+  function editSettings(value: Settings) {
+    // Freeze the loaded base on the first edit. Background reads cannot acknowledge it.
+    if (!draft && settings) setSaved(settings);
+    setDraft(value);
+  }
   async function update() {
-    if (!settings) return;
+    if (!settings || busy || !dirty) return;
     setBusy(true);
     setError("");
     try {
@@ -53,35 +69,31 @@ export function SettingsPanel({
         },
         "PATCH",
       );
-      setNotice("Preferences saved.");
+      setSaved(settings);
+      toast("Preferences saved.");
     } catch (e) {
       setError(errorMessage(e));
+      toast(errorMessage(e), true);
     } finally {
       setBusy(false);
     }
   }
   return (
     <>
-      <PageHeading title="Settings" />
-      <SettingsNavigation />
       {error && !settings ? (
         <LoadError
+          title="Your preferences couldn’t load"
           message={error}
           retry={() => {
             setError("");
-            setRefresh((value) => value + 1);
+            void query.refetch();
           }}
         />
-      ) : error ? (
+      ) : error && section !== "preferences" ? (
         <p className="app-error" role="alert">
           {error}
         </p>
       ) : null}
-      {notice && (
-        <p className="app-notice" role="status">
-          {notice}
-        </p>
-      )}
       <div className="settings-content">
         {section === "preferences" && (
           <>
@@ -103,7 +115,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.recallEnabled}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           recallEnabled: e.target.checked,
                         })
@@ -116,7 +128,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.captureEnabled}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           captureEnabled: e.target.checked,
                         })
@@ -129,7 +141,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.organizeEnabled ?? true}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           organizeEnabled: e.target.checked,
                         })
@@ -142,7 +154,7 @@ export function SettingsPanel({
                       type="checkbox"
                       checked={settings.summariesEnabled ?? true}
                       onChange={(e) =>
-                        setSettings({
+                        editSettings({
                           ...settings,
                           summariesEnabled: e.target.checked,
                         })
@@ -155,12 +167,33 @@ export function SettingsPanel({
                     agents only use the notebooks and permissions you’ve
                     approved.
                   </p>
-                  <button className="app-button w-fit" disabled={busy}>
-                    Save preferences
-                  </button>
+                  <div className="settings-save-row">
+                    <button
+                      className="app-button w-fit"
+                      disabled={busy || !dirty}
+                    >
+                      Save preferences
+                    </button>
+                    <p
+                      className="settings-save-status"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {busy
+                        ? "Saving…"
+                        : error
+                          ? "Couldn’t save. Try again."
+                          : dirty
+                            ? "Unsaved changes"
+                            : "All changes saved"}
+                    </p>
+                  </div>
                 </form>
               ) : (
-                <p className="mt-4 text-sm text-muted" role="status">
+                <p
+                  className="settings-loading mt-4 text-sm text-muted"
+                  role="status"
+                >
                   {error
                     ? "Your preferences couldn’t be loaded."
                     : "Loading preferences…"}
@@ -198,7 +231,7 @@ export function SettingsPanel({
                 download
               >
                 <Download size={15} />
-                Export notes
+                Export all account data
               </a>
             </section>
             <section className="app-panel">
@@ -218,7 +251,7 @@ export function SettingsPanel({
                   setError("");
                   try {
                     await api("/account/delete", { confirm: confirmation });
-                    setNotice(
+                    toast(
                       "Deletion requested. Your account is no longer accessible.",
                     );
                     await signOut({ redirectUrl: "/" });

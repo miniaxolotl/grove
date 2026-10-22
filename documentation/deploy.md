@@ -110,6 +110,26 @@ authorization headers and search queries; use POST search.
 
 ## Neon + DigitalOcean + Vercel
 
+### Public sharing rollout
+
+Before deploying a sharing-capable API/worker, apply the additive forward migration
+`20261021_011_public_sharing` with the migration-owner role. Configure an independent
+64-hex-character **`SHARE_LINK_KEY`** on the API only; all replicas must agree.
+Compose and initial DigitalOcean provisioning support the optional secret. Existing
+image-only rollouts preserve configuration, so install it explicitly in the API's
+`SECRET`/`RUN_TIME` environment before rollout. Deploy the matching website last.
+
+Without this key, sharing reports unavailable; the rest of Grove is usable and
+owners can still revoke links. Key replacement does not revoke existing links;
+replace/revoke links separately. Recovery revokes every restored link, including
+its encrypted copy, before serving traffic. Rollback retains the additive schema.
+See [sharing](sharing.md) for the key-backup and permission contract.
+
+Redact capability segments in edge/proxy logs for `/s/*` and `/public/shares/*`.
+Verify no-store/no-index/no-referrer headers, signed-out access, live edits, scope
+narrowing and revoked-link reload/history on the actual Vercel/API hosts. Public
+readers do not call Clerk or inference providers.
+
 ### Resources and provisioning
 
 - Neon project `rapid-meadow-36605074`, branch `br-calm-king-b7b0fvqj`.

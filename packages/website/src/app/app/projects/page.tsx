@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Folder, Plus, Pencil, FolderInput } from "lucide-react";
+import { Folder, Plus } from "lucide-react";
+import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { LoadError } from "@/components/dashboard/load-error";
 import {
   NotebookDialog,
@@ -9,7 +10,8 @@ import {
 import { NotebookTree } from "@/components/dashboard/notebook-tree";
 import { useNotebooks } from "@/components/dashboard/notebooks-provider";
 import { PageHeading } from "@/components/dashboard/ui/page-heading";
-import { Button, IconButton } from "@/components/dashboard/ui/button";
+import { Button } from "@/components/dashboard/ui/button";
+import { NotebookActions } from "@/components/dashboard/notebook-actions";
 import { SearchField } from "@/components/dashboard/ui/search-field";
 import { NotebookDropTarget } from "@/components/dashboard/memory-drag";
 
@@ -18,6 +20,7 @@ export default function ProjectsPage() {
   const [query, setQuery] = useState("");
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [notice, setNotice] = useState("");
+  const [sharing, setSharing] = useState<string | null>(null);
   const matches = projects.filter((p) =>
     p.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
@@ -27,7 +30,7 @@ export default function ProjectsPage() {
         title="Notebooks"
         description={`${projects.length} notebooks`}
         actions={
-          <Button onClick={() => setAction({})}>
+          <Button onClick={() => setAction({ mode: "create" })}>
             <Plus size={16} />
             New notebook
           </Button>
@@ -52,7 +55,13 @@ export default function ProjectsPage() {
           </span>
         </div>
       )}
-      {error && <LoadError message={error} retry={reload} />}
+      {error && (
+        <LoadError
+          title="Your notebooks couldn’t load"
+          message={error}
+          retry={reload}
+        />
+      )}
       {loading ? (
         <p role="status" className="library-loading">
           Opening your notebooks…
@@ -69,7 +78,10 @@ export default function ProjectsPage() {
               : "Start a notebook for a project, a topic, or whatever’s on your mind."}
           </p>
           {!query && (
-            <Button className="mt-6" onClick={() => setAction({})}>
+            <Button
+              className="mt-6"
+              onClick={() => setAction({ mode: "create" })}
+            >
               Create your first notebook
             </Button>
           )}
@@ -85,26 +97,12 @@ export default function ProjectsPage() {
             query={query}
             defaultExpanded
             actions={(project) => (
-              <>
-                <IconButton
-                  label={`Add sub-notebook to ${project.name}`}
-                  onClick={() => setAction({ parentId: project.id })}
-                >
-                  <Plus size={16} />
-                </IconButton>
-                <IconButton
-                  label={`Rename ${project.name}`}
-                  onClick={() => setAction({ project })}
-                >
-                  <Pencil size={15} />
-                </IconButton>
-                <IconButton
-                  label={`Move ${project.name}`}
-                  onClick={() => setAction({ project, move: true })}
-                >
-                  <FolderInput size={16} />
-                </IconButton>
-              </>
+              <NotebookActions
+                compact
+                project={project}
+                onAction={setAction}
+                onShare={() => setSharing(project.id)}
+              />
             )}
           />
           <p className="notebook-organization-hint">
@@ -117,6 +115,12 @@ export default function ProjectsPage() {
           action={action}
           close={() => setAction(null)}
           onSaved={() => setNotice("Notebook saved.")}
+        />
+      )}
+      {sharing && (
+        <ShareDialog
+          target={{ kind: "notebook", id: sharing }}
+          close={() => setSharing(null)}
         />
       )}
     </>

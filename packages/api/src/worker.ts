@@ -6,6 +6,7 @@ import { deliverEmail } from "./mail.ts";
 import { JobBroker, type JobEnvelope } from "./broker.ts";
 import { closeTelemetry, telemetry } from "@lib/telemetry";
 import { withTelemetry } from "@lib/telemetry/context";
+import { providerProfiles } from "@lib/memory";
 
 const runtime = await createRuntime();
 const reporter = telemetry("worker");
@@ -75,9 +76,7 @@ try {
         }
       }
       if (broker?.connected) {
-        const profiles = Object.values(runtime.memories.providers)
-          .filter(Boolean)
-          .map((provider) => provider!.profile);
+        const profiles = providerProfiles(runtime.memories.providers);
         const jobs = camelRows<
           JobEnvelope & { queueKind: JobEnvelope["kind"]; accountId: string }
         >(

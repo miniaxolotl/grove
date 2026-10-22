@@ -1,3 +1,5 @@
+import { consentAllowed, consentEvent } from "./cookie-consent";
+
 const preferenceKey = "grove.telemetry.optout";
 const generationKey = "grove.telemetry.generation";
 const preferenceEvent = "grove:telemetry-preference";
@@ -16,6 +18,7 @@ export function telemetryOptedOut(): boolean {
   if (typeof window === "undefined") return false;
   try {
     return (
+      !consentAllowed("analytics") ||
       storageFailed ||
       browserOptOut() ||
       localStorage.getItem(preferenceKey) === "true"
@@ -49,9 +52,11 @@ export function rotateTelemetryGeneration() {
   }
 }
 export function subscribePreference(callback: () => void) {
+  window.addEventListener(consentEvent, callback);
   window.addEventListener(preferenceEvent, callback);
   window.addEventListener("storage", callback);
   return () => {
+    window.removeEventListener(consentEvent, callback);
     window.removeEventListener(preferenceEvent, callback);
     window.removeEventListener("storage", callback);
   };

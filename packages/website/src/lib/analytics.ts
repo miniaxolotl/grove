@@ -1,6 +1,7 @@
 "use client";
 
 import posthog from "posthog-js";
+import { consentAllowed } from "./cookie-consent";
 import {
   analyticsEvents,
   maskReplayAttribute,
@@ -156,7 +157,7 @@ export function setTelemetryOptOut(disabled: boolean) {
       suspended = true;
       posthog.opt_out_capturing();
       posthog.stopSessionRecording();
-    } else if (!disabled && !browserOptOut()) {
+    } else if (!disabled && !browserOptOut() && consentAllowed("analytics")) {
       suspended = false;
       activateTelemetryGeneration();
       if (initialized) posthog.reset(true);

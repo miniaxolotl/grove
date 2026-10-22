@@ -13,6 +13,9 @@ export async function modelDataCounts(db: Knex) {
     "memory_embeddings",
     "memory_enrichments",
     "memory_briefs",
+    "memory_relationships",
+    "notebook_relationships",
+    "notebook_profiles",
     "jobs",
   ])
     counts[table] = Number(
@@ -31,6 +34,8 @@ export async function resetModelData(db: Knex) {
     );
     await trx("jobs").delete();
     await trx("memory_briefs").delete();
+    await trx("notebook_relationships").delete();
+    await trx("notebook_profiles").delete();
     await trx("memories").delete();
     await trx("memory_operations").delete();
     await trx("accounts").increment("contentVersion", 1);

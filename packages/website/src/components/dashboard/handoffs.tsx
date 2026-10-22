@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowRight, Plus } from "lucide-react";
-import type { Memory, Page } from "@lib/shared/contracts";
-import { api, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "./workspace-cache";
 import { dateLabel, memoryTitle } from "@/lib/memory-display";
 import { BriefPanel } from "./brief";
 import { LoadError } from "./load-error";
@@ -17,52 +18,21 @@ export function Handoffs({
   projectId: string | null;
   onCreate: () => void;
 }) {
-  const [memories, setMemories] = useState<Memory[]>([]);
-  const [selected, setSelected] = useState<Memory | null>(null);
-  const [next, setNext] = useState<string | null>(null);
+  const [selectedId, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const search = useDebouncedValue(query.trim());
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
-  const activeRequest = useRef<AbortController | null>(null);
+  const cache = useWorkspaceCache();
+  const notes = useInfiniteQuery(
+    cache.notes({ projectId, kind: "handoff", query: search }),
+  );
+  const memories = notes.data?.pages.flatMap((page) => page.items) ?? [];
+  const selected = memories.find((note) => note.id === selectedId);
+  const error = notes.error ? errorMessage(notes.error) : "";
+  const loading = notes.isPending || notes.isFetchingNextPage;
+  const next = notes.hasNextPage;
   function reload() {
-    activeRequest.current?.abort();
-    setLoading(true);
-    setError("");
-    setMemories([]);
-    setSelected(null);
-    setNext(null);
-    setRefresh((value) => value + 1);
+    void notes.refetch();
   }
-  useEffect(() => {
-    const controller = new AbortController();
-    activeRequest.current = controller;
-    api<Page<Memory>>(
-      "/memories/search",
-      {
-        projectId,
-        kind: "handoff",
-        status: "active",
-        query: search || undefined,
-      },
-      undefined,
-      controller.signal,
-    )
-      .then((page) => {
-        if (!controller.signal.aborted) {
-          setMemories(page.items);
-          setNext(page.nextCursor);
-        }
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [projectId, search, refresh]);
   return (
     <section>
       <div className="workspace-section-heading">
@@ -101,7 +71,7 @@ export function Handoffs({
             <li key={memory.id}>
               <button
                 aria-pressed={selected?.id === memory.id}
-                onClick={() => setSelected(memory)}
+                onClick={() => setSelected(memory.id)}
               >
                 <span>
                   <strong>{memoryTitle(memory)}</strong>
@@ -122,33 +92,7 @@ export function Handoffs({
         <button
           className="app-button secondary mt-4"
           disabled={loading}
-          onClick={async () => {
-            const controller = activeRequest.current;
-            if (!controller || loading) return;
-            setLoading(true);
-            try {
-              const page = await api<Page<Memory>>(
-                "/memories/search",
-                {
-                  projectId,
-                  kind: "handoff",
-                  status: "active",
-                  query: search || undefined,
-                  cursor: next,
-                },
-                undefined,
-                controller.signal,
-              );
-              if (!controller.signal.aborted) {
-                setMemories((old) => [...old, ...page.items]);
-                setNext(page.nextCursor);
-              }
-            } catch (e) {
-              if (!controller.signal.aborted) setError(errorMessage(e));
-            } finally {
-              if (!controller.signal.aborted) setLoading(false);
-            }
-          }}
+          onClick={() => void notes.fetchNextPage()}
         >
           Earlier progress notes
         </button>

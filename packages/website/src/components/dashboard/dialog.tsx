@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { lockPageScroll } from "./ui/overlay-focus";
 
 const DialogBusy = createContext<(busy: boolean) => void>(() => {});
 export const useDialogBusy = () => useContext(DialogBusy);
@@ -18,21 +19,36 @@ export function Dialog({
   busy?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const backdropPress = useRef(false);
+  const backdropPress = useRef<{ id: number; x: number; y: number } | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const locked = busy || saving;
   useEffect(() => {
     const element = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
+    const focusKey = previous?.dataset.focusKey;
+    const unlock = lockPageScroll();
     element.showModal();
-    element
-      .querySelector<HTMLElement>(
+    (
+      element.querySelector<HTMLElement>("[data-autofocus]") ??
+      element.querySelector<HTMLElement>(
         "[contenteditable=true], textarea, input:not([type=checkbox]), [role=combobox]",
       )
-      ?.focus();
+    )?.focus();
     return () => {
       element.close();
-      previous?.focus();
+      unlock();
+      const scope =
+        [...document.querySelectorAll("dialog[open]")].at(-1) ?? document;
+      const target = previous?.isConnected
+        ? previous
+        : focusKey
+          ? scope.querySelector<HTMLElement>(
+              `[data-focus-key="${CSS.escape(focusKey)}"]`,
+            )
+          : null;
+      target?.focus({ preventScroll: true });
     };
   }, []);
   return (
@@ -41,17 +57,33 @@ export function Dialog({
       onPointerDown={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
         backdropPress.current =
+          event.isPrimary &&
+          event.button === 0 &&
           event.target === event.currentTarget &&
           (event.clientX < rect.left ||
             event.clientX > rect.right ||
             event.clientY < rect.top ||
-            event.clientY > rect.bottom);
+            event.clientY > rect.bottom)
+            ? { id: event.pointerId, x: event.clientX, y: event.clientY }
+            : null;
+      }}
+      onPointerMove={(event) => {
+        const start = backdropPress.current;
+        if (
+          start &&
+          (start.id !== event.pointerId ||
+            Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8)
+        )
+          backdropPress.current = null;
       }}
       onPointerUp={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
+        const start = backdropPress.current;
+        backdropPress.current = null;
         if (
           !locked &&
-          backdropPress.current &&
+          start?.id === event.pointerId &&
+          Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 8 &&
           event.target === event.currentTarget &&
           (event.clientX < rect.left ||
             event.clientX > rect.right ||
@@ -59,13 +91,16 @@ export function Dialog({
             event.clientY > rect.bottom)
         )
           close();
-        backdropPress.current = false;
       }}
       onPointerCancel={() => {
-        backdropPress.current = false;
+        backdropPress.current = null;
+      }}
+      onLostPointerCapture={() => {
+        backdropPress.current = null;
       }}
       onCancel={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         if (!locked) close();
       }}
       aria-label={title}
