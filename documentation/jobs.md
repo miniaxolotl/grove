@@ -86,8 +86,8 @@ Readiness validates configured storage. Downloads are session-owner-only,
 `private, no-store` streams through API/BFF, with authorization rechecked during
 long transfers. No public object URLs or credentials reach the browser.
 `artifact_cleanup` removes expired tracked parts and abandoned objects; provider
-lifecycle covers process crashes during multipart requests. A filesystem timer
-should remove local `.partial` files older than one day after process crashes.
+lifecycle covers process crashes during multipart requests. Tracked expiry also
+removes local `.partial` files left by terminated processes.
 
 ### API
 

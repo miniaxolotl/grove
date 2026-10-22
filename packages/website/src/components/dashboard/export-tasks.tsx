@@ -42,6 +42,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
   const inFlight = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const exports = query.data?.filter((task) => task.kind === "export") ?? [];
+  const running = exports.find(active);
   async function mutate(id?: string, action?: "cancel" | "retry") {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -102,8 +103,8 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
         <label className="mt-4 flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={descendants}
-            disabled={!!busy || submitted}
+            checked={running?.scope?.includeDescendants ?? descendants}
+            disabled={!!busy || submitted || !!running}
             onChange={(event) => setDescendants(event.target.checked)}
           />
           Include sub-notebooks
@@ -150,6 +151,10 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
             <div className="min-w-0 flex-1">
               <p className="text-sm">{status(task)}</p>
               <p className="text-xs text-muted">
+                {task.scope?.projectId &&
+                  (task.scope.includeDescendants
+                    ? "Notebook + sub-notebooks · "
+                    : "Notebook · ")}
                 <time dateTime={task.createdAt}>
                   {new Date(task.createdAt).toLocaleString(undefined, {
                     month: "short",

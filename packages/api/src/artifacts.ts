@@ -1,7 +1,6 @@
-import { access, mkdir, rename, unlink } from "node:fs/promises";
-import { constants, createReadStream, createWriteStream } from "node:fs";
+import { access, mkdir, open, rename, unlink } from "node:fs/promises";
+import { constants, createReadStream } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import {
@@ -29,12 +28,15 @@ export function localArtifacts(root: string): ArtifactStore {
     },
     async write(key, data, signal) {
       const target = path(key),
-        temporary = `${target}.${randomUUID()}.partial`;
+        temporary = `${target}.partial`;
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
+      // Each upload owns a fresh tracked key. A deterministic scratch name lets
+      // expiry cleanup remove files left by process termination as well.
+      const file = await open(temporary, "wx", 0o600);
       try {
         await pipeline(
           Buffer.isBuffer(data) ? Readable.from([data]) : data,
-          createWriteStream(temporary, { flags: "wx", mode: 0o600 }),
+          file.createWriteStream(),
           { signal },
         );
         signal.throwIfAborted();
@@ -50,9 +52,10 @@ export function localArtifacts(root: string): ArtifactStore {
     },
     async remove(key, signal) {
       signal?.throwIfAborted();
-      await unlink(path(key)).catch((error) => {
-        if (error.code !== "ENOENT") throw error;
-      });
+      for (const file of [path(key), `${path(key)}.partial`])
+        await unlink(file).catch((error) => {
+          if (error.code !== "ENOENT") throw error;
+        });
     },
   };
 }

@@ -22,6 +22,35 @@ and bundle budgets pass. Notes entry is **481,587 gzip bytes** with the editor d
 [Eighteen reviewed captures](design/screenshots/workspace-polish/) cover desktop,
 tablet, phone, forced colours and short windows on application source `f33fd3a`.
 
+## Durable queues and retained deletion (22 October 2026)
+
+Migration **014** adds checkpointed bulk/maintenance tasks, fair database claims,
+renewable token-fenced leases, cross-replica limits and model-generation backfills.
+RabbitMQ has independent indexing, enrichment, email, maintenance and bulk lanes;
+polling uses the same capacity gates. Authored notes/history remain retained behind
+soft-delete visibility policies, including during account cleanup and recovery.
+
+Account and notebook exports use bounded NDJSON pages and private local/S3 storage,
+authenticated streaming downloads, expiry, cancellation and retry. Compact controls
+preserve progress across navigation and show the saved notebook scope. Imports
+deduplicate sources and protect local edits; connector adapters checkpoint their
+pages with ordinary memory writes. [Operations and API](jobs.md) and the
+[014 rollout](deploy.md#queue-and-retained-deletion-rollout-014) describe setup.
+
+Verification passes: the **121-case backend/storage suite**, plus the two-worker
+broker-outage/import/export/SIGTERM case; populated **013→014** upgrade; real RabbitMQ
+isolation/reconnect; private Garage **12 MiB** multipart transfers; root/website lint,
+types and builds; five packaged artifacts; 17 release/deployment checks and workflow
+lint. The integrated workspace passes **196 Chromium** and four focused iPhone/WebKit
+scenarios. The final saved-scope follow-up passes three Chromium and one WebKit check.
+
+The synthetic 1,000-note/2,000-record export uses at most a 623,300-byte serialized
+page. Its initial local run took 742 ms with 34.7 MiB RSS growth and foreground-read
+p95 of 14.3 ms (16.5 ms baseline); these are regression-fixture observations.
+[Reviewed screenshots](design/screenshots/queue-processing/README.md) show ready,
+retry and notebook progress states. Cloud storage and migration activation are
+explicit operator rollout steps; local verification uses disposable services.
+
 ## Independent AI preferences (22 October 2026)
 
 Settings groups ten independent controls under Organization, Connections, Summaries,

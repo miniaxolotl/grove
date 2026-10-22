@@ -9,15 +9,17 @@ Chromium and focused WebKit cover assistance dialogs at 1440/390/320px.
 Queue coverage (`queue.test.ts`, `queue-migration.test.ts`) uses fresh PostgreSQL
 databases and non-owner roles for claims, tenant/provider limits, lease fences,
 dispatch reservations, retained history, checkpointed imports/backfills, and
-bounded exports. The populated013→014 test verifies unchanged authored records.
+bounded exports. The populated 013→014 test verifies unchanged authored records.
 Set `TEST_AMQP_URL` for `broker.test.ts`; CI supplies an isolated RabbitMQ service.
 It checks lane isolation, shared fallback capacity, draining and reconnect.
+`worker.test.ts` starts two real worker processes against a fresh database and an
+unreachable broker, verifies import/export completion, then checks SIGTERM draining.
 `artifacts.test.ts` always tests private atomic local files; optional S3 checks use
 `TEST_STORAGE_ENDPOINT`, `TEST_STORAGE_BUCKET`, `TEST_STORAGE_KEY` and
-`TEST_STORAGE_SECRET` against an owned private Garage bucket (region`garage`).
-These verify12MiB multipart streaming, byte identity, anonymous denial and deletion.
+`TEST_STORAGE_SECRET` against an owned private Garage bucket (region `garage`).
+These verify 12 MiB multipart streaming, byte identity, anonymous denial and deletion.
 Browser `exports.spec.ts` covers retry identity, notebook scope, cancel/retry,
-actual downloads and accessible1440/390/320px layouts. It is included in the
+actual downloads and accessible 1440/390/320px layouts. It is included in the
 focused WebKit configuration. Cloud provisioning is separate from local tests.
 
 Public sharing coverage uses real non-owner database roles for capability scope,

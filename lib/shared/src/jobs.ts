@@ -36,6 +36,7 @@ export interface Task {
   updatedAt: string;
   expiresAt: string | null;
   downloadable: boolean;
+  scope?: { projectId: string | null; includeDescendants: boolean };
 }
 export const exportRequestSchema = z
   .object({

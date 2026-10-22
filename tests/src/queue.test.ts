@@ -510,6 +510,10 @@ test("exports page notes and history into private artifacts; source changes, can
       includeDescendants: true,
     };
     const task = await tasks.export(principal, request);
+    assert.deepEqual(task.scope, {
+      projectId: project.id,
+      includeDescendants: true,
+    });
     assert.equal((await tasks.export(principal, request)).id, task.id);
     for (let i = 0; i < 20; i++)
       if (!(await runTask(worker, handlers, { id: task.id }))) break;

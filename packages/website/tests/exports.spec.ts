@@ -75,6 +75,10 @@ test("account export retries the same request and progresses to an authenticated
   task = { ...task!, status: "succeeded", processed: 230, downloadable: true };
   const link = page.getByRole("link", { name: "Download export" });
   await expect(link).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("export-ready.png"),
+    fullPage: true,
+  });
   const download = page.waitForEvent("download");
   await link.click();
   const file = await download;
@@ -86,7 +90,7 @@ test("account export retries the same request and progresses to an authenticated
 
 test("notebook exports keep scope explicit and support cancellation and retry after reopening", async ({
   page,
-}) => {
+}, testInfo) => {
   let task: Task | undefined;
   let payload: Record<string, unknown> | undefined;
   await page.route("**/api/grove/**", async (route) => {
@@ -106,7 +110,14 @@ test("notebook exports keep scope explicit and support cancellation and retry af
       data = { items: [], nextCursor: null };
     if (path.endsWith("/exports")) {
       payload = route.request().postDataJSON();
-      task = { ...initial(), id: payload!.id as string };
+      task = {
+        ...initial(),
+        id: payload!.id as string,
+        scope: {
+          projectId,
+          includeDescendants: payload!.includeDescendants as boolean,
+        },
+      };
       data = task;
     }
     if (path.endsWith("/cancel")) {
@@ -138,6 +149,12 @@ test("notebook exports keep scope explicit and support cancellation and retry af
   await open();
   await dialog.getByRole("button", { name: "Retry export" }).click();
   await expect(dialog.getByText("100 records", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Include sub-notebooks")).toBeChecked();
+  await expect(dialog.getByLabel("Include sub-notebooks")).toBeDisabled();
+  await page.screenshot({
+    path: testInfo.outputPath("notebook-export.png"),
+    fullPage: true,
+  });
 });
 
 test("compact export actions remain accessible at desktop and narrow widths", async ({
