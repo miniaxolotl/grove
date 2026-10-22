@@ -98,6 +98,10 @@ export const serverEnvironmentSchema = z.object({
   RESEND_API_KEY: z.string().startsWith("re_").optional(),
   EMAIL_FROM: z.string().email().default("notifications@mail.usegrove.cloud"),
   CURSOR_SECRET: z.string().min(32),
+  SHARE_LINK_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i)
+    .optional(),
 });
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 export function readServerEnvironment(env = process.env): ServerEnvironment {

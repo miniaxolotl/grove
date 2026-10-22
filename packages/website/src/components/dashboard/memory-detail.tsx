@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   History,
   Trash2,
+  Share2,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { api, errorMessage, type Project } from "@/lib/dashboard-api";
@@ -19,6 +20,7 @@ import { RevisionCompare } from "./revision-compare";
 import { ActionMenu } from "./ui/action-menu";
 import { useToast } from "./toasts";
 import { useWorkspaceCommands } from "./workspace-commands";
+import { ShareDialog } from "./share-dialog";
 import { ConnectionPanel } from "./connection-panel";
 import { NoteActions } from "./note-actions";
 
@@ -58,6 +60,7 @@ export function MemoryDetail({
   const [editorLocked, setEditorLocked] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [editorRevision, setEditorRevision] = useState(0);
   const [history, setHistory] = useState<
@@ -112,6 +115,7 @@ export function MemoryDetail({
   }
   useWorkspaceCommands(
     [
+      { id: "note-share", label: "Share note", run: () => setSharing(true) },
       {
         id: "note-history",
         label: "Revision history",
@@ -225,6 +229,15 @@ export function MemoryDetail({
             >
               <History size={16} />
             </button>
+            <button
+              type="button"
+              className="app-icon note-secondary-control"
+              aria-label="Share note"
+              title="Share note"
+              onClick={() => setSharing(true)}
+            >
+              <Share2 size={16} />
+            </button>
             <ActionMenu label="Note actions">
               <NoteActions
                 inactive={isInactive(memory)}
@@ -234,6 +247,15 @@ export function MemoryDetail({
                 onExport={onExport}
                 onArchive={onArchive}
                 onDelete={() => setConfirmDelete(true)}
+                sharing={
+                  <button
+                    type="button"
+                    className="note-mobile-menu-item"
+                    onClick={() => setSharing(true)}
+                  >
+                    <Share2 size={15} /> Share note
+                  </button>
+                }
                 before={
                   !fullPage && (
                     <Link href={`/app/memories/${memory.id}`}>
@@ -366,6 +388,13 @@ export function MemoryDetail({
           />
         </details>
       </MemoryEditor>
+      {sharing && (
+        <ShareDialog
+          target={{ kind: "note", id: memory.id }}
+          blocked={locked}
+          close={() => setSharing(false)}
+        />
+      )}
       {historyOpen && (
         <Dialog
           title="Revision history"

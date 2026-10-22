@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Folder, Plus } from "lucide-react";
+import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { LoadError } from "@/components/dashboard/load-error";
 import {
   NotebookDialog,
@@ -19,6 +20,7 @@ export default function ProjectsPage() {
   const [query, setQuery] = useState("");
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [notice, setNotice] = useState("");
+  const [sharing, setSharing] = useState<string | null>(null);
   const matches = projects.filter((p) =>
     p.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
@@ -89,7 +91,12 @@ export default function ProjectsPage() {
             query={query}
             defaultExpanded
             actions={(project) => (
-              <NotebookActions compact project={project} onAction={setAction} />
+              <NotebookActions
+                compact
+                project={project}
+                onAction={setAction}
+                onShare={() => setSharing(project.id)}
+              />
             )}
           />
           <p className="notebook-organization-hint">
@@ -102,6 +109,12 @@ export default function ProjectsPage() {
           action={action}
           close={() => setAction(null)}
           onSaved={() => setNotice("Notebook saved.")}
+        />
+      )}
+      {sharing && (
+        <ShareDialog
+          target={{ kind: "notebook", id: sharing }}
+          close={() => setSharing(null)}
         />
       )}
     </>

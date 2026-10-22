@@ -27,6 +27,7 @@ import { Disclosure } from "./ui/disclosure";
 import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { AskGrove } from "./ask-grove";
 import { ActionMenu } from "./ui/action-menu";
+import { ShareDialog } from "./share-dialog";
 import { ConnectionPanel } from "./connection-panel";
 import { NotebookActions } from "./notebook-actions";
 
@@ -43,6 +44,7 @@ export function MemoryContext({
     null,
   );
   const [refresh, setRefresh] = useState(0);
+  const [sharing, setSharing] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
   if (loading) return <p role="status">Opening notebook…</p>;
@@ -87,6 +89,7 @@ export function MemoryContext({
                     <NotebookActions
                       project={project}
                       onAction={setNotebookAction}
+                      onShare={() => setSharing(true)}
                     />
                     <button
                       className="action-group-start"
@@ -277,6 +280,12 @@ export function MemoryContext({
         <NotebookDialog
           action={notebookAction}
           close={() => setNotebookAction(null)}
+        />
+      )}
+      {sharing && project && (
+        <ShareDialog
+          target={{ kind: "notebook", id: project.id }}
+          close={() => setSharing(false)}
         />
       )}
     </>

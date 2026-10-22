@@ -29,6 +29,7 @@ export async function startServer() {
     webhookSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
     ready: () => probeDatabase(db),
     telemetry: reporter,
+    shareLinkKey: env.SHARE_LINK_KEY,
   });
   const server = serve({
     fetch: app.fetch,

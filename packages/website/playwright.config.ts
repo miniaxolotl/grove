@@ -18,7 +18,16 @@ export default defineConfig({
   },
   webServer: [
     {
+      command: "node tests/fixtures/sharing-server.mjs",
+      url: `http://127.0.0.1:${process.env.SHARING_TEST_PORT || 4378}/health`,
+      reuseExistingServer: false,
+      timeout: 30000,
+    },
+    {
       command: `pnpm start --port ${port}`,
+      env: {
+        GROVE_API_URL: `http://127.0.0.1:${process.env.SHARING_TEST_PORT || 4378}`,
+      },
       url: baseURL,
       reuseExistingServer: false,
       timeout: 30_000,

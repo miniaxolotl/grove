@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FilePlus2, Plus, Pencil, FolderInput } from "lucide-react";
+import { FilePlus2, Plus, Pencil, FolderInput, Share2 } from "lucide-react";
 import type { Project } from "@/lib/dashboard-api";
 import type { NotebookAction } from "./notebook-dialog";
 import { IconButton } from "./ui/button";
@@ -10,10 +10,12 @@ import { IconButton } from "./ui/button";
 export function NotebookActions({
   project,
   onAction,
+  onShare,
   compact = false,
 }: {
   project: Project;
   onAction: (action: NotebookAction) => void;
+  onShare?: () => void;
   compact?: boolean;
 }) {
   const actions = [
@@ -65,6 +67,16 @@ export function NotebookActions({
           </button>
         ),
       )}
+      {onShare &&
+        (compact ? (
+          <IconButton label={`Share ${project.name}`} onClick={onShare}>
+            <Share2 size={16} />
+          </IconButton>
+        ) : (
+          <button type="button" onClick={onShare}>
+            <Share2 size={15} /> Share notebook
+          </button>
+        ))}
     </>
   );
 }

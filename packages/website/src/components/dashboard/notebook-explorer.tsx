@@ -13,6 +13,7 @@ import {
   useWorkspaceDrag,
 } from "./memory-drag";
 import { ActionMenu } from "./ui/action-menu";
+import { ShareDialog } from "./share-dialog";
 import { NotebookActions } from "./notebook-actions";
 
 export function NotebookExplorer() {
@@ -21,6 +22,7 @@ export function NotebookExplorer() {
   const currentNotebook = useCurrentNotebook();
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [openPath, setOpenPath] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<string | null>(null);
   const open = openPath === path;
   const id = useId();
   const { active } = useWorkspaceDrag();
@@ -83,7 +85,11 @@ export function NotebookExplorer() {
             selectedId={currentNotebook}
             actions={(project) => (
               <ActionMenu label={`Notebook actions for ${project.name}`}>
-                <NotebookActions project={project} onAction={setAction} />
+                <NotebookActions
+                  project={project}
+                  onAction={setAction}
+                  onShare={() => setSharing(project.id)}
+                />
               </ActionMenu>
             )}
           />
@@ -99,6 +105,12 @@ export function NotebookExplorer() {
         )}
         {action && (
           <NotebookDialog action={action} close={() => setAction(null)} />
+        )}
+        {sharing && (
+          <ShareDialog
+            target={{ kind: "notebook", id: sharing }}
+            close={() => setSharing(null)}
+          />
         )}
       </section>
     </div>
