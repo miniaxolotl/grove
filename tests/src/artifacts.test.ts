@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID, createHash } from "node:crypto";
-import { mkdir, mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { Readable } from "node:stream";
 import {
   createArtifacts,
@@ -46,7 +46,11 @@ test("local artifacts publish atomically, stay private and remove interrupted sc
         path.endsWith(".partial"),
       ),
     );
+    await writeFile(`${root}/${object}.partial`, "interrupted upload", {
+      mode: 0o600,
+    });
     await store.remove(object);
+    await assert.rejects(stat(`${root}/${object}.partial`), { code: "ENOENT" });
     await store.remove(object);
   } finally {
     await rm(root, { recursive: true, force: true });
