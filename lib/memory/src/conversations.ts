@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { currentTelemetry } from "@lib/telemetry/context";
-import { MemoryModel, type Knex } from "@lib/database";
+import { MemoryModel, withDatabaseSignal, type Knex } from "@lib/database";
 import { InferenceError } from "@lib/ai";
 import { GroveError, type Memory, type Principal } from "@lib/shared/contracts";
 import type { SourceRef } from "@lib/shared/models";
@@ -83,8 +83,8 @@ export class Conversations {
     private service: MemoryService,
     private present: (
       trx: Knex.Transaction,
-      row: MemoryModel,
-    ) => Promise<Memory>,
+      rows: MemoryModel[],
+    ) => Promise<Memory[]>,
     private revise: (trx: Knex.Transaction, row: MemoryModel) => Promise<void>,
   ) {}
 
@@ -186,6 +186,11 @@ export class Conversations {
     const turns = await trx<TurnRow>("conversation_turns")
       .where({ conversationId: row.id })
       .orderBy("position");
+    const sources = await this.sourcesFor(
+      trx,
+      turns.flatMap((turn) => turn.result?.sources ?? []),
+      row.scope,
+    );
     return {
       ...summary(row),
       turns: await Promise.all(
@@ -198,35 +203,73 @@ export class Conversations {
           error: turn.error,
           createdAt: new Date(turn.createdAt).toISOString(),
           result: turn.result
-            ? await this.hydrate(trx, turn.result, row.scope)
+            ? await this.hydrate(trx, turn.result, row.scope, sources)
             : null,
         })),
       ),
     };
   }
 
+  private async sourcesFor(
+    trx: Knex.Transaction,
+    refs: SourceRef[],
+    scope: ConversationScope,
+  ) {
+    const result = new Map<string, Memory>();
+    if (!refs.length) return result;
+    const rows = (
+      await MemoryModel.query(trx).whereIn("id", [
+        ...new Set(refs.map((source) => source.id)),
+      ])
+    ).filter((row) => inScope(scope, row.projectId));
+    const current = new Map(
+      (await this.present(trx, rows)).map((item) => [item.id, item]),
+    );
+    const old = refs.filter(
+      (source) =>
+        current.has(source.id) &&
+        current.get(source.id)!.version !== source.version,
+    );
+    const revisions = old.length
+      ? await trx("memory_revisions")
+          .whereIn(
+            ["memoryId", "version"],
+            old.map((source) => [source.id, source.version]),
+          )
+          .select("memoryId", "version", "content")
+      : [];
+    for (const source of refs) {
+      const item = current.get(source.id);
+      if (!item) continue;
+      const revision =
+        item.version === source.version
+          ? item
+          : revisions.find(
+              (row) =>
+                row.memoryId === source.id && row.version === source.version,
+            );
+      if (revision)
+        result.set(`${source.id}:${source.version}`, {
+          ...item,
+          version: source.version,
+          content: revision.content,
+        });
+    }
+    return result;
+  }
+
   private async hydrate(
     trx: Knex.Transaction,
     result: StoredReply,
     scope: ConversationScope,
+    supplied?: Map<string, Memory>,
   ): Promise<ConversationReply> {
-    const sources: Memory[] = [];
-    for (const source of result.sources) {
-      const row = await MemoryModel.query(trx).findById(source.id);
-      if (!row || !inScope(scope, row.projectId)) continue;
-      const revision =
-        row.version === source.version
-          ? row
-          : await trx("memory_revisions")
-              .where({ memoryId: row.id, version: source.version })
-              .first();
-      if (!revision) continue;
-      sources.push({
-        ...(await this.present(trx, row)),
-        version: source.version,
-        content: revision.content,
-      });
-    }
+    const byRevision =
+      supplied ?? (await this.sourcesFor(trx, result.sources, scope));
+    const sources = result.sources.flatMap((source) => {
+      const item = byRevision.get(`${source.id}:${source.version}`);
+      return item ? [item] : [];
+    });
     const proposal = result.proposal && {
       ...result.proposal,
       status: result.proposal.sources.every((r) =>
@@ -423,14 +466,14 @@ export class Conversations {
             .where((q) =>
               q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
             );
-          const sources: Memory[] = [];
-          for (const sourceId of ids) {
+          const ordered = ids.flatMap((sourceId) => {
             const row = rows.find(
               (r) =>
                 r.id === sourceId && inScope(conversation.scope, r.projectId),
             );
-            if (row) sources.push(await this.present(trx, row));
-          }
+            return row ? [row] : [];
+          });
+          const sources = await this.present(trx, ordered);
           return { sources, contentVersion: account.contentVersion };
         },
       );
@@ -569,18 +612,20 @@ export class Conversations {
             ? "Reply stopped. Try again when you’re ready."
             : "Grove couldn’t finish this reply. Try again.";
       // A failed attempt remains retryable after navigation or a dropped response.
-      await this.service
-        .access(principal, "admin", async ({ trx }) => {
-          await trx("conversation_turns")
-            .where({ id: input.id, leaseId })
-            .update({
-              status: "failed",
-              error: message,
-              leaseId: null,
-              leaseUntil: null,
-            });
-        })
-        .catch(() => {});
+      await withDatabaseSignal(undefined, () =>
+        this.service
+          .access(principal, "admin", async ({ trx }) => {
+            await trx("conversation_turns")
+              .where({ id: input.id, leaseId })
+              .update({
+                status: "failed",
+                error: message,
+                leaseId: null,
+                leaseUntil: null,
+              });
+          })
+          .catch(() => {}),
+      );
       throw error;
     }
   }

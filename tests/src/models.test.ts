@@ -1,9 +1,9 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createDatabase, type Knex } from "@lib/database";
+import { createDatabase, withDatabaseSignal, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal, runTask } from "@lib/memory";
-import { InferenceError, type Providers } from "@lib/ai";
+import { InferenceError, type InferenceOptions, type Providers } from "@lib/ai";
 import {
   answerSchema,
   askSchema,
@@ -891,6 +891,66 @@ test("invalid citations fail closed; retries, daily budgets, settings and leased
       })
     ).length,
     1,
+  );
+});
+
+test("model diagnostics retain request cancellation and account usage for every provider role", async () => {
+  const f = await fixture();
+  const env = readServerEnvironment({
+    DATABASE_URL: process.env.TEST_DATABASE_URL,
+    API_ORIGIN: "http://localhost:26080",
+    SITE_URL: "http://localhost:3000",
+    CLERK_ISSUER: "https://clerk.example.test",
+    CLERK_SECRET_KEY: "sk_test",
+    CLERK_PUBLISHABLE_KEY: "pk_test",
+    CLERK_WEBHOOK_SIGNING_SECRET: "fixture",
+    CURSOR_SECRET: f.service.cursorSecret,
+    EMBEDDING_MODE: "disabled",
+  });
+  const registry = new ModelRegistry(db, env, f.service);
+  let controller: AbortController;
+  const cancel = (options?: InferenceOptions): never => {
+    options?.onUsage?.({ inputTokens: 3, outputTokens: 0 });
+    controller.abort(new Error("model test cancelled"));
+    assert.ok(options?.signal);
+    assert.equal(
+      options?.signal?.aborted,
+      true,
+      "Provider must receive request cancellation",
+    );
+    options.signal.throwIfAborted();
+    throw new Error("Expected cancellation");
+  };
+  f.service.providers = {
+    embedding: {
+      ...f.providers.embedding!,
+      embed: async (_text, _purpose, options) => cancel(options),
+    },
+    decision: {
+      ...f.providers.decision!,
+      classify: async (_source, _candidates, options) => cancel(options),
+    },
+    generation: {
+      ...f.providers.generation!,
+      generate: async (_schema, _instructions, _sources, options) =>
+        cancel(options),
+    },
+  };
+  for (const role of ["embedding", "decision", "generation"] as const) {
+    controller = new AbortController();
+    await assert.rejects(
+      withDatabaseSignal(controller.signal, () =>
+        registry.test(role, f.principal.accountId),
+      ),
+      /model test cancelled/,
+    );
+  }
+  const usage = await admin("inference_usage").where({
+    accountId: f.principal.accountId,
+  });
+  assert.equal(usage.length, 3);
+  assert.ok(
+    usage.every((row) => row.requests === 1 && Number(row.inputTokens) === 3),
   );
 });
 

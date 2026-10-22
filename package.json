@@ -46,6 +46,7 @@
     "check-types": "tsc --noEmit",
     "test": "pnpm --filter @monorepo/tests test",
     "test:db:setup": "tsx scripts/database/test-bootstrap.ts",
+    "perf:backend": "pnpm --filter @monorepo/tests exec tsx src/performance/backend.ts",
     "models": "tsx scripts/database/models.ts",
     "setup": "pnpm --filter @script/setup run setup",
     "services:up": "docker compose up -d",

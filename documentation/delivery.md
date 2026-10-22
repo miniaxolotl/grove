@@ -15,12 +15,14 @@ deduplicate sources and protect local edits; connector adapters checkpoint their
 pages with ordinary memory writes. [Operations and API](jobs.md) and the
 [014 rollout](deploy.md#queue-and-retained-deletion-rollout-014) describe setup.
 
-Verification passes: the **121-case backend/storage suite**, plus the two-worker
-broker-outage/import/export/SIGTERM case; populated **013→014** upgrade; real RabbitMQ
-isolation/reconnect; private Garage **12 MiB** multipart transfers; root/website lint,
-types and builds; five packaged artifacts; 17 release/deployment checks and workflow
-lint. The integrated workspace passes **196 Chromium** and four focused iPhone/WebKit
-scenarios. The final saved-scope follow-up passes three Chromium and one WebKit check.
+After integrating workspace-polish #77 and backend capacity #78, all **138
+backend/storage cases** pass, including two-worker broker-outage/import/export/SIGTERM,
+populated **013→014** upgrade, real RabbitMQ isolation/reconnect and private Garage
+**12 MiB** multipart transfers. Download deadline/cancellation/storage failures release
+interactive permits; freshness rechecks share one request admission, and worker writes
+retain authorization without consuming request quota. Root/website lint, types and
+builds, five packaged artifacts, 17 release/deployment checks and workflow lint pass.
+The integrated workspace passes **196 Chromium** and six focused iPhone/WebKit scenarios.
 
 The synthetic 1,000-note/2,000-record export uses at most a 623,300-byte serialized
 page. Its initial local run took 742 ms with 34.7 MiB RSS growth and foreground-read
@@ -28,6 +30,41 @@ p95 of 14.3 ms (16.5 ms baseline); these are regression-fixture observations.
 [Reviewed screenshots](design/screenshots/queue-processing/README.md) show ready,
 retry and notebook progress states. Cloud storage and migration activation are
 explicit operator rollout steps; local verification uses disposable services.
+
+## Backend capacity and responsiveness (22 October 2026)
+
+List presentation is constant at **15 SQL queries** for 1, 30 or 100 notes, down
+from **15/131/411** with the integrated preference guards. Revision exports and
+conversation sources are batched. Exact semantic recall scores eligible vectors
+once before fetching note bodies. Short account/minute admission commits before
+work; each subsequent authorization still checks current grants and revocation,
+including a session revoked while waiting for an account lock.
+
+Ordinary and interactive HTTP lanes have bounded, cancellable queues. Retry-After,
+cooperative deadlines, rollback checks and failed interrupted-download streams
+support predictable recovery. Database pool/acquisition/statement settings are
+validated and forwarded through runtime/Compose. No new migration is required.
+
+All **115 backend/service tests**, **193 integrated Chromium scenarios**, five
+packaged-artifact checks, root/website lint/types/builds and bundle budgets pass.
+Seventeen release/deployment contracts, pinned actionlint/ShellCheck and Compose
+validation pass. Browser coverage includes navigation, search, held saves/newer
+typing, cache refresh, mobile controls and retry recovery. The pre-workspace-merge
+build also passed one focused iPhone/WebKit first-save navigation check.
+
+PR review reproduced and fixed stalled-body admission/deadline bypasses, an
+understated Content-Length bypass of the body-size limit, and model diagnostics
+replacing caller cancellation. Five new cases cover both upload encodings, actual
+received bytes, the Node HTTP adapter and cancellation/usage across provider roles.
+The merged workspace-polish #77 delivery record is integrated below.
+
+The final local 20 requests/s, two-minute run completed **2,398/2,400 successfully**
+at **209 ms p95**, with no generator drops. The **50 sustained / 100 burst targets
+remain unqualified**, and sustainable background processing/real-provider chat
+capacity remains a queue-workstream follow-up. The
+[measurement report](development/backend-capacity-results.md) retains exact
+configurations, unsuccessful iterations and sizing limits. These are synthetic
+HTTP/database and browser-fixture observations; production resources were not changed.
 
 ## Workspace polish follow-up (22 October 2026)
 

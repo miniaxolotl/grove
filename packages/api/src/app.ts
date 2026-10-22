@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { Readable } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
 import {
   requestCollectionAllowed,
   withTelemetry,
 } from "@lib/telemetry/context";
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { z, ZodError } from "zod";
 import { Webhook } from "svix";
@@ -33,9 +33,17 @@ import {
   Sharing,
   Tasks,
   type ArtifactStore,
+  withMemoryOperation,
   type MemoryService,
 } from "@lib/memory";
 import { exportRequestSchema, importRequestSchema } from "@lib/shared/jobs";
+import { databaseSignal, withDatabaseSignal } from "@lib/database";
+import {
+  Admission,
+  admittedRequest,
+  defaultCapacity,
+  type ApiCapacity,
+} from "./admission.ts";
 import {
   publicShareQuerySchema,
   shareEnableSchema,
@@ -73,11 +81,31 @@ export type AppDependencies = {
   ready: () => Promise<void>;
   telemetry?: Pick<Reporter, "forIdentity" | "operation">;
   shareLinkKey?: string;
+  capacity?: Partial<ApiCapacity>;
 };
-type Environment = { Variables: { principal: Principal; requestId: string } };
+type Environment = {
+  Variables: {
+    principal: Principal;
+    requestId: string;
+    signal: AbortSignal;
+    finish: () => void;
+    streaming: boolean;
+  };
+};
 
 export function createApp(deps: AppDependencies) {
   const app = new Hono<Environment>();
+  const capacity = { ...defaultCapacity, ...deps.capacity };
+  const foreground = new Admission(
+    capacity.concurrency,
+    capacity.queued,
+    capacity.queueTimeoutMs,
+  );
+  const interactive = new Admission(
+    capacity.interactiveConcurrency,
+    capacity.interactiveConcurrency,
+    capacity.queueTimeoutMs,
+  );
   app.use("*", async (c, next) => {
     c.set("requestId", randomUUID());
     c.header("X-Request-ID", c.get("requestId"));
@@ -106,15 +134,6 @@ export function createApp(deps: AppDependencies) {
   });
   app.use(
     "*",
-    bodyLimit({
-      maxSize: 128 * 1024,
-      onError: () => {
-        throw new GroveError("too_large", "Request body is too large", 413);
-      },
-    }),
-  );
-  app.use(
-    "*",
     cors({
       origin: deps.siteUrl,
       allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
@@ -125,7 +144,7 @@ export function createApp(deps: AppDependencies) {
         "MCP-Protocol-Version",
         "X-Grove-Telemetry",
       ],
-      exposeHeaders: ["WWW-Authenticate", "X-Request-ID"],
+      exposeHeaders: ["WWW-Authenticate", "X-Request-ID", "Retry-After"],
     }),
   );
   app.onError((error, c) => {
@@ -151,6 +170,7 @@ export function createApp(deps: AppDependencies) {
         `Bearer resource_metadata="${deps.origin}/.well-known/oauth-protected-resource/mcp"`,
       );
     if (detail.status === 429) c.header("Retry-After", "60");
+    if (detail.status === 503) c.header("Retry-After", "1");
     // Content-free diagnostics only. Driver/provider exceptions may contain SQL, parameters or credentials.
     if (detail.status >= 500)
       console.error(
@@ -177,6 +197,50 @@ export function createApp(deps: AppDependencies) {
       404,
     ),
   );
+  app.use("*", async (c, next) => {
+    if (
+      c.req.path.startsWith("/health/") ||
+      c.req.path.startsWith("/.well-known/")
+    )
+      return next();
+    const long =
+      c.req.path === "/v1/ask" ||
+      c.req.path === "/v1/models/test" ||
+      /^\/v1\/tasks\/[^/]+\/download$/.test(c.req.path) ||
+      /^\/v1\/conversations\/[^/]+\/turns$/.test(c.req.path);
+    const deadline = new AbortController();
+    const signal = AbortSignal.any([c.req.raw.signal, deadline.signal]);
+    const timer = setTimeout(
+      () =>
+        deadline.abort(
+          new GroveError(
+            "request_timeout",
+            "This request took too long. Try again.",
+            503,
+          ),
+        ),
+      long ? capacity.interactiveTimeoutMs : capacity.requestTimeoutMs,
+    );
+    timer.unref();
+    let release: (() => void) | undefined;
+    const finish = () => {
+      clearTimeout(timer);
+      release?.();
+    };
+    c.set("signal", signal);
+    c.set("finish", finish);
+    try {
+      release = await (long ? interactive : foreground).acquire(signal);
+      await withMemoryOperation(async () => {
+        c.req.raw = await admittedRequest(c.req.raw, signal);
+        await next();
+        if (!c.get("streaming") && !c.error) signal.throwIfAborted();
+      }, signal);
+    } finally {
+      if (!c.req.raw.bodyUsed) void c.req.raw.body?.cancel().catch(() => {});
+      if (!c.get("streaming")) finish();
+    }
+  });
   const metadata = {
     resource: `${deps.origin}/mcp`,
     authorization_servers: [deps.issuer],
@@ -244,6 +308,7 @@ export function createApp(deps: AppDependencies) {
     if (origin && origin !== deps.siteUrl && origin !== deps.origin)
       throw new GroveError("forbidden", "Origin is not allowed", 403);
     c.set("principal", await deps.auth.principal(c.req.raw));
+    c.get("signal").throwIfAborted();
     await deps.models?.refresh();
     const sink = deps.telemetry?.forIdentity(
       accountIdentity(c.get("principal").accountId),
@@ -634,7 +699,7 @@ export function createApp(deps: AppDependencies) {
       data: await service.recall(
         c.get("principal"),
         await body(c, recallSchema),
-        c.req.raw.signal,
+        c.get("signal"),
       ),
     }),
   );
@@ -681,7 +746,7 @@ export function createApp(deps: AppDependencies) {
         c.get("principal"),
         uuidSchema.parse(c.req.param("id")),
         await body(c, conversationTurnSchema),
-        c.req.raw.signal,
+        c.get("signal"),
       ),
     }),
   );
@@ -704,7 +769,7 @@ export function createApp(deps: AppDependencies) {
       data: await service.ask(
         c.get("principal"),
         await body(c, askSchema),
-        c.req.raw.signal,
+        c.get("signal"),
       ),
     }),
   );
@@ -850,26 +915,50 @@ export function createApp(deps: AppDependencies) {
         "Export storage is not configured",
         503,
       );
-    const source = await deps.artifacts.read(artifact.key, c.req.raw.signal);
-    const stream = Readable.from(
-      (async function* () {
+    const cancelled = new AbortController();
+    const signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
+    const source = await deps.artifacts.read(artifact.key, signal);
+    const stream = new PassThrough();
+    const response = Readable.toWeb(stream) as ReadableStream;
+    stream.once("close", () => {
+      if (!stream.readableEnded) cancelled.abort();
+    });
+    c.set("streaming", true);
+    void pipeline(
+      source,
+      async function* (input) {
         let checked = Date.now();
-        for await (const chunk of source) {
+        for await (const chunk of input) {
           if (Date.now() - checked >= 5000) {
-            await tasks.artifact(principal, id);
+            await withDatabaseSignal(signal, () =>
+              tasks.artifact(principal, id),
+            );
             checked = Date.now();
           }
           yield chunk;
         }
-      })(),
-    );
+      },
+      stream,
+      { signal },
+    )
+      .catch(() => {
+        // pipeline errors reach the response body; never report a partial export
+        // as a complete download or log storage credentials/object contents.
+        console.error(
+          JSON.stringify({
+            requestId: c.get("requestId"),
+            code: "export_interrupted",
+          }),
+        );
+      })
+      .finally(c.get("finish"));
     c.header(
       "Content-Disposition",
       `attachment; filename="${artifact.filename}"`,
     );
     c.header("Content-Type", "application/x-ndjson");
     c.header("Content-Length", String(artifact.bytes));
-    return c.body(Readable.toWeb(stream) as ReadableStream);
+    return c.body(response);
   });
   app.all("/mcp", async (c) => {
     const principal = c.get("principal");
@@ -878,15 +967,19 @@ export function createApp(deps: AppDependencies) {
       tool: ToolName,
       value: unknown,
       signal?: AbortSignal,
-    ) => {
-      if (tool === "remember")
-        return service.remember(principal, rememberSchema.parse(value));
-      if (tool === "recall")
-        return service.recall(principal, recallSchema.parse(value), signal);
-      if (tool === "memories")
-        return service.list(principal, listSchema.parse(value));
-      return service.forget(principal, forgetSchema.parse(value));
-    };
+    ) =>
+      withDatabaseSignal(
+        AbortSignal.any([databaseSignal()!, ...(signal ? [signal] : [])]),
+        async () => {
+          if (tool === "remember")
+            return service.remember(principal, rememberSchema.parse(value));
+          if (tool === "recall")
+            return service.recall(principal, recallSchema.parse(value), signal);
+          if (tool === "memories")
+            return service.list(principal, listSchema.parse(value));
+          return service.forget(principal, forgetSchema.parse(value));
+        },
+      );
     const server = createMemoryMcp(execute);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
