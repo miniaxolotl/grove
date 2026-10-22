@@ -22,6 +22,7 @@ import {
 } from "@lib/shared/conversations";
 import {
   shareEnableSchema,
+  shareDurationSchema,
   shareScopeSchema,
   shareMutationSchema,
   type ShareState,
@@ -2081,10 +2082,29 @@ async function shareFixture(page: Page) {
           },
         });
       const version = (state.direct?.version ?? 0) + 1;
+      const duration =
+        "duration" in input && input.duration !== undefined
+          ? shareDurationSchema.nullable().parse(input.duration)
+          : (state.direct?.duration ?? null);
+      const durations = {
+        "1h": 3600,
+        "4h": 14400,
+        "1d": 86400,
+        "1w": 604800,
+        "2w": 1209600,
+        "1mo": 2592000,
+      };
       state.direct = {
         id: state.direct?.id ?? crypto.randomUUID(),
         version,
         active: request.method() !== "DELETE",
+        duration,
+        expiresAt:
+          duration === state.direct?.duration && !path.endsWith("/share")
+            ? state.direct.expiresAt
+            : duration
+              ? new Date(Date.now() + durations[duration] * 1000).toISOString()
+              : null,
         includeDescendants:
           "includeDescendants" in input &&
           typeof input.includeDescendants === "boolean"
@@ -2195,6 +2215,130 @@ test("sharing controls keep stable links, retry uncertain writes and show inheri
   }
 });
 
+test("timed sharing offers six durations, stages expiry edits and preserves retry deadlines", async ({
+  page,
+}, info) => {
+  const { sharing } = await shareFixture(page);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  if (
+    !(await page
+      .getByRole("button", { name: "Share note", exact: true })
+      .isVisible())
+  )
+    await page
+      .getByRole("button", { name: "Note actions", exact: true })
+      .click();
+  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
+  await chooseOption(
+    dialog.getByRole("combobox", { name: "General access" }),
+    "anyone",
+  );
+  const expiry = dialog.getByRole("combobox", { name: "Link expires" });
+  await expiry.click();
+  for (const label of [
+    "No expiry",
+    "1 hour",
+    "4 hours",
+    "1 day",
+    "1 week",
+    "2 weeks",
+    "1 month",
+  ])
+    await expect(
+      page.getByRole("option", { name: label, exact: true }),
+    ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await chooseOption(expiry, "1h");
+  sharing.controls.loseResponse = true;
+  await dialog.getByRole("button", { name: "Create link" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Please retry");
+  const deadline = sharing.get(note.id).direct!.expiresAt!;
+  await dialog.getByRole("button", { name: "Create link" }).click();
+  await expect(dialog.locator("time")).toHaveAttribute("datetime", deadline);
+  const link = await dialog.getByLabel("Current link").inputValue();
+  const creates = sharing.calls.filter((call) => call.body?.duration === "1h");
+  expect(creates).toHaveLength(2);
+  expect(creates[0].body.operationId).toBe(creates[1].body.operationId);
+  await chooseOption(expiry, "1mo");
+  await expect(
+    dialog.getByText("Starts when you save. 1 month is 30 days."),
+  ).toBeVisible();
+  await expect(dialog.getByLabel("Current link")).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(expiry).toContainText("1 hour");
+  await expect(dialog.locator("time")).toHaveAttribute("datetime", deadline);
+  await chooseOption(expiry, "4h");
+  await dialog.getByRole("button", { name: "Save changes" }).click();
+  await expect(dialog.getByLabel("Current link")).toHaveValue(link);
+  const saved = sharing.get(note.id).direct!.expiresAt!;
+  expect(Date.parse(saved)).toBeGreaterThan(Date.parse(deadline));
+  await dialog.getByRole("button", { name: "Replace link" }).click();
+  await expect(dialog.getByLabel("Current link")).not.toHaveValue(link);
+  await expect(dialog.locator("time")).toHaveAttribute("datetime", saved);
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 800 });
+    expect(
+      await dialog.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`timed-share-${width}.png`),
+    });
+  }
+});
+
+test("an open sharing dialog stops offering an expired URL and renews with a new link", async ({
+  page,
+}) => {
+  const { sharing } = await shareFixture(page);
+  const now = Date.now();
+  await page.clock.install({ time: now });
+  const old = `https://grove.example.test/s/gsh_${"x".repeat(43)}`;
+  sharing.get(note.id).direct = {
+    id: crypto.randomUUID(),
+    version: 1,
+    active: true,
+    includeDescendants: false,
+    duration: "1h",
+    expiresAt: new Date(now + 60_000).toISOString(),
+    url: old,
+  };
+  await page.goto(`${base}/app/memories/${note.id}`);
+  if (
+    !(await page
+      .getByRole("button", { name: "Share note", exact: true })
+      .isVisible())
+  )
+    await page
+      .getByRole("button", { name: "Note actions", exact: true })
+      .click();
+  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
+  await expect(dialog.getByLabel("Current link")).toHaveValue(old);
+  await page.clock.fastForward(61_000);
+  await expect(
+    dialog.getByText(
+      "This link has expired. Create a new link to share again.",
+    ),
+  ).toBeVisible();
+  await expect(dialog.getByLabel("Current link")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Copy link" })).toHaveCount(
+    0,
+  );
+  await dialog.getByRole("button", { name: "Create link" }).click();
+  await expect(dialog.getByLabel("Current link")).not.toHaveValue(old);
+  expect(sharing.calls.at(-1)!.path).toBe(`/memories/${note.id}/share`);
+});
+
 test("notebook sharing entry points preserve scope and refresh conflicting settings", async ({
   page,
 }, info) => {
@@ -2289,6 +2433,8 @@ test("staged sharing changes keep the published link clear and recover from bloc
     version: 1,
     active: true,
     includeDescendants: true,
+    duration: null,
+    expiresAt: null,
     url: `https://grove.example.test/s/gsh_${"a".repeat(43)}`,
   };
   await page.goto(`${base}/app/projects/${project.id}`);
@@ -2383,6 +2529,8 @@ test("sharing an editing note permits revocation while retaining the pending dra
     version: 1,
     active: true,
     includeDescendants: false,
+    duration: null,
+    expiresAt: null,
     url: `https://grove.example.test/s/gsh_${"a".repeat(43)}`,
   };
   const started = Promise.withResolvers<void>();

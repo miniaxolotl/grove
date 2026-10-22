@@ -13,9 +13,11 @@ import {
   publicShareSchema,
   publicShareQuerySchema,
   shareTokenSchema,
+  shareDurations,
   sharedNoteTitle,
   type PublicShare,
   type ShareEnable,
+  type ShareDuration,
   type ShareMutation,
   type ShareState,
   type ShareTarget,
@@ -32,6 +34,8 @@ type ShareRow = {
   tokenCiphertext: string | null;
   version: number;
   revokedAt: Date | null;
+  duration: ShareDuration | null;
+  expiresAt: Date | null;
   updatedAt: Date;
 };
 const hash = (value: string) =>
@@ -50,6 +54,20 @@ const targetFor = (row: ShareRow): ShareTarget =>
   row.memoryId
     ? { kind: "note", id: row.memoryId }
     : { kind: "notebook", id: row.projectId! };
+const active = async (trx: Knex.Transaction, row: ShareRow): Promise<boolean> =>
+  !row.revokedAt &&
+  (!row.expiresAt ||
+    (
+      await trx.raw("SELECT clock_timestamp() < ?::timestamptz AS active", [
+        row.expiresAt,
+      ])
+    ).rows[0].active);
+const expiration = (trx: Knex.Transaction, duration: ShareDuration | null) =>
+  duration
+    ? trx.raw("clock_timestamp() + (? * interval '1 second')", [
+        shareDurations[duration].seconds,
+      ])
+    : null;
 
 export class Sharing {
   constructor(
@@ -145,6 +163,7 @@ export class Sharing {
   ): Promise<ShareState> {
     const current = await this.target(trx, target);
     const direct = await this.direct(trx, target);
+    const live = direct ? await active(trx, direct) : false;
     const notebooks = await trx("projects").select("id", "parentId", "name");
     const ancestors = new Set<string>();
     let parent: string | null = current.projectId;
@@ -156,6 +175,11 @@ export class Sharing {
       ? await trx<ShareRow>("public_shares")
           .whereIn("projectId", [...ancestors])
           .whereNull("revokedAt")
+          .where((query) =>
+            query
+              .whereNull("expiresAt")
+              .orWhere("expiresAt", ">", trx.raw("clock_timestamp()")),
+          )
       : [];
     return {
       available: !!this.options.key,
@@ -165,9 +189,11 @@ export class Sharing {
         ? {
             id: direct.id,
             version: direct.version,
-            active: !direct.revokedAt,
+            active: live,
             includeDescendants: direct.includeDescendants,
-            url: this.url(direct),
+            duration: direct.duration,
+            expiresAt: direct.expiresAt?.toISOString() ?? null,
+            url: live ? this.url(direct) : null,
           }
         : null,
       inherited: inherited
@@ -227,6 +253,7 @@ export class Sharing {
   enable(principal: Principal, target: ShareTarget, input: ShareEnable) {
     return this.service.access(principal, "admin", async ({ trx, account }) => {
       this.key();
+      const duration = input.duration ?? null;
       const current = await this.target(trx, target);
       if (!current.eligible)
         throw new GroveError(
@@ -246,19 +273,24 @@ export class Sharing {
         { action: "enable", ...target },
         async () => {
           const existing = await this.direct(trx, target);
+          const live = existing ? await active(trx, existing) : false;
           if (current.version !== input.expectedTargetVersion) throw conflict();
           // Simultaneous first enables converge without changing another tab's scope.
           if (
             existing &&
-            !existing.revokedAt &&
+            live &&
             input.expectedVersion === 0 &&
-            existing.includeDescendants === input.includeDescendants
+            existing.includeDescendants === input.includeDescendants &&
+            existing.duration === duration
           )
             return existing;
           if ((existing?.version ?? 0) !== input.expectedVersion)
             throw conflict();
-          if (existing && !existing.revokedAt) {
-            if (existing.includeDescendants !== input.includeDescendants)
+          if (existing && live) {
+            if (
+              existing.includeDescendants !== input.includeDescendants ||
+              existing.duration !== duration
+            )
               throw conflict();
             return existing;
           }
@@ -270,6 +302,8 @@ export class Sharing {
             ...this.token(identity),
             revokedAt: null,
             includeDescendants: input.includeDescendants,
+            duration,
+            expiresAt: expiration(trx, duration),
             updatedAt: trx.fn.now(),
           };
           if (existing)
@@ -298,7 +332,10 @@ export class Sharing {
     principal: Principal,
     id: string,
     action: "scope" | "rotate" | "revoke",
-    input: ShareMutation & { includeDescendants?: boolean },
+    input: ShareMutation & {
+      includeDescendants?: boolean;
+      duration?: ShareDuration | null;
+    },
   ) {
     return this.service.access(principal, "admin", async ({ trx, account }) => {
       const row = await this.operation(
@@ -314,7 +351,7 @@ export class Sharing {
           if (old.version !== input.expectedVersion) throw conflict();
           if (action !== "revoke") {
             this.key();
-            if (old.revokedAt) throw conflict();
+            if (!(await active(trx, old))) throw conflict();
             const current = await this.target(trx, targetFor(old));
             if (!current.eligible)
               throw new GroveError(
@@ -325,11 +362,13 @@ export class Sharing {
           }
           if (
             action === "scope" &&
-            (old.memoryId || input.includeDescendants === undefined)
+            ((old.memoryId && input.includeDescendants === true) ||
+              (input.includeDescendants === undefined &&
+                input.duration === undefined))
           )
             throw new GroveError(
               "invalid_request",
-              "Choose the notebook sharing scope",
+              "Choose valid sharing settings",
             );
           if (action === "revoke" && old.revokedAt) return old;
           const changes =
@@ -341,17 +380,34 @@ export class Sharing {
                 }
               : action === "rotate"
                 ? this.token(old)
-                : { includeDescendants: input.includeDescendants };
-          return (
-            await trx<ShareRow>("public_shares")
-              .where({ id })
-              .update({
-                ...changes,
-                version: old.version + 1,
-                updatedAt: trx.fn.now(),
-              })
-              .returning("*")
-          )[0]!;
+                : {
+                    ...(input.includeDescendants === undefined
+                      ? {}
+                      : { includeDescendants: input.includeDescendants }),
+                    ...(input.duration === undefined ||
+                    input.duration === old.duration
+                      ? {}
+                      : {
+                          duration: input.duration,
+                          expiresAt: expiration(trx, input.duration),
+                        }),
+                  };
+          const update = trx<ShareRow>("public_shares").where({ id });
+          if (action !== "revoke")
+            update.where((query) =>
+              query
+                .whereNull("expiresAt")
+                .orWhere("expiresAt", ">", trx.raw("clock_timestamp()")),
+            );
+          const [updated] = await update
+            .update({
+              ...changes,
+              version: old.version + 1,
+              updatedAt: trx.fn.now(),
+            })
+            .returning("*");
+          if (!updated) throw conflict();
+          return updated;
         },
       );
       return this.state(trx, targetFor(row));

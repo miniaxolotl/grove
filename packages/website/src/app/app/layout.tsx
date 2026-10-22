@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { AuthSetup } from "@/components/auth-setup";
+import { AuthenticationProvider } from "@/components/authentication-provider";
 import "./dashboard.css";
 import "./exploration.css";
 import "./editor.css";
@@ -31,5 +32,9 @@ export default async function AppLayout({
     );
   const session = await auth();
   if (!session.userId) redirect("/sign-in");
-  return <DashboardShell key={session.userId}>{children}</DashboardShell>;
+  return (
+    <AuthenticationProvider>
+      <DashboardShell key={session.userId}>{children}</DashboardShell>
+    </AuthenticationProvider>
+  );
 }

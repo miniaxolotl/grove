@@ -178,8 +178,7 @@ export function initializeCookieConsent(
               {
                 title: "Analytics",
                 linkedCategory: "analytics",
-                description:
-                  "Understand site usage and performance, including masked session recordings.",
+                description: "Understand site usage and performance.",
               },
               {
                 title: "Advertising",
