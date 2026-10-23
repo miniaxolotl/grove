@@ -163,6 +163,7 @@ export function MarkdownEditor({
   const [writingMode, setWritingMode] = useState<"live" | "source">("live");
   const mode = preview ? "preview" : writingMode;
   const [outline, setOutline] = useState(false);
+  const pendingJump = useRef<NoteHeading | null>(null);
   const [activeHeading, setActiveHeading] = useState(0);
   const navigation = useWorkspaceNavigationState();
   const pinned = navigation?.state.pinned ?? false;
@@ -493,10 +494,7 @@ export function MarkdownEditor({
         </IconButton>
       </div>
       <div className="editor-surface">
-        <div
-          className="writing-with-outline"
-          data-pinned={pinned || undefined}
-        >
+        <div className="writing-with-outline" data-pinned={pinned || undefined}>
           <div ref={layout} className="writing-layout">
             <div className="writing-paper">
               <div
@@ -572,7 +570,15 @@ export function MarkdownEditor({
           )}
         </div>
         {outline && (
-          <InspectorDialog title="Note outline" close={() => setOutline(false)}>
+          <InspectorDialog
+            title="Note outline"
+            close={() => setOutline(false)}
+            onDismissed={() => {
+              const heading = pendingJump.current;
+              pendingJump.current = null;
+              if (heading && root.current?.isConnected) jump(heading);
+            }}
+          >
             <NoteOutline
               compact
               headings={headings}
@@ -581,8 +587,8 @@ export function MarkdownEditor({
               pinned={pinned}
               togglePin={togglePin}
               jump={(heading) => {
+                pendingJump.current = heading;
                 setOutline(false);
-                requestAnimationFrame(() => jump(heading));
               }}
             />
           </InspectorDialog>

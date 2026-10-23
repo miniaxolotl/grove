@@ -248,9 +248,9 @@ export function AskGrove({
     const element = conversationElement.current;
     if (!element || !conversation?.turns.length) return;
     if (reviewFromStart.current) {
-      reviewFromStart.current = false;
+      // Dialog cleanup explicitly hands focus over; a frame alone can run before
+      // its deferred opener restoration, even after historyOpen becomes false.
       element.scrollTo({ top: 0, behavior: "instant" });
-      requestAnimationFrame(() => element.focus({ preventScroll: true }));
       setShowLatest(element.scrollHeight > element.clientHeight + 64);
       return;
     }
@@ -895,6 +895,13 @@ export function AskGrove({
       )}
       {historyOpen && (
         <AskHistory
+          onDismissed={() => {
+            const element = conversationElement.current;
+            if (!reviewFromStart.current || !element?.isConnected) return;
+            reviewFromStart.current = false;
+            element.scrollTo({ top: 0, behavior: "instant" });
+            element.focus({ preventScroll: true });
+          }}
           projects={projects}
           currentId={conversationId}
           onOpen={openChat}
