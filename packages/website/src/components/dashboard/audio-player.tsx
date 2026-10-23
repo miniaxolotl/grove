@@ -20,11 +20,18 @@ function timeLabel(seconds: number) {
 }
 
 /** The source key resets playback state when a historical revision changes. */
-export function AudioPlayer({ src }: { src: string }) {
-  return <AudioPlayback key={src} src={src} />;
+export function AudioPlayer({
+  src,
+  label = "recording",
+}: {
+  src: string;
+  label?: string;
+}) {
+  return <AudioPlayback key={src} src={src} label={label} />;
 }
 
-function AudioPlayback({ src }: { src: string }) {
+function AudioPlayback({ src, label }: { src: string; label: string }) {
+  const displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
   const enhanced = useSyncExternalStore(
     subscribe,
     clientSnapshot,
@@ -83,7 +90,7 @@ function AudioPlayback({ src }: { src: string }) {
       className="audio-player"
       data-enhanced={enhanced}
       role="group"
-      aria-label="Recording playback"
+      aria-label={`${displayLabel} playback`}
     >
       <audio
         ref={audio}
@@ -117,8 +124,8 @@ function AudioPlayback({ src }: { src: string }) {
         <button
           type="button"
           className="audio-player-play"
-          aria-label={playing ? "Pause recording" : "Play recording"}
-          title={playing ? "Pause recording" : "Play recording"}
+          aria-label={`${playing ? "Pause" : "Play"} ${label}`}
+          title={`${playing ? "Pause" : "Play"} ${label}`}
           onClick={() => void toggle()}
         >
           {playing ? (
@@ -131,7 +138,7 @@ function AudioPlayback({ src }: { src: string }) {
           <input
             type="range"
             className="audio-player-seek"
-            aria-label="Recording position"
+            aria-label={`${displayLabel} position`}
             aria-valuetext={`${timeLabel(position)} of ${duration ? timeLabel(duration) : "unknown duration"}`}
             min={0}
             max={duration || 1}
@@ -176,8 +183,8 @@ function AudioPlayback({ src }: { src: string }) {
         <button
           type="button"
           className="audio-player-mute"
-          aria-label={muted ? "Unmute recording" : "Mute recording"}
-          title={muted ? "Unmute recording" : "Mute recording"}
+          aria-label={`${muted ? "Unmute" : "Mute"} ${label}`}
+          title={`${muted ? "Unmute" : "Mute"} ${label}`}
           onClick={() => {
             if (audio.current) audio.current.muted = !audio.current.muted;
           }}

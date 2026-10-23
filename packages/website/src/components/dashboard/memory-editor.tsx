@@ -826,6 +826,14 @@ export function MemoryEditor({
           {guidance && <p className="editor-guidance">{guidance}</p>}
           <div className="note-editor-workspace">
             <MarkdownEditor
+              speechReady={
+                !!base &&
+                !dirty &&
+                !busy &&
+                !held &&
+                !latest &&
+                !deleteRequested
+              }
               media={
                 base
                   ? { noteId: base.id, version: base.version, live: true }

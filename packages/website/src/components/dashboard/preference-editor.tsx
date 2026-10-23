@@ -14,7 +14,10 @@ import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
 
-type Settings = PreferencesUpdate & { aiAvailability?: AiAvailability };
+type Settings = PreferencesUpdate & {
+  aiAvailability?: AiAvailability;
+  speechAvailable?: { transcription: boolean; synthesis: boolean };
+};
 type Draft = { base: AccountPreferences; value: AccountPreferences };
 
 function useEditor() {
@@ -36,7 +39,13 @@ function useEditor() {
 
   return {
     value,
-    availability: query.data?.aiAvailability,
+    availability: query.data?.aiAvailability
+      ? {
+          ...query.data.aiAvailability,
+          transcription: query.data.speechAvailable?.transcription ?? false,
+          synthesis: query.data.speechAvailable?.synthesis ?? false,
+        }
+      : undefined,
     busy,
     dirty,
     error,

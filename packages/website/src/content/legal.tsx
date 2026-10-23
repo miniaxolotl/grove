@@ -40,7 +40,9 @@ export const privacy: LegalDocument = {
               <strong>Memory content:</strong> text you or your agents save,
               preferences, decisions, facts, solutions, task handoffs, project
               identities, tags, generated summaries, revisions, timestamps, and
-              archive/deletion state.
+              archive/deletion state. Attachments include images, original
+              recordings and saved transcripts; optional speech also creates
+              temporary machine suggestions and generated audio.
             </li>
             <li>
               <strong>Search information:</strong> recall queries and the memory
@@ -128,7 +130,13 @@ export const privacy: LegalDocument = {
             providers process query and memory text for embeddings and
             classification, and generate titles, tags and source-linked
             summaries from selected memories. You can disable organization and
-            summaries in Settings.
+            summaries in Settings. If you enable speech, OpenAI receives
+            original audio when you choose Transcribe, or saved note text when
+            you prepare read-aloud audio. These independent features default off
+            and never run on anonymous shared reads. Generated speech is
+            temporary; saved transcripts follow your note history. OpenAI
+            applies its own data controls and retention policies. Turning a
+            feature off cannot recall data already sent.
           </p>
           <p>
             Authorized support and operations personnel may access information

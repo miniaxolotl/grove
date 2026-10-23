@@ -1,5 +1,22 @@
 # Verification
 
+Speech adds `speech-provider.test.ts`, `speech-jobs.test.ts`,
+`speech-storage.test.ts` and `speech-migration.test.ts`. They exercise bounded real
+HTTP adapter responses, independent default-off preferences, non-owner source/RLS
+checks, retained machine-versus-authored transcripts, retry/lease races, global
+provider slots, conservative budgets, source/profile/session/restore fences,
+private Range/HEAD playback, exact cache expiry and derived-only maintenance.
+The populated018→019 upgrade preserves authored notes, WAV metadata and transcript
+history. Restore verification also seeds completed speech and checks that results
+and artifact access expire rather than being revived.
+
+The actual-component/disposable-API browser journeys cover both opt-ins, explicit
+candidate use/save/normal note insertion, generated playback, exact cache reuse,
+failure/retry, cancellation and desktop/390/320px accessibility in Chromium and
+touch/mobile WebKit. A separate small real-provider check sends only synthetic
+text/audio to tts-1/whisper-1; never use personal content or expose the key in output.
+[Reviewed captures and live-check scope](../design/screenshots/speech/README.md).
+
 Custom recording playback is verified with real retained WAV bytes through a
 disposable API/database and the actual website components. Chromium and touch/mobile
 WebKit cover delayed source loading, play/pause, range seeking, speed, mute,

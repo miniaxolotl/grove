@@ -29,9 +29,14 @@ async function forward(
   const media =
     /^memories\/[0-9a-f-]+\/(?:media\/[0-9a-f-]+(?:\/transcript)?|archive-file)$/.test(
       path,
+    ) || /^speech\/[0-9a-f-]+\/audio$/.test(path);
+  const speech =
+    /^(?:memories\/[0-9a-f-]+\/speech|speech\/[0-9a-f-]+(?:\/cancel)?)$/.test(
+      path,
     );
   if (
     !media &&
+    !speech &&
     !allowed.test(path) &&
     !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,

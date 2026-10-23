@@ -42,6 +42,7 @@ import { runTask } from "./task-runner.ts";
 import type { QueueLane } from "@lib/shared/jobs";
 export { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
 export { Tasks } from "./tasks.ts";
+export { SpeechJobs, speechHandlers, configureSpeech } from "./speech.ts";
 export { exportHandlers, type ArtifactStore } from "./exports.ts";
 export {
   importHandlers,
@@ -1462,7 +1463,12 @@ export class MemoryService {
           askVersion:
             account.askVersion +
             (next.askEnabled !== account.askEnabled ? 1 : 0),
-          ...(enabled.length ? { organizationDueAt: trx.fn.now() } : {}),
+          ...(enabled.some(
+            (key) =>
+              key !== "transcriptionEnabled" && key !== "readAloudEnabled",
+          )
+            ? { organizationDueAt: trx.fn.now() }
+            : {}),
         });
       const disabledKinds = Object.entries(jobPreferences)
         .filter(([, key]) => !next[key])
@@ -1517,6 +1523,8 @@ export class MemoryService {
             "askEnabled",
             "recallEnabled",
             "captureEnabled",
+            "transcriptionEnabled",
+            "readAloudEnabled",
             "notebookConnectionsEnabled",
             ...Object.values(assistancePreferences),
           ].includes(key),

@@ -13,6 +13,7 @@ import { queueProcessing } from "./queue-migration.ts";
 import { notebookAssistance } from "./assistance-migration.ts";
 import { mediaAttachments } from "./media-migration.ts";
 import { recordings } from "./recordings-migration.ts";
+import { speech } from "./speech-migration.ts";
 
 export const migrations = [
   {
@@ -235,6 +236,7 @@ export const migrations = [
   notebookAssistance,
   mediaAttachments,
   recordings,
+  speech,
 ];
 
 export const migrationSource: Knex.MigrationSource<

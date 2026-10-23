@@ -16,6 +16,8 @@ export const taskKinds = [
   "model_backfill",
   "import",
   "connector_sync",
+  "speech_transcribe",
+  "speech_synthesize",
 ] as const;
 export type TaskKind = (typeof taskKinds)[number];
 export type TaskStatus =

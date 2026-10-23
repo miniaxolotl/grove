@@ -57,6 +57,7 @@ import { IconButton } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
 import { InspectorDialog } from "./ui/inspector-dialog";
 import { RecordingControl } from "./recording-control";
+import { ReadAloud } from "./speech-controls";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -126,6 +127,7 @@ export function MarkdownEditor({
   children,
   media,
   upload,
+  speechReady = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -138,6 +140,7 @@ export function MarkdownEditor({
   children?: ReactNode;
   media?: { noteId: string; version?: number; live?: boolean };
   upload?: (file: File, signal: AbortSignal) => Promise<string>;
+  speechReady?: boolean;
 }) {
   const id = useId();
   const documentValue = value.replace(/\r\n?/g, "\n");
@@ -592,6 +595,13 @@ export function MarkdownEditor({
               hidden={mode === "preview"}
               className="codemirror-host"
             />
+            {mode === "preview" && speechReady && media?.version && (
+              <ReadAloud
+                key={`${media.noteId}:${media.version}`}
+                noteId={media.noteId}
+                version={media.version}
+              />
+            )}
             {mode === "preview" && (
               <div
                 className="editor-preview reader-copy"
