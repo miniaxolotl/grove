@@ -650,20 +650,15 @@
   align-items: center;
   margin: 8px 0;
 }
-.library-sort {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+.library-scope {
+  display: block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.library-sort select {
-  min-height: 32px;
-  max-width: 100%;
-  border-radius: 6px;
-  padding: 4px 8px;
-  border: 1px solid var(--color-line);
-  background: #fff;
-  color: var(--color-forest);
+.library-summary-label {
+  min-width: 0;
 }
 .library-list {
   border: 1px solid var(--color-line);

@@ -137,18 +137,6 @@
   background: #bdc8b3;
   border-radius: 4px;
 }
-.library-sort.app-select-field {
-  flex-direction: row;
-  align-items: center;
-}
-.library-sort .app-select-trigger {
-  width: 166px;
-  min-height: 30px;
-  padding-block: 5px;
-}
-.library-sort-hidden {
-  visibility: hidden;
-}
 .graph-toolbar .app-select-field {
   max-width: 200px;
 }
@@ -166,11 +154,6 @@
   .app-select-option {
     min-height: 44px;
     font-size: 14px;
-  }
-}
-@media (max-width: 600px) {
-  .library-sort .app-select-trigger {
-    width: 166px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -167,6 +167,9 @@
 .live-editor .editor-preview {
   overflow-wrap: anywhere;
 }
+.live-editor[data-mode="preview"] :is(.editor-tools, .editor-format-menu) {
+  visibility: hidden;
+}
 .live-editor .editor-preview .memory-markdown {
   max-width: 100%;
 }
@@ -326,15 +329,6 @@
   border-top-color: #e9ede6;
   padding: 6px 16px;
 }
-.note-editor-hint {
-  padding: 6px 16px;
-  font-size: 10px;
-  color: var(--color-muted);
-  flex-shrink: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .grove-app:has(.editor-focus) {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -387,9 +381,6 @@
   .page-writing .editor-footer {
     padding-inline: 20px;
     font-size: 10px;
-  }
-  .note-editor-hint {
-    padding-inline: 20px;
   }
   .grove-app:has(.editor-focus) {
     grid-template-rows: minmax(0, 1fr);

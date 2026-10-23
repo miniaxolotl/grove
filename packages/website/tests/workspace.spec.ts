@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
 import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { chooseOption } from "./fixtures/select";
+import { openNoteAction } from "./fixtures/note-action";
 import {
   listSchema,
   projectSchema,
@@ -629,14 +630,15 @@ for (const width of [1440, 390, 320]) {
       await expect(panel).toBeHidden();
       await expect(trigger).toBeFocused();
       expect(await rows.first().boundingBox()).toEqual(before);
-      const sortBefore = await page.locator(".library-sort").boundingBox();
+      await trigger.click();
       await chooseOption(
-        page.getByRole("combobox", { name: "Sort notes" }),
+        panel.getByRole("combobox", { name: "Sort notes" }),
         "updated_desc",
       );
-      expect(await page.locator(".library-sort").boundingBox()).toEqual(
-        sortBefore,
-      );
+      // Sorting may reorder rows and drop date headings; the page controls
+      // around the list must keep their geometry.
+      expect(await trigger.boundingBox()).toEqual(triggerBefore);
+      await panel.getByRole("button", { name: "Done", exact: true }).click();
       const viewBefore = await page
         .getByRole("group", { name: "Note view" })
         .boundingBox();
@@ -773,7 +775,7 @@ test("touch hit areas are separate and menus scroll within a short viewport", as
       ".notebook-drag-handle",
       ".notebook-tree-actions .app-icon",
       ".workspace-command-launcher",
-      ".workspace-utilities > .app-icon",
+      ".workspace-search-launcher",
     ]) {
       const box = (await page.locator(selector).first().boundingBox())!;
       expect(box.width, selector).toBeGreaterThanOrEqual(44);
@@ -1681,6 +1683,23 @@ test("mobile note controls leave room to read and retain selection for touch for
       (await drawer.locator(".writing-layout").boundingBox())!.height,
     ).toBeGreaterThan(400);
     await page.screenshot({ path: info.outputPath("compact-reader-320.png") });
+    await page.goto(`${base}/app/memories/${note.id}`);
+    const fullPageEditor = page.locator(".note-editor-full");
+    await expect(fullPageEditor).toBeVisible();
+    for (const viewport of [
+      { width: 320, height: 750 },
+      { width: 390, height: 844 },
+      { width: 768, height: 844 },
+      { width: 390, height: 480 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(
+        page.getByRole("complementary", { name: "Workspace sidebar" }),
+      ).toBeHidden();
+      const bounds = (await fullPageEditor.boundingBox())!;
+      expect(bounds.y).toBe(0);
+      expect(bounds.y + bounds.height).toBeCloseTo(viewport.height, 0);
+    }
   } finally {
     await context.close();
   }
@@ -1698,11 +1717,21 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
       matchMedia("(any-pointer: coarse), (max-width: 600px)").matches ? 44 : 36,
     );
     for (const name of ["Export", "Delete note…"]) {
-      const control = page.getByRole("button", { name, exact: true });
+      const direct = page.getByRole("button", { name, exact: true });
+      const compact = !(await direct.isVisible());
+      if (compact)
+        await page
+          .getByRole("button", { name: "Note actions", exact: true })
+          .click();
+      const control = page.getByRole("button", {
+        name: compact && name === "Export" ? "Export…" : name,
+        exact: true,
+      });
       await expect(control).toBeInViewport();
       const bounds = (await control.boundingBox())!;
       expect(bounds.width).toBeGreaterThanOrEqual(target);
       expect(bounds.height).toBeGreaterThanOrEqual(target);
+      if (compact) await page.keyboard.press("Escape");
     }
     expect(
       await page
@@ -1726,13 +1755,13 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
   await actions
     .getByRole("button", { name: "Focus mode", exact: true })
     .click();
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   const confirm = page.getByRole("dialog", { name: "Delete note?" });
   await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Delete note…", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeFocused();
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await page.screenshot({ path: info.outputPath("export-390.png") });
   expect(
@@ -1752,7 +1781,7 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
       ".note-editor-bar { font-size: 200%; } .note-editor-bar button { font-size: 1em; }",
   });
   await expect(
-    page.getByRole("button", { name: "Export", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeInViewport();
   expect(
     await page
@@ -1816,7 +1845,7 @@ test("one wide note workspace preserves editor history, toggles with shortcuts a
   await editor.press("Control+e");
   const before = await drawer.locator(".writing-paper").boundingBox();
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await drawer.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(drawer, "Export");
   await page
     .getByRole("button", { name: "Copy Markdown", exact: true })
     .click();
@@ -1899,12 +1928,12 @@ test("direct delete can discard an invalid dirty draft without saving it", async
     name: "What should stay with you?",
   });
   await editor.fill("A draft that exceeds the save limit. ".repeat(200));
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   const dialog = page.getByRole("dialog", { name: "Delete note?" });
   await expect(dialog).toContainText("local draft");
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(editor).toContainText("exceeds the save limit");
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   await dialog
     .getByRole("button", { name: "Delete note and discard draft" })
     .click();
@@ -1932,7 +1961,7 @@ test("deletion waits for a held save and uses the revision it produced", async (
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill("# Saved before deletion");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   const dialog = page.getByRole("dialog", { name: "Delete note?" });
   await expect(dialog).toContainText("Finishing the pending save");
   await expect(
@@ -2027,7 +2056,7 @@ test("export downloads exact unsaved Markdown and preserves a denied clipboard f
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill(content);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await expect(dialog).toContainText("Includes unsaved changes");
   const download = page.waitForEvent("download");
@@ -2084,7 +2113,7 @@ test("row export reads current content and first-save routing retains the export
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill("# First save export");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   await expect(dialog).toContainText("Includes unsaved changes");
   gate.resolve();
   await expect(page).toHaveURL(/\/app\/memories\/[^/]+\?mode=edit$/);
@@ -2124,7 +2153,7 @@ test("PDF load failure keeps Markdown available and cancellation terminates pend
   });
   await page.route("**/note-pdf.worker.ts", (route) => route.abort("failed"));
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText(
@@ -2175,7 +2204,7 @@ test("PDF export contains paginated searchable Markdown with safe links and Unic
       external.push(request.url());
   });
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   const pending = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
@@ -2263,7 +2292,7 @@ Next: share the draft, gather a little feedback, and make one careful improvemen
       fonts.push(request.url());
   });
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   expect(fonts).toEqual([]);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
@@ -2309,7 +2338,7 @@ test("PDF code-font load failure leaves source downloads usable and supports ret
     route.abort("failed"),
   );
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText(
@@ -2356,7 +2385,7 @@ test("PDF layout wraps long code and wide tables without clipped or missing cont
     "End of large record. |\n\nFinal layout marker.";
   await fixture(page, [{ ...note, content }]);
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   const file = await download;
@@ -2759,7 +2788,7 @@ for (const width of [1440, 768, 390, 320]) {
       await expect(
         page.getByRole("button", { name: "Write", exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: /^Commands/ }).click();
+      await openNoteAction(page, "Commands");
       const menu = page.getByRole("dialog", { name: "Command menu" });
       const input = menu.getByRole("combobox", { name: "Search commands" });
       await expect(input).toBeFocused();
@@ -2850,7 +2879,10 @@ for (const width of [1440, 768, 390, 320]) {
       ).toEqual([]);
       await page.keyboard.press("Escape");
       await expect(
-        page.getByRole("button", { name: /^Commands/ }),
+        page.getByRole("button", {
+          name: width < 1024 ? "Note actions" : "Commands",
+          exact: true,
+        }),
       ).toBeFocused();
     });
   });
@@ -2995,7 +3027,7 @@ test("palettes keep dismissal and results reachable in landscape, zoom and enlar
   await page.setViewportSize({ width: 844, height: 260 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: /^Commands/ }).click();
+  await openNoteAction(page, "Commands");
   const menu = page.getByRole("dialog", { name: "Command menu" });
   const input = menu.getByRole("combobox", { name: "Search commands" });
   await expect(input).toBeFocused();
@@ -3028,7 +3060,7 @@ test("palettes keep dismissal and results reachable in landscape, zoom and enlar
     await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
     // CDP pointer hit testing does not account for the panned pinch origin.
     // Native keyboard activation still exercises opening and closing at 2×.
-    await page.getByRole("button", { name: /^Commands/ }).press("Enter");
+    await page.keyboard.press("Control+Shift+p");
     await expect(input).toBeFocused();
     await expect
       .poll(async () =>
@@ -3359,7 +3391,7 @@ test("long project names remain inside destinations at every breakpoint", async 
     page
       .getByRole("navigation", { name: "Workspace help and policies" })
       .getByRole("link", { name: "Archive" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });
 
 test("search debounces automatically and source, date, and lifetime refine all results", async ({
@@ -5342,7 +5374,7 @@ test("copy feedback shares the active dialog stack without replacing a version-f
   await expect(page.locator(".workspace-notice")).toContainText("1 note moved");
   await page.locator(".memory-open").click();
   const drawer = page.getByRole("dialog", { name: "Note", exact: true });
-  await drawer.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(drawer, "Export");
   await page.getByRole("button", { name: "Copy Markdown" }).click();
   const notifications = drawer.getByRole("region", { name: "Notifications" });
   await expect(notifications.locator(".workspace-toast")).toContainText(
@@ -5927,9 +5959,11 @@ test("Today's note uses the same editor and library, with date grouping and note
     retentionDays: null,
     autoKind: true,
   });
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Sort notes" })).toHaveText(
     "Date written",
   );
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.locator(".library-date")).toHaveCount(1);
   await page.screenshot({
     path: info.outputPath("daily-note-library-desktop.png"),
@@ -6239,11 +6273,11 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
   const state = await fixture(page);
   await page.goto(`${base}/app`);
   await expect(page.locator(".memory-open")).toHaveCount(2);
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Notebook", exact: true }),
     project.id,
   );
-  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Note type" }),
     "handoff",
@@ -6322,6 +6356,7 @@ test("pagination discards an old scope response after filters change", async ({
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Load more", exact: true }).click();
   await started.promise;
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Notebook", exact: true }),
     project.id,
@@ -7066,11 +7101,24 @@ test("touch handles activate deliberately, scroll destinations and cancel withou
     await pickUp();
     const tray = page.locator(".mobile-drop-destinations");
     const bounds = (await tray.boundingBox())!;
-    await touch(
-      "touchMove",
-      bounds.x + bounds.width / 2,
-      bounds.y + bounds.height - 8,
-    );
+    // A finger travels to the tray's edge instead of teleporting, so the
+    // pointer delta keeps updating while the autoscroll engages.
+    const grip = (await handle.boundingBox())!;
+    const target = {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height - 8,
+    };
+    for (let step = 1; step <= 12; step++) {
+      await touch(
+        "touchMove",
+        grip.x +
+          grip.width / 2 +
+          ((target.x - grip.x - grip.width / 2) * step) / 12,
+        grip.y +
+          grip.height / 2 +
+          ((target.y - grip.y - grip.height / 2) * step) / 12,
+      );
+    }
     await expect
       .poll(() => tray.evaluate((el) => el.scrollTop))
       .toBeGreaterThan(20);
@@ -7092,11 +7140,11 @@ test("touch handles activate deliberately, scroll destinations and cancel withou
     const destination = page.locator(
       `.mobile-drop-tray [data-destination="${state.projects[1].id}"]`,
     );
-    const target = (await destination.boundingBox())!;
+    const trayTarget = (await destination.boundingBox())!;
     await touch(
       "touchMove",
-      target.x + target.width / 2,
-      target.y + target.height / 2,
+      trayTarget.x + trayTarget.width / 2,
+      trayTarget.y + trayTarget.height / 2,
     );
     await expect(destination).toHaveAttribute("data-drop-active", "true");
     await touch("touchEnd");

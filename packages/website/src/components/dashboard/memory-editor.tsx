@@ -32,6 +32,7 @@ import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { RevisionCompare } from "./revision-compare";
 import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
 import { NoteDeleteDialog } from "./note-delete-dialog";
+import { CommandMenuButton } from "./workspace-commands";
 import { useNoteExport } from "./note-export";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
@@ -608,6 +609,7 @@ export function MemoryEditor({
           <Maximize2 size={16} /> Expand editor
         </button>
       )}
+      <CommandMenuButton menuItem />
     </>
   );
   return (
@@ -666,7 +668,11 @@ export function MemoryEditor({
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
                 <h1>{noteTitle}</h1>
               </div>
-              <span className="note-save-status" role="status">
+              <span
+                className="note-save-status"
+                role="status"
+                title={autoSave ? "Saves automatically" : undefined}
+              >
                 <Check
                   size={13}
                   aria-hidden="true"
@@ -958,16 +964,6 @@ export function MemoryEditor({
                 Cancel
               </Button>
             </div>
-          )}
-          {pageView && (
-            <p className="note-editor-hint">
-              {autoSave
-                ? "Saves automatically"
-                : `${shortcutHint(shortcuts.save)} to save`}
-              {draftKey && dirty
-                ? " · Draft kept while you move around Grove"
-                : " · Earlier versions stay in History"}
-            </p>
           )}
         </fieldset>
       </form>
