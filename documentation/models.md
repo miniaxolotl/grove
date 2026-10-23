@@ -1,6 +1,6 @@
 # Models and organized memory
 
-Grove separates three roles. Self-hosted installations can configure each role;
+Grove separates three text roles. Self-hosted installations can configure each role;
 Grove Cloud uses deployment-managed providers:
 
 | Role       | Cloud provider / model              | Behavior                                                                                 |
@@ -12,6 +12,8 @@ Grove Cloud uses deployment-managed providers:
 DeepInfra receives query/document text for embedding and source/candidate text for
 classification. MiniMax receives bounded source text for organization, relationships, summaries,
 and Ask Grove conversations (including up to eight preceding completed turns).
+Optional [speech](speech.md) uses separate OpenAI whisper-1/tts-1 adapters and
+independent default-off account controls; it does not reuse a text role's provider.
 Cloud credentials are server-only. Use standard pay-as-you-go MiniMax API keys for
 the public service; a MiniMax coding subscription has separate eligibility and usage
 windows ([provider guidance](https://platform.minimax.io/docs/m-plan/usage-rules)).
@@ -86,7 +88,7 @@ these values explicitly for an existing installation.
 
 ## Account AI preferences
 
-**Settings → Preferences** has fourteen independent AI controls and one Save action.
+**Settings → Preferences** has sixteen independent AI controls and one Save action.
 Ask Grove's per-conversation research/organization tools are configured separately
 in the composer:
 
@@ -94,13 +96,14 @@ Drafts stay in memory while switching settings tabs. **Discard changes** returns
 to saved preferences; failed saves retain edits, and a completed save keeps any
 newer changes you made. Provider configuration uses the same Save/Discard feedback.
 
-| Category         | Controls                                                                 | Required provider                                                     |
-| ---------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Organization     | Titles and tags; note classification; suggested filing                   | Generation for titles/tags/filing; decision for classification        |
-| Connections      | Linked notes; connected notebooks; guided cleanup                        | Generation; embeddings improve candidate discovery                    |
-| Summaries        | Notebook summaries; personal summary; progress summaries; change digests | Generation                                                            |
-| Ask Grove        | Answers and writing; action lists                                        | Generation                                                            |
-| Connected agents | Automatic recall; automatic capture                                      | Existing agent integration; keyword recall works without AI providers |
+| Category         | Controls                                                                 | Required provider                                                            |
+| ---------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Organization     | Titles and tags; note classification; suggested filing                   | Generation for titles/tags and filing; decision for classification           |
+| Connections      | Linked notes; connected notebooks; guided cleanup                        | Generation; embeddings improve candidate discovery                           |
+| Summaries        | Notebook summaries; personal summary; progress summaries; change digests | Generation                                                                   |
+| Ask Grove        | Answers and writing; action lists                                        | Generation                                                                   |
+| Connected agents | Automatic recall; automatic capture                                      | Existing agent integration; keyword recall works without AI providers        |
+| Speech           | Recording transcription; read aloud                                      | Separately configured OpenAI speech, original/temporary storage respectively |
 
 Classification changes a note's type only when its `autoKind` is enabled. Explicit
 types and handoffs remain explicit. Disabling classification does not revert a type
@@ -109,23 +112,30 @@ results while disabled. Summary controls distinguish notebook scope, personal sc
 and task handoffs, including summaries supplied to connected agents.
 
 Disabling a feature cancels its queued work and fences its in-flight output.
-Re-enabling schedules that feature for active notes without resetting unrelated
+Re-enabling background text features schedules those features for active notes without resetting unrelated
 jobs. Ask Grove can be disabled independently of summaries; existing conversations
 remain readable, keyword search remains usable, and Undo remains available for
 already-applied edits. Automatic agent controls keep explicit saves and reads usable
 within the connection's approved scope.
+Speech always requires a separate user action; enabling it never starts transcription
+or read aloud. Accepted transcripts and original recording playback remain usable.
 
 Provider availability is separate from the saved preference. The UI identifies
 unconfigured providers while retaining the user's choices. Availability describes
 configuration, not a successful provider health check or remaining quota.
 
-`GET /v1/me` includes all fourteen booleans and `aiAvailability`. Session-only
+`GET /v1/me` includes all sixteen booleans, `aiAvailability` and separate
+`speechAvailable`. Session-only
 `PATCH /v1/account/settings` accepts a non-empty partial update; omitted fields keep
 their values. The website submits only changed fields. The keys are
 `titlesTagsEnabled`, `classificationEnabled`, `noteConnectionsEnabled`,
 `notebookConnectionsEnabled`, `notebookSummariesEnabled`, `personalSummaryEnabled`,
 `progressSummariesEnabled`, `askEnabled`, `recallEnabled`, `captureEnabled`,
-`filingEnabled`, `actionListsEnabled`, `digestsEnabled`, and `cleanupEnabled`.
+`filingEnabled`, `actionListsEnabled`, `digestsEnabled`, `cleanupEnabled`,
+`transcriptionEnabled`, and `readAloudEnabled`.
+The four assistance controls are on-demand and documented in
+[notebook assistance](notebook-assistance.md). The two speech controls default off;
+their separate provider, privacy, request and cache contracts are in [speech](speech.md).
 
 For older clients, `organizeEnabled` updates the four organization/connection
 controls and `summariesEnabled` updates all three summary controls plus Ask Grove.

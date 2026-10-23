@@ -1,6 +1,82 @@
 .note-editor {
   min-width: 0;
 }
+.media-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+.owned-image {
+  display: inline-block;
+  max-width: 100%;
+  position: relative;
+}
+.owned-image img[draggable="true"] {
+  cursor: grab;
+}
+.owned-image img[draggable="true"]:active {
+  cursor: grabbing;
+}
+.owned-image-actions {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+.owned-image-actions button {
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+}
+.owned-image-actions button:focus-visible {
+  outline: 2px solid var(--color-forest);
+  outline-offset: 2px;
+}
+.recording-control,
+.recording-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.recording-control {
+  font-size: 0.75rem;
+}
+.recording-player {
+  display: block;
+  max-width: 100%;
+  padding: 0.75rem 0;
+}
+.recording-title {
+  display: block;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+.recording-transcript {
+  display: block;
+  padding: 0.75rem 0;
+}
+.recording-transcript label {
+  display: block;
+  font-size: 0.875rem;
+}
+.app-form .editor-surface .recording-transcript textarea {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--color-line);
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  background: var(--color-paper);
+  min-height: 7rem;
+  height: 8rem;
+  max-height: 18rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
 .note-editor-bar {
   display: flex;
   align-items: center;

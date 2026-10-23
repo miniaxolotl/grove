@@ -6,21 +6,39 @@ export function RevisionCompare({
   after,
   beforeLabel = "Earlier version",
   afterLabel = "Current version",
+  media,
 }: {
   before: string;
   after: string;
   beforeLabel?: string;
   afterLabel?: string;
+  media?: { noteId: string; beforeVersion: number; afterVersion: number };
 }) {
   return (
     <div className="revision-compare">
       <section>
         <h4>{beforeLabel}</h4>
-        <Markdown>{before}</Markdown>
+        <Markdown
+          media={
+            media
+              ? { noteId: media.noteId, version: media.beforeVersion }
+              : undefined
+          }
+        >
+          {before}
+        </Markdown>
       </section>
       <section>
         <h4>{afterLabel}</h4>
-        <Markdown>{after}</Markdown>
+        <Markdown
+          media={
+            media
+              ? { noteId: media.noteId, version: media.afterVersion }
+              : undefined
+          }
+        >
+          {after}
+        </Markdown>
       </section>
     </div>
   );

@@ -15,6 +15,31 @@ documentation refresh.
 
 ## Topology
 
+### Speech rollout (019)
+
+Back up retained source objects and the database together. After 018, apply forward
+`20261023_019_speech` with the owner connection during the migration window; runtime
+readiness now requires its account columns. Drain old workers before enabling the
+new bulk task kinds. Roll out the admitted matching API/worker image with speech
+disabled, then configure `OPENAI_API_KEY`, `SPEECH_ENABLED=true`, `TTS_VOICE` and
+`SPEECH_PROVIDER_CONCURRENCY` identically. API startup publishes desired profiles;
+mismatched workers refuse to send or publish old speech. Image-only updates do not
+infer new variables or activate stored Doppler secrets.
+
+Verify original-media storage and temporary artifact storage separately. Cloud
+originals remain in the private durable bucket with no expiry; generated MP3 shares
+the private artifact bucket's one-day `speech/` lifecycle, never the source bucket.
+Confirm bucket policy/lifecycle through an authorized operator, not a broader runtime
+key. Keep maintenance enabled for bounded candidate expiry and artifact removal.
+Both new account preferences remain off until explicitly saved by the user.
+
+Then deploy the matching website and use a disposable account to verify opt-in,
+candidate review/save, read aloud, cancellation, scoped Range playback and expiry.
+Recovery must use the updated reconciliation script: it cancels speech tasks,
+clears machine results and expires derived artifacts without deleting original
+audio or accepted transcript history. See [speech contracts](speech.md). This is
+an operator procedure, not evidence that production activation has occurred.
+
 ### Ask Grove tools rollout (020)
 
 Apply `20261023_020_ask_tools` with the owner connection after the notebook lifecycle
