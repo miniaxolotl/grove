@@ -13,6 +13,9 @@ with #96's intentional compact-note changes: New note uses its shared shortcut,
 Delete uses the existing action helper, and leaving focus mode keeps the compact
 sidebar hidden with Back to notes available. Save, Undo and focus checks remain.
 All **11 library/filter WebKit** checks also pass on the combined tree.
+A later full repeat exposed a test filling the background composer before history
+finished opening. That existing scenario now waits for dismissal/focus handoff;
+all five targeted Chromium repeats pass, retaining reading-position assertions.
 
 | Integrated pinned outline                                              | Integrated search                                             | Integrated phone outline                                             |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------- |

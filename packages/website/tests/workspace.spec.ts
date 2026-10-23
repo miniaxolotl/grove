@@ -5307,6 +5307,10 @@ test("a reply and growing composer preserve older reading position until Latest 
   await page.getByRole("button", { name: "History", exact: true }).click();
   await page.getByRole("button", { name: /^Reading thread/ }).click();
   const log = page.getByRole("log", { name: "Conversation" });
+  await expect(
+    page.getByRole("dialog", { name: "Conversations", exact: true }),
+  ).not.toBeVisible();
+  await expect(log).toBeFocused();
   const input = page.getByRole("textbox", { name: "Ask about your notes" });
   let release!: () => void;
   const held = new Promise<void>((resolve) => {

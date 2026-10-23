@@ -29,6 +29,9 @@ record exact verification and the scope of these manual journeys. Existing compa
 note scenarios use the shared New note shortcut and action helper rather than
 hidden sidebar/desktop controls; leaving focus mode retains Back to notes while
 the compact full-page note keeps its sidebar hidden.
+Conversation-composer scenarios wait for the history dialog's dismissal and focus
+handoff before typing; filling the background textbox during a held history open
+can otherwise race the loaded conversation's draft replacement.
 
 The committed focused configuration includes the existing history-focus scenarios
 as well as note tools, saves, sidebar, commands and search:
