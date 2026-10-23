@@ -26,7 +26,7 @@ const groups: {
         key: "classificationEnabled",
         label: "Note classification",
         description:
-          "Suggest a note type. Only apply it when that note’s auto-classification is on.",
+          "Suggest a note type. Apply it only when you let Grove choose the note type.",
         provider: "classification",
       },
       {
@@ -56,7 +56,7 @@ const groups: {
         key: "cleanupEnabled",
         label: "Guided cleanup",
         description:
-          "Review overlaps, conflicts and explicit replacements on request.",
+          "Review duplicate or conflicting notes and choose what to keep.",
         provider: "generation",
       },
     ],
@@ -105,8 +105,7 @@ const groups: {
       {
         key: "actionListsEnabled",
         label: "Action lists",
-        description:
-          "Extract recorded actions from selected notes when you ask.",
+        description: "Find action items in selected notes when you ask.",
         provider: "generation",
       },
     ],
@@ -135,14 +134,14 @@ const groups: {
         key: "transcriptionEnabled",
         label: "Recording transcription",
         description:
-          "Send a recording to OpenAI only when you choose Transcribe. Review its text before saving.",
+          "Process a recording only when you choose Transcribe. Review the suggested text before saving.",
         provider: "transcription",
       },
       {
         key: "readAloudEnabled",
         label: "Read aloud",
         description:
-          "Send saved note text to OpenAI when you prepare audio. Generated audio expires within a day.",
+          "Use saved note text to create spoken audio when you ask. Audio expires within a day.",
         provider: "synthesis",
       },
     ],

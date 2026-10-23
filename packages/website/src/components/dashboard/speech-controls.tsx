@@ -223,19 +223,20 @@ function JobControls({
 }
 function Permission({
   access,
+  feature,
 }: {
   access: ReturnType<typeof useSpeechAccess>;
+  feature: "Recording transcription" | "Read aloud";
 }) {
   return (
     <span className="speech-permission">
       {access.checking ? (
         "Checking speech…"
       ) : !access.available ? (
-        "Speech isn’t configured for this installation."
+        `${feature} is currently unavailable.`
       ) : (
         <>
-          Turn this on in <Link href="/app/settings">AI preferences</Link> to
-          send audio or note text to OpenAI.
+          Turn on {feature} in <Link href="/app/settings">AI preferences</Link>.
         </>
       )}
     </span>
@@ -256,7 +257,7 @@ export function TranscribeRecording({
     access = useSpeechAccess(source, true),
     controller = useSpeechJob(source);
   if (!access.enabled || !access.available)
-    return <Permission access={access} />;
+    return <Permission access={access} feature="Recording transcription" />;
   return (
     <span className="speech-transcription">
       <JobControls controller={controller} label="Transcribe" />
@@ -315,7 +316,7 @@ export function ReadAloud({ noteId, version }: Source) {
             <X size={16} aria-hidden="true" />
           </button>
           {!access.enabled || !access.available ? (
-            <Permission access={access} />
+            <Permission access={access} feature="Read aloud" />
           ) : (
             <>
               <JobControls controller={controller} label="Prepare audio" />

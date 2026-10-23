@@ -3,8 +3,7 @@ export function AuthSetup() {
     <section className="mx-auto max-w-lg rounded-xl border border-line bg-white/50 p-8">
       <h1 className="font-editorial text-3xl">Sign-in is not available yet.</h1>
       <p className="mt-4 text-sm leading-7 text-muted">
-        Account sign-in is awaiting Clerk configuration for this deployment.
-        Please try again once setup is complete.
+        You can’t sign in right now. Please try again later.
       </p>
     </section>
   );
