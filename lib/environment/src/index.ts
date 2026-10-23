@@ -141,6 +141,18 @@ export const serverEnvironmentSchema = z.object({
     .default("true")
     .transform((value) => value === "true"),
   EXPORT_STORAGE: z.enum(["disabled", "local", "s3"]).optional(),
+  // Explicit opt-in until the revision-scoped media API is available.
+  MEDIA_STORAGE: z.enum(["disabled", "local", "s3"]).default("disabled"),
+  MEDIA_DIRECTORY: z.string().default("./data/media"),
+  MEDIA_S3_ENDPOINT: z.url().optional(),
+  MEDIA_S3_REGION: z.string().default("us-east-1"),
+  MEDIA_S3_BUCKET: z.string().optional(),
+  MEDIA_S3_ACCESS_KEY_ID: z.string().optional(),
+  MEDIA_S3_SECRET_ACCESS_KEY: z.string().optional(),
+  MEDIA_S3_PATH_STYLE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   EXPORT_DIRECTORY: z.string().default("./data/exports"),
   EXPORT_S3_ENDPOINT: z.url().optional(),
   EXPORT_S3_REGION: z.string().default("us-east-1"),

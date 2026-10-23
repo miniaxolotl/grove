@@ -6,6 +6,10 @@ The recovered three-slice scope remains useful, but is not implementation-ready
 until the decisions and gates below are resolved. No provider provisioning,
 migration, merge or production rollout is authorized by this document.
 
+Development has since begun with the [private image foundation](media-foundation.md).
+It adds tested storage/validation primitives, not user-facing media support. The
+remaining revision/access, upload, export and feature gates below still apply.
+
 ## Current evidence
 
 - The recovered media plan records discovery/setup only: no implementation,

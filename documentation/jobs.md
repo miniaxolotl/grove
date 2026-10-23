@@ -66,8 +66,10 @@ assistance reviews/operations.
 
 These exports contain structured records, not attachment binaries. The
 [media plan review](development/media-plan.md) proposes separate durable storage
-and an additive media-complete archive; neither is implemented yet. Do not store
-authored media in the expiring export bucket.
+and an additive media-complete archive. Initial
+[storage primitives](development/media-foundation.md) are in development; no
+attachment API or media-complete export is available yet. Do not store authored
+media in the expiring export bucket.
 
 Workers page source records into private parts, then stream final assembly.
 Buffers are bounded by a 100-record page; S3 assembly uses two 5 MiB buffers.

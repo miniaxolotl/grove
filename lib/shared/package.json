@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
     "./models": "./src/models.ts",
+    "./media": "./src/media.ts",
     "./preferences": "./src/preferences.ts",
     "./summaries": "./src/summaries.ts",
     "./assistance": "./src/assistance.ts",

@@ -1,5 +1,10 @@
 # Verification
 
+Image-storage primitives have a bounded raster/filesystem suite and two optional
+owned-loopback S3 checks, including rejection of providers that ignore conditional
+writes. See [media foundation verification](media-foundation.md#verification).
+This does not yet qualify image upload/rendering or revision authorization.
+
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale

@@ -1,5 +1,31 @@
 # Delivery evidence
 
+## Private image foundation — development increment (22 October 2026)
+
+The [image foundation](development/media-foundation.md) establishes immutable
+private local/S3 storage and bounded, fully decoded static PNG/JPEG/WebP input,
+including explicit APNG rejection and fragment-count-independent buffering.
+Original bytes/checksums are preserved. Source storage has no deletion API and
+rejects export-directory/bucket/credential overlap and expiring lifecycle rules.
+Conditional-write probing uses only unique removable operational scratch objects.
+
+Real disposable storage exposed Garage 2.4.1 ignoring conditional PUT; readiness
+now refuses that provider without changing retained test source. Digest-pinned
+RustFS 1.0.3 supports private byte-identical storage and immutable concurrent writes;
+CI includes that disposable conformance service. These are local/CI observations,
+not qualification of deployed DigitalOcean Spaces. No cloud resource was provisioned.
+
+This is **not complete image support**: no upload route, note/revision binding,
+schema migration, image UI, archive/PDF integration, recording or speech behavior
+is enabled. The primitives default to disabled and are not yet called by runtime.
+The image acceptance gates remain prerequisites for exposing them.
+
+Local verification passes on Node 24.22.1 / pnpm 10.33.0: **16 focused media
+checks** with both disposable storage fixtures (no skips), root lint/types/build,
+five packaged-artifact checks, 17 release/deployment contracts, workflow lint,
+new-file formatting and 23 selected documentation links/anchors. No media
+database/browser functionality is claimed; exact-head hosted CI remains required.
+
 ## Media plan review (22 October 2026)
 
 The [images, recordings and speech review](development/media-plan.md) reconciles

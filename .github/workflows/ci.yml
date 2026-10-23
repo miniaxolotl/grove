@@ -88,7 +88,23 @@ jobs:
       TEST_DATABASE_URL: postgresql://grove_api:grove_disposable_api@127.0.0.1:5432/grove_test
       TEST_WORKER_DATABASE_URL: postgresql://grove_jobs:grove_disposable_worker@127.0.0.1:5432/grove_test
       TEST_AMQP_URL: amqp://grove:grove_disposable_queue@127.0.0.1:5672
+      TEST_MEDIA_S3_ENDPOINT: http://127.0.0.1:9000
+      TEST_MEDIA_S3_REGION: us-east-1
+      TEST_MEDIA_S3_KEY: grove_media_test
+      TEST_MEDIA_S3_SECRET: grove_media_disposable_only
     services:
+      media-storage:
+        # RustFS 1.0.3: disposable source-store conformance, never production data.
+        image: rustfs/rustfs@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
+        env:
+          RUSTFS_ACCESS_KEY: grove_media_test
+          RUSTFS_SECRET_KEY: grove_media_disposable_only
+          RUSTFS_CONSOLE_ENABLE: "false"
+          RUSTFS_OBS_LOGGER_LEVEL: error
+        ports: ["9000:9000"]
+        options: >-
+          --health-cmd "curl -fsS http://127.0.0.1:9000/health"
+          --health-interval 5s --health-timeout 5s --health-retries 20
       rabbitmq:
         image: rabbitmq:4.1-alpine
         env: { RABBITMQ_DEFAULT_USER: grove, RABBITMQ_DEFAULT_PASS: grove_disposable_queue }
