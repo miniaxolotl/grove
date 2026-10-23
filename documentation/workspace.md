@@ -190,7 +190,7 @@ than deletion against an unseen version. Successful deletion has no Undo.
 
 **Today’s note** starts with today's date in your current notebook. It is an ordinary
 note, available in the same library, search and Ask Grove. Choose **Date written**
-under Sort to group all matching notes by day. Existing Journal links open this
+under **Filters → Sort notes** to group all matching notes by day. Existing Journal links open this
 dated view. There is no separate journal to manage.
 
 Notebook pages open directly to their notes. **Notebook options** offers **Ask about
