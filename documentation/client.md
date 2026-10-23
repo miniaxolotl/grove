@@ -46,6 +46,39 @@ For a persistent `grove` command, install `@miniaxolotl/grove` globally. Existin
 `init`, `login`, `status` and `project` commands remain supported. `init` uses the
 older dashboard-approval workflow; a login with no grant reports `awaiting-grant`.
 `status` checks the API, not whether the host has loaded its plugin.
+
+### Diagnose installation and startup
+
+```sh
+grove doctor --client opencode
+grove doctor --client claude --json
+grove doctor --client codex --probe --json
+```
+
+Without `--probe`, diagnosis reads local executable/configuration/credential state
+only. It does not start the agent, contact Grove, open sign-in, create telemetry
+state or change configuration. Missing or unreadable credentials are distinguished
+from an unavailable runtime or malformed configuration; existing credentials are
+never deleted to repair a startup problem.
+
+`--probe` starts only a separate packaged Grove bridge, initializes it and lists its
+four tools, then makes an authenticated `/v1/me` request. It does not call memory
+tools or write notes. Normal OAuth refresh may update saved credentials. Bridge/API
+checks each have a five-second deadline, plus bounded transport teardown.
+
+Results identify their context: `cli`, `bridge_probe` or `host`. A probe is not the
+running agent session: `hostVerified` remains false and host readiness is `unknown`.
+Check Grove in the agent's MCP/plugin interface after activation. Exit status is
+nonzero for failed requested/local prerequisite checks; optional unverified hooks
+do not prevent explicit tools from working. `status --json` retains its existing
+API-access meaning, and setup now reports API verification separately from host activation.
+
+Typical diagnostic codes include `client_missing`, `artifact_missing`,
+`invalid_config`, `credential_store_unavailable`, `sign_in_required`,
+`awaiting_grant`, `bridge_start_failed`, `unreachable` and `api_version_unsupported`.
+For credential-store errors, repair file access/integrity before signing in again.
+For an unpatched OpenCode `spawn node` error, restart the actual host with Node on
+its PATH or update Grove; changing PATH in a tool shell does not repair a running host.
 Running `grove` alone in a terminal starts guided setup; `grove --help` shows usage.
 Fresh `login` and `init` default to Cloud when no origin is configured.
 
@@ -113,9 +146,14 @@ Run `/reload-plugins` in an existing session or start a new session to load Grov
 
 ## Codex
 
-The native host must have Node.js 22 or newer on PATH for the packaged MCP and
-optional SessionStart commands. Use saved Grove credentials when the host filters
-environment variables passed to MCP servers.
+The actual host needs Node.js 22+ on PATH for the packaged MCP and optional hooks.
+Codex can filter inherited environment variables: normal saved Grove credentials
+are the qualified setup path. Check custom credential-store/environment settings
+in the actual host rather than forwarding an entire environment or copying keys
+into project configuration. Optional hooks must be reviewed/trusted in Codex.
+Do not rely on `GROVE_PRIVATE=1` alone when the host filters it: `grove pause`
+persists the local automatic-memory pause that the bridge can read. Verify the
+store used by that host; a CLI-only environment flag does not establish session privacy.
 
 ```sh
 npx @miniaxolotl/grove connect codex

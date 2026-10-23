@@ -1,5 +1,44 @@
 # Delivery evidence
 
+## Agent plugin startup and diagnostics (23 October 2026)
+
+OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for
+compiled Bun hosts), fixing the reproduced `spawn node` failure with a restricted
+desktop/service PATH. Existing custom/disabled Grove MCP definitions remain respected.
+`grove doctor` distinguishes offline CLI checks, explicit packaged-bridge/API probes
+and unknown live-host readiness. Diagnosis never installs, starts unrelated MCPs or
+writes memories; OAuth refresh occurs only on an explicit API probe. Setup no longer
+equates API access with host activation, and existing status JSON semantics remain.
+
+Regression-first fixes reject malformed API envelopes/configuration, preserve caller
+cancellation and distinguish damaged credential storage from a new sign-in requirement.
+All **189 backend/client tests** pass against a new disposable PostgreSQL database
+with non-owner roles (two optional S3/broker checks skipped), as do **seven packed
+artifact checks**, root lint/types/build, **50 automation/provider contracts** and
+pinned workflow lint on Node 24.21.0/pnpm 10.33.0.
+
+The maintained **three-host Linux x64** suite pins integrity-locked OpenCode 2.1.3,
+Claude Code 2.1.309 and Codex 0.164.0, runs in temporary homes/prefixes with synthetic
+loopback APIs/models, and takes about 32 seconds locally. It checks native install/
+uninstall, four tools, skills, Claude SessionStart and Codex paused automatic-write
+denial. Native missing-Node controls fail as expected; OpenCode connects with empty
+PATH and its compiled runtime exercises all four bridge tools. Existing CI runs
+this suite without a runner/inventory change. No systemwide install, live agent
+configuration, actual-model billing or production deployment is included.
+
+Native absolute-runtime overrides, additional OS/host/consumer-runtime matrices and
+broader reload/configuration-race hardening remain follow-ups, not implied acceptance.
+
+Review regressions reproduce and fix interrupted-body transport errors, identity-only
+credential files and parent-process diagnostic telemetry. JSON syntax failures remain
+`invalid_response`; transport failures remain `unreachable`. Local authentication
+validation preserves expired refreshable OAuth and never rewrites damaged stores.
+Doctor uses bearer authentication without a reporter and opts out upstream. An
+enabled-build control verifies that telemetry is genuinely active while the doctor
+creates no identity or analytics requests. All **nine packed-artifact checks**, **nine
+client/boundary tests**, three pinned native hosts, root lint/types/build and **50
+automation/provider contracts** plus workflow lint pass after integrating #102.
+
 ## Note context actions (23 October 2026)
 
 The editable note surface has app-matched text, image, link and recording right-click

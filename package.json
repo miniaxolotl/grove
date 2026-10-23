@@ -55,6 +55,7 @@
     "services:logs": "docker compose logs -f",
     "services:ps": "docker compose ps",
     "test:artifacts": "tsx --test tests/artifacts.test.ts",
+    "test:agents": "node scripts/testing/native-hosts.mjs",
     "format": "prettier --write \"**/*.{ts,md,json}\"",
     "clean": "rm -rf packages/mcp/dist scripts/setup/dist tests/dist node_modules"
   },

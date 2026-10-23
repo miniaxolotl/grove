@@ -4,9 +4,12 @@ import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { mkdtemp, mkdir, readdir, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import process from "node:process";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { calls, key, startFixture, stopChild } from "./host-fixture.mjs";
 
 const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "../..");
@@ -14,9 +17,11 @@ const root = resolve(import.meta.dirname, "../..");
 const base = "/tmp/opencode";
 await mkdir(base, { recursive: true });
 const directory = await mkdtemp(join(base, "opencode-"));
-const binary = (
-  await exec("which", [process.env.OPENCODE_TEST_BIN || "opencode"])
-).stdout.trim();
+const binary = process.env.OPENCODE_TEST_BIN;
+assert(
+  binary && isAbsolute(binary),
+  "Set OPENCODE_TEST_BIN to an absolute V2 executable path",
+);
 await exec("pnpm", ["pack", "--pack-destination", directory], {
   cwd: join(root, "packages/grove-opencode-plugin"),
 });
@@ -48,9 +53,8 @@ await writeFile(
 await mkdir(join(directory, "temp"));
 await mkdir(join(directory, "bin"));
 const env = {
-  ...process.env,
-  // Desktop/background hosts need not inherit a shell's Node/version-manager PATH.
   PATH: join(directory, "bin"),
+  DO_NOT_TRACK: "1",
   HOME: directory,
   TMPDIR: join(directory, "temp"),
   XDG_CONFIG_HOME: join(directory, "config"),
@@ -97,6 +101,9 @@ const url = await new Promise((resolve, reject) => {
   child.once("exit", () =>
     fail(new Error("Isolated OpenCode exited before startup")),
   );
+}).catch(async (error) => {
+  await stopChild(child);
+  throw error;
 });
 const read = async (path) => {
   const result = await exec(
@@ -112,6 +119,7 @@ const read = async (path) => {
   );
   return JSON.parse(result.stdout);
 };
+let fixture;
 try {
   await exec(
     binary,
@@ -166,6 +174,39 @@ try {
         server.name === "grove" && server.status.status === "connected",
     ),
   );
+  fixture = await startFixture();
+  const client = new Client({ name: "grove-bun-host-fixture", version: "1" });
+  try {
+    // Exercise the exact packaged bridge on the compiled host runtime as well as
+    // verifying OpenCode's own plugin/MCP loader above. No model provider is used.
+    const transport = new StdioClientTransport({
+      command: binary,
+      args: [
+        join(pluginPath, "dist/cli.js"),
+        "mcp",
+        "--stdio",
+        "--client",
+        "opencode",
+      ],
+      env: {
+        ...env,
+        BUN_BE_BUN: "1",
+        GROVE_API_URL: fixture.origin,
+        GROVE_API_KEY: key,
+      },
+      stderr: "pipe",
+    });
+    transport.stderr?.on("data", () => {});
+    await client.connect(transport, { timeout: 10000 });
+    for (const [name, args] of calls()) {
+      const result = await client.callTool({ name, arguments: args });
+      assert.notEqual(result.isError, true);
+    }
+    fixture.assertTools("opencode");
+  } finally {
+    await client.close();
+  }
 } finally {
-  child.kill("SIGTERM");
+  if (fixture) await fixture.close();
+  await stopChild(child);
 }
