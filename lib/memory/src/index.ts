@@ -91,6 +91,7 @@ import {
 
 export { ConnectionSetup } from "./connect.ts";
 export { Sharing } from "./sharing.ts";
+export { searchConversationHistory } from "./conversation-history.ts";
 
 type Connection = Omit<Grant, "expiresAt"> & {
   id: string;

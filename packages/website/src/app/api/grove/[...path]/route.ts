@@ -29,6 +29,7 @@ async function forward(
   if (
     !allowed.test(path) &&
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
+    path !== "conversations/search" &&
     !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,
     )

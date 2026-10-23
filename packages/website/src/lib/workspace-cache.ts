@@ -660,6 +660,7 @@ export class WorkspaceCache {
     const read =
       verb === "GET" ||
       path === "/memories/search" ||
+      path === "/conversations/search" ||
       path === "/briefs" ||
       path === "/relationships/search" ||
       path === "/ask";
@@ -774,8 +775,39 @@ export class WorkspaceCache {
             workspaceKeys.resource(`/conversations/${chat.id}`),
             chat,
           );
-        if (verb === "DELETE")
+        if (verb === "DELETE") {
           this.client.setQueryData(workspaceKeys.resource(path), null);
+          const id = path.split("/")[2];
+          this.client.setQueriesData<{
+            items?: { id: string }[];
+            pages?: { items: { id: string }[] }[];
+          }>(
+            {
+              predicate: (query) =>
+                query.queryKey[1] === "resource" &&
+                ["/conversations", "/conversations/search"].includes(
+                  query.queryKey[2] as string,
+                ),
+            },
+            (old) =>
+              old
+                ? {
+                    ...old,
+                    ...(old.items
+                      ? { items: old.items.filter((item) => item.id !== id) }
+                      : {}),
+                    ...(old.pages
+                      ? {
+                          pages: old.pages.map((page) => ({
+                            ...page,
+                            items: page.items.filter((item) => item.id !== id),
+                          })),
+                        }
+                      : {}),
+                  }
+                : old,
+          );
+        }
         this.invalidate(change);
         if (/\/(apply|undo)$/.test(path)) {
           // Merge/undo may affect archived source notes absent from the reply. Revalidate all note dependencies.

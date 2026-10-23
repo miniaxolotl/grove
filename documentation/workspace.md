@@ -259,7 +259,20 @@ new work added to a created notebook prevents Undo from archiving it. Organizati
 considers at most 50 current notes per batch and shows partial coverage. Existing
 date-based sorting remains a read-only library operation.
 
-Use **History** to reopen or delete saved conversations across visits. Changing the
+Use **History** to browse saved conversations by date or search their titles and
+your questions. Each row shows a question preview, notebook scope, date and question
+count; **Current** marks the open conversation. Search covers all saved history,
+including conversations beyond the first page. **More conversations** loads older
+results; a failed page retries in place.
+
+Choose a conversation to read it from the beginning, then use **Latest reply** to
+return to its end. Unsent messages stay with their conversation while switching;
+**New conversation** returns to an unfinished new-message draft. These drafts are
+account/session-owned memory, not durable storage across a browser reload.
+Opening failures stay in History, and closing it cancels an unfinished open.
+Delete names the conversation before confirmation and keeps saved notes.
+
+Changing the
 scope starts a new conversation. Stop cancels the current reply; interrupted replies
 can be retried. Explicit edit, create and merge requests show a preview before
 saving, with version-checked **Undo** afterward. Merges archive the originals and keep earlier revisions.

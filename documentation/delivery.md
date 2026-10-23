@@ -34,6 +34,29 @@ have regressions. Invalid model responses remain retryable failures; this small
 synthetic sample is not a broad quality qualification. Production activation is
 separate from these local/provider checks.
 
+## Ask Grove history (23 October 2026)
+
+History now offers private title/question search, date-grouped rows with question
+previews and scope/count metadata, a current-conversation marker and named delete
+confirmation. Search remains in place as a compact list changes or scrolls. Opens
+are cancellable, errors stay in the dialog, and failed pagination retries its
+original cursor. Reopened conversations start at the beginning with Latest reply
+navigation; unsent drafts and uncertain-turn IDs stay with their conversation.
+
+The owner-only POST history endpoint returns 30 bounded results and signed,
+account/query-bound microsecond cursors. Deleted cursor rows do not break paging;
+deleted/foreign history and assistant payloads remain excluded. No model calls,
+new credentials or schema migration are required. Workspace/API/cache guidance
+and [nine captures](design/screenshots/ask-history/README.md) document the behavior.
+
+Root/website lint, types and builds, five packaged artifacts and bundle budgets
+pass. The full backend suite passes **169 tests**, with two optional-service skips;
+the full Chromium suite passes **223 scenarios**, followed by seven focused checks
+after the final draft refinement. Notes entry is **485,941 gzip bytes**; history
+is deferred. Seven focused iPhone/WebKit checks pass after adapting the existing
+recovery scenario to the touch Send button. Browser checks include 1440/390/320px
+and short-height access.
+
 ## Ask Grove new-note preview (23 October 2026)
 
 New-note proposals show one preview and Save note, without an empty Current note

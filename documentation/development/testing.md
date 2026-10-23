@@ -9,6 +9,16 @@ choices/defaults, citations, activity, organization previews and Apply/Undo at
 1440/768/390/320px. Capture a small PR preview row (at most four images), with the
 complete gallery under `documentation/design/screenshots/ask-tools/`.
 
+Conversation history coverage (`conversation-history.test.ts`) uses real non-owner
+PostgreSQL access for title/older-question search, literal wildcard handling,
+bounded previews, owner-only/tenant isolation, retained-but-hidden deletion and
+account/query-bound microsecond cursors that survive deletion of the cursor row.
+No model or migration is needed. Browser history scenarios exercise date groups,
+search/empty states, current markers, reading from the beginning, Latest reply,
+draft switching, cancelled opens, page/open error recovery and named deletion.
+Cache coverage checks that POST search stays read-only and deletion prunes inactive
+history pages. Review 1440/390/320px captures in both browser engines.
+
 Notebook lifecycle tests (`notebook-lifecycle.test.ts` and
 `notebook-lifecycle-migration.test.ts`) require the same disposable owner/API/worker
 URLs below. They verify populated 015→016 preservation, atomic whole-subtree
