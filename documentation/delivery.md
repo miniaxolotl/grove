@@ -1,5 +1,17 @@
 # Delivery evidence
 
+## Ask Grove new-note preview (23 October 2026)
+
+New-note proposals show one preview and Save note, without an empty Current note
+comparison. Edit/merge proposals retain Review changes; Save/Open note/Undo use
+the existing paths. [Reviewed desktop/phone captures](design/screenshots/ask-create-preview/README.md)
+record the focused refinement.
+
+Root/website lint, types and builds, five packaged artifacts and bundle budgets
+pass. Four existing Chromium chat/composer/retry scenarios pass. Manual create,
+Save/Undo and edit/merge comparison checks pass at 1440/390/320px in both Chromium
+and WebKit. Notes entry remains **485,883 gzip bytes**.
+
 ## Notebook archive and soft deletion (23 October 2026)
 
 Notebook page/sidebar/manager actions confirm the complete subtree and note counts.
