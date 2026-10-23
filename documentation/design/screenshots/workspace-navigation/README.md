@@ -6,6 +6,11 @@ Captured 23 October 2026 with Playwright 1.64.1. WebKit runs in
 `mcr.microsoft.com/playwright:v1.64.1-noble`; Chromium runs locally. These show real
 workspace components and production CSS, not production account data.
 
+The subsequent integration of development `eaa717a` preserves these navigation
+sources and captures. Its inherited dropdown-opacity correction affects none of
+the pictured states; integrated bundle size is unchanged. See
+[PR #97](https://github.com/miniaxolotl/grove/pull/97) for current-head integration CI.
+
 | Pinned outline                      | Search passage                     | Phone outline                     |
 | ----------------------------------- | ---------------------------------- | --------------------------------- |
 | ![Pinned outline](outline-1440.png) | ![Search passage](search-1440.png) | ![Phone outline](outline-390.png) |

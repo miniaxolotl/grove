@@ -1,6 +1,8 @@
 # Shared CI/CD conventions
 
-Fern, Burrow and Grove share this baseline. Keep common action pins and workflow
+Bramble's website, Fern, Burrow and Grove share the release principles below.
+The standalone website uses npm; the products use their pinned pnpm versions.
+Keep common action pins and workflow
 contracts synchronized when updating them.
 
 | File          | Name                     | Responsibility                                                     |
@@ -15,7 +17,7 @@ Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build
 
 ## Common baseline
 
-- Node **24.21.0**, frozen pnpm installs, full action SHA pins with version comments.
+- Node **24.21.0**, frozen lockfile installs, full action SHA pins with version comments.
 - Checkout **7.0.1**, setup-node **7.1.0**, upload-artifact **7.0.2**, Release Please
   action **5.0.0** / library **17.6.0**, Docker setup-buildx **4.4.1**, login
   **4.6.0**, build-push **7.4.0**, OpenTofu setup **2.0.2** / CLI **1.12.6** where used.
@@ -23,6 +25,12 @@ Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build
   credentials and independent immutable publication source identities.
 - Shared `Promotion Admission`, `Website` and `CI Gate` names; source evidence
   requires every stack-specific job listed by the release policy.
+- Development PRs classify dependency families and strictly require selected jobs;
+  full source push/manual evidence qualifies frozen promotion reuse. Unknown diffs
+  select all; malformed/missing selected results never count as successful skips.
+- Browser/Next cache saves are limited to successful non-PR protected-ref runs.
+  Common action pins, checkout credentials and bounded read/bootstrap behavior
+  are enforced by `scripts/ci` contracts shared across the four repositories.
 - CI cancels superseded PR runs only. Release/selection/deployment operations
   serialize without cancellation. Every job has a timeout.
 - The same checksum-verified actionlint **1.7.12** launcher validates workflows.
@@ -44,6 +52,16 @@ Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build
   PR/merge-group CI, complete exact-tag dispatch, Blacksmith sizing and coverage.
 
 The workflow files contain authoritative SHA pins and job details.
+
+## Hardening status
+
+The [Grove review](development/cicd-hardening-review.md) records current source and
+policy; the [shared review](https://github.com/bramble-labs/website/pull/38)
+coordinates the four repositories. Current source CI uses GitHub Ubuntu for
+website/Burrow/Grove and Blacksmith for Fern. The owner explicitly retained runner
+placement, superseding the older vendor-reallocation proposal. Selected PR gates,
+authenticated promotion reuse and protected caches retain independent full source
+validation and frozen artifacts.
 
 ## Grove feature-stack admission
 

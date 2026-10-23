@@ -31,6 +31,14 @@ container. [Sixteen synthetic captures](design/screenshots/workspace-navigation/
 cover 1440/768/390/320px, short/forced-colour layouts and both browser engines.
 No schema migration is required; no production activation was performed.
 
+Integration with landed hardening #88 (`eaa717a`) preserves both delivery records
+and its dropdown-opacity correction. Integrated root/website static/build gates,
+five artifacts, **50 automation/provider contracts**, workflow lint, bundle budgets
+and **223 Chromium / 12 focused WebKit** cases pass. Navigation-specific journeys
+also pass in both engines. Notes entry remains **487,751 gzip bytes**.
+Current-head full browser/source CI evidence is recorded on
+[navigation PR #97](https://github.com/miniaxolotl/grove/pull/97).
+
 ## Shared reader polish (23 October 2026)
 
 Shared notes and notebooks use one Read only label, a clear title/date and the saved
@@ -183,6 +191,18 @@ disposable checkout on Node 24.21.0 / pnpm 10.33.0 because the worktree filesyst
 was nearly full. [Fourteen reviewed captures](design/screenshots/workspace-refinement/README.md)
 cover desktop, 390px and 320px; browser checks additionally cover 768px, enlarged text,
 short windows, keyboard/touch, accessible contrast and save/conflict/retry behavior.
+
+## CI/CD hardening (23 October 2026)
+
+For the subsequent CI/CD source hardening, see the
+[implementation and acceptance boundaries](development/cicd-hardening-review.md)
+and [shared patch-first release/naming rules](release-conventions.md). Strict
+selected validation, authenticated source reuse, bounded reads, protected caches
+and deployment identity checks are implemented without moving runners. The
+separately authorised dropdown-opacity repair preserves existing tests and merged
+UI refinements; [desktop/mobile evidence](design/screenshots/dropdown-contrast/README.md)
+records the baseline correction. Hosted rollout and automatic recovery acceptance
+remain separate from source CI verification.
 
 ## Notebook assistance (22 October 2026)
 
