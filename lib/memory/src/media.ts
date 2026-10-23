@@ -17,6 +17,7 @@ type ObjectRow = {
   leaseUntil: Date;
   width: number;
   height: number;
+  durationMs?: number;
 };
 export type MediaUpload = {
   id: string;
@@ -40,6 +41,7 @@ export const mediaDescriptor = (row: ObjectRow) => ({
   bytes: row.bytes,
   width: row.width,
   height: row.height,
+  durationMs: row.durationMs ?? null,
 });
 
 export class MediaAttachments {
@@ -133,7 +135,7 @@ export class MediaAttachments {
     principal: Principal,
     input: MediaUpload,
     leaseId: string,
-    dimensions: { width: number; height: number },
+    dimensions: { width: number; height: number; durationMs?: number },
   ) {
     return this.service.access(principal, "admin", async ({ trx }) => {
       const note = await this.note(trx, input.memoryId);
@@ -150,6 +152,7 @@ export class MediaAttachments {
         .update({
           width: dimensions.width,
           height: dimensions.height,
+          durationMs: dimensions.durationMs ?? null,
           status: "ready",
         })
         .returning("*");
@@ -226,5 +229,78 @@ export class MediaAttachments {
       bytes: number;
       sha256: string;
     };
+  }
+  async transcript(principal: Principal, memoryId: string, id: string) {
+    const object = await this.read(principal, memoryId, id);
+    if (object.mime !== "audio/wav") throw missing();
+    return this.service.access(
+      principal,
+      "memory:read",
+      async ({ trx, grant }) => {
+        await this.note(trx, memoryId, grant);
+        const row = await trx("media_transcripts")
+          .where({ mediaId: id })
+          .select("text", "version")
+          .first();
+        return row ?? { text: "", version: 0 };
+      },
+    );
+  }
+  async saveTranscript(
+    principal: Principal,
+    memoryId: string,
+    id: string,
+    input: { operationId: string; expectedVersion: number; text: string },
+  ) {
+    return this.service.access(principal, "admin", async ({ trx, account }) => {
+      const note = await this.note(trx, memoryId);
+      const object = await trx("media_objects")
+        .where({ id, memoryId, mime: "audio/wav", status: "ready" })
+        .first();
+      if (
+        !object ||
+        !(await trx("media_revision_bindings")
+          .where({ mediaId: id, memoryId, version: note.version })
+          .first())
+      )
+        throw missing();
+      const old = await trx("media_transcripts").where({ mediaId: id }).first(),
+        fingerprint = createHash("sha256")
+          .update(JSON.stringify(input))
+          .digest("hex");
+      if (old?.operationId === input.operationId) {
+        if (old.fingerprint !== fingerprint) throw conflict();
+        return { text: old.text, version: old.version };
+      }
+      if ((old?.version ?? 0) !== input.expectedVersion) throw conflict();
+      const version = input.expectedVersion + 1;
+      await trx("media_transcripts")
+        .insert({
+          accountId: account.id,
+          mediaId: id,
+          text: input.text,
+          version,
+          operationId: input.operationId,
+          fingerprint,
+        })
+        .onConflict(["accountId", "mediaId"])
+        .merge({
+          text: input.text,
+          version,
+          operationId: input.operationId,
+          fingerprint,
+          updatedAt: trx.fn.now(),
+        });
+      await trx("media_transcript_revisions").insert({
+        accountId: account.id,
+        mediaId: id,
+        version,
+        text: input.text,
+      });
+      await trx("accounts")
+        .where({ id: account.id })
+        .increment("exportVersion", 1);
+      return { text: input.text, version };
+    });
   }
 }

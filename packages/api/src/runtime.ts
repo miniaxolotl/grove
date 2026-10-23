@@ -16,7 +16,8 @@ export async function createRuntime() {
   try {
     await probeDatabase(db);
     if (env.MEDIA_STORAGE !== "disabled") {
-      await db.raw("SELECT status,lease_id,object_key FROM media_objects LIMIT 0");
+      await db.raw("SELECT status,lease_id,object_key,duration_ms FROM media_objects LIMIT 0");
+      await db.raw("SELECT media_id,version FROM media_transcripts LIMIT 0");
       await db.raw("SELECT media_id,version FROM media_revision_bindings LIMIT 0");
     }
     const memories = new MemoryService(

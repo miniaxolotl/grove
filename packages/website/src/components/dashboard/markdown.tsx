@@ -13,16 +13,19 @@ import ReactMarkdown, {
 import remarkGfm from "remark-gfm";
 import { Square, SquareCheck } from "lucide-react";
 import { mediaReferenceId } from "@lib/shared/media";
+import { RecordingPlayer } from "./recording-player";
+import { mediaSource } from "@/lib/media-path";
 
 type SharedLinks = { root: string; origin: string; linkedNoteIds: string[] };
 type MarkdownOptions = {
+  onUseTranscript?: (text: string) => void;
   onImageDrag?: (
     event: DragEvent<HTMLImageElement>,
     from: number,
     to: number,
   ) => void;
   onImageMove?: (from: number, to: number, direction: "up" | "down") => void;
-  media?: { noteId: string; version?: number };
+  media?: { noteId: string; version?: number; live?: boolean };
   source: string;
   shared?: SharedLinks;
   onToggleTask?: (offset: number, checked: boolean) => void;
@@ -141,7 +144,28 @@ const components: Components = {
   li: TaskItem,
   input: TaskCheckbox,
   a: function Link({ href, children }) {
-    const { shared } = useContext(MarkdownContext);
+    const { shared, media, onUseTranscript } = useContext(MarkdownContext);
+    const recording = mediaReferenceId(href ?? "");
+    if (recording) {
+      if (!media) return <span>{children}</span>;
+      const url = mediaSource(
+        media.noteId,
+        recording,
+        media.live ? undefined : media.version,
+        shared?.root,
+      );
+      return (
+        <RecordingPlayer
+          key={`${media.noteId}:${recording}`}
+          src={url}
+          title={children}
+          noteId={media.noteId}
+          mediaId={recording}
+          shared={!!shared}
+          onUse={onUseTranscript}
+        />
+      );
+    }
     const target = sharedLink(href, shared);
     return target ? (
       <a
@@ -182,9 +206,7 @@ const components: Components = {
     const id = typeof src === "string" ? mediaReferenceId(src) : null;
     if (id) {
       if (!media) return <span>Image: {alt || "Attachment"}</span>;
-      const url = shared
-        ? `${shared.root}/notes/${media.noteId}/media/${id}`
-        : `/api/grove/memories/${media.noteId}/media/${id}${media.version ? `?version=${media.version}` : ""}`;
+      const url = mediaSource(media.noteId, id, media.version, shared?.root);
       // Authenticated same-origin bytes must bypass the public Next image cache.
       const from = node?.position?.start.offset,
         to = node?.position?.end.offset;

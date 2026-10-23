@@ -1,5 +1,26 @@
 # Delivery evidence
 
+## Recordings — stacked continuation
+
+Migration018 adds PCM WAV duration validation and independently versioned retained
+transcripts. The compact Add media menu contains image, recording and audio-upload
+actions; active capture has explicit Stop/Cancel feedback. Originals reuse image
+storage, tenant/revision guards and quotas. Playback supports scoped Range/HEAD;
+transcript Use inserts through normal editor history. TAR includes WAV/text
+sidecars and v3 exports page bindings/transcript history separately. PDF resolves
+only actual image nodes. [Feature and limits](recordings.md).
+
+Shared input buffering, MIME/reference metadata, uploads and media URL construction
+replace duplicated image/audio paths. Initial verification passes184 backend/service
+cases (four optional-service skips), root/site static checks and builds, five packed
+artifacts and bundle budgets. The real-component synthetic-microphone journey covers
+capture, track cleanup, playback, transcript save/use, cancel and TAR/PDF. Visual
+review found and corrected inline/baseline placement and inherited textarea sizing.
+All203 Chromium checks pass. The corrected real-API journey passes in Chromium
+(synthetic microphone plus ended-track checks) and WebKit (WAV upload fallback,
+playback, transcript/save/use and TAR/PDF) at desktop/390px. Current playback keeps
+its source URL through note autosave. Physical microphones remain unqualified.
+
 ## Saved-note images — stacked continuation
 
 The follow-up supports file drop throughout the note workspace and moving an

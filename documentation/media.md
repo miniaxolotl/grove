@@ -1,6 +1,6 @@
 # Images and durable media
 
-Images attach to saved notes. Choose **Add image**, paste an image or drop a file
+Images attach to saved notes. Choose **Add media → Add image**, paste an image or drop a file
 into the editor after the note and its changes have saved. The website accepts
 static PNG, JPEG and WebP up to **3 MiB** (within the hosted proxy request budget).
 The API supports **10 MiB**, 24 million decoded pixels and 10,000 pixels per axis.
@@ -72,7 +72,7 @@ stream. The website proxy authenticates first and forwards binary streams with a
 
 **Note with images (.tar)** contains `note.md` with relative paths,
 `media/<UUID>.<extension>` with byte-identical originals, and `manifest.json`
-version 1 with note identity/revision, MIME, sizes and SHA-256 checksums. Generated
+version1 with note identity/revision, MIME, sizes and SHA-256 checksums. Generated
 paths prevent filename traversal. Save drafts first for this portable archive.
 Missing/corrupt media or concurrent changes fail the stream rather than claiming a
 complete archive. Plain Markdown/copy retains internal references and is labelled
@@ -82,8 +82,8 @@ fetches external image URLs and remains deferred from the initial Notes bundle.
 
 Account/notebook exports can select **Include original media** (`includeMedia:true`
 on `POST /v1/exports`). Existing text exports remain v2 NDJSON. Media-complete
-`grove.ndjson.v3` adds `media_object` metadata (including bound revision numbers)
-and `media_chunk` records with UUID, byte offset and base64 data. Chunks decode to
+`grove.ndjson.v3` adds `media_object` metadata, separately paged `media_binding`
+records and `media_chunk` records with UUID, byte offset and base64 data. Chunks decode to
 at most 48 KiB, offsets are contiguous, and the reconstructed object must match
 the metadata size/SHA-256. Assembly checkpoints one object at a time, verifies
 integrity and retains export-version/lease fences and one-day artifact expiry.
@@ -132,6 +132,6 @@ application deployment occurred. Hosting body limits and capability-log redactio
 remain rollout checks. See [storage details](development/media-foundation.md),
 [sharing limitations](sharing.md) and [deployment](deploy.md).
 
-Recordings and STT/TTS are subsequent stacked slices, not delivered by this image
-change. [Screenshots](design/screenshots/media-images/README.md) show synthetic
+[Recordings](recordings.md) add original WAV playback and editable transcripts;
+STT/TTS follows separately. [Screenshots](design/screenshots/media-images/README.md) show synthetic
 desktop/phone and export states; the PR uses three previews per row.

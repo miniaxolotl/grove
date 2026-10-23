@@ -10,6 +10,8 @@ export const imageMimeTypes = [
   "image/webp",
 ] as const;
 export type ImageMime = (typeof imageMimeTypes)[number];
+export const mediaMimeTypes = [...imageMimeTypes, "audio/wav"] as const;
+export type MediaMime = (typeof mediaMimeTypes)[number];
 
 // Canonical UUIDs only: no paths, filenames, URL credentials, query or fragment.
 const uuid =

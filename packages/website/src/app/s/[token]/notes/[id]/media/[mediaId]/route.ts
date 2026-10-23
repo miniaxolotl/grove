@@ -39,27 +39,44 @@ export async function GET(
       new URL(`/public/shares/${token}/notes/${id}/media/${mediaId}`, origin),
       {
         cache: "no-store",
+        headers: request.headers.get("range")
+          ? { Range: request.headers.get("range")! }
+          : {},
+        method: request.method,
         redirect: "error",
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(90000)]),
       },
     );
     if (!response.ok) {
       await response.body?.cancel();
+      if (response.status === 416) return new Response(null, { status: 416, headers: { ...headers, "Content-Range": response.headers.get("content-range") ?? "bytes */0" } });
       return fail(response.status === 404 ? 404 : 503);
     }
     const type = response.headers.get("content-type");
-    if (!type || !["image/png", "image/jpeg", "image/webp"].includes(type)) {
+    if (
+      !type ||
+      !["image/png", "image/jpeg", "image/webp", "audio/wav"].includes(type)
+    ) {
       await response.body?.cancel();
       return fail(503);
     }
     return new Response(response.body, {
+      status: response.status,
       headers: {
         ...headers,
         "Content-Type": type,
         "Content-Disposition": "inline",
+        ...(response.headers.get("content-range")
+          ? { "Content-Range": response.headers.get("content-range")! }
+          : {}),
+        ...(response.headers.get("content-length")
+          ? { "Content-Length": response.headers.get("content-length")! }
+          : {}),
+        "Accept-Ranges": "bytes",
       },
     });
   } catch {
     return fail(503);
   }
 }
+export { GET as HEAD };

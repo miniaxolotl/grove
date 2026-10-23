@@ -27,7 +27,9 @@ async function forward(
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
   const media =
-    /^memories\/[0-9a-f-]+\/(?:media\/[0-9a-f-]+|archive-file)$/.test(path);
+    /^memories\/[0-9a-f-]+\/(?:media\/[0-9a-f-]+(?:\/transcript)?|archive-file)$/.test(
+      path,
+    );
   if (
     !media &&
     !allowed.test(path) &&
@@ -91,6 +93,9 @@ async function forward(
       method: request.method,
       headers: {
         Authorization: `Bearer ${token}`,
+        ...(media && request.headers.get("range")
+          ? { Range: request.headers.get("range")! }
+          : {}),
         "Content-Type": binary
           ? (request.headers.get("content-type") ?? "application/octet-stream")
           : "application/json",
@@ -133,6 +138,8 @@ async function forward(
       "content-type",
       "content-disposition",
       "content-length",
+      "content-range",
+      "accept-ranges",
       "retry-after",
     ]) {
       const value = upstream.headers.get(name);
@@ -148,6 +155,7 @@ async function forward(
 }
 export {
   forward as GET,
+  forward as HEAD,
   forward as POST,
   forward as PUT,
   forward as PATCH,

@@ -245,7 +245,7 @@ function NoteExportDialog({
                   }}
                 >
                   <Download size={17} />
-                  Note with images (.tar)
+                  Note with media (.tar)
                 </button>
               )}
               <button
@@ -291,7 +291,7 @@ function NoteExportDialog({
             {snapshot.content.includes("grove-media:") && (
               <p className="text-sm text-muted">
                 Markdown keeps internal attachment references. Save changes and
-                choose Note with images for portable original files, or PDF for
+                choose Note with media for portable original files, or PDF for
                 embedded images. Original image metadata is retained.
               </p>
             )}
