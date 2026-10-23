@@ -33,6 +33,7 @@ import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { RevisionCompare } from "./revision-compare";
 import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
 import { NoteDeleteDialog } from "./note-delete-dialog";
+import { CommandMenuButton } from "./workspace-commands";
 import { useNoteExport } from "./note-export";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
@@ -183,6 +184,7 @@ export function MemoryEditor({
     operationId: string;
     input?: Record<string, unknown>;
   } | null>(draft?.pending ?? null);
+  const saveImmediately = useRef(false);
   const dirty = base
     ? content.trim() !== base.content.trim() ||
       kind !== base.kind ||
@@ -444,6 +446,8 @@ export function MemoryEditor({
     // Retrying an uncertain save must use its original payload even if newer
     // local edits are empty or exceed the save limit.
     if (saveDisabled && !(pending.current?.input && !busy && !latest)) return;
+    if (!pending.current?.input || pending.current.input.content === content)
+      saveImmediately.current = false;
     setDialogBusy(!autoSave);
     setError("");
     if (kind === "handoff" && !task.current)
@@ -498,6 +502,7 @@ export function MemoryEditor({
       },
     });
   useEffect(() => {
+    if (!dirty && !busy) saveImmediately.current = false;
     if (
       !autoSave ||
       saveDisabled ||
@@ -507,11 +512,17 @@ export function MemoryEditor({
       mediaBusy
     )
       return;
-    const timer = setTimeout(() => autosave(), 900);
+    if (saveImmediately.current) {
+      autosave();
+      return;
+    }
+    const timer = setTimeout(() => autosave(), 450);
     return () => clearTimeout(timer);
   }, [
     autoSave,
     mediaBusy,
+    dirty,
+    busy,
     saveDisabled,
     error,
     content,
@@ -620,6 +631,7 @@ export function MemoryEditor({
           <Maximize2 size={16} /> Expand editor
         </button>
       )}
+      <CommandMenuButton menuItem />
     </>
   );
   return (
@@ -678,7 +690,11 @@ export function MemoryEditor({
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
                 <h1>{noteTitle}</h1>
               </div>
-              <span className="note-save-status" role="status">
+              <span
+                className="note-save-status"
+                role="status"
+                title={autoSave ? "Saves automatically" : undefined}
+              >
                 <Check
                   size={13}
                   aria-hidden="true"
@@ -830,12 +846,7 @@ export function MemoryEditor({
                 base ? { noteId: base.id, version: base.version } : undefined
               }
               upload={
-                base &&
-                !dirty &&
-                !busy &&
-                !held &&
-                !latest &&
-                !deleteRequested
+                base && !dirty && !busy && !held && !latest && !deleteRequested
                   ? async (file, signal) => {
                       setMediaBusy(true);
                       try {
@@ -847,8 +858,9 @@ export function MemoryEditor({
                   : undefined
               }
               value={content}
-              onChange={(value) => {
+              onChange={(value, immediate) => {
                 setContent(value);
+                if (immediate) saveImmediately.current = true;
                 if (!latest) setError("");
               }}
               disabled={mediaBusy || (busy && !autoSave)}
@@ -989,16 +1001,6 @@ export function MemoryEditor({
                 Cancel
               </Button>
             </div>
-          )}
-          {pageView && (
-            <p className="note-editor-hint">
-              {autoSave
-                ? "Saves automatically"
-                : `${shortcutHint(shortcuts.save)} to save`}
-              {draftKey && dirty
-                ? " · Draft kept while you move around Grove"
-                : " · Earlier versions stay in History"}
-            </p>
           )}
         </fieldset>
       </form>

@@ -160,6 +160,15 @@
   flex: 1;
 }
 @media (max-width: 600px) {
+  .notebook-manager .notebook-tree-row {
+    flex-wrap: wrap;
+  }
+  .notebook-manager .notebook-tree-actions {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+    padding-left: 24px;
+  }
   .notebook-manager {
     padding: 6px;
   }

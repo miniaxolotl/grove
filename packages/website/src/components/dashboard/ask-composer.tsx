@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ArrowUp,
   Bold,
@@ -24,6 +31,8 @@ export function AskComposer({
   onStop,
   pending,
   disabled = false,
+  tools,
+  sendDisabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -31,6 +40,8 @@ export function AskComposer({
   onStop: () => void;
   pending: boolean;
   disabled?: boolean;
+  tools?: ReactNode;
+  sendDisabled?: boolean;
 }) {
   const id = useId();
   const input = useRef<HTMLTextAreaElement>(null);
@@ -111,7 +122,7 @@ export function AskComposer({
       className={`ask-composer${formatted ? " is-formatted" : ""}`}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!pending && !disabled && value.trim()) {
+        if (!pending && !disabled && !sendDisabled && value.trim()) {
           setPreview(false);
           onSend(formatted ? "markdown" : "plain");
         }
@@ -175,7 +186,7 @@ export function AskComposer({
         maxLength={6000}
         disabled={disabled}
         hidden={preview}
-        placeholder="Ask, find, or change a note…"
+        placeholder="Ask, research, or organize…"
         aria-describedby={`${id}-hint`}
         onSelect={(event) => {
           selection.current = {
@@ -217,6 +228,7 @@ export function AskComposer({
         </div>
       )}
       <div className="ask-composer-footer">
+        {tools}
         <button
           type="button"
           className="app-icon ask-format-toggle"
@@ -254,7 +266,7 @@ export function AskComposer({
           <button
             className="ask-send"
             aria-label="Send question"
-            disabled={disabled || !value.trim()}
+            disabled={disabled || sendDisabled || !value.trim()}
           >
             <ArrowUp size={18} />
           </button>

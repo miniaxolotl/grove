@@ -11,6 +11,8 @@ export const useLocation = () =>
     () => window.location.pathname + window.location.search,
   );
 export const usePathname = () => useLocation().split("?")[0];
+export const useSearchParams = () =>
+  new URLSearchParams(useLocation().split("?")[1]);
 function navigate(href: string, replace = false, scroll = true) {
   window.history[replace ? "replaceState" : "pushState"]({}, "", href);
   window.dispatchEvent(new PopStateEvent("popstate"));

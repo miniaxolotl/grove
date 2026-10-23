@@ -115,11 +115,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         <div className="app-sidebar-heading">
                           <Brand href="/app" />
                           <NewNoteLink />
+                          <WorkspaceSearchButton />
                           <div className="lg:hidden">
                             <UserButton />
                           </div>
                         </div>
-                        <WorkspaceSearchButton />
                         <div className="workspace-utilities">
                           <CommandMenuButton />
                           <ShortcutHelpButton compact />
@@ -185,15 +185,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                           <nav aria-label="Workspace help and policies">
                             <ShortcutHelpButton />
                             <TelemetryChoice />
-                            <Link
-                              href="/app/archive"
-                              aria-current={
-                                path === "/app/archive" ? "page" : undefined
-                              }
-                            >
-                              <Archive size={14} />
-                              Archive
-                            </Link>
                             <Link href="/install">Setup guide</Link>
                             <Link href="/privacy">Privacy</Link>
                             <Link href="/terms">Terms</Link>

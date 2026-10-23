@@ -6,8 +6,8 @@ export default function SharedError() {
   return (
     <section className="shared-message">
       <h1>Could not open this link</h1>
-      <p>Grove is temporarily unavailable. Please try again.</p>
-      <a className="shared-next" href={path}>
+      <p>Grove is temporarily unavailable. Try again in a moment.</p>
+      <a className="shared-retry" href={path}>
         Try again
       </a>
     </section>

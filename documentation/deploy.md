@@ -1,9 +1,56 @@
 # Hosting and releases
 
+Follow [shared release/naming conventions](release-conventions.md): patch-first
+automatic versions, explicit `Release-As` minor/major/breaking decisions, concise
+conventional commit/PR names and immutable promotion refs. Coordinated package and
+marketplace version mappings remain part of the single root release.
+
 Shared workflow names, action pins, runtime and evidence conventions follow the
 [cross-repository CI/CD baseline](pipeline-conventions.md).
 
+The [Grove hardening review](development/cicd-hardening-review.md) distinguishes
+implemented digest-bound rollout/readiness from planned selection, draining and
+fenced automatic last-good recovery. Those controllers are not activated by this
+documentation refresh.
+
 ## Topology
+
+### Ask Grove tools rollout (020)
+
+Apply `20261023_020_ask_tools` with the owner connection after the notebook lifecycle
+schema, during the normal drained migration window. Coordinate the separately
+reserved media migrations 017–019 against the final release source. The migration
+retains old conversations and adds defaults, tool revisions, execution records and
+provider spending counters. Runtime readiness requires the new conversation columns.
+
+Configure optional `EXA_API_KEY` / `TAVILY_API_KEY` as API-only runtime secrets, plus
+`RESEARCH_DAILY_CALL_LIMIT` and `RESEARCH_MONTHLY_BUDGET_USD`. Missing keys leave the
+respective provider unavailable; they do not disable saved-note chat. Initial app
+provisioning and Compose forward these settings only to the API. Existing image-only
+rollouts preserve provider configuration, so add keys/limits through the operator
+configuration procedure before testing. Never use public website variables for keys.
+
+Roll out the admitted API/worker image before the website. Verify Exa-only,
+Tavily-only, both-off, bounded research citations, notebook creation/filing and
+version-fenced Apply/Undo with a disposable account. Use the current recovery
+script: it preserves current tools and conservative spend, clears resumable external
+calls and invalidates old write previews. See [Ask tools](ask-tools.md).
+
+### Notebook lifecycle rollout (016)
+
+Back up the database and pause/drain API and worker mutations. Apply
+`20261023_016_notebook_lifecycle` with the owner connection after 015, then roll out
+the admitted matching API/worker image by digest before the website. The additive
+migration defaults existing notebooks to active, preserves authored records and
+adds archive provenance and inactive-notebook write guards; DDL requires the normal
+maintenance window. Runtime readiness requires the new project/note columns.
+
+Verify subtree Archive/Restore and soft Delete using a disposable account, including
+non-owner RLS denial, preserved source/history, stale-save rejection and revoked
+direct links. Restore does not revive direct links; a live ancestor link can cover
+restored descendants again. Use the current recovery reconciliation to replay
+notebook/note tombstones. This is forward-only; do not run older mutating API/worker
+versions after activation. See [notebook lifecycle](notebook-lifecycle.md).
 
 ### Notebook assistance rollout (015)
 
@@ -71,8 +118,11 @@ production instances. Production issuer: `https://clerk.usegrove.cloud`;
 development issuer: `https://wanted-bison-3950.clerk.accounts.dev`.
 Pull production keys with `clerk env pull --app app_3KtGcnwE2Yg0P34l9PVij7LnOTS
 --instance prod --file /absolute/path/to/.env.clerk.production.local`.
-Secrets belong in ignored 0600 files, the private `secrets.md` inventory and provider
-secret stores. `usegrove.app` was a provisional mistake and is no longer configured.
+Secrets belong in Grove's Doppler project, ignored 0600 files and the private
+`secrets.md` custody inventory. Keep API, worker, website and operator configs
+separate; updating custody does not deploy or rotate provider credentials. Never
+commit the inventory or include values in plans or PRs. `usegrove.app` was a
+provisional mistake and is no longer configured.
 
 API environment: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_ISSUER`,
 `CLERK_WEBHOOK_SIGNING_SECRET`, exact `SITE_URL` and `API_ORIGIN`.
@@ -288,8 +338,10 @@ node --env-file=.env.digitalocean.local scripts/deploy-digitalocean.mjs \
 ```
 
 Rollback uses the same command with a previously healthy digest after confirming
-schema compatibility. Forward migrations are not automatically reversed. Initial
-healthy image: `sha256:884593cd2e9b50528d1421371fcbb77e804d0af357336d6d494da3a2e4585fff`.
+current schema, runtime configuration and lifecycle/queue compatibility. Select a
+verified last-good deployment for the current environment; an old bootstrap image
+is not a default rollback target. Forward migrations are not automatically reversed.
+This remains an explicit operator recovery, not an automatic rollback controller.
 
 Update website variables in Vercel's **production** environment and redeploy:
 `SITE_URL=https://usegrove.cloud`, `GROVE_API_URL=https://api.usegrove.cloud`,

@@ -81,22 +81,25 @@ export function NotebookTree({
               expand={() =>
                 setExpanded((value) => ({ ...value, [project.id]: true }))
               }
+              disclosure={
+                hasChildren ? (
+                  <IconButton
+                    label={`${open ? "Collapse" : "Expand"} ${project.name}`}
+                    aria-expanded={!!open}
+                    className="notebook-disclosure"
+                    onClick={() =>
+                      setExpanded({ ...expanded, [project.id]: !open })
+                    }
+                  >
+                    <ChevronRight size={14} />
+                  </IconButton>
+                ) : (
+                  <span className="notebook-disclosure-spacer" />
+                )
+              }
+              icon={<Icon size={16} strokeWidth={1.6} />}
               row={
                 <>
-                  {hasChildren ? (
-                    <IconButton
-                      label={`${open ? "Collapse" : "Expand"} ${project.name}`}
-                      aria-expanded={!!open}
-                      className="notebook-disclosure"
-                      onClick={() =>
-                        setExpanded({ ...expanded, [project.id]: !open })
-                      }
-                    >
-                      <ChevronRight size={14} />
-                    </IconButton>
-                  ) : (
-                    <span className="notebook-disclosure-spacer" />
-                  )}
                   {renderItem ? (
                     renderItem(project)
                   ) : (
@@ -110,7 +113,6 @@ export function NotebookTree({
                         .map((p) => p.name)
                         .join(" / ")}
                     >
-                      <Icon size={16} strokeWidth={1.6} />
                       <span>{project.name}</span>
                     </Link>
                   )}
@@ -146,6 +148,8 @@ function NotebookBranch({
   open,
   hasChildren,
   expand,
+  disclosure,
+  icon,
   row,
   children,
 }: {
@@ -155,6 +159,8 @@ function NotebookBranch({
   open: boolean;
   hasChildren: boolean;
   expand: () => void;
+  disclosure: ReactNode;
+  icon: ReactNode;
   row: ReactNode;
   children: ReactNode;
 }) {
@@ -187,6 +193,7 @@ function NotebookBranch({
         data-drop-active={isOver || undefined}
         data-drop-disabled={(dragging && invalid) || undefined}
       >
+        {disclosure}
         <button
           type="button"
           ref={setActivatorNodeRef}
@@ -197,7 +204,14 @@ function NotebookBranch({
           aria-label={`Move notebook ${project.name} with drag or keyboard`}
           title="Drag to nest, or press Space to move"
         >
-          <GripVertical size={14} />
+          <span className="notebook-folder-icon" aria-hidden="true">
+            {icon}
+          </span>
+          <GripVertical
+            className="notebook-grip-icon"
+            size={14}
+            aria-hidden="true"
+          />
         </button>
         {row}
       </div>

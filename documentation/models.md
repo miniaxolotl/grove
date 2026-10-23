@@ -86,19 +86,21 @@ these values explicitly for an existing installation.
 
 ## Account AI preferences
 
-**Settings → Preferences** has 14 independent controls and one Save action:
+**Settings → Preferences** has fourteen independent AI controls and one Save action.
+Ask Grove's per-conversation research/organization tools are configured separately
+in the composer:
 
 Drafts stay in memory while switching settings tabs. **Discard changes** returns
 to saved preferences; failed saves retain edits, and a completed save keeps any
 newer changes you made. Provider configuration uses the same Save/Discard feedback.
 
-| Category         | Controls                                                 | Required provider                                                     |
-| ---------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
-| Organization     | Titles and tags; note classification; suggested filing   | Generation for titles/tags and filing; decision for classification    |
-| Connections      | Linked notes; connected notebooks; guided cleanup        | Generation; embeddings improve candidate discovery                    |
-| Summaries        | Notebook summaries; personal summary; progress summaries; change digests | Generation                                                |
-| Ask Grove        | Answers and writing; action lists                        | Generation                                                            |
-| Connected agents | Automatic recall; automatic capture                      | Existing agent integration; keyword recall works without AI providers |
+| Category         | Controls                                                                 | Required provider                                                     |
+| ---------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| Organization     | Titles and tags; note classification; suggested filing                   | Generation for titles/tags/filing; decision for classification        |
+| Connections      | Linked notes; connected notebooks; guided cleanup                        | Generation; embeddings improve candidate discovery                    |
+| Summaries        | Notebook summaries; personal summary; progress summaries; change digests | Generation                                                            |
+| Ask Grove        | Answers and writing; action lists                                        | Generation                                                            |
+| Connected agents | Automatic recall; automatic capture                                      | Existing agent integration; keyword recall works without AI providers |
 
 Classification changes a note's type only when its `autoKind` is enabled. Explicit
 types and handoffs remain explicit. Disabling classification does not revert a type
@@ -117,7 +119,7 @@ Provider availability is separate from the saved preference. The UI identifies
 unconfigured providers while retaining the user's choices. Availability describes
 configuration, not a successful provider health check or remaining quota.
 
-`GET /v1/me` includes all 14 booleans and `aiAvailability`. Session-only
+`GET /v1/me` includes all fourteen booleans and `aiAvailability`. Session-only
 `PATCH /v1/account/settings` accepts a non-empty partial update; omitted fields keep
 their values. The website submits only changed fields. The keys are
 `titlesTagsEnabled`, `classificationEnabled`, `noteConnectionsEnabled`,
@@ -154,14 +156,19 @@ Reindex and restore reconciliation honor these independent preferences.
 - **Settings → Account → About you** and **Notebook options → Summarize notebook**
   show cited summaries. **Progress notes** opens handoffs by title. Each statement links to exact source
   IDs/revisions. Check status or regenerate on demand.
-- **Ask Grove** retrieves at most 12 current authorized notes within the same 6,000
+- **Ask Grove** normally retrieves at most 12 current authorized notes within the same 6,000
   character budget. Generation validates every citation and rechecks account,
   grant, source revisions/expiry, settings, and provider profile before returning.
   Search mode performs no generation; questions never implicitly save notes.
   Conversation generation uses bounded `proposals` and `target` arrays so providers
   can express absence without nullable-object ambiguity. Validated results become
-  the public single proposal (or `null`) contract. Incomplete actions remain errors;
-  Grove supplies preview-status wording and changes notes only after explicit Apply.
+  the public note proposal (or `null`) contract. Notebook organization uses a separate
+  bounded batch proposal and up to 50 note excerpts (300 characters each), with
+  explicit coverage. Exa/Tavily research supplies separately validated web citations;
+  conversation tools and shared cost allowances are described in [Ask tools](ask-tools.md).
+  Incomplete actions remain errors; Grove supplies preview-status wording and changes
+  notes/notebooks only after explicit Apply. Organization Undo remains available when
+  generation or organization is disabled.
 - Workers use at most 80 recent sources / 24,000 source characters; `truncated`
   signals partial coverage. Model/prompt profiles and source revisions are retained.
   Corrections, moves, archive, deletion and expiry hide stale output immediately.

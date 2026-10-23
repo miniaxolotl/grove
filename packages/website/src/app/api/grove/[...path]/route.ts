@@ -5,7 +5,7 @@ import { site } from "@/lib/site";
 export const maxDuration = 180;
 
 const allowed =
-  /^(me|ask|relationships\/(?:search|(?:note|notebook)\/[0-9a-f-]+\/(?:review|retry))|conversations(?:\/[0-9a-f-]+(?:\/turns(?:\/[0-9a-f-]+\/(?:apply|undo))?)?)?|models(?:\/test)?|briefs(?:\/refresh)?|projects(?:\/[0-9a-f-]+(?:\/share)?)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions(?:\/[1-9][0-9]*)?|archive|restore|reprocess|share))?))?|shares\/[0-9a-f-]+(?:\/rotate)?|recall|connect\/[0-9a-f-]+(?:\/(?:approve|cancel))?|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete|usage))$/;
+  /^(me|ask|relationships\/(?:search|(?:note|notebook)\/[0-9a-f-]+\/(?:review|retry))|conversations(?:\/[0-9a-f-]+(?:\/turns(?:\/[0-9a-f-]+\/(?:apply|undo))?)?)?|models(?:\/test)?|briefs(?:\/refresh)?|projects(?:\/[0-9a-f-]+(?:\/(?:share|lifecycle|archive|restore|delete))?)?|memories(?:\/(?:search|delete|[0-9a-f-]+(?:\/(?:revisions(?:\/[1-9][0-9]*)?|archive|restore|reprocess|share))?))?|shares\/[0-9a-f-]+(?:\/rotate)?|recall|connect\/[0-9a-f-]+(?:\/(?:approve|cancel))?|connections(?:\/[0-9a-f-]+)?|keys|account\/(?:settings|export|delete|usage))$/;
 async function forward(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -31,6 +31,8 @@ async function forward(
   if (
     !media &&
     !allowed.test(path) &&
+    !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
+    path !== "conversations/search" &&
     !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,
     )
@@ -78,6 +80,11 @@ async function forward(
       target.searchParams.set(
         "version",
         request.nextUrl.searchParams.get("version")!,
+      );
+    if (path === "projects" && request.nextUrl.searchParams.has("status"))
+      target.searchParams.set(
+        "status",
+        request.nextUrl.searchParams.get("status")!,
       );
     const after = request.nextUrl.searchParams.get("after");
     if (path === "conversations" && after)

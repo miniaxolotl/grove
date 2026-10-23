@@ -31,6 +31,7 @@ const stages = [
   "notebook_visit",
   "assistance_review",
   "assistance_operation",
+  "ask_settings",
   "media_object",
 ] as const;
 const pageSize = 100;
@@ -82,6 +83,8 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
     : null;
   const after = task.cursor.afterId as string | undefined;
   const kind = stages[stage];
+  if (kind === "ask_settings")
+    return projects ? [] : trx("accounts").select("id", "askTools");
   if (kind === "media_object") {
     if (!task.payload.includeMedia) return [];
     const q = trx("media_objects as o")
@@ -198,10 +201,27 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
     );
     if (projects) q.whereIn("projectId", projects);
   } else if (kind === "notebook") {
-    q.select("id", "name", "identity", "parentId", "version", "createdAt");
+    q.select(
+      "id",
+      "name",
+      "identity",
+      "parentId",
+      "version",
+      "status",
+      "createdAt",
+    );
     if (projects) q.whereIn("id", projects);
   } else if (kind === "conversation")
-    q.select("id", "title", "scope", "version", "createdAt", "updatedAt");
+    q.select(
+      "id",
+      "title",
+      "scope",
+      "version",
+      "tools",
+      "toolsVersion",
+      "createdAt",
+      "updatedAt",
+    );
   else if (kind === "turn")
     q.select(
       "id",

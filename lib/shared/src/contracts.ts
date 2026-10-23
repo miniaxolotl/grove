@@ -122,6 +122,7 @@ export type Notebook = {
   // Optional while older clients/servers roll forward to nested notebooks.
   parentId?: string | null;
   version?: number;
+  status?: "active" | "archived";
 };
 export const projectSchema = z
   .object({
