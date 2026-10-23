@@ -1,6 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  cp,
   mkdtemp,
   mkdir,
   readdir,
@@ -16,6 +17,7 @@ import { createServer } from "node:http";
 import { createHash, randomUUID } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { build } from "esbuild";
 
 const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -289,6 +291,354 @@ test("setup is repeatable, preserves JSONC and other plugins, credentials are pr
       return true;
     },
   );
+});
+
+test("packed doctor separates local and probe evidence without inspecting the live host", async () => {
+  const home = await mkdtemp(join(directory, "doctor-"));
+  const bin = join(home, "bin");
+  await mkdir(bin);
+  await writeFile(join(bin, "opencode"), "#!/bin/sh\nexit 91\n", {
+    mode: 0o700,
+  });
+  const executable = join(paths.get("mcp")!, "dist/cli.js");
+  const env = {
+    PATH: bin,
+    HOME: home,
+    XDG_CONFIG_HOME: join(home, "config"),
+    GROVE_CONFIG_HOME: join(home, "grove"),
+    GROVE_API_URL: origin,
+    GROVE_API_KEY: "artifact-test-key",
+    DO_NOT_TRACK: "1",
+  };
+  const args = [executable, "doctor", "--client", "opencode", "--json"];
+  const before = requests.length;
+  const local = JSON.parse(
+    (await exec(process.execPath, args, { env })).stdout,
+  );
+  assert.equal(local.schemaVersion, 1);
+  assert.equal(local.hostVerified, false);
+  assert.equal(
+    local.checks.find((check: { id: string }) => check.id === "host").status,
+    "unknown",
+  );
+  assert.equal(
+    local.checks.find((check: { id: string }) => check.id === "api").status,
+    "skipped",
+  );
+  assert.equal(requests.length, before, "Default diagnosis is offline");
+  const normalized = JSON.parse(
+    (
+      await exec(process.execPath, args, {
+        env: { ...env, GROVE_API_URL: `${origin}/` },
+      })
+    ).stdout,
+  );
+  assert.equal(
+    normalized.status,
+    "ok",
+    "Environment credentials are paired with the canonical API origin",
+  );
+  assert.deepEqual(
+    await readdir(home),
+    ["bin"],
+    "No configuration, credentials or telemetry written",
+  );
+  const probed = JSON.parse(
+    (await exec(process.execPath, [...args, "--probe"], { env })).stdout,
+  );
+  assert.equal(
+    probed.checks.find((check: { id: string }) => check.id === "bridge").status,
+    "passed",
+  );
+  assert.equal(
+    probed.checks.find((check: { id: string }) => check.id === "api").status,
+    "passed",
+  );
+  assert.equal(
+    probed.hostVerified,
+    false,
+    "A new bridge does not prove live host readiness",
+  );
+  assert.deepEqual(
+    requests.slice(before).map((request) => request.path),
+    ["/v1/me"],
+  );
+  assert.doesNotMatch(JSON.stringify(probed), /artifact-test-key/);
+  assert.deepEqual(await readdir(home), ["bin"]);
+  await assert.rejects(
+    exec(process.execPath, args, {
+      env: { ...env, PATH: join(home, "absent") },
+    }),
+    (error: unknown) => {
+      const report = JSON.parse((error as { stdout: string }).stdout);
+      assert.equal(report.status, "attention");
+      assert.equal(
+        report.checks.find((check: { id: string }) => check.id === "client")
+          .code,
+        "client_missing",
+      );
+      return true;
+    },
+  );
+});
+
+test("telemetry-enabled packed doctor makes no telemetry identity or outbound analytics requests", async () => {
+  const source = join(directory, "doctor-telemetry-source");
+  const target = join(directory, "doctor-telemetry-packed");
+  await cp(paths.get("mcp")!, source, { recursive: true });
+  const pkg = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
+  await build({
+    entryPoints: [join(root, "packages/mcp/src/cli.ts")],
+    outfile: join(source, "dist/cli.js"),
+    bundle: true,
+    platform: "node",
+    mainFields: ["module", "main"],
+    target: "node22",
+    format: "esm",
+    define: {
+      __GROVE_TELEMETRY__: JSON.stringify({
+        enabled: true,
+        revision: "a".repeat(40),
+        version: pkg.version,
+        component: "cli",
+        key: "phc_doctorfixture",
+        cliDsn:
+          "https://00000000000000000000000000000000@o0.ingest.us.sentry.io/1",
+        apiDsn: "",
+      }),
+    },
+    banner: {
+      js: 'import { createRequire as __groveCreateRequire } from "node:module"; const require = __groveCreateRequire(import.meta.url);',
+    },
+  });
+  await exec(process.execPath, [
+    join(root, "scripts/release/pack.mjs"),
+    source,
+    target,
+  ]);
+  const archive = (await readdir(target)).find((file) =>
+    file.endsWith(".tgz"),
+  )!;
+  await exec("tar", ["-xzf", join(target, archive), "-C", target]);
+  const executable = join(target, "package/dist/cli.js");
+  const network = join(directory, "doctor-telemetry-network.jsonl");
+  const guard = join(directory, "doctor-telemetry-network.mjs");
+  await writeFile(network, "");
+  await writeFile(
+    guard,
+    `import { appendFileSync } from "node:fs";
+const send = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
+  appendFileSync(${JSON.stringify(network)}, JSON.stringify({ origin: url.origin, path: url.pathname, telemetry: new Headers(init?.headers).get("X-Grove-Telemetry") }) + "\\n");
+  if (url.origin !== ${JSON.stringify(origin)}) throw new Error("Fixture blocks outbound analytics");
+  return send(input, init);
+};
+`,
+  );
+  const home = await mkdtemp(join(directory, "doctor-telemetry-home-"));
+  const bin = join(home, "bin");
+  await mkdir(bin);
+  await writeFile(join(bin, "opencode"), "#!/bin/sh\nexit 94\n", {
+    mode: 0o700,
+  });
+  // Deliberately omit CI, DO_NOT_TRACK and GROVE_TELEMETRY: the build is enabled.
+  const env = {
+    PATH: bin,
+    HOME: home,
+    XDG_CONFIG_HOME: join(home, "config"),
+    GROVE_CONFIG_HOME: join(home, "grove"),
+    GROVE_API_URL: origin,
+    GROVE_API_KEY: "artifact-test-key",
+  };
+  const control = await mkdtemp(join(directory, "doctor-telemetry-control-"));
+  await exec(
+    process.execPath,
+    ["--import", guard, executable, "status", "--client", "opencode", "--json"],
+    {
+      env: { ...env, HOME: control, GROVE_CONFIG_HOME: join(control, "grove") },
+      timeout: 10000,
+    },
+  );
+  await stat(join(control, "grove/telemetry-id"));
+  assert.match(
+    await readFile(network, "utf8"),
+    /sentry\.io|posthog\.com/,
+    "The control enables telemetry; outbound uploads are blocked",
+  );
+  await writeFile(network, "");
+  const args = [
+    "--import",
+    guard,
+    executable,
+    "doctor",
+    "--client",
+    "opencode",
+    "--json",
+  ];
+  const local = JSON.parse(
+    (await exec(process.execPath, args, { env })).stdout,
+  );
+  assert.equal(local.status, "ok");
+  assert.equal(await readFile(network, "utf8"), "");
+  const probed = JSON.parse(
+    (
+      await exec(process.execPath, [...args, "--probe"], {
+        env,
+        timeout: 10000,
+      })
+    ).stdout,
+  );
+  assert.equal(probed.status, "ok");
+  assert.deepEqual(
+    (await readFile(network, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line)),
+    [{ origin, path: "/v1/me", telemetry: "off" }],
+  );
+  assert.deepEqual(
+    await readdir(home),
+    ["bin"],
+    "Doctor never creates a telemetry identity",
+  );
+});
+
+test("offline doctor rejects incomplete saved authentication but accepts refreshable OAuth", async () => {
+  const home = await mkdtemp(join(directory, "doctor-credentials-"));
+  const bin = join(home, "bin");
+  const store = join(home, "grove");
+  await mkdir(bin);
+  await mkdir(store);
+  await writeFile(join(bin, "codex"), "#!/bin/sh\nexit 93\n", { mode: 0o700 });
+  const config = JSON.stringify({
+    origins: { codex: origin },
+    accounts: { [origin]: { codex: accountId } },
+  });
+  await writeFile(join(store, "config.json"), config);
+  const credential = join(
+    store,
+    `credentials-${createHash("sha256").update(`${origin}|codex|${accountId}`).digest("hex")}.json`,
+  );
+  const env = {
+    PATH: bin,
+    HOME: home,
+    GROVE_CONFIG_HOME: store,
+    DO_NOT_TRACK: "1",
+  };
+  const args = [
+    join(paths.get("mcp")!, "dist/cli.js"),
+    "doctor",
+    "--client",
+    "codex",
+    "--json",
+  ];
+  const before = requests.length;
+  const identity = { origin, agent: "codex", accountId };
+  for (const payload of [{}, { key: "" }, { tokens: {} }]) {
+    const source = JSON.stringify({ ...identity, ...payload });
+    await writeFile(credential, source);
+    await assert.rejects(
+      exec(process.execPath, args, { env }),
+      (error: unknown) => {
+        const report = JSON.parse((error as { stdout: string }).stdout);
+        assert.equal(
+          report.checks.find(
+            (check: { id: string }) => check.id === "credentials",
+          ).code,
+          "credential_store_unavailable",
+        );
+        return true;
+      },
+    );
+    assert.equal(await readFile(credential, "utf8"), source);
+  }
+  const refreshable = JSON.stringify({
+    ...identity,
+    tokens: {
+      access_token: "private-access-canary",
+      refresh_token: "private-refresh-canary",
+      token_type: "Bearer",
+    },
+    expiresAt: 1,
+    client: { client_id: "fixture-client" },
+    redirectUrl: "http://127.0.0.1:34144/callback",
+  });
+  await writeFile(credential, refreshable);
+  const report = JSON.parse(
+    (await exec(process.execPath, args, { env })).stdout,
+  );
+  assert.equal(report.status, "ok");
+  assert.doesNotMatch(JSON.stringify(report), /private-.*-canary/);
+  assert.equal(await readFile(credential, "utf8"), refreshable);
+  assert.equal(await readFile(join(store, "config.json"), "utf8"), config);
+  assert.equal(requests.length, before, "Offline checks do not refresh tokens");
+});
+
+test("doctor rejects malformed, unsupported or unapproved API access without exposing upstream details", async () => {
+  const home = await mkdtemp(join(directory, "doctor-response-"));
+  const bin = join(home, "bin");
+  await mkdir(bin);
+  await writeFile(join(bin, "codex"), "#!/bin/sh\nexit 92\n", { mode: 0o700 });
+  let data: unknown;
+  const upstream = createServer((_request, response) =>
+    response
+      .setHeader("Content-Type", "application/json")
+      .end(JSON.stringify({ success: true, data })),
+  );
+  await new Promise<void>((done) => upstream.listen(0, "127.0.0.1", done));
+  const address = upstream.address();
+  assert(address && typeof address !== "string");
+  const endpoint = `http://127.0.0.1:${address.port}`;
+  const env = {
+    PATH: bin,
+    HOME: home,
+    GROVE_CONFIG_HOME: join(home, "grove"),
+    GROVE_API_URL: endpoint,
+    GROVE_API_KEY: "private-doctor-canary",
+    DO_NOT_TRACK: "1",
+  };
+  try {
+    for (const [value, code] of [
+      [null, "invalid_response"],
+      [{ accountId, capabilities: [], apiVersion: 1 }, "awaiting_grant"],
+      [
+        { accountId, capabilities: ["memory:read"], apiVersion: 2 },
+        "api_version_unsupported",
+      ],
+    ] as const) {
+      data = value;
+      await assert.rejects(
+        exec(
+          process.execPath,
+          [
+            join(paths.get("mcp")!, "dist/cli.js"),
+            "doctor",
+            "--client",
+            "codex",
+            "--json",
+            "--probe",
+          ],
+          { env },
+        ),
+        (error: unknown) => {
+          const stdout = (error as { stdout: string }).stdout;
+          const report = JSON.parse(stdout);
+          assert.equal(
+            report.checks.find((check: { id: string }) => check.id === "api")
+              .code,
+            code,
+          );
+          assert.equal(report.hostVerified, false);
+          assert.doesNotMatch(stdout, /private-doctor-canary/);
+          return true;
+        },
+      );
+    }
+  } finally {
+    upstream.closeAllConnections();
+    await new Promise<void>((done) => upstream.close(() => done()));
+  }
 });
 
 test("a running packed bridge picks up first login and an explicit origin switch", async () => {

@@ -1,10 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { FilePlus2, Plus, Pencil, FolderInput, Share2 } from "lucide-react";
+import {
+  FilePlus2,
+  Plus,
+  Pencil,
+  FolderInput,
+  Share2,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+} from "lucide-react";
 import type { Project } from "@/lib/dashboard-api";
 import type { NotebookAction } from "./notebook-dialog";
 import { IconButton } from "./ui/button";
+import { ActionMenu } from "./ui/action-menu";
 
 /** Common creation/organization order across notebook menus and Manage. */
 export function NotebookActions({
@@ -18,6 +28,37 @@ export function NotebookActions({
   onShare?: () => void;
   compact?: boolean;
 }) {
+  const lifecycle = (
+    <>
+      <button
+        type="button"
+        className="action-group-start"
+        onClick={() =>
+          onAction({
+            mode: project.status === "archived" ? "restore" : "archive",
+            project,
+          })
+        }
+      >
+        {project.status === "archived" ? (
+          <ArchiveRestore size={15} />
+        ) : (
+          <Archive size={15} />
+        )}
+        {project.status === "archived"
+          ? "Restore notebook"
+          : "Archive notebook"}
+      </button>
+      <button
+        type="button"
+        className="danger action-group-start"
+        onClick={() => onAction({ mode: "delete", project })}
+      >
+        <Trash2 size={15} /> Delete notebook…
+      </button>
+    </>
+  );
+  if (project.status === "archived") return lifecycle;
   const actions = [
     {
       label: "New sub-notebook",
@@ -77,6 +118,13 @@ export function NotebookActions({
             <Share2 size={15} /> Share notebook
           </button>
         ))}
+      {compact ? (
+        <ActionMenu label={`More actions for ${project.name}`}>
+          {lifecycle}
+        </ActionMenu>
+      ) : (
+        lifecycle
+      )}
     </>
   );
 }

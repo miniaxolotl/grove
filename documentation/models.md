@@ -1,6 +1,6 @@
 # Models and organized memory
 
-Grove separates three roles. Self-hosted installations can configure each role;
+Grove separates three text roles. Self-hosted installations can configure each role;
 Grove Cloud uses deployment-managed providers:
 
 | Role       | Cloud provider / model              | Behavior                                                                                 |
@@ -12,6 +12,8 @@ Grove Cloud uses deployment-managed providers:
 DeepInfra receives query/document text for embedding and source/candidate text for
 classification. MiniMax receives bounded source text for organization, relationships, summaries,
 and Ask Grove conversations (including up to eight preceding completed turns).
+Optional [speech](speech.md) uses separate OpenAI whisper-1/tts-1 adapters and
+independent default-off account controls; it does not reuse a text role's provider.
 Cloud credentials are server-only. Use standard pay-as-you-go MiniMax API keys for
 the public service; a MiniMax coding subscription has separate eligibility and usage
 windows ([provider guidance](https://platform.minimax.io/docs/m-plan/usage-rules)).
@@ -86,19 +88,22 @@ these values explicitly for an existing installation.
 
 ## Account AI preferences
 
-**Settings → Preferences** has ten independent controls and one Save action:
+**Settings → Preferences** has sixteen independent AI controls and one Save action.
+Ask Grove's per-conversation research/organization tools are configured separately
+in the composer:
 
 Drafts stay in memory while switching settings tabs. **Discard changes** returns
 to saved preferences; failed saves retain edits, and a completed save keeps any
 newer changes you made. Provider configuration uses the same Save/Discard feedback.
 
-| Category         | Controls                                                 | Required provider                                                     |
-| ---------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
-| Organization     | Titles and tags; note classification                     | Generation for titles/tags; decision for classification               |
-| Connections      | Linked notes; connected notebooks                        | Generation; embeddings improve candidate discovery                    |
-| Summaries        | Notebook summaries; personal summary; progress summaries | Generation                                                            |
-| Ask Grove        | Answers and writing                                      | Generation                                                            |
-| Connected agents | Automatic recall; automatic capture                      | Existing agent integration; keyword recall works without AI providers |
+| Category         | Controls                                                                 | Required provider                                                            |
+| ---------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Organization     | Titles and tags; note classification; suggested filing                   | Generation for titles/tags and filing; decision for classification           |
+| Connections      | Linked notes; connected notebooks; guided cleanup                        | Generation; embeddings improve candidate discovery                           |
+| Summaries        | Notebook summaries; personal summary; progress summaries; change digests | Generation                                                                   |
+| Ask Grove        | Answers and writing; action lists                                        | Generation                                                                   |
+| Connected agents | Automatic recall; automatic capture                                      | Existing agent integration; keyword recall works without AI providers        |
+| Speech           | Recording transcription; read aloud                                      | Separately configured OpenAI speech, original/temporary storage respectively |
 
 Classification changes a note's type only when its `autoKind` is enabled. Explicit
 types and handoffs remain explicit. Disabling classification does not revert a type
@@ -107,22 +112,30 @@ results while disabled. Summary controls distinguish notebook scope, personal sc
 and task handoffs, including summaries supplied to connected agents.
 
 Disabling a feature cancels its queued work and fences its in-flight output.
-Re-enabling schedules that feature for active notes without resetting unrelated
+Re-enabling background text features schedules those features for active notes without resetting unrelated
 jobs. Ask Grove can be disabled independently of summaries; existing conversations
 remain readable, keyword search remains usable, and Undo remains available for
 already-applied edits. Automatic agent controls keep explicit saves and reads usable
 within the connection's approved scope.
+Speech always requires a separate user action; enabling it never starts transcription
+or read aloud. Accepted transcripts and original recording playback remain usable.
 
 Provider availability is separate from the saved preference. The UI identifies
 unconfigured providers while retaining the user's choices. Availability describes
 configuration, not a successful provider health check or remaining quota.
 
-`GET /v1/me` includes all ten booleans and `aiAvailability`. Session-only
+`GET /v1/me` includes all sixteen booleans, `aiAvailability` and separate
+`speechAvailable`. Session-only
 `PATCH /v1/account/settings` accepts a non-empty partial update; omitted fields keep
 their values. The website submits only changed fields. The keys are
 `titlesTagsEnabled`, `classificationEnabled`, `noteConnectionsEnabled`,
 `notebookConnectionsEnabled`, `notebookSummariesEnabled`, `personalSummaryEnabled`,
-`progressSummariesEnabled`, `askEnabled`, `recallEnabled`, and `captureEnabled`.
+`progressSummariesEnabled`, `askEnabled`, `recallEnabled`, `captureEnabled`,
+`filingEnabled`, `actionListsEnabled`, `digestsEnabled`, `cleanupEnabled`,
+`transcriptionEnabled`, and `readAloudEnabled`.
+The four assistance controls are on-demand and documented in
+[notebook assistance](notebook-assistance.md). The two speech controls default off;
+their separate provider, privacy, request and cache contracts are in [speech](speech.md).
 
 For older clients, `organizeEnabled` updates the four organization/connection
 controls and `summariesEnabled` updates all three summary controls plus Ask Grove.
@@ -150,14 +163,19 @@ Reindex and restore reconciliation honor these independent preferences.
 - **Settings → Account → About you** and **Notebook options → Summarize notebook**
   show cited summaries. **Progress notes** opens handoffs by title. Each statement links to exact source
   IDs/revisions. Check status or regenerate on demand.
-- **Ask Grove** retrieves at most 12 current authorized notes within the same 6,000
+- **Ask Grove** normally retrieves at most 12 current authorized notes within the same 6,000
   character budget. Generation validates every citation and rechecks account,
   grant, source revisions/expiry, settings, and provider profile before returning.
   Search mode performs no generation; questions never implicitly save notes.
   Conversation generation uses bounded `proposals` and `target` arrays so providers
   can express absence without nullable-object ambiguity. Validated results become
-  the public single proposal (or `null`) contract. Incomplete actions remain errors;
-  Grove supplies preview-status wording and changes notes only after explicit Apply.
+  the public note proposal (or `null`) contract. Notebook organization uses a separate
+  bounded batch proposal and up to 50 note excerpts (300 characters each), with
+  explicit coverage. Exa/Tavily research supplies separately validated web citations;
+  conversation tools and shared cost allowances are described in [Ask tools](ask-tools.md).
+  Incomplete actions remain errors; Grove supplies preview-status wording and changes
+  notes/notebooks only after explicit Apply. Organization Undo remains available when
+  generation or organization is disabled.
 - Workers use at most 80 recent sources / 24,000 source characters; `truncated`
   signals partial coverage. Model/prompt profiles and source revisions are retained.
   Corrections, moves, archive, deletion and expiry hide stale output immediately.

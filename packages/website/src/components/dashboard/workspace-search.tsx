@@ -13,7 +13,8 @@ import type { AskResult } from "@lib/shared/models";
 import type { ConversationTurn } from "@lib/shared/conversations";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
-import { memoryTitle, memoryExcerpt } from "@/lib/memory-display";
+import { memoryTitle } from "@/lib/memory-display";
+import { SearchPassage } from "./search-passage";
 import { notebookPath } from "@/lib/notebooks";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useNotebooks } from "./notebooks-provider";
@@ -28,6 +29,15 @@ import {
 } from "@/lib/workspace-shortcuts";
 
 export type AskSession = {
+  conversationDrafts?: Record<
+    string,
+    {
+      draft: string;
+      unconfirmed?: ConversationTurn;
+      scope?: string;
+      includePersonal?: boolean;
+    }
+  >;
   scope: string;
   includePersonal: boolean;
   draft: string;
@@ -190,7 +200,13 @@ function SearchDialog({ close }: { close: () => void }) {
                         .map((p) => p.name)
                         .join(" / ") || "Unfiled"}
                     </small>
-                    <p>{memoryExcerpt(note, 140)}</p>
+                    <p>
+                      <SearchPassage
+                        content={note.content}
+                        query={search}
+                        length={140}
+                      />
+                    </p>
                   </span>
                   <ArrowUpRight size={15} />
                 </Link>

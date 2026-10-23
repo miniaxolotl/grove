@@ -72,7 +72,6 @@
   background: #fff;
   color: var(--color-forest);
   box-shadow: 0 8px 24px #15251b18;
-  animation: select-in 130ms ease-out;
   font-family: var(--font-space-grotesk), Arial, sans-serif;
   font-size: 12px;
   line-height: 1.5;
@@ -117,7 +116,7 @@
   margin-top: 2px;
   font-size: 11px;
   font-weight: 400;
-  color: #626e66;
+  color: var(--color-muted);
 }
 .app-select-check {
   position: absolute;
@@ -138,18 +137,6 @@
   background: #bdc8b3;
   border-radius: 4px;
 }
-.library-sort.app-select-field {
-  flex-direction: row;
-  align-items: center;
-}
-.library-sort .app-select-trigger {
-  width: 166px;
-  min-height: 30px;
-  padding-block: 5px;
-}
-.library-sort-hidden {
-  visibility: hidden;
-}
 .graph-toolbar .app-select-field {
   max-width: 200px;
 }
@@ -162,14 +149,6 @@
   width: 200px;
   max-width: 100%;
 }
-@keyframes select-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
 @media (pointer: coarse) {
   .app-select-trigger,
   .app-select-option {
@@ -177,17 +156,9 @@
     font-size: 14px;
   }
 }
-@media (max-width: 600px) {
-  .library-sort .app-select-trigger {
-    width: 166px;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .app-select-trigger,
   .app-select-trigger > svg {
     transition: none;
-  }
-  .app-select-content {
-    animation: none;
   }
 }

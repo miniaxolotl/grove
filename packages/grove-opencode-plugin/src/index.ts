@@ -12,7 +12,17 @@ export default Plugin.define({
       if (!editor.get("grove"))
         editor.set("grove", {
           type: "local",
-          command: ["node", bridge, "mcp", "--stdio", "--client", "opencode"],
+          // Reuse the host runtime: desktop/services may not have Node on PATH.
+          command: [
+            process.execPath,
+            bridge,
+            "mcp",
+            "--stdio",
+            "--client",
+            "opencode",
+          ],
+          // OpenCode's compiled Bun executable must run the bridge, not its CLI.
+          ...(process.versions.bun ? { environment: { BUN_BE_BUN: "1" } } : {}),
         });
     });
     await ctx.skill.transform((editor) =>

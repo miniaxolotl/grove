@@ -24,6 +24,7 @@ import {
   type Project,
 } from "@/lib/dashboard-api";
 import { MarkdownEditor } from "./markdown-editor";
+import { uploadMedia } from "@/lib/media-upload";
 import { useDialogBusy } from "./dialog";
 import { Button } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
@@ -32,6 +33,7 @@ import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { RevisionCompare } from "./revision-compare";
 import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
 import { NoteDeleteDialog } from "./note-delete-dialog";
+import { CommandMenuButton } from "./workspace-commands";
 import { useNoteExport } from "./note-export";
 import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
@@ -164,6 +166,7 @@ export function MemoryEditor({
   );
   useSetCurrentNotebook(projectId || null, fullPage);
   const [saving, setSaving] = useState(draft?.saving);
+  const [mediaBusy, setMediaBusy] = useState(false);
   const busy = !!saving;
   const [error, setError] = useState(draft?.error ?? "");
   const [expanded, setExpanded] = useState(false);
@@ -181,6 +184,7 @@ export function MemoryEditor({
     operationId: string;
     input?: Record<string, unknown>;
   } | null>(draft?.pending ?? null);
+  const saveImmediately = useRef(false);
   const dirty = base
     ? content.trim() !== base.content.trim() ||
       kind !== base.kind ||
@@ -428,14 +432,22 @@ export function MemoryEditor({
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [dirty]);
   const saveDisabled =
-    busy || !!latest || !content.trim() || content.length > 6000 || !dirty;
+    mediaBusy ||
+    busy ||
+    !!latest ||
+    !content.trim() ||
+    content.length > 6000 ||
+    !dirty;
   useEffect(() => {
-    onLockChange?.(busy || dirty || !!latest);
-  }, [onLockChange, busy, dirty, latest]);
+    onLockChange?.(mediaBusy || busy || dirty || !!latest);
+  }, [onLockChange, mediaBusy, busy, dirty, latest]);
   function persist() {
+    if (mediaBusy) return;
     // Retrying an uncertain save must use its original payload even if newer
     // local edits are empty or exceed the save limit.
     if (saveDisabled && !(pending.current?.input && !busy && !latest)) return;
+    if (!pending.current?.input || pending.current.input.content === content)
+      saveImmediately.current = false;
     setDialogBusy(!autoSave);
     setError("");
     if (kind === "handoff" && !task.current)
@@ -482,14 +494,35 @@ export function MemoryEditor({
   const openExport = () =>
     noteExport.open({
       key: draftKey ?? (base ? `note:${base.id}` : "new:compact"),
-      snapshot: { content, unsaved: dirty || busy || !base },
+      snapshot: {
+        content,
+        unsaved: dirty || busy || !base,
+        noteId: base?.id,
+        version: base?.version,
+      },
     });
   useEffect(() => {
-    if (!autoSave || saveDisabled || error || held || deleteRequested) return;
-    const timer = setTimeout(() => autosave(), 900);
+    if (!dirty && !busy) saveImmediately.current = false;
+    if (
+      !autoSave ||
+      saveDisabled ||
+      error ||
+      held ||
+      deleteRequested ||
+      mediaBusy
+    )
+      return;
+    if (saveImmediately.current) {
+      autosave();
+      return;
+    }
+    const timer = setTimeout(() => autosave(), 450);
     return () => clearTimeout(timer);
   }, [
     autoSave,
+    mediaBusy,
+    dirty,
+    busy,
     saveDisabled,
     error,
     content,
@@ -598,6 +631,7 @@ export function MemoryEditor({
           <Maximize2 size={16} /> Expand editor
         </button>
       )}
+      <CommandMenuButton menuItem />
     </>
   );
   return (
@@ -656,7 +690,11 @@ export function MemoryEditor({
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
                 <h1>{noteTitle}</h1>
               </div>
-              <span className="note-save-status" role="status">
+              <span
+                className="note-save-status"
+                role="status"
+                title={autoSave ? "Saves automatically" : undefined}
+              >
                 <Check
                   size={13}
                   aria-hidden="true"
@@ -804,12 +842,39 @@ export function MemoryEditor({
           {guidance && <p className="editor-guidance">{guidance}</p>}
           <div className="note-editor-workspace">
             <MarkdownEditor
+              speechReady={
+                !!base &&
+                !dirty &&
+                !busy &&
+                !held &&
+                !latest &&
+                !deleteRequested
+              }
+              media={
+                base
+                  ? { noteId: base.id, version: base.version, live: true }
+                  : undefined
+              }
+              upload={
+                base && !dirty && !busy && !held && !latest && !deleteRequested
+                  ? async (file, signal) => {
+                      setMediaBusy(true);
+                      try {
+                        return await uploadMedia(file, base, signal);
+                      } finally {
+                        setMediaBusy(false);
+                      }
+                    }
+                  : undefined
+              }
+              noteId={base?.id}
               value={content}
-              onChange={(value) => {
+              onChange={(value, immediate) => {
                 setContent(value);
+                if (immediate) saveImmediately.current = true;
                 if (!latest) setError("");
               }}
-              disabled={busy && !autoSave}
+              disabled={mediaBusy || (busy && !autoSave)}
               fullPage={pageView}
               presentation={
                 focused
@@ -947,16 +1012,6 @@ export function MemoryEditor({
                 Cancel
               </Button>
             </div>
-          )}
-          {pageView && (
-            <p className="note-editor-hint">
-              {autoSave
-                ? "Saves automatically"
-                : `${shortcutHint(shortcuts.save)} to save`}
-              {draftKey && dirty
-                ? " · Draft kept while you move around Grove"
-                : " · Earlier versions stay in History"}
-            </p>
           )}
         </fieldset>
       </form>

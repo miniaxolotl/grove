@@ -1,0 +1,11 @@
+{
+  "name": "grove-isolated-host-fixtures",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pinned native clients for isolated Linux plugin acceptance, never installed globally",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.309",
+    "@opencode/cli": "2.1.3",
+    "@openai/codex": "0.164.0"
+  }
+}

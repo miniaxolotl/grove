@@ -1,6 +1,7 @@
 # Grove for OpenCode V2
 
 Prebuilt four-tool MCP bridge, memory skill and bounded automatic recall.
+The bridge reuses OpenCode's runtime; a separate `node` on the host's PATH is not required.
 Run `grove init --client opencode --url https://YOUR-GROVE-API` with the Grove CLI,
 or add this package to your global `plugins` array after `grove login --client opencode`.
 OpenCode reloads watched configuration automatically; check its MCP tools and

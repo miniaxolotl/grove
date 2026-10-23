@@ -20,7 +20,7 @@ export const noteKindLabel = (kind: Memory["kind"]) =>
     handoff: "Progress note",
   })[kind];
 
-export const memoryExcerpt = (memory: Memory, length = 160) => {
+export const memoryExcerpt = (memory: Pick<Memory, "content">, length = 160) => {
   const text = memory.content
     .trim()
     .replace(/^#{1,6}[ \t]+[^\n]+\n+/, "")

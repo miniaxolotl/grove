@@ -6,7 +6,29 @@ authentication loss. Queries, searches, drafts and note content are never persis
 to browser storage. The authenticated `dashboard-api.ts` transport and BFF continue
 to send `private, no-store`; this cache belongs to the mounted workspace.
 
+`WorkspaceNavigationState` separately owns optional browser UI metadata, keyed by
+Clerk account under `grove:navigation:v1:<account>`. Its bounded schema includes at
+most 500 UUID/boolean expansion overrides, separate desktop/mobile scroll offsets
+and one outline-pin boolean. It contains no names, note content, query text, drafts,
+permissions or capability URLs. It survives same-account sign-out/session changes;
+the shell's keyed owner prevents cross-account callbacks or reads. Browser storage
+clearing removes it. Malformed, oversized, unavailable or quota-full storage falls
+back to in-memory choices. This is not a persisted query cache.
+
+Restoration reads before writes are allowed, waits for a successful notebook load,
+and follows late nested-page layout for up to five seconds. User wheel/touch/pointer/
+keyboard input ends restoration. Removed expansion IDs are pruned only after a
+successful directory read; transient tree filtering and drag expansion are not saved.
+Other notebook pickers keep their own state. No storage-event synchronization of
+these preferences is promised between already-open tabs.
+
 ## Read ownership
+
+Ask Grove tool updates invalidate the conversation and `/ask-tools` defaults across
+tabs. Pending conversation reads poll actual progress every two seconds and retain
+the optimistic turn until the server acknowledges it. Organization Apply/Undo
+invalidates active/archived notebook directories as well as note dependencies;
+generic note invalidation alone does not refresh the sidebar's notebook list.
 
 Use `useWorkspaceCache()` and the query factories in
 `packages/website/src/lib/workspace-cache.ts`:
@@ -20,6 +42,10 @@ Use `useWorkspaceCache()` and the query factories in
   begun before a newer snapshot cannot overwrite it.
 - `resource<T>(path, body)` handles projects, preferences, models, usage, connection
   metadata, briefs, revision history and conversations/search. POST search is a read.
+  Conversation history uses `/conversations/search` with a separate infinite-query
+  key per query; POST remains a read and sends cancellation through the transport.
+  Deletion immediately removes the conversation from every cached history page,
+  including inactive searches, before background revalidation.
 - `relationships(filters)` owns canonical connection pages, normalized graph
   endpoint sets and cursor retries. Closed Linked notes fetches nothing; expansion
   reads batched titles/evidence rather than making per-note title requests. Fresh
@@ -54,6 +80,12 @@ membership is server-owned. Note changes cover the old/new notebook, global list
 search, briefs and history; conversation apply/undo refreshes note dependencies.
 Notebook patches preserve the directory's previous freshness timestamp. A single
 create response cannot become a supposedly complete project directory.
+Notebook lifecycle responses contain affected notebook IDs rather than note bodies.
+Archive/Delete cancels held workspace reads, prunes cached note/search/connection
+sources across those scopes and refreshes active/archived directories. Cross-tab
+lifecycle messages carry only action and notebook IDs. Failed/uncertain lifecycle
+writes revalidate without changing the dialog's original retry identity; the reviewed
+preview stays frozen until explicit conflict review. Local drafts block confirmation.
 Source changes invalidate the relationship family and remove affected evidence
 before late reads can restore it. Notebook edits and review/retry actions also
 invalidate that family; review does not refresh unrelated note lists.
@@ -73,6 +105,11 @@ Revalidation never silently gives that draft permission to overwrite another edi
 Row deletion holds autosave and settles uncertain saves through the same scoped
 transport. A replay returning a later version keeps the original draft base and
 reviewable latest version, including after cancelling and reopening deletion.
+Ask Grove keeps unsent messages and uncertain-turn identities per conversation in
+the authenticated session's in-memory store. History switching restores the matching
+draft; the new-conversation scratch draft is separate. History opens are cancellable
+and only replace the current reader after success. History search itself is transient
+dialog state and does not appear in URLs or browser storage.
 Exports are session-owned and retain their local snapshot through first-save routing.
 Preference forms similarly freeze their loaded base on first edit. Background
 `/me` updates cannot acknowledge local changes, and a completed save acknowledges

@@ -1,5 +1,168 @@
 # Verification
 
+Note-context verification combines the unchanged full Chromium suite and focused
+navigation WebKit suite with real-component manual journeys against synthetic note,
+PNG and WAV data. In each engine check right-click and Shift+F10, retained selection,
+format/Undo, copy/cut/paste, denied clipboard and a delayed paste after cursor movement.
+Target the second duplicate image in a CRLF note, remove/Undo, select its source and
+reopen the source menu at the reference's end. Verify original-download byte identity
+through a loopback upstream (native downloads bypass Playwright page routing), lazy
+recording playback, mute and transcript access without overriding transcript fields.
+Hold an image upload and confirm disabled menus cannot edit/remove but can still copy.
+Review 1440/390/320px bounds, outside dismissal and the Shift+right-click native escape.
+No personal media, new frontend coverage files or production API fixtures are involved.
+See [context action guide](../note-context-actions.md) and
+[captures](../design/screenshots/note-context-actions/README.md).
+
+Review regressions also compare source/Preview URLs containing named/numeric entities,
+angle destinations and escaped parentheses, and reject decoded unsafe protocols.
+Hold cut/paste across a Preview round trip; hold paste across Write/Markdown, disabled
+state and same-component note-identity changes. Verify ordinary action dismissal
+still permits the pending paste and Undo. Paste CRLF/CR text at document end and
+check the LF caret; shorten an oversized draft through cut/reference removal while
+rejecting growth. Removing the only Preview attachment must focus the persistent
+note surface so its keyboard Undo restores the reference. These thirteen actual-
+component journeys pass in Chromium and WebKit; all five original findings were
+reproduced before correction. No new frontend coverage files are added.
+
+Ask review regressions in `conversations.test.ts` and `notebook-assistance.test.ts`
+exercise the real account note limit through ordinary saves, conversation Apply,
+organization batches and action-list saves. They cover whole-batch rollback,
+concurrent final-slot claims, replay, edits/Undo at capacity and retained previews.
+Organization follow-ups cover mixed move/create batches, note-to-ID mapping, fresh
+edit versions and exclusion of undone or out-of-scope notes. Run them with the same
+disposable PostgreSQL/non-owner roles as the backend suite below.
+
+Speech adds `speech-provider.test.ts`, `speech-jobs.test.ts`, `speech-text.test.ts`,
+`speech-storage.test.ts` and `speech-migration.test.ts`. They exercise bounded real
+HTTP adapter responses, independent default-off preferences, non-owner source/RLS
+checks, retained machine-versus-authored transcripts, retry/lease races, global
+provider slots, conservative budgets, source/profile/session/restore fences,
+private Range/HEAD playback, exact cache expiry and derived-only maintenance.
+The populated 018→019 upgrade preserves authored notes, WAV metadata and transcript
+history. Narration uses real CommonMark parsing; regression cases exclude code,
+images/media and link definitions while retaining labels and escaped prose. Its
+profile cutover prevents reusing audio from the prior extractor. Restore
+verification also seeds completed speech and checks that results
+and artifact access expire rather than being revived.
+
+The actual-component/disposable-API browser journeys cover both opt-ins, explicit
+candidate use/save/normal note insertion, generated playback, exact cache reuse,
+failure/retry, cancellation and desktop/390/320px accessibility in Chromium and
+touch/mobile WebKit. Both engines also verify in-app navigation during a held retry
+response and cancellation via either close control after enqueue succeeds but its
+response is lost. A separate small real-provider check sends only synthetic
+text/audio to tts-1/whisper-1; never use personal content or expose the key in output.
+[Reviewed captures and live-check scope](../design/screenshots/speech/README.md).
+
+Custom recording playback is verified with real retained WAV bytes through a
+disposable API/database and the actual website components. Chromium and touch/mobile
+WebKit cover delayed source loading, play/pause, range seeking, speed, mute,
+end/replay, HTTP503 retry, unmount cleanup, 1440/390/320px bounds and WCAG A/AA.
+The production Next public reader is also checked in both engines with and without
+JavaScript; native controls remain available without hydration. Keyboard Space,
+Home/End/arrows, forced colours and reduced motion receive focused checks.
+These manual journeys complement, not replace, the existing browser suite.
+See [reviewed captures](../design/screenshots/recordings/README.md).
+
+Image-storage primitives have a bounded raster/filesystem suite and two optional
+owned-loopback S3 checks, including rejection of providers that ignore conditional
+writes. See [media foundation verification](media-foundation.md#verification).
+This does not yet qualify image upload/rendering or revision authorization.
+
+Workspace navigation uses the existing full Chromium suite and focused WebKit
+checks for sidebar bounds, mode/outline geometry, first autosave, held-save retry,
+command availability, nested shortcut scope and note-search recovery. Frontend
+coverage files are unchanged. Navigation-specific real-component verification also
+checks this manual matrix in each engine against synthetic fixture API data:
+
+- A query found only late in a note produces a highlighted passage in global search,
+  Ask/Search and filtered rows; a semantic-only result has no fabricated highlight.
+- Expand notebooks, scroll the list, reload with delayed directory/nested-page reads;
+  verify restoration yields to user input. Switch accounts/sessions and confirm UI
+  metadata ownership, no stored names/content/queries, and safe blocked/malformed
+  storage. Removed notebook IDs must not survive a successful directory refresh.
+- Open an authenticated note with a duplicate-heading fragment, reload, change the
+  same-note hash and use Back/Forward. Try missing/malformed fragments and new notes.
+  Source navigation must not save; an intentional edit at the target must Undo
+  through normal history. Check ATX/Setext, formatting, nesting, CRLF and fenced code.
+  Include a shared `# Title` followed by duplicate `## Title` sections: the header
+  retains `section-title`, and subsections keep `section-title-2` / `section-title-3`.
+- Open Commands → Jump to heading and `Ctrl`/`Cmd` + `Alt` + `O` from writing/reading.
+  Search, Enter, Escape/focus return and clipboard success/manual fallback must work.
+- Pin/unpin, scroll/current-section tracking, focus mode and resizing at
+  1440/768/390/320px must retain the document instance, fit controls and keep narrow
+  screens on the inspector. Review reduced motion, enlarged text and forced colours.
+  In writing mode, type under a later visible heading while the top visible block
+  belongs to an earlier one; edits must retain the caret's section. Search a late
+  `İstanbul` and `DATABASE_URL` occurrence and verify passage selection/highlights.
+
+Run production builds **before**, not during, browser suites: rebuilding removes
+old CSS chunks used by the fixture servers. Use separate ports/output directories
+for concurrent engines. [Navigation captures](../design/screenshots/workspace-navigation/README.md)
+record exact verification and the scope of these manual journeys. Existing compact-
+note scenarios use the shared New note shortcut and action helper rather than
+hidden sidebar/desktop controls; leaving focus mode retains Back to notes while
+the compact full-page note keeps its sidebar hidden.
+Conversation-composer scenarios wait for the history dialog's dismissal and focus
+handoff before typing; filling the background textbox during a held history open
+can otherwise race the loaded conversation's draft replacement.
+
+The committed focused configuration includes the existing history-focus scenarios
+as well as note tools, saves, sidebar, commands and search:
+
+```sh
+pnpm --filter website exec playwright test --config playwright.navigation-webkit.config.ts
+```
+
+Use the supported Playwright container below when local WebKit libraries are absent.
+
+Ask Grove tools add deterministic hosted-MCP protocol fixtures in `research.test.ts`,
+a populated 016→020 upgrade, conversation settings/cancellation/budget and atomic
+organization regressions, and export/recovery checks. Paid provider calls are kept
+out of normal CI; bounded synthetic search/extract runs qualify actual Exa/Tavily
+schemas separately. Browser verification covers the composer menu, remembered
+choices/defaults, citations, activity, organization previews and Apply/Undo at
+1440/768/390/320px. Capture a small PR preview row (at most four images), with the
+complete gallery under `documentation/design/screenshots/ask-tools/`.
+
+Conversation history coverage (`conversation-history.test.ts`) uses real non-owner
+PostgreSQL access for title/older-question search, literal wildcard handling,
+bounded previews, owner-only/tenant isolation, retained-but-hidden deletion and
+account/query-bound microsecond cursors that survive deletion of the cursor row.
+No model or migration is needed. Browser history scenarios exercise date groups,
+search/empty states, current markers, reading from the beginning, Latest reply,
+draft switching, cancelled opens, page/open error recovery and named deletion.
+Cache coverage checks that POST search stays read-only and deletion prunes inactive
+history pages. Review 1440/390/320px captures in both browser engines.
+
+Notebook lifecycle tests (`notebook-lifecycle.test.ts` and
+`notebook-lifecycle-migration.test.ts`) require the same disposable owner/API/worker
+URLs below. They verify populated 015→016 preservation, atomic whole-subtree
+archive/restore/soft-delete, retained history and recovery, independent archives,
+unchanged expiry, owner-only administration, cross-tenant denial, stale scope,
+retry identities, public sharing and inactive-note/notebook write guards. The
+existing 014→015 test stays pinned to its migration boundary.
+
+Browser `workspace.spec.ts` exercises notebook page/sidebar/manager entry points,
+scope counts, Cancel, Archived navigation, Restore/Delete, conflict re-review,
+committed-but-lost responses and retained draft blocking. `cache.spec.ts` checks
+immediate source pruning and held-response fencing across descendant scopes. Run
+the `notebook lifecycle|notebook deletion|notebook archive` subset in Chromium and
+`playwright.webkit.config.ts`; captures cover 1440/390/320px. Check the active
+manager behind dialogs too: touch-sized action rows must wrap rather than overflow.
+
+Workspace refinement adds timer-paused viewer-checkbox saves, a held first save
+that preserves the editor node, viewport and undo/redo, and fresh creation after
+the saved route is adopted. The real shared `(notes)` layout owns the document;
+the browser fixture mirrors that persistent layout. Search checks cover pending
+request clearing, empty results, retry, control alignment and accessible layouts
+at 1440/390/320px. Sidebar note-drag checks verify a readable preview, source-row
+feedback and version-fenced Undo. Focus/outline navigation includes CRLF and
+formatted/setext headings. These cases extend the existing save-race, history,
+gesture and viewport regressions; the focused WebKit configuration includes the
+new editor/search cases and lost-response/return-to-draft paths.
+
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale
@@ -42,6 +205,17 @@ pending saves. Telemetry tests inspect actual SDK payloads for capability/conten
 canaries and disabled replay. Synthetic fixture routes exist only in the test
 upstream, never in the application. Rebuild the website before browser checks.
 
+When changing public-reader presentation, also inspect the rendered head on direct
+notes, notebooks, nested notes/notebooks, unavailable links and service failures.
+Titles/descriptions must stay generic across HTML/Open Graph/Twitter, with no
+content, capability URL or inherited marketing image. Verify the referrer meta tag
+alongside privacy response headers. Review the brief recovery copy, retry and
+keyboard focus at 1440/390/320px, with no JavaScript and enlarged text. Screenshots:
+[shared readers](../design/screenshots/shared-readers/README.md).
+The current Next nested not-found/error fallback is client-rendered: no-JavaScript
+verification covers active readers/navigation, not unavailable-state UI. Inspect
+404 status, generic metadata and privacy headers independently of hydration.
+
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
@@ -53,7 +227,7 @@ AI preferences coverage includes a populated 012→013 upgrade with all four leg
 organization/summary combinations, separate summary scopes and connections, partial
 HTTP writes, owner-only permissions, reindex/restore preservation and disabling then
 re-enabling features during inference. Browser cases exercise the five categories,
-ten controls, provider availability, failed/overlapping saves, keyboard operation,
+the original ten controls (four assistance controls were added in 015), provider availability, failed/overlapping saves, keyboard operation,
 cross-tab summary invalidation and 1440/390/320px accessibility. Settings cases also
 cover draft retention across tabs, discard, clean-form server updates, session
 replacement and provider credential save/retry. The focused WebKit configuration
@@ -109,6 +283,46 @@ invoke tools through an authenticated HTTP fixture, check truthful status and
 preserve unrelated configuration on repeated setup/uninstall. Native-host smoke
 tests supplement these, as recorded in [delivery evidence](../delivery.md).
 
+### Agent plugin acceptance
+
+After `pnpm build`, run `pnpm test:agents`. The Linux x64 runner installs exact,
+integrity-locked OpenCode 2.1.3, Claude Code 2.1.309 and Codex 0.164.0 native
+packages into a temporary prefix, with lifecycle scripts disabled. It uses their
+packaged native binaries directly; nothing is installed systemwide. Pins and
+integrities live in `scripts/testing/hosts/package-lock.json`, separate from product
+dependencies. `OPENCODE_TEST_BIN`, `CLAUDE_TEST_BIN` and `CODEX_TEST_BIN` may point to
+absolute isolated binaries of those qualified versions.
+
+The existing TypeScript CI job runs this suite without changing runner placement
+or CI Gate inventory. Temporary HOME/XDG/client stores, local marketplaces and
+loopback API/model fixtures isolate it from live credentials, sessions and billing.
+Native install/uninstall, skills, four tools, Claude's SessionStart and Codex's
+paused automatic writes are checked. Missing-Node native failures are intentional
+negative controls. OpenCode connects with an empty PATH and its compiled runtime
+also exercises all four packaged bridge tools. Paths contain spaces; owned
+processes are stopped on success/failure. macOS/Windows and other host versions
+are not qualified by this Linux runner.
+
+For the focused OpenCode regression alone:
+
+```sh
+OPENCODE_TEST_BIN=/absolute/path/to/opencode node scripts/testing/opencode-host.mjs
+```
+
+It installs only a temporary consumer under `/tmp/opencode`, uses isolated HOME/XDG
+directories and starts the host with an empty executable PATH. The plugin, memory
+skill and MCP connection must load without a separate Node installation on that PATH.
+The test runner itself still requires Node, pnpm and npm. It does not restart the
+user's service or change live configuration.
+
+Artifact tests additionally run packed `grove doctor`: offline checks make no API
+calls or local writes, probes never invoke memory tools or claim live-host readiness,
+and malformed/unapproved/version-incompatible API results remain explicit failures.
+`tests/src/client-boundaries.test.ts` covers invalid envelopes, cancellation and
+damaged local state without implicit reauthentication or secret-bearing messages.
+Telemetry-enabled artifacts use a blocking network guard and an enabled control:
+doctor creates no telemetry identity or analytics requests, and opts out upstream.
+
 Website browser tests cover public routes, accessibility, keyboard navigation,
 installation copy and metadata. Dashboard fixture tests use the real components
 with a test-only HTTP fixture, separate from production routes. Live account tests
@@ -139,8 +353,16 @@ renderers must remain read-only. The mobile subset also runs in the focused WebK
 
 Sidebar checks cover 320–1440px, long notebook names, expanded trees, short heights,
 enlarged labels, inset keyboard focus, sticky explorer controls and notebook-scoped
-creation. Row dropdowns must leave list rectangles unchanged, dismiss independently,
-restore focus after export/move dialogs and preserve swipe cancellation. Browser
+creation. Mobile shares the heading row between brand, New note and search, and
+keeps Commands in the note-actions menu. Full-page notes must fill the viewport
+at 320/390/768px and in short windows after hiding the sidebar; verify this against
+production CSS, whose grouped selectors can change cascade specificity.
+Touch dispatches for the destination tray
+move in finger-like steps so autoscroll keeps receiving pointer deltas. Filter
+checks treat the popover as self-positioning: sorting may reorder rows and drop
+date headings, while the trigger keeps its geometry. Row dropdowns must leave list
+rectangles unchanged, dismiss independently, restore focus after export/move dialogs
+and preserve swipe cancellation. Browser
 checks switch overlapping row menus by keyboard and test touch light-dismiss separately.
 
 Client-cache checks cover shared misses/cancellation, account and session teardown,

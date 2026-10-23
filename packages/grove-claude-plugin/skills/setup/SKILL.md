@@ -14,3 +14,7 @@ into chat. Report awaiting sign-in/grant until remote status confirms usable acc
 Ask the user to run `/reload-plugins` in Claude Code or start a new session, then
 verify a user-requested memory recall. API verification alone does not confirm
 that this session has loaded Grove's tools.
+For startup failures, run the packaged CLI with `doctor --client claude --json`;
+`--probe` explicitly tests a separate bridge/API connection without saving memories.
+Do not describe a successful probe as verification of this session. The actual
+Claude host needs Node 22+ on PATH; do not edit shell profiles or credentials to hide errors.

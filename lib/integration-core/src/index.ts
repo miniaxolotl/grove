@@ -70,7 +70,32 @@ export class ApiClient {
         redirect: "error",
         cache: "no-store",
       });
-      const result = (await response.json()) as ApiEnvelope<T>;
+      let result: ApiEnvelope<T>;
+      try {
+        result = (await response.json()) as ApiEnvelope<T>;
+      } catch (error) {
+        if (signal.aborted || !(error instanceof SyntaxError)) throw error;
+        throw new GroveError(
+          "invalid_response",
+          "Invalid Grove API response",
+          response.ok ? 502 : response.status,
+        );
+      }
+      if (
+        !result ||
+        typeof result !== "object" ||
+        Array.isArray(result) ||
+        typeof result.success !== "boolean" ||
+        (!result.success &&
+          (!result.error ||
+            typeof result.error.code !== "string" ||
+            typeof result.error.message !== "string"))
+      )
+        throw new GroveError(
+          "invalid_response",
+          "Invalid Grove API response",
+          response.ok ? 502 : response.status,
+        );
       if (!response.ok || !result.success) {
         const error = !result.success ? result.error : undefined;
         throw new GroveError(
@@ -88,6 +113,7 @@ export class ApiClient {
       completed = true;
       return result.data;
     } catch (error) {
+      options.signal?.throwIfAborted();
       if (error instanceof GroveError) throw error;
       throw new GroveError(
         signal.aborted ? "timeout" : "unreachable",

@@ -80,7 +80,9 @@ export function MemoryContext({
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
-  if (!loading && projectId && !project)
+  // Keep an uncertain lifecycle request mounted with its original retry identity
+  // even if directory revalidation already observes the committed archive/delete.
+  if (!loading && projectId && !project && !notebookAction)
     return (
       <>
         <h1 className="font-editorial text-4xl">Notebook unavailable</h1>
@@ -112,11 +114,13 @@ export function MemoryContext({
               {project && (
                 <>
                   <Link
-                    className="app-button secondary"
+                    className="app-button secondary notebook-daily-note"
+                    aria-label="Today’s note"
+                    title="Today’s note"
                     href={`/app/notes/new?from=journal&notebook=${project.id}`}
                   >
                     <CalendarDays size={16} />
-                    Today’s note
+                    <span>Today’s note</span>
                   </Link>
                   <ActionMenu label="Notebook options">
                     <AssistanceAction

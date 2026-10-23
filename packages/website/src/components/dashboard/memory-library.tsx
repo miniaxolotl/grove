@@ -36,7 +36,6 @@ import {
 } from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
 import { SegmentedControl } from "./ui/segmented-control";
-import { Select } from "./ui/select";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
 import { NoteDeleteDialog } from "./note-delete-dialog";
@@ -367,13 +366,6 @@ export function MemoryLibrary({
       {!embedded && (
         <PageHeading
           title={title}
-          description={
-            archive
-              ? "Notes set aside. Restore them whenever you need."
-              : initialView === "graph"
-                ? "See how your ideas connect."
-                : "Your notes, organized and connected."
-          }
           actions={
             !archive && (
               <Link
@@ -408,7 +400,7 @@ export function MemoryLibrary({
           />
           <div className="library-caption">
             <span className="library-summary" ref={summary} tabIndex={-1}>
-              <span>
+              <span className="library-summary-label">
                 {query.data ? (
                   <>
                     {items.length}
@@ -418,6 +410,12 @@ export function MemoryLibrary({
                   </>
                 ) : (
                   "Your notes"
+                )}
+                {fixedProject === undefined && project !== "all" && (
+                  <span className="library-scope">
+                    {projects.find((item) => item.id === project)?.name ??
+                      "Unfiled"}
+                  </span>
                 )}
               </span>
               <span className="library-sync" role="status">
@@ -484,24 +482,6 @@ export function MemoryLibrary({
                 ]}
               />
             )}
-            <Select
-              className={`library-sort${view === "list" ? "" : " library-sort-hidden"}`}
-              disabled={view !== "list"}
-              label="Sort"
-              aria-label="Sort notes"
-              value={sort}
-              onValueChange={(value) =>
-                setFilters({
-                  ...filters,
-                  sort: value as typeof sort,
-                })
-              }
-              options={[
-                { value: "updated_desc", label: "Recently updated" },
-                { value: "updated_asc", label: "Oldest updated" },
-                { value: "created_desc", label: "Date written" },
-              ]}
-            />
           </div>
           {currentError && (
             <LoadError
@@ -675,6 +655,7 @@ export function MemoryLibrary({
                           </li>
                         )}
                       <MemoryRow
+                        query={search}
                         onIntent={() => {
                           void loadDetail().catch(() => {});
                         }}

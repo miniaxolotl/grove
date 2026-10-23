@@ -419,7 +419,9 @@ export function ConnectionInspector({
               {comparison.map((note) => (
                 <section key={note.id}>
                   <h3>{note.content.split("\n")[0].replace(/^#+\s*/, "")}</h3>
-                  <Markdown>{note.content}</Markdown>
+                  <Markdown media={{ noteId: note.id, version: note.version }}>
+                    {note.content}
+                  </Markdown>
                 </section>
               ))}
             </div>

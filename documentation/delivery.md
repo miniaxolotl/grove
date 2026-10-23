@@ -1,5 +1,533 @@
 # Delivery evidence
 
+## Agent plugin startup and diagnostics (23 October 2026)
+
+OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for
+compiled Bun hosts), fixing the reproduced `spawn node` failure with a restricted
+desktop/service PATH. Existing custom/disabled Grove MCP definitions remain respected.
+`grove doctor` distinguishes offline CLI checks, explicit packaged-bridge/API probes
+and unknown live-host readiness. Diagnosis never installs, starts unrelated MCPs or
+writes memories; OAuth refresh occurs only on an explicit API probe. Setup no longer
+equates API access with host activation, and existing status JSON semantics remain.
+
+Regression-first fixes reject malformed API envelopes/configuration, preserve caller
+cancellation and distinguish damaged credential storage from a new sign-in requirement.
+All **189 backend/client tests** pass against a new disposable PostgreSQL database
+with non-owner roles (two optional S3/broker checks skipped), as do **seven packed
+artifact checks**, root lint/types/build, **50 automation/provider contracts** and
+pinned workflow lint on Node 24.21.0/pnpm 10.33.0.
+
+The maintained **three-host Linux x64** suite pins integrity-locked OpenCode 2.1.3,
+Claude Code 2.1.309 and Codex 0.164.0, runs in temporary homes/prefixes with synthetic
+loopback APIs/models, and takes about 32 seconds locally. It checks native install/
+uninstall, four tools, skills, Claude SessionStart and Codex paused automatic-write
+denial. Native missing-Node controls fail as expected; OpenCode connects with empty
+PATH and its compiled runtime exercises all four bridge tools. Existing CI runs
+this suite without a runner/inventory change. No systemwide install, live agent
+configuration, actual-model billing or production deployment is included.
+
+Native absolute-runtime overrides, additional OS/host/consumer-runtime matrices and
+broader reload/configuration-race hardening remain follow-ups, not implied acceptance.
+
+Review regressions reproduce and fix interrupted-body transport errors, identity-only
+credential files and parent-process diagnostic telemetry. JSON syntax failures remain
+`invalid_response`; transport failures remain `unreachable`. Local authentication
+validation preserves expired refreshable OAuth and never rewrites damaged stores.
+Doctor uses bearer authentication without a reporter and opts out upstream. An
+enabled-build control verifies that telemetry is genuinely active while the doctor
+creates no identity or analytics requests. All **nine packed-artifact checks**, **nine
+client/boundary tests**, three pinned native hosts, root lint/types/build and **50
+automation/provider contracts** plus workflow lint pass after integrating #102.
+
+## Note context actions (23 October 2026)
+
+The editable note surface has app-matched text, image, link and recording right-click
+menus in writing/source/preview, with keyboard invocation and viewport-bounded action
+rows. Text edits preserve selection, normal Undo and autosave. Media uses parsed exact
+source ranges, authenticated originals and existing playback/transcript controls;
+reference removal never deletes retained media/history. Native fields and public
+readers retain their existing controls. [Behaviour/limits](note-context-actions.md).
+
+Root/site lint, types and builds, five packed artifacts and bundle budgets pass.
+The unchanged full **223 Chromium** suite and **12 focused WebKit** cases pass.
+Targeted journeys also pass in both engines: pointer/keyboard selection, format/Undo,
+copy/paste denial and delayed-selection guards, repeated-image CRLF identity,
+remove/Undo, original PNG download bytes, source-end targeting, lazy recording
+playback/mute/transcript, disabled upload guards and 1440/390/320px bounds. Verification
+uses synthetic fixtures/loopback media, not personal or production data. Notes entry
+is **488,018 gzip bytes** and the editor remains deferred. No backend/schema/provider
+or deployment change. [Reviewed gallery](design/screenshots/note-context-actions/README.md).
+
+Merge review integrates landed speech without changing its backend/runtime contracts.
+Five reproduced findings are corrected: CommonMark URL decoding, generation-fenced
+clipboard edits after mode/identity/read-only transitions, normalized paste offsets,
+incremental shortening of oversized drafts and persistent Preview removal focus.
+Thirteen focused actual-component journeys pass in each browser engine, including
+normal delayed-action completion and keyboard Undo. Notes entry is **488,021 gzip
+bytes**, with the editor still deferred. Original gallery/build provenance is retained.
+Combined verification passes all **223 Chromium / 12 focused WebKit** cases,
+**240 backend cases / four optional-service skips**, root/site lint/types/builds,
+five packaged artifacts, 50 automation/provider contracts and workflow lint.
+
+## Ask note limits and organization follow-ups (23 October 2026)
+
+Ordinary saves, Ask previews, organization batches and assistance action lists now
+share one account-locked note-capacity check. Over-limit batches roll back all
+writes and retain their previews; edits, moves, replay and Undo remain available
+at capacity. Organization history pairs each created note with its applied ID and
+bounded excerpt, while follow-up retrieval still checks current scope and versions.
+
+All six new real-PostgreSQL regressions failed before the fixes and pass afterward.
+Root lint/types/build and five packaged-artifact checks pass. The complete backend
+suite after integration with media/speech passes **246 tests**, with four optional
+RabbitMQ/S3 skips and zero failures.
+Verification uses disposable databases and non-owner runtime roles; no migration
+is required.
+
+## Agent plugin startup (23 October 2026)
+
+OpenCode's installed Grove plugin loaded its skill/automatic context while its MCP
+child failed with `NotFound: ChildProcess.spawn (node ...)`: the background host
+did not inherit the shell's Node/version-manager PATH. The plugin now reuses its
+host executable, selecting Bun runtime mode for compiled OpenCode binaries, without
+overwriting an existing Grove MCP configuration.
+
+The packed OpenCode v2.1.3 smoke test reproduces the failure with an empty executable
+PATH before the change and connects afterward. Node 24.21.0 / pnpm 10.33.0 root
+lint, types, build, all **five artifact tests** and **four client tests** pass.
+Claude Code **2.1.309** and Codex **0.164.0** were installed only under
+`/tmp/opencode`, with isolated HOME/XDG/client directories. Both native hosts discover
+and execute all four packaged tools against an authenticated loopback fixture.
+Claude's SessionStart context and both skills load; Codex's two skills and paused
+automatic-write denial pass. Claude's manifest validates; its missing directory
+listing icon is advisory, not a startup failure. Claude/Codex still require Node
+22+ on their host PATH. These are synthetic local checks, not live account/model
+acceptance; no systemwide installation, active-host configuration or release changed.
+
+## Explicit transcription and read aloud (23 October 2026)
+
+Stacked on recordings #95, speech adds independent default-off transcription and
+read-aloud preferences, OpenAI whisper-1/tts-1 adapters and explicit bulk jobs.
+Machine transcripts are separate suggestions; copying to a draft, saving authored
+history and inserting through normal autosave/Undo are deliberate user actions.
+Read aloud reuses the minimalist player and identifies the AI-generated voice.
+Opening notes, enabling preferences and anonymous public reads never start inference.
+
+Migration 019 fits between recordings 018 and Ask tools 020. Conservative attempt,
+duration/text and shared inference budgets, global provider slots, cooperative
+deadlines and source/profile/preference/session/restore fences bound work. Generated
+MP3 uses the existing private temporary artifact store/cleanup; originals and saved
+transcript history remain retained. Restore clears derived speech without reviving
+old output. [Contracts, privacy and explicit rollout](speech.md).
+
+Integrated source `856cb39` preserves #95 `93983e5` navigation/research. Local gates
+pass: **240 backend cases / four optional-service skips**, **223 Chromium** and
+**12 focused iPhone/WebKit** navigation cases, root/site lint/types/builds, five
+packed artifacts, release/deployment contracts, workflow lint and bundle budgets.
+Notes entry is **487,997 gzip bytes** with the editor deferred. Both-engine real-API
+speech journeys cover opt-ins, candidate/save/use, exact cache reuse, playback,
+retry/cancellation through both close controls, heading navigation/pinning and
+1440/390/320px accessibility. [Current synthetic captures](design/screenshots/speech/README.md)
+record source/build identity and no-JavaScript public-reader verification limits.
+Review follow-up replaces regex narration with CommonMark node extraction and a
+profile cutover: ten Markdown privacy cases plus the old-profile regression pass.
+Uncertain enqueue/retry identities remain cancellable on close/in-app navigation;
+both browsers pass held/lost-response cancellation journeys after reproducing them.
+
+A bounded real OpenAI check synthesized and transcribed only synthetic speech with
+the selected models; this is API/codec evidence, not general quality or device
+qualification. Credentials stay in private custody. No production migration,
+deployment, speech activation or PR merge is performed by this slice.
+
+## Custom recording player (23 October 2026)
+
+Recording playback now uses a quiet inline strip rather than browser chrome:
+workspace typography/colours, one play/pause control, slim seeking, elapsed/total
+time, speed and mute. No card border, decorative waveform or extra dependency.
+Private loading/transcripts are unchanged. Sources attach on Play in the enhanced
+player, including WebKit; leaving the player stops playback. Public readers keep
+native controls before hydration and without JavaScript.
+
+Real-component/disposable-API journeys pass in Chromium and mobile/touch WebKit:
+deferred loading, playback/pause, keyboard/seek/rate/mute, end/replay, HTTP503 retry,
+unmount cleanup, 1440/390/320px bounds and WCAG A/AA. Both engines also pass actual
+production-Next public playback with and without JavaScript and no transcript
+controls; disposable links are revoked afterward. Focused checks cover Space,
+Home/End/arrows, preselected speed, 44px buttons, reduced motion and forced colours.
+[Reviewed captures](design/screenshots/recordings/README.md) record the final strip.
+Final local verification passes root/site lint, types and production builds, five
+packaged-artifact checks and all203 Chromium scenarios. Bundle budgets pass;
+Notes entry is483,386 gzip bytes and the editor remains deferred.
+No production deployment, migration or speech-provider request is performed.
+
+## Recordings — stacked continuation
+
+Migration018 adds PCM WAV duration validation and independently versioned retained
+transcripts. The compact Add media menu contains image, recording and audio-upload
+actions; active capture has explicit Stop/Cancel feedback. Originals reuse image
+storage, tenant/revision guards and quotas. Playback supports scoped Range/HEAD;
+transcript Use inserts through normal editor history. TAR includes WAV/text
+sidecars and v3 exports page bindings/transcript history separately. PDF resolves
+only actual image nodes. [Feature and limits](recordings.md).
+
+Shared input buffering, MIME/reference metadata, uploads and media URL construction
+replace duplicated image/audio paths. Initial verification passes184 backend/service
+cases (four optional-service skips), root/site static checks and builds, five packed
+artifacts and bundle budgets. The real-component synthetic-microphone journey covers
+capture, track cleanup, playback, transcript save/use, cancel and TAR/PDF. Visual
+review found and corrected inline/baseline placement and inherited textarea sizing.
+All203 Chromium checks pass. The corrected real-API journey passes in Chromium
+(synthetic microphone plus ended-track checks) and WebKit (WAV upload fallback,
+playback, transcript/save/use and TAR/PDF) at desktop/390px. Current playback keeps
+its source URL through note autosave. Physical microphones remain unqualified.
+
+## Saved-note images — stacked continuation
+
+The follow-up supports file drop throughout the note workspace and moving an
+existing preview image with pointer drag or Move up/down. Both engines verify
+single-reference movement, Undo and normal autosave; 14 affected Chromium checks
+pass again. Source-store tests now include the scoped-Spaces lifecycle receipt.
+
+Explicitly authorized NYC3 provisioning created private source/temporary buckets
+and independent bucket-scoped keys. Live readbacks verify anonymous403,
+conditional412, cross-bucket denial, no source lifecycle and one-day temporary
+exports/speech expiry. Keys are in isolated Grove Doppler configs and ignored0600
+secrets.md; temporary operator keys are revoked and runtime deployment is unchanged.
+Actual source-store readiness passes with the scoped key and exact-bucket operator
+receipt, resolving the #86 lifecycle-inspection incompatibility without broad
+runtime credentials. See [current configuration](media.md#configuration-and-rollout).
+
+Migration017 binds tenant-owned immutable image objects to every saved revision.
+Session-owner uploads use current-note versions, actual-byte validation, account-
+locked attempt quotas and fenced completion. Private/history reads preserve narrow
+agent grants; public reads reuse the live share scope and current revision only.
+The editor adds upload/paste/drop and ordinary autosave/Undo; readers show images
+without fetching third-party URLs. Cloud storage uses private Spaces/S3.
+
+Portable note TAR downloads include relative Markdown, exact originals and a
+checksum manifest. PDF embeds authorized raster snapshots. Optional v3 queued
+exports include original-media chunks with bounded assembly and source/lease
+guards. Recovery invalidates pending uploads and preserves ready objects behind
+current tombstones. [Feature, limits and rollout](media.md) and
+[three-column reviewed screenshots](design/screenshots/media-images/README.md)
+distinguish fixture verification from live provider activation.
+
+Local backend suite: **180 passed / four optional service skips**, including the
+populated media upgrade, RLS/grant/ref forgery, quota/lease races, public revocation,
+archive bytes, queued media and restore checks. Root lint/types/build and all five
+packed artifacts pass, along with 17 release/deployment contracts and workflow
+lint. Chromium's real-component/disposable-API journey verifies upload, autosave,
+preview, phone bounds, TAR and PDF download; parsing confirms a one-page PDF with
+an embedded image. The same upload/preview/TAR/PDF journey passes in WebKit using
+the supported Noble container and actual streaming proxy. Production Next public
+image rendering works with JavaScript disabled, makes no third-party requests,
+and reloads to 404 after synthetic-link revocation. All **203 Chromium** scenarios
+pass after removing an unnecessary editor `/me` read and integrating the isolated
+dropdown-opacity correction already reviewed in #88.
+No cloud bucket, retained database or production configuration is changed.
+
+## Private image foundation — development increment (22 October 2026)
+
+The [image foundation](development/media-foundation.md) establishes immutable
+private local/S3 storage and bounded, fully decoded static PNG/JPEG/WebP input,
+including explicit APNG rejection and fragment-count-independent buffering.
+Original bytes/checksums are preserved. Source storage has no deletion API and
+rejects export-directory/bucket/credential overlap and expiring lifecycle rules.
+Conditional-write probing uses only unique removable operational scratch objects.
+
+Real disposable storage exposed Garage 2.4.1 ignoring conditional PUT; readiness
+now refuses that provider without changing retained test source. Digest-pinned
+RustFS 1.0.3 supports private byte-identical storage and immutable concurrent writes;
+CI includes that disposable conformance service. These are local/CI observations,
+not qualification of deployed DigitalOcean Spaces. No cloud resource was provisioned.
+
+This is **not complete image support**: no upload route, note/revision binding,
+schema migration, image UI, archive/PDF integration, recording or speech behavior
+is enabled. The primitives default to disabled and are not yet called by runtime.
+The image acceptance gates remain prerequisites for exposing them.
+
+Local verification passes on Node 24.22.1 / pnpm 10.33.0: **16 focused media
+checks** with both disposable storage fixtures (no skips), root lint/types/build,
+five packaged-artifact checks, 17 release/deployment contracts, workflow lint,
+new-file formatting and 23 selected documentation links/anchors. No media
+database/browser functionality is claimed; exact-head hosted CI remains required.
+
+The storage-direction follow-up enforces **private Spaces/S3 in cloud mode**,
+rejecting local storage without fallback. Self-hosting/test adapters remain local
+when explicitly chosen. All **17 focused checks** now pass with both disposable
+stores, alongside the same root, artifact, release and workflow gates. Spaces
+setup distinguishes its datacenter endpoint from the SDK signing region; live
+bucket activation remains separate. UI captures will use a three-column PR preview
+and a documentation index when there is UI to review; none exists in this increment.
+
+## Media plan review (22 October 2026)
+
+The [images, recordings and speech review](development/media-plan.md) reconciles
+the recovered setup-only plan with v1.11.0 source and the still-open refinement
+PR #82. It separates proposed feature scope from shipped behavior and identifies
+storage retention, revision-scoped authorization, streaming upload, export/recovery
+and speech-provider decisions that must precede implementation. The three-slice
+order remains images → recordings → speech. No media code, migrations, provisioning
+or release is included. Related stale documentation now reflects retained deletion,
+14 AI controls, all existing export record types and external execution-plan paths.
+
+Local review verification passes on Node 24.22.1 / pnpm 10.33.0: root lint,
+type checks and build, all five packaged-artifact tests, 17 release/deployment
+contracts, workflow lint and 30 local documentation links/anchors. No new media
+database/storage/browser behavior is claimed; feature qualification remains gated
+by the review's acceptance matrix and successful exact-head PR CI.
+
+## Workspace navigation (23 October 2026)
+
+Search shows query-aware plain-text passages and literal highlights, with notebook
+paths in global search and Ask/Search. Sidebar expansion/scroll and optional outline
+pinning remember bounded account-owned UI metadata, never content or queries.
+CommonMark/GFM heading identities drive searchable Jump to heading, Commands and
+`Ctrl`/`Cmd` + `Alt` + `O`, private saved-note section links and the wide contents rail.
+The same outline rows work in the compact inspector, with clipboard fallback,
+current-section tracking and delayed hash/history navigation. Renaming headings or
+reordering duplicates can invalidate links; copying does not enable public access.
+
+Application source `c544123` passes root/website lint, types and builds, all **five
+packaged artifacts**, the bundle gate, **223 Chromium** scenarios and **12 focused
+WebKit** scenarios. Additional real-component journeys pass in both engines for
+late passages across all three search surfaces, duplicate/Setext headings, section
+links/reload/history, no-write jumps and edit/Undo, desktop/mobile restoration with
+delayed directories, account/session replacement, removed IDs, malformed/blocked
+storage, commands, copy/fallback, pinning/tracking and narrow accessibility/overflow.
+Frontend test files remain unchanged; the new interactions also have a documented
+[manual verification matrix](development/testing.md).
+
+History review, deletion and heading jumps hand focus over after actual dialog
+cleanup, avoiding races with opener restoration; **15 repeated Chromium history
+cases** also pass without changing the existing assertions.
+
+Notes entry is **487,751 gzip bytes**; CodeMirror remains deferred. Node 24.22.1,
+pnpm 10.33.0 and Playwright 1.64.1 were used; WebKit runs in the supported Noble
+container. [Sixteen synthetic captures](design/screenshots/workspace-navigation/README.md)
+cover 1440/768/390/320px, short/forced-colour layouts and both browser engines.
+No schema migration is required; no production activation was performed.
+
+Integration with landed hardening #88 (`eaa717a`) preserves both delivery records
+and its dropdown-opacity correction. Integrated root/website static/build gates,
+five artifacts, **50 automation/provider contracts**, workflow lint, bundle budgets
+and **223 Chromium / 12 focused WebKit** cases pass. Navigation-specific journeys
+also pass in both engines. Notes entry remains **487,751 gzip bytes**.
+Current-head full browser/source CI evidence is recorded on
+[navigation PR #97](https://github.com/miniaxolotl/grove/pull/97).
+
+Subsequent integration with workspace polish #96 (`26e28e1`) preserves its compact
+navigation, Filters panel and full-height mobile notes alongside section navigation.
+Both-engine navigation journeys pass; [three refreshed integration captures](design/screenshots/workspace-navigation/README.md)
+record the changed chrome. Notes entry is **487,661 gzip bytes**, editor deferred.
+Integrated root/site static/build gates, five artifacts, 50 automation/provider
+contracts, workflow lint, **223 Chromium**, **12 navigation WebKit** and
+**11 library/filter WebKit** cases pass.
+Four existing compact checks now use the current shared navigation/action paths
+without dropping save, Undo or focus assertions. Current-head hosted evidence is
+recorded on PR #97.
+
+Review follow-up corrects four reproduced edge cases: edits retain cursor-based
+section tracking; shared readers preserve IDs from the complete saved source even
+when hiding its repeated title; query tokenization precedes Unicode lowercasing;
+and search-only extraction retains underscore word boundaries. Targeted real-
+component checks pass in Chromium/WebKit for later-heading edits, duplicate-title
+public anchors, `İstanbul` and `DATABASE_URL` passage/highlight matching. Root/site
+gates, five artifacts, bundle budgets and 12 focused WebKit checks pass. Notes entry
+is **487,681 gzip bytes**; ordinary non-search excerpts/access scope are unchanged.
+
+## Streamlined workspace (23 October 2026)
+
+Notes and notebook libraries keep search beside one Filters control; notebook
+selection and sorting share that panel. Mobile search joins New note in the
+heading, Commands shares the notebook row, and full-page notes hide the sidebar.
+Compact readers keep Export/Delete and secondary tools in Note actions; preview
+hides formatting tools and the repeated autosave explanation is removed.
+
+Review found a production-CSS cascade leaving a second, empty grid row beneath
+mobile notes. The compact-note override now follows the shared layout. The
+regression first failed at a 602px document height and now checks full-height
+documents at 320/390/768px and in short windows in Chromium and WebKit.
+
+Root/site lint, types and builds, five packaged artifacts and bundle budgets pass.
+All **223 Chromium scenarios**, **17 focused iPhone/WebKit scenarios** and 18
+viewport/accessibility checks pass. Notes entry is **486,029 gzip bytes**, with
+the editor deferred.
+[Reviewed captures](design/screenshots/streamlined-workspace/README.md) cover
+Notes, notebooks, the editor, Ask Grove, Settings and Archive at 1440/390/320px.
+No migration or production deployment is part of this refinement.
+
+The latest-base integration preserves landed CI hardening #88 (`eaa717a`), with
+fresh root/site gates, five artifacts, 50 automation/provider contracts and workflow
+lint passing. All 223 Chromium cases, 17 focused WebKit checks and six palette repeats pass;
+the test action helper now waits for the deferred editor before choosing toolbar
+or menu controls, avoiding a loading-layout race.
+
+## Shared reader polish (23 October 2026)
+
+Shared notes and notebooks use one Read only label, a clear title/date and the saved
+content. Repeated sharing labels, promotional footer and reader cookie notice are
+removed. Unavailable links mention expiry and request a new link; temporary failures
+offer a single retry. Generic HTML/Open Graph/Twitter metadata explicitly omits
+marketing images and author/keyword tags and includes no-referrer.
+
+Root/website lint, types and builds, five artifacts and bundle budgets pass.
+All **40 Chromium** sharing/privacy/consent/public-site scenarios and **five focused
+iPhone/WebKit** reader scenarios pass. Six states pass 18 viewport/accessibility
+checks at 1440/390/320px, plus metadata/headers, keyboard, retry and active-reader
+no-JavaScript checks. [Fourteen captures and verification scope](design/screenshots/shared-readers/README.md)
+record the production build and the framework's no-JavaScript error-fallback limitation.
+
+Merge verification integrates Ask tools #93 (`991f63d`), preserving both delivery
+histories. Root/website lint, types and builds, five artifacts, bundle budgets and
+all **40 affected Chromium scenarios** pass on the combined tree. Reader source
+is unchanged; Notes entry is **486,113 gzip bytes**.
+
+## Ask Grove research and notebook tools (23 October 2026)
+
+Web search, Research and Manage notes share clear composer switches, remembered
+defaults, inline recovery, bounded provider spending and distinct web citations.
+Exa Lite and Tavily Basic power the research tools. Ask Grove previews notebook
+creation/renaming, note filing and researched notes with atomic Apply and versioned
+Undo. Organization continues beyond its first 50-note candidate batch. Migration
+020 retains existing conversations and adds isolated settings/execution/usage state.
+[Feature and API](ask-tools.md) and [rollout](deploy.md#ask-grove-tools-rollout-020)
+describe the limits and operator setup.
+
+On integrated application source `da27de5`, all **186 backend tests** pass (two optional
+RabbitMQ/S3 checks skipped), with root/website lint, types and production builds,
+all **five packaged artifacts**, bundle budgets, **19 release/deployment contracts**
+and pinned workflow lint passing. The complete **223 Chromium** suite passes on
+the final UI source, along with **seven focused WebKit history/conversation cases**.
+Notes entry is **486,094 gzip bytes**, within the existing budget. The integration
+preserves landed conversation history #91; tool vocabulary/defaults, scope checks
+and activity formatting share canonical implementations.
+
+Six additional real-API/disposable-database browser journeys pass at Chromium
+1440/768/390/320px and WebKit 390/320px, covering toggles/drafts/activity/citations,
+note Save/Undo and notebook create/file/Undo with sidebar refresh. The naming/control
+follow-up also verifies optimistic switches, failed-save rollback, refresh recovery
+and saved-default feedback. Menu accessibility
+and page-overflow checks pass. [Eighteen reviewed captures](design/screenshots/ask-tools/README.md)
+use synthetic data and show three images per row; the PR contains a preview row.
+
+Actual Exa/Tavily search and extraction calls pass. A final two-turn live MiniMax +
+Exa case creates a cited MDN note, then creates a notebook and files the note with
+Apply/Undo. Initial runs exposed competing action schemas, omitted empty fields and
+premature status wording; narrowed schemas and Grove-owned batch descriptions now
+have regressions. Invalid model responses remain retryable failures; this small
+synthetic sample is not a broad quality qualification. Production activation is
+separate from these local/provider checks.
+
+## Ask Grove history (23 October 2026)
+
+History now offers private title/question search, date-grouped rows with question
+previews and scope/count metadata, a current-conversation marker and named delete
+confirmation. Search remains in place as a compact list changes or scrolls. Opens
+are cancellable, errors stay in the dialog, and failed pagination retries its
+original cursor. Reopened conversations start at the beginning with Latest reply
+navigation; unsent drafts and uncertain-turn IDs stay with their conversation.
+
+The owner-only POST history endpoint returns 30 bounded results and signed,
+account/query-bound microsecond cursors. Deleted cursor rows do not break paging;
+deleted/foreign history and assistant payloads remain excluded. No model calls,
+new credentials or schema migration are required. Workspace/API/cache guidance
+and [nine captures](design/screenshots/ask-history/README.md) document the behavior.
+
+Root/website lint, types and builds, five packaged artifacts and bundle budgets
+pass. The full backend suite passes **169 tests**, with two optional-service skips;
+the full Chromium suite passes **223 scenarios**, followed by seven focused checks
+after the final draft refinement. Notes entry is **485,941 gzip bytes**; history
+is deferred. Seven focused iPhone/WebKit checks pass after adapting the existing
+recovery scenario to the touch Send button. Browser checks include 1440/390/320px
+and short-height access.
+
+## Ask Grove new-note preview (23 October 2026)
+
+New-note proposals show one preview and Save note, without an empty Current note
+comparison. Edit/merge proposals retain Review changes; Save/Open note/Undo use
+the existing paths. [Reviewed desktop/phone captures](design/screenshots/ask-create-preview/README.md)
+record the focused refinement.
+
+Root/website lint, types and builds, five packaged artifacts and bundle budgets
+pass. Four existing Chromium chat/composer/retry scenarios pass. Manual create,
+Save/Undo and edit/merge comparison checks pass at 1440/390/320px in both Chromium
+and WebKit. Notes entry remains **485,883 gzip bytes**.
+
+## Notebook archive and soft deletion (23 October 2026)
+
+Notebook page/sidebar/manager actions confirm the complete subtree and note counts.
+Archive hides its notebooks and archives active notes; Archived notebooks offers
+Restore and Delete. Restore preserves separately archived contents and retention
+dates. Delete uses the existing tombstone mechanism: source records and revisions
+remain retained behind visibility policies. Local drafts block confirmation; stale
+scope requires review and uncertain requests keep their original retry identity.
+
+Forward migration **016**, after **015**, adds notebook status/archive provenance,
+write guards and public-reader filtering. Owner-only atomic mutations preserve
+tenant/grant boundaries, fence old jobs and revoke direct links. An existing shared
+ancestor can include restored descendants again. See [contract](notebook-lifecycle.md)
+and [rollout](deploy.md#notebook-lifecycle-rollout-016).
+
+Fresh root/website lint/types/builds, five packaged artifacts and bundle budgets
+pass. The full backend suite passes **165 cases** with two optional RabbitMQ/S3
+skips; the subsequent nine-case lifecycle run also verifies current-profile queue
+recreation and old lease removal. Populated upgrade and isolated recovery preserve
+authored data. All **217 Chromium** cases and **five focused iPhone/WebKit browser
+scenarios** pass, plus a WebKit cache check. A narrow manager overflow and a mobile
+test navigation omission were corrected during verification. Notes entry is
+**485,883 gzip bytes**, with the editor deferred.
+
+[Reviewed captures](design/screenshots/notebook-lifecycle/README.md) cover desktop,
+390px and 320px. Tests use disposable local PostgreSQL/non-owner roles and synthetic
+browser data; production migration/deployment remains a separate operator action.
+
+## Workspace refinement (22 October 2026)
+
+Notebook titles gain space from combined folder/file drag handles, aligned disclosure
+and action controls, and a wider desktop sidebar. Commands and shortcut help share
+one row. Buttons follow the landing page's flat, 5px-radius styling; desktop note
+tools use 36px controls while touch targets retain separate 44px areas. Note dragging
+has a readable pointer-positioned preview and whole-row source feedback.
+
+Viewer checklist changes save immediately through the existing version/operation-aware
+path; typing autosaves after 450ms. A shared `(notes)` layout and document controller
+preserve the editor, focus, scroll and undo history through the first saved URL.
+Starting another note resets document identity while retained drafts and uncertain
+save retries keep their original identities. Focus mode retains view/edit controls.
+The content-sized outline shows heading hierarchy and the current section, with
+normalized CRLF positions and keyboard navigation.
+
+Ask/Search aligns its mode and notebook controls and retains the search field/status
+through pending, empty, ready and retry states. Clearing a pending query immediately
+returns to the empty search state. Shared recovery and control components are reused.
+
+Verification on application source `e31e438`: root/website lint, types and builds,
+all five packaged artifacts, bundle budgets and the full **210 Chromium** suite pass.
+**17 focused iPhone/WebKit** scenarios pass, followed by **three final first-save/recovery**
+checks. Repeated affected Chromium checks also pass after correcting synthetic shifted-Z,
+paused animation-clock measurement and a manual-click/automatic-save test race.
+Dropdown description contrast uses the shared muted colour token.
+
+The telemetry-enabled production build is `bb1JRm4mEIK8YwzqY7LrK`; Notes entry is
+**484,414 gzip bytes**, with the editor deferred. Verification used an exact-source
+disposable checkout on Node 24.21.0 / pnpm 10.33.0 because the worktree filesystem
+was nearly full. [Fourteen reviewed captures](design/screenshots/workspace-refinement/README.md)
+cover desktop, 390px and 320px; browser checks additionally cover 768px, enlarged text,
+short windows, keyboard/touch, accessible contrast and save/conflict/retry behavior.
+
+## CI/CD hardening (23 October 2026)
+
+For the subsequent CI/CD source hardening, see the
+[implementation and acceptance boundaries](development/cicd-hardening-review.md)
+and [shared patch-first release/naming rules](release-conventions.md). Strict
+selected validation, authenticated source reuse, bounded reads, protected caches
+and deployment identity checks are implemented without moving runners. The
+separately authorised dropdown-opacity repair preserves existing tests and merged
+UI refinements; [desktop/mobile evidence](design/screenshots/dropdown-contrast/README.md)
+records the baseline correction. Hosted rollout and automatic recovery acceptance
+remain separate from source CI verification.
+
 ## Notebook assistance (22 October 2026)
 
 Five contextual tools share concise previews and exact source evidence: subject-aware

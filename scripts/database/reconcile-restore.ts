@@ -25,10 +25,16 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "organizeEnabled",
       "summariesEnabled",
       "askVersion",
+      "askTools",
       "contentVersion",
       "changeToken",
     );
     const subjects = await source("subject_authority").select("*");
+    const researchBudget = await source("research_global_usage").select("*");
+    const researchUsage = await source("research_account_usage").select("*");
+    const conversationTools = await source("conversations")
+      .whereNull("deletedAt")
+      .select("id", "accountId", "tools", "toolsVersion");
     const sessions = await source("session_revocations").select("*");
     const assistanceReviews = await source("assistance_reviews").select("*");
     const assistanceOperations = await source("assistance_requests")
@@ -139,6 +145,11 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("public_share_operations").delete();
       await target("public_share_rates").delete();
       await target("memory_operations").delete();
+      // Restored in-flight uploads must never publish using an old lease. Ready
+      // originals/bindings stay immutable; access still follows replayed tombstones.
+      await target("media_objects")
+        .where({ status: "pending" })
+        .update({ status: "failed", leaseUntil: target.fn.now() });
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
@@ -248,7 +259,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
           updatedAt: target.fn.now(),
         });
       await target("background_tasks")
-        .where({ kind: "export" })
+        .whereIn("kind", ["export", "speech_transcribe", "speech_synthesize"])
         .update({ result: null, expiresAt: target.fn.now() });
       await target("export_objects").update({ expiresAt: target.fn.now() });
       // Maintenance is safe to replay from its first bounded page. A cancelled
@@ -299,6 +310,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             ...preferencesFor(current),
             ...legacyPreferences(preferencesFor(current)),
             askVersion: current.askVersion + 1,
+            askTools: JSON.stringify(current.askTools),
             contentVersion: Math.max(current.contentVersion, 1) + 1,
             changeToken: target.raw("greatest(change_token,?::bigint)+1", [
               current.changeToken,
@@ -365,6 +377,35 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
           .delete();
       }
       // Old proposals and in-flight replies cannot be replayed into restored data.
+      for (const row of researchBudget)
+        await target("research_global_usage")
+          .insert(row)
+          .onConflict("month")
+          .merge({
+            microdollars: target.raw(
+              "greatest(research_global_usage.microdollars,excluded.microdollars)",
+            ),
+          });
+      for (const row of researchUsage)
+        if (restoredIds.has(row.accountId))
+          await target("research_account_usage")
+            .insert(row)
+            .onConflict(["accountId", "day"])
+            .merge({
+              calls: target.raw(
+                "greatest(research_account_usage.calls,excluded.calls)",
+              ),
+            });
+      for (const row of conversationTools)
+        await target("conversations")
+          .where({ id: row.id, accountId: row.accountId })
+          .whereNull("deletedAt")
+          .update({
+            tools: JSON.stringify(row.tools),
+            toolsVersion: target.raw("greatest(tools_version,?)+1", [
+              row.toolsVersion,
+            ]),
+          });
       await target("conversation_turns").where({ status: "pending" }).update({
         status: "failed",
         error: "Reply interrupted. Please try again.",
@@ -374,6 +415,10 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target.raw(
         `UPDATE conversation_turns SET result = jsonb_set(result, '{proposal,status}', '"unavailable"'), undo = NULL WHERE result->'proposal' IS NOT NULL AND result->'proposal' <> 'null'::jsonb`,
       );
+      await target.raw(
+        `UPDATE conversation_turns SET result=jsonb_set(result,'{organization,status}','"unavailable"'),undo=NULL WHERE result->'organization' IS NOT NULL AND result->'organization'<>'null'::jsonb`,
+      );
+      await target("conversation_turns").update({ toolRuns: "[]" });
       await target("jobs").update({ leaseId: null, leaseUntil: null });
       return {
         restoredAccounts: existing.length,
