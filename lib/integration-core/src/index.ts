@@ -74,7 +74,7 @@ export class ApiClient {
       try {
         result = (await response.json()) as ApiEnvelope<T>;
       } catch (error) {
-        if (signal.aborted) throw error;
+        if (signal.aborted || !(error instanceof SyntaxError)) throw error;
         throw new GroveError(
           "invalid_response",
           "Invalid Grove API response",

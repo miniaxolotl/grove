@@ -13,15 +13,18 @@ import { homedir } from "node:os";
 import { basename, join, dirname } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { z } from "zod";
 import { resetLocalTelemetry, telemetry } from "@lib/telemetry";
 import { telemetryDisabled } from "@lib/telemetry/preference";
 import {
   auth,
   type OAuthClientProvider,
 } from "@modelcontextprotocol/sdk/client/auth.js";
-import type {
-  OAuthClientInformationMixed,
-  OAuthTokens,
+import {
+  OAuthClientInformationSchema,
+  OAuthTokensSchema,
+  type OAuthClientInformationMixed,
+  type OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
 import {
   GroveError,
@@ -250,6 +253,24 @@ function credentialPath(origin: string, agent: AgentName, accountId: string) {
     `credentials-${hash(`${origin}|${agent}|${accountId}`)}.json`,
   );
 }
+const credentialAuthSchema = z
+  .object({
+    key: z.string().trim().min(1).optional(),
+    tokens: OAuthTokensSchema.extend({
+      access_token: z.string().trim().min(1),
+      token_type: z.string().trim().min(1),
+      refresh_token: z.string().trim().min(1).optional(),
+    }).optional(),
+    expiresAt: z.number().nonnegative().optional(),
+    client: OAuthClientInformationSchema.extend({
+      client_id: z.string().trim().min(1),
+    }).optional(),
+    redirectUrl: z.url().optional(),
+  })
+  .refine(
+    (value) =>
+      !!value.key || !!(value.tokens && value.client && value.redirectUrl),
+  );
 export async function loadCredentials(
   origin: string,
   agent: AgentName,
@@ -289,6 +310,12 @@ export async function loadCredentials(
       "sign_in_required",
       "Grove credential identity does not match; sign in again",
       401,
+    );
+  if (!credentialAuthSchema.safeParse(value).success)
+    throw new GroveError(
+      "credential_store_unavailable",
+      "Grove credentials are incomplete or damaged. Check local store integrity; no credentials were changed.",
+      503,
     );
   return value;
 }

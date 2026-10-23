@@ -8,13 +8,17 @@ import {
   type DiagnosticReport,
 } from "@lib/integration-core/diagnostics";
 import {
+  bearer,
   configuredOrigin,
   loadCredentials,
-  nodeClient,
   readConfig,
 } from "@lib/integration-core/node";
 import { GroveError } from "@lib/shared/contracts";
-import { apiOrigin, type ConnectionInfo } from "@lib/integration-core";
+import {
+  ApiClient,
+  apiOrigin,
+  type ConnectionInfo,
+} from "@lib/integration-core";
 
 const codes = new Set([
   "not_configured",
@@ -181,9 +185,19 @@ export async function diagnose(
   }
   if (probe && origin) {
     try {
-      const me = await (
-        await nodeClient(client, origin, 5000)
-      ).request<Partial<ConnectionInfo> | null>("/v1/me");
+      const endpoint = origin;
+      const api = new ApiClient(
+        endpoint,
+        (signal) => bearer(endpoint, client, signal),
+        5000,
+        {
+          disabled: () => true,
+          completed: () => {
+            /* Diagnostics opt out upstream without initializing a reporter. */
+          },
+        },
+      );
+      const me = await api.request<Partial<ConnectionInfo> | null>("/v1/me");
       if (
         !me ||
         typeof me.accountId !== "string" ||
