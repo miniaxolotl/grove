@@ -34,7 +34,8 @@ their own version and retry identity, with retained transcript revisions. A stal
 save requires review/reload instead of overwriting newer text. **Use in note**
 inserts the draft transcript through the ordinary editor Undo/autosave path; it
 does not silently replace authored prose. Transcripts are private unless explicitly
-inserted into the shared note text. Automatic STT is the following speech slice.
+inserted into the shared note text. Optional [speech](speech.md) queues transcription
+only on request, presents a separate suggestion and requires explicit draft use/save.
 
 - `GET /v1/memories/:noteId/media/:id/transcript` reads the current transcript.
 - `PATCH` on the same route accepts `{operationId,expectedVersion,text}` (≤6000

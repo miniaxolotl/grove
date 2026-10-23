@@ -90,6 +90,9 @@ source-read-only. Local execution plans are in
 recovered `sources/` are historical snapshots. The tracked
 [images, recordings and speech review](documentation/development/media-plan.md)
 records proposed scope and acceptance gates, not shipped functionality.
+Current implementation contracts are documented under [media](documentation/media.md),
+[recordings](documentation/recordings.md) and opt-in [speech](documentation/speech.md);
+production activation follows the release and explicit migration procedure.
 
 ## Releases
 

@@ -14,6 +14,7 @@ import { notebookAssistance } from "./assistance-migration.ts";
 import { notebookLifecycle } from "./notebook-lifecycle-migration.ts";
 import { mediaAttachments } from "./media-migration.ts";
 import { recordings } from "./recordings-migration.ts";
+import { speech } from "./speech-migration.ts";
 import { researchTools } from "./research-migration.ts";
 
 export const migrations = [
@@ -238,6 +239,7 @@ export const migrations = [
   notebookLifecycle,
   mediaAttachments,
   recordings,
+  speech,
   researchTools,
 ];
 

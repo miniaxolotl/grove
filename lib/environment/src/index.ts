@@ -104,6 +104,20 @@ export const serverEnvironmentSchema = z.object({
     .default(4096),
   DEEPINFRA_API_KEY: z.string().optional(),
   MINIMAX_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  SPEECH_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  TTS_VOICE: z
+    .enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"])
+    .default("alloy"),
+  SPEECH_PROVIDER_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(16)
+    .default(2),
   EXA_API_KEY: z.string().optional(),
   TAVILY_API_KEY: z.string().optional(),
   RESEARCH_DAILY_CALL_LIMIT: z.coerce

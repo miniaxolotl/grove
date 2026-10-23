@@ -14,9 +14,11 @@ import {
   scheduleCleanup,
   runTask,
   providerProfiles,
+  speechHandlers,
   type TaskHandler,
 } from "@lib/memory";
 import { queueLanes, type QueueLane, type TaskKind } from "@lib/shared/jobs";
+import { readMediaBytes } from "./media-input.ts";
 
 const runtime = await createRuntime();
 const reporter = telemetry("worker");
@@ -53,7 +55,22 @@ const recipient = async (subject: string) => {
   );
 };
 const handlers: Partial<Record<TaskKind, TaskHandler>> = {
-  ...(runtime.artifacts ? exportHandlers(runtime.db, runtime.artifacts, runtime.media) : {}),
+  ...speechHandlers(
+    runtime.memories,
+    runtime.speech,
+    runtime.artifacts,
+    runtime.media
+      ? (key, signal) =>
+          runtime
+            .media!.read(key, signal)
+            .then((source) => readMediaBytes(source, signal))
+      : null,
+    runtime.db,
+    runtime.env.SPEECH_PROVIDER_CONCURRENCY,
+  ),
+  ...(runtime.artifacts
+    ? exportHandlers(runtime.db, runtime.artifacts, runtime.media)
+    : {}),
   ...importHandlers(runtime.memories),
   ...cleanupHandlers(runtime.db, async (subject) => {
     try {
@@ -208,6 +225,7 @@ const maintenance = loop("maintenance_retry", async () => {
   const started = performance.now();
   await runtime.db.raw("SELECT grove_sweep_deliveries()");
   await scheduleCleanup(runtime.db);
+  await runtime.db.raw("SELECT grove_expire_speech()");
   if (runtime.artifacts)
     await runtime.db.raw("SELECT grove_schedule_artifacts()");
   await runtime.memories.scheduleOrganization(

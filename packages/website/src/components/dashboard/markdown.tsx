@@ -186,6 +186,7 @@ const components: Components = {
           mediaId={recording}
           shared={!!shared}
           onUse={onUseTranscript}
+          speechVersion={media.live ? media.version : undefined}
         />
       );
     }

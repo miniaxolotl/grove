@@ -57,6 +57,7 @@ import { IconButton } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
 import { InspectorDialog } from "./ui/inspector-dialog";
 import { RecordingControl } from "./recording-control";
+import { ReadAloud } from "./speech-controls";
 import {
   noteHeadings,
   headingFromHash,
@@ -135,6 +136,7 @@ export function MarkdownEditor({
   children,
   media,
   upload,
+  speechReady = false,
   noteId,
 }: {
   value: string;
@@ -148,6 +150,7 @@ export function MarkdownEditor({
   children?: ReactNode;
   media?: { noteId: string; version?: number; live?: boolean };
   upload?: (file: File, signal: AbortSignal) => Promise<string>;
+  speechReady?: boolean;
   noteId?: string;
 }) {
   const id = useId();
@@ -719,6 +722,13 @@ export function MarkdownEditor({
                 hidden={mode === "preview"}
                 className="codemirror-host"
               />
+              {mode === "preview" && speechReady && media?.version && (
+                <ReadAloud
+                  key={`${media.noteId}:${media.version}`}
+                  noteId={media.noteId}
+                  version={media.version}
+                />
+              )}
               {mode === "preview" && (
                 <div
                   className="editor-preview reader-copy"

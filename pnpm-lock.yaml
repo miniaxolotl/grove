@@ -136,6 +136,9 @@ importers:
 
   lib/shared:
     dependencies:
+      mdast-util-from-markdown:
+        specifier: 2.0.2
+        version: 2.0.2
       zod:
         specifier: ~4.1.8
         version: 4.1.13
@@ -146,6 +149,9 @@ importers:
       '@lib/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/mdast':
+        specifier: 4.0.4
+        version: 4.0.4
 
   lib/telemetry:
     dependencies:

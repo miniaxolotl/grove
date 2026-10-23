@@ -1,0 +1,64 @@
+.speech-read-aloud {
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.speech-trigger,
+.speech-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.speech-trigger {
+  min-height: 44px;
+}
+.speech-actions,
+.speech-permission,
+.speech-label {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.speech-panel {
+  position: relative;
+  width: min(100%, 34rem);
+  padding: 0.5rem 2rem 0.5rem 0;
+}
+.speech-close {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+}
+.speech-transcription,
+.speech-candidate,
+.speech-candidate-text,
+.speech-label {
+  display: block;
+}
+.speech-candidate {
+  margin: 0.75rem 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--color-line);
+}
+.speech-candidate-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 12rem;
+  overflow-y: auto;
+  margin: 0.5rem 0;
+}
+.speech-panel :is(button, a):focus-visible,
+.speech-transcription button:focus-visible {
+  outline: 2px solid var(--color-forest);
+  outline-offset: 2px;
+}
+@media (pointer: coarse) {
+  .speech-actions button,
+  .speech-candidate button {
+    min-height: 44px;
+  }
+}
