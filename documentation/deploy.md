@@ -17,7 +17,7 @@ documentation refresh.
 
 ### Speech rollout (019)
 
-Back up retained source objects and the database together. After018, apply forward
+Back up retained source objects and the database together. After 018, apply forward
 `20261023_019_speech` with the owner connection during the migration window; runtime
 readiness now requires its account columns. Drain old workers before enabling the
 new bulk task kinds. Roll out the admitted matching API/worker image with speech

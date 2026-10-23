@@ -30,37 +30,37 @@ Public links still play their separately authorized original recordings.
 
 ## Provider and privacy contract
 
-| Role          | Selected model     | Input                                                            | Output                                                                |
-| ------------- | ------------------ | ---------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Transcription | OpenAI `whisper-1` | Immutable, checksum-verified original PCM16 WAV, up to60 seconds | Suggested text, up to6000 characters; language detected automatically |
-| Read aloud    | OpenAI `tts-1`     | Saved narration text, up to3000 characters                       | MP3, at most3 MiB; default voice `alloy`                              |
+| Role          | Selected model     | Input                                                             | Output                                                                  |
+| ------------- | ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Transcription | OpenAI `whisper-1` | Immutable, checksum-verified original PCM16 WAV, up to 60 seconds | Suggested text, up to 6,000 characters; language detected automatically |
+| Read aloud    | OpenAI `tts-1`     | Saved narration text, up to 3,000 characters                      | MP3, at most 3 MiB; default voice `alloy`                               |
 
 No text-generation provider/key is reused as a fallback. `OPENAI_API_KEY` remains
 server-only; credentials, audio, note text, transcript text and upstream diagnostics
 do not enter application telemetry. Requests use the fixed OpenAI API endpoint,
-disallow redirects, bound streamed responses and have a45-second provider deadline.
+disallow redirects, bound streamed responses and have a 45-second provider deadline.
 Do not interpret a configured key as a successful health or billing check.
 
 According to [OpenAI's data controls](https://developers.openai.com/api/docs/guides/your-data)
-(checked23 October2026), API inputs are not used for training unless the customer
+(checked 23 October 2026), API inputs are not used for training unless the customer
 opts in. The endpoint table lists no application-state or abuse-monitoring retention
 for `/v1/audio/transcriptions`; `/v1/audio/speech` has no application state but
-normally up to30 days of abuse-monitoring retention, subject to the provider's
+normally up to 30 days of abuse-monitoring retention, subject to the provider's
 exceptions. Grove does **not** claim this account has approved Zero Data Retention,
 regional processing or additional contractual controls. Already transmitted data
 cannot be recalled by cancellation, disabling a preference or deleting a note.
 
 ## Queue, limits and freshness
 
-Both tasks use the existing **bulk** lane, fair claims, token-fenced120-second
+Both tasks use the existing **bulk** lane, fair claims, token-fenced 120-second
 renewable task leases, bounded automatic retries and conservative inference
 reservations. Bulk work admits one task per account. Separate database-backed
-provider slots default to two across replicas (`SPEECH_PROVIDER_CONCURRENCY`,1–16);
-90-second slots outlast the45-second provider deadline, including crash recovery.
-The complete handler also has a60-second cooperative deadline.
+provider slots default to two across replicas (`SPEECH_PROVIDER_CONCURRENCY`, 1–16);
+90-second slots outlast the 45-second provider deadline, including crash recovery.
+The complete handler also has a 60-second cooperative deadline.
 
-Each account/role reserves at most20 attempts/day. Transcription additionally caps
-total original duration at600 seconds/day; synthesis caps narration at60000 text
+Each account/role reserves at most 20 attempts/day. Transcription additionally caps
+total original duration at 600 seconds/day; synthesis caps narration at 60,000 text
 units/day (JavaScript UTF-16 length). Existing `AI_DAILY_REQUEST_LIMIT` also applies
 across roles. Retries and uncertain calls retain their reservations; cancellation
 does not promise a refund. These are inference bounds, not a guaranteed dollar bill
@@ -83,7 +83,7 @@ Cache reuse requires the same tenant, note/revision, provider/model/voice/format
 preference generation and restore epoch, plus an unexpired tracked object. Reuse
 creates a retry-safe request receipt without another provider call.
 
-Task/candidate access expires no later than24 hours after enqueue; reused output
+Task/candidate access expires no later than 24 hours after enqueue; reused output
 keeps the original deadline. Worker maintenance clears expired machine-result text
 in bounded batches, and artifact cleanup removes expired objects. Physical deletion
 depends on running maintenance or the operator's bucket lifecycle; expiry is not an
@@ -99,7 +99,7 @@ remain intact. See [recordings](recordings.md) and [jobs](jobs.md).
 
 ## Installation and API
 
-Apply forward migration **019 `20261023_019_speech`** after018, using the owner
+Apply forward migration **019 `20261023_019_speech`** after 018, using the owner
 procedure in [deploy](deploy.md). Configure API and worker identically:
 
 ```sh
@@ -122,7 +122,7 @@ the flag. Initial/image-only hosting operations do not infer missing speech secr
   `speechAvailable: {transcription,synthesis}`; normal settings PATCH updates either
   preference independently.
 - `POST /v1/memories/:noteId/speech`: `{id,version,mediaId?}`. With `mediaId`, queue
-  transcription; otherwise queue read aloud. Returns202 and the safe task view.
+  transcription; otherwise queue read aloud. Returns 202 and the safe task view.
   Reuse `id` to recover an uncertain response; a deliberate retry uses a new UUID.
 - `GET /v1/speech/:id`: safe status, optional suggested `transcript`, `playable`
   and a sanitized error code; no object key, token or provider diagnostic.

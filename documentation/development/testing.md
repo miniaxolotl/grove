@@ -6,7 +6,7 @@ HTTP adapter responses, independent default-off preferences, non-owner source/RL
 checks, retained machine-versus-authored transcripts, retry/lease races, global
 provider slots, conservative budgets, source/profile/session/restore fences,
 private Range/HEAD playback, exact cache expiry and derived-only maintenance.
-The populated018→019 upgrade preserves authored notes, WAV metadata and transcript
+The populated 018→019 upgrade preserves authored notes, WAV metadata and transcript
 history. Restore verification also seeds completed speech and checks that results
 and artifact access expire rather than being revived.
 

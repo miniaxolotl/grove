@@ -1,5 +1,36 @@
 # Delivery evidence
 
+## Explicit transcription and read aloud (23 October 2026)
+
+Stacked on recordings #95, speech adds independent default-off transcription and
+read-aloud preferences, OpenAI whisper-1/tts-1 adapters and explicit bulk jobs.
+Machine transcripts are separate suggestions; copying to a draft, saving authored
+history and inserting through normal autosave/Undo are deliberate user actions.
+Read aloud reuses the minimalist player and identifies the AI-generated voice.
+Opening notes, enabling preferences and anonymous public reads never start inference.
+
+Migration 019 fits between recordings 018 and Ask tools 020. Conservative attempt,
+duration/text and shared inference budgets, global provider slots, cooperative
+deadlines and source/profile/preference/session/restore fences bound work. Generated
+MP3 uses the existing private temporary artifact store/cleanup; originals and saved
+transcript history remain retained. Restore clears derived speech without reviving
+old output. [Contracts, privacy and explicit rollout](speech.md).
+
+Integrated source `a404ad8` preserves #95 `93983e5` navigation/research. Local gates
+pass: **229 backend cases / four optional-service skips**, **223 Chromium** and
+**12 focused iPhone/WebKit** navigation cases, root/site lint/types/builds, five
+packed artifacts, release/deployment contracts, workflow lint and bundle budgets.
+Notes entry is **487,996 gzip bytes** with the editor deferred. Both-engine real-API
+speech journeys cover opt-ins, candidate/save/use, exact cache reuse, playback,
+retry/cancellation through both close controls, heading navigation/pinning and
+1440/390/320px accessibility. [Current synthetic captures](design/screenshots/speech/README.md)
+record source/build identity and no-JavaScript public-reader verification limits.
+
+A bounded real OpenAI check synthesized and transcribed only synthetic speech with
+the selected models; this is API/codec evidence, not general quality or device
+qualification. Credentials stay in private custody. No production migration,
+deployment, speech activation or PR merge is performed by this slice.
+
 ## Custom recording player (23 October 2026)
 
 Recording playback now uses a quiet inline strip rather than browser chrome:
