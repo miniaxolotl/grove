@@ -21,6 +21,10 @@ Historical bootstrap SHAs, existing versions and published tags are preserved.
 - Release Please owns version/changelog updates. Do not hand-edit a feature's
   version, repeat bootstrap overrides, force tags or overwrite published artifacts.
 
+Refresh pending release PRs created under the old policy through Source Release
+before merging them. An old minor/major proposal cannot bypass the explicit
+decision: publication checks the merged manifest against the released version.
+
 Source Release runs only on protected `development`, serially without cancellation.
 It checks release intent before invoking Release Please. Website/Burrow/Grove use
 job-scoped `GITHUB_TOKEN` plus explicit generated-PR CI dispatch. Fern retains its

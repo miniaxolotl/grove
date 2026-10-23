@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertReleaseIntent } from "./release-intent.mjs";
+import {
+  assertReleaseIntent,
+  assertManifestVersion,
+} from "./release-intent.mjs";
 test("routine changes remain patch-first and explicit higher versions are retained", () => {
   assert.equal(
     assertReleaseIntent(["feat(api): capability", "fix(api): repair"], "1.2.3"),
@@ -44,4 +47,12 @@ test("malformed, conflicting and non-increasing explicit versions fail closed", 
       "1.2.3",
     ),
   );
+});
+test("a previously generated minor or major PR cannot bypass the explicit version decision", () => {
+  assert.doesNotThrow(() => assertManifestVersion("1.2.3", "1.2.3", null));
+  assert.doesNotThrow(() => assertManifestVersion("1.2.3", "1.2.4", null));
+  assert.doesNotThrow(() => assertManifestVersion("1.2.3", "1.3.0", "1.3.0"));
+  for (const version of ["1.3.0", "2.0.0", "1.2.5", "1.2.2"])
+    assert.throws(() => assertManifestVersion("1.2.3", version, null));
+  assert.throws(() => assertManifestVersion("1.2.3", "1.3.0", "2.0.0"));
 });

@@ -44,6 +44,28 @@ export function assertReleaseIntent(messages, currentVersion) {
   return selected;
 }
 
+export function assertManifestVersion(released, manifest, selected) {
+  assert.match(released, plainVersion);
+  assert.match(manifest, plainVersion);
+  if (manifest === released) return;
+  if (selected) {
+    assert.equal(
+      manifest,
+      selected,
+      "Merged version differs from explicit Release-As decision",
+    );
+    return;
+  }
+  const before = released.split(".").map(BigInt);
+  const after = manifest.split(".").map(BigInt);
+  assert.ok(
+    after[0] === before[0] &&
+      after[1] === before[1] &&
+      after[2] === before[2] + 1n,
+    "Merged release version requires an explicit Release-As decision",
+  );
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
@@ -82,7 +104,21 @@ if (
     )
       .split("\0")
       .filter(Boolean);
-    assertReleaseIntent(messages, tag ? tag.slice(1) : "0.0.0");
+    const selected = assertReleaseIntent(
+      messages,
+      tag ? tag.slice(1) : "0.0.0",
+    );
+    if (tag) {
+      const manifest = JSON.parse(
+        readFileSync(".release-please-manifest.json", "utf8"),
+      )["."];
+      assert.equal(
+        manifest,
+        JSON.parse(readFileSync("package.json", "utf8")).version,
+        "Root version ledger mismatch",
+      );
+      assertManifestVersion(tag.slice(1), manifest, selected);
+    }
     console.log(
       "Patch-first release intent verified; explicit version decisions are consistent.",
     );
