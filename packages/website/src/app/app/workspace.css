@@ -526,6 +526,118 @@ html:has(.grove-app) {
   color: var(--color-forest);
   background: var(--color-sage);
 }
+.ask-composer .ask-tools-control > .app-icon {
+  width: auto;
+  min-height: 36px;
+  height: auto;
+  gap: 6px;
+  padding: 0 7px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.ask-tools-heading {
+  padding: 8px 10px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.ask-tool-description {
+  flex: 1;
+  min-width: 0;
+}
+.ask-tool-description strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.ask-tool-description small {
+  display: block;
+  color: var(--color-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.ask-tool-switch {
+  width: 28px;
+  height: 17px;
+  padding: 2px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-paper);
+  flex-shrink: 0;
+}
+.ask-tool-switch > span {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-muted);
+}
+.ask-tool-switch.is-on {
+  background: var(--color-forest);
+  border-color: var(--color-forest);
+}
+.ask-tool-switch.is-on > span {
+  background: white;
+  transform: translateX(11px);
+}
+.ask-tools-control .action-menu {
+  width: 300px;
+  min-width: 0;
+}
+.ask-tools-control .ask-tools-status {
+  min-height: 28px;
+  color: var(--color-muted);
+}
+.ask-tools-control .ask-tools-default {
+  border-top: 1px solid var(--color-line);
+  border-radius: 0;
+}
+.ask-tools-control .action-menu > p {
+  max-width: 260px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.ask-web-sources li > a {
+  display: flex;
+  gap: 12px;
+  padding: 12px 8px;
+  overflow-wrap: anywhere;
+}
+.ask-web-sources li > a > span {
+  flex: 1;
+  min-width: 0;
+}
+.ask-web-sources li > a:hover {
+  background: var(--color-paper);
+}
+.ask-organization-list {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+.ask-organization-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+.ask-organization-list svg {
+  flex-shrink: 0;
+}
+.ask-organization > details {
+  margin: 12px 0;
+}
+.ask-organization > details > summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+@media (max-width: 400px) {
+  .ask-composer-footer > span {
+    font-size: 9px;
+    line-height: 1.4;
+  }
+}
 .ask-formatting {
   display: flex;
   gap: 2px;

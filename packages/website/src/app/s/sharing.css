@@ -13,7 +13,6 @@
   border-bottom: 1px solid var(--color-line);
 }
 .shared-site-header > span,
-.shared-footer,
 .shared-date {
   font-size: 12px;
   color: var(--color-muted);
@@ -24,14 +23,6 @@
 }
 .shared-heading {
   margin-bottom: 28px;
-}
-.shared-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--color-muted);
-  margin-bottom: 12px;
 }
 .shared-heading h1,
 .shared-message h1 {
@@ -141,16 +132,36 @@
   padding: 20px 0;
   color: var(--color-muted);
 }
-.shared-footer {
-  padding: 20px 0 28px;
-  border-top: 1px solid var(--color-line);
-}
 .shared-message {
-  padding: 64px 0;
+  max-width: 480px;
+  padding: 64px 0 80px;
+  overflow-wrap: anywhere;
+}
+.shared-message h1 {
+  font-size: clamp(24px, 4vw, 28px);
 }
 .shared-message p {
-  margin-top: 16px;
+  margin-top: 12px;
+  color: var(--color-muted);
+  font-size: 15px;
   line-height: 1.7;
+}
+.shared-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 24px;
+  padding: 10px 18px;
+  border: 1px solid var(--color-forest);
+  border-radius: 8px;
+  background: var(--color-forest);
+  color: var(--color-paper);
+  font-size: 13px;
+  font-weight: 500;
+}
+.shared-retry:hover {
+  background: var(--color-leaf);
 }
 .shared-reader .memory-markdown {
   font-size: 16px;
@@ -257,6 +268,9 @@
   }
   .shared-reader {
     padding: 28px 0 40px;
+  }
+  .shared-message {
+    padding-top: 40px;
   }
   .shared-note-label {
     flex-direction: column;

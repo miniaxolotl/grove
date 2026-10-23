@@ -1,5 +1,14 @@
 # Verification
 
+Ask Grove tools add deterministic hosted-MCP protocol fixtures in `research.test.ts`,
+a populated 016→020 upgrade, conversation settings/cancellation/budget and atomic
+organization regressions, and export/recovery checks. Paid provider calls are kept
+out of normal CI; bounded synthetic search/extract runs qualify actual Exa/Tavily
+schemas separately. Browser verification covers the composer menu, remembered
+choices/defaults, citations, activity, organization previews and Apply/Undo at
+1440/768/390/320px. Capture a small PR preview row (at most four images), with the
+complete gallery under `documentation/design/screenshots/ask-tools/`.
+
 Conversation history coverage (`conversation-history.test.ts`) uses real non-owner
 PostgreSQL access for title/older-question search, literal wildcard handling,
 bounded previews, owner-only/tenant isolation, retained-but-hidden deletion and
@@ -79,6 +88,17 @@ pending saves. Telemetry tests inspect actual SDK payloads for capability/conten
 canaries and disabled replay. Synthetic fixture routes exist only in the test
 upstream, never in the application. Rebuild the website before browser checks.
 
+When changing public-reader presentation, also inspect the rendered head on direct
+notes, notebooks, nested notes/notebooks, unavailable links and service failures.
+Titles/descriptions must stay generic across HTML/Open Graph/Twitter, with no
+content, capability URL or inherited marketing image. Verify the referrer meta tag
+alongside privacy response headers. Review the brief recovery copy, retry and
+keyboard focus at 1440/390/320px, with no JavaScript and enlarged text. Screenshots:
+[shared readers](../design/screenshots/shared-readers/README.md).
+The current Next nested not-found/error fallback is client-rendered: no-JavaScript
+verification covers active readers/navigation, not unavailable-state UI. Inspect
+404 status, generic metadata and privacy headers independently of hydration.
+
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
@@ -90,7 +110,7 @@ AI preferences coverage includes a populated 012→013 upgrade with all four leg
 organization/summary combinations, separate summary scopes and connections, partial
 HTTP writes, owner-only permissions, reindex/restore preservation and disabling then
 re-enabling features during inference. Browser cases exercise the five categories,
-ten controls, provider availability, failed/overlapping saves, keyboard operation,
+the original ten controls (four assistance controls were added in 015), provider availability, failed/overlapping saves, keyboard operation,
 cross-tab summary invalidation and 1440/390/320px accessibility. Settings cases also
 cover draft retention across tabs, discard, clean-form server updates, session
 replacement and provider credential save/retry. The focused WebKit configuration

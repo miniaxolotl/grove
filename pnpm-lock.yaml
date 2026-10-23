@@ -62,6 +62,9 @@ importers:
       '@lib/telemetry':
         specifier: workspace:*
         version: link:../telemetry
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.1
+        version: 1.32.1(zod@4.1.13)
       zod:
         specifier: ~4.1.8
         version: 4.1.13

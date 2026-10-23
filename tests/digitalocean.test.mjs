@@ -23,6 +23,8 @@ const env = {
   SHARE_LINK_KEY: "ab".repeat(32),
   DEEPINFRA_API_KEY: "deepinfra-fixture",
   MINIMAX_API_KEY: "minimax-fixture",
+  EXA_API_KEY: "exa-fixture",
+  TAVILY_API_KEY: "tavily-fixture",
 };
 
 test("initial spec isolates runtime secrets and never deploys the migration owner", () => {
@@ -67,6 +69,13 @@ test("initial spec isolates runtime secrets and never deploys the migration owne
     },
   );
   assert(!spec.workers[0].envs.some((item) => item.key === "SHARE_LINK_KEY"));
+  for (const key of ["EXA_API_KEY", "TAVILY_API_KEY"]) {
+    assert.equal(
+      spec.services[0].envs.find((item) => item.key === key)?.type,
+      "SECRET",
+    );
+    assert(!spec.workers[0].envs.some((item) => item.key === key));
+  }
 });
 
 test("provisioning rejects owner connections, insecure TLS and stale Clerk keys", () => {
