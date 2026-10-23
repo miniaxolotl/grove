@@ -2,8 +2,8 @@
 
 Grove is a place for notes, ideas, and everyday writing. Start in **Notes** to write
 and organize, or **Ask Grove** to talk about your notes. Notebooks live in the sidebar;
-on a phone, tap **Notebooks** beside the heading to browse them, and share the row with
-search. Connected agents use the same notes and permissions; their references live in
+on a phone, tap **Notebooks** below the navigation to browse them. Search shares the
+heading row with **New note**. Connected agents use the same notes and permissions; their references live in
 **Note properties → Agent details**. The sidebar logo always returns to Notes.
 
 ## Write, find, and organize
@@ -35,7 +35,9 @@ search. Connected agents use the same notes and permissions; their references li
   **Export** sits in the toolbar and **Delete note…** beside it, including focus
   mode. **Note actions** orders Move, Export, revision history/properties, Archive
   or Restore, then separated Delete; compact screens keep every secondary action —
-  Export, Delete, focus mode, previous/next and Commands — in this one menu. Save state stays visible; feedback does not move the page.
+  Export, Delete, focus mode, previous/next and Commands — in this one menu.
+  Full-page notes fill the phone viewport, with **Back to notes** returning to
+  navigation. Save state stays visible; feedback does not move the page.
   Save stays visually quiet until there are changes to save.
 - Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
   Results update after a short pause as you type. **Filters** gathers notebook,

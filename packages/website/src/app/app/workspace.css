@@ -380,6 +380,13 @@ html:has(.grove-app) {
   .grove-app:has(.app-content > .note-editor-full) {
     grid-template-rows: auto minmax(0, 1fr);
   }
+  /* Keep this after the shared two-row layout, including in production CSS. */
+  .grove-app:has(.app-content .note-editor-full) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .grove-app:has(.app-content .note-editor-full) > .app-sidebar {
+    display: none;
+  }
 }
 @media (max-width: 767px) {
   .app-detail-panel:has(.note-editor-drawer) {

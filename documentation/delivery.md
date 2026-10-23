@@ -1,5 +1,26 @@
 # Delivery evidence
 
+## Streamlined workspace (23 October 2026)
+
+Notes and notebook libraries keep search beside one Filters control; notebook
+selection and sorting share that panel. Mobile search joins New note in the
+heading, Commands shares the notebook row, and full-page notes hide the sidebar.
+Compact readers keep Export/Delete and secondary tools in Note actions; preview
+hides formatting tools and the repeated autosave explanation is removed.
+
+Review found a production-CSS cascade leaving a second, empty grid row beneath
+mobile notes. The compact-note override now follows the shared layout. The
+regression first failed at a 602px document height and now checks full-height
+documents at 320/390/768px and in short windows in Chromium and WebKit.
+
+Root/site lint, types and builds, five packaged artifacts and bundle budgets pass.
+All **223 Chromium scenarios**, **17 focused iPhone/WebKit scenarios** and 18
+viewport/accessibility checks pass. Notes entry is **486,029 gzip bytes**, with
+the editor deferred.
+[Reviewed captures](design/screenshots/streamlined-workspace/README.md) cover
+Notes, notebooks, the editor, Ask Grove, Settings and Archive at 1440/390/320px.
+No migration or production deployment is part of this refinement.
+
 ## Shared reader polish (23 October 2026)
 
 Shared notes and notebooks use one Read only label, a clear title/date and the saved

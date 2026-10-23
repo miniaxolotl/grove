@@ -1683,6 +1683,23 @@ test("mobile note controls leave room to read and retain selection for touch for
       (await drawer.locator(".writing-layout").boundingBox())!.height,
     ).toBeGreaterThan(400);
     await page.screenshot({ path: info.outputPath("compact-reader-320.png") });
+    await page.goto(`${base}/app/memories/${note.id}`);
+    const fullPageEditor = page.locator(".note-editor-full");
+    await expect(fullPageEditor).toBeVisible();
+    for (const viewport of [
+      { width: 320, height: 750 },
+      { width: 390, height: 844 },
+      { width: 768, height: 844 },
+      { width: 390, height: 480 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(
+        page.getByRole("complementary", { name: "Workspace sidebar" }),
+      ).toBeHidden();
+      const bounds = (await fullPageEditor.boundingBox())!;
+      expect(bounds.y).toBe(0);
+      expect(bounds.y + bounds.height).toBeCloseTo(viewport.height, 0);
+    }
   } finally {
     await context.close();
   }
