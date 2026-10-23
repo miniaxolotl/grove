@@ -7,6 +7,15 @@ synthetic notebooks; no customer/provider data is used.
 
 - `desktop.png`: keyboard-selected source dropdown in the library filters at 1280 × 720.
 - `mobile.png`: parent-notebook dropdown in the New notebook dialog at 320 × 900.
+- `detail.png`: unaltered 289 × 100 crop of that mobile capture, highlighting the
+  description/selected state; not a separate test scenario.
+
+| Desktop filters                         | Mobile dialog                                  | Contrast detail                        |
+| --------------------------------------- | ---------------------------------------------- | -------------------------------------- |
+| ![Desktop source selector](desktop.png) | ![Mobile parent-notebook selector](mobile.png) | ![Mobile menu text detail](detail.png) |
+
+The PR description previews these three images in one row; full-resolution
+captures and their source/verification context remain here.
 
 The existing `shared dropdowns support keyboard selection, typeahead, modal
 dismissal and narrow touch layouts` test runs WCAG A/AA checks on both surfaces.
