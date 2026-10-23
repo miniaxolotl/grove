@@ -1,5 +1,10 @@
 # Hosting and releases
 
+Follow [shared release/naming conventions](release-conventions.md): patch-first
+automatic versions, explicit `Release-As` minor/major/breaking decisions, concise
+conventional commit/PR names and immutable promotion refs. Coordinated package and
+marketplace version mappings remain part of the single root release.
+
 Shared workflow names, action pins, runtime and evidence conventions follow the
 [cross-repository CI/CD baseline](pipeline-conventions.md).
 

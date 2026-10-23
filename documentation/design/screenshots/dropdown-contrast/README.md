@@ -1,7 +1,8 @@
 # Dropdown contrast baseline repair
 
-Source: development `22e76b4` plus the isolated `controls.css` repair that removes
-the `select-in` opacity animation. Captured from the telemetry-enabled production
+Source: integrated merge `f7ccaeb` (development `e13a58b` plus the isolated
+`controls.css` repair removing `select-in` opacity). Captures refreshed after
+integrating #82/#84/#85/#91, from the telemetry-enabled production
 build with Node 24.21.0, pnpm 10.33.0 and Playwright 1.64.1 Chromium. Fixtures are
 synthetic notebooks; no customer/provider data is used.
 
@@ -27,7 +28,8 @@ the existing tests and thresholds are unchanged.
 
 The repair keeps the dropdown opaque from its first rendered frame, preserving
 layout, keyboard/touch behavior and the existing description colour. Eight focused
-repetitions and the full 203-case Chromium suite pass without retries. Both
-captures were visually reviewed. It deliberately leaves independent PR #82's
-colour/UI changes untouched. No pipeline, backend, schema or provider behavior
+repetitions and the original full 203-case Chromium suite passed without retries.
+The final integrated 223-case Chromium suite also passes, and the refreshed
+captures were visually reviewed. #82's merged colour/UI changes are preserved.
+The isolated opacity repair changes no pipeline, backend, schema or provider behavior
 changes. These browser captures are not physical-device acceptance.
