@@ -1,6 +1,12 @@
 "use client";
 import { BookOpen, FolderTree, Globe, SlidersHorizontal } from "lucide-react";
-import type { AskTools, OrganizationProposal } from "@lib/shared/conversations";
+import type { OrganizationProposal, ToolRun } from "@lib/shared/conversations";
+import {
+  askToolCatalog,
+  askToolIds,
+  type AskTools,
+} from "@lib/shared/ask-tools";
+export { defaultAskTools as initialTools } from "@lib/shared/ask-tools";
 import type { Memory } from "@lib/shared/contracts";
 import { ActionMenu } from "./ui/action-menu";
 import { Button } from "./ui/button";
@@ -11,11 +17,20 @@ export type ToolCapabilities = {
   available: AskTools;
   dailyCalls: number;
 };
-export const initialTools: AskTools = {
-  exa: true,
-  tavily: false,
-  organize: true,
-};
+const toolIcons = { exa: Globe, tavily: BookOpen, organize: FolderTree };
+
+export function researchActivityLabel(runs?: ToolRun[]) {
+  const active = runs?.find((run) => run.status === "running");
+  if (active)
+    return active.operation === "extract"
+      ? "Reading sources…"
+      : active.provider === "exa"
+        ? "Searching the web…"
+        : "Researching sources…";
+  return runs?.length
+    ? "Preparing your answer…"
+    : "Looking through your notes…";
+}
 
 export function AskToolMenu({
   tools,
@@ -36,8 +51,8 @@ export function AskToolMenu({
   onDefault: () => void;
   onRetry: () => void;
 }) {
-  const count = Object.entries(tools).filter(
-    ([key, enabled]) => enabled && available?.[key as keyof AskTools],
+  const count = askToolIds.filter(
+    (key) => tools[key] && available?.[key],
   ).length;
   return (
     <div className="ask-tools-control">
@@ -52,41 +67,34 @@ export function AskToolMenu({
         }
       >
         <div className="ask-tools-heading">For this chat</div>
-        {(
-          [
-            ["exa", "Web search", "Find current information online", Globe],
-            ["tavily", "Research", "Explore topics and read sources", BookOpen],
-            [
-              "organize",
-              "Manage notes",
-              "Edit notes and organize notebooks",
-              FolderTree,
-            ],
-          ] as const
-        ).map(([key, title, description, Icon]) => (
-          <button
-            key={key}
-            type="button"
-            role="switch"
-            aria-checked={tools[key]}
-            disabled={busy || (!available?.[key] && !tools[key])}
-            onClick={() => onChange({ ...tools, [key]: !tools[key] })}
-          >
-            <Icon size={16} />
-            <span className="ask-tool-description">
-              <strong>{title}</strong>
-              <small>
-                {available?.[key] ? description : "Currently unavailable"}
-              </small>
-            </span>
-            <span
-              className={`ask-tool-switch${tools[key] ? " is-on" : ""}`}
-              aria-hidden="true"
+        {askToolIds.map((key) => {
+          const { label, description } = askToolCatalog[key];
+          const Icon = toolIcons[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              role="switch"
+              aria-checked={tools[key]}
+              disabled={busy || (!available?.[key] && !tools[key])}
+              onClick={() => onChange({ ...tools, [key]: !tools[key] })}
             >
-              <span />
-            </span>
-          </button>
-        ))}
+              <Icon size={16} />
+              <span className="ask-tool-description">
+                <strong>{label}</strong>
+                <small>
+                  {available?.[key] ? description : "Currently unavailable"}
+                </small>
+              </span>
+              <span
+                className={`ask-tool-switch${tools[key] ? " is-on" : ""}`}
+                aria-hidden="true"
+              >
+                <span />
+              </span>
+            </button>
+          );
+        })}
         <p className="ask-tools-status" role="status">
           {busy ? "Saving…" : notice || "Used only when helpful."}
         </p>

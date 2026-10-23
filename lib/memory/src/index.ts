@@ -111,6 +111,7 @@ type Account = AccountPreferences & {
   organizeEnabled: boolean;
   summariesEnabled: boolean;
   askVersion: number;
+  askTools: import("@lib/shared/ask-tools").AskTools;
 };
 type Access = { trx: Knex.Transaction; account: Account; grant?: Connection };
 const missing = () => new GroveError("not_found", "Memory not found", 404);

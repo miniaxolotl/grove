@@ -100,6 +100,11 @@ are accepted. No cross-account response cache is used.
 
 ## Data and API
 
+Tool names, descriptions and defaults have one dependency-free catalog in
+`lib/shared/src/ask-tools.ts`. Note retrieval and organization use the same
+conversation-scope helper; notebook writes reuse existing domain services inside
+the batch transaction. Browser progress derives from one activity formatter.
+
 Migration `20261023_020_ask_tools` adds account defaults, conversation tool revisions,
 per-turn execution records and isolated account/global usage counters. Apply it
 with the owner procedure before rolling out API/worker, then website. Numbering

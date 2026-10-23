@@ -14,6 +14,7 @@ import {
   Globe,
 } from "lucide-react";
 import type { AskResult } from "@lib/shared/models";
+import { askToolCatalog } from "@lib/shared/ask-tools";
 import type {
   Conversation,
   ConversationReply,
@@ -43,6 +44,7 @@ import {
   AskToolMenu,
   OrganizationPreview,
   initialTools,
+  researchActivityLabel,
   type ToolCapabilities,
 } from "./ask-tools";
 const AskHistory = deferredFeature(
@@ -549,7 +551,7 @@ export function AskGrove({
     <Button
       variant="secondary"
       aria-label="History"
-      disabled={!!actionBusy || pending || loading}
+      disabled={!!actionBusy || pending || loading || toolsBusy}
       onClick={() => setHistoryOpen(true)}
     >
       <History size={15} />
@@ -735,21 +737,7 @@ export function AskGrove({
                       )}
                       {turn.status === "pending" && pending && (
                         <p className="ask-pending" role="status">
-                          {turn.toolRuns?.some(
-                            (run) => run.status === "running",
-                          )
-                            ? turn.toolRuns.find(
-                                (run) => run.status === "running",
-                              )!.operation === "extract"
-                              ? "Reading sources…"
-                              : turn.toolRuns.find(
-                                    (run) => run.status === "running",
-                                  )!.provider === "exa"
-                                ? "Searching the web…"
-                                : "Researching sources…"
-                            : turn.toolRuns?.length
-                              ? "Preparing your answer…"
-                              : "Looking through your notes…"}
+                          {researchActivityLabel(turn.toolRuns)}
                         </p>
                       )}
                       {(turn.status === "failed" ||
@@ -1006,7 +994,8 @@ function Answer({
         (proposal?.status === "proposed" ||
           result.organization?.status === "proposed") && (
           <p className="ask-answer-note">
-            Enable Manage notes in Tools to apply these changes.
+            Enable {askToolCatalog.organize.label} in Tools to apply these
+            changes.
           </p>
         )}
       {proposal && (
@@ -1106,7 +1095,7 @@ function Answer({
                   <span>
                     <strong>{source.title}</strong>
                     <small>
-                      {source.provider === "exa" ? "Web search" : "Research"} ·{" "}
+                      {askToolCatalog[source.provider].label} ·{" "}
                       {source.kind === "page"
                         ? "Page extract"
                         : "Search result"}{" "}

@@ -28,6 +28,8 @@ import {
 import type { MemoryService } from "./index.ts";
 import { budgetedInference } from "./processing.ts";
 import { applyNoteChanges, type NoteUndo } from "./note-changes.ts";
+import { inConversationScope as inScope } from "./conversation-scope.ts";
+import { askToolCatalog } from "@lib/shared/ask-tools";
 import {
   applyOrganization,
   organizationPreview,
@@ -83,10 +85,6 @@ const summary = (row: ConversationRow): ConversationSummary => ({
   tools: row.tools ?? defaultAskTools,
   toolsVersion: row.toolsVersion ?? 0,
 });
-const inScope = (scope: ConversationScope, projectId: string | null) =>
-  scope.projectId === undefined ||
-  projectId === scope.projectId ||
-  (scope.includePersonal && projectId === null);
 
 /** Session-only conversations. All database access runs inside the service's
  * account authorization/locking boundary; inference never holds a transaction. */
@@ -129,10 +127,7 @@ export class Conversations {
           accountId: account.id,
           scope: JSON.stringify(scope),
           tools: JSON.stringify(
-            askToolsSchema.parse(
-              (account as unknown as { askTools: unknown }).askTools ??
-                defaultAskTools,
-            ),
+            askToolsSchema.parse(account.askTools ?? defaultAskTools),
           ),
         })
         .returning("*");
@@ -1035,7 +1030,7 @@ export class Conversations {
             "feature_disabled",
             !account.askEnabled
               ? "Enable Ask Grove in AI preferences to apply this preview."
-              : "Enable Manage notes in Tools to apply this preview.",
+              : `Enable ${askToolCatalog.organize.label} in Tools to apply this preview.`,
             409,
           );
         if (

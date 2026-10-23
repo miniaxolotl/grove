@@ -5,16 +5,12 @@ import {
   type SourceRef,
 } from "@lib/shared/models";
 import type { Memory } from "./contracts.ts";
+import type { AskTools } from "@lib/shared/ask-tools";
+export { defaultAskTools, type AskTools } from "@lib/shared/ask-tools";
 
 export const askToolsSchema = z
   .object({ exa: z.boolean(), tavily: z.boolean(), organize: z.boolean() })
   .strict();
-export type AskTools = z.infer<typeof askToolsSchema>;
-export const defaultAskTools: AskTools = {
-  exa: true,
-  tavily: false,
-  organize: true,
-};
 export const toolSettingsSchema = z
   .object({
     tools: askToolsSchema,

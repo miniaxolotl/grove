@@ -812,12 +812,9 @@ export function createApp(deps: AppDependencies) {
       data: await service.access(
         c.get("principal"),
         "admin",
-        async ({ trx, account }) => {
-          const row = await trx("accounts")
-            .where({ id: account.id })
-            .first("askTools");
+        async ({ account }) => {
           return {
-            defaults: askToolsSchema.parse(row?.askTools ?? defaultAskTools),
+            defaults: askToolsSchema.parse(account.askTools ?? defaultAskTools),
             available: {
               exa: !!service.research.exa,
               tavily: !!service.research.tavily,

@@ -7,6 +7,7 @@ import type {
 } from "@lib/shared/conversations";
 import type { SourceRef } from "@lib/shared/models";
 import type { MemoryService } from "./index.ts";
+import { inConversationScope as scopeAllows } from "./conversation-scope.ts";
 import {
   applyNoteChanges,
   changedSources,
@@ -24,10 +25,6 @@ export type OrganizationUndo = {
   applied: SourceRef[];
   notebooks: (Notebook & { created: boolean })[];
 };
-const scopeAllows = (scope: ConversationScope, id: string | null) =>
-  scope.projectId === undefined ||
-  id === scope.projectId ||
-  (scope.includePersonal && id === null);
 
 export function organizationPreview(
   changes: OrganizationChanges,
