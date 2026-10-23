@@ -60,15 +60,33 @@
   white-space: normal;
 }
 .workspace-search-launcher {
+  grid-column: 1 / -1;
+  grid-row: 3;
   min-height: 40px;
   border: 1px solid var(--color-line);
   background: #fcfdfb;
 }
 .workspace-command-launcher {
   flex: 1;
-  flex-wrap: wrap;
-  min-height: 32px;
-  padding: 6px 8px;
+  min-height: 36px;
+  padding: 6px 10px;
+  gap: 6px;
+  container-type: inline-size;
+}
+.workspace-command-launcher > span:not(.shortcut-keys) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@container (max-width: 12em) {
+  .workspace-command-launcher .shortcut-keys {
+    display: none;
+  }
+}
+@media (min-width: 1280px) {
+  .grove-app {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
 }
 .workspace-search-launcher:hover,
 .workspace-command-launcher:hover {
@@ -97,8 +115,8 @@
 }
 .workspace-utilities > .app-icon {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
 }
 .app-navigation {
   display: flex;
@@ -188,6 +206,7 @@
 .notebook-explorer .notebook-tree-link {
   min-height: 36px;
   font-size: 12px;
+  padding-inline: 2px 4px;
 }
 .notebook-explorer .notebook-tree-link > span {
   display: -webkit-box;
@@ -202,6 +221,8 @@
 }
 .notebook-explorer .notebook-tree-actions .app-icon {
   width: 28px;
+  height: 32px;
+  min-height: 32px;
 }
 .notebook-explorer .notebook-personal {
   min-height: 36px;
@@ -237,7 +258,7 @@
   .app-sidebar-heading {
     grid-column: 1 / -1;
     display: flex;
-    gap: 10px;
+    gap: 6px;
   }
   .app-sidebar-heading > a:first-child {
     padding: 0;
@@ -250,8 +271,24 @@
     font-size: 12px;
   }
   .workspace-search-launcher {
-    grid-column: 1;
+    justify-content: center;
+    flex: 0 0 44px;
+    width: 44px;
     min-height: 44px;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+  }
+  .workspace-search-launcher > span {
+    display: none;
+  }
+  .workspace-utilities {
+    grid-column: 2;
+    grid-row: 3;
+    align-self: start;
+  }
+  .workspace-utilities > .app-icon {
+    display: none;
   }
   .workspace-command-launcher {
     justify-content: center;
@@ -284,7 +321,8 @@
     display: none;
   }
   .notebook-browser {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 3;
     min-height: 0;
     margin: 0;
   }

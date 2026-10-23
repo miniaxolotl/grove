@@ -35,10 +35,15 @@ const report = {
   routes: {},
 };
 for (const route of routes) {
+  // Keep stable report keys while the editor shares a persistent route-group layout.
+  const entryRoute =
+    route === "app/memories/[id]/page"
+      ? "app/(notes)/memories/[id]/page"
+      : route;
   const context = {};
   runInNewContext(
     await readFile(
-      `${build}/server/app/${route}_client-reference-manifest.js`,
+      `${build}/server/app/${entryRoute}_client-reference-manifest.js`,
       "utf8",
     ),
     context,
@@ -46,7 +51,7 @@ for (const route of routes) {
   );
   const reference = Object.values(context.__RSC_MANIFEST)[0];
   const entry =
-    reference.entryJSFiles[`[project]/packages/website/src/app/${route}`];
+    reference.entryJSFiles[`[project]/packages/website/src/app/${entryRoute}`];
   if (!entry) throw new Error(`Missing route entry: ${route}`);
   const files = [...new Set([...manifest.rootMainFiles, ...entry])].filter(
     (file) => file.endsWith(".js"),

@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.11.1](https://github.com/miniaxolotl/grove/compare/v1.11.0...v1.11.1) (2026-10-23)
+
+
+### Features
+
+* **ask:** add research and note management tools ([#93](https://github.com/miniaxolotl/grove/issues/93)) ([991f63d](https://github.com/miniaxolotl/grove/commit/991f63d04ee9aa8107e7cc8fdec4f16bd5257a17))
+* **ask:** streamline conversation history ([#91](https://github.com/miniaxolotl/grove/issues/91)) ([e13a58b](https://github.com/miniaxolotl/grove/commit/e13a58b1819966f2cbbb75462f936bc93cff67ed))
+* **media:** add immutable private image storage and validation ([#86](https://github.com/miniaxolotl/grove/issues/86)) ([4b79c79](https://github.com/miniaxolotl/grove/commit/4b79c7900050129d2430c3b6696e8e66fe92cf15))
+* **media:** private note images, revision access and portable exports ([#90](https://github.com/miniaxolotl/grove/issues/90)) ([bdc25e1](https://github.com/miniaxolotl/grove/commit/bdc25e1f4dfd608bf140d51247d20914b3d121c5))
+* **media:** recordings, playback and editable transcripts ([#95](https://github.com/miniaxolotl/grove/issues/95)) ([099d419](https://github.com/miniaxolotl/grove/commit/099d419948e0ddde6dbb58f038c63f52e8288cf5))
+* **notebooks:** add archive and soft delete ([#84](https://github.com/miniaxolotl/grove/issues/84)) ([440a71d](https://github.com/miniaxolotl/grove/commit/440a71dcf786f2f29431eb43e56307d31d912543))
+* **speech:** add transcription and read aloud ([#98](https://github.com/miniaxolotl/grove/issues/98)) ([f072da5](https://github.com/miniaxolotl/grove/commit/f072da5ebe0efacd8bfc224f6c4f63c10f3efa4f))
+* **workspace:** add note and media context actions ([cdf9cd1](https://github.com/miniaxolotl/grove/commit/cdf9cd16c73b9bcd69f2d3e0d4ef07bd1785ae8e))
+* **workspace:** improve search and section navigation ([#97](https://github.com/miniaxolotl/grove/issues/97)) ([6ab8fad](https://github.com/miniaxolotl/grove/commit/6ab8fadd772121898beb06e318bb1c34c0ab9d51))
+
+
+### Bug Fixes
+
+* **agents:** harden plugin startup and diagnostics ([#100](https://github.com/miniaxolotl/grove/issues/100)) ([e58fbf5](https://github.com/miniaxolotl/grove/commit/e58fbf5e071a3a47ac8de729ff0c820cec44fde5))
+* **ask:** enforce note limits and retain organization context ([#101](https://github.com/miniaxolotl/grove/issues/101)) ([0516abe](https://github.com/miniaxolotl/grove/commit/0516abec556a9c8b2cc23050f0caf1c6e2bd2256))
+* **ask:** simplify new-note previews ([#85](https://github.com/miniaxolotl/grove/issues/85)) ([de50576](https://github.com/miniaxolotl/grove/commit/de5057649b524091747fa7948d76d80c23f7407c))
+* **ci:** harden gates and use patch-first releases ([#88](https://github.com/miniaxolotl/grove/issues/88)) ([eaa717a](https://github.com/miniaxolotl/grove/commit/eaa717a38765e098d7bc942341d3ef14dd3300b8))
+* **opencode:** reuse host runtime for memory bridge ([#102](https://github.com/miniaxolotl/grove/issues/102)) ([1a014d6](https://github.com/miniaxolotl/grove/commit/1a014d6721ed43838e1d4ed54a9f11d9aaae38f3))
+* **website:** refine workspace controls and note saving ([#82](https://github.com/miniaxolotl/grove/issues/82)) ([b2cc2e9](https://github.com/miniaxolotl/grove/commit/b2cc2e9f3e8a5cd1b3e3f34ffcfeba9e9694996a))
+* **website:** simplify shared readers and preview metadata ([#94](https://github.com/miniaxolotl/grove/issues/94)) ([4cc9309](https://github.com/miniaxolotl/grove/commit/4cc93090396f21013872e71e0767765ad92f14e8))
+* **website:** streamline mobile and desktop workspace chrome ([#96](https://github.com/miniaxolotl/grove/issues/96)) ([26e28e1](https://github.com/miniaxolotl/grove/commit/26e28e188d909e59b9e0a1ad9c2426ede9ab47a5))
+
 ## [1.11.0](https://github.com/miniaxolotl/grove/compare/v1.10.0...v1.11.0) (2026-10-22)
 
 

@@ -11,6 +11,11 @@ import { shareExpiration } from "./share-expiration-migration.ts";
 import { aiPreferences } from "./preferences-migration.ts";
 import { queueProcessing } from "./queue-migration.ts";
 import { notebookAssistance } from "./assistance-migration.ts";
+import { notebookLifecycle } from "./notebook-lifecycle-migration.ts";
+import { mediaAttachments } from "./media-migration.ts";
+import { recordings } from "./recordings-migration.ts";
+import { speech } from "./speech-migration.ts";
+import { researchTools } from "./research-migration.ts";
 
 export const migrations = [
   {
@@ -231,6 +236,11 @@ export const migrations = [
   aiPreferences,
   queueProcessing,
   notebookAssistance,
+  notebookLifecycle,
+  mediaAttachments,
+  recordings,
+  speech,
+  researchTools,
 ];
 
 export const migrationSource: Knex.MigrationSource<

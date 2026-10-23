@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { readGitHubJson } from "../ci/github-json.mjs";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { URL } from "node:url";
@@ -17,13 +18,7 @@ const inputs = process.env.RELEASE_PRS
 for (const input of inputs) {
   if (!Number.isSafeInteger(input.number) || input.number < 1)
     throw new Error("Invalid PR number");
-  const pr = JSON.parse(
-    execFileSync(
-      "gh",
-      ["api", `repos/${policy.repository}/pulls/${input.number}`],
-      { encoding: "utf8" },
-    ),
-  );
+  const pr = readGitHubJson(`repos/${policy.repository}/pulls/${input.number}`);
   if (pr.state !== "open") continue;
   if (pr.head.repo.full_name !== policy.repository)
     throw new Error("Foreign CI ref");

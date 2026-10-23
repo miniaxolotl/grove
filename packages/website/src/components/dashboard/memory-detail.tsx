@@ -30,6 +30,7 @@ import { AssistanceAction } from "./assistance-action";
 
 export function MemoryDetail({
   memory,
+  creation,
   projects,
   onSaved,
   onMove,
@@ -43,9 +44,10 @@ export function MemoryDetail({
   onDeleted,
   close,
 }: {
-  memory: Memory;
+  memory?: Memory;
+  creation?: { draftKey: string; projectId?: string; initialContent: string };
   projects: Project[];
-  onSaved: (memory: Memory) => void;
+  onSaved: (memory: Memory, view?: { preview: boolean }) => void;
   onMove: () => void;
   onArchive: () => void;
   onPrevious?: () => void;
@@ -71,8 +73,8 @@ export function MemoryDetail({
   const historyQuery = useQuery({
     ...cache.resource<
       { version: number; content: string; createdAt: string }[]
-    >(`/memories/${memory.id}/revisions`),
-    enabled: historyOpen,
+    >(`/memories/${memory?.id}/revisions`),
+    enabled: historyOpen && !!memory,
   });
   const history = historyQuery.data;
   const historyError = historyQuery.error
@@ -81,7 +83,7 @@ export function MemoryDetail({
   const [relatedOpen, setRelatedOpen] = useState(false);
   const operations = useRef(new Map<string, string>());
   const setDialogBusy = useDialogBusy();
-  const locked = busy || actionBusy || editorLocked;
+  const locked = !memory || busy || actionBusy || editorLocked;
   useEffect(() => {
     if (!initialDelete) return;
     const frame = requestAnimationFrame(() => setConfirmDelete(true));
@@ -107,26 +109,28 @@ export function MemoryDetail({
     return api<T>(path, { ...body, operationId: operations.current.get(key) });
   }
   useWorkspaceCommands(
-    [
-      workspaceCommand("note-share", () => setSharing(true)),
-      workspaceCommand("note-history", () => setHistoryOpen(true)),
-      workspaceCommand("note-move", onMove, {
-        disabled: locked,
-        disabledReason: "Finish saving your changes first",
-      }),
-      workspaceCommand(
-        isInactive(memory) ? "note-restore" : "note-archive",
-        onArchive,
-        {
-          disabled: locked,
-          disabledReason: "Finish saving your changes first",
-        },
-      ),
-      workspaceCommand("note-delete", () => setConfirmDelete(true), {
-        disabled: busy || actionBusy,
-        disabledReason: "An update is in progress",
-      }),
-    ],
+    memory
+      ? [
+          workspaceCommand("note-share", () => setSharing(true)),
+          workspaceCommand("note-history", () => setHistoryOpen(true)),
+          workspaceCommand("note-move", onMove, {
+            disabled: locked,
+            disabledReason: "Finish saving your changes first",
+          }),
+          workspaceCommand(
+            isInactive(memory) ? "note-restore" : "note-archive",
+            onArchive,
+            {
+              disabled: locked,
+              disabledReason: "Finish saving your changes first",
+            },
+          ),
+          workspaceCommand("note-delete", () => setConfirmDelete(true), {
+            disabled: busy || actionBusy,
+            disabledReason: "An update is in progress",
+          }),
+        ]
+      : [],
     root,
   );
   const handleNavigation = useEffectEvent((event: KeyboardEvent) => {
@@ -155,6 +159,7 @@ export function MemoryDetail({
     }
     if (
       (event.key === "Delete" || event.key === "Backspace") &&
+      !!memory &&
       !busy &&
       !actionBusy
     ) {
@@ -175,11 +180,13 @@ export function MemoryDetail({
       <MemoryEditor
         key={editorRevision}
         memory={memory}
+        projectId={creation?.projectId}
+        initialContent={creation?.initialContent}
         projects={projects}
         fullPage={fullPage}
         workspace
         initialPreview={initialPreview}
-        draftKey={`note:${memory.id}`}
+        draftKey={memory ? `note:${memory.id}` : creation?.draftKey}
         cancel={close}
         done={onSaved}
         onLockChange={setEditorLocked}
@@ -216,6 +223,7 @@ export function MemoryDetail({
               type="button"
               className="app-icon note-secondary-control"
               aria-label="History"
+              disabled={!memory}
               title="History"
               onClick={() => setHistoryOpen(true)}
             >
@@ -225,6 +233,7 @@ export function MemoryDetail({
               type="button"
               className="app-icon note-secondary-control"
               aria-label="Share note"
+              disabled={!memory}
               title="Share note"
               onClick={() => setSharing(true)}
             >
@@ -232,9 +241,9 @@ export function MemoryDetail({
             </button>
             <ActionMenu label="Note actions">
               <NoteActions
-                inactive={isInactive(memory)}
-                locked={writing || busy || actionBusy}
-                busy={busy || actionBusy}
+                inactive={!!memory && isInactive(memory)}
+                locked={!memory || writing || busy || actionBusy}
+                busy={!memory || busy || actionBusy}
                 onMove={onMove}
                 onExport={onExport}
                 onArchive={onArchive}
@@ -243,13 +252,15 @@ export function MemoryDetail({
                   <button
                     type="button"
                     className="note-mobile-menu-item"
+                    disabled={!memory}
                     onClick={() => setSharing(true)}
                   >
                     <Share2 size={15} /> Share note
                   </button>
                 }
                 before={
-                  !fullPage && (
+                  !fullPage &&
+                  memory && (
                     <Link href={`/app/memories/${memory.id}`}>
                       <ArrowUpRight size={15} /> Open note page
                     </Link>
@@ -257,15 +268,21 @@ export function MemoryDetail({
                 }
                 details={
                   <>
-                    <AssistanceAction
-                      disabled={writing || locked || isInactive(memory)}
-                      input={{
-                        kind: "actions",
-                        sources: [{ id: memory.id, version: memory.version }],
-                        projectId: memory.projectId,
-                      }}
-                    />
-                    <button type="button" onClick={() => setHistoryOpen(true)}>
+                    {memory && (
+                      <AssistanceAction
+                        disabled={writing || locked || isInactive(memory)}
+                        input={{
+                          kind: "actions",
+                          sources: [{ id: memory.id, version: memory.version }],
+                          projectId: memory.projectId,
+                        }}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      disabled={!memory}
+                      onClick={() => setHistoryOpen(true)}
+                    >
                       <History size={15} />
                       Revision history
                     </button>
@@ -302,7 +319,7 @@ export function MemoryDetail({
               aria-label="Delete note…"
               title="Delete note…"
               data-focus-key="note-delete"
-              disabled={busy || actionBusy}
+              disabled={!memory || busy || actionBusy}
               onClick={() => setConfirmDelete(true)}
             >
               <Trash2 size={17} />
@@ -310,93 +327,97 @@ export function MemoryDetail({
           </>
         )}
         details={
-          <>
-            {!!memory.enrichment?.tags.length && (
-              <div className="reader-tags">
-                {memory.enrichment.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-            )}
-            <dl className="note-dates">
-              <dt>Created</dt>
-              <dd>{dateLabel(memory.createdAt)}</dd>
-              <dt>Updated</dt>
-              <dd>{dateLabel(memory.updatedAt)}</dd>
-            </dl>
-            <details className="agent-details">
-              <summary>Agent details</summary>
-              <dl>
-                <dt>Saved from</dt>
-                <dd>{memory.source.agent}</dd>
-                <dt>Note reference</dt>
-                <dd>{memory.id}</dd>
-                {memory.taskId && (
-                  <>
-                    <dt>Task reference</dt>
-                    <dd>{memory.taskId}</dd>
-                  </>
-                )}
-                <dt>Organization</dt>
-                <dd>{memory.enrichment?.status ?? "disabled"}</dd>
-                {memory.source.verification && (
-                  <>
-                    <dt>Verification</dt>
-                    <dd>{memory.source.verification}</dd>
-                  </>
-                )}
-                {memory.expiresAt && (
-                  <>
-                    <dt>Leaves recall</dt>
-                    <dd>{dateLabel(memory.expiresAt)}</dd>
-                  </>
-                )}
-                {memory.purgeAt && (
-                  <>
-                    <dt>Hidden after</dt>
-                    <dd>{dateLabel(memory.purgeAt)}</dd>
-                  </>
-                )}
-              </dl>
-              {!isInactive(memory) && (
-                <button
-                  type="button"
-                  className="text-button"
-                  disabled={locked}
-                  onClick={() =>
-                    void run(async () => {
-                      await api(`/memories/${memory.id}/reprocess`, {
-                        expectedVersion: memory.version,
-                      });
-                      toast("Grove will organize this note again.");
-                    })
-                  }
-                >
-                  Retry processing
-                </button>
+          memory && (
+            <>
+              {!!memory.enrichment?.tags.length && (
+                <div className="reader-tags">
+                  {memory.enrichment.tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
               )}
-            </details>
-          </>
+              <dl className="note-dates">
+                <dt>Created</dt>
+                <dd>{dateLabel(memory.createdAt)}</dd>
+                <dt>Updated</dt>
+                <dd>{dateLabel(memory.updatedAt)}</dd>
+              </dl>
+              <details className="agent-details">
+                <summary>Agent details</summary>
+                <dl>
+                  <dt>Saved from</dt>
+                  <dd>{memory.source.agent}</dd>
+                  <dt>Note reference</dt>
+                  <dd>{memory.id}</dd>
+                  {memory.taskId && (
+                    <>
+                      <dt>Task reference</dt>
+                      <dd>{memory.taskId}</dd>
+                    </>
+                  )}
+                  <dt>Organization</dt>
+                  <dd>{memory.enrichment?.status ?? "disabled"}</dd>
+                  {memory.source.verification && (
+                    <>
+                      <dt>Verification</dt>
+                      <dd>{memory.source.verification}</dd>
+                    </>
+                  )}
+                  {memory.expiresAt && (
+                    <>
+                      <dt>Leaves recall</dt>
+                      <dd>{dateLabel(memory.expiresAt)}</dd>
+                    </>
+                  )}
+                  {memory.purgeAt && (
+                    <>
+                      <dt>Hidden after</dt>
+                      <dd>{dateLabel(memory.purgeAt)}</dd>
+                    </>
+                  )}
+                </dl>
+                {!isInactive(memory) && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={locked}
+                    onClick={() =>
+                      void run(async () => {
+                        await api(`/memories/${memory.id}/reprocess`, {
+                          expectedVersion: memory.version,
+                        });
+                        toast("Grove will organize this note again.");
+                      })
+                    }
+                  >
+                    Retry processing
+                  </button>
+                )}
+              </details>
+            </>
+          )
         }
       >
-        <details
-          className="linked-notes"
-          onToggle={(event) => setRelatedOpen(event.currentTarget.open)}
-        >
-          <summary>Linked notes</summary>
-          {relatedOpen && (
-            <ConnectionPanel level="note" endpointId={memory.id} />
-          )}
-        </details>
+        {memory && (
+          <details
+            className="linked-notes"
+            onToggle={(event) => setRelatedOpen(event.currentTarget.open)}
+          >
+            <summary>Linked notes</summary>
+            {relatedOpen && (
+              <ConnectionPanel level="note" endpointId={memory.id} />
+            )}
+          </details>
+        )}
       </MemoryEditor>
-      {sharing && (
+      {sharing && memory && (
         <ShareDialog
           target={{ kind: "note", id: memory.id }}
           blocked={locked}
           close={() => setSharing(false)}
         />
       )}
-      {historyOpen && (
+      {historyOpen && memory && (
         <Dialog
           title="Revision history"
           close={() => setHistoryOpen(false)}
@@ -420,13 +441,22 @@ export function MemoryDetail({
                 </div>
                 {compare === revision.version ? (
                   <RevisionCompare
+                    media={{
+                      noteId: memory.id,
+                      beforeVersion: revision.version,
+                      afterVersion: memory.version,
+                    }}
                     before={revision.content}
                     after={memory.content}
                     beforeLabel={`Version ${revision.version}`}
                     afterLabel={`Current · version ${memory.version}`}
                   />
                 ) : (
-                  <Markdown>{revision.content}</Markdown>
+                  <Markdown
+                    media={{ noteId: memory.id, version: revision.version }}
+                  >
+                    {revision.content}
+                  </Markdown>
                 )}
                 {revision.version !== memory.version && (
                   <div className="flex flex-wrap gap-4">
