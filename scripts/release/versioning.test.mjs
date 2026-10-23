@@ -17,7 +17,7 @@ for (const [message, path, expected] of [
   [
     "feature(memory): improve shared retrieval",
     "lib/memory/src/index.ts",
-    "1.2.0",
+    "1.1.1",
   ],
   ["fix(cli): repair shared executable", "packages/mcp/src/cli.ts", "1.1.1"],
   [

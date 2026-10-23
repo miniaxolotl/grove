@@ -153,6 +153,18 @@ was nearly full. [Fourteen reviewed captures](design/screenshots/workspace-refin
 cover desktop, 390px and 320px; browser checks additionally cover 768px, enlarged text,
 short windows, keyboard/touch, accessible contrast and save/conflict/retry behavior.
 
+## CI/CD hardening (23 October 2026)
+
+For the subsequent CI/CD source hardening, see the
+[implementation and acceptance boundaries](development/cicd-hardening-review.md)
+and [shared patch-first release/naming rules](release-conventions.md). Strict
+selected validation, authenticated source reuse, bounded reads, protected caches
+and deployment identity checks are implemented without moving runners. The
+separately authorised dropdown-opacity repair preserves existing tests and merged
+UI refinements; [desktop/mobile evidence](design/screenshots/dropdown-contrast/README.md)
+records the baseline correction. Hosted rollout and automatic recovery acceptance
+remain separate from source CI verification.
+
 ## Notebook assistance (22 October 2026)
 
 Five contextual tools share concise previews and exact source evidence: subject-aware

@@ -12,6 +12,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL, URL } from "node:url";
+import { readGitHubJson } from "../ci/github-json.mjs";
 
 const tagPattern = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const hashPattern = /^[a-f0-9]{40}$/;
@@ -72,6 +73,9 @@ export function assertCandidate(policy, candidate, tree) {
 
 export function assertCi(run, jobs, { repository, sha, required, exclude }) {
   return (
+    run.path === ".github/workflows/ci.yml" &&
+    Number.isSafeInteger(run.run_attempt) &&
+    run.run_attempt > 0 &&
     run.id !== Number(exclude) &&
     run.head_sha === sha &&
     run.head_repository?.full_name === repository &&
@@ -82,6 +86,9 @@ export function assertCi(run, jobs, { repository, sha, required, exclude }) {
       const matching = jobs.filter((job) => job.name === name);
       return (
         matching.length === 1 &&
+        matching[0].run_id === run.id &&
+        matching[0].run_attempt === run.run_attempt &&
+        matching[0].head_sha === sha &&
         matching[0].status === "completed" &&
         matching[0].conclusion === "success"
       );
@@ -97,6 +104,7 @@ function git(...args) {
 }
 
 function api(endpoint, body) {
+  if (!body) return readGitHubJson(endpoint);
   const args = ["api", endpoint];
   if (body) args.push("--method", "POST", "--input", "-");
   return JSON.parse(
@@ -248,7 +256,7 @@ export function verifyCi(policy, sha) {
     )
       continue;
     const jobs = pages(
-      `repos/${policy.repository}/actions/runs/${run.id}/jobs?filter=latest`,
+      `repos/${policy.repository}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
       "jobs",
     );
     if (
@@ -485,7 +493,8 @@ if (
           `repos/${policy.repository}/pulls/${event.inputs.promotion_pr}`,
         );
         requireThat(
-          pr.head.ref === process.env.GITHUB_REF_NAME &&
+          policy.branches.slice(1).includes(pr.base.ref) &&
+            pr.head.ref === process.env.GITHUB_REF_NAME &&
             pr.head.sha === git("rev-parse", "HEAD"),
           "Dispatched candidate drift",
         );

@@ -1,7 +1,17 @@
 # Hosting and releases
 
+Follow [shared release/naming conventions](release-conventions.md): patch-first
+automatic versions, explicit `Release-As` minor/major/breaking decisions, concise
+conventional commit/PR names and immutable promotion refs. Coordinated package and
+marketplace version mappings remain part of the single root release.
+
 Shared workflow names, action pins, runtime and evidence conventions follow the
 [cross-repository CI/CD baseline](pipeline-conventions.md).
+
+The [Grove hardening review](development/cicd-hardening-review.md) distinguishes
+implemented digest-bound rollout/readiness from planned selection, draining and
+fenced automatic last-good recovery. Those controllers are not activated by this
+documentation refresh.
 
 ## Topology
 
@@ -328,8 +338,10 @@ node --env-file=.env.digitalocean.local scripts/deploy-digitalocean.mjs \
 ```
 
 Rollback uses the same command with a previously healthy digest after confirming
-schema compatibility. Forward migrations are not automatically reversed. Initial
-healthy image: `sha256:884593cd2e9b50528d1421371fcbb77e804d0af357336d6d494da3a2e4585fff`.
+current schema, runtime configuration and lifecycle/queue compatibility. Select a
+verified last-good deployment for the current environment; an old bootstrap image
+is not a default rollback target. Forward migrations are not automatically reversed.
+This remains an explicit operator recovery, not an automatic rollback controller.
 
 Update website variables in Vercel's **production** environment and redeploy:
 `SITE_URL=https://usegrove.cloud`, `GROVE_API_URL=https://api.usegrove.cloud`,

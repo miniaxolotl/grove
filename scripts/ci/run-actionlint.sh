@@ -38,6 +38,7 @@ if [[ ! -x "$binary" ]]; then
   archive="$temporary_directory/$asset"
 
   curl --fail --location --silent --show-error \
+    --retry 2 --retry-max-time 20 --connect-timeout 5 --max-time 10 \
     "https://github.com/rhysd/actionlint/releases/download/v${version}/${asset}" \
     --output "$archive"
 
