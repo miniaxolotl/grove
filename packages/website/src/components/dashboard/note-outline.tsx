@@ -45,6 +45,7 @@ export function NoteOutline({
       toast("Section link copied");
     } catch {
       setManual(url.href);
+      toast("Select the section link to copy manually");
     }
   }
   return (
