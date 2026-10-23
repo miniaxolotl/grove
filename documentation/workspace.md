@@ -244,6 +244,21 @@ The search field and status stay in place through pending, empty and result stat
 a failed search offers an inline retry. Clearing it returns focus to the field.
 Source links open the cited note and identify when it has since changed.
 
+The message box's **Tools** menu controls Exa web search, Tavily search/page reading,
+and Grove note organization independently. Enabled research tools are used when
+outside context would help; saved-note searches and greetings do not need a web
+search. Choices stay with the conversation; **Use these tools for new chats** saves
+your defaults. Unconfigured providers show as unavailable. Web claims link to
+external sources separately from saved-note citations. See [Ask tools](ask-tools.md)
+for allowances, provider setup and incomplete-research behavior.
+
+Ask Grove can create notebooks/sub-notebooks, rename them, file notes and create
+notes inside an existing or proposed notebook. Review the combined preview, then
+choose **Apply changes**. **Undo** checks that notes/notebooks have not changed;
+new work added to a created notebook prevents Undo from archiving it. Organization
+considers at most 50 current notes per batch and shows partial coverage. Existing
+date-based sorting remains a read-only library operation.
+
 Use **History** to reopen or delete saved conversations across visits. Changing the
 scope starts a new conversation. Stop cancels the current reply; interrupted replies
 can be retried. Explicit edit, create and merge requests show a preview before

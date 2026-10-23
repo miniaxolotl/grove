@@ -12,6 +12,7 @@ import {
   Sprout,
   Trash2,
   Undo2,
+  Globe,
 } from "lucide-react";
 import type { AskResult } from "@lib/shared/models";
 import type {
@@ -20,6 +21,7 @@ import type {
   ConversationReply,
   ConversationTurn,
   ConversationTurnRequest,
+  AskTools,
 } from "@lib/shared/conversations";
 import type { Memory } from "@lib/shared/contracts";
 import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
@@ -40,6 +42,12 @@ import { Dialog } from "./dialog";
 import { Markdown } from "./markdown";
 import { RevisionCompare } from "./revision-compare";
 import { LoadError } from "./load-error";
+import {
+  AskToolMenu,
+  OrganizationPreview,
+  initialTools,
+  type ToolCapabilities,
+} from "./ask-tools";
 const MemoryInspector = deferredFeature(
   async () => ({
     default: (await import("./memory-inspector")).MemoryInspector,
@@ -115,18 +123,30 @@ export function AskGrove({
   const [historyBusy, setHistoryBusy] = useState(false);
   const [deleting, setDeleting] = useState<string>();
   const [actionBusy, setActionBusy] = useState<string>();
+  const [toolsBusy, setToolsBusy] = useState(false);
+  const [toolsError, setToolsError] = useState("");
+  const capabilities = useQuery(cache.resource<ToolCapabilities>("/ask-tools"));
+  const effectiveTools =
+    conversation?.tools ?? capabilities.data?.defaults ?? initialTools;
   const chatQuery = useQuery({
     ...cache.resource<Conversation>(`/conversations/${conversationId ?? ""}`),
     enabled:
-      !!conversationId && !pending && !loading && !unconfirmed && !actionBusy,
+      !!conversationId &&
+      !loading &&
+      (!unconfirmed || pending) &&
+      !actionBusy &&
+      !toolsBusy,
+    refetchInterval: pending ? 2000 : false,
   });
   const [seenChat, setSeenChat] = useState<Conversation>();
   if (chatQuery.data !== seenChat) {
     setSeenChat(chatQuery.data);
     if (
       chatQuery.data &&
-      !pending &&
-      !unconfirmed &&
+      (!unconfirmed || pending) &&
+      (!pending ||
+        (chatQuery.data.version >= (conversation?.version ?? 0) &&
+          chatQuery.data.turns.some((turn) => turn.id === unconfirmed?.id))) &&
       chatQuery.data.id === conversationId
     )
       setConversation(chatQuery.data);
@@ -250,6 +270,8 @@ export function AskGrove({
     setUnconfirmed(undefined);
     setPending(false);
     setLoading(false);
+    setToolsBusy(false);
+    setToolsError("");
     setError("");
     setSelected(null);
     if (clearDraft) setDraft("");
@@ -276,7 +298,7 @@ export function AskGrove({
     );
   }
   async function openChat(id: string) {
-    if (actionBusy) return;
+    if (actionBusy || toolsBusy) return;
     following.current = true;
     setShowLatest(false);
     request.current?.abort();
@@ -343,7 +365,8 @@ export function AskGrove({
   }
   async function ask(format: "plain" | "markdown", retry?: ConversationTurn) {
     const question = retry?.question ?? draft.trim();
-    if (!question || running.current || loading || actionBusy) return;
+    if (!question || running.current || loading || actionBusy || toolsBusy)
+      return;
     following.current = true;
     setShowLatest(false);
     running.current = true;
@@ -439,6 +462,46 @@ export function AskGrove({
       setError(errorMessage(e));
     } finally {
       setActionBusy(undefined);
+    }
+  }
+  async function configureTools(tools: AskTools, saveDefault = false) {
+    if (toolsBusy || loading || actionBusy) return;
+    if (pending) stop();
+    setToolsBusy(true);
+    setToolsError("");
+    const controller = new AbortController();
+    request.current = controller;
+    try {
+      let chat = conversation;
+      if (!chat) {
+        creation.current ??= crypto.randomUUID();
+        chat = await api<Conversation>(
+          "/conversations",
+          { id: creation.current, ...filter },
+          undefined,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setConversationId(chat.id);
+        setConversation(chat);
+      }
+      const saved = await api<Conversation>(
+        `/conversations/${chat.id}/tools`,
+        { tools, expectedVersion: chat.toolsVersion ?? 0, saveDefault },
+        "PATCH",
+        controller.signal,
+      );
+      if (!controller.signal.aborted) {
+        setConversation(saved);
+        if (saveDefault) await capabilities.refetch();
+      }
+    } catch (e) {
+      if (!controller.signal.aborted) setToolsError(errorMessage(e));
+    } finally {
+      if (request.current === controller) {
+        request.current = null;
+        setToolsBusy(false);
+      }
     }
   }
   const visibleSearch =
@@ -619,13 +682,28 @@ export function AskGrove({
                           result={turn.result}
                           onOpen={setSelected}
                           busy={pending || !!actionBusy}
+                          canApply={effectiveTools.organize}
                           onApply={() => void apply(turn)}
                           onUndo={() => void apply(turn, true)}
                         />
                       )}
+                      {turn.toolRuns?.some(
+                        (run) => run.status === "limited",
+                      ) && (
+                        <p className="ask-answer-note" role="status">
+                          Research allowance reached. You can continue with your
+                          saved notes.
+                        </p>
+                      )}
                       {turn.status === "pending" && pending && (
                         <p className="ask-pending" role="status">
-                          Looking through your notes…
+                          {turn.toolRuns?.some(
+                            (run) => run.status === "running",
+                          )
+                            ? `${turn.toolRuns.find((run) => run.status === "running")!.provider === "exa" ? "Exa" : "Tavily"}: ${turn.toolRuns.find((run) => run.status === "running")!.operation === "search" ? "searching the web" : "reading sources"}…`
+                            : turn.toolRuns?.length
+                              ? "Preparing your answer…"
+                              : "Looking through your notes…"}
                         </p>
                       )}
                       {(turn.status === "failed" ||
@@ -697,6 +775,27 @@ export function AskGrove({
               onStop={stop}
               pending={pending}
               disabled={loading || !!actionBusy}
+              sendDisabled={toolsBusy}
+              tools={
+                <AskToolMenu
+                  tools={effectiveTools}
+                  available={capabilities.data?.available}
+                  busy={
+                    toolsBusy ||
+                    loading ||
+                    !!actionBusy ||
+                    capabilities.isPending
+                  }
+                  error={
+                    toolsError ||
+                    (capabilities.error
+                      ? "Tools could not load. Reopen Ask Grove to retry."
+                      : undefined)
+                  }
+                  onChange={(tools) => void configureTools(tools)}
+                  onDefault={() => void configureTools(effectiveTools, true)}
+                />
+              }
             />
           </>
         ) : (
@@ -869,12 +968,14 @@ function Answer({
   onApply,
   onUndo,
   busy,
+  canApply,
 }: {
   result: ConversationReply;
   onOpen: (source: Pick<Memory, "id" | "version">) => void;
   onApply: () => void;
   onUndo: () => void;
   busy: boolean;
+  canApply: boolean;
 }) {
   const proposal = result.proposal;
   const target = result.sources.find((s) => s.id === proposal?.target?.id);
@@ -905,6 +1006,46 @@ function Answer({
           })}
         </p>
       ))}
+      {(result.webStatements ?? []).map((statement, index) => (
+        <p className="ask-statement" key={`web-${index}`}>
+          {statement.text}
+          {statement.urls.map((url) => {
+            const source = result.webSources?.find(
+              (source) => source.url === url,
+            );
+            return source ? (
+              <a
+                className="ask-citation"
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={source.title}
+                aria-label={`Open web source ${source.title}`}
+              >
+                <Globe size={12} />
+                {result.webSources!.indexOf(source) + 1}
+              </a>
+            ) : null;
+          })}
+        </p>
+      ))}
+      {result.researchIncomplete && (
+        <p className="ask-answer-note" role="status">
+          Web research was incomplete. You can retry, change tools, or continue
+          with your notes.
+        </p>
+      )}
+      {result.organization && (
+        <OrganizationPreview
+          proposal={result.organization}
+          sources={result.sources}
+          busy={busy}
+          canApply={canApply}
+          onApply={onApply}
+          onUndo={onUndo}
+        />
+      )}
       {proposal && (
         <section className="ask-proposal" aria-label="Proposed note changes">
           <h3>
@@ -937,7 +1078,7 @@ function Answer({
               <div className="ask-proposal-preview">
                 <Markdown>{proposal.content}</Markdown>
               </div>
-              <Button disabled={busy} onClick={onApply}>
+              <Button disabled={busy || !canApply} onClick={onApply}>
                 {proposal.kind === "create"
                   ? "Save note"
                   : proposal.kind === "merge"
@@ -978,7 +1119,7 @@ function Answer({
       {!!result.sources.length && (
         <details
           className="ask-sources"
-          open={!result.statements.length && !proposal}
+          open={!result.statements.length && !proposal && !result.organization}
         >
           <summary>
             <BookOpen size={14} />
@@ -986,6 +1127,34 @@ function Answer({
             {result.sources.length === 1 ? "note" : "notes"}
           </summary>
           <SourceList sources={result.sources} onOpen={onOpen} />
+        </details>
+      )}
+      {!!result.webSources?.length && (
+        <details className="ask-sources">
+          <summary>
+            <Globe size={14} />
+            {result.webSources.length} web{" "}
+            {result.webSources.length === 1 ? "source" : "sources"}
+          </summary>
+          <ol className="ask-source-list ask-web-sources">
+            {result.webSources.map((source) => (
+              <li key={source.url}>
+                <a href={source.url} target="_blank" rel="noopener noreferrer">
+                  <span>
+                    <strong>{source.title}</strong>
+                    <small>
+                      {source.provider === "exa" ? "Exa" : "Tavily"} ·{" "}
+                      {source.kind === "page"
+                        ? "Page extract"
+                        : "Search excerpt"}{" "}
+                      · {new Date(source.retrievedAt).toLocaleDateString()}
+                    </small>
+                  </span>
+                  <ArrowUpRight size={15} />
+                </a>
+              </li>
+            ))}
+          </ol>
         </details>
       )}
     </>

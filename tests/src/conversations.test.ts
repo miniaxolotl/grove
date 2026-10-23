@@ -60,12 +60,20 @@ async function fixture() {
   const { rows } = await db.raw("SELECT * FROM grove_account(?)", [subject]);
   const principal = sessionPrincipal(rows[0].id, subject);
   const behavior = {
-    intent: "find" as "find" | "edit" | "merge" | "create",
+    intent: "find" as "find" | "edit" | "merge" | "create" | "organize",
     references: [] as string[],
     calls: [] as { sources: Source[]; context: unknown }[],
     wait: undefined as (() => Promise<void>) | undefined,
     invalid: false,
     fail: false,
+    research: [] as {
+      provider: "exa" | "tavily";
+      query: string;
+      urls: string[];
+    }[],
+    webStatements: [] as { text: string; urls: string[] }[],
+    organization: [] as unknown[],
+    organizeAfter: null as string | null,
   };
   const providers: Providers = {
     generation: {
@@ -77,6 +85,8 @@ async function fixture() {
             query: "garden",
             intent: behavior.intent,
             references: behavior.references,
+            research: behavior.research,
+            organizeAfter: behavior.organizeAfter,
           });
         await behavior.wait?.();
         if (behavior.fail) throw new Error("unavailable");
@@ -95,8 +105,10 @@ async function fixture() {
               },
             ],
           })),
+          webStatements: behavior.webStatements,
+          organization: behavior.organization,
           proposals:
-            behavior.intent === "find"
+            behavior.intent === "find" || behavior.intent === "organize"
               ? []
               : [
                   {
@@ -141,6 +153,395 @@ async function fixture() {
 }
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
+
+test("conversation tools persist choices, enforce disabled providers and retain web citations", async () => {
+  const { service, principal, behavior, create } = await fixture();
+  assert.equal(typeof service.conversations.configureTools, "function");
+  let calls = 0;
+  service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [
+          {
+            id: "https://example.org/compost",
+            url: "https://example.org/compost",
+            title: "Compost guide",
+            text: "Compost feeds soil",
+            provider: "exa",
+            kind: "search",
+            retrievedAt: new Date().toISOString(),
+          },
+        ];
+      },
+      extract: async () => [],
+    },
+  };
+  let chat = await create();
+  chat = await service.conversations.configureTools(principal, chat.id, {
+    expectedVersion: 0,
+    tools: { exa: false, tavily: false, organize: true },
+  });
+  behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  await service.conversations.turn(
+    principal,
+    chat.id,
+    turn("Research compost"),
+  );
+  assert.equal(calls, 0);
+  assert.equal(
+    (await service.conversations.get(principal, chat.id)).tools.exa,
+    false,
+  );
+  chat = await create();
+  behavior.webStatements = [
+    { text: "Compost feeds soil", urls: ["https://example.org/compost"] },
+  ];
+  const result = await service.conversations.turn(
+    principal,
+    chat.id,
+    turn("Research compost"),
+  );
+  assert.equal(calls, 1);
+  assert.equal(
+    result.turns[0].result?.webSources?.[0].url,
+    "https://example.org/compost",
+  );
+  assert.equal(
+    result.turns[0].result?.webStatements?.[0].text,
+    "Compost feeds soil",
+  );
+});
+
+test("disabling and re-enabling research fences an in-flight provider result", async () => {
+  const { service, principal, behavior, create } = await fixture();
+  assert.equal(typeof service.conversations.configureTools, "function");
+  const entered = deferred(),
+    release = deferred();
+  service.research = {
+    exa: {
+      search: async () => {
+        entered.resolve();
+        await release.promise;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  const chat = await create();
+  const running = service.conversations.turn(
+    principal,
+    chat.id,
+    turn("Research compost"),
+  );
+  const rejected = assert.rejects(running);
+  await entered.promise;
+  await service.conversations.configureTools(principal, chat.id, {
+    expectedVersion: 0,
+    tools: { exa: false, tavily: false, organize: true },
+  });
+  await service.conversations.configureTools(principal, chat.id, {
+    expectedVersion: 1,
+    tools: { exa: true, tavily: false, organize: true },
+  });
+  release.resolve();
+  await rejected;
+  assert.equal(
+    (await service.conversations.get(principal, chat.id)).turns[0].result,
+    null,
+  );
+});
+
+test("master Ask disable/re-enable during research cannot publish the old turn", async () => {
+  const f = await fixture(),
+    entered = deferred(),
+    release = deferred();
+  f.service.research = {
+    exa: {
+      search: async () => {
+        entered.resolve();
+        await release.promise;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  const chat = await f.create();
+  const running = f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Research compost"),
+  );
+  const rejected = assert.rejects(running);
+  await entered.promise;
+  await f.service.settings(f.principal, { askEnabled: false });
+  await f.service.settings(f.principal, { askEnabled: true });
+  release.resolve();
+  await rejected;
+});
+
+test("notebook and note batches preview, apply atomically, replay and undo without removing later work", async () => {
+  const { service, principal, behavior, save, create } = await fixture();
+  const note = await save("Garden compost planning");
+  behavior.intent = "organize";
+  behavior.organization = [
+    {
+      notebooks: [{ key: "garden", name: "Garden", parent: null }],
+      renames: [],
+      moves: [
+        { id: note.id, version: note.version, destination: "new:garden" },
+      ],
+      notes: [
+        { content: "# Compost\n\nUse compost.", destination: "new:garden" },
+      ],
+    },
+  ];
+  const chat = await create();
+  const result = await service.conversations.turn(
+    principal,
+    chat.id,
+    turn(
+      "Create a Garden notebook, move my garden note into it and add a compost note",
+    ),
+  );
+  assert.equal(result.turns[0].result?.organization?.status, "proposed");
+  assert.equal((await service.projects(principal)).length, 0);
+  const applied = await service.conversations.apply(
+    principal,
+    chat.id,
+    result.turns[0].id,
+  );
+  const notebooks = await service.projects(principal);
+  assert.equal(notebooks.length, 1);
+  assert.equal(
+    (await service.get(principal, note.id)).projectId,
+    notebooks[0].id,
+  );
+  assert.equal(applied.turns[0].result?.organization?.status, "applied");
+  await service.conversations.apply(principal, chat.id, result.turns[0].id);
+  assert.equal((await service.projects(principal)).length, 1);
+  await service.conversations.apply(
+    principal,
+    chat.id,
+    result.turns[0].id,
+    true,
+  );
+  assert.equal((await service.get(principal, note.id)).projectId, null);
+  assert.equal((await service.projects(principal)).length, 0);
+});
+
+test("a stale organization move rolls back notebook creation and organization off prevents Apply", async () => {
+  const { service, principal, behavior, save, create } = await fixture();
+  const note = await save("Garden planning");
+  behavior.intent = "organize";
+  behavior.organization = [
+    {
+      notebooks: [{ key: "garden", name: "Garden", parent: null }],
+      renames: [],
+      moves: [
+        { id: note.id, version: note.version, destination: "new:garden" },
+      ],
+      notes: [],
+    },
+  ];
+  const chat = await create();
+  const result = await service.conversations.turn(
+    principal,
+    chat.id,
+    turn("Organize my garden notes into a Garden notebook"),
+  );
+  await service.conversations.configureTools(principal, chat.id, {
+    expectedVersion: 0,
+    tools: { exa: true, tavily: false, organize: false },
+  });
+  await assert.rejects(
+    service.conversations.apply(principal, chat.id, result.turns[0].id),
+  );
+  assert.equal((await service.projects(principal)).length, 0);
+  await service.conversations.configureTools(principal, chat.id, {
+    expectedVersion: 1,
+    tools: { exa: true, tavily: false, organize: true },
+  });
+  await tenant(db, principal.accountId, (trx) =>
+    trx("memories")
+      .where({ id: note.id })
+      .update({ version: note.version + 1 }),
+  );
+  await assert.rejects(
+    service.conversations.apply(principal, chat.id, result.turns[0].id),
+  );
+  assert.equal((await service.projects(principal)).length, 0);
+});
+
+test("research reservations serialize across accounts and successful tools are reused after a failed reply", async () => {
+  const a = await fixture(),
+    b = await fixture();
+  let calls = 0;
+  const provider = {
+    search: async () => {
+      calls++;
+      return [];
+    },
+    extract: async () => [],
+  };
+  const used = Number(
+    (await admin("research_global_usage").first())?.microdollars ?? 0,
+  );
+  for (const f of [a, b]) {
+    f.service.research = { exa: provider };
+    f.service.researchLimits = {
+      dailyCalls: 1,
+      monthlyMicrodollars: used + 4000,
+    };
+    f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  }
+  const chats = await Promise.all([a.create(), b.create()]);
+  const results = await Promise.all([
+    a.service.conversations.turn(
+      a.principal,
+      chats[0].id,
+      turn("Research compost"),
+    ),
+    b.service.conversations.turn(
+      b.principal,
+      chats[1].id,
+      turn("Research compost"),
+    ),
+  ]);
+  assert.equal(calls, 1);
+  assert.equal(
+    results.filter((result) => result.turns[0].result?.researchIncomplete)
+      .length,
+    1,
+  );
+  await assert.rejects(
+    tenant(db, a.principal.accountId, (trx) =>
+      trx("research_global_usage").select("*"),
+    ),
+    /permission denied/,
+  );
+  const f = await fixture();
+  f.service.research = { exa: provider };
+  f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  f.behavior.fail = true;
+  const chat = await f.create(),
+    input = turn("Research compost");
+  await assert.rejects(
+    f.service.conversations.turn(f.principal, chat.id, input),
+  );
+  assert.equal(calls, 2);
+  f.behavior.fail = false;
+  await f.service.conversations.turn(f.principal, chat.id, input);
+  assert.equal(
+    calls,
+    2,
+    "completed tool calls are not billed again on reply retry",
+  );
+});
+
+test("organization Undo refuses new notebook contents and concurrent destination changes", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden planning");
+  f.behavior.intent = "organize";
+  f.behavior.organization = [
+    {
+      notebooks: [{ key: "garden", name: "Garden", parent: null }],
+      renames: [],
+      moves: [
+        { id: note.id, version: note.version, destination: "new:garden" },
+      ],
+      notes: [],
+    },
+  ];
+  const chat = await f.create();
+  const result = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("File my garden note in a new Garden notebook"),
+  );
+  await f.service.conversations.apply(f.principal, chat.id, result.turns[0].id);
+  const notebook = (await f.service.projects(f.principal))[0];
+  const later = await f.save("New authored work", { projectId: notebook.id });
+  await assert.rejects(
+    f.service.conversations.apply(
+      f.principal,
+      chat.id,
+      result.turns[0].id,
+      true,
+    ),
+  );
+  assert.equal(
+    (await f.service.get(f.principal, later.id)).content,
+    "New authored work",
+  );
+  assert.equal(
+    (await f.service.get(f.principal, note.id)).projectId,
+    notebook.id,
+  );
+});
+
+test("organization continuation reaches notes beyond the first bounded batch", async () => {
+  const f = await fixture();
+  for (let index = 0; index < 55; index++) await f.save(`Garden note ${index}`);
+  f.behavior.intent = "organize";
+  f.behavior.organization = [
+    {
+      notebooks: [{ key: "garden", name: "Garden", parent: null }],
+      renames: [],
+      moves: [],
+      notes: [],
+    },
+  ];
+  const chat = await f.create();
+  const first = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Organize my notes into a Garden notebook"),
+  );
+  const cursor = first.turns[0].result?.organization?.coverage.nextCursor;
+  assert.equal(
+    typeof cursor,
+    "string",
+    "bounded organization exposes a continuation",
+  );
+  f.behavior.organizeAfter = cursor!;
+  const next = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Continue with the next batch", 1),
+  );
+  assert.equal(next.turns[1].result?.sources.length, 5);
+  assert.equal(next.turns[1].result?.organization?.coverage.nextCursor, null);
+  assert.equal(
+    next.turns[1].result?.sources.some((n) =>
+      first.turns[0].result?.sources.some((previous) => previous.id === n.id),
+    ),
+    false,
+  );
+});
+
+test("partial page extraction is explicit rather than reported as complete research", async () => {
+  const f = await fixture();
+  f.service.research = {
+    tavily: { search: async () => [], extract: async () => [] },
+  };
+  f.behavior.research = [
+    { provider: "tavily", query: "", urls: ["https://example.org/article"] },
+  ];
+  const chat = await f.create();
+  await f.service.conversations.configureTools(f.principal, chat.id, {
+    expectedVersion: 0,
+    tools: { exa: false, tavily: true, organize: true },
+  });
+  const result = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Read this article"),
+  );
+  assert.equal(result.turns[0].result?.researchIncomplete, true);
+});
 
 test("chat stays available with summaries off, while disabled chat blocks generation and Apply but permits Undo", async () => {
   const { service, principal, behavior, save, create } = await fixture();
@@ -558,6 +959,10 @@ test("conversation HTTP routes validate bodies, paginate privately and export sa
     "content-type": "application/json",
   };
   assert.equal((await app.request("/v1/conversations")).status, 401);
+  assert.equal((await app.request("/v1/ask-tools")).status, 401);
+  const capabilities = await app.request("/v1/ask-tools", { headers });
+  assert.equal(capabilities.status, 200);
+  assert.equal((await capabilities.json()).data.defaults.organize, true);
   assert.equal(
     (
       await app.request("/v1/conversations", {
@@ -659,6 +1064,11 @@ test("conversation HTTP routes validate bodies, paginate privately and export sa
     .split("\n")
     .map((line) => JSON.parse(line));
   assert.equal(records.filter((r) => r.type === "conversation").length, 221);
+  assert.equal(
+    records.find((r) => r.type === "conversation" && r.id === chat.id).tools
+      .organize,
+    true,
+  );
   assert.equal(
     records.find((r) => r.type === "turn" && r.conversationId === chat.id)
       .question,

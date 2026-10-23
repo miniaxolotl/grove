@@ -16,12 +16,14 @@ export function ActionMenu({
   icon = <MoreHorizontal size={18} />,
   open: controlledOpen,
   onOpenChange,
+  closeOnSelect = true,
 }: {
   label: string;
   children: ReactNode;
   icon?: ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  closeOnSelect?: boolean;
 }) {
   const id = useId();
   const popup = useRef<HTMLDivElement>(null);
@@ -126,6 +128,7 @@ export function ActionMenu({
         onClickCapture={(event) => {
           // Close before the action runs so a child dialog remembers its opener.
           if (
+            closeOnSelect &&
             (event.target as HTMLElement).closest(
               "button:not(:disabled), a[href]",
             )

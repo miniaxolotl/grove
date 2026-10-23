@@ -125,6 +125,26 @@ export function createAppSpec(env) {
         scope: "RUN_TIME",
         type: "SECRET",
       });
+    if (role === "grove_api") {
+      for (const key of ["EXA_API_KEY", "TAVILY_API_KEY"])
+        if (env[key])
+          component.envs.push({
+            key,
+            value: env[key],
+            scope: "RUN_TIME",
+            type: "SECRET",
+          });
+      for (const [key, fallback] of [
+        ["RESEARCH_DAILY_CALL_LIMIT", "20"],
+        ["RESEARCH_MONTHLY_BUDGET_USD", "100"],
+      ])
+        component.envs.push({
+          key,
+          value: env[key] ?? fallback,
+          scope: "RUN_TIME",
+          type: "GENERAL",
+        });
+    }
   }
   return spec;
 }

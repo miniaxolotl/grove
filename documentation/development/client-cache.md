@@ -8,6 +8,12 @@ to send `private, no-store`; this cache belongs to the mounted workspace.
 
 ## Read ownership
 
+Ask Grove tool updates invalidate the conversation and `/ask-tools` defaults across
+tabs. Pending conversation reads poll actual progress every two seconds and retain
+the optimistic turn until the server acknowledges it. Organization Apply/Undo
+invalidates active/archived notebook directories as well as note dependencies;
+generic note invalidation alone does not refresh the sidebar's notebook list.
+
 Use `useWorkspaceCache()` and the query factories in
 `packages/website/src/lib/workspace-cache.ts`:
 

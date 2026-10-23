@@ -5,6 +5,27 @@ Shared workflow names, action pins, runtime and evidence conventions follow the
 
 ## Topology
 
+### Ask Grove tools rollout (020)
+
+Apply `20261023_020_ask_tools` with the owner connection after the notebook lifecycle
+schema, during the normal drained migration window. Coordinate the separately
+reserved media migrations 017–019 against the final release source. The migration
+retains old conversations and adds defaults, tool revisions, execution records and
+provider spending counters. Runtime readiness requires the new conversation columns.
+
+Configure optional `EXA_API_KEY` / `TAVILY_API_KEY` as API-only runtime secrets, plus
+`RESEARCH_DAILY_CALL_LIMIT` and `RESEARCH_MONTHLY_BUDGET_USD`. Missing keys leave the
+respective provider unavailable; they do not disable saved-note chat. Initial app
+provisioning and Compose forward these settings only to the API. Existing image-only
+rollouts preserve provider configuration, so add keys/limits through the operator
+configuration procedure before testing. Never use public website variables for keys.
+
+Roll out the admitted API/worker image before the website. Verify Exa-only,
+Tavily-only, both-off, bounded research citations, notebook creation/filing and
+version-fenced Apply/Undo with a disposable account. Use the current recovery
+script: it preserves current tools and conservative spend, clears resumable external
+calls and invalidates old write previews. See [Ask tools](ask-tools.md).
+
 ### Notebook lifecycle rollout (016)
 
 Back up the database and pause/drain API and worker mutations. Apply

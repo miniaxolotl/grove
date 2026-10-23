@@ -137,6 +137,10 @@ export class MemoryService {
   readonly conversations: Conversations;
   readonly relationships: Relationships;
   providers: Providers;
+  research: Partial<
+    Record<"exa" | "tavily", import("@lib/ai").ResearchProvider>
+  > = {};
+  researchLimits = { dailyCalls: 20, monthlyMicrodollars: 100_000_000 };
   jobProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>;
   get embedder() {
     return this.providers.embedding;

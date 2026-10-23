@@ -6,6 +6,98 @@ import {
 } from "@lib/shared/models";
 import type { Memory } from "./contracts.ts";
 
+export const askToolsSchema = z
+  .object({ exa: z.boolean(), tavily: z.boolean(), organize: z.boolean() })
+  .strict();
+export type AskTools = z.infer<typeof askToolsSchema>;
+export const defaultAskTools: AskTools = {
+  exa: true,
+  tavily: false,
+  organize: true,
+};
+export const toolSettingsSchema = z
+  .object({
+    tools: askToolsSchema,
+    expectedVersion: z.number().int().nonnegative(),
+    saveDefault: z.boolean().optional(),
+  })
+  .strict();
+export type ToolSettings = z.infer<typeof toolSettingsSchema>;
+export const researchRequestSchema = z
+  .object({
+    provider: z.enum(["exa", "tavily"]),
+    query: z.string().max(500),
+    urls: z.array(z.string().max(2000)).max(3),
+  })
+  .strict();
+export type ResearchRequest = z.infer<typeof researchRequestSchema>;
+export type WebSource = {
+  id: string;
+  url: string;
+  title: string;
+  text: string;
+  provider: "exa" | "tavily";
+  retrievedAt: string;
+  kind: "search" | "page";
+};
+export type ToolRun = {
+  key: string;
+  provider: "exa" | "tavily";
+  operation: "search" | "extract";
+  status: "running" | "complete" | "failed" | "limited";
+  sources: WebSource[];
+};
+const webStatementSchema = z
+  .object({
+    text: z.string().trim().min(1).max(1200),
+    urls: z.array(z.string().max(2000)).min(1).max(5),
+  })
+  .strict();
+const destinationSchema = z
+  .union([z.uuid(), z.string().regex(/^new:[a-z0-9_-]{1,40}$/)])
+  .nullable();
+export const organizationProposalSchema = z
+  .object({
+    notebooks: z
+      .array(
+        z
+          .object({
+            key: z.string().regex(/^[a-z0-9_-]{1,40}$/),
+            name: z.string().trim().min(1).max(120),
+            parent: destinationSchema,
+          })
+          .strict(),
+      )
+      .max(6),
+    renames: z
+      .array(
+        sourceRefSchema.extend({ name: z.string().trim().min(1).max(120) }),
+      )
+      .max(6),
+    moves: z
+      .array(sourceRefSchema.extend({ destination: destinationSchema }))
+      .max(30),
+    notes: z
+      .array(
+        z
+          .object({
+            content: z.string().trim().min(1).max(6000),
+            destination: destinationSchema,
+          })
+          .strict(),
+      )
+      .max(3),
+  })
+  .strict();
+export type OrganizationChanges = z.infer<typeof organizationProposalSchema>;
+export type OrganizationProposal = OrganizationChanges & {
+  status: "proposed" | "applied" | "undone" | "unavailable";
+  notebookRefs: (SourceRef & { name: string })[];
+  applied?: SourceRef[];
+  createdNotebooks?: string[];
+  coverage: { shown: number; total: number; nextCursor: string | null };
+};
+
 export const conversationScopeSchema = z
   .object({
     projectId: z.uuid().nullable().optional(),
@@ -26,8 +118,10 @@ export const conversationTurnSchema = z
 export const conversationPlanSchema = z
   .object({
     query: z.string().trim().min(1).max(1000),
-    intent: z.enum(["answer", "find", "edit", "merge", "create"]),
+    intent: z.enum(["answer", "find", "edit", "merge", "create", "organize"]),
     references: z.array(z.uuid()).max(8),
+    research: z.array(researchRequestSchema).max(2).default([]),
+    organizeAfter: z.uuid().nullable().default(null),
   })
   .strict();
 export const noteProposalSchema = z
@@ -43,6 +137,7 @@ export const conversationReplySchema = z
     message: z.string().trim().max(2000),
     statements: answerSchema.shape.statements,
     proposal: noteProposalSchema.nullable(),
+    webStatements: z.array(webStatementSchema).max(8).default([]),
   })
   .strict();
 // Tool providers can encode nullable objects as {}, losing the distinction between
@@ -51,6 +146,7 @@ export const conversationReplySchema = z
 export const conversationGenerationSchema = conversationReplySchema
   .omit({ proposal: true })
   .extend({
+    organization: z.array(organizationProposalSchema).max(1).default([]),
     proposals: z
       .array(
         noteProposalSchema.extend({
@@ -72,6 +168,9 @@ export type ConversationReply = Omit<
 > & {
   sources: Memory[];
   proposal: NoteProposal | null;
+  webSources?: WebSource[];
+  researchIncomplete?: boolean;
+  organization?: OrganizationProposal;
 };
 export type ConversationTurn = {
   id: string;
@@ -82,6 +181,7 @@ export type ConversationTurn = {
   result: ConversationReply | null;
   error: string | null;
   createdAt: string;
+  toolRuns?: ToolRun[];
 };
 export type ConversationSummary = {
   id: string;
@@ -89,6 +189,8 @@ export type ConversationSummary = {
   scope: ConversationScope;
   version: number;
   updatedAt: string;
+  tools: AskTools;
+  toolsVersion: number;
 };
 export type Conversation = ConversationSummary & { turns: ConversationTurn[] };
 export type ConversationPage = {

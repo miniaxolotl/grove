@@ -28,6 +28,7 @@ async function forward(
   const path = (await context.params).path.join("/");
   if (
     !allowed.test(path) &&
+    !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
     !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,
     )
