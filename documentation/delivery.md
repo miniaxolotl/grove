@@ -1,5 +1,36 @@
 # Delivery evidence
 
+## Workspace navigation (23 October 2026)
+
+Search shows query-aware plain-text passages and literal highlights, with notebook
+paths in global search and Ask/Search. Sidebar expansion/scroll and optional outline
+pinning remember bounded account-owned UI metadata, never content or queries.
+CommonMark/GFM heading identities drive searchable Jump to heading, Commands and
+`Ctrl`/`Cmd` + `Alt` + `O`, private saved-note section links and the wide contents rail.
+The same outline rows work in the compact inspector, with clipboard fallback,
+current-section tracking and delayed hash/history navigation. Renaming headings or
+reordering duplicates can invalidate links; copying does not enable public access.
+
+Application source `c544123` passes root/website lint, types and builds, all **five
+packaged artifacts**, the bundle gate, **223 Chromium** scenarios and **12 focused
+WebKit** scenarios. Additional real-component journeys pass in both engines for
+late passages across all three search surfaces, duplicate/Setext headings, section
+links/reload/history, no-write jumps and edit/Undo, desktop/mobile restoration with
+delayed directories, account/session replacement, removed IDs, malformed/blocked
+storage, commands, copy/fallback, pinning/tracking and narrow accessibility/overflow.
+Frontend test files remain unchanged; the new interactions also have a documented
+[manual verification matrix](development/testing.md).
+
+History review, deletion and heading jumps hand focus over after actual dialog
+cleanup, avoiding races with opener restoration; **15 repeated Chromium history
+cases** also pass without changing the existing assertions.
+
+Notes entry is **487,751 gzip bytes**; CodeMirror remains deferred. Node 24.22.1,
+pnpm 10.33.0 and Playwright 1.64.1 were used; WebKit runs in the supported Noble
+container. [Sixteen synthetic captures](design/screenshots/workspace-navigation/README.md)
+cover 1440/768/390/320px, short/forced-colour layouts and both browser engines.
+No schema migration is required; no production activation was performed.
+
 ## Shared reader polish (23 October 2026)
 
 Shared notes and notebooks use one Read only label, a clear title/date and the saved

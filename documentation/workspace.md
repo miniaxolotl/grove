@@ -14,8 +14,12 @@ logo always returns to Notes.
   **Markdown** shows its source. Use the shared formatting toolbar,
   undo/redo, heading outline, and focus mode (Escape exits focus). Reading/writing
   and outline controls stay available in focus mode. The compact outline shows
-  heading levels and marks the current section when opened; choosing a heading
-  returns focus to that section or its source in the editor.
+  heading levels and lets you find a heading and jump to it with Enter. Choosing a
+  heading returns focus to that section or its source in the editor. Use **Jump to
+  heading** in Commands or `Ctrl`/`Cmd` + `Alt` + `O` while reading or writing.
+  **Pin outline on wide screens** keeps the section list beside the document when
+  there is enough room; phones and narrow drawers keep the dialog. The current
+  section follows reading scroll or the writing cursor/scroll.
   **New note** follows the notebook you are browsing, filtering, or editing.
   Notes outside a notebook appear in **Unfiled**.
 - Notes save automatically after a 450 ms typing pause, including in the wider drawer.
@@ -41,10 +45,18 @@ logo always returns to Notes.
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
   stay in POST bodies. Sorting and filtering apply to the entire matching library.
+  Search excerpts show a passage near matching words, with literal word highlights.
+  Global search and Ask Grove's Search tab show the notebook path. Semantic-only
+  matches show an ordinary excerpt rather than invented highlights.
 - Create a notebook with the sidebar **+** and just a name. **Manage notebooks** opens all
   notebook settings. Each notebook's action menu includes **New sub-notebook**;
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
   matching notebooks' ancestors so you can see where they belong.
+  Sidebar expansion, notebook-list scroll and outline pinning are remembered on
+  this browser for your account, including after signing out and back in. Desktop
+  and phone notebook lists keep separate scroll positions. No note text, drafts,
+  search queries or notebook names are stored with these choices. Blocked browser
+  storage simply disables remembering them.
 - **Rename notebook** focuses the name; **Move notebook** focuses the destination
   and preserves the name. Choose a **Parent notebook** or **Top level**;
   sub-notebooks move with their parent. Breadcrumbs and dropdowns show full paths.
@@ -109,6 +121,22 @@ These features have independent AI preferences. See [notebook assistance](notebo
 
 ## Share with a link
 
+### Private section links
+
+Use the link icon beside a heading in **Note outline** to copy a link to that
+section of the saved note. Clipboard denial shows a field you can select and copy.
+New notes must be saved first. These are authenticated workspace links: copying
+one does not enable public sharing or grant another account access. A heading in
+an unsaved edit is not published by copying its link.
+
+Links reopen the section after the note loads and work in reading/writing modes,
+on reload and with Back/Forward. Unrecognized or malformed sections leave the note
+usable without changing its text. Heading names determine their anchors; duplicate
+names get unique numeric suffixes. Renaming a heading or rearranging duplicates
+can change their links. Public-link creation continues to use the controls below.
+
+### Public read-only links
+
 Open **Share note** in a saved note's toolbar, the phone's **Note actions** menu, or
 Commands. **Share notebook** is
 available in notebook options and sidebar actions; the notebook manager also has
@@ -140,6 +168,7 @@ in the sidebar/footer, or `Ctrl`/`Cmd` + `/`, opens the help menu.
 | Ctrl/Cmd + E         | Toggle edit / preview                      |
 | Ctrl/Cmd + S         | Save now                                   |
 | Ctrl/Cmd + Shift + F | Toggle focus mode                          |
+| Ctrl/Cmd + Alt + O   | Find and jump to a heading                 |
 | Ctrl/Cmd + comma     | Settings                                   |
 | Up / Down            | Move between focused note rows or commands |
 | Left / Right         | Previous / next note in the drawer         |

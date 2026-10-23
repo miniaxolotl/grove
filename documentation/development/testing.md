@@ -1,5 +1,41 @@
 # Verification
 
+Workspace navigation uses the existing full Chromium suite and focused WebKit
+checks for sidebar bounds, mode/outline geometry, first autosave, held-save retry,
+command availability, nested shortcut scope and note-search recovery. Frontend
+coverage files are unchanged. Navigation-specific real-component verification also
+checks this manual matrix in each engine against synthetic fixture API data:
+
+- A query found only late in a note produces a highlighted passage in global search,
+  Ask/Search and filtered rows; a semantic-only result has no fabricated highlight.
+- Expand notebooks, scroll the list, reload with delayed directory/nested-page reads;
+  verify restoration yields to user input. Switch accounts/sessions and confirm UI
+  metadata ownership, no stored names/content/queries, and safe blocked/malformed
+  storage. Removed notebook IDs must not survive a successful directory refresh.
+- Open an authenticated note with a duplicate-heading fragment, reload, change the
+  same-note hash and use Back/Forward. Try missing/malformed fragments and new notes.
+  Source navigation must not save; an intentional edit at the target must Undo
+  through normal history. Check ATX/Setext, formatting, nesting, CRLF and fenced code.
+- Open Commands → Jump to heading and `Ctrl`/`Cmd` + `Alt` + `O` from writing/reading.
+  Search, Enter, Escape/focus return and clipboard success/manual fallback must work.
+- Pin/unpin, scroll/current-section tracking, focus mode and resizing at
+  1440/768/390/320px must retain the document instance, fit controls and keep narrow
+  screens on the inspector. Review reduced motion, enlarged text and forced colours.
+
+Run production builds **before**, not during, browser suites: rebuilding removes
+old CSS chunks used by the fixture servers. Use separate ports/output directories
+for concurrent engines. [Navigation captures](../design/screenshots/workspace-navigation/README.md)
+record exact verification and the scope of these manual journeys.
+
+The committed focused configuration includes the existing history-focus scenarios
+as well as note tools, saves, sidebar, commands and search:
+
+```sh
+pnpm --filter website exec playwright test --config playwright.navigation-webkit.config.ts
+```
+
+Use the supported Playwright container below when local WebKit libraries are absent.
+
 Ask Grove tools add deterministic hosted-MCP protocol fixtures in `research.test.ts`,
 a populated 016→020 upgrade, conversation settings/cancellation/budget and atomic
 organization regressions, and export/recovery checks. Paid provider calls are kept
