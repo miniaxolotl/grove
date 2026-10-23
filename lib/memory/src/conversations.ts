@@ -402,6 +402,11 @@ export class Conversations {
         }
         const values = {
           status: "pending",
+          toolRuns: JSON.stringify(
+            (old?.toolRuns ?? []).map((run) =>
+              run.status === "running" ? { ...run, status: "failed" } : run,
+            ),
+          ),
           error: null,
           leaseId,
           leaseUntil: trx.raw("now() + interval '5 minutes'"),
@@ -1028,7 +1033,9 @@ export class Conversations {
         if (!undo && (!account.askEnabled || !conversation.tools.organize))
           throw new GroveError(
             "feature_disabled",
-            "Enable Ask Grove in AI preferences to apply this preview.",
+            !account.askEnabled
+              ? "Enable Ask Grove in AI preferences to apply this preview."
+              : "Enable Manage notes in Tools to apply this preview.",
             409,
           );
         if (

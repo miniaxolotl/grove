@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Check, Globe, SlidersHorizontal } from "lucide-react";
+import { BookOpen, FolderTree, Globe, SlidersHorizontal } from "lucide-react";
 import type { AskTools, OrganizationProposal } from "@lib/shared/conversations";
 import type { Memory } from "@lib/shared/contracts";
 import { ActionMenu } from "./ui/action-menu";
@@ -22,15 +22,19 @@ export function AskToolMenu({
   available,
   busy,
   error,
+  notice,
   onChange,
   onDefault,
+  onRetry,
 }: {
   tools: AskTools;
   available?: AskTools;
   busy: boolean;
   error?: string;
+  notice?: string;
   onChange: (tools: AskTools) => void;
   onDefault: () => void;
+  onRetry: () => void;
 }) {
   const count = Object.entries(tools).filter(
     ([key, enabled]) => enabled && available?.[key as keyof AskTools],
@@ -47,18 +51,24 @@ export function AskToolMenu({
           </>
         }
       >
-        <div className="ask-tools-heading">Tools for this conversation</div>
+        <div className="ask-tools-heading">For this chat</div>
         {(
           [
-            ["exa", "Exa", "Search the web", Globe],
-            ["tavily", "Tavily", "Search and read websites", Globe],
-            ["organize", "Grove", "Create and organize notes", BookOpen],
+            ["exa", "Web search", "Find current information online", Globe],
+            ["tavily", "Research", "Explore topics and read sources", BookOpen],
+            [
+              "organize",
+              "Manage notes",
+              "Edit notes and organize notebooks",
+              FolderTree,
+            ],
           ] as const
         ).map(([key, title, description, Icon]) => (
           <button
             key={key}
             type="button"
-            aria-pressed={tools[key]}
+            role="switch"
+            aria-checked={tools[key]}
             disabled={busy || (!available?.[key] && !tools[key])}
             onClick={() => onChange({ ...tools, [key]: !tools[key] })}
           >
@@ -69,20 +79,38 @@ export function AskToolMenu({
                 {available?.[key] ? description : "Currently unavailable"}
               </small>
             </span>
-            <span className="ask-tool-check" aria-hidden="true">
-              {tools[key] && <Check size={16} />}
+            <span
+              className={`ask-tool-switch${tools[key] ? " is-on" : ""}`}
+              aria-hidden="true"
+            >
+              <span />
             </span>
           </button>
         ))}
-        <button type="button" disabled={busy || !available} onClick={onDefault}>
-          Use these tools for new chats
+        <p className="ask-tools-status" role="status">
+          {busy ? "Saving…" : notice || "Used only when helpful."}
+        </p>
+        <button
+          className="ask-tools-default"
+          type="button"
+          disabled={busy || !available}
+          onClick={onDefault}
+        >
+          Use for new chats
         </button>
         {error && (
           <p className="app-error" role="alert">
             {error}
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy}
+              onClick={onRetry}
+            >
+              Refresh tools
+            </button>
           </p>
         )}
-        {busy && <p role="status">Saving tools…</p>}
       </ActionMenu>
     </div>
   );
@@ -115,7 +143,7 @@ export function OrganizationPreview({
       className="ask-proposal ask-organization"
       aria-label="Proposed notebook changes"
     >
-      <h3>Organize your notebook</h3>
+      <h3>Notebook changes</h3>
       <ul className="ask-organization-list">
         {proposal.notebooks.map((notebook) => (
           <li key={notebook.key}>

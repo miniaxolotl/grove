@@ -1,17 +1,25 @@
 # Ask Grove tools
 
-Ask Grove combines selected saved notes with optional Exa/Tavily web research.
+Ask Grove combines selected saved notes with optional **Web search** and **Research**.
 Grove cloud supplies provider access to all accounts; users do not need provider
 accounts or personal API keys. An installation must configure each provider before
 it becomes available. Existing saved conversations remain readable.
 
 ## Controls and workflow
 
-Open **Tools** in the message box. **Exa** searches/reads the web; **Tavily** also
-searches/reads websites; **Grove** enables note and notebook changes. New accounts
-start with Exa and Grove enabled, Tavily disabled. Choices persist per conversation.
-**Use these tools for new chats** saves account defaults. Provider availability is
-separate from preference state. The main Ask Grove AI preference still applies.
+Open **Tools** in the message box:
+
+- **Web search** — find current information online.
+- **Research** — explore topics and read sources.
+- **Manage notes** — edit notes and organize notebooks.
+
+New accounts start with Web search and Manage notes enabled, Research disabled.
+Choices persist per conversation. Switches update immediately, retain your draft
+while saving, and return to the saved state on failure. **Refresh tools** recovers
+stale or failed settings. **Use for new chats** saves account defaults with inline
+confirmation. Availability is separate from preference state. The main Ask Grove
+AI preference still applies. Internally, Web search uses Exa and Research uses Tavily;
+those provider identifiers remain unchanged in the API and operator configuration.
 
 Enabled means available when useful, not a call on every message. Ask Grove searches
 for timely/external context and research-backed note creation. Ordinary note-only
@@ -19,8 +27,8 @@ retrieval and greetings should not trigger research. Both providers disabled mea
 no external research, including retries. Changing tools during a reply stops that
 reply; server-side revisions reject late results even after disable/re-enable.
 
-Web statements cite only returned URLs. **Web sources** records provider, retrieval
-date and whether the evidence is a search excerpt or page extract. Saved-note
+Web statements cite only returned URLs. **Web sources** records the tool, retrieval
+date and whether the evidence is a search result or page extract. Saved-note
 citations continue to open the note inspector. Research-backed note content includes
 supporting Markdown links. Failed/limited research can return an explicitly
 incomplete answer using available sources; no fabricated completion is shown.
@@ -50,7 +58,7 @@ scope, then commits the batch atomically. Lost-response retries do not duplicate
 notes or notebooks. Undo checks all applied versions and refuses to archive created
 notebooks that acquired additional notes or children. Created items are archived,
 not physically deleted; existing notes return to their original locations/content.
-Disabling organization prevents Apply but still permits Undo.
+Disabling Manage notes prevents Apply but still permits Undo.
 
 ## Operator setup
 

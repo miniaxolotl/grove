@@ -131,12 +131,12 @@ export const privacy: LegalDocument = {
             control these features independently in Settings.
           </p>
           <p>
-            When enabled in Ask Grove’s Tools menu, Exa and Tavily receive the
-            research queries and website URLs needed to search or read the web.
-            Returned excerpts and source links may be saved with your
-            conversation or a note you choose to create. You can disable either
-            research tool for the conversation and choose defaults for new
-            chats.
+            Web search uses Exa and Research uses Tavily. When enabled in Ask
+            Grove’s Tools menu, these providers receive the research queries and
+            website URLs needed to search or read the web. Returned excerpts and
+            source links may be saved with your conversation or a note you
+            choose to create. You can disable either research tool for the
+            conversation and choose defaults for new chats.
           </p>
           <p>
             Authorized support and operations personnel may access information

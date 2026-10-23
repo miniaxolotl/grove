@@ -244,10 +244,10 @@ The search field and status stay in place through pending, empty and result stat
 a failed search offers an inline retry. Clearing it returns focus to the field.
 Source links open the cited note and identify when it has since changed.
 
-The message box's **Tools** menu controls Exa web search, Tavily search/page reading,
-and Grove note organization independently. Enabled research tools are used when
+The message box's **Tools** menu controls **Web search**, **Research**, and
+**Manage notes** independently. Enabled research tools are used when
 outside context would help; saved-note searches and greetings do not need a web
-search. Choices stay with the conversation; **Use these tools for new chats** saves
+search. Choices stay with the conversation; **Use for new chats** saves
 your defaults. Unconfigured providers show as unavailable. Web claims link to
 external sources separately from saved-note citations. See [Ask tools](ask-tools.md)
 for allowances, provider setup and incomplete-research behavior.

@@ -186,7 +186,7 @@ export function AskComposer({
         maxLength={6000}
         disabled={disabled}
         hidden={preview}
-        placeholder="Ask, find, or change a note…"
+        placeholder="Ask, research, or organize…"
         aria-describedby={`${id}-hint`}
         onSelect={(event) => {
           selection.current = {

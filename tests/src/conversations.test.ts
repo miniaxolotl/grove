@@ -623,6 +623,45 @@ test("organization wire responses normalize omitted empty fields but reject inco
   );
 });
 
+test("retry marks abandoned research activity failed before starting another call", async () => {
+  const f = await fixture();
+  f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  f.service.research = {
+    exa: { search: async () => [], extract: async () => [] },
+  };
+  const chat = await f.create(),
+    input = turn("Research compost");
+  f.behavior.fail = true;
+  await assert.rejects(
+    f.service.conversations.turn(f.principal, chat.id, input),
+  );
+  await tenant(db, f.principal.accountId, (trx) =>
+    trx("conversation_turns")
+      .where({ id: input.id })
+      .update({
+        toolRuns: JSON.stringify([
+          {
+            key: "abandoned",
+            provider: "tavily",
+            operation: "search",
+            status: "running",
+            sources: [],
+          },
+        ]),
+      }),
+  );
+  f.behavior.fail = false;
+  const result = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    input,
+  );
+  assert.equal(
+    result.turns[0].toolRuns?.find((run) => run.key === "abandoned")?.status,
+    "failed",
+  );
+});
+
 test("chat stays available with summaries off, while disabled chat blocks generation and Apply but permits Undo", async () => {
   const { service, principal, behavior, save, create } = await fixture();
   await service.settings(principal, {

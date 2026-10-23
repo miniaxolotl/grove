@@ -125,9 +125,14 @@ export function AskGrove({
   const [actionBusy, setActionBusy] = useState<string>();
   const [toolsBusy, setToolsBusy] = useState(false);
   const [toolsError, setToolsError] = useState("");
+  const [toolsNotice, setToolsNotice] = useState("");
+  const [pendingTools, setPendingTools] = useState<AskTools>();
   const capabilities = useQuery(cache.resource<ToolCapabilities>("/ask-tools"));
   const effectiveTools =
-    conversation?.tools ?? capabilities.data?.defaults ?? initialTools;
+    pendingTools ??
+    conversation?.tools ??
+    capabilities.data?.defaults ??
+    initialTools;
   const chatQuery = useQuery({
     ...cache.resource<Conversation>(`/conversations/${conversationId ?? ""}`),
     enabled:
@@ -272,6 +277,8 @@ export function AskGrove({
     setLoading(false);
     setToolsBusy(false);
     setToolsError("");
+    setToolsNotice("");
+    setPendingTools(undefined);
     setError("");
     setSelected(null);
     if (clearDraft) setDraft("");
@@ -469,6 +476,8 @@ export function AskGrove({
     if (pending) stop();
     setToolsBusy(true);
     setToolsError("");
+    setToolsNotice("");
+    setPendingTools(tools);
     const controller = new AbortController();
     request.current = controller;
     try {
@@ -493,7 +502,10 @@ export function AskGrove({
       );
       if (!controller.signal.aborted) {
         setConversation(saved);
-        if (saveDefault) await capabilities.refetch();
+        if (saveDefault) {
+          await capabilities.refetch();
+          if (!controller.signal.aborted) setToolsNotice("Defaults saved.");
+        }
       }
     } catch (e) {
       if (!controller.signal.aborted) setToolsError(errorMessage(e));
@@ -501,6 +513,7 @@ export function AskGrove({
       if (request.current === controller) {
         request.current = null;
         setToolsBusy(false);
+        setPendingTools(undefined);
       }
     }
   }
@@ -647,12 +660,12 @@ export function AskGrove({
                 <p role="status">Opening conversation…</p>
               ) : !conversation?.turns.length ? (
                 <div className="ask-welcome">
-                  <h2>Ask your notes</h2>
+                  <h2>What’s on your mind?</h2>
                   <div className="ask-suggestions">
                     {[
                       "Find my recent plans",
-                      "Help me tidy up my notes",
-                      "What should I work on next?",
+                      "Research a topic for a note",
+                      "Organize my unfiled notes",
                     ].map((question) => (
                       <button key={question} onClick={() => setDraft(question)}>
                         <span>{question}</span>
@@ -700,7 +713,15 @@ export function AskGrove({
                           {turn.toolRuns?.some(
                             (run) => run.status === "running",
                           )
-                            ? `${turn.toolRuns.find((run) => run.status === "running")!.provider === "exa" ? "Exa" : "Tavily"}: ${turn.toolRuns.find((run) => run.status === "running")!.operation === "search" ? "searching the web" : "reading sources"}…`
+                            ? turn.toolRuns.find(
+                                (run) => run.status === "running",
+                              )!.operation === "extract"
+                              ? "Reading sources…"
+                              : turn.toolRuns.find(
+                                    (run) => run.status === "running",
+                                  )!.provider === "exa"
+                                ? "Searching the web…"
+                                : "Researching sources…"
                             : turn.toolRuns?.length
                               ? "Preparing your answer…"
                               : "Looking through your notes…"}
@@ -794,6 +815,12 @@ export function AskGrove({
                   }
                   onChange={(tools) => void configureTools(tools)}
                   onDefault={() => void configureTools(effectiveTools, true)}
+                  notice={toolsNotice}
+                  onRetry={() => {
+                    setToolsError("");
+                    void capabilities.refetch();
+                    if (conversationId) void openChat(conversationId);
+                  }}
                 />
               }
             />
@@ -1046,6 +1073,13 @@ function Answer({
           onUndo={onUndo}
         />
       )}
+      {!canApply &&
+        (proposal?.status === "proposed" ||
+          result.organization?.status === "proposed") && (
+          <p className="ask-answer-note">
+            Enable Manage notes in Tools to apply these changes.
+          </p>
+        )}
       {proposal && (
         <section className="ask-proposal" aria-label="Proposed note changes">
           <h3>
@@ -1143,10 +1177,10 @@ function Answer({
                   <span>
                     <strong>{source.title}</strong>
                     <small>
-                      {source.provider === "exa" ? "Exa" : "Tavily"} ·{" "}
+                      {source.provider === "exa" ? "Web search" : "Research"} ·{" "}
                       {source.kind === "page"
                         ? "Page extract"
-                        : "Search excerpt"}{" "}
+                        : "Search result"}{" "}
                       · {new Date(source.retrievedAt).toLocaleDateString()}
                     </small>
                   </span>

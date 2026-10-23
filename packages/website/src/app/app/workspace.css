@@ -555,12 +555,41 @@ html:has(.grove-app) {
   font-size: 11px;
   margin-top: 2px;
 }
-.ask-tool-check {
-  width: 18px;
+.ask-tool-switch {
+  width: 28px;
+  height: 17px;
+  padding: 2px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-paper);
   flex-shrink: 0;
 }
+.ask-tool-switch > span {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-muted);
+}
+.ask-tool-switch.is-on {
+  background: var(--color-forest);
+  border-color: var(--color-forest);
+}
+.ask-tool-switch.is-on > span {
+  background: white;
+  transform: translateX(11px);
+}
 .ask-tools-control .action-menu {
-  min-width: 270px;
+  width: 300px;
+  min-width: 0;
+}
+.ask-tools-control .ask-tools-status {
+  min-height: 28px;
+  color: var(--color-muted);
+}
+.ask-tools-control .ask-tools-default {
+  border-top: 1px solid var(--color-line);
+  border-radius: 0;
 }
 .ask-tools-control .action-menu > p {
   max-width: 260px;
