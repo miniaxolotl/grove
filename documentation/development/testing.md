@@ -1,5 +1,10 @@
 # Verification
 
+Image-storage primitives have a bounded raster/filesystem suite and two optional
+owned-loopback S3 checks, including rejection of providers that ignore conditional
+writes. See [media foundation verification](media-foundation.md#verification).
+This does not yet qualify image upload/rendering or revision authorization.
+
 Workspace navigation uses the existing full Chromium suite and focused WebKit
 checks for sidebar bounds, mode/outline geometry, first autosave, held-save retry,
 command availability, nested shortcut scope and note-search recovery. Frontend
