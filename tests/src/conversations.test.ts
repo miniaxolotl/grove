@@ -23,6 +23,7 @@ import { generationConfigSchema } from "@lib/shared/models";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { createApp } from "../../packages/api/src/app.ts";
 import { withTelemetry, type TelemetrySink } from "@lib/telemetry/context";
+import { policy } from "../../lib/config/src/index.ts";
 
 const url = process.env.TEST_MIGRATION_DATABASE_URL!;
 assert(
@@ -156,6 +157,160 @@ async function fixture() {
 }
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
+
+async function seedNotes(accountId: string, count: number) {
+  await admin.raw(
+    `INSERT INTO memories(account_id, content, kind, source)
+     SELECT ?::uuid, 'Capacity fixture ' || n, 'fact', '{}'::jsonb
+     FROM generate_series(1, ?::integer) n`,
+    [accountId, count],
+  );
+}
+
+test("conversation creates enforce the account note limit while edits and Undo remain available", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden watering schedule");
+  await seedNotes(f.principal.accountId, policy.maxMemories - 1);
+  await assert.rejects(f.save("Another note"), { code: "storage_limit" });
+  f.behavior.intent = "create";
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Create a garden note"),
+  );
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id),
+    { code: "storage_limit" },
+  );
+  assert.equal(
+    (await f.service.conversations.get(f.principal, chat.id)).turns[0].result
+      ?.proposal?.status,
+    "proposed",
+  );
+
+  f.behavior.intent = "edit";
+  chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Edit my garden note"),
+  );
+  await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+  assert.equal((await f.service.get(f.principal, note.id)).version, 2);
+  await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+    true,
+  );
+  assert.equal(
+    (await f.service.get(f.principal, note.id)).content,
+    note.content,
+  );
+  const other = await fixture();
+  await other.save("A separate account still has capacity");
+});
+
+test("an organization batch exceeding remaining note capacity rolls back every write", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden compost planning");
+  f.behavior.intent = "organize";
+  f.behavior.organization = [
+    {
+      notebooks: [{ key: "garden", name: "Garden", parent: null }],
+      renames: [],
+      moves: [
+        { id: note.id, version: note.version, destination: "new:garden" },
+      ],
+      notes: [
+        { content: "Compost recipe", destination: "new:garden" },
+        { content: "Planting schedule", destination: "new:garden" },
+      ],
+    },
+  ];
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("File my garden note and create compost and planting notes"),
+  );
+  await seedNotes(f.principal.accountId, policy.maxMemories - 2);
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id),
+    { code: "storage_limit" },
+  );
+  assert.deepEqual(await f.service.projects(f.principal), []);
+  const unchanged = await f.service.get(f.principal, note.id);
+  assert.equal(unchanged.version, note.version);
+  assert.equal(unchanged.projectId, null);
+  assert.equal(
+    Number(
+      (
+        await admin("memories")
+          .where({ accountId: f.principal.accountId })
+          .count("id as count")
+          .first()
+      )?.count,
+    ),
+    policy.maxMemories - 1,
+  );
+  assert.equal(
+    (await f.service.conversations.get(f.principal, chat.id)).turns[0].result
+      ?.organization?.status,
+    "proposed",
+  );
+});
+
+test("concurrent conversation creates share the final note slot and replay and Undo work at capacity", async () => {
+  const f = await fixture();
+  f.behavior.intent = "create";
+  const chats = [];
+  for (let index = 0; index < 2; index++) {
+    const chat = await f.create();
+    chats.push(
+      await f.service.conversations.turn(
+        f.principal,
+        chat.id,
+        turn("Create a garden note"),
+      ),
+    );
+  }
+  await seedNotes(f.principal.accountId, policy.maxMemories - 1);
+  const results = await Promise.allSettled(
+    chats.map((chat) =>
+      f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id),
+    ),
+  );
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  const rejected = results.find((r) => r.status === "rejected");
+  assert.equal(rejected?.reason.code, "storage_limit");
+  const result = results.find((r) => r.status === "fulfilled")!;
+  const chat = result.value;
+  const applied = chat.turns[0].result!.proposal!.applied!;
+  const replay = await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+  );
+  assert.deepEqual(replay.turns[0].result!.proposal!.applied, applied);
+  await assert.rejects(f.save("Ordinary creation shares the quota"), {
+    code: "storage_limit",
+  });
+  await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+    true,
+  );
+  assert.equal(
+    (await f.service.get(f.principal, applied[0].id)).status,
+    "archived",
+  );
+  await assert.rejects(f.save("Archived notes still count"), {
+    code: "storage_limit",
+  });
+});
 
 test("conversation tools persist choices, enforce disabled providers and retain web citations", async () => {
   const { service, principal, behavior, create } = await fixture();
@@ -338,6 +493,148 @@ test("notebook and note batches preview, apply atomically, replay and undo witho
   );
   assert.equal((await service.get(principal, note.id)).projectId, null);
   assert.equal((await service.projects(principal)).length, 0);
+});
+
+test("organization follow-ups identify created notes and use fresh versions for edits", async () => {
+  const f = await fixture();
+  const original = await f.save("Garden planning");
+  f.behavior.intent = "organize";
+  const notes = [
+    { content: "# Compost\n\nUse leaves.", destination: "new:garden" },
+    { content: "# Planting\n\nSow beans.", destination: "new:garden" },
+  ];
+  f.behavior.organization = [
+    {
+      notebooks: [{ key: "garden", name: "Garden", parent: null }],
+      renames: [],
+      moves: [
+        {
+          id: original.id,
+          version: original.version,
+          destination: "new:garden",
+        },
+      ],
+      notes,
+    },
+  ];
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("File my garden note and create compost and planting notes"),
+  );
+  chat = await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+  );
+  const organization = chat.turns[0].result!.organization!;
+  const created = await f.service.get(f.principal, organization.applied![2].id);
+  const updated = await f.save("# Planting\n\nSow peas instead.", {
+    id: created.id,
+    expectedVersion: created.version,
+    projectId: created.projectId,
+  });
+  f.behavior.intent = "edit";
+  f.behavior.organization = [];
+  f.behavior.references = [created.id];
+  const edited = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Make the planting note you just created shorter", 1),
+  );
+  const context = f.behavior.calls.at(-2)!.context as {
+    conversation: {
+      organization: {
+        status: string;
+        notes: { id: string; version: number; content: string }[];
+      };
+    }[];
+  };
+  assert.equal(context.conversation[0].organization.status, "applied");
+  assert.deepEqual(
+    context.conversation[0].organization.notes.map(
+      ({ id, version, content }) => ({
+        id,
+        version,
+        content,
+      }),
+    ),
+    notes.map((note, index) => ({
+      ...organization.applied![index + 1],
+      content: note.content,
+    })),
+    "each new note must be paired with its own applied ID, after the moved notes",
+  );
+  const result = edited.turns[1].result!;
+  assert.deepEqual(result.proposal!.target, {
+    id: updated.id,
+    version: updated.version,
+  });
+  assert.equal(result.sources[0].content, updated.content);
+  await f.save("A newer planting decision", {
+    id: updated.id,
+    expectedVersion: updated.version,
+    projectId: updated.projectId,
+  });
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, edited.turns[1].id),
+    { code: "sources_changed" },
+  );
+});
+
+test("organization follow-up references cannot revive undone notes or escape notebook scope", async () => {
+  for (const change of ["undo", "move"] as const) {
+    const f = await fixture();
+    const project = await f.service.project(f.principal, {
+      name: "Garden",
+      identity: randomUUID(),
+    });
+    f.behavior.intent = "organize";
+    f.behavior.organization = [
+      {
+        notebooks: [],
+        renames: [],
+        moves: [],
+        notes: [{ content: "Compost recipe", destination: project.id }],
+      },
+    ];
+    let chat = await f.create({ projectId: project.id });
+    chat = await f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Create a compost note in this notebook"),
+    );
+    chat = await f.service.conversations.apply(
+      f.principal,
+      chat.id,
+      chat.turns[0].id,
+    );
+    const created = chat.turns[0].result!.organization!.applied![0];
+    if (change === "undo")
+      await f.service.conversations.apply(
+        f.principal,
+        chat.id,
+        chat.turns[0].id,
+        true,
+      );
+    else
+      await f.save("Compost recipe", {
+        id: created.id,
+        expectedVersion: created.version,
+        projectId: null,
+      });
+    f.behavior.intent = "find";
+    f.behavior.organization = [];
+    f.behavior.references = [created.id];
+    const next = await f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Show the note you just created", 1),
+    );
+    assert.deepEqual(next.turns[1].result!.sources, [], change);
+    assert.equal(next.turns[1].result!.proposal, null, change);
+  }
 });
 
 test("a stale organization move rolls back notebook creation and organization off prevents Apply", async () => {

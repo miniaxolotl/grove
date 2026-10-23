@@ -12,3 +12,7 @@ Then run `status --client codex --json` and check remote account/capabilities. D
 collect credentials in chat or put them in project files. Hook support depends on the
 host and user trust; explicit memory tools remain available. Never report connected
 from configuration files alone.
+For startup failures, run the packaged CLI with `doctor --client codex --json`;
+`--probe` explicitly tests a separate bridge/API connection without saving memories.
+The actual host still needs Node 22+ on PATH. Prefer saved Grove credentials when
+Codex filters inherited environment variables; never forward unrelated secrets.

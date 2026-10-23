@@ -1,5 +1,75 @@
 # Verification
 
+Note-context verification combines the unchanged full Chromium suite and focused
+navigation WebKit suite with real-component manual journeys against synthetic note,
+PNG and WAV data. In each engine check right-click and Shift+F10, retained selection,
+format/Undo, copy/cut/paste, denied clipboard and a delayed paste after cursor movement.
+Target the second duplicate image in a CRLF note, remove/Undo, select its source and
+reopen the source menu at the reference's end. Verify original-download byte identity
+through a loopback upstream (native downloads bypass Playwright page routing), lazy
+recording playback, mute and transcript access without overriding transcript fields.
+Hold an image upload and confirm disabled menus cannot edit/remove but can still copy.
+Review 1440/390/320px bounds, outside dismissal and the Shift+right-click native escape.
+No personal media, new frontend coverage files or production API fixtures are involved.
+See [context action guide](../note-context-actions.md) and
+[captures](../design/screenshots/note-context-actions/README.md).
+
+Review regressions also compare source/Preview URLs containing named/numeric entities,
+angle destinations and escaped parentheses, and reject decoded unsafe protocols.
+Hold cut/paste across a Preview round trip; hold paste across Write/Markdown, disabled
+state and same-component note-identity changes. Verify ordinary action dismissal
+still permits the pending paste and Undo. Paste CRLF/CR text at document end and
+check the LF caret; shorten an oversized draft through cut/reference removal while
+rejecting growth. Removing the only Preview attachment must focus the persistent
+note surface so its keyboard Undo restores the reference. These thirteen actual-
+component journeys pass in Chromium and WebKit; all five original findings were
+reproduced before correction. No new frontend coverage files are added.
+
+Ask review regressions in `conversations.test.ts` and `notebook-assistance.test.ts`
+exercise the real account note limit through ordinary saves, conversation Apply,
+organization batches and action-list saves. They cover whole-batch rollback,
+concurrent final-slot claims, replay, edits/Undo at capacity and retained previews.
+Organization follow-ups cover mixed move/create batches, note-to-ID mapping, fresh
+edit versions and exclusion of undone or out-of-scope notes. Run them with the same
+disposable PostgreSQL/non-owner roles as the backend suite below.
+
+Speech adds `speech-provider.test.ts`, `speech-jobs.test.ts`, `speech-text.test.ts`,
+`speech-storage.test.ts` and `speech-migration.test.ts`. They exercise bounded real
+HTTP adapter responses, independent default-off preferences, non-owner source/RLS
+checks, retained machine-versus-authored transcripts, retry/lease races, global
+provider slots, conservative budgets, source/profile/session/restore fences,
+private Range/HEAD playback, exact cache expiry and derived-only maintenance.
+The populated 018→019 upgrade preserves authored notes, WAV metadata and transcript
+history. Narration uses real CommonMark parsing; regression cases exclude code,
+images/media and link definitions while retaining labels and escaped prose. Its
+profile cutover prevents reusing audio from the prior extractor. Restore
+verification also seeds completed speech and checks that results
+and artifact access expire rather than being revived.
+
+The actual-component/disposable-API browser journeys cover both opt-ins, explicit
+candidate use/save/normal note insertion, generated playback, exact cache reuse,
+failure/retry, cancellation and desktop/390/320px accessibility in Chromium and
+touch/mobile WebKit. Both engines also verify in-app navigation during a held retry
+response and cancellation via either close control after enqueue succeeds but its
+response is lost. A separate small real-provider check sends only synthetic
+text/audio to tts-1/whisper-1; never use personal content or expose the key in output.
+[Reviewed captures and live-check scope](../design/screenshots/speech/README.md).
+
+Custom recording playback is verified with real retained WAV bytes through a
+disposable API/database and the actual website components. Chromium and touch/mobile
+WebKit cover delayed source loading, play/pause, range seeking, speed, mute,
+end/replay, HTTP503 retry, unmount cleanup, 1440/390/320px bounds and WCAG A/AA.
+The production Next public reader is also checked in both engines with and without
+JavaScript; native controls remain available without hydration. Keyboard Space,
+Home/End/arrows, forced colours and reduced motion receive focused checks.
+These manual journeys complement, not replace, the existing browser suite.
+See [reviewed captures](../design/screenshots/recordings/README.md).
+
+Image-storage primitives have a bounded raster/filesystem suite and two optional
+owned-loopback S3 checks, including rejection of providers that ignore conditional
+writes. See [media foundation verification](media-foundation.md#verification).
+This does not yet qualify image upload/rendering or revision authorization.
+
 Workspace navigation uses the existing full Chromium suite and focused WebKit
 checks for sidebar bounds, mode/outline geometry, first autosave, held-save retry,
 command availability, nested shortcut scope and note-search recovery. Frontend
@@ -212,6 +282,46 @@ with no workspace source, lifecycle build or database. They initialize stdio MCP
 invoke tools through an authenticated HTTP fixture, check truthful status and
 preserve unrelated configuration on repeated setup/uninstall. Native-host smoke
 tests supplement these, as recorded in [delivery evidence](../delivery.md).
+
+### Agent plugin acceptance
+
+After `pnpm build`, run `pnpm test:agents`. The Linux x64 runner installs exact,
+integrity-locked OpenCode 2.1.3, Claude Code 2.1.309 and Codex 0.164.0 native
+packages into a temporary prefix, with lifecycle scripts disabled. It uses their
+packaged native binaries directly; nothing is installed systemwide. Pins and
+integrities live in `scripts/testing/hosts/package-lock.json`, separate from product
+dependencies. `OPENCODE_TEST_BIN`, `CLAUDE_TEST_BIN` and `CODEX_TEST_BIN` may point to
+absolute isolated binaries of those qualified versions.
+
+The existing TypeScript CI job runs this suite without changing runner placement
+or CI Gate inventory. Temporary HOME/XDG/client stores, local marketplaces and
+loopback API/model fixtures isolate it from live credentials, sessions and billing.
+Native install/uninstall, skills, four tools, Claude's SessionStart and Codex's
+paused automatic writes are checked. Missing-Node native failures are intentional
+negative controls. OpenCode connects with an empty PATH and its compiled runtime
+also exercises all four packaged bridge tools. Paths contain spaces; owned
+processes are stopped on success/failure. macOS/Windows and other host versions
+are not qualified by this Linux runner.
+
+For the focused OpenCode regression alone:
+
+```sh
+OPENCODE_TEST_BIN=/absolute/path/to/opencode node scripts/testing/opencode-host.mjs
+```
+
+It installs only a temporary consumer under `/tmp/opencode`, uses isolated HOME/XDG
+directories and starts the host with an empty executable PATH. The plugin, memory
+skill and MCP connection must load without a separate Node installation on that PATH.
+The test runner itself still requires Node, pnpm and npm. It does not restart the
+user's service or change live configuration.
+
+Artifact tests additionally run packed `grove doctor`: offline checks make no API
+calls or local writes, probes never invoke memory tools or claim live-host readiness,
+and malformed/unapproved/version-incompatible API results remain explicit failures.
+`tests/src/client-boundaries.test.ts` covers invalid envelopes, cancellation and
+damaged local state without implicit reauthentication or secret-bearing messages.
+Telemetry-enabled artifacts use a blocking network guard and an enabled control:
+doctor creates no telemetry identity or analytics requests, and opts out upstream.
 
 Website browser tests cover public routes, accessibility, keyboard navigation,
 installation copy and metadata. Dashboard fixture tests use the real components

@@ -173,9 +173,10 @@ test("categorized AI preferences persist independently with provider availabilit
     "Summaries",
     "Ask Grove",
     "Connected agents",
+    "Speech",
   ])
     await expect(page.getByRole("group", { name, exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox")).toHaveCount(14);
+  await expect(page.getByRole("checkbox")).toHaveCount(16);
   const titles = page.getByRole("checkbox", {
     name: "Titles and tags",
     exact: true,

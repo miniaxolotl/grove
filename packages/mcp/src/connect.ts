@@ -260,7 +260,7 @@ export async function connectAgent(
         : "Use Grove to save a confirmed decision in an allowed project."
       : "Recall my available memories from Grove.";
     console.log(
-      `You're connected to Grove.\n${activation.message}\nAsk your agent: "${prompt}"`,
+      `Grove API access verified. Host activation is not yet verified.\n${activation.message}\nAsk your agent: "${prompt}"`,
     );
   }
 }

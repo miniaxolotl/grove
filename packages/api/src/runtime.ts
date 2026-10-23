@@ -3,7 +3,12 @@ import { readServerEnvironment } from "@lib/environment";
 import { MemoryService } from "@lib/memory";
 import { ModelRegistry } from "./models.ts";
 import { createArtifacts } from "./artifacts.ts";
-import { createResearchProvider } from "@lib/ai";
+import { createMediaStore } from "./media-store.ts";
+import {
+  createOpenAiSpeech,
+  createResearchProvider,
+  type SpeechProviders,
+} from "@lib/ai";
 
 export async function createRuntime() {
   const env = readServerEnvironment();
@@ -15,6 +20,18 @@ export async function createRuntime() {
   });
   try {
     await probeDatabase(db);
+    await db.raw(
+      "SELECT transcription_enabled,read_aloud_enabled FROM accounts LIMIT 0",
+    );
+    if (env.MEDIA_STORAGE !== "disabled") {
+      await db.raw(
+        "SELECT status,lease_id,object_key,duration_ms FROM media_objects LIMIT 0",
+      );
+      await db.raw("SELECT media_id,version FROM media_transcripts LIMIT 0");
+      await db.raw(
+        "SELECT media_id,version FROM media_revision_bindings LIMIT 0",
+      );
+    }
     const memories = new MemoryService(
       db,
       env.CURSOR_SECRET,
@@ -40,14 +57,41 @@ export async function createRuntime() {
     await models.refresh();
     const artifacts = createArtifacts(env);
     await artifacts?.ready?.();
+    const media = await createMediaStore(env);
+    try {
+      await media?.ready();
+    } catch (error) {
+      media?.close?.();
+      artifacts?.close?.();
+      throw error;
+    }
+    let speech: SpeechProviders = {};
+    if (env.SPEECH_ENABLED) {
+      if (!env.OPENAI_API_KEY?.trim()) {
+        artifacts?.close?.();
+        media?.close?.();
+        throw new Error("speech_api_key_required");
+      }
+      const remote = createOpenAiSpeech({
+        apiKey: env.OPENAI_API_KEY,
+        voice: env.TTS_VOICE,
+      });
+      speech = {
+        ...(media ? { transcription: remote.transcription } : {}),
+        ...(artifacts ? { synthesis: remote.synthesis } : {}),
+      };
+    }
     return {
       env,
       db,
       memories,
       models,
       artifacts,
+      media,
+      speech,
       close: async () => {
         artifacts?.close?.();
+        media?.close?.();
         await closeDatabase(db);
       },
     };

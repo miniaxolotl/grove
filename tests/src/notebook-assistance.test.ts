@@ -6,6 +6,7 @@ import { createDatabase, tenant, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
 import type { Providers } from "@lib/ai";
 import { assistanceProfile } from "../../lib/memory/src/assistance-data.ts";
+import { policy } from "../../lib/config/src/index.ts";
 import { rememberSchema, listSchema } from "@lib/shared/contracts";
 import { exportHandlers } from "../../lib/memory/src/exports.ts";
 import { Tasks } from "../../lib/memory/src/tasks.ts";
@@ -188,6 +189,34 @@ test("action previews read sources without writing them, replay once, preserve e
     { code: "sources_changed" },
   );
 });
+test("action-list saves enforce the account note limit without consuming their preview", async () => {
+  const f = await fixture();
+  const note = await f.save("Book the train tomorrow.");
+  const preview = await f.request({
+    id: randomUUID(),
+    kind: "actions",
+    sources: [{ id: note.id, version: note.version }],
+    projectId: f.project.id,
+  });
+  assert.equal(preview.status, "ready");
+  await admin.raw(
+    `INSERT INTO memories(account_id, content, kind, source)
+     SELECT ?::uuid, 'Capacity fixture ' || n, 'fact', '{}'::jsonb
+     FROM generate_series(1, ?::integer) n`,
+    [f.principal.accountId, policy.maxMemories - 1],
+  );
+  await assert.rejects(
+    f.service.assistance.apply(f.principal, preview.id, {
+      expectedVersion: preview.version,
+    }),
+    { code: "storage_limit" },
+  );
+  const retained = await f.service.assistance.get(f.principal, preview.id);
+  assert.equal(retained.status, "ready");
+  assert.equal(retained.version, preview.version);
+  assert.deepEqual(retained.result, preview.result);
+});
+
 test("assistance is session-only, tenant-isolated and cannot apply stale selected sources", async () => {
   const f = await fixture(),
     note = await f.save("Book the hotel.");

@@ -64,11 +64,14 @@ test("populated 015 to 016 upgrade preserves authored data, defaults notebooks a
     const notes = await owner("memories"),
       projects = await owner("projects"),
       revisions = await owner("memory_revisions");
-    const [, applied] = await owner.migrate.latest();
-    assert.deepEqual(applied, [
-      "20261023_016_notebook_lifecycle",
-      "20261023_020_ask_tools",
-    ]);
+    const [, applied] = await owner.migrate.latest({
+      migrationSource: {
+        ...migrationSource,
+        getMigrations: async () =>
+          all.filter((m) => m.name <= "20261023_016_notebook_lifecycle"),
+      },
+    });
+    assert.deepEqual(applied, ["20261023_016_notebook_lifecycle"]);
     assert.deepEqual(
       await owner("memories"),
       notes.map((row) => ({ ...row, archiveOperationId: null })),

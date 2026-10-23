@@ -72,6 +72,9 @@ test("014→015 preserves content, seeds independent preferences once and enforc
       "cleanupEnabled",
     ])
       assert.equal(account[key], false);
+    // The assertions above qualify the exact historical upgrade. Application
+    // settings code below runs against the current schema, including opt-ins.
+    await owner.migrate.latest();
     const service = new MemoryService(runtime, "assistance-upgrade");
     const principal = sessionPrincipal(a, "assistance_upgrade");
     await service.settings(principal, {

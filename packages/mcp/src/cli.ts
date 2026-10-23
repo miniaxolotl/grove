@@ -22,6 +22,7 @@ import { installIntegration, activationInstructions } from "./install.ts";
 import { openBrowser } from "./browser.ts";
 import { connectAgent, cloudOrigin, type LoginOptions } from "./connect.ts";
 import { selectAgent } from "./select-agent.ts";
+import { diagnose } from "./doctor.ts";
 import { closeTelemetry, telemetry, type Properties } from "@lib/telemetry";
 import { outcome as operationOutcome } from "@lib/telemetry/context";
 import {
@@ -35,6 +36,7 @@ const help = `Grove — private memory across your agents
   grove init --url <origin> --client opencode|claude|codex
   grove login --url <origin> --client <client> [--key-stdin | --no-browser]
   grove status [--client <client>] [--json]
+  grove doctor --client opencode|claude|codex [--probe] [--json]
   grove project [--client <client>]
   grove logout [--client <client>]
   grove pause | resume
@@ -207,6 +209,7 @@ async function main() {
       stdio: { type: "boolean" },
       "key-stdin": { type: "boolean" },
       "no-browser": { type: "boolean" },
+      probe: { type: "boolean" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -224,6 +227,34 @@ async function main() {
     (process.stdin.isTTY && !values.json ? "connect" : undefined);
   if (!command || values.help) {
     console.log(help);
+    return;
+  }
+  if (values.probe && command !== "doctor")
+    throw new GroveError(
+      "invalid_command",
+      "--probe is only available with grove doctor",
+    );
+  // Read-only diagnosis must not initialize telemetry or create a local identity.
+  if (command === "doctor") {
+    const agent = agentSchema.safeParse(values.client);
+    if (!agent.success || positionals.length !== 1)
+      throw new GroveError(
+        "invalid_client",
+        "Choose grove doctor --client opencode, claude or codex",
+      );
+    const report = await diagnose(agent.data, !!values.probe, values.url);
+    console.log(
+      values.json
+        ? JSON.stringify(report)
+        : [
+            `Grove diagnostics: ${report.status} (running host not verified)`,
+            ...report.checks.map(
+              (check) =>
+                `${check.id}: ${check.status} (${check.code}) [${check.context}] — ${check.message}`,
+            ),
+          ].join("\n"),
+    );
+    if (report.status === "attention") process.exitCode = 1;
     return;
   }
   if (command === "telemetry") {

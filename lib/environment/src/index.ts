@@ -104,6 +104,20 @@ export const serverEnvironmentSchema = z.object({
     .default(4096),
   DEEPINFRA_API_KEY: z.string().optional(),
   MINIMAX_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  SPEECH_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  TTS_VOICE: z
+    .enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"])
+    .default("alloy"),
+  SPEECH_PROVIDER_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(16)
+    .default(2),
   EXA_API_KEY: z.string().optional(),
   TAVILY_API_KEY: z.string().optional(),
   RESEARCH_DAILY_CALL_LIMIT: z.coerce
@@ -154,6 +168,21 @@ export const serverEnvironmentSchema = z.object({
     .default("true")
     .transform((value) => value === "true"),
   EXPORT_STORAGE: z.enum(["disabled", "local", "s3"]).optional(),
+  // Explicit opt-in until the revision-scoped media API is available.
+  MEDIA_STORAGE: z.enum(["disabled", "local", "s3"]).default("disabled"),
+  MEDIA_DIRECTORY: z.string().default("./data/media"),
+  MEDIA_S3_ENDPOINT: z.url().optional(),
+  MEDIA_S3_REGION: z.string().default("us-east-1"),
+  MEDIA_S3_BUCKET: z.string().optional(),
+  MEDIA_S3_ACCESS_KEY_ID: z.string().optional(),
+  MEDIA_S3_SECRET_ACCESS_KEY: z.string().optional(),
+  // Exact endpoint/bucket receipt from an operator lifecycle/ACL inspection.
+  // Spaces scoped keys cannot read these settings; never use an account-wide key in runtime.
+  MEDIA_S3_LIFECYCLE_VERIFIED_FOR: z.string().optional(),
+  MEDIA_S3_PATH_STYLE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   EXPORT_DIRECTORY: z.string().default("./data/exports"),
   EXPORT_S3_ENDPOINT: z.url().optional(),
   EXPORT_S3_REGION: z.string().default("us-east-1"),
