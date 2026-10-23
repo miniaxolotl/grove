@@ -88,6 +88,17 @@ pending saves. Telemetry tests inspect actual SDK payloads for capability/conten
 canaries and disabled replay. Synthetic fixture routes exist only in the test
 upstream, never in the application. Rebuild the website before browser checks.
 
+When changing public-reader presentation, also inspect the rendered head on direct
+notes, notebooks, nested notes/notebooks, unavailable links and service failures.
+Titles/descriptions must stay generic across HTML/Open Graph/Twitter, with no
+content, capability URL or inherited marketing image. Verify the referrer meta tag
+alongside privacy response headers. Review the brief recovery copy, retry and
+keyboard focus at 1440/390/320px, with no JavaScript and enlarged text. Screenshots:
+[shared readers](../design/screenshots/shared-readers/README.md).
+The current Next nested not-found/error fallback is client-rendered: no-JavaScript
+verification covers active readers/navigation, not unavailable-state UI. Inspect
+404 status, generic metadata and privacy headers independently of hydration.
+
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
