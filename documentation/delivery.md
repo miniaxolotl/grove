@@ -17,6 +17,198 @@ contracts, workflow lint and 30 local documentation links/anchors. No new media
 database/storage/browser behavior is claimed; feature qualification remains gated
 by the review's acceptance matrix and successful exact-head PR CI.
 
+## Streamlined workspace (23 October 2026)
+
+Notes and notebook libraries keep search beside one Filters control; notebook
+selection and sorting share that panel. Mobile search joins New note in the
+heading, Commands shares the notebook row, and full-page notes hide the sidebar.
+Compact readers keep Export/Delete and secondary tools in Note actions; preview
+hides formatting tools and the repeated autosave explanation is removed.
+
+Review found a production-CSS cascade leaving a second, empty grid row beneath
+mobile notes. The compact-note override now follows the shared layout. The
+regression first failed at a 602px document height and now checks full-height
+documents at 320/390/768px and in short windows in Chromium and WebKit.
+
+Root/site lint, types and builds, five packaged artifacts and bundle budgets pass.
+All **223 Chromium scenarios**, **17 focused iPhone/WebKit scenarios** and 18
+viewport/accessibility checks pass. Notes entry is **486,029 gzip bytes**, with
+the editor deferred.
+[Reviewed captures](design/screenshots/streamlined-workspace/README.md) cover
+Notes, notebooks, the editor, Ask Grove, Settings and Archive at 1440/390/320px.
+No migration or production deployment is part of this refinement.
+
+The latest-base integration preserves landed CI hardening #88 (`eaa717a`), with
+fresh root/site gates, five artifacts, 50 automation/provider contracts and workflow
+lint passing. All 223 Chromium cases, 17 focused WebKit checks and six palette repeats pass;
+the test action helper now waits for the deferred editor before choosing toolbar
+or menu controls, avoiding a loading-layout race.
+
+## Shared reader polish (23 October 2026)
+
+Shared notes and notebooks use one Read only label, a clear title/date and the saved
+content. Repeated sharing labels, promotional footer and reader cookie notice are
+removed. Unavailable links mention expiry and request a new link; temporary failures
+offer a single retry. Generic HTML/Open Graph/Twitter metadata explicitly omits
+marketing images and author/keyword tags and includes no-referrer.
+
+Root/website lint, types and builds, five artifacts and bundle budgets pass.
+All **40 Chromium** sharing/privacy/consent/public-site scenarios and **five focused
+iPhone/WebKit** reader scenarios pass. Six states pass 18 viewport/accessibility
+checks at 1440/390/320px, plus metadata/headers, keyboard, retry and active-reader
+no-JavaScript checks. [Fourteen captures and verification scope](design/screenshots/shared-readers/README.md)
+record the production build and the framework's no-JavaScript error-fallback limitation.
+
+Merge verification integrates Ask tools #93 (`991f63d`), preserving both delivery
+histories. Root/website lint, types and builds, five artifacts, bundle budgets and
+all **40 affected Chromium scenarios** pass on the combined tree. Reader source
+is unchanged; Notes entry is **486,113 gzip bytes**.
+
+## Ask Grove research and notebook tools (23 October 2026)
+
+Web search, Research and Manage notes share clear composer switches, remembered
+defaults, inline recovery, bounded provider spending and distinct web citations.
+Exa Lite and Tavily Basic power the research tools. Ask Grove previews notebook
+creation/renaming, note filing and researched notes with atomic Apply and versioned
+Undo. Organization continues beyond its first 50-note candidate batch. Migration
+020 retains existing conversations and adds isolated settings/execution/usage state.
+[Feature and API](ask-tools.md) and [rollout](deploy.md#ask-grove-tools-rollout-020)
+describe the limits and operator setup.
+
+On integrated application source `da27de5`, all **186 backend tests** pass (two optional
+RabbitMQ/S3 checks skipped), with root/website lint, types and production builds,
+all **five packaged artifacts**, bundle budgets, **19 release/deployment contracts**
+and pinned workflow lint passing. The complete **223 Chromium** suite passes on
+the final UI source, along with **seven focused WebKit history/conversation cases**.
+Notes entry is **486,094 gzip bytes**, within the existing budget. The integration
+preserves landed conversation history #91; tool vocabulary/defaults, scope checks
+and activity formatting share canonical implementations.
+
+Six additional real-API/disposable-database browser journeys pass at Chromium
+1440/768/390/320px and WebKit 390/320px, covering toggles/drafts/activity/citations,
+note Save/Undo and notebook create/file/Undo with sidebar refresh. The naming/control
+follow-up also verifies optimistic switches, failed-save rollback, refresh recovery
+and saved-default feedback. Menu accessibility
+and page-overflow checks pass. [Eighteen reviewed captures](design/screenshots/ask-tools/README.md)
+use synthetic data and show three images per row; the PR contains a preview row.
+
+Actual Exa/Tavily search and extraction calls pass. A final two-turn live MiniMax +
+Exa case creates a cited MDN note, then creates a notebook and files the note with
+Apply/Undo. Initial runs exposed competing action schemas, omitted empty fields and
+premature status wording; narrowed schemas and Grove-owned batch descriptions now
+have regressions. Invalid model responses remain retryable failures; this small
+synthetic sample is not a broad quality qualification. Production activation is
+separate from these local/provider checks.
+
+## Ask Grove history (23 October 2026)
+
+History now offers private title/question search, date-grouped rows with question
+previews and scope/count metadata, a current-conversation marker and named delete
+confirmation. Search remains in place as a compact list changes or scrolls. Opens
+are cancellable, errors stay in the dialog, and failed pagination retries its
+original cursor. Reopened conversations start at the beginning with Latest reply
+navigation; unsent drafts and uncertain-turn IDs stay with their conversation.
+
+The owner-only POST history endpoint returns 30 bounded results and signed,
+account/query-bound microsecond cursors. Deleted cursor rows do not break paging;
+deleted/foreign history and assistant payloads remain excluded. No model calls,
+new credentials or schema migration are required. Workspace/API/cache guidance
+and [nine captures](design/screenshots/ask-history/README.md) document the behavior.
+
+Root/website lint, types and builds, five packaged artifacts and bundle budgets
+pass. The full backend suite passes **169 tests**, with two optional-service skips;
+the full Chromium suite passes **223 scenarios**, followed by seven focused checks
+after the final draft refinement. Notes entry is **485,941 gzip bytes**; history
+is deferred. Seven focused iPhone/WebKit checks pass after adapting the existing
+recovery scenario to the touch Send button. Browser checks include 1440/390/320px
+and short-height access.
+
+## Ask Grove new-note preview (23 October 2026)
+
+New-note proposals show one preview and Save note, without an empty Current note
+comparison. Edit/merge proposals retain Review changes; Save/Open note/Undo use
+the existing paths. [Reviewed desktop/phone captures](design/screenshots/ask-create-preview/README.md)
+record the focused refinement.
+
+Root/website lint, types and builds, five packaged artifacts and bundle budgets
+pass. Four existing Chromium chat/composer/retry scenarios pass. Manual create,
+Save/Undo and edit/merge comparison checks pass at 1440/390/320px in both Chromium
+and WebKit. Notes entry remains **485,883 gzip bytes**.
+
+## Notebook archive and soft deletion (23 October 2026)
+
+Notebook page/sidebar/manager actions confirm the complete subtree and note counts.
+Archive hides its notebooks and archives active notes; Archived notebooks offers
+Restore and Delete. Restore preserves separately archived contents and retention
+dates. Delete uses the existing tombstone mechanism: source records and revisions
+remain retained behind visibility policies. Local drafts block confirmation; stale
+scope requires review and uncertain requests keep their original retry identity.
+
+Forward migration **016**, after **015**, adds notebook status/archive provenance,
+write guards and public-reader filtering. Owner-only atomic mutations preserve
+tenant/grant boundaries, fence old jobs and revoke direct links. An existing shared
+ancestor can include restored descendants again. See [contract](notebook-lifecycle.md)
+and [rollout](deploy.md#notebook-lifecycle-rollout-016).
+
+Fresh root/website lint/types/builds, five packaged artifacts and bundle budgets
+pass. The full backend suite passes **165 cases** with two optional RabbitMQ/S3
+skips; the subsequent nine-case lifecycle run also verifies current-profile queue
+recreation and old lease removal. Populated upgrade and isolated recovery preserve
+authored data. All **217 Chromium** cases and **five focused iPhone/WebKit browser
+scenarios** pass, plus a WebKit cache check. A narrow manager overflow and a mobile
+test navigation omission were corrected during verification. Notes entry is
+**485,883 gzip bytes**, with the editor deferred.
+
+[Reviewed captures](design/screenshots/notebook-lifecycle/README.md) cover desktop,
+390px and 320px. Tests use disposable local PostgreSQL/non-owner roles and synthetic
+browser data; production migration/deployment remains a separate operator action.
+
+## Workspace refinement (22 October 2026)
+
+Notebook titles gain space from combined folder/file drag handles, aligned disclosure
+and action controls, and a wider desktop sidebar. Commands and shortcut help share
+one row. Buttons follow the landing page's flat, 5px-radius styling; desktop note
+tools use 36px controls while touch targets retain separate 44px areas. Note dragging
+has a readable pointer-positioned preview and whole-row source feedback.
+
+Viewer checklist changes save immediately through the existing version/operation-aware
+path; typing autosaves after 450ms. A shared `(notes)` layout and document controller
+preserve the editor, focus, scroll and undo history through the first saved URL.
+Starting another note resets document identity while retained drafts and uncertain
+save retries keep their original identities. Focus mode retains view/edit controls.
+The content-sized outline shows heading hierarchy and the current section, with
+normalized CRLF positions and keyboard navigation.
+
+Ask/Search aligns its mode and notebook controls and retains the search field/status
+through pending, empty, ready and retry states. Clearing a pending query immediately
+returns to the empty search state. Shared recovery and control components are reused.
+
+Verification on application source `e31e438`: root/website lint, types and builds,
+all five packaged artifacts, bundle budgets and the full **210 Chromium** suite pass.
+**17 focused iPhone/WebKit** scenarios pass, followed by **three final first-save/recovery**
+checks. Repeated affected Chromium checks also pass after correcting synthetic shifted-Z,
+paused animation-clock measurement and a manual-click/automatic-save test race.
+Dropdown description contrast uses the shared muted colour token.
+
+The telemetry-enabled production build is `bb1JRm4mEIK8YwzqY7LrK`; Notes entry is
+**484,414 gzip bytes**, with the editor deferred. Verification used an exact-source
+disposable checkout on Node 24.21.0 / pnpm 10.33.0 because the worktree filesystem
+was nearly full. [Fourteen reviewed captures](design/screenshots/workspace-refinement/README.md)
+cover desktop, 390px and 320px; browser checks additionally cover 768px, enlarged text,
+short windows, keyboard/touch, accessible contrast and save/conflict/retry behavior.
+
+## CI/CD hardening (23 October 2026)
+
+For the subsequent CI/CD source hardening, see the
+[implementation and acceptance boundaries](development/cicd-hardening-review.md)
+and [shared patch-first release/naming rules](release-conventions.md). Strict
+selected validation, authenticated source reuse, bounded reads, protected caches
+and deployment identity checks are implemented without moving runners. The
+separately authorised dropdown-opacity repair preserves existing tests and merged
+UI refinements; [desktop/mobile evidence](design/screenshots/dropdown-contrast/README.md)
+records the baseline correction. Hosted rollout and automatic recovery acceptance
+remain separate from source CI verification.
+
 ## Notebook assistance (22 October 2026)
 
 Five contextual tools share concise previews and exact source evidence: subject-aware

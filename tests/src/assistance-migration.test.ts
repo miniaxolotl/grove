@@ -55,7 +55,13 @@ test("014→015 preserves content, seeds independent preferences once and enforc
       source: "{}",
     });
     const before = await owner("memories").first();
-    const [, applied] = await owner.migrate.latest();
+    const [, applied] = await owner.migrate.latest({
+      migrationSource: {
+        ...migrationSource,
+        getMigrations: async () =>
+          all.filter((m) => m.name <= "20261022_015_notebook_assistance"),
+      },
+    });
     assert.deepEqual(applied, ["20261022_015_notebook_assistance"]);
     assert.deepEqual(await owner("memories").first(), before);
     const account = await owner("accounts").where({ id: a }).first();

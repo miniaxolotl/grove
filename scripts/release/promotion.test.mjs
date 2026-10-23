@@ -155,6 +155,8 @@ test("only frozen same-repository promotion refs may target downstream branches"
 test("failed, PR-only, stale, self and incomplete CI cannot qualify a candidate", () => {
   const run = {
     id: 1,
+    path: ".github/workflows/ci.yml",
+    run_attempt: 2,
     head_sha: sha,
     event: "push",
     status: "completed",
@@ -163,6 +165,9 @@ test("failed, PR-only, stale, self and incomplete CI cannot qualify a candidate"
   };
   const jobs = ["test", "CI Gate"].map((name) => ({
     name,
+    run_id: 1,
+    run_attempt: 2,
+    head_sha: sha,
     status: "completed",
     conclusion: "success",
   }));
@@ -180,6 +185,8 @@ test("failed, PR-only, stale, self and incomplete CI cannot qualify a candidate"
     { head_sha: "c".repeat(40) },
     { conclusion: "failure" },
     { id: 2 },
+    { path: ".github/workflows/other.yml" },
+    { run_attempt: 0 },
   ]) {
     assert.equal(
       assertCi({ ...run, ...change }, jobs, {
@@ -207,4 +214,19 @@ test("failed, PR-only, stale, self and incomplete CI cannot qualify a candidate"
     }),
     false,
   );
+  for (const change of [
+    { run_id: 9 },
+    { run_attempt: 1 },
+    { head_sha: "d".repeat(40) },
+    { conclusion: "skipped" },
+  ]) {
+    assert.equal(
+      assertCi(run, [{ ...jobs[0], ...change }, jobs[1]], {
+        repository: "owner/app",
+        sha,
+        required: ["test", "CI Gate"],
+      }),
+      false,
+    );
+  }
 });

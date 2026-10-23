@@ -24,7 +24,14 @@ import {
   type KeyboardCoordinateGetter,
   type Modifier,
 } from "@dnd-kit/core";
-import { FolderInput, GripVertical, Undo2, X } from "lucide-react";
+import {
+  FileText,
+  Files,
+  FolderInput,
+  GripVertical,
+  Undo2,
+  X,
+} from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { errorMessage, type Project } from "@/lib/dashboard-api";
 import { useWorkspaceApi } from "./workspace-cache";
@@ -88,34 +95,44 @@ function cancelDrag() {
     }),
   );
 }
-const fingerOffset: Modifier = ({
+const previewOffset: Modifier = ({
   transform,
   activatorEvent,
   activeNodeRect,
   overlayNodeRect,
   windowRect,
 }) => {
-  if (
-    activatorEvent?.type !== "touchstart" &&
-    (activatorEvent as PointerEvent | null)?.pointerType !== "pen"
-  )
-    return transform;
+  if (!activeNodeRect || !overlayNodeRect || !windowRect) return transform;
+  const touch =
+    activatorEvent?.type === "touchstart" ||
+    (activatorEvent as PointerEvent | null)?.pointerType === "pen";
+  const point =
+    activatorEvent && "clientX" in activatorEvent
+      ? (activatorEvent as MouseEvent)
+      : null;
+  // Anchor every source (a whole row or a small sidebar icon) beside the pointer.
+  // Touch previews sit above the finger so the destination remains visible.
+  const x =
+    transform.x + (point ? point.clientX - activeNodeRect.left + 14 : 0);
+  const y =
+    transform.y +
+    (touch ? -64 : point ? point.clientY - activeNodeRect.top + 14 : 0);
   return {
     ...transform,
-    y: transform.y - 64,
-    x:
-      activeNodeRect && overlayNodeRect && windowRect
-        ? Math.max(
-            8 - activeNodeRect.left,
-            Math.min(
-              transform.x,
-              windowRect.width -
-                overlayNodeRect.width -
-                activeNodeRect.left -
-                8,
-            ),
-          )
-        : transform.x,
+    x: Math.max(
+      8 - activeNodeRect.left,
+      Math.min(
+        x,
+        windowRect.width - overlayNodeRect.width - activeNodeRect.left - 8,
+      ),
+    ),
+    y: Math.max(
+      8 - activeNodeRect.top,
+      Math.min(
+        y,
+        windowRect.height - overlayNodeRect.height - activeNodeRect.top - 8,
+      ),
+    ),
   };
 };
 function insideScrollClip(
@@ -455,10 +472,20 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             <CancelDropTarget />
           </div>
         )}
-        <DragOverlay dropAnimation={null} modifiers={[fingerOffset]}>
+        <DragOverlay
+          dropAnimation={null}
+          modifiers={[previewOffset]}
+          style={{ width: "max-content" }}
+        >
           {active && (
             <div className="memory-drag-preview">
-              <FolderInput size={18} />
+              {active.kind === "notebook" ? (
+                <FolderInput size={18} />
+              ) : active.items.length > 1 ? (
+                <Files size={18} />
+              ) : (
+                <FileText size={18} />
+              )}
               <strong>
                 {active.kind === "notebook"
                   ? active.project.name
@@ -591,9 +618,11 @@ export function NotebookDropTarget({
 export function NoteDragHandle({
   memory,
   disabled = false,
+  icon,
 }: {
   memory: Memory;
   disabled?: boolean;
+  icon?: ReactNode;
 }) {
   const id = useId();
   const { busy } = useWorkspaceDrag();
@@ -606,14 +635,14 @@ export function NoteDragHandle({
       disabled: disabled || busy,
     });
   return (
-    <span ref={setNodeRef}>
+    <span ref={setNodeRef} className="note-drag-source">
       <button
         type="button"
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
         disabled={disabled || busy}
-        className="drag-handle"
+        className={`drag-handle${icon ? " note-icon-handle" : ""}`}
         aria-label={`Move ${memoryTitle(memory)} with drag or keyboard`}
         title={
           disabled
@@ -621,7 +650,12 @@ export function NoteDragHandle({
             : "Drag to a notebook, or press Space to move"
         }
       >
-        <GripVertical size={16} />
+        {icon && (
+          <span className="note-file-icon" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+        <GripVertical className="note-grip-icon" size={14} aria-hidden="true" />
       </button>
     </span>
   );

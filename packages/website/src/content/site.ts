@@ -27,7 +27,7 @@ export const faqs = [
   {
     question: "Where do Ask Grove's answers come from?",
     answer:
-      "The notes in the notebooks you choose. Answers link to their sources. Asking a question does not change your notes.",
+      "Your selected notes, plus web sources when you enable research tools. Answers link to their sources. Proposed note and notebook changes are saved only when you apply them.",
   },
   {
     question: "Is my notebook private?",

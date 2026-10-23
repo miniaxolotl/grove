@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
+    "./notebook-lifecycle": "./src/notebook-lifecycle.ts",
     "./models": "./src/models.ts",
     "./preferences": "./src/preferences.ts",
     "./summaries": "./src/summaries.ts",
@@ -15,6 +16,8 @@
     "./settings": "./src/settings.ts",
     "./jobs": "./src/jobs.ts",
     "./conversations": "./src/conversations.ts",
+    "./ask-tools": "./src/ask-tools.ts",
+    "./conversation-history": "./src/conversation-history.ts",
     "./relationships": "./src/relationships.ts",
     "./sharing": "./src/sharing.ts",
     "./share-durations": "./src/share-durations.ts"
