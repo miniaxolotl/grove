@@ -12,10 +12,16 @@ logo always returns to Notes.
   workspace. **Edit note** and **Preview** switch modes in place, keeping your cursor,
   undo history and scroll position. **Write** styles Markdown as you work;
   **Markdown** shows its source. Use the shared formatting toolbar,
-  undo/redo, heading outline, and focus mode (Escape exits focus).
+  undo/redo, heading outline, and focus mode (Escape exits focus). Reading/writing
+  and outline controls stay available in focus mode. The compact outline shows
+  heading levels and marks the current section when opened; choosing a heading
+  returns focus to that section or its source in the editor.
   **New note** follows the notebook you are browsing, filtering, or editing.
   Notes outside a notebook appear in **Unfiled**.
-- Notes save automatically after a short pause, including in the wider drawer. **Save note** or
+- Notes save automatically after a 450 ms typing pause, including in the wider drawer.
+  Viewer checklist changes start saving immediately through the same version-checked
+  save path. First-save navigation keeps the editor, focus, scroll and undo history;
+  opening another **New note** starts a separate document. **Save note** or
   `Ctrl`/`Cmd` + `S` saves immediately. Formatting supports `Ctrl`/`Cmd` + `B`, `I`, and `K`.
   Drawer editors can expand without losing their selection or undo history.
 - Drafts stay in account-scoped memory while navigating Grove, including
@@ -35,7 +41,7 @@ logo always returns to Notes.
   Results update after a short pause as you type. Combine
   notebook, note type, topic, source, updated date, and retention filters. Queries
   stay in POST bodies. Sorting and filtering apply to the entire matching library.
-- Create a notebook with the sidebar **+** and just a name. **Manage** opens all
+- Create a notebook with the sidebar **+** and just a name. **Manage notebooks** opens all
   notebook settings. Each notebook's action menu includes **New sub-notebook**;
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
   matching notebooks' ancestors so you can see where they belong.
@@ -54,7 +60,9 @@ logo always returns to Notes.
   action buttons for one note at a time; vertical gestures scroll. A long press
   on the handle starts dragging and reveals a scrollable list of destinations.
   Hold near the list's edge to scroll, or release over **Drop here to cancel**
-  at the bottom of the same destination panel. The preview identifies the item;
+  at the bottom of the same destination panel. The file/folder icon doubles as a
+  drag handle in the sidebar. The preview identifies the item and stays beside
+  the pointer (above a touch contact); the whole source row is marked while dragging;
   the current destination is highlighted as you move.
   Pens start from the same handles. Interrupted gestures do not move a note.
   Notebook handles also support drag or keyboard nesting; hover over a collapsed
@@ -145,7 +153,7 @@ If an automatic PDF download does not start, use **Download PDF** in the chooser
 Closing it cancels preparation. Clipboard denial leaves selectable source text.
 
 Drafts longer than 6,000 characters stay available for export; shorten them to save.
-PDF supports up to100,000 characters. **Settings → Your data** prepares a queued
+PDF supports up to 100,000 characters. **Settings → Your data** prepares a queued
 account export; **Notebook options → Export notebook** exports a notebook, with
 optional sub-notebooks. Icon controls show progress, cancel, retry and download.
 Files include notes and revisions; account exports also contain conversations.
@@ -215,6 +223,8 @@ evidence, processing, API and migration details.
 **Ask Grove** finds, explains and helps change your notes. Follow-ups such as
 “shorten that note” use the conversation's context. Choose all notes, Unfiled, or
 a notebook; optionally include unfiled notes. **Search** finds pages as you type.
+The search field and status stay in place through pending, empty and result states;
+a failed search offers an inline retry. Clearing it returns focus to the field.
 Source links open the cited note and identify when it has since changed.
 
 Use **History** to reopen or delete saved conversations across visits. Changing the
