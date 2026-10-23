@@ -213,6 +213,38 @@ invoke tools through an authenticated HTTP fixture, check truthful status and
 preserve unrelated configuration on repeated setup/uninstall. Native-host smoke
 tests supplement these, as recorded in [delivery evidence](../delivery.md).
 
+### Agent plugin acceptance
+
+After `pnpm build`, run `pnpm test:agents`. The Linux x64 runner installs exact,
+integrity-locked OpenCode 2.1.3, Claude Code 2.1.309 and Codex 0.164.0 native
+packages into a temporary prefix, with lifecycle scripts disabled. It uses their
+packaged native binaries directly; nothing is installed systemwide. Pins and
+integrities live in `scripts/testing/hosts/package-lock.json`, separate from product
+dependencies. `OPENCODE_TEST_BIN`, `CLAUDE_TEST_BIN` and `CODEX_TEST_BIN` may point to
+absolute isolated binaries of those qualified versions.
+
+The existing TypeScript CI job runs this suite without changing runner placement
+or CI Gate inventory. Temporary HOME/XDG/client stores, local marketplaces and
+loopback API/model fixtures isolate it from live credentials, sessions and billing.
+Native install/uninstall, skills, four tools, Claude's SessionStart and Codex's
+paused automatic writes are checked. Missing-Node native failures are intentional
+negative controls. OpenCode connects with an empty PATH and its compiled runtime
+also exercises all four packaged bridge tools. Paths contain spaces; owned
+processes are stopped on success/failure. macOS/Windows and other host versions
+are not qualified by this Linux runner.
+
+For the focused OpenCode regression alone:
+
+```sh
+OPENCODE_TEST_BIN=/absolute/path/to/opencode node scripts/testing/opencode-host.mjs
+```
+
+Artifact tests additionally run packed `grove doctor`: offline checks make no API
+calls or local writes, probes never invoke memory tools or claim live-host readiness,
+and malformed/unapproved/version-incompatible API results remain explicit failures.
+`tests/src/client-boundaries.test.ts` covers invalid envelopes, cancellation and
+damaged local state without implicit reauthentication or secret-bearing messages.
+
 Website browser tests cover public routes, accessibility, keyboard navigation,
 installation copy and metadata. Dashboard fixture tests use the real components
 with a test-only HTTP fixture, separate from production routes. Live account tests

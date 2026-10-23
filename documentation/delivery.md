@@ -1,5 +1,34 @@
 # Delivery evidence
 
+## Agent plugin startup and diagnostics (23 October 2026)
+
+OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for
+compiled Bun hosts), fixing the reproduced `spawn node` failure with a restricted
+desktop/service PATH. Existing custom/disabled Grove MCP definitions remain respected.
+`grove doctor` distinguishes offline CLI checks, explicit packaged-bridge/API probes
+and unknown live-host readiness. Diagnosis never installs, starts unrelated MCPs or
+writes memories; OAuth refresh occurs only on an explicit API probe. Setup no longer
+equates API access with host activation, and existing status JSON semantics remain.
+
+Regression-first fixes reject malformed API envelopes/configuration, preserve caller
+cancellation and distinguish damaged credential storage from a new sign-in requirement.
+All **189 backend/client tests** pass against a new disposable PostgreSQL database
+with non-owner roles (two optional S3/broker checks skipped), as do **seven packed
+artifact checks**, root lint/types/build, **50 automation/provider contracts** and
+pinned workflow lint on Node 24.21.0/pnpm 10.33.0.
+
+The maintained **three-host Linux x64** suite pins integrity-locked OpenCode 2.1.3,
+Claude Code 2.1.309 and Codex 0.164.0, runs in temporary homes/prefixes with synthetic
+loopback APIs/models, and takes about 32 seconds locally. It checks native install/
+uninstall, four tools, skills, Claude SessionStart and Codex paused automatic-write
+denial. Native missing-Node controls fail as expected; OpenCode connects with empty
+PATH and its compiled runtime exercises all four bridge tools. Existing CI runs
+this suite without a runner/inventory change. No systemwide install, live agent
+configuration, actual-model billing or production deployment is included.
+
+Native absolute-runtime overrides, additional OS/host/consumer-runtime matrices and
+broader reload/configuration-race hardening remain follow-ups, not implied acceptance.
+
 ## Workspace navigation (23 October 2026)
 
 Search shows query-aware plain-text passages and literal highlights, with notebook

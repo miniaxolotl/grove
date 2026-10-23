@@ -291,6 +291,161 @@ test("setup is repeatable, preserves JSONC and other plugins, credentials are pr
   );
 });
 
+test("packed doctor separates local and probe evidence without inspecting the live host", async () => {
+  const home = await mkdtemp(join(directory, "doctor-"));
+  const bin = join(home, "bin");
+  await mkdir(bin);
+  await writeFile(join(bin, "opencode"), "#!/bin/sh\nexit 91\n", {
+    mode: 0o700,
+  });
+  const executable = join(paths.get("mcp")!, "dist/cli.js");
+  const env = {
+    PATH: bin,
+    HOME: home,
+    XDG_CONFIG_HOME: join(home, "config"),
+    GROVE_CONFIG_HOME: join(home, "grove"),
+    GROVE_API_URL: origin,
+    GROVE_API_KEY: "artifact-test-key",
+    DO_NOT_TRACK: "1",
+  };
+  const args = [executable, "doctor", "--client", "opencode", "--json"];
+  const before = requests.length;
+  const local = JSON.parse(
+    (await exec(process.execPath, args, { env })).stdout,
+  );
+  assert.equal(local.schemaVersion, 1);
+  assert.equal(local.hostVerified, false);
+  assert.equal(
+    local.checks.find((check: { id: string }) => check.id === "host").status,
+    "unknown",
+  );
+  assert.equal(
+    local.checks.find((check: { id: string }) => check.id === "api").status,
+    "skipped",
+  );
+  assert.equal(requests.length, before, "Default diagnosis is offline");
+  const normalized = JSON.parse(
+    (
+      await exec(process.execPath, args, {
+        env: { ...env, GROVE_API_URL: `${origin}/` },
+      })
+    ).stdout,
+  );
+  assert.equal(
+    normalized.status,
+    "ok",
+    "Environment credentials are paired with the canonical API origin",
+  );
+  assert.deepEqual(
+    await readdir(home),
+    ["bin"],
+    "No configuration, credentials or telemetry written",
+  );
+  const probed = JSON.parse(
+    (await exec(process.execPath, [...args, "--probe"], { env })).stdout,
+  );
+  assert.equal(
+    probed.checks.find((check: { id: string }) => check.id === "bridge").status,
+    "passed",
+  );
+  assert.equal(
+    probed.checks.find((check: { id: string }) => check.id === "api").status,
+    "passed",
+  );
+  assert.equal(
+    probed.hostVerified,
+    false,
+    "A new bridge does not prove live host readiness",
+  );
+  assert.deepEqual(
+    requests.slice(before).map((request) => request.path),
+    ["/v1/me"],
+  );
+  assert.doesNotMatch(JSON.stringify(probed), /artifact-test-key/);
+  assert.deepEqual(await readdir(home), ["bin"]);
+  await assert.rejects(
+    exec(process.execPath, args, {
+      env: { ...env, PATH: join(home, "absent") },
+    }),
+    (error: unknown) => {
+      const report = JSON.parse((error as { stdout: string }).stdout);
+      assert.equal(report.status, "attention");
+      assert.equal(
+        report.checks.find((check: { id: string }) => check.id === "client")
+          .code,
+        "client_missing",
+      );
+      return true;
+    },
+  );
+});
+
+test("doctor rejects malformed, unsupported or unapproved API access without exposing upstream details", async () => {
+  const home = await mkdtemp(join(directory, "doctor-response-"));
+  const bin = join(home, "bin");
+  await mkdir(bin);
+  await writeFile(join(bin, "codex"), "#!/bin/sh\nexit 92\n", { mode: 0o700 });
+  let data: unknown;
+  const upstream = createServer((_request, response) =>
+    response
+      .setHeader("Content-Type", "application/json")
+      .end(JSON.stringify({ success: true, data })),
+  );
+  await new Promise<void>((done) => upstream.listen(0, "127.0.0.1", done));
+  const address = upstream.address();
+  assert(address && typeof address !== "string");
+  const endpoint = `http://127.0.0.1:${address.port}`;
+  const env = {
+    PATH: bin,
+    HOME: home,
+    GROVE_CONFIG_HOME: join(home, "grove"),
+    GROVE_API_URL: endpoint,
+    GROVE_API_KEY: "private-doctor-canary",
+    DO_NOT_TRACK: "1",
+  };
+  try {
+    for (const [value, code] of [
+      [null, "invalid_response"],
+      [{ accountId, capabilities: [], apiVersion: 1 }, "awaiting_grant"],
+      [
+        { accountId, capabilities: ["memory:read"], apiVersion: 2 },
+        "api_version_unsupported",
+      ],
+    ] as const) {
+      data = value;
+      await assert.rejects(
+        exec(
+          process.execPath,
+          [
+            join(paths.get("mcp")!, "dist/cli.js"),
+            "doctor",
+            "--client",
+            "codex",
+            "--json",
+            "--probe",
+          ],
+          { env },
+        ),
+        (error: unknown) => {
+          const stdout = (error as { stdout: string }).stdout;
+          const report = JSON.parse(stdout);
+          assert.equal(
+            report.checks.find((check: { id: string }) => check.id === "api")
+              .code,
+            code,
+          );
+          assert.equal(report.hostVerified, false);
+          assert.doesNotMatch(stdout, /private-doctor-canary/);
+          return true;
+        },
+      );
+    }
+  } finally {
+    upstream.closeAllConnections();
+    await new Promise<void>((done) => upstream.close(() => done()));
+  }
+});
+
 test("a running packed bridge picks up first login and an explicit origin switch", async () => {
   const home = await mkdtemp(join(directory, "live-login-"));
   const executable = join(paths.get("mcp")!, "dist/cli.js");

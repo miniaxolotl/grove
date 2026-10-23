@@ -74,9 +74,28 @@ export async function atomicJson(path: string, value: unknown) {
 }
 export async function readConfig(): Promise<Config> {
   try {
-    return JSON.parse(
+    const value = JSON.parse(
       await readFile(join(configDirectory(), "config.json"), "utf8"),
     );
+    const record = (entry: unknown): entry is Record<string, unknown> =>
+      !!entry && typeof entry === "object" && !Array.isArray(entry);
+    const strings = (entry: unknown) =>
+      record(entry) &&
+      Object.values(entry).every((item) => typeof item === "string");
+    if (
+      !record(value) ||
+      (value.origin !== undefined && typeof value.origin !== "string") ||
+      (value.paused !== undefined && typeof value.paused !== "boolean") ||
+      (value.generation !== undefined &&
+        (!Number.isSafeInteger(value.generation) ||
+          Number(value.generation) < 0)) ||
+      (value.origins !== undefined && !strings(value.origins)) ||
+      (value.accounts !== undefined &&
+        (!record(value.accounts) ||
+          !Object.values(value.accounts).every(strings)))
+    )
+      throw new Error("Invalid local configuration");
+    return value as Config;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw new GroveError(
@@ -242,24 +261,36 @@ export async function loadCredentials(
       `Run grove login --client ${agent} --url ${origin}`,
       401,
     );
+  let value: Credentials;
   try {
-    const value = JSON.parse(
+    value = JSON.parse(
       await readFile(credentialPath(origin, agent, accountId), "utf8"),
     ) as Credentials;
-    if (
-      value.origin !== origin ||
-      value.agent !== agent ||
-      value.accountId !== accountId
-    )
-      throw new Error();
-    return value;
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+      throw new GroveError(
+        "credential_store_unavailable",
+        "Grove credentials could not be read. Check local store permissions and integrity; no credentials were changed.",
+        503,
+      );
     throw new GroveError(
       "sign_in_required",
-      "Grove credentials are missing or invalid; sign in again",
+      "Grove credentials are missing; sign in again",
       401,
     );
   }
+  if (
+    !value ||
+    value.origin !== origin ||
+    value.agent !== agent ||
+    value.accountId !== accountId
+  )
+    throw new GroveError(
+      "sign_in_required",
+      "Grove credential identity does not match; sign in again",
+      401,
+    );
+  return value;
 }
 export async function saveCredentials(value: Credentials) {
   await withStoreLock(async () => {

@@ -12,7 +12,17 @@ export default Plugin.define({
       if (!editor.get("grove"))
         editor.set("grove", {
           type: "local",
-          command: ["node", bridge, "mcp", "--stdio", "--client", "opencode"],
+          // Services/desktops may not inherit a shell's Node/version-manager PATH.
+          command: [
+            process.execPath,
+            bridge,
+            "mcp",
+            "--stdio",
+            "--client",
+            "opencode",
+          ],
+          // A compiled Bun host must execute JavaScript rather than its own CLI.
+          ...(process.versions.bun ? { environment: { BUN_BE_BUN: "1" } } : {}),
         });
     });
     await ctx.skill.transform((editor) =>

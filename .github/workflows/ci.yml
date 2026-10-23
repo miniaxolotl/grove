@@ -173,6 +173,7 @@ jobs:
       - run: pnpm test:db:setup
       - run: pnpm test
       - run: pnpm test:artifacts
+      - run: pnpm test:agents
 
   image:
     name: Container Build
