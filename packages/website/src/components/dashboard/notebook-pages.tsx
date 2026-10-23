@@ -1,22 +1,37 @@
 "use client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { FileText, Plus } from "lucide-react";
 import { memoryTitle } from "@/lib/memory-display";
-import { NoteDragHandle } from "./memory-drag";
+import { NoteDragHandle, useWorkspaceDrag } from "./memory-drag";
 import { useWorkspaceCache } from "./workspace-cache";
 
 export function NotebookPages({ projectId }: { projectId: string }) {
   const cache = useWorkspaceCache();
+  const path = usePathname();
+  const { active } = useWorkspaceDrag();
   const query = useInfiniteQuery(cache.notes({ projectId, limit: 8 }));
   const current = { page: query.data?.pages[0], failed: query.isError };
   return (
     <ul className="notebook-pages">
       {current?.page?.items.map((note) => (
-        <li key={note.id}>
-          <NoteDragHandle memory={note} />
-          <Link href={`/app/memories/${note.id}`} title={memoryTitle(note)}>
-            <FileText size={13} />
+        <li
+          key={note.id}
+          data-dragging={
+            (active?.kind === "notes" &&
+              active.items.some((item) => item.id === note.id)) ||
+            undefined
+          }
+        >
+          <NoteDragHandle memory={note} icon={<FileText size={14} />} />
+          <Link
+            href={`/app/memories/${note.id}`}
+            title={memoryTitle(note)}
+            aria-current={
+              path === `/app/memories/${note.id}` ? "page" : undefined
+            }
+          >
             <span>{memoryTitle(note)}</span>
           </Link>
         </li>

@@ -12,7 +12,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: 36px;
   padding: 6px 10px;
   flex-shrink: 0;
 }
@@ -73,7 +73,15 @@
   background: #fff0ec;
 }
 .note-delete-button {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 36px;
+  min-height: 36px;
   flex-shrink: 0;
+}
+@media (any-pointer: coarse), (max-width: 600px) {
+  .note-editor-bar :is(.app-button, .app-icon) {
+    min-height: 44px;
+  }
+  .note-editor-bar .app-icon {
+    min-width: 44px;
+  }
 }

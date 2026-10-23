@@ -39,6 +39,7 @@ import { AskComposer } from "./ask-composer";
 import { Dialog } from "./dialog";
 import { Markdown } from "./markdown";
 import { RevisionCompare } from "./revision-compare";
+import { LoadError } from "./load-error";
 const MemoryInspector = deferredFeature(
   async () => ({
     default: (await import("./memory-inspector")).MemoryInspector,
@@ -700,38 +701,46 @@ export function AskGrove({
           </>
         ) : (
           <div className="ask-search">
-            <SearchField
-              label="Search saved notes"
-              value={query}
-              onChange={setQuery}
-              placeholder="Find a decision, detail, or idea…"
-            />
-            {!search ? (
-              <p className="ask-search-empty">
-                Find a note by its words or an idea.
+            <div className="ask-search-header">
+              <SearchField
+                label="Search saved notes"
+                value={query}
+                onChange={setQuery}
+                placeholder="Find a decision, detail, or idea…"
+              />
+              <p className="ask-result-count" role="status">
+                {!query.trim()
+                  ? "Search by words or meaning."
+                  : !visibleSearch
+                    ? "Searching…"
+                    : visibleSearch.error
+                      ? "Search couldn’t finish"
+                      : `${visibleSearch.result!.sources.length} ${visibleSearch.result!.sources.length === 1 ? "note" : "notes"} found`}
               </p>
-            ) : !visibleSearch ? (
-              <p role="status">Searching…</p>
-            ) : visibleSearch.error ? (
-              <p role="alert" className="app-error">
-                {visibleSearch.error}
-              </p>
-            ) : (
-              <>
-                <p className="ask-result-count">
-                  {visibleSearch.result!.sources.length} notes found
-                </p>
-                <SourceList
-                  sources={visibleSearch.result!.sources}
-                  onOpen={setSelected}
-                />
-                {!visibleSearch.result!.sources.length && (
+            </div>
+            <div
+              className="ask-search-results"
+              aria-busy={!!query.trim() && !visibleSearch}
+            >
+              {query.trim() &&
+                visibleSearch &&
+                (visibleSearch.error ? (
+                  <LoadError
+                    message={visibleSearch.error}
+                    title="Search couldn’t finish"
+                    retry={() => void searchQuery.refetch()}
+                  />
+                ) : visibleSearch.result!.sources.length ? (
+                  <SourceList
+                    sources={visibleSearch.result!.sources}
+                    onOpen={setSelected}
+                  />
+                ) : (
                   <p className="ask-search-empty">
                     No matching notes. Try another phrase or notebook.
                   </p>
-                )}
-              </>
-            )}
+                ))}
+            </div>
           </div>
         )}
       </section>
