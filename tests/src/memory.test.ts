@@ -282,7 +282,9 @@ test("nested notebooks preserve identity and scope, reject cycles and cross-acco
     tenant(db, a.accountId, (trx) =>
       trx("projects").where({ id: child.id }).update({ parentId: other.id }),
     ),
-    /projects_parent_owner/,
+    // The inactive/missing-parent guard now rejects the hidden foreign parent
+    // before PostgreSQL reaches the unchanged same-account foreign key.
+    /projects_parent_owner|notebook_inactive/,
   );
 
   const issued = await service.grant(

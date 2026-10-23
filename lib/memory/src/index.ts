@@ -19,6 +19,14 @@ import {
   type PreferencesUpdate,
 } from "@lib/shared/preferences";
 import { settingsUpdateSchema } from "@lib/shared/settings";
+import type {
+  NotebookLifecycleAction,
+  NotebookLifecycleInput,
+} from "@lib/shared/notebook-lifecycle";
+import {
+  applyNotebookLifecycle,
+  previewNotebookLifecycle,
+} from "./notebook-lifecycle.ts";
 import {
   answerSchema,
   type AskRequest,
@@ -83,6 +91,7 @@ import {
 
 export { ConnectionSetup } from "./connect.ts";
 export { Sharing } from "./sharing.ts";
+export { searchConversationHistory } from "./conversation-history.ts";
 
 type Connection = Omit<Grant, "expiresAt"> & {
   id: string;
@@ -102,6 +111,7 @@ type Account = AccountPreferences & {
   organizeEnabled: boolean;
   summariesEnabled: boolean;
   askVersion: number;
+  askTools: import("@lib/shared/ask-tools").AskTools;
 };
 type Access = { trx: Knex.Transaction; account: Account; grant?: Connection };
 const missing = () => new GroveError("not_found", "Memory not found", 404);
@@ -129,6 +139,10 @@ export class MemoryService {
   readonly conversations: Conversations;
   readonly relationships: Relationships;
   providers: Providers;
+  research: Partial<
+    Record<"exa" | "tavily", import("@lib/ai").ResearchProvider>
+  > = {};
+  researchLimits = { dailyCalls: 20, monthlyMicrodollars: 100_000_000 };
   jobProfiles?: (trx: Knex.Transaction) => Promise<ModelProfiles>;
   get embedder() {
     return this.providers.embedding;
@@ -195,6 +209,21 @@ export class MemoryService {
         capability !== null && capability !== "memory:read",
       );
       return run(access);
+    }).catch((error: unknown) => {
+      const databaseError = error as {
+        code?: string;
+        nativeError?: { code?: string };
+      };
+      if (
+        databaseError?.code === "GNB01" ||
+        databaseError?.nativeError?.code === "GNB01"
+      )
+        throw new GroveError(
+          "notebook_inactive",
+          "This notebook is archived or unavailable. Restore it before changing its contents.",
+          409,
+        );
+      throw error;
     });
   }
 
@@ -1207,10 +1236,63 @@ export class MemoryService {
     );
   }
 
-  async projects(principal: Principal) {
+  async previewProjectLifecycle(principal: Principal, id: string) {
+    return this.access(principal, "admin", ({ trx, account }) =>
+      previewNotebookLifecycle(trx, account.id, id),
+    );
+  }
+
+  async projectLifecycle(
+    principal: Principal,
+    id: string,
+    action: NotebookLifecycleAction,
+    input: NotebookLifecycleInput,
+  ) {
+    return this.access(principal, "admin", async ({ trx, account }) =>
+      this.operation(
+        trx,
+        account.id,
+        input.operationId,
+        { action: `notebook:${action}`, id, ...input },
+        async () => {
+          const profiles = (await this.jobProfiles?.(trx)) ?? {
+            embedding: this.providers.embedding?.profile ?? null,
+            decision: this.providers.decision?.profile ?? null,
+            generation: this.providers.generation?.profile ?? null,
+          };
+          const result = await applyNotebookLifecycle(
+            trx,
+            account.id,
+            id,
+            action,
+            input,
+            profiles,
+          );
+          await this.changed(trx, account.id);
+          return result;
+        },
+      ),
+    );
+  }
+
+  async projects(
+    principal: Principal,
+    status: "active" | "archived" = "active",
+  ) {
+    if (status === "archived" && principal.type !== "session")
+      throw forbidden();
     return this.access(principal, "memory:read", async ({ trx, grant }) => {
       const q = trx("projects")
-        .select("id", "name", "identity", "parentId", "version", "createdAt")
+        .where({ status })
+        .select(
+          "id",
+          "name",
+          "identity",
+          "parentId",
+          "version",
+          "status",
+          "createdAt",
+        )
         .orderBy("name")
         .limit(100);
       if (grant && !grant.allProjects) q.whereIn("id", grant.projectIds);
@@ -1218,12 +1300,9 @@ export class MemoryService {
       // Hierarchy is navigation, never inherited authorization or disclosure.
       return rows.map((row) => ({
         ...row,
-        parentId:
-          grant &&
-          !grant.allProjects &&
-          !grant.projectIds.includes(row.parentId)
-            ? null
-            : row.parentId,
+        parentId: !rows.some((parent) => parent.id === row.parentId)
+          ? null
+          : row.parentId,
       }));
     });
   }
@@ -1244,7 +1323,14 @@ export class MemoryService {
       async ({ trx, account, grant }) => {
         // access() holds the account's write lock. Concurrent hierarchy mutations
         // therefore see each other's committed parents before checking for cycles.
-        const fields = ["id", "name", "identity", "parentId", "version"];
+        const fields = [
+          "id",
+          "name",
+          "identity",
+          "parentId",
+          "version",
+          "status",
+        ];
         const present = (row: Notebook): Notebook => ({
           ...row,
           parentId:
@@ -1259,6 +1345,12 @@ export class MemoryService {
           const existing = await trx("projects").where({ id }).first();
           if (!existing)
             throw new GroveError("not_found", "Notebook not found", 404);
+          if (existing.status !== "active")
+            throw new GroveError(
+              "notebook_inactive",
+              "Restore this notebook before changing it.",
+              409,
+            );
           if (
             input.expectedVersion !== undefined &&
             existing.version !== input.expectedVersion
@@ -1309,6 +1401,12 @@ export class MemoryService {
           .first();
         if (existing) {
           this.scope(grant, existing.id);
+          if (existing.status !== "active")
+            throw new GroveError(
+              "notebook_inactive",
+              "Restore this notebook before reusing its reference.",
+              409,
+            );
           return present(existing);
         }
         if (grant && !grant.allProjects) throw forbidden();

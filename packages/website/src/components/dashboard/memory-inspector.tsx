@@ -17,13 +17,17 @@ import { AssistanceAction } from "./assistance-action";
 
 export function MemoryInspector({
   id,
+  creation,
+  onCreated,
   close,
   fullPage = false,
   citedVersion,
   initialPreview = true,
   journal = false,
 }: {
-  id: string;
+  id?: string;
+  creation?: { draftKey: string; projectId?: string; initialContent: string };
+  onCreated?: (memory: Memory, view?: { preview: boolean }) => void;
   close?: () => void;
   fullPage?: boolean;
   citedVersion?: number;
@@ -34,7 +38,10 @@ export function MemoryInspector({
   const toast = useToast();
   const cache = useWorkspaceCache();
   const api = cache.api;
-  const query = useQuery(cache.note(id));
+  const [created, setCreated] = useState<Memory>();
+  const [creationKey] = useState(creation?.draftKey);
+  const noteId = id ?? created?.id;
+  const query = useQuery({ ...cache.note(noteId ?? ""), enabled: !!noteId });
   const { projects } = useNotebooks();
   const [actionError, setError] = useState("");
   const error =
@@ -48,7 +55,7 @@ export function MemoryInspector({
   const [moving, setMoving] = useState(false);
   const [destination, setDestination] = useState("personal");
   const operations = useRef(new Map<string, string>());
-  const current = query.data;
+  const current = query.data === undefined ? created : query.data;
   async function mutate(action: "move" | "archive" | "restore") {
     if (!current || busy) return;
     if (action === "move" && (current.projectId ?? "personal") === destination)
@@ -60,7 +67,8 @@ export function MemoryInspector({
             destination === "personal" ? null : destination,
           )
         : { expectedVersion: current.version };
-    const path = action === "move" ? "/memories" : `/memories/${id}/${action}`;
+    const path =
+      action === "move" ? "/memories" : `/memories/${noteId}/${action}`;
     const key = JSON.stringify({ path, body });
     if (!operations.current.has(key))
       operations.current.set(key, crypto.randomUUID());
@@ -99,7 +107,9 @@ export function MemoryInspector({
           }}
         />
       )}
-      {!current && !error && <p role="status">Opening your note…</p>}
+      {!current && !creation && !error && (
+        <p role="status">Opening your note…</p>
+      )}
       {current &&
         citedVersion !== undefined &&
         citedVersion !== current.version && (
@@ -109,7 +119,7 @@ export function MemoryInspector({
             History to compare earlier versions.
           </p>
         )}
-      {current &&
+      {(current || (creation && !noteId)) &&
         (moving ? (
           <form
             className="app-form"
@@ -119,7 +129,7 @@ export function MemoryInspector({
             }}
           >
             <h2>Move note</h2>
-            {current.projectId === null && (
+            {current?.projectId === null && (
               <AssistanceAction
                 compact
                 disabled={busy}
@@ -144,7 +154,7 @@ export function MemoryInspector({
               <Button
                 type="submit"
                 disabled={
-                  busy || (current.projectId ?? "personal") === destination
+                  busy || (current?.projectId ?? "personal") === destination
                 }
               >
                 Move here
@@ -160,19 +170,25 @@ export function MemoryInspector({
           </form>
         ) : (
           <MemoryDetail
-            key={`${id}:${current.status}`}
+            key={`${creationKey ?? id}:${current?.status ?? "active"}`}
             fullPage={fullPage}
             initialPreview={initialPreview}
-            memory={current}
+            memory={current ?? undefined}
+            creation={creation}
             projects={projects}
             busy={busy}
-            onSaved={() => {}}
+            onSaved={(saved, view) => {
+              if (!noteId) {
+                setCreated(saved);
+                onCreated?.(saved, view);
+              }
+            }}
             close={
               close ??
               (() =>
                 router.push(
-                  current.projectId
-                    ? `/app/projects/${current.projectId}`
+                  (current?.projectId ?? creation?.projectId)
+                    ? `/app/projects/${current?.projectId ?? creation?.projectId}`
                     : journal
                       ? "/app?sort=created_desc"
                       : "/app",
@@ -182,19 +198,21 @@ export function MemoryInspector({
               if (close) close();
               else
                 router.push(
-                  current.projectId &&
+                  current?.projectId &&
                     projects.some((project) => project.id === current.projectId)
                     ? `/app/projects/${current.projectId}`
-                    : isInactive(current)
+                    : current && isInactive(current)
                       ? "/app/archive"
                       : "/app",
                 );
             }}
             onArchive={() =>
-              void mutate(isInactive(current) ? "restore" : "archive")
+              void mutate(
+                current && isInactive(current) ? "restore" : "archive",
+              )
             }
             onMove={() => {
-              setDestination(current.projectId ?? "personal");
+              setDestination(current?.projectId ?? "personal");
               setMoving(true);
             }}
           />

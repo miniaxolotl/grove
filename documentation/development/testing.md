@@ -5,6 +5,52 @@ owned-loopback S3 checks, including rejection of providers that ignore condition
 writes. See [media foundation verification](media-foundation.md#verification).
 This does not yet qualify image upload/rendering or revision authorization.
 
+Ask Grove tools add deterministic hosted-MCP protocol fixtures in `research.test.ts`,
+a populated 016→020 upgrade, conversation settings/cancellation/budget and atomic
+organization regressions, and export/recovery checks. Paid provider calls are kept
+out of normal CI; bounded synthetic search/extract runs qualify actual Exa/Tavily
+schemas separately. Browser verification covers the composer menu, remembered
+choices/defaults, citations, activity, organization previews and Apply/Undo at
+1440/768/390/320px. Capture a small PR preview row (at most four images), with the
+complete gallery under `documentation/design/screenshots/ask-tools/`.
+
+Conversation history coverage (`conversation-history.test.ts`) uses real non-owner
+PostgreSQL access for title/older-question search, literal wildcard handling,
+bounded previews, owner-only/tenant isolation, retained-but-hidden deletion and
+account/query-bound microsecond cursors that survive deletion of the cursor row.
+No model or migration is needed. Browser history scenarios exercise date groups,
+search/empty states, current markers, reading from the beginning, Latest reply,
+draft switching, cancelled opens, page/open error recovery and named deletion.
+Cache coverage checks that POST search stays read-only and deletion prunes inactive
+history pages. Review 1440/390/320px captures in both browser engines.
+
+Notebook lifecycle tests (`notebook-lifecycle.test.ts` and
+`notebook-lifecycle-migration.test.ts`) require the same disposable owner/API/worker
+URLs below. They verify populated 015→016 preservation, atomic whole-subtree
+archive/restore/soft-delete, retained history and recovery, independent archives,
+unchanged expiry, owner-only administration, cross-tenant denial, stale scope,
+retry identities, public sharing and inactive-note/notebook write guards. The
+existing 014→015 test stays pinned to its migration boundary.
+
+Browser `workspace.spec.ts` exercises notebook page/sidebar/manager entry points,
+scope counts, Cancel, Archived navigation, Restore/Delete, conflict re-review,
+committed-but-lost responses and retained draft blocking. `cache.spec.ts` checks
+immediate source pruning and held-response fencing across descendant scopes. Run
+the `notebook lifecycle|notebook deletion|notebook archive` subset in Chromium and
+`playwright.webkit.config.ts`; captures cover 1440/390/320px. Check the active
+manager behind dialogs too: touch-sized action rows must wrap rather than overflow.
+
+Workspace refinement adds timer-paused viewer-checkbox saves, a held first save
+that preserves the editor node, viewport and undo/redo, and fresh creation after
+the saved route is adopted. The real shared `(notes)` layout owns the document;
+the browser fixture mirrors that persistent layout. Search checks cover pending
+request clearing, empty results, retry, control alignment and accessible layouts
+at 1440/390/320px. Sidebar note-drag checks verify a readable preview, source-row
+feedback and version-fenced Undo. Focus/outline navigation includes CRLF and
+formatted/setext headings. These cases extend the existing save-race, history,
+gesture and viewport regressions; the focused WebKit configuration includes the
+new editor/search cases and lost-response/return-to-draft paths.
+
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale
@@ -47,6 +93,17 @@ pending saves. Telemetry tests inspect actual SDK payloads for capability/conten
 canaries and disabled replay. Synthetic fixture routes exist only in the test
 upstream, never in the application. Rebuild the website before browser checks.
 
+When changing public-reader presentation, also inspect the rendered head on direct
+notes, notebooks, nested notes/notebooks, unavailable links and service failures.
+Titles/descriptions must stay generic across HTML/Open Graph/Twitter, with no
+content, capability URL or inherited marketing image. Verify the referrer meta tag
+alongside privacy response headers. Review the brief recovery copy, retry and
+keyboard focus at 1440/390/320px, with no JavaScript and enlarged text. Screenshots:
+[shared readers](../design/screenshots/shared-readers/README.md).
+The current Next nested not-found/error fallback is client-rendered: no-JavaScript
+verification covers active readers/navigation, not unavailable-state UI. Inspect
+404 status, generic metadata and privacy headers independently of hydration.
+
 Use Node 24 and pnpm 10.33. All database tests require an explicitly named disposable
 database ending in `_test`. No test drops a configured application database.
 
@@ -58,7 +115,7 @@ AI preferences coverage includes a populated 012→013 upgrade with all four leg
 organization/summary combinations, separate summary scopes and connections, partial
 HTTP writes, owner-only permissions, reindex/restore preservation and disabling then
 re-enabling features during inference. Browser cases exercise the five categories,
-ten controls, provider availability, failed/overlapping saves, keyboard operation,
+the original ten controls (four assistance controls were added in 015), provider availability, failed/overlapping saves, keyboard operation,
 cross-tab summary invalidation and 1440/390/320px accessibility. Settings cases also
 cover draft retention across tabs, discard, clean-form server updates, session
 replacement and provider credential save/retry. The focused WebKit configuration
@@ -144,8 +201,16 @@ renderers must remain read-only. The mobile subset also runs in the focused WebK
 
 Sidebar checks cover 320–1440px, long notebook names, expanded trees, short heights,
 enlarged labels, inset keyboard focus, sticky explorer controls and notebook-scoped
-creation. Row dropdowns must leave list rectangles unchanged, dismiss independently,
-restore focus after export/move dialogs and preserve swipe cancellation. Browser
+creation. Mobile shares the heading row between brand, New note and search, and
+keeps Commands in the note-actions menu. Full-page notes must fill the viewport
+at 320/390/768px and in short windows after hiding the sidebar; verify this against
+production CSS, whose grouped selectors can change cascade specificity.
+Touch dispatches for the destination tray
+move in finger-like steps so autoscroll keeps receiving pointer deltas. Filter
+checks treat the popover as self-positioning: sorting may reorder rows and drop
+date headings, while the trigger keeps its geometry. Row dropdowns must leave list
+rectangles unchanged, dismiss independently, restore focus after export/move dialogs
+and preserve swipe cancellation. Browser
 checks switch overlapping row menus by keyboard and test touch light-dismiss separately.
 
 Client-cache checks cover shared misses/cancellation, account and session teardown,
