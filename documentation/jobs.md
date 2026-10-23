@@ -59,8 +59,15 @@ Settings → Your data and Notebook options → Export notebook prepare backgrou
 exports. Notebook exports default to direct notes; sub-notebooks are opt-in.
 Progress, cancel, retry and download survive navigation. Stable request UUIDs make
 lost create responses safe to retry. Typed NDJSON records are `notebook`, `note`,
-`revision`, `conversation`, `turn`, `note_relationship` and `notebook_relationship`.
-Notebook exports omit conversations.
+`revision`, `conversation`, `turn`, `note_relationship`, `notebook_relationship`,
+`notebook_checkpoint`, `notebook_visit`, `assistance_review` and
+`assistance_operation`. Notebook exports omit conversations and account-wide
+assistance reviews/operations.
+
+These exports contain structured records, not attachment binaries. The
+[media plan review](development/media-plan.md) proposes separate durable storage
+and an additive media-complete archive; neither is implemented yet. Do not store
+authored media in the expiring export bucket.
 
 Workers page source records into private parts, then stream final assembly.
 Buffers are bounded by a 100-record page; S3 assembly uses two 5 MiB buffers.

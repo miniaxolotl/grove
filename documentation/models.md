@@ -86,7 +86,7 @@ these values explicitly for an existing installation.
 
 ## Account AI preferences
 
-**Settings → Preferences** has ten independent controls and one Save action:
+**Settings → Preferences** has 14 independent controls and one Save action:
 
 Drafts stay in memory while switching settings tabs. **Discard changes** returns
 to saved preferences; failed saves retain edits, and a completed save keeps any
@@ -94,10 +94,10 @@ newer changes you made. Provider configuration uses the same Save/Discard feedba
 
 | Category         | Controls                                                 | Required provider                                                     |
 | ---------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
-| Organization     | Titles and tags; note classification                     | Generation for titles/tags; decision for classification               |
-| Connections      | Linked notes; connected notebooks                        | Generation; embeddings improve candidate discovery                    |
-| Summaries        | Notebook summaries; personal summary; progress summaries | Generation                                                            |
-| Ask Grove        | Answers and writing                                      | Generation                                                            |
+| Organization     | Titles and tags; note classification; suggested filing   | Generation for titles/tags and filing; decision for classification    |
+| Connections      | Linked notes; connected notebooks; guided cleanup        | Generation; embeddings improve candidate discovery                    |
+| Summaries        | Notebook summaries; personal summary; progress summaries; change digests | Generation                                                |
+| Ask Grove        | Answers and writing; action lists                        | Generation                                                            |
 | Connected agents | Automatic recall; automatic capture                      | Existing agent integration; keyword recall works without AI providers |
 
 Classification changes a note's type only when its `autoKind` is enabled. Explicit
@@ -117,12 +117,16 @@ Provider availability is separate from the saved preference. The UI identifies
 unconfigured providers while retaining the user's choices. Availability describes
 configuration, not a successful provider health check or remaining quota.
 
-`GET /v1/me` includes all ten booleans and `aiAvailability`. Session-only
+`GET /v1/me` includes all 14 booleans and `aiAvailability`. Session-only
 `PATCH /v1/account/settings` accepts a non-empty partial update; omitted fields keep
 their values. The website submits only changed fields. The keys are
 `titlesTagsEnabled`, `classificationEnabled`, `noteConnectionsEnabled`,
 `notebookConnectionsEnabled`, `notebookSummariesEnabled`, `personalSummaryEnabled`,
-`progressSummariesEnabled`, `askEnabled`, `recallEnabled`, and `captureEnabled`.
+`progressSummariesEnabled`, `askEnabled`, `recallEnabled`, `captureEnabled`,
+`filingEnabled`, `actionListsEnabled`, `digestsEnabled`, and `cleanupEnabled`.
+The four assistance controls are on-demand and documented in
+[notebook assistance](notebook-assistance.md). STT/TTS are not current provider
+roles or preferences; see the [media plan review](development/media-plan.md).
 
 For older clients, `organizeEnabled` updates the four organization/connection
 controls and `summariesEnabled` updates all three summary controls plus Ask Grove.

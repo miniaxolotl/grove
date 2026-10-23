@@ -61,9 +61,11 @@ website, TLS, OAuth resource settings, backups, and Neon/DigitalOcean configurat
 ## Memory policy
 
 - Durable saves remain until explicitly changed or deleted.
-- Handoffs leave active recall after 30 days and are purged after 90 days.
-- Archive is reversible and excluded from recall. Permanent deletion removes live
-  content, revisions, embeddings, and pending content jobs transactionally.
+- Handoffs leave active recall after 30 days by default, with a 60-day restore window.
+- Archive is reversible and excluded from recall. Deletion removes access and
+  derived work; authored notes and history remain retained behind soft-delete
+  policies, without an automatic physical-purge deadline. See
+  [retained deletion](documentation/jobs.md#retained-deletion).
 - Saves report indexing separately; lexical retrieval remains available while
   embeddings are pending. The embedding model never silently changes.
 - Automatic recall is bounded; hooks never upload raw transcripts or tool logs.
@@ -83,8 +85,11 @@ pnpm dev:website
 [Verification commands](documentation/development/testing.md) cover actual
 PostgreSQL/RLS, authenticated HTTP/MCP, packed stdio clients, and browser checks.
 [Legacy import](documentation/migration.md) is explicit, ownership-mapped, and
-source-read-only. Canonical execution plans are in the main checkout's `plans/`;
-this supersedes the earlier Fern planning location.
+source-read-only. Local execution plans are in
+`~/Development/bramble-labs/plans/grove/` (`plan.md`, `notes.md`, `status.md`);
+recovered `sources/` are historical snapshots. The tracked
+[images, recordings and speech review](documentation/development/media-plan.md)
+records proposed scope and acceptance gates, not shipped functionality.
 
 ## Releases
 
