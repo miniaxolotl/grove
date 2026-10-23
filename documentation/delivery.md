@@ -29,6 +29,13 @@ Test-only agent follow-up #104 is subsequently integrated in `cfbdc46`, with run
 source unchanged. Fresh root lint/types, nine artifacts, five client-boundary cases
 and the complete 279-pass/four-skip backend suite pass on the combined tree.
 
+Owner-approved [draft #105](https://github.com/miniaxolotl/grove/pull/105) now has
+passing [full CI 40034164506](https://github.com/miniaxolotl/grove/actions/runs/40034164506)
+on `83dd0a8`: all six jobs and GitGuardian pass, including **281 backend tests**
+(two optional skips), **nine artifacts** and **223 Chromium scenarios**. The final
+test-only follow-up initializes isolated evaluator scratch storage. Live semantic
+qualification remains pending; passing CI does not authorize ready/merge/deployment.
+
 ## Agent plugin startup and diagnostics (23 October 2026)
 
 OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for

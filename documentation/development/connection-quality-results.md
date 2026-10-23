@@ -77,7 +77,8 @@ The database comparison uses the same millisecond precision as JavaScript Dates.
 
 - Extend corpus breadth and characterize discovery overhead against a paired
   runtime baseline; current small fixtures are not a broad recall guarantee.
-- Obtain hosted CI and complete approved semantic qualification before PR readiness.
+- Complete approved semantic qualification before PR readiness; hosted deterministic
+  verification is recorded below, not a substitute for that gate.
 - Agree provider/model, actual-request/token/spend limits and semantic targets
   before another paid evaluation. Freeze an independent evaluation set; report
   exact counts, errors, explanation support and usage separately from retrieval.
@@ -122,6 +123,24 @@ caps. Local HTTP fixtures now prove bounded actual requests (including failed or
 concurrent attempts), fatal abort across repetitions, explicit provider/model
 selection, token accounting and atomic completed-report publication. No paid
 credential retrieval or live generation was performed for this checkpoint.
+
+## Hosted draft verification
+
+Owner-approved [draft PR #105](https://github.com/miniaxolotl/grove/pull/105) keeps live
+semantic qualification explicitly pending. Full
+[CI 40034164506](https://github.com/miniaxolotl/grove/actions/runs/40034164506) succeeds
+on application/test candidate `83dd0a80b2095f43592512462d810fc60cce6931`: classification,
+admission, container, backend, website and CI Gate all pass, as does GitGuardian.
+Hosted results include **281 backend passes / two optional skips**, **nine packaged
+artifacts**, **223 Chromium scenarios**, agent contracts and release/workflow checks.
+The extra backend coverage uses disposable CI services, not production providers.
+
+The last candidate change only makes evaluator tests initialize their own scratch
+directory; an isolated fresh-container run reproduced the missing-directory failure
+and then passed all nine evaluator tests/subtests. No application behavior or
+frontend assertions were changed to obtain passing CI. No paid generation, review
+request, merge or deployment occurred. Source and CI links are also retained in the
+PR; documentation-only evidence updates do not imply a new model-quality result.
 
 ## Rollout boundary
 
