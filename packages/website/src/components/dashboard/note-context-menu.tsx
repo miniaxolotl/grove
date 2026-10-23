@@ -3,6 +3,7 @@
 import {
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useRef,
   useState,
   type RefObject,
@@ -38,6 +39,7 @@ import {
   MousePointer2,
 } from "lucide-react";
 import { mediaReferenceId } from "@lib/shared/media";
+import { fromMarkdown } from "mdast-util-from-markdown";
 import { mediaSource } from "@/lib/media-path";
 import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { wrapSelection } from "./markdown-surface";
@@ -55,8 +57,10 @@ type Context = {
   surface: HTMLElement;
   actions?: ContextAction[];
   key: number;
+  generation: number;
   value: string;
   preview: boolean;
+  mode: string;
   disabled: boolean;
   noteId?: string;
   version?: number;
@@ -94,9 +98,14 @@ function sourceTarget(
     if (node.name === "Image" || node.name === "Link") {
       const urlNode = node.getChild("URL");
       if (!urlNode) return;
-      const raw = editor.state
-        .sliceDoc(urlNode.from, urlNode.to)
-        .replace(/^<|>$/g, "");
+      // Match rendered CommonMark destinations (entities and backslash escapes),
+      // while retaining the syntax tree's exact source range for edits.
+      const block = fromMarkdown(editor.state.sliceDoc(node.from, node.to))
+        .children[0];
+      const destination =
+        block?.type === "paragraph" ? block.children[0] : null;
+      if (destination?.type !== "link" && destination?.type !== "image") return;
+      const raw = destination.url;
       const id = mediaReferenceId(raw);
       const url = id ? raw : safeLink(raw);
       if (!url) return;
@@ -116,7 +125,9 @@ export function NoteContextMenu({
   surface,
   value,
   preview,
+  mode,
   disabled,
+  noteId,
   media,
   edit,
   addImage,
@@ -125,7 +136,9 @@ export function NoteContextMenu({
   surface: RefObject<HTMLDivElement | null>;
   value: string;
   preview: boolean;
+  mode: string;
   disabled: boolean;
+  noteId?: string;
   media?: { noteId: string; version?: number; live?: boolean };
   edit: () => void;
   addImage?: () => void;
@@ -133,20 +146,27 @@ export function NoteContextMenu({
   const [context, setContext] = useState<Context | null>(null);
   const [message, setMessage] = useState("");
   const menuKey = useRef(0);
-  const lifetime = useRef({ active: true });
-  useEffect(() => {
+  const lifetime = useRef({ active: false, generation: 0 });
+  const version = media?.live ? undefined : media?.version;
+  // Dismissing to execute an action must not cancel its clipboard promise. A
+  // committed mode/identity/read-only transition must, even after dismissal or
+  // after returning to the original mode. Layout cleanup also fences unmounts.
+  useLayoutEffect(() => {
     const token = lifetime.current;
     token.active = true;
+    token.generation++;
     return () => {
       token.active = false;
+      token.generation++;
     };
-  }, []);
+  }, [mode, disabled, noteId, media?.noteId, media?.live, version]);
   // Build actions at the opening gesture, capturing one document and selection.
   // Ref reads belong to events, never to the React render path.
   function buildActions(context: Context) {
     const current = () => {
       const view = editor.current;
       return lifetime.current.active &&
+        lifetime.current.generation === context.generation &&
         menuKey.current === context.key &&
         view &&
         view.state.doc === context.state.doc &&
@@ -160,9 +180,11 @@ export function NoteContextMenu({
       if (view) run(view);
       else setMessage("The note changed. Open the menu again to edit it.");
     };
-    const replace = (from: number, to: number, insert: string) =>
+    const replace = (from: number, to: number, text: string) =>
       mutate((view) => {
-        if (view.state.doc.length - (to - from) + insert.length > 6000) {
+        const insert = text.replace(/\r\n?/g, "\n");
+        const length = view.state.doc.length - (to - from) + insert.length;
+        if (length > 6000 && length > view.state.doc.length) {
           setMessage("Shorten the note before inserting more text.");
           return;
         }
@@ -172,6 +194,7 @@ export function NoteContextMenu({
           annotations: isolateHistory.of("full"),
           userEvent: "input.context",
         });
+        if (context.preview) context.surface.focus({ preventScroll: true });
       });
     const copy = async (text: string, cut = false) => {
       try {
@@ -497,10 +520,12 @@ export function NoteContextMenu({
     const context: Context = {
       surface: area,
       key: menuKey.current,
+      generation: lifetime.current.generation,
       value,
       preview,
+      mode,
       disabled,
-      noteId: media?.noteId,
+      noteId: noteId ?? media?.noteId,
       version: media?.live ? undefined : media?.version,
       x,
       y,
@@ -536,8 +561,9 @@ export function NoteContextMenu({
     !context ||
     context.value !== value ||
     context.preview !== preview ||
+    context.mode !== mode ||
     context.disabled !== disabled ||
-    context.noteId !== media?.noteId ||
+    context.noteId !== (noteId ?? media?.noteId) ||
     context.version !== (media?.live ? undefined : media?.version)
   )
     return message ? (

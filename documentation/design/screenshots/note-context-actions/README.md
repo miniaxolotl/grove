@@ -24,5 +24,12 @@ verification uses the test fixture's loopback upstream because browsers bypass p
 request interception for downloads. The shared native/public no-JavaScript controls
 are not replaced by these editable-note menus.
 
+The development/speech integration retains these original captures and their exact
+build provenance. Review corrections change destination decoding, pending-action
+guards and removal focus, not the menu design. Thirteen focused actual-component
+review journeys pass in both Chromium and WebKit on build `u6cEtLRXOSlUtW77nnp7l`
+(Notes **488,021 gzip bytes**, editor deferred); these original images are not
+represented as captures from that later build.
+
 See [feature contract](../../../note-context-actions.md) and
 [verification matrix](../../../development/testing.md).

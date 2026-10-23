@@ -128,6 +128,25 @@ const groups: {
       },
     ],
   },
+  {
+    title: "Speech",
+    features: [
+      {
+        key: "transcriptionEnabled",
+        label: "Recording transcription",
+        description:
+          "Send a recording to OpenAI only when you choose Transcribe. Review its text before saving.",
+        provider: "transcription",
+      },
+      {
+        key: "readAloudEnabled",
+        label: "Read aloud",
+        description:
+          "Send saved note text to OpenAI when you prepare audio. Generated audio expires within a day.",
+        provider: "synthesis",
+      },
+    ],
+  },
 ];
 
 export function AiPreferences({

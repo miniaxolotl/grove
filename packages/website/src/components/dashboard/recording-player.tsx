@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { mediaPath } from "@/lib/media-path";
 import { AudioPlayer } from "./audio-player";
+import { TranscribeRecording } from "./speech-controls";
 export function RecordingPlayer({
   src,
   title,
@@ -10,6 +11,7 @@ export function RecordingPlayer({
   mediaId,
   shared,
   onUse,
+  speechVersion,
 }: {
   src: string;
   title: ReactNode;
@@ -17,6 +19,7 @@ export function RecordingPlayer({
   mediaId: string;
   shared: boolean;
   onUse?: (text: string) => void;
+  speechVersion?: number;
 }) {
   const [open, setOpen] = useState(false),
     [text, setText] = useState(""),
@@ -102,14 +105,25 @@ export function RecordingPlayer({
           </button>
           {open && (
             <span className="recording-transcript">
+              {speechVersion && version !== undefined && !busy && (
+                <TranscribeRecording
+                  key={`${noteId}:${mediaId}:${speechVersion}`}
+                  noteId={noteId}
+                  mediaId={mediaId}
+                  version={speechVersion}
+                  hasDraft={!!text.trim()}
+                  onUse={setText}
+                />
+              )}
               <label>
                 <span className="sr-only">Transcript</span>
                 <textarea
+                  aria-label="Transcript"
                   value={text}
                   maxLength={6000}
                   rows={4}
                   disabled={version === undefined || busy}
-                  placeholder="No transcript yet. Add your own text, or transcribe when speech is configured."
+                  placeholder="Add a transcript, or keep the recording as it is."
                   onChange={(event) => setText(event.target.value)}
                 />
               </label>

@@ -37,6 +37,7 @@ import {
   MediaAttachments,
   mediaDescriptor,
   Tasks,
+  SpeechJobs,
   type ArtifactStore,
   withMemoryOperation,
   type MemoryService,
@@ -67,7 +68,8 @@ import {
   modelUpdateSchema,
 } from "@lib/shared/models";
 import type { ModelRegistry } from "./models.ts";
-import { InferenceError } from "@lib/ai";
+import { InferenceError, type SpeechProviders } from "@lib/ai";
+import { speechRequestSchema } from "@lib/shared/speech";
 import { settingsUpdateSchema } from "@lib/shared/settings";
 import {
   assistanceRequestSchema,
@@ -91,6 +93,7 @@ import {
 export type AppDependencies = {
   media?: MediaStore | null;
   artifacts?: ArtifactStore | null;
+  speech?: SpeechProviders;
   memories: MemoryService;
   models?: ModelRegistry;
   auth: Pick<Authentication, "principal">;
@@ -115,6 +118,11 @@ type Environment = {
 
 export function createApp(deps: AppDependencies) {
   const app = new Hono<Environment>();
+  const speech = new SpeechJobs(
+    deps.memories,
+    deps.speech ?? {},
+    deps.artifacts,
+  );
   const capacity = { ...defaultCapacity, ...deps.capacity };
   const foreground = new Admission(
     capacity.concurrency,
@@ -233,6 +241,7 @@ export function createApp(deps: AppDependencies) {
       mediaUpload ||
       /\/archive-file$/.test(c.req.path) ||
       /\/media\/[0-9a-f-]+$/.test(c.req.path) ||
+      /^\/v1\/speech\/[0-9a-f-]+\/audio$/.test(c.req.path) ||
       c.req.path === "/v1/ask" ||
       c.req.path === "/v1/models/test" ||
       /^\/v1\/tasks\/[^/]+\/download$/.test(c.req.path) ||
@@ -488,8 +497,12 @@ export function createApp(deps: AppDependencies) {
       bytes: number;
       sha256: string;
     }>,
+    storage:
+      | { read(key: string, signal: AbortSignal): Promise<Readable> }
+      | null
+      | undefined = deps.media,
   ) => {
-    if (!deps.media)
+    if (!storage)
       throw new GroveError(
         "media_unavailable",
         "Media storage is not configured",
@@ -528,7 +541,7 @@ export function createApp(deps: AppDependencies) {
     if (c.req.method === "HEAD") return c.body(null, range ? 206 : 200);
     const cancelled = new AbortController(),
       signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
-    const source = await deps.media.read(object.key, signal),
+    const source = await storage.read(object.key, signal),
       stream = new PassThrough();
     stream.once("close", () => {
       if (!stream.readableEnded) cancelled.abort();
@@ -570,6 +583,46 @@ export function createApp(deps: AppDependencies) {
       : undefined;
     return mediaResponse(c, () =>
       attachments.read(c.get("principal"), memoryId, id, version),
+    );
+  });
+  app.post("/v1/memories/:memoryId/speech", async (c) =>
+    c.json(
+      {
+        success: true,
+        data: await speech.enqueue(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("memoryId")),
+          await mutation(c, speechRequestSchema),
+        ),
+      },
+      202,
+    ),
+  );
+  app.get("/v1/speech/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await speech.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.post("/v1/speech/:id/cancel", async (c) => {
+    await mutation(c, z.object({}).strict());
+    return c.json({
+      success: true,
+      data: await speech.cancel(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    });
+  });
+  app.get("/v1/speech/:id/audio", async (c) => {
+    const id = uuidSchema.parse(c.req.param("id"));
+    return mediaResponse(
+      c,
+      () => speech.audio(c.get("principal"), id),
+      deps.artifacts,
     );
   });
   app.get("/v1/memories/:memoryId/media/:id/transcript", async (c) =>
@@ -701,6 +754,7 @@ export function createApp(deps: AppDependencies) {
       data: {
         ...(await service.me(c.get("principal"))),
         mediaAvailable: !!deps.media,
+        speechAvailable: await speech.availability(),
       },
     }),
   );

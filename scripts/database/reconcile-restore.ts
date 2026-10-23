@@ -259,7 +259,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
           updatedAt: target.fn.now(),
         });
       await target("background_tasks")
-        .where({ kind: "export" })
+        .whereIn("kind", ["export", "speech_transcribe", "speech_synthesize"])
         .update({ result: null, expiresAt: target.fn.now() });
       await target("export_objects").update({ expiresAt: target.fn.now() });
       // Maintenance is safe to replay from its first bounded page. A cancelled

@@ -4,7 +4,11 @@ import { MemoryService } from "@lib/memory";
 import { ModelRegistry } from "./models.ts";
 import { createArtifacts } from "./artifacts.ts";
 import { createMediaStore } from "./media-store.ts";
-import { createResearchProvider } from "@lib/ai";
+import {
+  createOpenAiSpeech,
+  createResearchProvider,
+  type SpeechProviders,
+} from "@lib/ai";
 
 export async function createRuntime() {
   const env = readServerEnvironment();
@@ -16,6 +20,9 @@ export async function createRuntime() {
   });
   try {
     await probeDatabase(db);
+    await db.raw(
+      "SELECT transcription_enabled,read_aloud_enabled FROM accounts LIMIT 0",
+    );
     if (env.MEDIA_STORAGE !== "disabled") {
       await db.raw(
         "SELECT status,lease_id,object_key,duration_ms FROM media_objects LIMIT 0",
@@ -58,6 +65,22 @@ export async function createRuntime() {
       artifacts?.close?.();
       throw error;
     }
+    let speech: SpeechProviders = {};
+    if (env.SPEECH_ENABLED) {
+      if (!env.OPENAI_API_KEY?.trim()) {
+        artifacts?.close?.();
+        media?.close?.();
+        throw new Error("speech_api_key_required");
+      }
+      const remote = createOpenAiSpeech({
+        apiKey: env.OPENAI_API_KEY,
+        voice: env.TTS_VOICE,
+      });
+      speech = {
+        ...(media ? { transcription: remote.transcription } : {}),
+        ...(artifacts ? { synthesis: remote.synthesis } : {}),
+      };
+    }
     return {
       env,
       db,
@@ -65,6 +88,7 @@ export async function createRuntime() {
       models,
       artifacts,
       media,
+      speech,
       close: async () => {
         artifacts?.close?.();
         media?.close?.();

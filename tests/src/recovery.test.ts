@@ -37,6 +37,9 @@ test("isolated restore replays current deletions and revocations without changin
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
     const pendingMedia = randomUUID();
+    const speechTranscript = randomUUID(),
+      speechAudio = randomUUID();
+    const speechKey = `speech/${a}/${speechAudio}/${randomUUID()}.mp3`;
     const notebookIds = [randomUUID(), randomUUID()].sort();
     const assistanceId = randomUUID();
     const deletedChat = randomUUID(),
@@ -47,6 +50,34 @@ test("isolated restore replays current deletions and revocations without changin
         { id: a, clerkSubject: "recovery_a" },
         { id: b, clerkSubject: "recovery_b" },
       ]);
+      await db("background_tasks").insert([
+        {
+          id: speechTranscript,
+          accountId: a,
+          kind: "speech_transcribe",
+          dedupeKey: speechTranscript,
+          status: "succeeded",
+          result: JSON.stringify({
+            transcript: "Unaccepted machine suggestion",
+          }),
+          expiresAt: db.raw("now()+interval '1 day'"),
+        },
+        {
+          id: speechAudio,
+          accountId: a,
+          kind: "speech_synthesize",
+          dedupeKey: speechAudio,
+          status: "succeeded",
+          result: JSON.stringify({ key: speechKey, bytes: 100 }),
+          expiresAt: db.raw("now()+interval '1 day'"),
+        },
+      ]);
+      await db("export_objects").insert({
+        objectKey: speechKey,
+        accountId: a,
+        taskId: speechAudio,
+        bytes: 100,
+      });
       await db("projects").insert(
         notebookIds.map((id) => ({
           accountId: a,
@@ -267,6 +298,17 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    for (const id of [speechTranscript, speechAudio]) {
+      const task = await target("background_tasks").where({ id }).first();
+      assert.equal(task.result, null);
+      assert(new Date(task.expiresAt).getTime() <= Date.now());
+    }
+    assert(
+      new Date(
+        (await target("export_objects").where({ objectKey: speechKey }).first())
+          .expiresAt,
+      ).getTime() <= Date.now(),
+    );
     assert.equal(
       (await target("media_objects").where({ id: pendingMedia }).first())
         .status,
