@@ -10,6 +10,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z, ZodError } from "zod";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
+import { conversationHistorySchema } from "@lib/shared/conversation-history";
+import { searchConversationHistory } from "@lib/memory";
 import { Webhook } from "svix";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMemoryMcp, type ToolName } from "@lib/integration-core/mcp";
@@ -798,6 +800,16 @@ export function createApp(deps: AppDependencies) {
         c.get("principal"),
         await body(c, recallSchema),
         c.get("signal"),
+      ),
+    }),
+  );
+  app.post("/v1/conversations/search", async (c) =>
+    c.json({
+      success: true,
+      data: await searchConversationHistory(
+        service,
+        c.get("principal"),
+        await body(c, conversationHistorySchema),
       ),
     }),
   );

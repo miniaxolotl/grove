@@ -16,6 +16,7 @@
     "./settings": "./src/settings.ts",
     "./jobs": "./src/jobs.ts",
     "./conversations": "./src/conversations.ts",
+    "./conversation-history": "./src/conversation-history.ts",
     "./relationships": "./src/relationships.ts",
     "./sharing": "./src/sharing.ts",
     "./share-durations": "./src/share-durations.ts"
