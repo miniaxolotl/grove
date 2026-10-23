@@ -6,6 +6,22 @@ authentication loss. Queries, searches, drafts and note content are never persis
 to browser storage. The authenticated `dashboard-api.ts` transport and BFF continue
 to send `private, no-store`; this cache belongs to the mounted workspace.
 
+`WorkspaceNavigationState` separately owns optional browser UI metadata, keyed by
+Clerk account under `grove:navigation:v1:<account>`. Its bounded schema includes at
+most 500 UUID/boolean expansion overrides, separate desktop/mobile scroll offsets
+and one outline-pin boolean. It contains no names, note content, query text, drafts,
+permissions or capability URLs. It survives same-account sign-out/session changes;
+the shell's keyed owner prevents cross-account callbacks or reads. Browser storage
+clearing removes it. Malformed, oversized, unavailable or quota-full storage falls
+back to in-memory choices. This is not a persisted query cache.
+
+Restoration reads before writes are allowed, waits for a successful notebook load,
+and follows late nested-page layout for up to five seconds. User wheel/touch/pointer/
+keyboard input ends restoration. Removed expansion IDs are pruned only after a
+successful directory read; transient tree filtering and drag expansion are not saved.
+Other notebook pickers keep their own state. No storage-event synchronization of
+these preferences is promised between already-open tabs.
+
 ## Read ownership
 
 Ask Grove tool updates invalidate the conversation and `/ask-tools` defaults across

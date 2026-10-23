@@ -309,6 +309,78 @@
   overflow: auto;
   scrollbar-gutter: stable;
 }
+.writing-with-outline {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+.writing-with-outline > .writing-layout {
+  min-width: 0;
+  width: 100%;
+}
+.pinned-outline {
+  display: none;
+  width: 248px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--color-line);
+  padding: 12px 8px;
+}
+@container writing (min-width: 1000px) {
+  .writing-with-outline[data-pinned] > .pinned-outline {
+    display: block;
+  }
+}
+.outline-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.outline-controls input,
+.outline-copy-fallback input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-paper);
+  font-size: 12px;
+}
+.outline-controls input {
+  flex: 1;
+}
+.outline-controls > .app-icon {
+  width: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+}
+.outline-copy-fallback {
+  display: block;
+  padding: 8px;
+  font-size: 12px;
+}
+.writing-outline li {
+  display: flex;
+  align-items: center;
+}
+.writing-outline li > button:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.writing-outline li > .app-icon {
+  width: 36px;
+  flex: 0 0 36px;
+}
+.writing-outline li > button:first-child > span:last-child {
+  overflow-wrap: anywhere;
+}
+.editor-preview [data-section-id] {
+  scroll-margin-top: 16px;
+}
 .page-writing .writing-paper {
   max-width: 1600px;
   width: 100%;
