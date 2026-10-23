@@ -344,8 +344,13 @@ calls or local writes, probes never invoke memory tools or claim live-host readi
 and malformed/unapproved/version-incompatible API results remain explicit failures.
 `tests/src/client-boundaries.test.ts` covers invalid envelopes, cancellation and
 damaged local state without implicit reauthentication or secret-bearing messages.
-Telemetry-enabled artifacts use a blocking network guard and an enabled control:
-doctor creates no telemetry identity or analytics requests, and opts out upstream.
+
+The telemetry-enabled artifact test first proves that ordinary commands initialize
+telemetry, while blocking analytics delivery. Doctor must make no offline request;
+its explicit probe may make only the requested `/v1/me` read with telemetry disabled.
+Credential regressions reject damaged authentication without rewriting it, but keep
+expired, structurally valid OAuth available for refresh. Assertion explanations make
+these guarantees explicit, including that doctor creates no telemetry identity.
 
 Website browser tests cover public routes, accessibility, keyboard navigation,
 installation copy and metadata. Dashboard fixture tests use the real components
