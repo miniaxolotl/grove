@@ -26,7 +26,9 @@ test("repository policy covers every workflow job and shared bundles", () => {
     "utf8",
   );
   const jobs = [
-    ...workflow.split("\njobs:\n")[1].matchAll(/^ {2}([a-z][a-z-]+):$/gm),
+    ...workflow
+      .split("\njobs:\n")[1]
+      .matchAll(/^ {2}([A-Za-z_][A-Za-z0-9_-]*):$/gm),
   ].map((match) => match[1]);
   assert.deepEqual(
     jobs.sort(),
