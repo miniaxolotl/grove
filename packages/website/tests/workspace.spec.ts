@@ -4252,6 +4252,12 @@ async function fixture(page: Page, initial = [note, handoff]) {
       pair.dismissed = input.dismissed;
       pair.reviewVersion++;
       data = { reviewVersion: pair.reviewVersion, dismissed: pair.dismissed };
+    } else if (path === "/ask-tools") {
+      data = {
+        defaults: { exa: true, tavily: false, organize: true },
+        available: { exa: true, tavily: true, organize: true },
+        dailyCalls: 20,
+      };
     } else if (path === "/conversations/search") {
       const input = conversationHistorySchema.parse(body);
       const matching = [...chats.values()]
@@ -4285,6 +4291,8 @@ async function fixture(page: Page, initial = [note, handoff]) {
             id,
             scope,
             title: "New conversation",
+            tools: { exa: true, tavily: false, organize: true },
+            toolsVersion: 0,
             version: 0,
             updatedAt: new Date().toISOString(),
             turns: [],
@@ -4293,7 +4301,16 @@ async function fixture(page: Page, initial = [note, handoff]) {
       } else data = { items: [...chats.values()].reverse(), nextCursor: null };
     } else if (path.startsWith("/conversations/")) {
       const chat = chats.get(path.split("/")[2])!;
-      if (request.method() === "DELETE") {
+      if (path.endsWith("/tools")) {
+        const input = body as {
+          tools: Conversation["tools"];
+          expectedVersion: number;
+        };
+        if (chat.toolsVersion !== input.expectedVersion) return conflict();
+        chat.tools = input.tools;
+        chat.toolsVersion++;
+        data = chat;
+      } else if (request.method() === "DELETE") {
         chats.delete(chat.id);
         data = { deleted: true };
       } else if (path.endsWith("/turns")) {
@@ -4317,6 +4334,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
             createdAt: new Date().toISOString(),
             result: {
               message: "",
+              webStatements: [],
               statements: sources.length
                 ? [
                     {
@@ -4529,6 +4547,8 @@ function savedHistory(
     title,
     scope: { includePersonal: false },
     version: 1,
+    tools: { exa: true, tavily: false, organize: true },
+    toolsVersion: 0,
     updatedAt,
     turns: [
       {
@@ -4541,6 +4561,7 @@ function savedHistory(
         createdAt: updatedAt,
         result: {
           message: "A saved conversation to revisit. ".repeat(80),
+          webStatements: [],
           statements: [],
           sources: [],
           proposal: null,
@@ -5219,6 +5240,8 @@ test("a reply and growing composer preserve older reading position until Latest 
   state.chats.set(id, {
     id,
     title: "Reading thread",
+    tools: { exa: true, tavily: false, organize: true },
+    toolsVersion: 0,
     scope: { includePersonal: true },
     version: 12,
     updatedAt: note.updatedAt,
@@ -5238,6 +5261,7 @@ test("a reply and growing composer preserve older reading position until Latest 
         statements: [],
         sources: [],
         proposal: null,
+        webStatements: [],
       },
     })),
   });

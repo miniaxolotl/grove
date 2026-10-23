@@ -46,9 +46,26 @@ export function cleanupHandlers(
           await trx(table)
             .whereRaw("ctid=ANY(?::tid[])", [rows.map((row) => row.rowId)])
             .delete();
+        // Extend the existing usage stage without shifting durable task cursors.
+        const research =
+          table === "inference_usage"
+            ? await trx("research_account_usage").select("day").limit(batchSize)
+            : [];
+        if (research.length)
+          await trx("research_account_usage")
+            .whereIn(
+              "day",
+              research.map((row) => row.day),
+            )
+            .delete();
         return {
-          cursor: { stage: rows.length === batchSize ? stage : stage + 1 },
-          processed: Number(task.processed) + rows.length,
+          cursor: {
+            stage:
+              rows.length === batchSize || research.length === batchSize
+                ? stage
+                : stage + 1,
+          },
+          processed: Number(task.processed) + rows.length + research.length,
         };
       });
       return;

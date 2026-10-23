@@ -813,6 +813,21 @@ export class WorkspaceCache {
           // Merge/undo may affect archived source notes absent from the reply. Revalidate all note dependencies.
           this.invalidate({});
           this.publish?.({});
+          if (
+            chat.turns?.some(
+              (turn) =>
+                turn.id === path.split("/")[4] && turn.result?.organization,
+            )
+          ) {
+            for (const resource of ["/projects", "/projects?status=archived"]) {
+              this.invalidate({ resource });
+              this.publish?.({ resource });
+            }
+          }
+        }
+        if (path.endsWith("/tools")) {
+          this.invalidate({ resource: "/ask-tools" });
+          this.publish?.({ resource: "/ask-tools" });
         }
         this.publish?.(change);
       } else if (

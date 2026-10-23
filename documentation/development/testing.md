@@ -1,5 +1,14 @@
 # Verification
 
+Ask Grove tools add deterministic hosted-MCP protocol fixtures in `research.test.ts`,
+a populated 016→020 upgrade, conversation settings/cancellation/budget and atomic
+organization regressions, and export/recovery checks. Paid provider calls are kept
+out of normal CI; bounded synthetic search/extract runs qualify actual Exa/Tavily
+schemas separately. Browser verification covers the composer menu, remembered
+choices/defaults, citations, activity, organization previews and Apply/Undo at
+1440/768/390/320px. Capture a small PR preview row (at most four images), with the
+complete gallery under `documentation/design/screenshots/ask-tools/`.
+
 Conversation history coverage (`conversation-history.test.ts`) uses real non-owner
 PostgreSQL access for title/older-question search, literal wildcard handling,
 bounded previews, owner-only/tenant isolation, retained-but-hidden deletion and
@@ -101,7 +110,7 @@ AI preferences coverage includes a populated 012→013 upgrade with all four leg
 organization/summary combinations, separate summary scopes and connections, partial
 HTTP writes, owner-only permissions, reindex/restore preservation and disabling then
 re-enabling features during inference. Browser cases exercise the five categories,
-ten controls, provider availability, failed/overlapping saves, keyboard operation,
+the original ten controls (four assistance controls were added in 015), provider availability, failed/overlapping saves, keyboard operation,
 cross-tab summary invalidation and 1440/390/320px accessibility. Settings cases also
 cover draft retention across tabs, discard, clean-form server updates, session
 replacement and provider credential save/retry. The focused WebKit configuration
