@@ -449,8 +449,15 @@ export class Conversations {
           content: turn.result.proposal.content.slice(0, 1000),
         },
         organization: turn.result?.organization && {
-          status: turn.result.organization.status,
-          coverage: turn.result.organization.coverage,
+          ...turn.result.organization,
+          notes: turn.result.organization.notes.map((note, index) => ({
+            ...note,
+            // Apply writes moves first, followed by the newly created notes.
+            ...turn.result!.organization!.applied?.[
+              turn.result!.organization!.moves.length + index
+            ],
+            content: note.content.slice(0, 1000),
+          })),
         },
       }));
       const known = new Set(
@@ -458,6 +465,7 @@ export class Conversations {
           [
             ...(turn.result?.sources ?? []),
             ...(turn.result?.proposal?.applied ?? []),
+            ...(turn.result?.organization?.applied ?? []),
           ].map((s) => s.id),
         ),
       );

@@ -60,6 +60,16 @@ notebooks that acquired additional notes or children. Created items are archived
 not physically deleted; existing notes return to their original locations/content.
 Disabling Manage notes prevents Apply but still permits Undo.
 
+New notes share the account's 10,000-note limit with ordinary saves and assistance
+action lists. Apply checks capacity for the complete batch; an over-limit batch
+leaves its preview available and commits no changes. Edits, moves and Undo remain
+available at capacity. Archived notes still count toward the limit.
+
+Applied organization notes remain identifiable in follow-up requests, including
+batches that also move existing notes. History carries bounded excerpts and the
+created note IDs; retrieval checks current versions, active status and conversation
+scope before using them as evidence or proposing another edit.
+
 ## Operator setup
 
 Configure on the API server only:
