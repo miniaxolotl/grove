@@ -122,6 +122,9 @@ createServer(async (request, response) => {
         .end(pdfWorker.outputFiles[0].contents);
       return;
     }
+    if (path === "/media-recorder.worklet.js") {
+      response.writeHead(200,{"Content-Type":"application/javascript"}).end(await readFile(join(root,"public/media-recorder.worklet.js")));return;
+    }
     if (path === "/telemetry-fixture.js") {
       response
         .writeHead(200, { "Content-Type": "application/javascript" })

@@ -3,6 +3,8 @@ import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown } from "mdast-util-gfm";
 import { gfm } from "micromark-extension-gfm";
 import { mediaReferenceId } from "@lib/shared/media";
+import { mediaSource } from "./media-path";
+import type { Nodes } from "mdast";
 
 export async function createNotePdf(
   content: string,
@@ -19,21 +21,34 @@ export async function createNotePdf(
     mdastExtensions: [gfmFromMarkdown()],
   });
   const images: Record<string, string> = {};
-  const ids = [
-    ...new Set(
-      [...content.matchAll(/grove-media:([0-9a-f-]{36})/g)]
-        .map((match) => mediaReferenceId(match[0]))
-        .filter((id): id is string => !!id),
-    ),
-  ];
+  const definitions = new Map<string, string>(),
+    identifiers = new Set<string>();
+  const visit = (node: Nodes, run: (node: Nodes) => void) => {
+    run(node);
+    if ("children" in node) node.children.forEach((child) => visit(child, run));
+  };
+  visit(root, (node) => {
+    if (node.type === "definition") definitions.set(node.identifier, node.url);
+  });
+  visit(root, (node) => {
+    const url =
+      node.type === "image"
+        ? node.url
+        : node.type === "imageReference"
+          ? definitions.get(node.identifier)
+          : undefined;
+    const id = url ? mediaReferenceId(url) : null;
+    if (id) identifiers.add(id);
+  });
+  const ids = [...identifiers];
   if (ids.length && !note)
     throw new Error("Save the note before exporting its images");
   let total = 0;
   for (const id of ids) {
-    const response = await fetch(
-      `/api/grove/memories/${note!.id}/media/${id}?version=${note!.version}`,
-      { cache: "no-store", signal },
-    );
+    const response = await fetch(mediaSource(note!.id, id, note!.version), {
+      cache: "no-store",
+      signal,
+    });
     if (!response.ok) throw new Error("Image unavailable");
     const blob = await response.blob();
     total += blob.size;

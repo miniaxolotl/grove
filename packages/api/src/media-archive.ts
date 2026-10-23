@@ -6,7 +6,7 @@ import type { MediaStore } from "./media-store.ts";
 
 function header(name: string, size: number) {
   if (
-    !/^(note\.md|manifest\.json|media\/[0-9a-f-]+\.(png|jpeg|webp))$/.test(
+    !/^(note\.md|manifest\.json|media\/[0-9a-f-]+\.(png|jpeg|webp|wav|txt))$/.test(
       name,
     ) ||
     !Number.isSafeInteger(size) ||
@@ -60,15 +60,36 @@ export async function noteArchive(
       ),
     ),
   ];
-  const objects = [];
+  const objects: Array<
+    Awaited<ReturnType<MediaAttachments["read"]>> & {
+      id: string;
+      path: string;
+      transcript?: { text: string; version: number };
+    }
+  > = [];
   let markdown = note.content;
   for (const mediaId of ids) {
     const object = await attachments.read(principal, id, mediaId, note.version);
     const path = `media/${mediaId}.${object.mime.slice(6)}`;
-    objects.push({ ...object, id: mediaId, path });
+    const transcript =
+      object.mime === "audio/wav"
+        ? await attachments.transcript(principal, id, mediaId)
+        : undefined;
+    objects.push({ ...object, id: mediaId, path, transcript });
     markdown = markdown.replaceAll(`grove-media:${mediaId}`, path);
   }
   const recheck = async () => {
+    for (const object of objects)
+      if (
+        object.transcript &&
+        (await attachments.transcript(principal, id, object.id)).version !==
+          object.transcript.version
+      )
+        throw new GroveError(
+          "export_changed",
+          "A transcript changed during export",
+          409,
+        );
     signal.throwIfAborted();
     const fresh = await service.get(principal, id);
     if (
@@ -136,6 +157,12 @@ export async function noteArchive(
         if (bytes !== object.bytes || hash.digest("hex") !== object.sha256)
           throw Error("archive_integrity_mismatch");
         yield padding(bytes);
+        if (object.transcript?.text) {
+          const text = Buffer.from(object.transcript.text);
+          yield header(`media/${object.id}.txt`, text.length);
+          yield text;
+          yield padding(text.length);
+        }
       }
       await recheck();
       yield Buffer.alloc(1024);

@@ -58,8 +58,9 @@ import {
 import type { Authentication } from "./auth.ts";
 import type { MediaStore } from "./media-store.ts";
 import { verifyImage } from "./media-images.ts";
+import { verifyAudio } from "./media-audio.ts";
 import { noteArchive } from "./media-archive.ts";
-import { imageLimits, imageMimeTypes } from "@lib/shared/media";
+import { imageLimits, mediaMimeTypes } from "@lib/shared/media";
 import {
   askSchema,
   briefRequestSchema,
@@ -164,6 +165,7 @@ export function createApp(deps: AppDependencies) {
         "X-Grove-Telemetry",
         "X-Grove-Note-Version",
         "X-Grove-Content-Sha256",
+        "Range",
       ],
       exposeHeaders: ["WWW-Authenticate", "X-Request-ID", "Retry-After"],
     }),
@@ -430,7 +432,7 @@ export function createApp(deps: AppDependencies) {
         .min(1)
         .max(imageLimits.bytes)
         .parse(c.req.header("content-length")),
-      mime: z.enum(imageMimeTypes).parse(c.req.header("content-type")),
+      mime: z.enum(mediaMimeTypes).parse(c.req.header("content-type")),
       sha256: z
         .string()
         .regex(/^[0-9a-f]{64}$/)
@@ -442,13 +444,13 @@ export function createApp(deps: AppDependencies) {
     try {
       if (!c.req.raw.body)
         throw new GroveError("invalid_image", "Image body required", 400);
-      const verified = await verifyImage(
-        Readable.fromWeb(
-          c.req.raw.body as import("node:stream/web").ReadableStream,
-        ),
-        input.mime,
-        c.get("signal"),
+      const source = Readable.fromWeb(
+        c.req.raw.body as import("node:stream/web").ReadableStream,
       );
+      const verified =
+        input.mime === "audio/wav"
+          ? await verifyAudio(source, c.get("signal"))
+          : await verifyImage(source, input.mime, c.get("signal"));
       if (
         verified.bytes.length !== input.bytes ||
         verified.sha256 !== input.sha256
@@ -494,6 +496,36 @@ export function createApp(deps: AppDependencies) {
         503,
       );
     const object = await authorizeMedia();
+    let start = 0,
+      end = object.bytes - 1;
+    const range = c.req.header("range");
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!match || (!match[1] && !match[2])) {
+        c.header("Content-Range", `bytes */${object.bytes}`);
+        return c.body(null, 416);
+      }
+      if (!match[1]) start = Math.max(0, object.bytes - Number(match[2]));
+      else {
+        start = Number(match[1]);
+        end = match[2] ? Math.min(end, Number(match[2])) : end;
+      }
+      if (
+        !Number.isSafeInteger(start) ||
+        !Number.isSafeInteger(end) ||
+        start > end ||
+        start >= object.bytes
+      ) {
+        c.header("Content-Range", `bytes */${object.bytes}`);
+        return c.body(null, 416);
+      }
+      c.header("Content-Range", `bytes ${start}-${end}/${object.bytes}`);
+    }
+    c.header("Accept-Ranges", "bytes");
+    c.header("Content-Type", object.mime);
+    c.header("Content-Length", String(end - start + 1));
+    c.header("Content-Disposition", "inline");
+    if (c.req.method === "HEAD") return c.body(null, range ? 206 : 200);
     const cancelled = new AbortController(),
       signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
     const source = await deps.media.read(object.key, signal),
@@ -505,14 +537,22 @@ export function createApp(deps: AppDependencies) {
     void pipeline(
       source,
       async function* (chunks) {
-        let checked = Date.now();
+        let checked = Date.now(),
+          offset = 0;
         for await (const chunk of chunks) {
           if (Date.now() - checked >= 1000) {
             const fresh = await withDatabaseSignal(signal, authorizeMedia);
             if (fresh.key !== object.key) throw new Error("media_changed");
             checked = Date.now();
           }
-          yield chunk;
+          const next = offset + chunk.length;
+          if (next > start && offset <= end)
+            yield chunk.subarray(
+              Math.max(0, start - offset),
+              Math.min(chunk.length, end - offset + 1),
+            );
+          offset = next;
+          if (offset > end) break;
         }
       },
       stream,
@@ -520,10 +560,7 @@ export function createApp(deps: AppDependencies) {
     )
       .catch(() => {})
       .finally(c.get("finish"));
-    c.header("Content-Type", object.mime);
-    c.header("Content-Length", String(object.bytes));
-    c.header("Content-Disposition", "inline");
-    return c.body(Readable.toWeb(stream) as ReadableStream);
+    return c.body(Readable.toWeb(stream) as ReadableStream, range ? 206 : 200);
   };
   app.get("/v1/memories/:memoryId/media/:id", async (c) => {
     const memoryId = uuidSchema.parse(c.req.param("memoryId")),
@@ -535,6 +572,36 @@ export function createApp(deps: AppDependencies) {
       attachments.read(c.get("principal"), memoryId, id, version),
     );
   });
+  app.get("/v1/memories/:memoryId/media/:id/transcript", async (c) =>
+    c.json({
+      success: true,
+      data: await attachments.transcript(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("memoryId")),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.patch("/v1/memories/:memoryId/media/:id/transcript", async (c) =>
+    c.json({
+      success: true,
+      data: await attachments.saveTranscript(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("memoryId")),
+        uuidSchema.parse(c.req.param("id")),
+        await body(
+          c,
+          z
+            .object({
+              operationId: z.uuid(),
+              expectedVersion: z.number().int().min(0),
+              text: z.string().max(6000),
+            })
+            .strict(),
+        ),
+      ),
+    }),
+  );
   app.get("/public/shares/:token/notes/:memoryId/media/:id", async (c) => {
     if (!deps.shareLinkKey)
       throw new GroveError("not_found", "Media is unavailable", 404);

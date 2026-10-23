@@ -24,7 +24,7 @@ import {
   type Project,
 } from "@/lib/dashboard-api";
 import { MarkdownEditor } from "./markdown-editor";
-import { uploadImage } from "@/lib/media-upload";
+import { uploadMedia } from "@/lib/media-upload";
 import { useDialogBusy } from "./dialog";
 import { Button } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
@@ -843,14 +843,16 @@ export function MemoryEditor({
           <div className="note-editor-workspace">
             <MarkdownEditor
               media={
-                base ? { noteId: base.id, version: base.version } : undefined
+                base
+                  ? { noteId: base.id, version: base.version, live: true }
+                  : undefined
               }
               upload={
                 base && !dirty && !busy && !held && !latest && !deleteRequested
                   ? async (file, signal) => {
                       setMediaBusy(true);
                       try {
-                        return await uploadImage(file, base, signal);
+                        return await uploadMedia(file, base, signal);
                       } finally {
                         setMediaBusy(false);
                       }

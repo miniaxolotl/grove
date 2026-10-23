@@ -35,6 +35,48 @@
   outline: 2px solid var(--color-forest);
   outline-offset: 2px;
 }
+.recording-control,
+.recording-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.recording-control {
+  font-size: 0.75rem;
+}
+.recording-player {
+  display: block;
+  max-width: 100%;
+  padding: 0.75rem 0;
+}
+.recording-title {
+  display: block;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+.recording-transcript {
+  display: block;
+  padding: 0.75rem 0;
+}
+.recording-transcript label {
+  display: block;
+  font-size: 0.875rem;
+}
+.app-form .editor-surface .recording-transcript textarea {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--color-line);
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  background: var(--color-paper);
+  min-height: 7rem;
+  height: 8rem;
+  max-height: 18rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
 .note-editor-bar {
   display: flex;
   align-items: center;

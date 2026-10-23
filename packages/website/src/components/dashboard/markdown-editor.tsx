@@ -43,7 +43,6 @@ import {
   Redo2,
   ListTree,
   Type,
-  ImagePlus,
 } from "lucide-react";
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
@@ -57,6 +56,7 @@ import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { IconButton } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
 import { InspectorDialog } from "./ui/inspector-dialog";
+import { RecordingControl } from "./recording-control";
 import {
   noteHeadings,
   headingFromHash,
@@ -146,7 +146,7 @@ export function MarkdownEditor({
   onPreviewChange?: (preview: boolean) => void;
   presentation?: "page" | "drawer" | "expanded" | "focus";
   children?: ReactNode;
-  media?: { noteId: string; version?: number };
+  media?: { noteId: string; version?: number; live?: boolean };
   upload?: (file: File, signal: AbortSignal) => Promise<string>;
   noteId?: string;
 }) {
@@ -159,6 +159,9 @@ export function MarkdownEditor({
   const previousScroll = useRef(0);
   const view = useRef<EditorView | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [recordingStatus, setRecordingStatus] = useState<HTMLDivElement | null>(
+    null,
+  );
   const uploadWork = useRef<AbortController | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -168,6 +171,7 @@ export function MarkdownEditor({
   );
   const [dragToken] = useState(() => crypto.randomUUID());
   const insertImage = async (file: File, destination?: number) => {
+    setRetryFile(file);
     if (!upload || uploadWork.current) {
       setUploadError("Save the note and its changes before adding an image.");
       return;
@@ -659,18 +663,6 @@ export function MarkdownEditor({
         >
           <ListTree size={17} />
         </IconButton>
-        <IconButton
-          label="Add image"
-          disabled={!upload || uploading || disabled}
-          title={
-            upload
-              ? "Add image (PNG, JPEG or WebP; up to 3 MiB). Original metadata is retained."
-              : "Save this note and its changes to add an image"
-          }
-          onClick={() => fileInput.current?.click()}
-        >
-          <ImagePlus size={17} />
-        </IconButton>
         <input
           ref={fileInput}
           type="file"
@@ -682,7 +674,15 @@ export function MarkdownEditor({
             if (file) void insertImage(file);
           }}
         />
+        <RecordingControl
+          onImage={() => fileInput.current?.click()}
+          statusTarget={recordingStatus}
+          key={media?.noteId ?? "unsaved"}
+          disabled={!upload || uploading || disabled}
+          onFile={(file) => void insertImage(file)}
+        />
       </div>
+      <div ref={setRecordingStatus} />
       {uploading && (
         <div className="media-feedback" role="status">
           Uploading image…{" "}
@@ -728,6 +728,31 @@ export function MarkdownEditor({
                     <Markdown
                       headings={previewHeadings}
                       media={media}
+                      onUseTranscript={
+                        disabled
+                          ? undefined
+                          : (text) => {
+                              const editor = view.current;
+                              if (!editor || editor.state.readOnly) return;
+                              if (
+                                editor.state.doc.length + text.length + 2 >
+                                6000
+                              ) {
+                                setUploadError(
+                                  "Shorten the note before inserting the transcript.",
+                                );
+                                return;
+                              }
+                              editor.dispatch({
+                                changes: {
+                                  from: editor.state.doc.length,
+                                  insert: `\n\n${text}`,
+                                },
+                                annotations: isolateHistory.of("full"),
+                                userEvent: "input.transcript",
+                              });
+                            }
+                      }
                       onImageDrag={
                         disabled
                           ? undefined

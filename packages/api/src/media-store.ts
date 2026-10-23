@@ -14,26 +14,27 @@ import {
 import type { ServerEnvironment } from "@lib/environment";
 import {
   imageLimits,
-  imageMimeTypes,
+  mediaMimeTypes,
+  type MediaMime,
   validateMediaKey,
 } from "@lib/shared/media";
-import type { VerifiedImage } from "./media-images.ts";
+type VerifiedMedia = { bytes: Buffer; mime: MediaMime; sha256: string };
 
 /** Private storage, NOT an authorization layer. Use only after tenant/revision checks.
  * Deliberately no remove API: source bytes must never enter export/cache cleanup.
  */
 export interface MediaStore {
   ready(): Promise<void>;
-  write(key: string, image: VerifiedImage, signal: AbortSignal): Promise<void>;
+  write(key: string, image: VerifiedMedia, signal: AbortSignal): Promise<void>;
   read(key: string, signal: AbortSignal): Promise<Readable>;
   close?(): void;
 }
-function validImage(image: VerifiedImage) {
+function validImage(image: VerifiedMedia) {
   if (
     !Buffer.isBuffer(image.bytes) ||
     !image.bytes.length ||
     image.bytes.length > imageLimits.bytes ||
-    !imageMimeTypes.includes(image.mime)
+    !mediaMimeTypes.includes(image.mime)
   )
     throw new Error("invalid_media_object");
 }

@@ -1,5 +1,47 @@
 # Delivery evidence
 
+## Custom recording player (23 October 2026)
+
+Recording playback now uses a quiet inline strip rather than browser chrome:
+workspace typography/colours, one play/pause control, slim seeking, elapsed/total
+time, speed and mute. No card border, decorative waveform or extra dependency.
+Private loading/transcripts are unchanged. Sources attach on Play in the enhanced
+player, including WebKit; leaving the player stops playback. Public readers keep
+native controls before hydration and without JavaScript.
+
+Real-component/disposable-API journeys pass in Chromium and mobile/touch WebKit:
+deferred loading, playback/pause, keyboard/seek/rate/mute, end/replay, HTTP503 retry,
+unmount cleanup, 1440/390/320px bounds and WCAG A/AA. Both engines also pass actual
+production-Next public playback with and without JavaScript and no transcript
+controls; disposable links are revoked afterward. Focused checks cover Space,
+Home/End/arrows, preselected speed, 44px buttons, reduced motion and forced colours.
+[Reviewed captures](design/screenshots/recordings/README.md) record the final strip.
+Final local verification passes root/site lint, types and production builds, five
+packaged-artifact checks and all203 Chromium scenarios. Bundle budgets pass;
+Notes entry is483,386 gzip bytes and the editor remains deferred.
+No production deployment, migration or speech-provider request is performed.
+
+## Recordings — stacked continuation
+
+Migration018 adds PCM WAV duration validation and independently versioned retained
+transcripts. The compact Add media menu contains image, recording and audio-upload
+actions; active capture has explicit Stop/Cancel feedback. Originals reuse image
+storage, tenant/revision guards and quotas. Playback supports scoped Range/HEAD;
+transcript Use inserts through normal editor history. TAR includes WAV/text
+sidecars and v3 exports page bindings/transcript history separately. PDF resolves
+only actual image nodes. [Feature and limits](recordings.md).
+
+Shared input buffering, MIME/reference metadata, uploads and media URL construction
+replace duplicated image/audio paths. Initial verification passes184 backend/service
+cases (four optional-service skips), root/site static checks and builds, five packed
+artifacts and bundle budgets. The real-component synthetic-microphone journey covers
+capture, track cleanup, playback, transcript save/use, cancel and TAR/PDF. Visual
+review found and corrected inline/baseline placement and inherited textarea sizing.
+All203 Chromium checks pass. The corrected real-API journey passes in Chromium
+(synthetic microphone plus ended-track checks) and WebKit (WAV upload fallback,
+playback, transcript/save/use and TAR/PDF) at desktop/390px. Current playback keeps
+its source URL through note autosave. Physical microphones remain unqualified.
+
 ## Saved-note images — stacked continuation
 
 The follow-up supports file drop throughout the note workspace and moving an

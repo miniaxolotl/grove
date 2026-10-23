@@ -33,6 +33,8 @@ const stages = [
   "assistance_operation",
   "ask_settings",
   "media_object",
+  "media_binding",
+  "media_transcript_revision",
 ] as const;
 const pageSize = 100;
 const assertVersion = async (trx: Knex.Transaction, task: ClaimedTask) => {
@@ -85,18 +87,54 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
   const kind = stages[stage];
   if (kind === "ask_settings")
     return projects ? [] : trx("accounts").select("id", "askTools");
+  const mediaNotes = () =>
+    trx("memories")
+      .select("id")
+      .modify((query) => {
+        if (projects) query.whereIn("projectId", projects);
+      });
+  if (kind === "media_binding") {
+    if (!task.payload.includeMedia) return [];
+    const q = trx("media_revision_bindings")
+      .whereIn("memoryId", mediaNotes())
+      .select("mediaId", "memoryId", "version")
+      .orderBy("mediaId")
+      .orderBy("version")
+      .limit(pageSize);
+    if (after)
+      q.whereRaw("(media_id,version)>(?::uuid,?::integer)", [
+        after,
+        Number(task.cursor.afterVersion),
+      ]);
+    return q;
+  }
+  if (kind === "media_transcript_revision") {
+    if (!task.payload.includeMedia) return [];
+    const q = trx("media_transcript_revisions as r")
+      .join("media_objects as o", function () {
+        this.on("o.accountId", "=", "r.accountId").andOn(
+          "o.id",
+          "=",
+          "r.mediaId",
+        );
+      })
+      .whereIn("o.memoryId", mediaNotes())
+      .select("r.mediaId", "r.version", "r.text", "r.createdAt", "o.memoryId")
+      .orderBy("r.mediaId")
+      .orderBy("r.version")
+      .limit(pageSize);
+    if (after)
+      q.whereRaw("(r.media_id,r.version)>(?::uuid,?::integer)", [
+        after,
+        Number(task.cursor.afterVersion),
+      ]);
+    return q;
+  }
   if (kind === "media_object") {
     if (!task.payload.includeMedia) return [];
     const q = trx("media_objects as o")
       .where({ "o.status": "ready" })
-      .whereIn(
-        "o.memoryId",
-        trx("memories")
-          .select("id")
-          .modify((query) => {
-            if (projects) query.whereIn("projectId", projects);
-          }),
-      )
+      .whereIn("o.memoryId", mediaNotes())
       .whereExists(
         trx("media_revision_bindings as b")
           .select(trx.raw("1"))
@@ -326,12 +364,6 @@ export function exportHandlers(
       if (stages[stage] === "media_object") {
         if (!media) throw new TaskError("media_storage_unavailable", false);
         const row = rows[0];
-        const versions = await tenant(db, task.accountId!, (trx) =>
-          trx("media_revision_bindings")
-            .where({ mediaId: row.id, memoryId: row.memoryId })
-            .orderBy("version")
-            .pluck("version"),
-        );
         let bytes = 0;
         const content = Readable.from(
           (async function* () {
@@ -344,7 +376,7 @@ export function exportHandlers(
               sha256: row.sha256,
               width: row.width,
               height: row.height,
-              versions,
+              durationMs: row.durationMs ?? null,
             };
             const first = Buffer.from(JSON.stringify(metadata) + "\n");
             bytes += first.length;
@@ -411,7 +443,11 @@ export function exportHandlers(
             ...(rows.length === pageSize
               ? {
                   afterId:
-                    last.id ?? last.memoryId ?? last.projectId ?? last.key,
+                    last.id ??
+                    last.mediaId ??
+                    last.memoryId ??
+                    last.projectId ??
+                    last.key,
                   afterVersion: last.version,
                 }
               : {}),
