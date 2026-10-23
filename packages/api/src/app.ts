@@ -76,6 +76,9 @@ import {
 import {
   conversationCreateSchema,
   conversationTurnSchema,
+  toolSettingsSchema,
+  askToolsSchema,
+  defaultAskTools,
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
@@ -800,6 +803,36 @@ export function createApp(deps: AppDependencies) {
         c.get("principal"),
         await body(c, recallSchema),
         c.get("signal"),
+      ),
+    }),
+  );
+  app.get("/v1/ask-tools", async (c) =>
+    c.json({
+      success: true,
+      data: await service.access(
+        c.get("principal"),
+        "admin",
+        async ({ account }) => {
+          return {
+            defaults: askToolsSchema.parse(account.askTools ?? defaultAskTools),
+            available: {
+              exa: !!service.research.exa,
+              tavily: !!service.research.tavily,
+              organize: true,
+            },
+            dailyCalls: service.researchLimits.dailyCalls,
+          };
+        },
+      ),
+    }),
+  );
+  app.patch("/v1/conversations/:id/tools", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.configureTools(
+        c.get("principal"),
+        c.req.param("id"),
+        await body(c, toolSettingsSchema),
       ),
     }),
   );

@@ -1,5 +1,41 @@
 # Delivery evidence
 
+## Ask Grove research and notebook tools (23 October 2026)
+
+Web search, Research and Manage notes share clear composer switches, remembered
+defaults, inline recovery, bounded provider spending and distinct web citations.
+Exa Lite and Tavily Basic power the research tools. Ask Grove previews notebook
+creation/renaming, note filing and researched notes with atomic Apply and versioned
+Undo. Organization continues beyond its first 50-note candidate batch. Migration
+020 retains existing conversations and adds isolated settings/execution/usage state.
+[Feature and API](ask-tools.md) and [rollout](deploy.md#ask-grove-tools-rollout-020)
+describe the limits and operator setup.
+
+On integrated application source `da27de5`, all **186 backend tests** pass (two optional
+RabbitMQ/S3 checks skipped), with root/website lint, types and production builds,
+all **five packaged artifacts**, bundle budgets, **19 release/deployment contracts**
+and pinned workflow lint passing. The complete **223 Chromium** suite passes on
+the final UI source, along with **seven focused WebKit history/conversation cases**.
+Notes entry is **486,094 gzip bytes**, within the existing budget. The integration
+preserves landed conversation history #91; tool vocabulary/defaults, scope checks
+and activity formatting share canonical implementations.
+
+Six additional real-API/disposable-database browser journeys pass at Chromium
+1440/768/390/320px and WebKit 390/320px, covering toggles/drafts/activity/citations,
+note Save/Undo and notebook create/file/Undo with sidebar refresh. The naming/control
+follow-up also verifies optimistic switches, failed-save rollback, refresh recovery
+and saved-default feedback. Menu accessibility
+and page-overflow checks pass. [Eighteen reviewed captures](design/screenshots/ask-tools/README.md)
+use synthetic data and show three images per row; the PR contains a preview row.
+
+Actual Exa/Tavily search and extraction calls pass. A final two-turn live MiniMax +
+Exa case creates a cited MDN note, then creates a notebook and files the note with
+Apply/Undo. Initial runs exposed competing action schemas, omitted empty fields and
+premature status wording; narrowed schemas and Grove-owned batch descriptions now
+have regressions. Invalid model responses remain retryable failures; this small
+synthetic sample is not a broad quality qualification. Production activation is
+separate from these local/provider checks.
+
 ## Ask Grove history (23 October 2026)
 
 History now offers private title/question search, date-grouped rows with question
