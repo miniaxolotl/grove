@@ -1,5 +1,19 @@
 # Delivery evidence
 
+## CI/CD hardening review (22 October 2026)
+
+The [source/policy review](development/cicd-hardening-review.md) separates existing
+strict admission, immutable publication and digest-bound rollout from missing
+local hardening patches and planned automatic recovery. GitHub protections are
+already active; current CI uses GitHub Ubuntu, not the proposed Blacksmith
+allocation. This documentation refresh records no new runtime/provider delivery,
+hosted drill or cost qualification and preserves independent workspace/media work.
+
+The separately authorized baseline accessibility repair removes the dropdown's
+opacity fade, which could temporarily reduce description contrast below 4.5:1.
+It preserves existing colours/layout and tests; see the
+[desktop/mobile captures and reproduction](design/screenshots/dropdown-contrast/README.md).
+
 ## Notebook assistance (22 October 2026)
 
 Five contextual tools share concise previews and exact source evidence: subject-aware
