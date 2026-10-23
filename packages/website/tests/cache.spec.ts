@@ -31,6 +31,86 @@ function cacheWith(
 }
 test.afterEach(() => caches.splice(0).forEach((cache) => cache.dispose()));
 
+test("history search is a read and deleting a conversation prunes all cached history pages", async () => {
+  let reads = 0;
+  const cache = cacheWith(async (path) => {
+    if (path === "/conversations/search") {
+      reads++;
+      return {
+        items: [{ id: "deleted", title: "Private history" }, { id: "kept" }],
+        nextCursor: null,
+      };
+    }
+    if (path === "/conversations/deleted") return { deleted: true };
+    throw new Error(`Unexpected ${path}`);
+  });
+  const key = [
+    ...workspaceKeys.resource("/conversations/search", { query: "" }),
+    "pages",
+  ];
+  await cache.client.fetchInfiniteQuery({
+    queryKey: key,
+    initialPageParam: null,
+    queryFn: () => cache.api("/conversations/search", { query: "" }),
+    getNextPageParam: () => null,
+  });
+  expect(reads).toBe(1);
+  await cache.api("/conversations/deleted", undefined, "DELETE");
+  expect(cache.client.getQueryData(key)).toMatchObject({
+    pages: [{ items: [{ id: "kept" }] }],
+  });
+  expect(JSON.stringify(cache.client.getQueryData(key))).not.toContain(
+    "Private history",
+  );
+});
+
+for (const action of ["archive", "delete"] as const) {
+  test(`notebook ${action} prunes cached sources and fences held reads across the entire subtree`, async () => {
+    const projectId = "00000000-0000-4000-a000-000000000010";
+    const childId = "00000000-0000-4000-a000-000000000011";
+    const scoped = { ...note, projectId: childId };
+    const response = Promise.withResolvers<unknown>();
+    let hold = false;
+    const cache = cacheWith(async (path) => {
+      if (path.endsWith(`/${action}`))
+        return { action, projectIds: [projectId, childId] };
+      if (path === "/memories/search")
+        return hold ? response.promise : { items: [scoped], nextCursor: null };
+      if (path === "/projects") return [{ id: projectId }, { id: childId }];
+      if (path === "/ask") return { status: "search", sources: [scoped] };
+      throw new Error(`Unexpected ${path}`);
+    });
+    await cache.client.fetchInfiniteQuery(cache.notes());
+    await cache.fetch("/projects");
+    await cache.fetch("/ask", { mode: "search", query: "original" });
+    hold = true;
+    const held = cache.client
+      .fetchInfiniteQuery({
+        ...cache.notes({ projectId: childId }),
+        staleTime: 0,
+      })
+      .catch(() => "cancelled");
+    await cache.api(`/projects/${projectId}/${action}`, {
+      operationId: "fixture",
+    });
+    response.resolve({ items: [scoped], nextCursor: null });
+    await held;
+    expect(cache.client.getQueryData(workspaceKeys.note(note.id))).toBeNull();
+    expect(
+      cache.client.getQueryData(workspaceKeys.resource("/projects")),
+    ).toEqual([]);
+    expect(
+      cache.client.getQueryData(
+        workspaceKeys.resource("/ask", { mode: "search", query: "original" }),
+      ),
+    ).toMatchObject({ sources: [] });
+    const pages = cache.client.getQueryData<{ pages: { items: Memory[] }[] }>(
+      cache.notes().queryKey,
+    );
+    expect(pages?.pages.flatMap((page) => page.items)).toEqual([]);
+  });
+}
+
 test("shared misses survive one subscriber leaving, and the final departure cancels transport", async () => {
   let reads = 0;
   let signal: AbortSignal | undefined;

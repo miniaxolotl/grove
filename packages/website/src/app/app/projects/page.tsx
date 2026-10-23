@@ -1,5 +1,12 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import type { Project } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
+import { useWorkspaceCache } from "@/components/dashboard/workspace-cache";
+import { ActionMenu } from "@/components/dashboard/ui/action-menu";
 import { Folder, Plus } from "lucide-react";
 import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { LoadError } from "@/components/dashboard/load-error";
@@ -16,7 +23,21 @@ import { SearchField } from "@/components/dashboard/ui/search-field";
 import { NotebookDropTarget } from "@/components/dashboard/memory-drag";
 
 export default function ProjectsPage() {
-  const { projects, loading, error, reload } = useNotebooks();
+  const active = useNotebooks();
+  const cache = useWorkspaceCache();
+  const archived = useSearchParams().get("status") === "archived";
+  const archiveQuery = useQuery({
+    ...cache.resource<Project[]>("/projects?status=archived"),
+    enabled: archived,
+  });
+  const projects = archived ? (archiveQuery.data ?? []) : active.projects;
+  const loading = archived ? archiveQuery.isPending : active.loading;
+  const error = archived
+    ? archiveQuery.error
+      ? errorMessage(archiveQuery.error)
+      : ""
+    : active.error;
+  const reload = archived ? () => void archiveQuery.refetch() : active.reload;
   const [query, setQuery] = useState("");
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [notice, setNotice] = useState("");
@@ -27,7 +48,7 @@ export default function ProjectsPage() {
   return (
     <>
       <PageHeading
-        title="Notebooks"
+        title={archived ? "Archived notebooks" : "Notebooks"}
         description={`${projects.length} notebooks`}
         actions={
           <Button onClick={() => setAction({ mode: "create" })}>
@@ -36,6 +57,20 @@ export default function ProjectsPage() {
           </Button>
         }
       />
+      <nav className="notebook-status-nav" aria-label="Notebook status">
+        <Link
+          href="/app/projects"
+          aria-current={!archived ? "page" : undefined}
+        >
+          Active
+        </Link>
+        <Link
+          href="/app/projects?status=archived"
+          aria-current={archived ? "page" : undefined}
+        >
+          Archived
+        </Link>
+      </nav>
       {notice && (
         <p role="status" className="app-notice">
           {notice}
@@ -70,14 +105,20 @@ export default function ProjectsPage() {
         <div className="app-empty">
           <Folder className="mx-auto mb-4" size={28} strokeWidth={1.4} />
           <h2 className="font-editorial text-3xl">
-            {query ? "No matching notebooks." : "Give your ideas a home."}
+            {query
+              ? "No matching notebooks."
+              : archived
+                ? "No archived notebooks."
+                : "Give your ideas a home."}
           </h2>
           <p>
             {query
               ? "Try another name."
-              : "Start a notebook for a project, a topic, or whatever’s on your mind."}
+              : archived
+                ? "Archived notebooks appear here with Restore and Delete actions."
+                : "Start a notebook for a project, a topic, or whatever’s on your mind."}
           </p>
-          {!query && (
+          {!query && !archived && (
             <Button
               className="mt-6"
               onClick={() => setAction({ mode: "create" })}
@@ -86,6 +127,17 @@ export default function ProjectsPage() {
             </Button>
           )}
         </div>
+      ) : archived ? (
+        <ul className="notebook-archive-list" aria-label="Archived notebooks">
+          {matches.map((project) => (
+            <li key={project.id}>
+              <span>{project.name}</span>
+              <ActionMenu label={`Notebook actions for ${project.name}`}>
+                <NotebookActions project={project} onAction={setAction} />
+              </ActionMenu>
+            </li>
+          ))}
+        </ul>
       ) : (
         <section
           className="notebook-manager"

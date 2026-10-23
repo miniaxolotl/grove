@@ -2,6 +2,13 @@ import { createHash } from "node:crypto";
 export { createOpenAiSpeech, type SpeechProviders } from "./speech.ts";
 import { currentTelemetry, outcome } from "@lib/telemetry/context";
 import { z } from "zod";
+export {
+  createResearchProvider,
+  publicResearchUrl,
+  type ResearchProvider,
+  type ResearchProviderId,
+  type WebEvidence,
+} from "./research.ts";
 import {
   annotationSchema,
   topics,
@@ -18,6 +25,11 @@ export type InferenceOptions = {
     previousQuestions: string[];
     conversation?: unknown[];
     intent?: string;
+    webSources?: import("./research.ts").WebEvidence[];
+    researchIncomplete?: boolean;
+    tools?: Record<string, boolean>;
+    notebooks?: unknown[];
+    coverage?: { shown: number; total: number };
   };
 };
 export type Embedder = {

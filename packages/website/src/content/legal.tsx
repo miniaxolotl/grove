@@ -129,14 +129,25 @@ export const privacy: LegalDocument = {
             providers process information needed to perform their roles. Our AI
             providers process query and memory text for embeddings and
             classification, and generate titles, tags and source-linked
-            summaries from selected memories. You can disable organization and
-            summaries in Settings. If you enable speech, OpenAI receives
-            original audio when you choose Transcribe, or saved note text when
-            you prepare read-aloud audio. These independent features default off
-            and never run on anonymous shared reads. Generated speech is
-            temporary; saved transcripts follow your note history. OpenAI
-            applies its own data controls and retention policies. Turning a
-            feature off cannot recall data already sent.
+            summaries and Ask Grove replies from selected memories. You can
+            control these features independently in Settings.
+          </p>
+          <p>
+            Web search uses Exa and Research uses Tavily. When enabled in Ask
+            Grove’s Tools menu, these providers receive the research queries and
+            website URLs needed to search or read the web. Returned excerpts and
+            source links may be saved with your conversation or a note you
+            choose to create. You can disable either research tool for the
+            conversation and choose defaults for new chats.
+          </p>
+          <p>
+            If you enable speech, OpenAI receives original audio when you choose
+            Transcribe, or saved note text when you prepare read-aloud audio.
+            These independent features default off and never run on anonymous
+            shared reads. Generated speech is temporary; saved transcripts
+            follow your note history. OpenAI applies its own data controls and
+            retention policies. Turning a feature off cannot recall data
+            already sent.
           </p>
           <p>
             Authorized support and operations personnel may access information

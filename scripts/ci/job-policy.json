@@ -1,0 +1,10 @@
+{
+  "jobs": ["website", "contracts", "image"],
+  "rules": [
+    { "prefix": "packages/website/", "jobs": ["website"] },
+    { "prefix": "packages/api/", "jobs": ["contracts", "image"] },
+    { "prefix": "lib/", "jobs": ["website", "contracts", "image"] },
+    { "prefix": "packages/mcp/", "jobs": ["contracts", "image"] },
+    { "prefix": "packages/grove-", "jobs": ["contracts", "image"] }
+  ]
+}

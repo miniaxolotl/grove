@@ -1,10 +1,16 @@
 import type { Project } from "@/lib/dashboard-api";
 import { Dialog } from "./dialog";
 import { ProjectForm } from "./project-form";
+import { NotebookLifecycleDialog } from "./notebook-lifecycle";
 
 export type NotebookAction =
   | { mode: "create"; parentId?: string; project?: never }
-  | { mode: "rename" | "move"; project: Project; parentId?: never };
+  | { mode: "rename" | "move"; project: Project; parentId?: never }
+  | {
+      mode: "archive" | "restore" | "delete";
+      project: Project;
+      parentId?: never;
+    };
 export function NotebookDialog({
   action,
   close,
@@ -14,6 +20,18 @@ export function NotebookDialog({
   close: () => void;
   onSaved?: (project: Project) => void;
 }) {
+  if (
+    action.mode === "archive" ||
+    action.mode === "restore" ||
+    action.mode === "delete"
+  )
+    return (
+      <NotebookLifecycleDialog
+        project={action.project}
+        action={action.mode}
+        close={close}
+      />
+    );
   return (
     <Dialog
       title={

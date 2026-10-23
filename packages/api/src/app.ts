@@ -9,6 +9,9 @@ import {
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z, ZodError } from "zod";
+import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
+import { conversationHistorySchema } from "@lib/shared/conversation-history";
+import { searchConversationHistory } from "@lib/memory";
 import { Webhook } from "svix";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMemoryMcp, type ToolName } from "@lib/integration-core/mcp";
@@ -82,6 +85,9 @@ import {
 import {
   conversationCreateSchema,
   conversationTurnSchema,
+  toolSettingsSchema,
+  askToolsSchema,
+  defaultAskTools,
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
@@ -796,8 +802,35 @@ export function createApp(deps: AppDependencies) {
     });
   });
   app.get("/v1/projects", async (c) =>
-    c.json({ success: true, data: await service.projects(c.get("principal")) }),
+    c.json({
+      success: true,
+      data: await service.projects(
+        c.get("principal"),
+        z.enum(["active", "archived"]).parse(c.req.query("status") ?? "active"),
+      ),
+    }),
   );
+  app.get("/v1/projects/:id/lifecycle", async (c) =>
+    c.json({
+      success: true,
+      data: await service.previewProjectLifecycle(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  for (const action of ["archive", "restore", "delete"] as const)
+    app.post(`/v1/projects/:id/${action}`, async (c) =>
+      c.json({
+        success: true,
+        data: await service.projectLifecycle(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          action,
+          await body(c, notebookLifecycleSchema),
+        ),
+      }),
+    );
   app.post("/v1/briefs", async (c) =>
     c.json({
       success: true,
@@ -1085,6 +1118,46 @@ export function createApp(deps: AppDependencies) {
         c.get("principal"),
         await body(c, recallSchema),
         c.get("signal"),
+      ),
+    }),
+  );
+  app.get("/v1/ask-tools", async (c) =>
+    c.json({
+      success: true,
+      data: await service.access(
+        c.get("principal"),
+        "admin",
+        async ({ account }) => {
+          return {
+            defaults: askToolsSchema.parse(account.askTools ?? defaultAskTools),
+            available: {
+              exa: !!service.research.exa,
+              tavily: !!service.research.tavily,
+              organize: true,
+            },
+            dailyCalls: service.researchLimits.dailyCalls,
+          };
+        },
+      ),
+    }),
+  );
+  app.patch("/v1/conversations/:id/tools", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.configureTools(
+        c.get("principal"),
+        c.req.param("id"),
+        await body(c, toolSettingsSchema),
+      ),
+    }),
+  );
+  app.post("/v1/conversations/search", async (c) =>
+    c.json({
+      success: true,
+      data: await searchConversationHistory(
+        service,
+        c.get("principal"),
+        await body(c, conversationHistorySchema),
       ),
     }),
   );

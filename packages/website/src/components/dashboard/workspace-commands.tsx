@@ -137,9 +137,14 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
     // Native text shortcuts remain local; explicit app chords work in editors.
     if (
       isTyping(event.target) &&
-      !["note-save", "note-mode", "note-focus", "settings", "new"].includes(
-        command.id,
-      )
+      ![
+        "note-save",
+        "note-mode",
+        "note-focus",
+        "note-outline",
+        "settings",
+        "new",
+      ].includes(command.id)
     )
       return;
     event.preventDefault();
@@ -181,6 +186,7 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
                 commandDefinitions[id].shortcut,
               ]),
               ["Edit / preview note", shortcuts.mode],
+              ["Jump to heading", shortcuts.outline],
               ["Previous / next note in drawer", "← / →"],
               ["Navigate note list or commands", "↑ / ↓"],
               ["Open focused note or command", "Enter"],
@@ -212,11 +218,17 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
   );
 }
 
-export function CommandMenuButton() {
+export function CommandMenuButton({
+  menuItem = false,
+}: {
+  menuItem?: boolean;
+}) {
   const context = useContext(Context);
   return (
     <button
-      className="workspace-command-launcher"
+      className={
+        menuItem ? "note-mobile-menu-item" : "workspace-command-launcher"
+      }
       type="button"
       aria-label="Commands"
       title={`Commands (${shortcutHint(shortcuts.commands)})`}
@@ -224,7 +236,7 @@ export function CommandMenuButton() {
     >
       <Command size={16} aria-hidden="true" />
       <span>Commands</span>
-      <Shortcut>{shortcuts.commands}</Shortcut>
+      {!menuItem && <Shortcut>{shortcuts.commands}</Shortcut>}
     </button>
   );
 }

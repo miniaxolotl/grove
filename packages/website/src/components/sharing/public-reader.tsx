@@ -2,13 +2,13 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronRight,
-  Eye,
   FileText,
   Folder,
 } from "lucide-react";
 import type { PublicShare } from "@lib/shared/sharing";
 import { site } from "@/lib/site";
 import { Markdown } from "@/components/dashboard/markdown";
+import { noteHeadings } from "@/lib/note-headings";
 
 const dateFormat = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
@@ -29,10 +29,18 @@ export function PublicReader({
   const heading = data.note?.content.match(/^\s*#{1,6}\s+([^\n]*)(?:\n|$)/);
   // Only remove an exact duplicate. The summary title may be truncated, while
   // the reader must retain every character of the saved heading.
-  const content =
+  const removedTitleLength =
     data.note && heading && heading[1] === data.note.title
-      ? data.note.content.slice(heading[0].length)
-      : (data.note?.content ?? "");
+      ? heading[0].length
+      : 0;
+  const content = data.note?.content.slice(removedTitleLength) ?? "";
+  // Generate IDs before hiding the repeated title so duplicate-section suffixes
+  // still match authenticated links, then map offsets into the displayed body.
+  const headings = noteHeadings(data.note?.content ?? "");
+  const titleHeading = headings.find((item) => item.from < removedTitleLength);
+  const bodyHeadings = headings
+    .filter((item) => item.from >= removedTitleLength)
+    .map((item) => ({ ...item, from: item.from - removedTitleLength }));
   return (
     <article className="shared-reader" data-shared-content data-private>
       {path !== root && data.kind === "notebook" && (
@@ -42,11 +50,7 @@ export function PublicReader({
         </a>
       )}
       <header className="shared-heading">
-        <p className="shared-eyebrow">
-          <Eye size={14} aria-hidden="true" />
-          Shared {data.note ? "note" : "notebook"} · Read only
-        </p>
-        <h1>{title || "Untitled note"}</h1>
+        <h1 id={titleHeading?.id}>{title || "Untitled note"}</h1>
         {data.note && (
           <p className="shared-date">
             Updated{" "}
@@ -59,6 +63,7 @@ export function PublicReader({
       {data.note ? (
         <Markdown
           media={{ noteId: data.note.id }}
+          headings={bodyHeadings}
           shared={{
             root,
             origin: site.url,

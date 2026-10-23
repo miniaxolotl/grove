@@ -40,7 +40,7 @@ pagination, independent public limits and revocation.
 | `remember` | Durable save or versioned correction           | `operationId`, `content`, `kind`, `projectId`, `source`; correction: `id`, `expectedVersion` |
 | `recall`   | Bounded active context                         | `query`, `projectId`, `includePersonal`, optional `taskId`                                   |
 | `memories` | Inspect IDs, versions, provenance and statuses | `query`, `projectId`, `kind`, `status`, `cursor`, `limit`                                    |
-| `forget`   | Permanent exact-ID deletion                    | `operationId`, `items: [{id, expectedVersion}]`                                              |
+| `forget`   | Exact-ID soft deletion; retained history is hidden | `operationId`, `items: [{id, expectedVersion}]`                                              |
 
 Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope is
 `projectId: null`. Project IDs are account-owned UUIDs. A handoff requires a stable
@@ -84,6 +84,8 @@ Responses use `{success: true, data}` or
 | `POST /v1/connect/:id/approve`                                         | Owning website session; transactional project link and grant                     |
 | `POST /v1/connect/:id/cancel`                                          | Request's agent connection or owning website session                             |
 | `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                     | Approved scope; create needs all-project access or website session               |
+| `GET /v1/projects?status=archived`; `GET /v1/projects/:id/lifecycle` | Archived listing and full-subtree preview; owner website session only |
+| `POST /v1/projects/:id/archive`, `/restore`, `/delete` | Owner-only, version/snapshot-checked subtree lifecycle; deletion is soft only |
 | `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                   |
 | `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                    |
 | `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                     |
@@ -94,6 +96,7 @@ Responses use `{success: true, data}` or
 | `POST /v1/recall`                                                      | `memory:read`                                                                    |
 | `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                              |
 | `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`     | Owning website session only; saved chat history                                  |
+| `POST /v1/conversations/search` | Owner-only history search: `{ query?, after? }`; titles/questions, 30 results and signed cursor |
 | `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`  | Owning website session only; contextual replies and previewed note changes       |
 | `POST /v1/briefs`; `POST /v1/briefs/refresh`                           | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
 | `POST /v1/memories/:id/reprocess`                                      | Scoped `memory:write`; body `{expectedVersion}`                                  |
@@ -126,6 +129,13 @@ optional `projectId` and `includePersonal`. Submit turns with a client UUID, `qu
 (up to 6,000 characters), `format` (`plain`/`markdown`), and `expectedVersion` from
 the conversation. Retries reuse the same body/UUID; changed payloads conflict.
 `GET /v1/conversations?after=<last-id>` returns 30 recent conversations per page.
+The history browser uses `POST /v1/conversations/search` with optional `query`
+(up to 200 characters) and `after` (opaque signed cursor). It searches titles and
+user questions with literal case-insensitive matching, returning summary fields,
+a bounded question `preview`, `turnCount` and `nextCursor`. Search text stays in
+the body. Cursors bind account and query and retain the exact PostgreSQL timestamp,
+so deleting the previous page's final row does not break pagination. Results are
+most-recent-first; deleted/foreign chats and assistant payloads are excluded.
 The cursor identifies an account-owned row; it contains no query text. History
 pagination reflects concurrent activity rather than a frozen snapshot.
 

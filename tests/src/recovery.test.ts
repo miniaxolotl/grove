@@ -114,6 +114,7 @@ test("isolated restore replays current deletions and revocations without changin
         status: "pending",
         result: JSON.stringify({
           proposal: { status: "proposed", content: "Old preview" },
+          organization: { status: "proposed", notebooks: [] },
         }),
       });
       await db("memories").insert([
@@ -272,6 +273,15 @@ test("isolated restore replays current deletions and revocations without changin
       askEnabled: false,
     });
     await source("accounts").where({ id: a }).update(preferences);
+    await source("accounts")
+      .where({ id: a })
+      .update({
+        askTools: JSON.stringify({ exa: false, tavily: true, organize: false }),
+      });
+    await source("research_global_usage").insert({
+      month: "2026-10-01",
+      microdollars: 12000,
+    });
     await source("subject_authority").insert({
       subject: "recovery_b",
       eventAt: "2000",
@@ -369,6 +379,15 @@ test("isolated restore replays current deletions and revocations without changin
     const restoredTurn = await target("conversation_turns").first();
     assert.equal(restoredTurn.status, "failed");
     assert.equal(restoredTurn.result.proposal.status, "unavailable");
+    assert.equal(restoredTurn.result.organization.status, "unavailable");
+    assert.equal(
+      (await target("accounts").where({ id: a }).first()).askTools.exa,
+      false,
+    );
+    assert.equal(
+      Number((await target("research_global_usage").first()).microdollars),
+      12000,
+    );
     for (const table of [
       "memory_embeddings",
       "jobs",

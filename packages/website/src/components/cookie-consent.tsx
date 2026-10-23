@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { preferencesVisible } from "@/lib/cookie-consent";
 import {
   consentPending,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/cookie-consent";
 
 export function WebsiteCookieConsent() {
+  const sharedReader = usePathname().startsWith("/s/");
   const preferences = useSyncExternalStore(
     subscribeConsent,
     preferencesVisible,
@@ -31,7 +33,7 @@ export function WebsiteCookieConsent() {
       () => capturePageview(location.pathname),
     );
   }, []);
-  return pending ? (
+  return pending && !sharedReader ? (
     <aside
       className="cookie-notice"
       aria-label="Cookie choices"

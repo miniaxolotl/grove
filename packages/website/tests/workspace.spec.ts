@@ -1,7 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page, type Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
+import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { chooseOption } from "./fixtures/select";
+import { openNoteAction } from "./fixtures/note-action";
 import {
   listSchema,
   projectSchema,
@@ -40,6 +44,7 @@ const project = {
   identity: "git:github.com/example/website",
   parentId: null as string | null,
   version: 1,
+  status: "active" as "active" | "archived",
 };
 const note: Memory = {
   id: "00000000-0000-4000-a000-000000000011",
@@ -85,6 +90,353 @@ const handoff: Memory = {
     tags: ["frontend"],
   },
 };
+
+async function notebookLifecycleFixture(page: Page) {
+  const state = await fixture(page, [handoff]);
+  const child = {
+    ...project,
+    id: crypto.randomUUID(),
+    name: "Project research",
+    parentId: project.id,
+  };
+  state.projects.push(child);
+  const removed = new Set<string>();
+  const operations = new Map<string, unknown>();
+  let loseNext = false;
+  const lifecycleCalls: unknown[] = [];
+  const preview = (id: string) => {
+    const current = state.projects.find((p) => p.id === id)!;
+    const ids = new Set([id]);
+    for (let i = 0; i < state.projects.length; i++)
+      state.projects.forEach((p) => {
+        if (p.parentId && ids.has(p.parentId)) ids.add(p.id);
+      });
+    const notes = [...state.records.values()].filter(
+      (n) => n.projectId && ids.has(n.projectId),
+    );
+    return {
+      project: current,
+      projectIds: [...ids],
+      notebooks: ids.size,
+      notes: notes.length,
+      fingerprint: createHash("sha256")
+        .update(JSON.stringify([state.projects, [...state.records.values()]]))
+        .digest("hex"),
+      canRestore:
+        current.status === "archived" &&
+        (!current.parentId ||
+          state.projects.find((p) => p.id === current.parentId)?.status ===
+            "active"),
+    };
+  };
+  await page.route("**/api/grove/projects**", async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace("/api/grove", "");
+    let data: unknown;
+    if (route.request().method() === "GET" && path === "/projects")
+      data = state.projects.filter(
+        (p) =>
+          !removed.has(p.id) &&
+          p.status === (url.searchParams.get("status") ?? "active"),
+      );
+    else if (path.endsWith("/lifecycle")) data = preview(path.split("/")[2]);
+    else if (/\/(archive|restore|delete)$/.test(path)) {
+      const input = notebookLifecycleSchema.parse(
+        route.request().postDataJSON(),
+      );
+      lifecycleCalls.push(input);
+      if (operations.has(input.operationId))
+        data = operations.get(input.operationId);
+      else {
+        const current = preview(path.split("/")[2]);
+        if (
+          input.fingerprint !== current.fingerprint ||
+          input.expectedVersion !== current.project.version
+        ) {
+          await route.fulfill({
+            status: 409,
+            json: {
+              success: false,
+              error: {
+                code: "version_conflict",
+                message:
+                  "Your notebooks or notes changed. Review the affected contents again.",
+              },
+            },
+          });
+          return;
+        }
+        const action = path.split("/").at(-1)!;
+        for (const p of state.projects.filter((p) =>
+          current.projectIds.includes(p.id),
+        )) {
+          if (action === "delete") removed.add(p.id);
+          else {
+            p.status = action === "archive" ? "archived" : "active";
+            p.version++;
+          }
+        }
+        for (const [id, note] of state.records) {
+          if (!note.projectId || !current.projectIds.includes(note.projectId))
+            continue;
+          if (action === "delete") state.records.delete(id);
+          else
+            state.records.set(id, {
+              ...note,
+              status: action === "archive" ? "archived" : "active",
+              version: note.version + 1,
+            });
+        }
+        data = { action, projectIds: current.projectIds };
+        operations.set(input.operationId, data);
+      }
+    } else {
+      await route.fallback();
+      return;
+    }
+    if (loseNext && /\/(archive|restore|delete)$/.test(path)) {
+      loseNext = false;
+      await route.abort("failed");
+      return;
+    }
+    await route.fulfill({ json: { success: true, data } });
+  });
+  return {
+    ...state,
+    child,
+    removed,
+    lifecycleCalls,
+    loseNextResponse: () => {
+      loseNext = true;
+    },
+  };
+}
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`notebook lifecycle at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("confirms all contents, cancels safely, restores archives and soft-deletes through notebook actions", async ({
+      page,
+    }, info) => {
+      const state = await notebookLifecycleFixture(page);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(`${base}/app/projects/${project.id}`);
+      await page
+        .getByRole("button", { name: "Notebook options", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Archive notebook", exact: true })
+        .click();
+      let dialog = page.getByRole("dialog", {
+        name: "Archive notebook",
+        exact: true,
+      });
+      await expect(dialog).toContainText("2 notebooks and 1 note");
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      expect(state.lifecycleCalls).toHaveLength(0);
+      await page.goto(`${base}/app/projects`);
+      await page
+        .getByRole("button", {
+          name: `More actions for ${project.name}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Archive notebook", exact: true })
+        .click();
+      dialog = page.getByRole("dialog", {
+        name: "Archive notebook",
+        exact: true,
+      });
+      await expect(
+        dialog.getByRole("button", { name: "Archive notebooks", exact: true }),
+      ).toBeEnabled();
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`archive-notebook-${width}.png`),
+        fullPage: true,
+      });
+      await dialog
+        .getByRole("button", { name: "Archive notebooks", exact: true })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "Archived notebooks", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("list", { name: "Archived notebooks" }),
+      ).toContainText(state.child.name);
+      await page.screenshot({
+        path: info.outputPath(`archived-notebooks-${width}.png`),
+        fullPage: true,
+      });
+      await page
+        .getByRole("button", {
+          name: `Notebook actions for ${project.name}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Restore notebook", exact: true })
+        .click();
+      dialog = page.getByRole("dialog", {
+        name: "Restore notebook",
+        exact: true,
+      });
+      await dialog
+        .getByRole("button", { name: "Restore notebooks", exact: true })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "Notebooks", exact: true }),
+      ).toBeVisible();
+      expect(state.records.get(handoff.id)?.status).toBe("active");
+      // Sidebar uses the same confirmation, including on narrow/touch layouts.
+      if (width < 1024)
+        await page
+          .getByRole("button", { name: "Notebooks", exact: true })
+          .click();
+      const sidebar = page.getByRole("complementary", {
+        name: "Workspace sidebar",
+      });
+      await sidebar
+        .getByRole("button", {
+          name: `Notebook actions for ${project.name}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Delete notebook…", exact: true })
+        .click();
+      dialog = page.getByRole("dialog", {
+        name: "Delete notebook",
+        exact: true,
+      });
+      await expect(dialog).toContainText("soft deletion");
+      await expect(dialog).toContainText("not permanently erased");
+      await page.screenshot({
+        path: info.outputPath(`delete-notebook-${width}.png`),
+        fullPage: true,
+      });
+      const overflow = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>("body *")]
+          .filter(
+            (node) =>
+              node.getClientRects().length &&
+              node.getBoundingClientRect().right > innerWidth,
+          )
+          .map((node) => ({
+            tag: node.tagName,
+            class: node.className,
+            right: node.getBoundingClientRect().right,
+          }))
+          .slice(0, 20),
+      );
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        JSON.stringify(overflow),
+      ).toBe(true);
+      await dialog
+        .getByRole("button", { name: "Delete notebooks", exact: true })
+        .click();
+      await expect(dialog).not.toBeVisible();
+      expect(state.removed.size).toBe(2);
+      expect(state.revisions.get(handoff.id)?.[0].content).toBe(
+        handoff.content,
+      );
+    });
+  });
+}
+
+test("notebook deletion freezes reviewed scope, re-reviews conflicts and retries an uncertain response with the same operation", async ({
+  page,
+}) => {
+  const state = await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/projects`);
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete notebook…", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Delete notebook",
+    exact: true,
+  });
+  await expect(dialog).toContainText("2 notebooks and 1 note");
+  state.projects.push({
+    ...project,
+    id: crypto.randomUUID(),
+    parentId: project.id,
+    name: "Newly added",
+  });
+  await dialog
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(dialog).toContainText("Review the affected contents again");
+  await expect(
+    dialog.getByRole("button", { name: "Delete notebooks", exact: true }),
+  ).toBeDisabled();
+  await dialog
+    .getByRole("button", { name: "Review current contents", exact: true })
+    .click();
+  await expect(dialog).toContainText("3 notebooks and 1 note");
+  state.loseNextResponse();
+  await dialog
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  expect(state.lifecycleCalls).toHaveLength(3);
+  expect(state.lifecycleCalls[2]).toEqual(state.lifecycleCalls[1]);
+});
+
+test("notebook archive never discards a retained local draft", async ({
+  page,
+}) => {
+  await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/memories/${handoff.id}?mode=edit`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("Unsaved writing ".repeat(450));
+  const notebooksToggle = page.getByRole("button", {
+    name: "Notebooks",
+    exact: true,
+  });
+  if (await notebooksToggle.isVisible()) await notebooksToggle.click();
+  await page
+    .getByRole("link", { name: "Manage notebooks", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Archive notebook", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Archive notebook",
+    exact: true,
+  });
+  await expect(dialog).toContainText(
+    "Your local writing will not be discarded",
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Archive notebooks", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.goBack();
+  await expect(editor).toContainText("Unsaved writing");
+});
 
 test("sidebar remains reachable with long names, short height and enlarged text", async ({
   page,
@@ -278,14 +630,15 @@ for (const width of [1440, 390, 320]) {
       await expect(panel).toBeHidden();
       await expect(trigger).toBeFocused();
       expect(await rows.first().boundingBox()).toEqual(before);
-      const sortBefore = await page.locator(".library-sort").boundingBox();
+      await trigger.click();
       await chooseOption(
-        page.getByRole("combobox", { name: "Sort notes" }),
+        panel.getByRole("combobox", { name: "Sort notes" }),
         "updated_desc",
       );
-      expect(await page.locator(".library-sort").boundingBox()).toEqual(
-        sortBefore,
-      );
+      // Sorting may reorder rows and drop date headings; the page controls
+      // around the list must keep their geometry.
+      expect(await trigger.boundingBox()).toEqual(triggerBefore);
+      await panel.getByRole("button", { name: "Done", exact: true }).click();
       const viewBefore = await page
         .getByRole("group", { name: "Note view" })
         .boundingBox();
@@ -422,7 +775,7 @@ test("touch hit areas are separate and menus scroll within a short viewport", as
       ".notebook-drag-handle",
       ".notebook-tree-actions .app-icon",
       ".workspace-command-launcher",
-      ".workspace-utilities > .app-icon",
+      ".workspace-search-launcher",
     ]) {
       const box = (await page.locator(selector).first().boundingBox())!;
       expect(box.width, selector).toBeGreaterThanOrEqual(44);
@@ -611,6 +964,9 @@ for (const width of [1440, 768, 390, 320]) {
         notebooks.getByRole("link", { name: "Working notes", exact: true }),
       ).toBeVisible();
       await expect(book).toHaveAttribute("aria-current", "page");
+      await sidebar.screenshot({
+        path: info.outputPath(`sidebar-expanded-${width}.png`),
+      });
       const heading = await notebooks
         .locator(".notebook-explorer-heading")
         .boundingBox();
@@ -810,6 +1166,9 @@ for (const width of [1440, 768, 390, 320]) {
       });
       await expect(outline).toBeVisible();
       expect(await geometry()).toEqual(before);
+      await page.screenshot({
+        path: info.outputPath(`note-outline-${width}.png`),
+      });
       await outline
         .getByRole("button", { name: "Next steps", exact: true })
         .click();
@@ -868,6 +1227,201 @@ for (const width of [1440, 768, 390, 320]) {
 
 const checklist =
   "# Checklists\n\n- [ ] Repeat\n  - [x] Repeat\n- [ ] Ship **the note**\n\n> - [ ] Quoted task\n\n1. [ ] Ordered task\n\n```md\n- [ ] Example only\n```\n\n\\- [ ] Escaped example";
+test("viewer checkbox saves start immediately and drain newer toggles without a typing delay", async ({
+  page,
+}) => {
+  const state = await fixture(page, [{ ...note, content: checklist }]);
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let requests = 0;
+  await page.route("**/api/grove/memories", async (route) => {
+    requests++;
+    if (requests === 1) {
+      started.resolve();
+      await release.promise;
+    }
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/memories/${note.id}`);
+  const task = page.getByRole("checkbox", { name: "Ship the note" });
+  await expect(task).toBeVisible();
+  // No app timer can elapse: task writes must bypass the typing debounce.
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  await task.click();
+  await expect.poll(() => requests).toBe(1);
+  await started.promise;
+  await task.click();
+  await expect(task).not.toBeChecked();
+  release.resolve();
+  await expect.poll(() => requests).toBe(2);
+  await expect.poll(() => state.records.get(note.id)?.version).toBe(3);
+  expect(state.records.get(note.id)?.content).toBe(checklist);
+  await expect(task).toBeFocused();
+});
+
+test("first autosave keeps the document, focus, scroll and undo history through routing", async ({
+  page,
+  browserName,
+}) => {
+  const state = await fixture(page, []);
+  const release = Promise.withResolvers<void>();
+  let started = false;
+  await page.route("**/api/grove/memories", async (route) => {
+    started = true;
+    await release.promise;
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/notes/new`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await expect(editor).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  const original = await editor.elementHandle();
+  const content = `# A continuous document\n\n${"A paragraph to keep the page scrolling.\n\n".repeat(45)}`;
+  await editor.fill(content);
+  await page.clock.runFor(500);
+  await expect.poll(() => started).toBe(true);
+  // Separate the next keystroke from the initial paste's undo group.
+  await page.clock.runFor(100);
+  await page.clock.resume();
+  await editor.press("End");
+  await editor.press("x");
+  // Finish CodeMirror's cursor-reveal measurement before choosing a reading position.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  const scroll = await page
+    .locator(".writing-layout")
+    .evaluate(async (node) => {
+      node.scrollTop = 180;
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      return node.scrollTop;
+    });
+  const before = await page.locator(".writing-layout").boundingBox();
+  release.resolve();
+  await expect(page).toHaveURL(/\/memories\/[^/]+\?mode=edit$/);
+  expect(await editor.evaluate((node, prior) => node === prior, original)).toBe(
+    true,
+  );
+  await expect(editor).toBeFocused();
+  expect(await page.locator(".writing-layout").boundingBox()).toEqual(before);
+  expect(
+    await page.locator(".writing-layout").evaluate((node) => node.scrollTop),
+  ).toBe(scroll);
+  await editor.press(`${browserName === "webkit" ? "Meta" : "Control"}+z`);
+  await expect(page.locator(".editor-footer")).toContainText(
+    `${content.length.toLocaleString()} / 6,000`,
+  );
+  await editor.press(
+    `${browserName === "webkit" ? "Meta" : "Control"}+Shift+Z`,
+  );
+  await expect(page.locator(".editor-footer")).toContainText(
+    `${(content.length + 1).toLocaleString()} / 6,000`,
+  );
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  expect(state.records.size).toBe(1);
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Revision history", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Revision history" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await page.keyboard.press("Control+Alt+n");
+  await expect(page.locator(".editor-footer")).toContainText(
+    "0 words · 0 / 6,000",
+  );
+  await page.goBack();
+  await expect(page.locator(".note-editor-location h1")).toHaveText(
+    "A continuous document",
+  );
+  await page.reload();
+  await expect(page.locator(".note-editor-location h1")).toHaveText(
+    "A continuous document",
+  );
+  await expect(page.locator(".editor-footer")).toContainText(
+    `${(content.length + 1).toLocaleString()} / 6,000`,
+  );
+});
+
+test("focus mode switches reading and writing and the outline navigates normalized headings", async ({
+  page,
+}, info) => {
+  await fixture(page, [
+    {
+      ...note,
+      content: `# Outline\r\n\r\n${"Some context.\r\n\r\n".repeat(30)}## **A section**\r\n\r\n${"More context.\r\n\r\n".repeat(25)}Last section\r\n------------\r\n\r\n${"Last paragraph.\r\n\r\n".repeat(25)}`,
+    },
+  ]);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
+  const menuFocus = page
+    .locator(".action-menu:popover-open")
+    .getByRole("button", { name: "Focus mode", exact: true });
+  if (await menuFocus.isVisible()) await menuFocus.click();
+  else {
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Focus mode", exact: true }).click();
+  }
+  await expect(page.locator(".app-sidebar")).not.toBeVisible();
+  for (const mode of ["Write", "Preview"]) {
+    await page.getByRole("button", { name: mode, exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: mode, exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page
+      .getByRole("button", { name: "Note outline", exact: true })
+      .click();
+    const outline = page.getByRole("dialog", { name: "Note outline" });
+    await outline
+      .getByRole("button", { name: "A section", exact: true })
+      .click();
+    await expect(outline).not.toBeVisible();
+    if (mode === "Preview")
+      await expect(
+        page.getByRole("heading", { name: "A section", exact: true }),
+      ).toBeFocused();
+    else
+      await expect(
+        page.getByRole("textbox", { name: "What should stay with you?" }),
+      ).toBeFocused();
+    expect(
+      await page.locator(".writing-layout").evaluate((node) => node.scrollTop),
+    ).toBeGreaterThan(100);
+  }
+  await page.getByRole("button", { name: "Note outline", exact: true }).click();
+  const outline = page.getByRole("dialog", { name: "Note outline" });
+  await expect(
+    outline.getByRole("button", { name: "A section", exact: true }),
+  ).toHaveAttribute("aria-current", "location");
+  await page.screenshot({ path: info.outputPath("focus-outline.png") });
+  await outline
+    .getByRole("button", { name: "Last section", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Last section", exact: true }),
+  ).toBeFocused();
+  await page
+    .getByRole("button", { name: "Exit focus mode", exact: true })
+    .click();
+  await expect(page.locator(".editor-focus")).toHaveCount(0);
+  if (page.viewportSize()!.width < 1024) {
+    await expect(page.locator(".app-sidebar")).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Back to notes", exact: true }),
+    ).toBeVisible();
+  } else await expect(page.locator(".app-sidebar")).toBeVisible();
+});
 for (const width of [1440, 390]) {
   test.describe(`viewer tasks at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
@@ -1135,6 +1689,23 @@ test("mobile note controls leave room to read and retain selection for touch for
       (await drawer.locator(".writing-layout").boundingBox())!.height,
     ).toBeGreaterThan(400);
     await page.screenshot({ path: info.outputPath("compact-reader-320.png") });
+    await page.goto(`${base}/app/memories/${note.id}`);
+    const fullPageEditor = page.locator(".note-editor-full");
+    await expect(fullPageEditor).toBeVisible();
+    for (const viewport of [
+      { width: 320, height: 750 },
+      { width: 390, height: 844 },
+      { width: 768, height: 844 },
+      { width: 390, height: 480 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(
+        page.getByRole("complementary", { name: "Workspace sidebar" }),
+      ).toBeHidden();
+      const bounds = (await fullPageEditor.boundingBox())!;
+      expect(bounds.y).toBe(0);
+      expect(bounds.y + bounds.height).toBeCloseTo(viewport.height, 0);
+    }
   } finally {
     await context.close();
   }
@@ -1148,12 +1719,25 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
   await page.goto(`${base}/app/memories/${note.id}`);
   for (const width of [320, 390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 844 });
+    const target = await page.evaluate(() =>
+      matchMedia("(any-pointer: coarse), (max-width: 600px)").matches ? 44 : 36,
+    );
     for (const name of ["Export", "Delete note…"]) {
-      const control = page.getByRole("button", { name, exact: true });
+      const direct = page.getByRole("button", { name, exact: true });
+      const compact = !(await direct.isVisible());
+      if (compact)
+        await page
+          .getByRole("button", { name: "Note actions", exact: true })
+          .click();
+      const control = page.getByRole("button", {
+        name: compact && name === "Export" ? "Export…" : name,
+        exact: true,
+      });
       await expect(control).toBeInViewport();
       const bounds = (await control.boundingBox())!;
-      expect(bounds.width).toBeGreaterThanOrEqual(44);
-      expect(bounds.height).toBeGreaterThanOrEqual(44);
+      expect(bounds.width).toBeGreaterThanOrEqual(target);
+      expect(bounds.height).toBeGreaterThanOrEqual(target);
+      if (compact) await page.keyboard.press("Escape");
     }
     expect(
       await page
@@ -1177,13 +1761,13 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
   await actions
     .getByRole("button", { name: "Focus mode", exact: true })
     .click();
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   const confirm = page.getByRole("dialog", { name: "Delete note?" });
   await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Delete note…", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeFocused();
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await page.screenshot({ path: info.outputPath("export-390.png") });
   expect(
@@ -1203,7 +1787,7 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
       ".note-editor-bar { font-size: 200%; } .note-editor-bar button { font-size: 1em; }",
   });
   await expect(
-    page.getByRole("button", { name: "Export", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeInViewport();
   expect(
     await page
@@ -1267,7 +1851,7 @@ test("one wide note workspace preserves editor history, toggles with shortcuts a
   await editor.press("Control+e");
   const before = await drawer.locator(".writing-paper").boundingBox();
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await drawer.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(drawer, "Export");
   await page
     .getByRole("button", { name: "Copy Markdown", exact: true })
     .click();
@@ -1350,12 +1934,12 @@ test("direct delete can discard an invalid dirty draft without saving it", async
     name: "What should stay with you?",
   });
   await editor.fill("A draft that exceeds the save limit. ".repeat(200));
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   const dialog = page.getByRole("dialog", { name: "Delete note?" });
   await expect(dialog).toContainText("local draft");
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(editor).toContainText("exceeds the save limit");
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   await dialog
     .getByRole("button", { name: "Delete note and discard draft" })
     .click();
@@ -1383,7 +1967,7 @@ test("deletion waits for a held save and uses the revision it produced", async (
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill("# Saved before deletion");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await page.getByRole("button", { name: "Delete note…", exact: true }).click();
+  await openNoteAction(page, "Delete note…");
   const dialog = page.getByRole("dialog", { name: "Delete note?" });
   await expect(dialog).toContainText("Finishing the pending save");
   await expect(
@@ -1478,7 +2062,7 @@ test("export downloads exact unsaved Markdown and preserves a denied clipboard f
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill(content);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await expect(dialog).toContainText("Includes unsaved changes");
   const download = page.waitForEvent("download");
@@ -1535,7 +2119,7 @@ test("row export reads current content and first-save routing retains the export
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill("# First save export");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   await expect(dialog).toContainText("Includes unsaved changes");
   gate.resolve();
   await expect(page).toHaveURL(/\/app\/memories\/[^/]+\?mode=edit$/);
@@ -1575,7 +2159,7 @@ test("PDF load failure keeps Markdown available and cancellation terminates pend
   });
   await page.route("**/note-pdf.worker.ts", (route) => route.abort("failed"));
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText(
@@ -1626,7 +2210,7 @@ test("PDF export contains paginated searchable Markdown with safe links and Unic
       external.push(request.url());
   });
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   const pending = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
@@ -1714,7 +2298,7 @@ Next: share the draft, gather a little feedback, and make one careful improvemen
       fonts.push(request.url());
   });
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   expect(fonts).toEqual([]);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
@@ -1760,7 +2344,7 @@ test("PDF code-font load failure leaves source downloads usable and supports ret
     route.abort("failed"),
   );
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const dialog = page.getByRole("dialog", { name: "Export note", exact: true });
   await dialog.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText(
@@ -1807,7 +2391,7 @@ test("PDF layout wraps long code and wide tables without clipped or missing cont
     "End of large record. |\n\nFinal layout marker.";
   await fixture(page, [{ ...note, content }]);
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(page, "Export");
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "PDF (.pdf)", exact: true }).click();
   const file = await download;
@@ -2210,7 +2794,7 @@ for (const width of [1440, 768, 390, 320]) {
       await expect(
         page.getByRole("button", { name: "Write", exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: /^Commands/ }).click();
+      await openNoteAction(page, "Commands");
       const menu = page.getByRole("dialog", { name: "Command menu" });
       const input = menu.getByRole("combobox", { name: "Search commands" });
       await expect(input).toBeFocused();
@@ -2301,7 +2885,10 @@ for (const width of [1440, 768, 390, 320]) {
       ).toEqual([]);
       await page.keyboard.press("Escape");
       await expect(
-        page.getByRole("button", { name: /^Commands/ }),
+        page.getByRole("button", {
+          name: width < 1024 ? "Note actions" : "Commands",
+          exact: true,
+        }),
       ).toBeFocused();
     });
   });
@@ -2418,7 +3005,7 @@ test("workspace shortcuts respect composition, modifiers and nested dialog scope
     }
   });
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.locator(".note-delete-button").click();
+  await openNoteAction(page, "Delete note…");
   const confirmation = page.getByRole("dialog", { name: /Delete/ });
   await expect(confirmation).toBeVisible();
   await page.keyboard.press("Control+Shift+p");
@@ -2446,7 +3033,7 @@ test("palettes keep dismissal and results reachable in landscape, zoom and enlar
   await page.setViewportSize({ width: 844, height: 260 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: /^Commands/ }).click();
+  await openNoteAction(page, "Commands");
   const menu = page.getByRole("dialog", { name: "Command menu" });
   const input = menu.getByRole("combobox", { name: "Search commands" });
   await expect(input).toBeFocused();
@@ -2479,7 +3066,7 @@ test("palettes keep dismissal and results reachable in landscape, zoom and enlar
     await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
     // CDP pointer hit testing does not account for the panned pinch origin.
     // Native keyboard activation still exercises opening and closing at 2×.
-    await page.getByRole("button", { name: /^Commands/ }).press("Enter");
+    await page.keyboard.press("Control+Shift+p");
     await expect(input).toBeFocused();
     await expect
       .poll(async () =>
@@ -2810,7 +3397,7 @@ test("long project names remain inside destinations at every breakpoint", async 
     page
       .getByRole("navigation", { name: "Workspace help and policies" })
       .getByRole("link", { name: "Archive" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });
 
 test("search debounces automatically and source, date, and lifetime refine all results", async ({
@@ -3703,6 +4290,37 @@ async function fixture(page: Page, initial = [note, handoff]) {
       pair.dismissed = input.dismissed;
       pair.reviewVersion++;
       data = { reviewVersion: pair.reviewVersion, dismissed: pair.dismissed };
+    } else if (path === "/ask-tools") {
+      data = {
+        defaults: { exa: true, tavily: false, organize: true },
+        available: { exa: true, tavily: true, organize: true },
+        dailyCalls: 20,
+      };
+    } else if (path === "/conversations/search") {
+      const input = conversationHistorySchema.parse(body);
+      const matching = [...chats.values()]
+        .reverse()
+        .filter((chat) =>
+          `${chat.title} ${chat.turns.map((turn) => turn.question).join(" ")}`
+            .toLowerCase()
+            .includes(input.query.toLowerCase()),
+        );
+      const after = Number(input.after ?? 0);
+      data = {
+        items: matching.slice(after, after + 30).map((chat) => ({
+          id: chat.id,
+          title: chat.title,
+          scope: chat.scope,
+          updatedAt: chat.updatedAt,
+          version: chat.version,
+          preview:
+            chat.turns.find((turn) =>
+              turn.question.toLowerCase().includes(input.query.toLowerCase()),
+            )?.question ?? "",
+          turnCount: chat.turns.length,
+        })),
+        nextCursor: matching.length > after + 30 ? String(after + 30) : null,
+      };
     } else if (path === "/conversations") {
       if (request.method() === "POST") {
         const { id, ...scope } = conversationCreateSchema.parse(body);
@@ -3711,6 +4329,8 @@ async function fixture(page: Page, initial = [note, handoff]) {
             id,
             scope,
             title: "New conversation",
+            tools: { exa: true, tavily: false, organize: true },
+            toolsVersion: 0,
             version: 0,
             updatedAt: new Date().toISOString(),
             turns: [],
@@ -3719,7 +4339,16 @@ async function fixture(page: Page, initial = [note, handoff]) {
       } else data = { items: [...chats.values()].reverse(), nextCursor: null };
     } else if (path.startsWith("/conversations/")) {
       const chat = chats.get(path.split("/")[2])!;
-      if (request.method() === "DELETE") {
+      if (path.endsWith("/tools")) {
+        const input = body as {
+          tools: Conversation["tools"];
+          expectedVersion: number;
+        };
+        if (chat.toolsVersion !== input.expectedVersion) return conflict();
+        chat.tools = input.tools;
+        chat.toolsVersion++;
+        data = chat;
+      } else if (request.method() === "DELETE") {
         chats.delete(chat.id);
         data = { deleted: true };
       } else if (path.endsWith("/turns")) {
@@ -3743,6 +4372,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
             createdAt: new Date().toISOString(),
             result: {
               message: "",
+              webStatements: [],
               statements: sources.length
                 ? [
                     {
@@ -3800,6 +4430,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
           ...input,
           parentId: input.parentId ?? null,
           version: 1,
+          status: "active" as const,
         };
         projects.push(created);
         data = created;
@@ -3941,8 +4572,340 @@ async function fixture(page: Page, initial = [note, handoff]) {
     else throw new Error(`Unexpected fixture request: ${path}`);
     await route.fulfill({ json: { success: true, data } });
   });
-  return { records, calls, projects, chats, pairs };
+  return { records, calls, projects, chats, pairs, revisions };
 }
+
+function savedHistory(
+  title: string,
+  question: string,
+  updatedAt = new Date().toISOString(),
+): Conversation {
+  return {
+    id: crypto.randomUUID(),
+    title,
+    scope: { includePersonal: false },
+    version: 1,
+    tools: { exa: true, tavily: false, organize: true },
+    toolsVersion: 0,
+    updatedAt,
+    turns: [
+      {
+        id: crypto.randomUUID(),
+        question,
+        format: "plain",
+        expectedVersion: 0,
+        status: "ready",
+        error: null,
+        createdAt: updatedAt,
+        result: {
+          message: "A saved conversation to revisit. ".repeat(80),
+          webStatements: [],
+          statements: [],
+          sources: [],
+          proposal: null,
+        },
+      },
+    ],
+  };
+}
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`conversation history at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("searches saved questions, groups readable rows, reviews from the start and confirms deletion", async ({
+      page,
+    }, info) => {
+      const state = await fixture(page, []);
+      const trip = savedHistory(
+        "Planning a slow weekend in Kyoto",
+        "Which garden should we visit after lunch?",
+      );
+      const recipes = savedHistory(
+        "Cocktails to make with friends",
+        "Keep the recipe for a Negroni",
+        "2026-09-01T10:00:00Z",
+      );
+      const work = savedHistory(
+        "Website launch checklist and the remaining accessibility improvements",
+        "Review keyboard navigation and the smaller screens",
+      );
+      state.chats.set(recipes.id, recipes);
+      state.chats.set(trip.id, trip);
+      state.chats.set(work.id, work);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(`${base}/app/ask`);
+      await page.getByRole("button", { name: "History", exact: true }).click();
+      const history = page.getByRole("dialog", {
+        name: "Conversations",
+        exact: true,
+      });
+      const search = history.getByRole("textbox", {
+        name: "Find a conversation",
+      });
+      await expect(search).toBeFocused();
+      await expect(history.locator(".ask-history-open")).toHaveCount(3);
+      await expect(
+        history.getByRole("heading", { name: "Today", exact: true }),
+      ).toBeVisible();
+      await expect(history).toContainText("Which garden should we visit");
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`history-${width}.png`),
+        fullPage: true,
+      });
+      const before = await search.boundingBox();
+      await search.fill("garden");
+      await expect(history.locator(".ask-history-open")).toHaveCount(1);
+      await expect(history).toContainText(trip.title);
+      expect(await search.boundingBox()).toEqual(before);
+      await page.screenshot({
+        path: info.outputPath(`history-search-${width}.png`),
+        fullPage: true,
+      });
+      await history.locator(".ask-history-open").click();
+      await expect(history).not.toBeVisible();
+      await expect(page.locator(".ask-current-conversation")).toContainText(
+        trip.title,
+      );
+      await expect(
+        page.getByRole("log", { name: "Conversation" }),
+      ).toBeFocused();
+      expect(
+        await page
+          .locator(".ask-conversation")
+          .evaluate((node) => node.scrollTop),
+      ).toBe(0);
+      await page
+        .getByRole("button", { name: "Latest reply", exact: true })
+        .click();
+      expect(
+        await page
+          .locator(".ask-conversation")
+          .evaluate((node) => node.scrollTop),
+      ).toBeGreaterThan(0);
+      await page.getByRole("button", { name: "History", exact: true }).click();
+      await expect(history.locator('[aria-current="true"]')).toContainText(
+        trip.title,
+      );
+      await history
+        .getByRole("button", {
+          name: `Delete conversation ${trip.title}`,
+          exact: true,
+        })
+        .click();
+      const confirmation = page.getByRole("dialog", {
+        name: "Delete conversation",
+        exact: true,
+      });
+      await expect(confirmation).toContainText(trip.title);
+      await expect(
+        confirmation.getByRole("button", { name: "Cancel", exact: true }),
+      ).toBeFocused();
+      await page.screenshot({
+        path: info.outputPath(`history-delete-${width}.png`),
+        fullPage: true,
+      });
+      await confirmation
+        .getByRole("button", { name: "Cancel", exact: true })
+        .click();
+      expect(state.chats.has(trip.id)).toBe(true);
+      await history
+        .getByRole("button", {
+          name: `Delete conversation ${trip.title}`,
+          exact: true,
+        })
+        .click();
+      await confirmation
+        .getByRole("button", { name: "Delete", exact: true })
+        .click();
+      await expect(history.locator(".ask-history-open")).toHaveCount(2);
+      await expect(search).toBeFocused();
+      expect(state.chats.has(trip.id)).toBe(false);
+      await search.fill("no matching subject");
+      await expect(
+        history.getByRole("heading", { name: "No matching conversations" }),
+      ).toBeVisible();
+      expect(await search.boundingBox()).toEqual(before);
+      if (width === 320) {
+        await page.setViewportSize({ width, height: 400 });
+        await expect(search).toBeInViewport();
+        await expect(
+          history.getByRole("button", { name: "Close dialog", exact: true }),
+        ).toBeInViewport();
+        await history
+          .getByRole("button", { name: "Clear search", exact: true })
+          .scrollIntoViewIfNeeded();
+        await expect(
+          history.getByRole("button", { name: "Clear search", exact: true }),
+        ).toBeInViewport();
+      }
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    });
+  });
+}
+
+test("conversation history retries the failed next page and keeps open failures inside the dialog", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  const chats = Array.from({ length: 34 }, (_, index) =>
+    savedHistory(`Saved conversation ${index}`, `Question ${index}`),
+  );
+  chats.forEach((chat) => state.chats.set(chat.id, chat));
+  let failedPage = true,
+    failedOpen = true;
+  const cursors: unknown[] = [];
+  await page.route("**/api/grove/conversations/search", async (route) => {
+    const body = route.request().postDataJSON();
+    cursors.push(body.after);
+    if (body.after && failedPage) {
+      failedPage = false;
+      await route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: {
+            code: "unavailable",
+            message: "History is temporarily unavailable",
+          },
+        },
+      });
+    } else await route.fallback();
+  });
+  await page.route(
+    `**/api/grove/conversations/${chats[0].id}`,
+    async (route) => {
+      if (failedOpen)
+        await route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: {
+              code: "unavailable",
+              message: "This conversation could not open",
+            },
+          },
+        });
+      else await route.fallback();
+    },
+  );
+  await page.goto(`${base}/app/ask`);
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  const history = page.getByRole("dialog", {
+    name: "Conversations",
+    exact: true,
+  });
+  await expect(history.locator(".ask-history-open")).toHaveCount(30);
+  await history
+    .getByRole("button", { name: "More conversations", exact: true })
+    .click();
+  await expect(history.getByRole("alert")).toContainText(
+    "History is temporarily unavailable",
+  );
+  await history.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(history.locator(".ask-history-open")).toHaveCount(34);
+  expect(cursors.slice(-2)).toEqual(["30", "30"]);
+  await history
+    .locator(".ask-history-open")
+    .filter({ hasText: chats[0].title })
+    .click();
+  await expect(history.getByRole("alert")).toContainText(
+    "This conversation could not open",
+  );
+  failedOpen = false;
+  await history
+    .locator(".ask-history-open")
+    .filter({ hasText: chats[0].title })
+    .click();
+  await expect(history).not.toBeVisible();
+  await expect(page.locator(".ask-current-conversation")).toContainText(
+    chats[0].title,
+  );
+});
+
+test("history switches retain each conversation's unsent draft and closing a held open keeps the current reader", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  const first = savedHistory("First discussion", "First question"),
+    second = savedHistory("Second discussion", "Second question");
+  first.scope = { projectId: project.id, includePersonal: false };
+  state.chats.set(first.id, first);
+  state.chats.set(second.id, second);
+  await page.goto(`${base}/app/ask`);
+  const input = page.getByLabel("Ask about your notes");
+  await input.fill("An unsent new conversation");
+  const open = async (title: string) => {
+    await page.getByRole("button", { name: "History", exact: true }).click();
+    await page
+      .getByRole("dialog", { name: "Conversations", exact: true })
+      .locator(".ask-history-open")
+      .filter({ hasText: title })
+      .click();
+    await expect(page.locator(".ask-current-conversation")).toContainText(
+      title,
+    );
+  };
+  await open(first.title);
+  await expect(input).toHaveValue("");
+  await input.fill("First unsent thought");
+  await open(second.title);
+  await expect(input).toHaveValue("");
+  await input.fill("Second unsent thought");
+  await open(first.title);
+  await expect(input).toHaveValue("First unsent thought");
+  await page
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect(input).toHaveValue("An unsent new conversation");
+  await expect(
+    page.getByRole("combobox", { name: "Look in notebook" }),
+  ).toContainText("All notes");
+  const release = Promise.withResolvers<void>();
+  const held = savedHistory("Held discussion", "A held question");
+  state.chats.set(held.id, held);
+  await page.route(`**/api/grove/conversations/${held.id}`, async (route) => {
+    await release.promise;
+    await route.fallback();
+  });
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Conversations", exact: true })
+    .locator(".ask-history-open")
+    .filter({ hasText: held.title })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Conversations", exact: true })
+      .getByRole("status"),
+  ).toContainText("Opening conversation");
+  await page
+    .getByRole("dialog", { name: "Conversations", exact: true })
+    .getByRole("button", { name: "Close dialog" })
+    .click();
+  release.resolve();
+  await expect(input).toHaveValue("An unsent new conversation");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
+  await expect(page.locator(".ask-current-conversation")).toContainText(
+    "An unsent new conversation",
+  );
+  await page
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect(input).toHaveValue("");
+});
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
   page,
@@ -4315,6 +5278,8 @@ test("a reply and growing composer preserve older reading position until Latest 
   state.chats.set(id, {
     id,
     title: "Reading thread",
+    tools: { exa: true, tavily: false, organize: true },
+    toolsVersion: 0,
     scope: { includePersonal: true },
     version: 12,
     updatedAt: note.updatedAt,
@@ -4334,6 +5299,7 @@ test("a reply and growing composer preserve older reading position until Latest 
         statements: [],
         sources: [],
         proposal: null,
+        webStatements: [],
       },
     })),
   });
@@ -4341,6 +5307,10 @@ test("a reply and growing composer preserve older reading position until Latest 
   await page.getByRole("button", { name: "History", exact: true }).click();
   await page.getByRole("button", { name: /^Reading thread/ }).click();
   const log = page.getByRole("log", { name: "Conversation" });
+  await expect(
+    page.getByRole("dialog", { name: "Conversations", exact: true }),
+  ).not.toBeVisible();
+  await expect(log).toBeFocused();
   const input = page.getByRole("textbox", { name: "Ask about your notes" });
   let release!: () => void;
   const held = new Promise<void>((resolve) => {
@@ -4414,7 +5384,7 @@ test("copy feedback shares the active dialog stack without replacing a version-f
   await expect(page.locator(".workspace-notice")).toContainText("1 note moved");
   await page.locator(".memory-open").click();
   const drawer = page.getByRole("dialog", { name: "Note", exact: true });
-  await drawer.getByRole("button", { name: "Export", exact: true }).click();
+  await openNoteAction(drawer, "Export");
   await page.getByRole("button", { name: "Copy Markdown" }).click();
   const notifications = drawer.getByRole("region", { name: "Notifications" });
   await expect(notifications.locator(".workspace-toast")).toContainText(
@@ -4435,6 +5405,107 @@ test("copy feedback shares the active dialog stack without replacing a version-f
   await expect(notifications).toContainText("Change undone");
   expect(state.records.get(note.id)?.projectId).toBeNull();
 });
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`search console at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("keeps aligned controls and stable pending, empty, retry and clear states", async ({
+      page,
+    }, info) => {
+      await fixture(page, [note]);
+      const release = Promise.withResolvers<void>();
+      let fail = true;
+      await page.route("**/api/grove/ask", async (route) => {
+        const { query } = askSchema.parse(route.request().postDataJSON());
+        if (query === "waiting") await release.promise;
+        if (query === "retry" && fail) {
+          await route.fulfill({
+            status: 503,
+            json: {
+              success: false,
+              error: {
+                code: "unavailable",
+                message: "Search is temporarily unavailable.",
+              },
+            },
+          });
+          return;
+        }
+        await route.fulfill({
+          json: {
+            success: true,
+            data: {
+              status: "search",
+              searchMode: "hybrid",
+              sources: query === "missing" ? [] : [note],
+              answer: null,
+            },
+          },
+        });
+      });
+      await page.goto(`${base}/app/ask`);
+      await page.getByRole("button", { name: "Search", exact: true }).click();
+      const input = page.getByRole("textbox", {
+        name: "Search saved notes",
+        exact: true,
+      });
+      const status = page.locator(".ask-result-count");
+      await expect(status).toHaveText("Search by words or meaning.");
+      const modes = (await page
+        .getByRole("group", { name: "Console mode" })
+        .boundingBox())!;
+      const scope = (await page
+        .getByRole("combobox", { name: "Look in notebook" })
+        .boundingBox())!;
+      expect(Math.abs(modes.height - scope.height)).toBeLessThanOrEqual(1);
+      const field = await input.boundingBox();
+      await input.fill("waiting");
+      await expect(status).toHaveText("Searching…");
+      await page.screenshot({
+        path: info.outputPath(`search-pending-${width}.png`),
+        fullPage: true,
+      });
+      await page
+        .getByRole("button", { name: "Clear search saved notes" })
+        .click();
+      await expect(input).toBeFocused();
+      release.resolve();
+      await expect(status).toHaveText("Search by words or meaning.");
+      await expect(page.locator(".ask-source-list")).toHaveCount(0);
+      await input.fill("missing");
+      await expect(status).toHaveText("0 notes found");
+      await expect(page.locator(".ask-search-empty")).toBeVisible();
+      await input.fill("retry");
+      await expect(page.locator(".ask-search-results")).toContainText(
+        "Search is temporarily unavailable.",
+      );
+      fail = false;
+      await page.getByRole("button", { name: "Try loading again" }).click();
+      await expect(status).toHaveText("1 note found");
+      expect(await input.boundingBox()).toEqual(field);
+      await page.screenshot({
+        path: info.outputPath(`search-results-${width}.png`),
+        fullPage: true,
+      });
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.locator(".ask-source-list button").click();
+      await expect(page.getByRole("dialog")).toContainText(
+        "Review preferences",
+      );
+    });
+  });
+}
 
 test("Ask Grove cites saved notes, scopes follow-ups, searches automatically and discards cancelled answers", async ({
   page,
@@ -4647,10 +5718,14 @@ test("conversations reopen after reload, apply edits with undo, and retain stale
   await page.goto(`${base}/app/ask`);
   const input = page.getByLabel("Ask about your notes");
   await input.fill("Find my review note");
-  await input.press("Enter");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
   await expect(page.locator(".ask-statement")).toContainText("working example");
   await input.fill("Shorten that note");
-  await input.press("Enter");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
   await expect(
     page.getByRole("region", { name: "Proposed note changes" }),
   ).toContainText("Be specific");
@@ -4673,7 +5748,9 @@ test("conversations reopen after reload, apply edits with undo, and retain stale
   await expect(page.locator(".ask-proposal")).toContainText("Change undone");
   expect(state.records.get(note.id)!.content).toBe(note.content);
   await input.fill("Shorten it again");
-  await input.press("Enter");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
   await expect(page.getByRole("button", { name: "Apply edit" })).toBeVisible();
   state.records.set(note.id, {
     ...state.records.get(note.id)!,
@@ -4688,9 +5765,12 @@ test("conversations reopen after reload, apply edits with undo, and retain stale
     .getByRole("button", { name: "Delete conversation Find my review note" })
     .click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Your conversations will appear here",
-  );
+  await expect(
+    page.getByRole("dialog", { name: "Delete conversation", exact: true }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Conversations", exact: true }),
+  ).toContainText("Your conversations will appear here");
   expect(state.chats.size).toBe(0);
 });
 
@@ -4889,9 +5969,11 @@ test("Today's note uses the same editor and library, with date grouping and note
     retentionDays: null,
     autoKind: true,
   });
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Sort notes" })).toHaveText(
     "Date written",
   );
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.locator(".library-date")).toHaveCount(1);
   await page.screenshot({
     path: info.outputPath("daily-note-library-desktop.png"),
@@ -5201,11 +6283,11 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
   const state = await fixture(page);
   await page.goto(`${base}/app`);
   await expect(page.locator(".memory-open")).toHaveCount(2);
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Notebook", exact: true }),
     project.id,
   );
-  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Note type" }),
     "handoff",
@@ -5284,6 +6366,7 @@ test("pagination discards an old scope response after filters change", async ({
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Load more", exact: true }).click();
   await started.promise;
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
     page.getByRole("combobox", { name: "Notebook", exact: true }),
     project.id,
@@ -5356,6 +6439,51 @@ test("multi-select drag moves preserve handoff references and provenance, and un
     [null, 3],
     [null, 3],
   ]);
+});
+
+test("sidebar note dragging carries a readable preview and marks the whole source row", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, [handoff]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${base}/app`);
+  await page
+    .getByRole("button", { name: `Expand ${project.name}`, exact: true })
+    .click();
+  const source = page.locator(".notebook-pages li").filter({
+    has: page.getByRole("link", { name: "Launch checklist", exact: true }),
+  });
+  const grip = source.getByRole("button", {
+    name: /Move Launch checklist with drag/,
+  });
+  const rect = (await grip.boundingBox())!;
+  await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 90, rect.y + 70, { steps: 8 });
+  const preview = page.locator(".memory-drag-preview");
+  await expect(preview).toHaveText("Launch checklist");
+  expect((await preview.boundingBox())!.width).toBeGreaterThan(140);
+  await expect(source).toHaveAttribute("data-dragging", "true");
+  const target = page.locator(
+    '.notebook-explorer [data-destination="personal"]',
+  );
+  const destination = (await target.boundingBox())!;
+  await page.mouse.move(
+    destination.x + destination.width / 2,
+    destination.y + destination.height / 2,
+    { steps: 12 },
+  );
+  await expect(target).toHaveAttribute("data-drop-active", "true");
+  await page.screenshot({ path: info.outputPath("sidebar-note-drag.png") });
+  await page.mouse.up();
+  await expect(page.locator(".workspace-notice")).toContainText(
+    "1 note moved to Unfiled",
+  );
+  expect(state.records.get(handoff.id)?.projectId).toBeNull();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect
+    .poll(() => state.records.get(handoff.id)?.projectId)
+    .toBe(project.id);
 });
 
 test("partial bulk failures are identifiable and undo never overwrites a concurrent edit", async ({
@@ -5436,7 +6564,7 @@ test("autosave retries a lost first response before saving newer typing and clea
   await editor.fill(saved.content);
   await expect(page.locator(".note-save-status")).toContainText("Not saved");
   await editor.fill("The first draft, with a newer thought.");
-  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  // New typing restarts autosave; don't race its completed save with a manual click.
   await expect(page).toHaveURL(`${base}/app/memories/${saved.id}?mode=edit`);
   await expect(page.locator(".note-save-status")).toContainText("Saved");
   expect(attempts[1]).toEqual(attempts[0]);
@@ -5447,7 +6575,7 @@ test("autosave retries a lost first response before saving newer typing and clea
   });
   expect(state.records.size).toBe(1);
   expect(state.records.get(saved.id)!.version).toBe(2);
-  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await page.keyboard.press("Control+Alt+n");
   await expect(editor.locator(".cm-placeholder")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Save note", exact: true }),
@@ -5744,6 +6872,7 @@ test("shared dropdowns support keyboard selection, typeahead, modal dismissal an
   page,
 }, info) => {
   await fixture(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Filters", exact: true }).click();
   const source = page.getByRole("combobox", { name: "Source", exact: true });
@@ -5982,11 +7111,24 @@ test("touch handles activate deliberately, scroll destinations and cancel withou
     await pickUp();
     const tray = page.locator(".mobile-drop-destinations");
     const bounds = (await tray.boundingBox())!;
-    await touch(
-      "touchMove",
-      bounds.x + bounds.width / 2,
-      bounds.y + bounds.height - 8,
-    );
+    // A finger travels to the tray's edge instead of teleporting, so the
+    // pointer delta keeps updating while the autoscroll engages.
+    const grip = (await handle.boundingBox())!;
+    const target = {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height - 8,
+    };
+    for (let step = 1; step <= 12; step++) {
+      await touch(
+        "touchMove",
+        grip.x +
+          grip.width / 2 +
+          ((target.x - grip.x - grip.width / 2) * step) / 12,
+        grip.y +
+          grip.height / 2 +
+          ((target.y - grip.y - grip.height / 2) * step) / 12,
+      );
+    }
     await expect
       .poll(() => tray.evaluate((el) => el.scrollTop))
       .toBeGreaterThan(20);
@@ -6008,11 +7150,11 @@ test("touch handles activate deliberately, scroll destinations and cancel withou
     const destination = page.locator(
       `.mobile-drop-tray [data-destination="${state.projects[1].id}"]`,
     );
-    const target = (await destination.boundingBox())!;
+    const trayTarget = (await destination.boundingBox())!;
     await touch(
       "touchMove",
-      target.x + target.width / 2,
-      target.y + target.height / 2,
+      trayTarget.x + trayTarget.width / 2,
+      trayTarget.y + trayTarget.height / 2,
     );
     await expect(destination).toHaveAttribute("data-drop-active", "true");
     await touch("touchEnd");
