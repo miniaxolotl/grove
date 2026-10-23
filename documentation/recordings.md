@@ -16,6 +16,13 @@ upload, quota, revision-binding and retained-deletion services.
 
 The embedded player is user-started and supports authenticated single byte ranges,
 HEAD, seeking and private/no-store responses. Invalid or multiple ranges return416.
+Its compact inline controls share the workspace typography, forest colour and
+spacing: play/pause, a slim seek track, elapsed/total time, 0.75–2× speed and mute.
+Controls support keyboard use, visible focus and 44px buttons; touch seeking has
+a 44px target. Loading and failed playback stay inline, with an explicit retry.
+The enhanced player attaches its source only on Play (including in WebKit), stops
+on unmount/source changes and never starts automatically. Public readers retain
+native audio controls when JavaScript is disabled or before hydration.
 Current editor audio URLs stay stable through note autosaves; historical readers
 request their exact bound revision. Public links expose current saved audio only,
 with the same live authorization/revocation checks as images and no automatic play.
@@ -54,6 +61,7 @@ WAV and raster validation remain format-specific. The recorder/worklet is loaded
 only after an explicit action, outside the initial Notes entry bundle.
 
 [Reviewed synthetic captures](design/screenshots/recordings/README.md) cover active
-capture, playback/transcript and390px layout. Browser synthetic devices verify the
+capture, custom playback/transcript at1440/390/320px, public reading, native no-JS
+playback and forced colours. Browser synthetic devices verify the
 capture/cleanup path; physical device microphones and OS permission UX need their
 own qualification.

@@ -1,5 +1,26 @@
 # Delivery evidence
 
+## Custom recording player (23 October 2026)
+
+Recording playback now uses a quiet inline strip rather than browser chrome:
+workspace typography/colours, one play/pause control, slim seeking, elapsed/total
+time, speed and mute. No card border, decorative waveform or extra dependency.
+Private loading/transcripts are unchanged. Sources attach on Play in the enhanced
+player, including WebKit; leaving the player stops playback. Public readers keep
+native controls before hydration and without JavaScript.
+
+Real-component/disposable-API journeys pass in Chromium and mobile/touch WebKit:
+deferred loading, playback/pause, keyboard/seek/rate/mute, end/replay, HTTP503 retry,
+unmount cleanup, 1440/390/320px bounds and WCAG A/AA. Both engines also pass actual
+production-Next public playback with and without JavaScript and no transcript
+controls; disposable links are revoked afterward. Focused checks cover Space,
+Home/End/arrows, preselected speed, 44px buttons, reduced motion and forced colours.
+[Reviewed captures](design/screenshots/recordings/README.md) record the final strip.
+Final local verification passes root/site lint, types and production builds, five
+packaged-artifact checks and all203 Chromium scenarios. Bundle budgets pass;
+Notes entry is483,386 gzip bytes and the editor remains deferred.
+No production deployment, migration or speech-provider request is performed.
+
 ## Recordings — stacked continuation
 
 Migration018 adds PCM WAV duration validation and independently versioned retained

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, errorMessage } from "@/lib/dashboard-api";
 import { mediaPath } from "@/lib/media-path";
+import { AudioPlayer } from "./audio-player";
 export function RecordingPlayer({
   src,
   title,
@@ -87,13 +88,7 @@ export function RecordingPlayer({
       style={{ display: "block", width: "100%", maxWidth: "34rem" }}
     >
       <span className="recording-title">{title}</span>
-      <audio
-        controls
-        preload="none"
-        src={src}
-        aria-label="Recording playback"
-        style={{ display: "block", width: "100%", maxWidth: "100%" }}
-      />
+      <AudioPlayer src={src} />
       {!shared && (
         <>
           <button

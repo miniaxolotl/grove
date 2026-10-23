@@ -1,5 +1,15 @@
 # Verification
 
+Custom recording playback is verified with real retained WAV bytes through a
+disposable API/database and the actual website components. Chromium and touch/mobile
+WebKit cover delayed source loading, play/pause, range seeking, speed, mute,
+end/replay, HTTP503 retry, unmount cleanup, 1440/390/320px bounds and WCAG A/AA.
+The production Next public reader is also checked in both engines with and without
+JavaScript; native controls remain available without hydration. Keyboard Space,
+Home/End/arrows, forced colours and reduced motion receive focused checks.
+These manual journeys complement, not replace, the existing browser suite.
+See [reviewed captures](../design/screenshots/recordings/README.md).
+
 Image-storage primitives have a bounded raster/filesystem suite and two optional
 owned-loopback S3 checks, including rejection of providers that ignore conditional
 writes. See [media foundation verification](media-foundation.md#verification).
