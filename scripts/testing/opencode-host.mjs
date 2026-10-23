@@ -14,7 +14,9 @@ const root = resolve(import.meta.dirname, "../..");
 const base = "/tmp/opencode";
 await mkdir(base, { recursive: true });
 const directory = await mkdtemp(join(base, "opencode-"));
-const binary = process.env.OPENCODE_TEST_BIN || "opencode";
+const binary = (
+  await exec("which", [process.env.OPENCODE_TEST_BIN || "opencode"])
+).stdout.trim();
 await exec("pnpm", ["pack", "--pack-destination", directory], {
   cwd: join(root, "packages/grove-opencode-plugin"),
 });
@@ -44,8 +46,11 @@ await writeFile(
   JSON.stringify({ plugins: [pathToFileURL(pluginPath).href] }),
 );
 await mkdir(join(directory, "temp"));
+await mkdir(join(directory, "bin"));
 const env = {
   ...process.env,
+  // Desktop/background hosts need not inherit a shell's Node/version-manager PATH.
+  PATH: join(directory, "bin"),
   HOME: directory,
   TMPDIR: join(directory, "temp"),
   XDG_CONFIG_HOME: join(directory, "config"),

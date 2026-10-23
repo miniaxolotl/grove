@@ -26,6 +26,29 @@ incremental shortening of oversized drafts and persistent Preview removal focus.
 Thirteen focused actual-component journeys pass in each browser engine, including
 normal delayed-action completion and keyboard Undo. Notes entry is **488,021 gzip
 bytes**, with the editor still deferred. Original gallery/build provenance is retained.
+Combined verification passes all **223 Chromium / 12 focused WebKit** cases,
+**240 backend cases / four optional-service skips**, root/site lint/types/builds,
+five packaged artifacts, 50 automation/provider contracts and workflow lint.
+
+## Agent plugin startup (23 October 2026)
+
+OpenCode's installed Grove plugin loaded its skill/automatic context while its MCP
+child failed with `NotFound: ChildProcess.spawn (node ...)`: the background host
+did not inherit the shell's Node/version-manager PATH. The plugin now reuses its
+host executable, selecting Bun runtime mode for compiled OpenCode binaries, without
+overwriting an existing Grove MCP configuration.
+
+The packed OpenCode v2.1.3 smoke test reproduces the failure with an empty executable
+PATH before the change and connects afterward. Node 24.21.0 / pnpm 10.33.0 root
+lint, types, build, all **five artifact tests** and **four client tests** pass.
+Claude Code **2.1.309** and Codex **0.164.0** were installed only under
+`/tmp/opencode`, with isolated HOME/XDG/client directories. Both native hosts discover
+and execute all four packaged tools against an authenticated loopback fixture.
+Claude's SessionStart context and both skills load; Codex's two skills and paused
+automatic-write denial pass. Claude's manifest validates; its missing directory
+listing icon is advisory, not a startup failure. Claude/Codex still require Node
+22+ on their host PATH. These are synthetic local checks, not live account/model
+acceptance; no systemwide installation, active-host configuration or release changed.
 
 ## Explicit transcription and read aloud (23 October 2026)
 

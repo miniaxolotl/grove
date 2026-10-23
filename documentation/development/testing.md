@@ -275,6 +275,19 @@ invoke tools through an authenticated HTTP fixture, check truthful status and
 preserve unrelated configuration on repeated setup/uninstall. Native-host smoke
 tests supplement these, as recorded in [delivery evidence](../delivery.md).
 
+To check OpenCode's actual plugin loader and MCP startup, run the packed-host smoke
+test with an absolute executable path:
+
+```sh
+OPENCODE_TEST_BIN=/absolute/path/to/opencode node scripts/testing/opencode-host.mjs
+```
+
+It installs only a temporary consumer under `/tmp/opencode`, uses isolated HOME/XDG
+directories and starts the host with an empty executable PATH. The plugin, memory
+skill and MCP connection must load without a separate Node installation on that PATH.
+The test runner itself still requires Node, pnpm and npm. It does not restart the
+user's service or change live configuration.
+
 Website browser tests cover public routes, accessibility, keyboard navigation,
 installation copy and metadata. Dashboard fixture tests use the real components
 with a test-only HTTP fixture, separate from production routes. Live account tests
