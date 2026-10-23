@@ -133,21 +133,22 @@
   gap: 8px;
   padding: 7px 12px;
   border: 1px solid var(--color-forest);
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--color-forest);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
+  line-height: 20px;
   transition:
-    opacity 0.15s,
-    background 0.15s;
+    background 0.15s,
+    border-color 0.15s;
   white-space: nowrap;
 }
 .app-button:hover:not(:disabled) {
-  background: #344f40;
+  background: var(--action-hover);
 }
 .app-button.secondary {
-  background: #fff;
+  background: transparent;
   color: var(--color-forest);
   border-color: var(--color-line);
 }
@@ -168,15 +169,23 @@
   cursor: not-allowed;
 }
 .app-icon {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 36px;
   width: 36px;
-  border-radius: 6px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+.app-button > svg,
+.app-icon > svg {
   flex-shrink: 0;
 }
 .app-icon:hover:not(:disabled) {
   background: var(--color-sage);
+}
+.app-icon:disabled {
+  opacity: 0.45;
 }
 .app-search {
   flex: 1;
@@ -485,6 +494,8 @@
   background: #fff;
   box-shadow: 0 4px 16px #253e3118;
   cursor: grabbing;
+  pointer-events: none;
+  width: max-content;
 }
 .memory-drag-preview > svg {
   flex-shrink: 0;

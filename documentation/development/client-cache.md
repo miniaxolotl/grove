@@ -20,6 +20,10 @@ Use `useWorkspaceCache()` and the query factories in
   begun before a newer snapshot cannot overwrite it.
 - `resource<T>(path, body)` handles projects, preferences, models, usage, connection
   metadata, briefs, revision history and conversations/search. POST search is a read.
+  Conversation history uses `/conversations/search` with a separate infinite-query
+  key per query; POST remains a read and sends cancellation through the transport.
+  Deletion immediately removes the conversation from every cached history page,
+  including inactive searches, before background revalidation.
 - `relationships(filters)` owns canonical connection pages, normalized graph
   endpoint sets and cursor retries. Closed Linked notes fetches nothing; expansion
   reads batched titles/evidence rather than making per-note title requests. Fresh
@@ -54,6 +58,12 @@ membership is server-owned. Note changes cover the old/new notebook, global list
 search, briefs and history; conversation apply/undo refreshes note dependencies.
 Notebook patches preserve the directory's previous freshness timestamp. A single
 create response cannot become a supposedly complete project directory.
+Notebook lifecycle responses contain affected notebook IDs rather than note bodies.
+Archive/Delete cancels held workspace reads, prunes cached note/search/connection
+sources across those scopes and refreshes active/archived directories. Cross-tab
+lifecycle messages carry only action and notebook IDs. Failed/uncertain lifecycle
+writes revalidate without changing the dialog's original retry identity; the reviewed
+preview stays frozen until explicit conflict review. Local drafts block confirmation.
 Source changes invalidate the relationship family and remove affected evidence
 before late reads can restore it. Notebook edits and review/retry actions also
 invalidate that family; review does not refresh unrelated note lists.
@@ -73,6 +83,11 @@ Revalidation never silently gives that draft permission to overwrite another edi
 Row deletion holds autosave and settles uncertain saves through the same scoped
 transport. A replay returning a later version keeps the original draft base and
 reviewable latest version, including after cancelling and reopening deletion.
+Ask Grove keeps unsent messages and uncertain-turn identities per conversation in
+the authenticated session's in-memory store. History switching restores the matching
+draft; the new-conversation scratch draft is separate. History opens are cancellable
+and only replace the current reader after success. History search itself is transient
+dialog state and does not appear in URLs or browser storage.
 Exports are session-owned and retain their local snapshot through first-save routing.
 Preference forms similarly freeze their loaded base on first edit. Background
 `/me` updates cannot acknowledge local changes, and a completed save acknowledges

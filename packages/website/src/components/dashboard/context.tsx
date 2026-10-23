@@ -80,7 +80,9 @@ export function MemoryContext({
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
-  if (!loading && projectId && !project)
+  // Keep an uncertain lifecycle request mounted with its original retry identity
+  // even if directory revalidation already observes the committed archive/delete.
+  if (!loading && projectId && !project && !notebookAction)
     return (
       <>
         <h1 className="font-editorial text-4xl">Notebook unavailable</h1>

@@ -1,5 +1,42 @@
 # Verification
 
+Conversation history coverage (`conversation-history.test.ts`) uses real non-owner
+PostgreSQL access for title/older-question search, literal wildcard handling,
+bounded previews, owner-only/tenant isolation, retained-but-hidden deletion and
+account/query-bound microsecond cursors that survive deletion of the cursor row.
+No model or migration is needed. Browser history scenarios exercise date groups,
+search/empty states, current markers, reading from the beginning, Latest reply,
+draft switching, cancelled opens, page/open error recovery and named deletion.
+Cache coverage checks that POST search stays read-only and deletion prunes inactive
+history pages. Review 1440/390/320px captures in both browser engines.
+
+Notebook lifecycle tests (`notebook-lifecycle.test.ts` and
+`notebook-lifecycle-migration.test.ts`) require the same disposable owner/API/worker
+URLs below. They verify populated 015→016 preservation, atomic whole-subtree
+archive/restore/soft-delete, retained history and recovery, independent archives,
+unchanged expiry, owner-only administration, cross-tenant denial, stale scope,
+retry identities, public sharing and inactive-note/notebook write guards. The
+existing 014→015 test stays pinned to its migration boundary.
+
+Browser `workspace.spec.ts` exercises notebook page/sidebar/manager entry points,
+scope counts, Cancel, Archived navigation, Restore/Delete, conflict re-review,
+committed-but-lost responses and retained draft blocking. `cache.spec.ts` checks
+immediate source pruning and held-response fencing across descendant scopes. Run
+the `notebook lifecycle|notebook deletion|notebook archive` subset in Chromium and
+`playwright.webkit.config.ts`; captures cover 1440/390/320px. Check the active
+manager behind dialogs too: touch-sized action rows must wrap rather than overflow.
+
+Workspace refinement adds timer-paused viewer-checkbox saves, a held first save
+that preserves the editor node, viewport and undo/redo, and fresh creation after
+the saved route is adopted. The real shared `(notes)` layout owns the document;
+the browser fixture mirrors that persistent layout. Search checks cover pending
+request clearing, empty results, retry, control alignment and accessible layouts
+at 1440/390/320px. Sidebar note-drag checks verify a readable preview, source-row
+feedback and version-fenced Undo. Focus/outline navigation includes CRLF and
+formatted/setext headings. These cases extend the existing save-race, history,
+gesture and viewport regressions; the focused WebKit configuration includes the
+new editor/search cases and lost-response/return-to-draft paths.
+
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale

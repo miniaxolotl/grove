@@ -10,6 +10,22 @@ documentation refresh.
 
 ## Topology
 
+### Notebook lifecycle rollout (016)
+
+Back up the database and pause/drain API and worker mutations. Apply
+`20261023_016_notebook_lifecycle` with the owner connection after 015, then roll out
+the admitted matching API/worker image by digest before the website. The additive
+migration defaults existing notebooks to active, preserves authored records and
+adds archive provenance and inactive-notebook write guards; DDL requires the normal
+maintenance window. Runtime readiness requires the new project/note columns.
+
+Verify subtree Archive/Restore and soft Delete using a disposable account, including
+non-owner RLS denial, preserved source/history, stale-save rejection and revoked
+direct links. Restore does not revive direct links; a live ancestor link can cover
+restored descendants again. Use the current recovery reconciliation to replay
+notebook/note tombstones. This is forward-only; do not run older mutating API/worker
+versions after activation. See [notebook lifecycle](notebook-lifecycle.md).
+
 ### Notebook assistance rollout (015)
 
 Apply `20261022_015_notebook_assistance` with the owner connection after 014 during
@@ -76,8 +92,11 @@ production instances. Production issuer: `https://clerk.usegrove.cloud`;
 development issuer: `https://wanted-bison-3950.clerk.accounts.dev`.
 Pull production keys with `clerk env pull --app app_3KtGcnwE2Yg0P34l9PVij7LnOTS
 --instance prod --file /absolute/path/to/.env.clerk.production.local`.
-Secrets belong in ignored 0600 files, the private `secrets.md` inventory and provider
-secret stores. `usegrove.app` was a provisional mistake and is no longer configured.
+Secrets belong in Grove's Doppler project, ignored 0600 files and the private
+`secrets.md` custody inventory. Keep API, worker, website and operator configs
+separate; updating custody does not deploy or rotate provider credentials. Never
+commit the inventory or include values in plans or PRs. `usegrove.app` was a
+provisional mistake and is no longer configured.
 
 API environment: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_ISSUER`,
 `CLERK_WEBHOOK_SIGNING_SECRET`, exact `SITE_URL` and `API_ORIGIN`.

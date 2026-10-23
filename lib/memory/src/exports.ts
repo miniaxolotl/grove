@@ -174,7 +174,15 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
     );
     if (projects) q.whereIn("projectId", projects);
   } else if (kind === "notebook") {
-    q.select("id", "name", "identity", "parentId", "version", "createdAt");
+    q.select(
+      "id",
+      "name",
+      "identity",
+      "parentId",
+      "version",
+      "status",
+      "createdAt",
+    );
     if (projects) q.whereIn("id", projects);
   } else if (kind === "conversation")
     q.select("id", "title", "scope", "version", "createdAt", "updatedAt");

@@ -58,7 +58,20 @@ The workflow files contain authoritative SHA pins and job details.
 The [Grove review](development/cicd-hardening-review.md) records current source and
 policy; the [shared review](https://github.com/bramble-labs/website/pull/38)
 coordinates the four repositories. Current source CI uses GitHub Ubuntu for
-website/Burrow/Grove and Blacksmith for Fern. Depot for website/Fern and Blacksmith
-for Burrow/Grove are desired allocations, not activated or measured improvements.
-Preserve strict gates, frozen artifacts and independent source CI while adding
-selection/reuse.
+website/Burrow/Grove and Blacksmith for Fern. The owner explicitly retained runner
+placement, superseding the older vendor-reallocation proposal. Selected PR gates,
+authenticated promotion reuse and protected caches retain independent full source
+validation and frozen artifacts.
+
+## Grove feature-stack admission
+
+Same-repository PRs targeting `feat/`, `feature/`, `fix/`, `docs/` or `perf/`
+branches are ordinary source CI. `Promotion Admission` does not interpret them
+as production candidates. Configured downstream branches, `promote/` heads,
+explicit promotion dispatches, foreign repositories and unknown target names
+retain the existing frozen-candidate validation. A passing feature-stack run
+does not authorize publication or deployment.
+
+Ordinary workflow triggers still select development/production; explicitly dispatch
+source CI for stacked heads as needed. Retarget to development after the parent
+merges and verify integration checks again.
