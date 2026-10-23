@@ -857,6 +857,7 @@ export function MemoryEditor({
                     }
                   : undefined
               }
+              noteId={base?.id}
               value={content}
               onChange={(value, immediate) => {
                 setContent(value);

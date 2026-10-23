@@ -40,12 +40,14 @@ export function AskHistory({
   onOpen,
   onDeleted,
   close,
+  onDismissed,
 }: {
   projects: Project[];
   currentId?: string;
   onOpen: (id: string, signal: AbortSignal) => Promise<void>;
   onDeleted: (id: string) => void;
   close: () => void;
+  onDismissed?: () => void;
 }) {
   const cache = useWorkspaceCache();
   const [input, setInput] = useState("");
@@ -76,6 +78,7 @@ export function AskHistory({
   const [removed, setRemoved] = useState(() => new Set<string>());
   const openRequest = useRef<AbortController | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const focusSearchAfterDelete = useRef(false);
   useEffect(() => () => openRequest.current?.abort(), []);
   const searching = input.trim() !== query;
   const items = (
@@ -107,6 +110,7 @@ export function AskHistory({
       variant="inspector"
       busy={deleteBusy}
       close={close}
+      onDismissed={onDismissed}
     >
       <div className="ask-history-browser">
         <div className="ask-history-search" ref={searchRef}>
@@ -259,6 +263,11 @@ export function AskHistory({
           title="Delete conversation"
           busy={deleteBusy}
           close={() => setDeleting(undefined)}
+          onDismissed={() => {
+            if (!focusSearchAfterDelete.current) return;
+            focusSearchAfterDelete.current = false;
+            searchRef.current?.querySelector("input")?.focus();
+          }}
         >
           <div className="app-form">
             <p>
@@ -293,10 +302,8 @@ export function AskHistory({
                     );
                     setRemoved((old) => new Set([...old, deleting.id]));
                     onDeleted(deleting.id);
+                    focusSearchAfterDelete.current = true;
                     setDeleting(undefined);
-                    requestAnimationFrame(() =>
-                      searchRef.current?.querySelector("input")?.focus(),
-                    );
                   } catch (e) {
                     setDeleteError(errorMessage(e));
                   } finally {
