@@ -51,6 +51,65 @@ contracts, workflow lint and 30 local documentation links/anchors. No new media
 database/storage/browser behavior is claimed; feature qualification remains gated
 by the review's acceptance matrix and successful exact-head PR CI.
 
+## Workspace navigation (23 October 2026)
+
+Search shows query-aware plain-text passages and literal highlights, with notebook
+paths in global search and Ask/Search. Sidebar expansion/scroll and optional outline
+pinning remember bounded account-owned UI metadata, never content or queries.
+CommonMark/GFM heading identities drive searchable Jump to heading, Commands and
+`Ctrl`/`Cmd` + `Alt` + `O`, private saved-note section links and the wide contents rail.
+The same outline rows work in the compact inspector, with clipboard fallback,
+current-section tracking and delayed hash/history navigation. Renaming headings or
+reordering duplicates can invalidate links; copying does not enable public access.
+
+Application source `c544123` passes root/website lint, types and builds, all **five
+packaged artifacts**, the bundle gate, **223 Chromium** scenarios and **12 focused
+WebKit** scenarios. Additional real-component journeys pass in both engines for
+late passages across all three search surfaces, duplicate/Setext headings, section
+links/reload/history, no-write jumps and edit/Undo, desktop/mobile restoration with
+delayed directories, account/session replacement, removed IDs, malformed/blocked
+storage, commands, copy/fallback, pinning/tracking and narrow accessibility/overflow.
+Frontend test files remain unchanged; the new interactions also have a documented
+[manual verification matrix](development/testing.md).
+
+History review, deletion and heading jumps hand focus over after actual dialog
+cleanup, avoiding races with opener restoration; **15 repeated Chromium history
+cases** also pass without changing the existing assertions.
+
+Notes entry is **487,751 gzip bytes**; CodeMirror remains deferred. Node 24.22.1,
+pnpm 10.33.0 and Playwright 1.64.1 were used; WebKit runs in the supported Noble
+container. [Sixteen synthetic captures](design/screenshots/workspace-navigation/README.md)
+cover 1440/768/390/320px, short/forced-colour layouts and both browser engines.
+No schema migration is required; no production activation was performed.
+
+Integration with landed hardening #88 (`eaa717a`) preserves both delivery records
+and its dropdown-opacity correction. Integrated root/website static/build gates,
+five artifacts, **50 automation/provider contracts**, workflow lint, bundle budgets
+and **223 Chromium / 12 focused WebKit** cases pass. Navigation-specific journeys
+also pass in both engines. Notes entry remains **487,751 gzip bytes**.
+Current-head full browser/source CI evidence is recorded on
+[navigation PR #97](https://github.com/miniaxolotl/grove/pull/97).
+
+Subsequent integration with workspace polish #96 (`26e28e1`) preserves its compact
+navigation, Filters panel and full-height mobile notes alongside section navigation.
+Both-engine navigation journeys pass; [three refreshed integration captures](design/screenshots/workspace-navigation/README.md)
+record the changed chrome. Notes entry is **487,661 gzip bytes**, editor deferred.
+Integrated root/site static/build gates, five artifacts, 50 automation/provider
+contracts, workflow lint, **223 Chromium**, **12 navigation WebKit** and
+**11 library/filter WebKit** cases pass.
+Four existing compact checks now use the current shared navigation/action paths
+without dropping save, Undo or focus assertions. Current-head hosted evidence is
+recorded on PR #97.
+
+Review follow-up corrects four reproduced edge cases: edits retain cursor-based
+section tracking; shared readers preserve IDs from the complete saved source even
+when hiding its repeated title; query tokenization precedes Unicode lowercasing;
+and search-only extraction retains underscore word boundaries. Targeted real-
+component checks pass in Chromium/WebKit for later-heading edits, duplicate-title
+public anchors, `İstanbul` and `DATABASE_URL` passage/highlight matching. Root/site
+gates, five artifacts, bundle budgets and 12 focused WebKit checks pass. Notes entry
+is **487,681 gzip bytes**; ordinary non-search excerpts/access scope are unchanged.
+
 ## Streamlined workspace (23 October 2026)
 
 Notes and notebook libraries keep search beside one Filters control; notebook

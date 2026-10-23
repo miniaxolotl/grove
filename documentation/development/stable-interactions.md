@@ -27,6 +27,44 @@ controls and transient feedback should use space already available.
 
 ## Navigation and note tools
 
+- Search passages share `search-passage.ts`: bounded plain-text extraction, literal
+  Unicode letter/number tokens (two or more UTF-16 units), case-insensitive without
+  accent folding, at most 16 query words and a 40–500-character passage. Prefer a
+  window containing more distinct matched words, break ties by first occurrence,
+  and use the opening excerpt when no literal word occurs. JSX text/`mark` rendering
+  never executes query regexes or HTML. Match the query belonging to visible results.
+  Tokenize the original query before lowercasing each token (case folding can add
+  combining marks, as in `İstanbul`). Search extraction turns underscores into word
+  separators before ordinary Markdown cleanup so `DATABASE_URL` retains both words;
+  non-search excerpts are unchanged.
+- `note-headings.ts` uses CommonMark/GFM rather than line regexes or DOM indices.
+  ATX/Setext headings, nested structures, inline labels and CRLF positions use one
+  model. Fenced examples are not headings. NFC/lowercase letter/number slugs have
+  a `section-` prefix, `heading` for an empty slug and global collision suffixes
+  starting at 2; rename/duplicate-order stability is deliberately not promised.
+- `NoteOutline` shares searchable rows, private section-link copy/fallback and
+  current-section state between inspector and optional rail. The rail appears only
+  above 1000px of **editor container** width. Do not remount CodeMirror when pinning,
+  opening the inspector or changing modes. Selection navigation adds no history or
+  autosave. Preview follows scroll; writing follows cursor or scrolled source block;
+  edits recompute from the cursor, while actual scroll/resize events remain scroll-
+  based. The last section is active at the document's scroll end.
+- Saved-note fragments resolve inside the mounted editor after data/chunks load and
+  on hash/history changes. Unknown or malformed fragments do nothing. New-note copy
+  stays disabled until first-save identity arrives. These links never create public
+  capabilities; existing shared-link rewrites preserve fragments only after their
+  ordinary linked-note scope check. Public readers generate IDs from the complete
+  saved source before hiding an exact duplicate title; body offsets are rebased,
+  and the displayed title keeps the removed heading's anchor. Duplicate suffixes
+  therefore identify the same sections in authenticated and permitted shared links.
+- Sidebar persistence belongs to the authenticated account owner, not a reusable
+  tree or a module-level global. Follow the metadata/restore contract in
+  [client caching](client-cache.md); scroll listeners are passive and writes debounced.
+- Heading jumps and conversation history use `Dialog.onDismissed` to hand focus
+  over **after** normal opener restoration. React's closed state or an animation
+  frame alone does not guarantee the modal's deferred cleanup has finished. Delete
+  success uses the same hook to focus history search; Cancel retains its opener.
+
 - `sidebar.css` owns desktop/mobile navigation. Reserve row action space, allow two
   notebook-label lines and keep focus outlines inset. The explorer header stays
   reachable while its tree scrolls; phone navigation wraps when text is enlarged.

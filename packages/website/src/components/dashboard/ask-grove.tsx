@@ -29,6 +29,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
 import { memoryExcerpt, memoryTitle } from "@/lib/memory-display";
+import { notebookPath } from "@/lib/notebooks";
+import { SearchPassage } from "./search-passage";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
@@ -246,9 +248,9 @@ export function AskGrove({
     const element = conversationElement.current;
     if (!element || !conversation?.turns.length) return;
     if (reviewFromStart.current) {
-      reviewFromStart.current = false;
+      // Dialog cleanup explicitly hands focus over; a frame alone can run before
+      // its deferred opener restoration, even after historyOpen becomes false.
       element.scrollTo({ top: 0, behavior: "instant" });
-      requestAnimationFrame(() => element.focus({ preventScroll: true }));
       setShowLatest(element.scrollHeight > element.clientHeight + 64);
       return;
     }
@@ -871,6 +873,7 @@ export function AskGrove({
                   />
                 ) : visibleSearch.result!.sources.length ? (
                   <SourceList
+                    query={search}
                     sources={visibleSearch.result!.sources}
                     onOpen={setSelected}
                   />
@@ -892,6 +895,13 @@ export function AskGrove({
       )}
       {historyOpen && (
         <AskHistory
+          onDismissed={() => {
+            const element = conversationElement.current;
+            if (!reviewFromStart.current || !element?.isConnected) return;
+            reviewFromStart.current = false;
+            element.scrollTo({ top: 0, behavior: "instant" });
+            element.focus({ preventScroll: true });
+          }}
           projects={projects}
           currentId={conversationId}
           onOpen={openChat}
@@ -1115,10 +1125,13 @@ function Answer({
 function SourceList({
   sources,
   onOpen,
+  query,
 }: {
   sources: Memory[];
   onOpen: (source: Pick<Memory, "id" | "version">) => void;
+  query?: string;
 }) {
+  const { projects } = useNotebooks();
   return (
     <ol className="ask-source-list">
       {sources.map((source, index) => (
@@ -1127,7 +1140,20 @@ function SourceList({
             <span className="source-number">{index + 1}</span>
             <span>
               <strong>{memoryTitle(source)}</strong>
-              <p>{memoryExcerpt(source)}</p>
+              {query !== undefined && (
+                <small>
+                  {notebookPath(projects, source.projectId)
+                    .map((p) => p.name)
+                    .join(" / ") || "Unfiled"}
+                </small>
+              )}
+              <p>
+                {query !== undefined ? (
+                  <SearchPassage content={source.content} query={query} />
+                ) : (
+                  memoryExcerpt(source)
+                )}
+              </p>
             </span>
             <ArrowUpRight size={15} />
           </button>

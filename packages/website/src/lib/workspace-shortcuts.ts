@@ -8,6 +8,7 @@ export const shortcuts = {
   mode: "Mod E",
   save: "Mod S",
   focus: "Mod Shift F",
+  outline: "Mod Alt O",
   undo: "Mod Z",
   redo: "Mod Shift Z",
 } as const;
