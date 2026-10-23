@@ -96,6 +96,7 @@ Responses use `{success: true, data}` or
 | `POST /v1/recall`                                                      | `memory:read`                                                                    |
 | `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                              |
 | `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`     | Owning website session only; saved chat history                                  |
+| `POST /v1/conversations/search` | Owner-only history search: `{ query?, after? }`; titles/questions, 30 results and signed cursor |
 | `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`  | Owning website session only; contextual replies and previewed note changes       |
 | `POST /v1/briefs`; `POST /v1/briefs/refresh`                           | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
 | `POST /v1/memories/:id/reprocess`                                      | Scoped `memory:write`; body `{expectedVersion}`                                  |
@@ -128,6 +129,13 @@ optional `projectId` and `includePersonal`. Submit turns with a client UUID, `qu
 (up to 6,000 characters), `format` (`plain`/`markdown`), and `expectedVersion` from
 the conversation. Retries reuse the same body/UUID; changed payloads conflict.
 `GET /v1/conversations?after=<last-id>` returns 30 recent conversations per page.
+The history browser uses `POST /v1/conversations/search` with optional `query`
+(up to 200 characters) and `after` (opaque signed cursor). It searches titles and
+user questions with literal case-insensitive matching, returning summary fields,
+a bounded question `preview`, `turnCount` and `nextCursor`. Search text stays in
+the body. Cursors bind account and query and retain the exact PostgreSQL timestamp,
+so deleting the previous page's final row does not break pagination. Results are
+most-recent-first; deleted/foreign chats and assistant payloads are excluded.
 The cursor identifies an account-owned row; it contains no query text. History
 pagination reflects concurrent activity rather than a frozen snapshot.
 

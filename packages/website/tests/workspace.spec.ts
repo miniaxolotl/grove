@@ -3,6 +3,7 @@ import { test, expect, type Page, type Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
+import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { chooseOption } from "./fixtures/select";
 import {
   listSchema,
@@ -4251,6 +4252,31 @@ async function fixture(page: Page, initial = [note, handoff]) {
       pair.dismissed = input.dismissed;
       pair.reviewVersion++;
       data = { reviewVersion: pair.reviewVersion, dismissed: pair.dismissed };
+    } else if (path === "/conversations/search") {
+      const input = conversationHistorySchema.parse(body);
+      const matching = [...chats.values()]
+        .reverse()
+        .filter((chat) =>
+          `${chat.title} ${chat.turns.map((turn) => turn.question).join(" ")}`
+            .toLowerCase()
+            .includes(input.query.toLowerCase()),
+        );
+      const after = Number(input.after ?? 0);
+      data = {
+        items: matching.slice(after, after + 30).map((chat) => ({
+          id: chat.id,
+          title: chat.title,
+          scope: chat.scope,
+          updatedAt: chat.updatedAt,
+          version: chat.version,
+          preview:
+            chat.turns.find((turn) =>
+              turn.question.toLowerCase().includes(input.query.toLowerCase()),
+            )?.question ?? "",
+          turnCount: chat.turns.length,
+        })),
+        nextCursor: matching.length > after + 30 ? String(after + 30) : null,
+      };
     } else if (path === "/conversations") {
       if (request.method() === "POST") {
         const { id, ...scope } = conversationCreateSchema.parse(body);
@@ -4492,6 +4518,335 @@ async function fixture(page: Page, initial = [note, handoff]) {
   });
   return { records, calls, projects, chats, pairs, revisions };
 }
+
+function savedHistory(
+  title: string,
+  question: string,
+  updatedAt = new Date().toISOString(),
+): Conversation {
+  return {
+    id: crypto.randomUUID(),
+    title,
+    scope: { includePersonal: false },
+    version: 1,
+    updatedAt,
+    turns: [
+      {
+        id: crypto.randomUUID(),
+        question,
+        format: "plain",
+        expectedVersion: 0,
+        status: "ready",
+        error: null,
+        createdAt: updatedAt,
+        result: {
+          message: "A saved conversation to revisit. ".repeat(80),
+          statements: [],
+          sources: [],
+          proposal: null,
+        },
+      },
+    ],
+  };
+}
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`conversation history at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("searches saved questions, groups readable rows, reviews from the start and confirms deletion", async ({
+      page,
+    }, info) => {
+      const state = await fixture(page, []);
+      const trip = savedHistory(
+        "Planning a slow weekend in Kyoto",
+        "Which garden should we visit after lunch?",
+      );
+      const recipes = savedHistory(
+        "Cocktails to make with friends",
+        "Keep the recipe for a Negroni",
+        "2026-09-01T10:00:00Z",
+      );
+      const work = savedHistory(
+        "Website launch checklist and the remaining accessibility improvements",
+        "Review keyboard navigation and the smaller screens",
+      );
+      state.chats.set(recipes.id, recipes);
+      state.chats.set(trip.id, trip);
+      state.chats.set(work.id, work);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(`${base}/app/ask`);
+      await page.getByRole("button", { name: "History", exact: true }).click();
+      const history = page.getByRole("dialog", {
+        name: "Conversations",
+        exact: true,
+      });
+      const search = history.getByRole("textbox", {
+        name: "Find a conversation",
+      });
+      await expect(search).toBeFocused();
+      await expect(history.locator(".ask-history-open")).toHaveCount(3);
+      await expect(
+        history.getByRole("heading", { name: "Today", exact: true }),
+      ).toBeVisible();
+      await expect(history).toContainText("Which garden should we visit");
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`history-${width}.png`),
+        fullPage: true,
+      });
+      const before = await search.boundingBox();
+      await search.fill("garden");
+      await expect(history.locator(".ask-history-open")).toHaveCount(1);
+      await expect(history).toContainText(trip.title);
+      expect(await search.boundingBox()).toEqual(before);
+      await page.screenshot({
+        path: info.outputPath(`history-search-${width}.png`),
+        fullPage: true,
+      });
+      await history.locator(".ask-history-open").click();
+      await expect(history).not.toBeVisible();
+      await expect(page.locator(".ask-current-conversation")).toContainText(
+        trip.title,
+      );
+      await expect(
+        page.getByRole("log", { name: "Conversation" }),
+      ).toBeFocused();
+      expect(
+        await page
+          .locator(".ask-conversation")
+          .evaluate((node) => node.scrollTop),
+      ).toBe(0);
+      await page
+        .getByRole("button", { name: "Latest reply", exact: true })
+        .click();
+      expect(
+        await page
+          .locator(".ask-conversation")
+          .evaluate((node) => node.scrollTop),
+      ).toBeGreaterThan(0);
+      await page.getByRole("button", { name: "History", exact: true }).click();
+      await expect(history.locator('[aria-current="true"]')).toContainText(
+        trip.title,
+      );
+      await history
+        .getByRole("button", {
+          name: `Delete conversation ${trip.title}`,
+          exact: true,
+        })
+        .click();
+      const confirmation = page.getByRole("dialog", {
+        name: "Delete conversation",
+        exact: true,
+      });
+      await expect(confirmation).toContainText(trip.title);
+      await expect(
+        confirmation.getByRole("button", { name: "Cancel", exact: true }),
+      ).toBeFocused();
+      await page.screenshot({
+        path: info.outputPath(`history-delete-${width}.png`),
+        fullPage: true,
+      });
+      await confirmation
+        .getByRole("button", { name: "Cancel", exact: true })
+        .click();
+      expect(state.chats.has(trip.id)).toBe(true);
+      await history
+        .getByRole("button", {
+          name: `Delete conversation ${trip.title}`,
+          exact: true,
+        })
+        .click();
+      await confirmation
+        .getByRole("button", { name: "Delete", exact: true })
+        .click();
+      await expect(history.locator(".ask-history-open")).toHaveCount(2);
+      await expect(search).toBeFocused();
+      expect(state.chats.has(trip.id)).toBe(false);
+      await search.fill("no matching subject");
+      await expect(
+        history.getByRole("heading", { name: "No matching conversations" }),
+      ).toBeVisible();
+      expect(await search.boundingBox()).toEqual(before);
+      if (width === 320) {
+        await page.setViewportSize({ width, height: 400 });
+        await expect(search).toBeInViewport();
+        await expect(
+          history.getByRole("button", { name: "Close dialog", exact: true }),
+        ).toBeInViewport();
+        await history
+          .getByRole("button", { name: "Clear search", exact: true })
+          .scrollIntoViewIfNeeded();
+        await expect(
+          history.getByRole("button", { name: "Clear search", exact: true }),
+        ).toBeInViewport();
+      }
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    });
+  });
+}
+
+test("conversation history retries the failed next page and keeps open failures inside the dialog", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  const chats = Array.from({ length: 34 }, (_, index) =>
+    savedHistory(`Saved conversation ${index}`, `Question ${index}`),
+  );
+  chats.forEach((chat) => state.chats.set(chat.id, chat));
+  let failedPage = true,
+    failedOpen = true;
+  const cursors: unknown[] = [];
+  await page.route("**/api/grove/conversations/search", async (route) => {
+    const body = route.request().postDataJSON();
+    cursors.push(body.after);
+    if (body.after && failedPage) {
+      failedPage = false;
+      await route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: {
+            code: "unavailable",
+            message: "History is temporarily unavailable",
+          },
+        },
+      });
+    } else await route.fallback();
+  });
+  await page.route(
+    `**/api/grove/conversations/${chats[0].id}`,
+    async (route) => {
+      if (failedOpen)
+        await route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: {
+              code: "unavailable",
+              message: "This conversation could not open",
+            },
+          },
+        });
+      else await route.fallback();
+    },
+  );
+  await page.goto(`${base}/app/ask`);
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  const history = page.getByRole("dialog", {
+    name: "Conversations",
+    exact: true,
+  });
+  await expect(history.locator(".ask-history-open")).toHaveCount(30);
+  await history
+    .getByRole("button", { name: "More conversations", exact: true })
+    .click();
+  await expect(history.getByRole("alert")).toContainText(
+    "History is temporarily unavailable",
+  );
+  await history.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(history.locator(".ask-history-open")).toHaveCount(34);
+  expect(cursors.slice(-2)).toEqual(["30", "30"]);
+  await history
+    .locator(".ask-history-open")
+    .filter({ hasText: chats[0].title })
+    .click();
+  await expect(history.getByRole("alert")).toContainText(
+    "This conversation could not open",
+  );
+  failedOpen = false;
+  await history
+    .locator(".ask-history-open")
+    .filter({ hasText: chats[0].title })
+    .click();
+  await expect(history).not.toBeVisible();
+  await expect(page.locator(".ask-current-conversation")).toContainText(
+    chats[0].title,
+  );
+});
+
+test("history switches retain each conversation's unsent draft and closing a held open keeps the current reader", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  const first = savedHistory("First discussion", "First question"),
+    second = savedHistory("Second discussion", "Second question");
+  first.scope = { projectId: project.id, includePersonal: false };
+  state.chats.set(first.id, first);
+  state.chats.set(second.id, second);
+  await page.goto(`${base}/app/ask`);
+  const input = page.getByLabel("Ask about your notes");
+  await input.fill("An unsent new conversation");
+  const open = async (title: string) => {
+    await page.getByRole("button", { name: "History", exact: true }).click();
+    await page
+      .getByRole("dialog", { name: "Conversations", exact: true })
+      .locator(".ask-history-open")
+      .filter({ hasText: title })
+      .click();
+    await expect(page.locator(".ask-current-conversation")).toContainText(
+      title,
+    );
+  };
+  await open(first.title);
+  await expect(input).toHaveValue("");
+  await input.fill("First unsent thought");
+  await open(second.title);
+  await expect(input).toHaveValue("");
+  await input.fill("Second unsent thought");
+  await open(first.title);
+  await expect(input).toHaveValue("First unsent thought");
+  await page
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect(input).toHaveValue("An unsent new conversation");
+  await expect(
+    page.getByRole("combobox", { name: "Look in notebook" }),
+  ).toContainText("All notes");
+  const release = Promise.withResolvers<void>();
+  const held = savedHistory("Held discussion", "A held question");
+  state.chats.set(held.id, held);
+  await page.route(`**/api/grove/conversations/${held.id}`, async (route) => {
+    await release.promise;
+    await route.fallback();
+  });
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Conversations", exact: true })
+    .locator(".ask-history-open")
+    .filter({ hasText: held.title })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Conversations", exact: true })
+      .getByRole("status"),
+  ).toContainText("Opening conversation");
+  await page
+    .getByRole("dialog", { name: "Conversations", exact: true })
+    .getByRole("button", { name: "Close dialog" })
+    .click();
+  release.resolve();
+  await expect(input).toHaveValue("An unsent new conversation");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
+  await expect(page.locator(".ask-current-conversation")).toContainText(
+    "An unsent new conversation",
+  );
+  await page
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect(input).toHaveValue("");
+});
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
   page,
@@ -5297,10 +5652,14 @@ test("conversations reopen after reload, apply edits with undo, and retain stale
   await page.goto(`${base}/app/ask`);
   const input = page.getByLabel("Ask about your notes");
   await input.fill("Find my review note");
-  await input.press("Enter");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
   await expect(page.locator(".ask-statement")).toContainText("working example");
   await input.fill("Shorten that note");
-  await input.press("Enter");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
   await expect(
     page.getByRole("region", { name: "Proposed note changes" }),
   ).toContainText("Be specific");
@@ -5323,7 +5682,9 @@ test("conversations reopen after reload, apply edits with undo, and retain stale
   await expect(page.locator(".ask-proposal")).toContainText("Change undone");
   expect(state.records.get(note.id)!.content).toBe(note.content);
   await input.fill("Shorten it again");
-  await input.press("Enter");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
   await expect(page.getByRole("button", { name: "Apply edit" })).toBeVisible();
   state.records.set(note.id, {
     ...state.records.get(note.id)!,
@@ -5338,9 +5699,12 @@ test("conversations reopen after reload, apply edits with undo, and retain stale
     .getByRole("button", { name: "Delete conversation Find my review note" })
     .click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Your conversations will appear here",
-  );
+  await expect(
+    page.getByRole("dialog", { name: "Delete conversation", exact: true }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Conversations", exact: true }),
+  ).toContainText("Your conversations will appear here");
   expect(state.chats.size).toBe(0);
 });
 

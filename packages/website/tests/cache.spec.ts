@@ -31,6 +31,39 @@ function cacheWith(
 }
 test.afterEach(() => caches.splice(0).forEach((cache) => cache.dispose()));
 
+test("history search is a read and deleting a conversation prunes all cached history pages", async () => {
+  let reads = 0;
+  const cache = cacheWith(async (path) => {
+    if (path === "/conversations/search") {
+      reads++;
+      return {
+        items: [{ id: "deleted", title: "Private history" }, { id: "kept" }],
+        nextCursor: null,
+      };
+    }
+    if (path === "/conversations/deleted") return { deleted: true };
+    throw new Error(`Unexpected ${path}`);
+  });
+  const key = [
+    ...workspaceKeys.resource("/conversations/search", { query: "" }),
+    "pages",
+  ];
+  await cache.client.fetchInfiniteQuery({
+    queryKey: key,
+    initialPageParam: null,
+    queryFn: () => cache.api("/conversations/search", { query: "" }),
+    getNextPageParam: () => null,
+  });
+  expect(reads).toBe(1);
+  await cache.api("/conversations/deleted", undefined, "DELETE");
+  expect(cache.client.getQueryData(key)).toMatchObject({
+    pages: [{ items: [{ id: "kept" }] }],
+  });
+  expect(JSON.stringify(cache.client.getQueryData(key))).not.toContain(
+    "Private history",
+  );
+});
+
 for (const action of ["archive", "delete"] as const) {
   test(`notebook ${action} prunes cached sources and fences held reads across the entire subtree`, async () => {
     const projectId = "00000000-0000-4000-a000-000000000010";
