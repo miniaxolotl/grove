@@ -240,6 +240,8 @@ export async function createMediaStore(
   env: ServerEnvironment,
 ): Promise<MediaStore | null> {
   if (env.MEDIA_STORAGE === "disabled") return null;
+  if (env.GROVE_EDITION === "cloud" && env.MEDIA_STORAGE !== "s3")
+    throw new Error("cloud_media_requires_s3");
   const mediaDirectory = await canonical(resolve(env.MEDIA_DIRECTORY));
   const exportDirectory = await canonical(resolve(env.EXPORT_DIRECTORY));
   if (

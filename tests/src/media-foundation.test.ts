@@ -343,6 +343,31 @@ test("local media refuses traversal, symlink paths, permissive directories and c
   }
 });
 
+test("cloud media requires Spaces/S3 and cannot fall back to local files", async () => {
+  await assert.rejects(
+    createMediaStore(env({ GROVE_EDITION: "cloud", MEDIA_STORAGE: "local" })),
+    /cloud_media_requires_s3/,
+  );
+  assert.equal(await createMediaStore(env({ GROVE_EDITION: "cloud" })), null);
+  await assert.rejects(
+    createMediaStore(env({ GROVE_EDITION: "cloud", MEDIA_STORAGE: "s3" })),
+    /media_storage_configuration_required/,
+  );
+  const store = await createMediaStore(
+    env({
+      GROVE_EDITION: "cloud",
+      MEDIA_STORAGE: "s3",
+      MEDIA_S3_ENDPOINT: "https://nyc3.digitaloceanspaces.com",
+      MEDIA_S3_REGION: "us-east-1",
+      MEDIA_S3_BUCKET: "fixture-source-media",
+      MEDIA_S3_ACCESS_KEY_ID: "fixture-source-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "fixture-only",
+    }),
+  );
+  assert(store);
+  store.close!(); // Configuration only; no live provider request is made.
+});
+
 test("media configuration is explicitly disabled and cannot overlap expiring exports", async () => {
   assert.equal(await createMediaStore(env()), null);
   for (const [media, exports] of [

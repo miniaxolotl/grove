@@ -26,6 +26,14 @@ five packaged-artifact checks, 17 release/deployment contracts, workflow lint,
 new-file formatting and 23 selected documentation links/anchors. No media
 database/browser functionality is claimed; exact-head hosted CI remains required.
 
+The storage-direction follow-up enforces **private Spaces/S3 in cloud mode**,
+rejecting local storage without fallback. Self-hosting/test adapters remain local
+when explicitly chosen. All **17 focused checks** now pass with both disposable
+stores, alongside the same root, artifact, release and workflow gates. Spaces
+setup distinguishes its datacenter endpoint from the SDK signing region; live
+bucket activation remains separate. UI captures will use a three-column PR preview
+and a documentation index when there is UI to review; none exists in this increment.
+
 ## Media plan review (22 October 2026)
 
 The [images, recordings and speech review](development/media-plan.md) reconciles

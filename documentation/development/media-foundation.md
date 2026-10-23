@@ -6,6 +6,12 @@ The first Images increment implements storage/validation primitives only. It doe
 yet. Setting these variables alone enables no feature and provisions no resources.
 See the [media plan](media-plan.md) for the remaining image, recording and speech gates.
 
+The cloud target is **private DigitalOcean Spaces through its S3 API**, for images
+and original recordings. Cloud configuration rejects local storage rather than
+falling back to a replica's disk. The local adapter is limited to self-hosting and
+disposable development tests. Temporary exports and generated speech remain
+separate from durable originals; no source-media bucket may inherit their expiry.
+
 ## Data and limits
 
 - `@lib/shared/media` defines canonical lower-case `grove-media:<UUID>` references
@@ -84,6 +90,20 @@ differ from the export configuration; matching names are conservatively rejected
 even across endpoint aliases. Do not reuse export lifecycle rules for source media.
 No existing bucket, credential, Compose service or provider setting is changed here.
 
+For Spaces, configure `MEDIA_STORAGE=s3`, keep the SDK signing region
+`MEDIA_S3_REGION=us-east-1`, and set
+`MEDIA_S3_ENDPOINT=https://<region>.digitaloceanspaces.com` (not a CDN or public
+bucket URL), plus a private bucket and its server-only scoped credentials. The
+endpoint selects the DigitalOcean datacenter; the SDK region is not its location.
+Do not
+put keys in browser configuration or public URLs. The region/bucket are operator
+choices, not inferred from these examples. See DigitalOcean's
+[S3 compatibility](https://docs.digitalocean.com/products/spaces/reference/s3-compatibility/)
+and [SDK setup](https://docs.digitalocean.com/products/spaces/reference/aws-sdks/).
+Documentation confirms partial S3 compatibility, not the exact conditional-write
+contract: the configured provider must pass the existing readiness/conformance
+checks before activation. No live Spaces write is part of this increment.
+
 ## Verification
 
 `tests/src/media-foundation.test.ts` covers canonical references/keys, real raster
@@ -119,3 +139,6 @@ transactional note/revision bindings, a dedicated bounded upload path, and scope
 current/history/public reads before exposing UI. Then complete paste/drop,
 autosave/Undo, image rendering, portable archives/recovery and PDF images. Only
 after the image acceptance gates pass should recordings and speech build on them.
+When UI is added, review desktop/phone captures, store them under `documentation/`,
+and show a three-column preview in the PR description with remaining captures
+linked from the documentation index. This storage-only increment has no UI to capture.
