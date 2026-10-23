@@ -20,6 +20,14 @@ in this slice. The owner explicitly retained current runner placement, supersedi
 the vendor move; automatic recovery remains subsequent work. The dated baseline
 below is historical where this update supersedes it.
 
+Rollout now re-reads existing app configuration and active/in-progress deployment
+identity immediately before its write, rejecting intervening changes without
+logging configuration. GitHub operations recheck the protected branch tip before
+writing and before success. ACTIVE polling now also requires the provider's actual
+active generation and matching API/worker digests, with no newer operation pending.
+These fences do not claim atomic provider locking, automatic rollback or hosted
+failure-drill acceptance.
+
 Reviewed **22 October 2026**, development `22e76b4dd002be8f2debf13d7d9ea3dfb80484b6`.
 This refreshes the recovered plan, not the runtime, workflow or provider settings.
 Follow [deployment operations](../deploy.md) for today's supported path and the

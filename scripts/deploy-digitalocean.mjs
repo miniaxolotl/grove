@@ -6,13 +6,37 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { setTimeout } from "node:timers/promises";
 import { pathToFileURL, URL } from "node:url";
-import { parseArgs } from "node:util";
+import { parseArgs, isDeepStrictEqual } from "node:util";
+import { assertCurrentRef, workflowContext } from "./ci/current-ref.mjs";
 
 const { AbortSignal, fetch, structuredClone } = globalThis;
 
 const template = JSON.parse(
   await readFile(new URL("../.do/app.json", import.meta.url), "utf8"),
 );
+
+export function assertUnchangedApp(previous, current) {
+  assert(
+    previous?.id &&
+      current?.id === previous.id &&
+      isDeepStrictEqual(previous.spec, current.spec) &&
+      previous.active_deployment?.id === current.active_deployment?.id &&
+      previous.in_progress_deployment?.id ===
+        current.in_progress_deployment?.id,
+    "App configuration or deployment changed during rollout preflight; revalidate before writing",
+  );
+}
+
+export function assertActiveDeployment(app, deploymentId, digest) {
+  assert(
+    app?.active_deployment?.phase === "ACTIVE" &&
+      findDeployment([app.active_deployment], digest, [])?.id ===
+        deploymentId &&
+      (!app.in_progress_deployment?.id ||
+        app.in_progress_deployment.id === deploymentId),
+    "Rollout is no longer the active verified provider generation",
+  );
+}
 
 function imageDigest(value) {
   assert.match(
@@ -204,10 +228,12 @@ async function main() {
   }
 
   let spec;
+  let previousApp;
   let previousIds = [];
   if (appId) {
     assert.match(appId, /^[0-9a-f-]{36}$/, "Invalid DigitalOcean app ID");
     const { app } = await request(`/apps/${appId}`);
+    previousApp = app;
     previousIds = [
       app.active_deployment?.id,
       app.in_progress_deployment?.id,
@@ -241,6 +267,12 @@ async function main() {
   );
   if (values.propose) return;
 
+  if (appId) {
+    const { app: current } = await request(`/apps/${appId}`);
+    assertUnchangedApp(previousApp, current);
+  }
+  if (process.env.GITHUB_ACTIONS === "true")
+    assertCurrentRef(workflowContext());
   const { app } = appId
     ? await request(`/apps/${appId}`, { spec }, "PUT")
     : await request("/apps", { spec });
@@ -287,7 +319,13 @@ async function main() {
       );
       previousPhase = deployment.phase;
     }
-    if (deployment.phase === "ACTIVE") return;
+    if (deployment.phase === "ACTIVE") {
+      const { app: current } = await request(`/apps/${app.id}`);
+      assertActiveDeployment(current, deployment.id, digest);
+      if (process.env.GITHUB_ACTIONS === "true")
+        assertCurrentRef(workflowContext());
+      return;
+    }
     assert(
       !["ERROR", "CANCELED", "SUPERSEDED"].includes(deployment.phase),
       `Deployment ended with ${deployment.phase}`,
