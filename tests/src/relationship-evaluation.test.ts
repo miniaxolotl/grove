@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { before, test } from "node:test";
 import { createServer } from "node:http";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as evaluation from "../../scripts/testing/relationship-evaluation.ts";
 import { relationshipCases } from "../fixtures/relationship-quality.ts";
+
+before(async () => {
+  await mkdir("/tmp/opencode", { recursive: true, mode: 0o700 });
+});
 
 test("quality evaluation refuses requests beyond its explicit call budget", async () => {
   const module =
