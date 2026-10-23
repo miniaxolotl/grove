@@ -98,6 +98,7 @@ export function RecordingPlayer({
             type="button"
             className="text-button"
             aria-expanded={open}
+            data-transcript-toggle
             onClick={() => setOpen((value) => !value)}
           >
             Transcript

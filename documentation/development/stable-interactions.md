@@ -27,6 +27,21 @@ controls and transient feedback should use space already available.
 
 ## Navigation and note tools
 
+- Note context actions capture one source document/selection at the opening gesture.
+  Source media targeting uses the Markdown syntax tree; preview targets carry parsed
+  offsets, normalized from CRLF before editing. Never locate a repeated reference by
+  string search or delete a retained asset when removing its reference. Keep normal
+  CodeMirror transactions, isolated Undo, length bounds and autosave/conflict guards.
+  Delayed cut/paste must recheck selection/document/read-only/lifetime before changing
+  text. Clipboard failures give native-menu/keyboard guidance without losing drafts.
+- The context menu shares ActionMenu styling and viewport bounds but uses a manual
+  top-layer popover: WebKit dispatches contextmenu before pointerup, which immediately
+  dismisses a newly opened auto popover. Explicit pointerdown-outside/Escape/Tab/blur
+  dismissal avoids that race. Ignore queued pre-open scroll events, but dismiss after
+  actual ancestor scrolling. Restore the editor or media opener without stealing focus
+  from an outside click; stale-menu callbacks must not close a newer context.
+  Transcript fields/native inputs and Shift + right-click retain the browser menu.
+
 - Search passages share `search-passage.ts`: bounded plain-text extraction, literal
   Unicode letter/number tokens (two or more UTF-16 units), case-insensitive without
   accent folding, at most 16 query words and a 40–500-character passage. Prefer a

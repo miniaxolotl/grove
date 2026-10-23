@@ -1,5 +1,30 @@
 # Verification
 
+Note-context verification combines the unchanged full Chromium suite and focused
+navigation WebKit suite with real-component manual journeys against synthetic note,
+PNG and WAV data. In each engine check right-click and Shift+F10, retained selection,
+format/Undo, copy/cut/paste, denied clipboard and a delayed paste after cursor movement.
+Target the second duplicate image in a CRLF note, remove/Undo, select its source and
+reopen the source menu at the reference's end. Verify original-download byte identity
+through a loopback upstream (native downloads bypass Playwright page routing), lazy
+recording playback, mute and transcript access without overriding transcript fields.
+Hold an image upload and confirm disabled menus cannot edit/remove but can still copy.
+Review 1440/390/320px bounds, outside dismissal and the Shift+right-click native escape.
+No personal media, new frontend coverage files or production API fixtures are involved.
+See [context action guide](../note-context-actions.md) and
+[captures](../design/screenshots/note-context-actions/README.md).
+
+Review regressions also compare source/Preview URLs containing named/numeric entities,
+angle destinations and escaped parentheses, and reject decoded unsafe protocols.
+Hold cut/paste across a Preview round trip; hold paste across Write/Markdown, disabled
+state and same-component note-identity changes. Verify ordinary action dismissal
+still permits the pending paste and Undo. Paste CRLF/CR text at document end and
+check the LF caret; shorten an oversized draft through cut/reference removal while
+rejecting growth. Removing the only Preview attachment must focus the persistent
+note surface so its keyboard Undo restores the reference. These thirteen actual-
+component journeys pass in Chromium and WebKit; all five original findings were
+reproduced before correction. No new frontend coverage files are added.
+
 Ask review regressions in `conversations.test.ts` and `notebook-assistance.test.ts`
 exercise the real account note limit through ordinary saves, conversation Apply,
 organization batches and action-list saves. They cover whole-batch rollback,

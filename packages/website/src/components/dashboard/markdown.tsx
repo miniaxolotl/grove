@@ -166,7 +166,7 @@ const components: Components = {
   ),
   li: TaskItem,
   input: TaskCheckbox,
-  a: function Link({ href, children }) {
+  a: function Link({ href, children, node }) {
     const { shared, media, onUseTranscript } = useContext(MarkdownContext);
     const recording = mediaReferenceId(href ?? "");
     if (recording) {
@@ -178,16 +178,26 @@ const components: Components = {
         shared?.root,
       );
       return (
-        <RecordingPlayer
-          key={`${media.noteId}:${recording}`}
-          src={url}
-          title={children}
-          noteId={media.noteId}
-          mediaId={recording}
-          shared={!!shared}
-          onUse={onUseTranscript}
-          speechVersion={media.live ? media.version : undefined}
-        />
+        <span
+          data-note-media={!shared ? "recording" : undefined}
+          data-note-from={node?.position?.start.offset}
+          data-note-to={node?.position?.end.offset}
+          data-note-url={href}
+          tabIndex={!shared ? 0 : undefined}
+          role="group"
+          aria-label="Recording"
+        >
+          <RecordingPlayer
+            key={`${media.noteId}:${recording}`}
+            src={url}
+            title={children}
+            noteId={media.noteId}
+            mediaId={recording}
+            shared={!!shared}
+            onUse={onUseTranscript}
+            speechVersion={media.live ? media.version : undefined}
+          />
+        </span>
       );
     }
     const target = sharedLink(href, shared);
@@ -225,7 +235,16 @@ const components: Components = {
         typeof from === "number" &&
         typeof to === "number";
       return (
-        <span className="owned-image">
+        <span
+          className="owned-image"
+          data-note-media={!shared ? "image" : undefined}
+          data-note-from={from}
+          data-note-to={to}
+          data-note-url={typeof src === "string" ? src : undefined}
+          tabIndex={!shared ? 0 : undefined}
+          role="group"
+          aria-label={alt || "Attached image"}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             key={url}

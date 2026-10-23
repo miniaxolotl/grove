@@ -67,6 +67,7 @@ import { NoteOutline } from "./note-outline";
 import { useWorkspaceNavigationState } from "./workspace-navigation-state";
 import { useWorkspaceCommands } from "./workspace-commands";
 import { workspaceCommand } from "@/lib/workspace-commands";
+import { NoteContextMenu } from "./note-context-menu";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -715,7 +716,7 @@ export function MarkdownEditor({
       )}
       <div className="editor-surface">
         <div className="writing-with-outline" data-pinned={pinned || undefined}>
-          <div ref={layout} className="writing-layout">
+          <div ref={layout} className="writing-layout" tabIndex={-1}>
             <div className="writing-paper">
               <div
                 ref={host}
@@ -838,6 +839,26 @@ export function MarkdownEditor({
               {children}
             </div>
           </div>
+          <NoteContextMenu
+            editor={view}
+            surface={layout}
+            value={value}
+            preview={preview}
+            mode={mode}
+            disabled={disabled}
+            noteId={noteId}
+            media={media}
+            edit={() => {
+              setWritingMode("source");
+              onPreviewChange?.(false);
+              requestAnimationFrame(() => view.current?.focus());
+            }}
+            addImage={
+              upload && !uploading
+                ? () => fileInput.current?.click()
+                : undefined
+            }
+          />
           {pinned && (
             <aside className="pinned-outline" aria-label="Pinned note outline">
               <NoteOutline
