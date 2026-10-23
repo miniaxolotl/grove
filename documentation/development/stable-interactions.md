@@ -15,9 +15,9 @@ controls and transient feedback should use space already available.
   visible viewport. Its footer stays available while its fields scroll. Dropdown
   portals stay inside the nearest popover or modal, so the top layer, focus
   isolation and nested Escape dismissal agree.
-- Active filter chips live in the panel. The trigger's count, the search-clear
-  affordance and the sort control have reserved widths. The sort slot remains
-  reserved in Graph view so the view switch does not jump sideways.
+- Active filter chips, notebook selection and sorting live in the panel. The
+  trigger's count and search-clear affordance reserve their widths. The view
+  switch keeps its position without a separate sort slot in the caption.
 - Clearing filters preserves sort order. Empty results have a direct Clear
   filters action; the search draft reconciles that external reset. Removing a
   chip focuses its next/previous chip, or Done when it was the last chip.

@@ -1,5 +1,25 @@
 # Workspace navigation
 
+## Latest workspace-polish integration
+
+Navigation head `8baf410` integrated with landed workspace polish #96 (`26e28e1`),
+production build `5WJSQw8VedeBwwSPFpXj4`, 23 October 2026. Documentation conflicts
+preserve both delivery histories and the new Filters panel. Both-engine navigation
+journeys pass on the combined tree; the original captures below remain historical.
+Notes entry is **487,661 gzip bytes**, with the editor still deferred. Current-head
+full integration checks are linked from [PR #97](https://github.com/miniaxolotl/grove/pull/97).
+The **12 focused WebKit** scenarios pass after four existing checks were reconciled
+with #96's intentional compact-note changes: New note uses its shared shortcut,
+Delete uses the existing action helper, and leaving focus mode keeps the compact
+sidebar hidden with Back to notes available. Save, Undo and focus checks remain.
+All **11 library/filter WebKit** checks also pass on the combined tree.
+
+| Integrated pinned outline                                              | Integrated search                                             | Integrated phone outline                                             |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| ![Integrated pinned outline](streamlined-integration/outline-1440.png) | ![Integrated search](streamlined-integration/search-1440.png) | ![Integrated phone outline](streamlined-integration/outline-390.png) |
+
+## Original navigation captures
+
 Application source: `c544123`. Production build `Rm33UWwzrqV1JnCluojuo` on Node
 24.22.1 / pnpm 10.33.0, with synthetic telemetry identifiers and fixture-only notes.
 Captured 23 October 2026 with Playwright 1.64.1. WebKit runs in

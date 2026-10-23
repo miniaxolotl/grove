@@ -39,6 +39,44 @@ also pass in both engines. Notes entry remains **487,751 gzip bytes**.
 Current-head full browser/source CI evidence is recorded on
 [navigation PR #97](https://github.com/miniaxolotl/grove/pull/97).
 
+Subsequent integration with workspace polish #96 (`26e28e1`) preserves its compact
+navigation, Filters panel and full-height mobile notes alongside section navigation.
+Both-engine navigation journeys pass; [three refreshed integration captures](design/screenshots/workspace-navigation/README.md)
+record the changed chrome. Notes entry is **487,661 gzip bytes**, editor deferred.
+Integrated root/site static/build gates, five artifacts, 50 automation/provider
+contracts, workflow lint, **223 Chromium**, **12 navigation WebKit** and
+**11 library/filter WebKit** cases pass.
+Four existing compact checks now use the current shared navigation/action paths
+without dropping save, Undo or focus assertions. Current-head hosted evidence is
+recorded on PR #97.
+
+## Streamlined workspace (23 October 2026)
+
+Notes and notebook libraries keep search beside one Filters control; notebook
+selection and sorting share that panel. Mobile search joins New note in the
+heading, Commands shares the notebook row, and full-page notes hide the sidebar.
+Compact readers keep Export/Delete and secondary tools in Note actions; preview
+hides formatting tools and the repeated autosave explanation is removed.
+
+Review found a production-CSS cascade leaving a second, empty grid row beneath
+mobile notes. The compact-note override now follows the shared layout. The
+regression first failed at a 602px document height and now checks full-height
+documents at 320/390/768px and in short windows in Chromium and WebKit.
+
+Root/site lint, types and builds, five packaged artifacts and bundle budgets pass.
+All **223 Chromium scenarios**, **17 focused iPhone/WebKit scenarios** and 18
+viewport/accessibility checks pass. Notes entry is **486,029 gzip bytes**, with
+the editor deferred.
+[Reviewed captures](design/screenshots/streamlined-workspace/README.md) cover
+Notes, notebooks, the editor, Ask Grove, Settings and Archive at 1440/390/320px.
+No migration or production deployment is part of this refinement.
+
+The latest-base integration preserves landed CI hardening #88 (`eaa717a`), with
+fresh root/site gates, five artifacts, 50 automation/provider contracts and workflow
+lint passing. All 223 Chromium cases, 17 focused WebKit checks and six palette repeats pass;
+the test action helper now waits for the deferred editor before choosing toolbar
+or menu controls, avoiding a loading-layout race.
+
 ## Shared reader polish (23 October 2026)
 
 Shared notes and notebooks use one Read only label, a clear title/date and the saved

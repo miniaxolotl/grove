@@ -25,7 +25,10 @@ checks this manual matrix in each engine against synthetic fixture API data:
 Run production builds **before**, not during, browser suites: rebuilding removes
 old CSS chunks used by the fixture servers. Use separate ports/output directories
 for concurrent engines. [Navigation captures](../design/screenshots/workspace-navigation/README.md)
-record exact verification and the scope of these manual journeys.
+record exact verification and the scope of these manual journeys. Existing compact-
+note scenarios use the shared New note shortcut and action helper rather than
+hidden sidebar/desktop controls; leaving focus mode retains Back to notes while
+the compact full-page note keeps its sidebar hidden.
 
 The committed focused configuration includes the existing history-focus scenarios
 as well as note tools, saves, sidebar, commands and search:
@@ -232,8 +235,16 @@ renderers must remain read-only. The mobile subset also runs in the focused WebK
 
 Sidebar checks cover 320–1440px, long notebook names, expanded trees, short heights,
 enlarged labels, inset keyboard focus, sticky explorer controls and notebook-scoped
-creation. Row dropdowns must leave list rectangles unchanged, dismiss independently,
-restore focus after export/move dialogs and preserve swipe cancellation. Browser
+creation. Mobile shares the heading row between brand, New note and search, and
+keeps Commands in the note-actions menu. Full-page notes must fill the viewport
+at 320/390/768px and in short windows after hiding the sidebar; verify this against
+production CSS, whose grouped selectors can change cascade specificity.
+Touch dispatches for the destination tray
+move in finger-like steps so autoscroll keeps receiving pointer deltas. Filter
+checks treat the popover as self-positioning: sorting may reorder rows and drop
+date headings, while the trigger keeps its geometry. Row dropdowns must leave list
+rectangles unchanged, dismiss independently, restore focus after export/move dialogs
+and preserve swipe cancellation. Browser
 checks switch overlapping row menus by keyboard and test touch light-dismiss separately.
 
 Client-cache checks cover shared misses/cancellation, account and session teardown,

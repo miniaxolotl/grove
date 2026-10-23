@@ -114,11 +114,13 @@ export function MemoryContext({
               {project && (
                 <>
                   <Link
-                    className="app-button secondary"
+                    className="app-button secondary notebook-daily-note"
+                    aria-label="Today’s note"
+                    title="Today’s note"
                     href={`/app/notes/new?from=journal&notebook=${project.id}`}
                   >
                     <CalendarDays size={16} />
-                    Today’s note
+                    <span>Today’s note</span>
                   </Link>
                   <ActionMenu label="Notebook options">
                     <AssistanceAction
