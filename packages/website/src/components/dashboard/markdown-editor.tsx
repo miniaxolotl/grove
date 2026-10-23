@@ -57,7 +57,15 @@ import { IconButton } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
 import { InspectorDialog } from "./ui/inspector-dialog";
 import { RecordingControl } from "./recording-control";
-import { memoryExcerpt } from "@/lib/memory-display";
+import {
+  noteHeadings,
+  headingFromHash,
+  type NoteHeading,
+} from "@/lib/note-headings";
+import { NoteOutline } from "./note-outline";
+import { useWorkspaceNavigationState } from "./workspace-navigation-state";
+import { useWorkspaceCommands } from "./workspace-commands";
+import { workspaceCommand } from "@/lib/workspace-commands";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -127,6 +135,7 @@ export function MarkdownEditor({
   children,
   media,
   upload,
+  noteId,
 }: {
   value: string;
   onChange: (value: string, immediate?: boolean) => void;
@@ -139,10 +148,12 @@ export function MarkdownEditor({
   children?: ReactNode;
   media?: { noteId: string; version?: number; live?: boolean };
   upload?: (file: File, signal: AbortSignal) => Promise<string>;
+  noteId?: string;
 }) {
   const id = useId();
   const documentValue = value.replace(/\r\n?/g, "\n");
   const host = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const layout = useRef<HTMLDivElement>(null);
   const scrollPositions = useRef(new Map<string, number>());
   const previousScroll = useRef(0);
@@ -314,12 +325,28 @@ export function MarkdownEditor({
     };
   }, []);
   const [outline, setOutline] = useState(false);
+  const pendingJump = useRef<NoteHeading | null>(null);
   const [activeHeading, setActiveHeading] = useState(0);
+  const navigation = useWorkspaceNavigationState();
+  const pinned = navigation?.state.pinned ?? false;
+  const togglePin = () => navigation?.update({ pinned: !pinned });
   const [historyState, setHistoryState] = useState({
     undo: false,
     redo: false,
   });
   const limit = value.length > 6000;
+  const headings = useMemo(() => noteHeadings(documentValue), [documentValue]);
+  const previewHeadings = useMemo(
+    () => (value === documentValue ? headings : noteHeadings(value)),
+    [value, documentValue, headings],
+  );
+  const trackingFrame = useRef<number>(0);
+  const queueTracking = useEffectEvent(
+    (source: "cursor" | "scroll" = "scroll") => {
+      cancelAnimationFrame(trackingFrame.current);
+      trackingFrame.current = requestAnimationFrame(() => trackHeading(source));
+    },
+  );
   useEffect(() => {
     change.current = onChange;
     reading.current = preview;
@@ -360,6 +387,8 @@ export function MarkdownEditor({
             ...defaultKeymap,
           ]),
           EditorView.updateListener.of((update) => {
+            if (update.selectionSet || update.docChanged)
+              queueTracking("cursor");
             if (update.docChanged) {
               change.current(
                 update.state.doc.toString(),
@@ -434,50 +463,108 @@ export function MarkdownEditor({
     element.addEventListener("scroll", remember);
     return () => element.removeEventListener("scroll", remember);
   }, [preview, presentation]);
-  const headings = useMemo(() => {
-    const result: { title: string; from: number; level: number }[] = [];
-    markdownLanguage.parser.parse(documentValue).iterate({
-      enter(node) {
-        const match = /^(?:ATX|Setext)Heading([1-6])$/.exec(node.name);
-        if (match)
-          result.push({
-            title: memoryExcerpt(
-              {
-                content: documentValue
-                  .slice(node.from, node.to)
-                  .split("\n")[0]
-                  .replace(/^#+\s*/, "")
-                  .replace(/\s+#+$/, ""),
-              },
-              160,
-            ),
-            from: node.from,
-            level: Number(match[1]),
-          });
-      },
-    });
-    return result;
-  }, [documentValue]);
-  function openOutline() {
+  function trackHeading(source: "cursor" | "scroll" = "cursor") {
     let current = 0;
     if (preview && layout.current) {
       const top = layout.current.getBoundingClientRect().top;
       layout.current
-        .querySelectorAll<HTMLElement>(
-          ".editor-preview :is(h1, h2, h3, h4, h5, h6)",
-        )
+        .querySelectorAll<HTMLElement>(".editor-preview [data-section-id]")
         .forEach((heading, index) => {
           if (heading.getBoundingClientRect().top <= top + 48) current = index;
         });
     } else {
-      const position = view.current?.state.selection.main.head ?? 0;
+      const editor = view.current;
+      const position =
+        source === "scroll" && editor && layout.current
+          ? editor.lineBlockAtHeight(
+              Math.max(
+                0,
+                layout.current.getBoundingClientRect().top +
+                  48 -
+                  editor.documentTop,
+              ),
+            ).from
+          : (editor?.state.selection.main.head ?? 0);
       headings.forEach((heading, index) => {
         if (heading.from <= position) current = index;
       });
     }
+    const element = layout.current;
+    if (
+      source === "scroll" &&
+      element &&
+      element.scrollHeight > element.clientHeight &&
+      element.scrollTop + element.clientHeight >= element.scrollHeight - 2
+    )
+      current = Math.max(0, headings.length - 1);
     setActiveHeading(current);
+  }
+  useEffect(() => {
+    const element = layout.current;
+    const track = () => queueTracking();
+    element?.addEventListener("scroll", track, { passive: true });
+    window.addEventListener("resize", track);
+    queueTracking(preview ? "scroll" : "cursor");
+    return () => {
+      element?.removeEventListener("scroll", track);
+      window.removeEventListener("resize", track);
+      cancelAnimationFrame(trackingFrame.current);
+    };
+  }, [preview, documentValue]);
+  function openOutline() {
+    trackHeading();
     setOutline(true);
   }
+  useWorkspaceCommands([workspaceCommand("note-outline", openOutline)], root);
+  function jump(heading: NoteHeading) {
+    if (preview) {
+      const target = [
+        ...(layout.current?.querySelectorAll<HTMLElement>(
+          ".editor-preview [data-section-id]",
+        ) ?? []),
+      ].find((element) => element.dataset.sectionId === heading.id);
+      if (target) {
+        target.tabIndex = -1;
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: "start" });
+      }
+    } else if (view.current) {
+      view.current.dispatch({
+        selection: { anchor: heading.from },
+        effects: EditorView.scrollIntoView(heading.from, { y: "start" }),
+      });
+      view.current.focus();
+    }
+  }
+  const appliedHash = useRef("");
+  const followHash = useEffectEvent(() => {
+    if (!noteId || !location.pathname.includes(`/memories/${noteId}`)) return;
+    const hash = headingFromHash(location.hash);
+    if (!hash) {
+      appliedHash.current = "";
+      return;
+    }
+    const key = `${noteId}:${hash}:${preview}`;
+    const target = headings.find((heading) => heading.id === hash);
+    if (target && appliedHash.current !== key) {
+      appliedHash.current = key;
+      jump(target);
+    }
+  });
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => followHash());
+    const follow = () => {
+      appliedHash.current = "";
+      followHash();
+    };
+    window.addEventListener("hashchange", follow);
+    window.addEventListener("popstate", follow);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", follow);
+      window.removeEventListener("popstate", follow);
+    };
+  }, [noteId, preview, documentValue]);
   function command(run: (editor: EditorView) => unknown) {
     if (view.current && !disabled) {
       run(view.current);
@@ -511,6 +598,7 @@ export function MarkdownEditor({
   }
   return (
     <div
+      ref={root}
       className={`markdown-editor live-editor${fullPage ? " page-writing" : ""}`}
       data-mode={mode}
       onPaste={(event) => {
@@ -623,184 +711,158 @@ export function MarkdownEditor({
         </div>
       )}
       <div className="editor-surface">
-        <div ref={layout} className="writing-layout">
-          <div className="writing-paper">
-            <div
-              ref={host}
-              hidden={mode === "preview"}
-              className="codemirror-host"
-            />
-            {mode === "preview" && (
+        <div className="writing-with-outline" data-pinned={pinned || undefined}>
+          <div ref={layout} className="writing-layout">
+            <div className="writing-paper">
               <div
-                className="editor-preview reader-copy"
-                aria-label="Markdown preview"
-              >
-                {value ? (
-                  <Markdown
-                    media={media}
-                    onUseTranscript={
-                      disabled
-                        ? undefined
-                        : (text) => {
-                            const editor = view.current;
-                            if (!editor || editor.state.readOnly) return;
-                            if (
-                              editor.state.doc.length + text.length + 2 >
-                              6000
-                            ) {
-                              setUploadError(
-                                "Shorten the note before inserting the transcript.",
-                              );
-                              return;
+                ref={host}
+                hidden={mode === "preview"}
+                className="codemirror-host"
+              />
+              {mode === "preview" && (
+                <div
+                  className="editor-preview reader-copy"
+                  aria-label="Markdown preview"
+                >
+                  {value ? (
+                    <Markdown
+                      headings={previewHeadings}
+                      media={media}
+                      onUseTranscript={
+                        disabled
+                          ? undefined
+                          : (text) => {
+                              const editor = view.current;
+                              if (!editor || editor.state.readOnly) return;
+                              if (
+                                editor.state.doc.length + text.length + 2 >
+                                6000
+                              ) {
+                                setUploadError(
+                                  "Shorten the note before inserting the transcript.",
+                                );
+                                return;
+                              }
+                              editor.dispatch({
+                                changes: {
+                                  from: editor.state.doc.length,
+                                  insert: `\n\n${text}`,
+                                },
+                                annotations: isolateHistory.of("full"),
+                                userEvent: "input.transcript",
+                              });
                             }
-                            editor.dispatch({
-                              changes: {
-                                from: editor.state.doc.length,
-                                insert: `\n\n${text}`,
-                              },
-                              annotations: isolateHistory.of("full"),
-                              userEvent: "input.transcript",
-                            });
-                          }
-                    }
-                    onImageDrag={
-                      disabled
-                        ? undefined
-                        : (event, from, to) => {
-                            drag.current = {
-                              from,
-                              to,
-                              source: value.slice(from, to),
-                            };
-                            event.dataTransfer.setData(
-                              "application/x-grove-media",
-                              dragToken,
-                            );
-                            event.dataTransfer.effectAllowed = "move";
-                          }
-                    }
-                    onImageMove={(from, to, direction) => {
-                      const previous = value.lastIndexOf(
-                        "\n\n",
-                        Math.max(0, from - 3),
-                      );
-                      const target =
-                        direction === "up"
-                          ? previous < 0
-                            ? 0
-                            : previous + 2
-                          : value.indexOf("\n\n", to + 2);
-                      moveImage(from, to, target < 0 ? value.length : target);
-                    }}
-                    disabled={disabled}
-                    onToggleTask={(offset, checked) => {
-                      const editor = view.current;
-                      // CodeMirror uses LF positions, including notes imported with CRLF.
-                      if (
-                        !editor ||
-                        disabled ||
-                        editor.state.readOnly ||
-                        editor.state.doc.toString() !== documentValue
-                      )
-                        return;
-                      const position = value
-                        .slice(0, offset)
-                        .replace(/\r\n?/g, "\n").length;
-                      const marker = editor.state.sliceDoc(
-                        position - 1,
-                        position + 2,
-                      );
-                      if (
-                        !/^\[[ xX]\]$/.test(marker) ||
-                        (marker[1].toLowerCase() === "x") === checked
-                      )
-                        return;
-                      editor.dispatch({
-                        changes: {
-                          from: position,
-                          to: position + 1,
-                          insert: checked ? "x" : " ",
-                        },
-                        annotations: isolateHistory.of("full"),
-                        userEvent: "input.task",
-                      });
-                    }}
-                  >
-                    {value}
-                  </Markdown>
-                ) : (
-                  <p className="text-muted">
-                    Your formatted note will appear here.
-                  </p>
-                )}
-              </div>
-            )}
-            {children}
+                      }
+                      onImageDrag={
+                        disabled
+                          ? undefined
+                          : (event, from, to) => {
+                              drag.current = {
+                                from,
+                                to,
+                                source: value.slice(from, to),
+                              };
+                              event.dataTransfer.setData(
+                                "application/x-grove-media",
+                                dragToken,
+                              );
+                              event.dataTransfer.effectAllowed = "move";
+                            }
+                      }
+                      onImageMove={(from, to, direction) => {
+                        const previous = value.lastIndexOf(
+                          "\n\n",
+                          Math.max(0, from - 3),
+                        );
+                        const target =
+                          direction === "up"
+                            ? previous < 0
+                              ? 0
+                              : previous + 2
+                            : value.indexOf("\n\n", to + 2);
+                        moveImage(from, to, target < 0 ? value.length : target);
+                      }}
+                      disabled={disabled}
+                      onToggleTask={(offset, checked) => {
+                        const editor = view.current;
+                        // CodeMirror uses LF positions, including notes imported with CRLF.
+                        if (
+                          !editor ||
+                          disabled ||
+                          editor.state.readOnly ||
+                          editor.state.doc.toString() !== documentValue
+                        )
+                          return;
+                        const position = value
+                          .slice(0, offset)
+                          .replace(/\r\n?/g, "\n").length;
+                        const marker = editor.state.sliceDoc(
+                          position - 1,
+                          position + 2,
+                        );
+                        if (
+                          !/^\[[ xX]\]$/.test(marker) ||
+                          (marker[1].toLowerCase() === "x") === checked
+                        )
+                          return;
+                        editor.dispatch({
+                          changes: {
+                            from: position,
+                            to: position + 1,
+                            insert: checked ? "x" : " ",
+                          },
+                          annotations: isolateHistory.of("full"),
+                          userEvent: "input.task",
+                        });
+                      }}
+                    >
+                      {value}
+                    </Markdown>
+                  ) : (
+                    <p className="text-muted">
+                      Your formatted note will appear here.
+                    </p>
+                  )}
+                </div>
+              )}
+              {children}
+            </div>
           </div>
+          {pinned && (
+            <aside className="pinned-outline" aria-label="Pinned note outline">
+              <NoteOutline
+                headings={headings}
+                active={activeHeading}
+                noteId={noteId}
+                pinned={pinned}
+                togglePin={togglePin}
+                jump={jump}
+              />
+            </aside>
+          )}
         </div>
         {outline && (
-          <InspectorDialog title="Note outline" close={() => setOutline(false)}>
-            <nav className="writing-outline" aria-label="Sections in this note">
-              {headings.length ? (
-                <ul>
-                  {headings.map((heading, index) => (
-                    <li key={heading.from}>
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        aria-label={heading.title || "Untitled heading"}
-                        aria-current={
-                          index === activeHeading ? "location" : undefined
-                        }
-                        data-autofocus={index === activeHeading || undefined}
-                        style={{
-                          paddingLeft:
-                            8 +
-                            Math.min(
-                              heading.level -
-                                Math.min(...headings.map((item) => item.level)),
-                              3,
-                            ) *
-                              12,
-                        }}
-                        onClick={() => {
-                          setOutline(false);
-                          requestAnimationFrame(() => {
-                            if (preview) {
-                              const target =
-                                layout.current?.querySelectorAll<HTMLElement>(
-                                  ".editor-preview :is(h1, h2, h3, h4, h5, h6)",
-                                )[index];
-                              if (target) {
-                                target.tabIndex = -1;
-                                target.focus({ preventScroll: true });
-                                target.scrollIntoView({ block: "start" });
-                              }
-                            } else
-                              command((editor) =>
-                                editor.dispatch({
-                                  selection: { anchor: heading.from },
-                                  effects: EditorView.scrollIntoView(
-                                    heading.from,
-                                    { y: "center" },
-                                  ),
-                                }),
-                              );
-                          });
-                        }}
-                      >
-                        <span className="outline-level" aria-hidden="true">
-                          H{heading.level}
-                        </span>
-                        <span>{heading.title || "Untitled heading"}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>Add a heading to find your way around.</p>
-              )}
-            </nav>
+          <InspectorDialog
+            title="Note outline"
+            close={() => setOutline(false)}
+            onDismissed={() => {
+              const heading = pendingJump.current;
+              pendingJump.current = null;
+              if (heading && root.current?.isConnected) jump(heading);
+            }}
+          >
+            <NoteOutline
+              compact
+              headings={headings}
+              active={activeHeading}
+              noteId={noteId}
+              pinned={pinned}
+              togglePin={togglePin}
+              jump={(heading) => {
+                pendingJump.current = heading;
+                setOutline(false);
+              }}
+            />
           </InspectorDialog>
         )}
         <div className="editor-footer" id={`${id}-help`}>

@@ -14,6 +14,7 @@ import { useWorkspaceDrag, type WorkspaceDragItem } from "./memory-drag";
 import { NoteActions } from "./note-actions";
 import { useNoteExport } from "./note-export";
 import { useRowSwipe } from "./use-row-swipe";
+import { SearchPassage } from "./search-passage";
 
 export function MemoryRow({
   memory,
@@ -28,6 +29,7 @@ export function MemoryRow({
   onArchive,
   onTag,
   selectedItems,
+  query = "",
 }: {
   memory: Memory;
   projectName: string;
@@ -41,6 +43,7 @@ export function MemoryRow({
   onArchive: () => void;
   onTag: (tag: string) => void;
   selectedItems: Memory[];
+  query?: string;
 }) {
   const workspace = useWorkspaceDrag();
   const noteExport = useNoteExport();
@@ -145,9 +148,17 @@ export function MemoryRow({
             }}
           >
             <span className="memory-title">{title}</span>
-            {memory.enrichment?.title && (
+            {(memory.enrichment?.title || query) && (
               <span className="memory-excerpt">
-                {memoryExcerpt(memory, 220)}
+                {query ? (
+                  <SearchPassage
+                    content={memory.content}
+                    query={query}
+                    length={220}
+                  />
+                ) : (
+                  memoryExcerpt(memory, 220)
+                )}
               </span>
             )}
           </button>

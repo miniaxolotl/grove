@@ -1337,7 +1337,7 @@ test("first autosave keeps the document, focus, scroll and undo history through 
     page.getByRole("dialog", { name: "Revision history" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
-  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await page.keyboard.press("Control+Alt+n");
   await expect(page.locator(".editor-footer")).toContainText(
     "0 words · 0 / 6,000",
   );
@@ -1414,7 +1414,13 @@ test("focus mode switches reading and writing and the outline navigates normaliz
   await page
     .getByRole("button", { name: "Exit focus mode", exact: true })
     .click();
-  await expect(page.locator(".app-sidebar")).toBeVisible();
+  await expect(page.locator(".editor-focus")).toHaveCount(0);
+  if (page.viewportSize()!.width < 1024) {
+    await expect(page.locator(".app-sidebar")).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Back to notes", exact: true }),
+    ).toBeVisible();
+  } else await expect(page.locator(".app-sidebar")).toBeVisible();
 });
 for (const width of [1440, 390]) {
   test.describe(`viewer tasks at ${width}px`, () => {
@@ -2999,7 +3005,7 @@ test("workspace shortcuts respect composition, modifiers and nested dialog scope
     }
   });
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.locator(".note-delete-button").click();
+  await openNoteAction(page, "Delete note…");
   const confirmation = page.getByRole("dialog", { name: /Delete/ });
   await expect(confirmation).toBeVisible();
   await page.keyboard.press("Control+Shift+p");
@@ -5304,6 +5310,7 @@ test("a reply and growing composer preserve older reading position until Latest 
   await expect(
     page.getByRole("dialog", { name: "Conversations", exact: true }),
   ).not.toBeVisible();
+  await expect(log).toBeFocused();
   const input = page.getByRole("textbox", { name: "Ask about your notes" });
   let release!: () => void;
   const held = new Promise<void>((resolve) => {
@@ -6568,7 +6575,7 @@ test("autosave retries a lost first response before saving newer typing and clea
   });
   expect(state.records.size).toBe(1);
   expect(state.records.get(saved.id)!.version).toBe(2);
-  await page.getByRole("link", { name: "New note", exact: true }).click();
+  await page.keyboard.press("Control+Alt+n");
   await expect(editor.locator(".cm-placeholder")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Save note", exact: true }),
