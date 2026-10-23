@@ -3,8 +3,8 @@
 Synthetic notes and a disposable real API/PostgreSQL/private storage fixture;
 deterministic provider responses and locally synthesized audio exercise the actual
 bulk worker handlers and real MP3 playback. No personal recordings or account
-content are used. These captures use integrated application source `a404ad8`
-(#95 parent `93983e5`) and production CSS build `TlBPUVpYjbteqpreIY5-S`.
+content are used. These captures use integrated application source `856cb39`
+(#95 parent `93983e5`) and production CSS build `dZ5KnQ8--XbY6s7LM0gqI`.
 
 | Transcription review                                        | Read aloud                                                | Phone                                   |
 | ----------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------- |
@@ -29,10 +29,18 @@ derived-audio API denial. No-JavaScript WebKit checks native-control rendering a
 starts the browser codec through automation; native OS-control interaction is not
 qualified. All disposable share links are revoked after each journey.
 
-Integrated local gates pass: 229 backend cases (four optional-service skips), all
+Integrated local gates pass: 240 backend cases (four optional-service skips), all
 223 Chromium scenarios, 12 focused iPhone/WebKit navigation cases, root/site
 lint/types/builds, five packaged artifacts, release/deployment contracts, workflow
-lint and bundle budget. Notes entry is 487,996 gzip bytes; the editor stays deferred.
+lint and bundle budget. Notes entry is 487,997 gzip bytes; the editor stays deferred.
+
+Review follow-up: ten previously failing Markdown cases now verify semantic
+exclusions for indented/nested/unfinished fences, longer fence closers, reference
+links/media, HTML, inline code and escaped prose. A provider-profile regression
+fences cached audio from the older extractor. Real-API Chromium and WebKit checks
+also pass in-app navigation during a pending retry response and both close controls
+after an accepted-but-lost enqueue response. Removing the retry-ref fix reproduces
+the navigation failure; restoring it passes. No new frontend suite files were added.
 
 A separate bounded real OpenAI check synthesized **“Meet me by the river at three.”**
 with tts-1/alloy (30,336 MP3 bytes), converted only that synthetic output to PCM WAV,

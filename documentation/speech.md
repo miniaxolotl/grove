@@ -19,12 +19,17 @@ editing remain usable when speech is disabled or unavailable.
 3. In a saved, unchanged note's Preview, open **Read aloud → Prepare audio**.
    When ready, use the same minimalist player as recordings. Playback is a separate
    user gesture; its voice is explicitly identified as AI-generated. The narration
-   omits code blocks, owned-media references and Markdown link destinations.
+   uses a CommonMark syntax tree: code (including indented/nested/unfinished fences),
+   images, raw HTML nodes, owned-media references and link definitions are silent.
+   Ordinary link labels remain prose, without sending their destinations or titles.
 
 Queued/running work has **Cancel speech**. Failed jobs offer **Try again**; failed
 status reads offer **Check again**, without starting another paid request. Closing
-the note makes a best-effort cancellation of unfinished work; closing read aloud
-also stops its player. Newer source versions discard the old controls/results.
+the note through in-app navigation makes a best-effort cancellation of unfinished
+work, including a retry whose response has not arrived. Closing read aloud also
+attempts cancellation after an unknown enqueue outcome instead of forgetting its
+operation ID, and stops its player. Hard page exits/crashes cannot guarantee a
+cancellation request. Newer source versions discard the old controls/results.
 No anonymous reader or connected agent can generate or retrieve this derived audio.
 Public links still play their separately authorized original recordings.
 
@@ -69,7 +74,8 @@ or an installation-wide spending limit.
 Every send/publication/read checks current account and session authorization,
 active/unexpired note, exact source revision and audio binding/checksum,
 transcript version, preference generation, installation provider profile and
-restore epoch. Disable/re-enable, edited sources, provider/key/voice changes,
+restore epoch. Disable/re-enable, edited sources, provider/key/voice or narration
+profile changes,
 revocation and lost leases cannot publish or revive an old result. Worker guards
 check during inference and propagate cancellation. Speech opt-ins do not reschedule
 unrelated organization work.
