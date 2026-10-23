@@ -104,6 +104,19 @@ export const serverEnvironmentSchema = z.object({
     .default(4096),
   DEEPINFRA_API_KEY: z.string().optional(),
   MINIMAX_API_KEY: z.string().optional(),
+  EXA_API_KEY: z.string().optional(),
+  TAVILY_API_KEY: z.string().optional(),
+  RESEARCH_DAILY_CALL_LIMIT: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10000)
+    .default(20),
+  RESEARCH_MONTHLY_BUDGET_USD: z.coerce
+    .number()
+    .min(0)
+    .max(100000)
+    .default(100),
   MODEL_ADMIN_SUBJECTS: z.string().default(""),
   MODEL_SETTINGS_KEY: z
     .string()

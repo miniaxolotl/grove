@@ -12,6 +12,7 @@ import { aiPreferences } from "./preferences-migration.ts";
 import { queueProcessing } from "./queue-migration.ts";
 import { notebookAssistance } from "./assistance-migration.ts";
 import { notebookLifecycle } from "./notebook-lifecycle-migration.ts";
+import { researchTools } from "./research-migration.ts";
 
 export const migrations = [
   {
@@ -233,6 +234,7 @@ export const migrations = [
   queueProcessing,
   notebookAssistance,
   notebookLifecycle,
+  researchTools,
 ];
 
 export const migrationSource: Knex.MigrationSource<

@@ -1,18 +1,40 @@
 # Delivery evidence
 
-## CI/CD hardening review (22 October 2026)
+## Ask Grove research and notebook tools (23 October 2026)
 
-The [source/policy review](development/cicd-hardening-review.md) separates existing
-strict admission, immutable publication and digest-bound rollout from missing
-local hardening patches and planned automatic recovery. GitHub protections are
-already active; current CI uses GitHub Ubuntu, not the proposed Blacksmith
-allocation. This documentation refresh records no new runtime/provider delivery,
-hosted drill or cost qualification and preserves independent workspace/media work.
+Web search, Research and Manage notes share clear composer switches, remembered
+defaults, inline recovery, bounded provider spending and distinct web citations.
+Exa Lite and Tavily Basic power the research tools. Ask Grove previews notebook
+creation/renaming, note filing and researched notes with atomic Apply and versioned
+Undo. Organization continues beyond its first 50-note candidate batch. Migration
+020 retains existing conversations and adds isolated settings/execution/usage state.
+[Feature and API](ask-tools.md) and [rollout](deploy.md#ask-grove-tools-rollout-020)
+describe the limits and operator setup.
 
-The separately authorized baseline accessibility repair removes the dropdown's
-opacity fade, which could temporarily reduce description contrast below 4.5:1.
-It preserves existing colours/layout and tests; see the
-[desktop/mobile captures and reproduction](design/screenshots/dropdown-contrast/README.md).
+On integrated application source `da27de5`, all **186 backend tests** pass (two optional
+RabbitMQ/S3 checks skipped), with root/website lint, types and production builds,
+all **five packaged artifacts**, bundle budgets, **19 release/deployment contracts**
+and pinned workflow lint passing. The complete **223 Chromium** suite passes on
+the final UI source, along with **seven focused WebKit history/conversation cases**.
+Notes entry is **486,094 gzip bytes**, within the existing budget. The integration
+preserves landed conversation history #91; tool vocabulary/defaults, scope checks
+and activity formatting share canonical implementations.
+
+Six additional real-API/disposable-database browser journeys pass at Chromium
+1440/768/390/320px and WebKit 390/320px, covering toggles/drafts/activity/citations,
+note Save/Undo and notebook create/file/Undo with sidebar refresh. The naming/control
+follow-up also verifies optimistic switches, failed-save rollback, refresh recovery
+and saved-default feedback. Menu accessibility
+and page-overflow checks pass. [Eighteen reviewed captures](design/screenshots/ask-tools/README.md)
+use synthetic data and show three images per row; the PR contains a preview row.
+
+Actual Exa/Tavily search and extraction calls pass. A final two-turn live MiniMax +
+Exa case creates a cited MDN note, then creates a notebook and files the note with
+Apply/Undo. Initial runs exposed competing action schemas, omitted empty fields and
+premature status wording; narrowed schemas and Grove-owned batch descriptions now
+have regressions. Invalid model responses remain retryable failures; this small
+synthetic sample is not a broad quality qualification. Production activation is
+separate from these local/provider checks.
 
 ## Ask Grove history (23 October 2026)
 
@@ -110,6 +132,18 @@ disposable checkout on Node 24.21.0 / pnpm 10.33.0 because the worktree filesyst
 was nearly full. [Fourteen reviewed captures](design/screenshots/workspace-refinement/README.md)
 cover desktop, 390px and 320px; browser checks additionally cover 768px, enlarged text,
 short windows, keyboard/touch, accessible contrast and save/conflict/retry behavior.
+
+## CI/CD hardening (23 October 2026)
+
+For the subsequent CI/CD source hardening, see the
+[implementation and acceptance boundaries](development/cicd-hardening-review.md)
+and [shared patch-first release/naming rules](release-conventions.md). Strict
+selected validation, authenticated source reuse, bounded reads, protected caches
+and deployment identity checks are implemented without moving runners. The
+separately authorised dropdown-opacity repair preserves existing tests and merged
+UI refinements; [desktop/mobile evidence](design/screenshots/dropdown-contrast/README.md)
+records the baseline correction. Hosted rollout and automatic recovery acceptance
+remain separate from source CI verification.
 
 ## Notebook assistance (22 October 2026)
 
