@@ -10,6 +10,8 @@
     "./contracts": "./src/contracts.ts",
     "./notebook-lifecycle": "./src/notebook-lifecycle.ts",
     "./models": "./src/models.ts",
+    "./media": "./src/media.ts",
+    "./speech": "./src/speech.ts",
     "./preferences": "./src/preferences.ts",
     "./summaries": "./src/summaries.ts",
     "./assistance": "./src/assistance.ts",
@@ -28,10 +30,12 @@
     "clean": "rm -rf node_modules"
   },
   "dependencies": {
+    "mdast-util-from-markdown": "2.0.2",
     "zod": "~4.1.8"
   },
   "devDependencies": {
     "@lib/eslint-config": "workspace:*",
-    "@lib/typescript-config": "workspace:*"
+    "@lib/typescript-config": "workspace:*",
+    "@types/mdast": "4.0.4"
   }
 }

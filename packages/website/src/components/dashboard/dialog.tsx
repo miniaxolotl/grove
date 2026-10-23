@@ -1,5 +1,12 @@
 "use client";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { X } from "lucide-react";
 import { fitOverlayViewport, lockPageScroll } from "./ui/overlay-focus";
 import { IconButton } from "./ui/button";
@@ -14,6 +21,7 @@ export function Dialog({
   busy = false,
   variant = "default",
   header,
+  onDismissed,
 }: {
   title: string;
   children: React.ReactNode;
@@ -22,6 +30,7 @@ export function Dialog({
   busy?: boolean;
   variant?: "default" | "palette" | "inspector";
   header?: React.ReactNode;
+  onDismissed?: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const backdropPress = useRef<{ id: number; x: number; y: number } | null>(
@@ -29,6 +38,7 @@ export function Dialog({
   );
   const [saving, setSaving] = useState(false);
   const locked = busy || saving;
+  const dismissed = useEffectEvent(() => onDismissed?.());
   useEffect(() => {
     const element = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
@@ -57,6 +67,7 @@ export function Dialog({
             )
           : null;
       target?.focus({ preventScroll: true });
+      dismissed();
     };
   }, [variant]);
   return (

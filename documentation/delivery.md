@@ -20,6 +20,238 @@ listing icon is advisory, not a startup failure. Claude/Codex still require Node
 22+ on their host PATH. These are synthetic local checks, not live account/model
 acceptance; no systemwide installation, active-host configuration or release changed.
 
+## Explicit transcription and read aloud (23 October 2026)
+
+Stacked on recordings #95, speech adds independent default-off transcription and
+read-aloud preferences, OpenAI whisper-1/tts-1 adapters and explicit bulk jobs.
+Machine transcripts are separate suggestions; copying to a draft, saving authored
+history and inserting through normal autosave/Undo are deliberate user actions.
+Read aloud reuses the minimalist player and identifies the AI-generated voice.
+Opening notes, enabling preferences and anonymous public reads never start inference.
+
+Migration 019 fits between recordings 018 and Ask tools 020. Conservative attempt,
+duration/text and shared inference budgets, global provider slots, cooperative
+deadlines and source/profile/preference/session/restore fences bound work. Generated
+MP3 uses the existing private temporary artifact store/cleanup; originals and saved
+transcript history remain retained. Restore clears derived speech without reviving
+old output. [Contracts, privacy and explicit rollout](speech.md).
+
+Integrated source `856cb39` preserves #95 `93983e5` navigation/research. Local gates
+pass: **240 backend cases / four optional-service skips**, **223 Chromium** and
+**12 focused iPhone/WebKit** navigation cases, root/site lint/types/builds, five
+packed artifacts, release/deployment contracts, workflow lint and bundle budgets.
+Notes entry is **487,997 gzip bytes** with the editor deferred. Both-engine real-API
+speech journeys cover opt-ins, candidate/save/use, exact cache reuse, playback,
+retry/cancellation through both close controls, heading navigation/pinning and
+1440/390/320px accessibility. [Current synthetic captures](design/screenshots/speech/README.md)
+record source/build identity and no-JavaScript public-reader verification limits.
+Review follow-up replaces regex narration with CommonMark node extraction and a
+profile cutover: ten Markdown privacy cases plus the old-profile regression pass.
+Uncertain enqueue/retry identities remain cancellable on close/in-app navigation;
+both browsers pass held/lost-response cancellation journeys after reproducing them.
+
+A bounded real OpenAI check synthesized and transcribed only synthetic speech with
+the selected models; this is API/codec evidence, not general quality or device
+qualification. Credentials stay in private custody. No production migration,
+deployment, speech activation or PR merge is performed by this slice.
+
+## Custom recording player (23 October 2026)
+
+Recording playback now uses a quiet inline strip rather than browser chrome:
+workspace typography/colours, one play/pause control, slim seeking, elapsed/total
+time, speed and mute. No card border, decorative waveform or extra dependency.
+Private loading/transcripts are unchanged. Sources attach on Play in the enhanced
+player, including WebKit; leaving the player stops playback. Public readers keep
+native controls before hydration and without JavaScript.
+
+Real-component/disposable-API journeys pass in Chromium and mobile/touch WebKit:
+deferred loading, playback/pause, keyboard/seek/rate/mute, end/replay, HTTP503 retry,
+unmount cleanup, 1440/390/320px bounds and WCAG A/AA. Both engines also pass actual
+production-Next public playback with and without JavaScript and no transcript
+controls; disposable links are revoked afterward. Focused checks cover Space,
+Home/End/arrows, preselected speed, 44px buttons, reduced motion and forced colours.
+[Reviewed captures](design/screenshots/recordings/README.md) record the final strip.
+Final local verification passes root/site lint, types and production builds, five
+packaged-artifact checks and all203 Chromium scenarios. Bundle budgets pass;
+Notes entry is483,386 gzip bytes and the editor remains deferred.
+No production deployment, migration or speech-provider request is performed.
+
+## Recordings — stacked continuation
+
+Migration018 adds PCM WAV duration validation and independently versioned retained
+transcripts. The compact Add media menu contains image, recording and audio-upload
+actions; active capture has explicit Stop/Cancel feedback. Originals reuse image
+storage, tenant/revision guards and quotas. Playback supports scoped Range/HEAD;
+transcript Use inserts through normal editor history. TAR includes WAV/text
+sidecars and v3 exports page bindings/transcript history separately. PDF resolves
+only actual image nodes. [Feature and limits](recordings.md).
+
+Shared input buffering, MIME/reference metadata, uploads and media URL construction
+replace duplicated image/audio paths. Initial verification passes184 backend/service
+cases (four optional-service skips), root/site static checks and builds, five packed
+artifacts and bundle budgets. The real-component synthetic-microphone journey covers
+capture, track cleanup, playback, transcript save/use, cancel and TAR/PDF. Visual
+review found and corrected inline/baseline placement and inherited textarea sizing.
+All203 Chromium checks pass. The corrected real-API journey passes in Chromium
+(synthetic microphone plus ended-track checks) and WebKit (WAV upload fallback,
+playback, transcript/save/use and TAR/PDF) at desktop/390px. Current playback keeps
+its source URL through note autosave. Physical microphones remain unqualified.
+
+## Saved-note images — stacked continuation
+
+The follow-up supports file drop throughout the note workspace and moving an
+existing preview image with pointer drag or Move up/down. Both engines verify
+single-reference movement, Undo and normal autosave; 14 affected Chromium checks
+pass again. Source-store tests now include the scoped-Spaces lifecycle receipt.
+
+Explicitly authorized NYC3 provisioning created private source/temporary buckets
+and independent bucket-scoped keys. Live readbacks verify anonymous403,
+conditional412, cross-bucket denial, no source lifecycle and one-day temporary
+exports/speech expiry. Keys are in isolated Grove Doppler configs and ignored0600
+secrets.md; temporary operator keys are revoked and runtime deployment is unchanged.
+Actual source-store readiness passes with the scoped key and exact-bucket operator
+receipt, resolving the #86 lifecycle-inspection incompatibility without broad
+runtime credentials. See [current configuration](media.md#configuration-and-rollout).
+
+Migration017 binds tenant-owned immutable image objects to every saved revision.
+Session-owner uploads use current-note versions, actual-byte validation, account-
+locked attempt quotas and fenced completion. Private/history reads preserve narrow
+agent grants; public reads reuse the live share scope and current revision only.
+The editor adds upload/paste/drop and ordinary autosave/Undo; readers show images
+without fetching third-party URLs. Cloud storage uses private Spaces/S3.
+
+Portable note TAR downloads include relative Markdown, exact originals and a
+checksum manifest. PDF embeds authorized raster snapshots. Optional v3 queued
+exports include original-media chunks with bounded assembly and source/lease
+guards. Recovery invalidates pending uploads and preserves ready objects behind
+current tombstones. [Feature, limits and rollout](media.md) and
+[three-column reviewed screenshots](design/screenshots/media-images/README.md)
+distinguish fixture verification from live provider activation.
+
+Local backend suite: **180 passed / four optional service skips**, including the
+populated media upgrade, RLS/grant/ref forgery, quota/lease races, public revocation,
+archive bytes, queued media and restore checks. Root lint/types/build and all five
+packed artifacts pass, along with 17 release/deployment contracts and workflow
+lint. Chromium's real-component/disposable-API journey verifies upload, autosave,
+preview, phone bounds, TAR and PDF download; parsing confirms a one-page PDF with
+an embedded image. The same upload/preview/TAR/PDF journey passes in WebKit using
+the supported Noble container and actual streaming proxy. Production Next public
+image rendering works with JavaScript disabled, makes no third-party requests,
+and reloads to 404 after synthetic-link revocation. All **203 Chromium** scenarios
+pass after removing an unnecessary editor `/me` read and integrating the isolated
+dropdown-opacity correction already reviewed in #88.
+No cloud bucket, retained database or production configuration is changed.
+
+## Private image foundation — development increment (22 October 2026)
+
+The [image foundation](development/media-foundation.md) establishes immutable
+private local/S3 storage and bounded, fully decoded static PNG/JPEG/WebP input,
+including explicit APNG rejection and fragment-count-independent buffering.
+Original bytes/checksums are preserved. Source storage has no deletion API and
+rejects export-directory/bucket/credential overlap and expiring lifecycle rules.
+Conditional-write probing uses only unique removable operational scratch objects.
+
+Real disposable storage exposed Garage 2.4.1 ignoring conditional PUT; readiness
+now refuses that provider without changing retained test source. Digest-pinned
+RustFS 1.0.3 supports private byte-identical storage and immutable concurrent writes;
+CI includes that disposable conformance service. These are local/CI observations,
+not qualification of deployed DigitalOcean Spaces. No cloud resource was provisioned.
+
+This is **not complete image support**: no upload route, note/revision binding,
+schema migration, image UI, archive/PDF integration, recording or speech behavior
+is enabled. The primitives default to disabled and are not yet called by runtime.
+The image acceptance gates remain prerequisites for exposing them.
+
+Local verification passes on Node 24.22.1 / pnpm 10.33.0: **16 focused media
+checks** with both disposable storage fixtures (no skips), root lint/types/build,
+five packaged-artifact checks, 17 release/deployment contracts, workflow lint,
+new-file formatting and 23 selected documentation links/anchors. No media
+database/browser functionality is claimed; exact-head hosted CI remains required.
+
+The storage-direction follow-up enforces **private Spaces/S3 in cloud mode**,
+rejecting local storage without fallback. Self-hosting/test adapters remain local
+when explicitly chosen. All **17 focused checks** now pass with both disposable
+stores, alongside the same root, artifact, release and workflow gates. Spaces
+setup distinguishes its datacenter endpoint from the SDK signing region; live
+bucket activation remains separate. UI captures will use a three-column PR preview
+and a documentation index when there is UI to review; none exists in this increment.
+
+## Media plan review (22 October 2026)
+
+The [images, recordings and speech review](development/media-plan.md) reconciles
+the recovered setup-only plan with v1.11.0 source and the still-open refinement
+PR #82. It separates proposed feature scope from shipped behavior and identifies
+storage retention, revision-scoped authorization, streaming upload, export/recovery
+and speech-provider decisions that must precede implementation. The three-slice
+order remains images → recordings → speech. No media code, migrations, provisioning
+or release is included. Related stale documentation now reflects retained deletion,
+14 AI controls, all existing export record types and external execution-plan paths.
+
+Local review verification passes on Node 24.22.1 / pnpm 10.33.0: root lint,
+type checks and build, all five packaged-artifact tests, 17 release/deployment
+contracts, workflow lint and 30 local documentation links/anchors. No new media
+database/storage/browser behavior is claimed; feature qualification remains gated
+by the review's acceptance matrix and successful exact-head PR CI.
+
+## Workspace navigation (23 October 2026)
+
+Search shows query-aware plain-text passages and literal highlights, with notebook
+paths in global search and Ask/Search. Sidebar expansion/scroll and optional outline
+pinning remember bounded account-owned UI metadata, never content or queries.
+CommonMark/GFM heading identities drive searchable Jump to heading, Commands and
+`Ctrl`/`Cmd` + `Alt` + `O`, private saved-note section links and the wide contents rail.
+The same outline rows work in the compact inspector, with clipboard fallback,
+current-section tracking and delayed hash/history navigation. Renaming headings or
+reordering duplicates can invalidate links; copying does not enable public access.
+
+Application source `c544123` passes root/website lint, types and builds, all **five
+packaged artifacts**, the bundle gate, **223 Chromium** scenarios and **12 focused
+WebKit** scenarios. Additional real-component journeys pass in both engines for
+late passages across all three search surfaces, duplicate/Setext headings, section
+links/reload/history, no-write jumps and edit/Undo, desktop/mobile restoration with
+delayed directories, account/session replacement, removed IDs, malformed/blocked
+storage, commands, copy/fallback, pinning/tracking and narrow accessibility/overflow.
+Frontend test files remain unchanged; the new interactions also have a documented
+[manual verification matrix](development/testing.md).
+
+History review, deletion and heading jumps hand focus over after actual dialog
+cleanup, avoiding races with opener restoration; **15 repeated Chromium history
+cases** also pass without changing the existing assertions.
+
+Notes entry is **487,751 gzip bytes**; CodeMirror remains deferred. Node 24.22.1,
+pnpm 10.33.0 and Playwright 1.64.1 were used; WebKit runs in the supported Noble
+container. [Sixteen synthetic captures](design/screenshots/workspace-navigation/README.md)
+cover 1440/768/390/320px, short/forced-colour layouts and both browser engines.
+No schema migration is required; no production activation was performed.
+
+Integration with landed hardening #88 (`eaa717a`) preserves both delivery records
+and its dropdown-opacity correction. Integrated root/website static/build gates,
+five artifacts, **50 automation/provider contracts**, workflow lint, bundle budgets
+and **223 Chromium / 12 focused WebKit** cases pass. Navigation-specific journeys
+also pass in both engines. Notes entry remains **487,751 gzip bytes**.
+Current-head full browser/source CI evidence is recorded on
+[navigation PR #97](https://github.com/miniaxolotl/grove/pull/97).
+
+Subsequent integration with workspace polish #96 (`26e28e1`) preserves its compact
+navigation, Filters panel and full-height mobile notes alongside section navigation.
+Both-engine navigation journeys pass; [three refreshed integration captures](design/screenshots/workspace-navigation/README.md)
+record the changed chrome. Notes entry is **487,661 gzip bytes**, editor deferred.
+Integrated root/site static/build gates, five artifacts, 50 automation/provider
+contracts, workflow lint, **223 Chromium**, **12 navigation WebKit** and
+**11 library/filter WebKit** cases pass.
+Four existing compact checks now use the current shared navigation/action paths
+without dropping save, Undo or focus assertions. Current-head hosted evidence is
+recorded on PR #97.
+
+Review follow-up corrects four reproduced edge cases: edits retain cursor-based
+section tracking; shared readers preserve IDs from the complete saved source even
+when hiding its repeated title; query tokenization precedes Unicode lowercasing;
+and search-only extraction retains underscore word boundaries. Targeted real-
+component checks pass in Chromium/WebKit for later-heading edits, duplicate-title
+public anchors, `İstanbul` and `DATABASE_URL` passage/highlight matching. Root/site
+gates, five artifacts, bundle budgets and 12 focused WebKit checks pass. Notes entry
+is **487,681 gzip bytes**; ordinary non-search excerpts/access scope are unchanged.
+
 ## Streamlined workspace (23 October 2026)
 
 Notes and notebook libraries keep search beside one Filters control; notebook

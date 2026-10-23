@@ -1,6 +1,6 @@
 // Isolated browser fixture, never imported into the application or production auth.
 import { build } from "esbuild";
-import { createServer } from "node:http";
+import { createServer, request as proxyRequest } from "node:http";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import process from "node:process";
@@ -122,6 +122,9 @@ createServer(async (request, response) => {
         .end(pdfWorker.outputFiles[0].contents);
       return;
     }
+    if (path === "/media-recorder.worklet.js") {
+      response.writeHead(200,{"Content-Type":"application/javascript"}).end(await readFile(join(root,"public/media-recorder.worklet.js")));return;
+    }
     if (path === "/telemetry-fixture.js") {
       response
         .writeHead(200, { "Content-Type": "application/javascript" })
@@ -175,6 +178,20 @@ createServer(async (request, response) => {
       return;
     }
     if (path.startsWith("/api/")) {
+      // Optional real-service verification. Test-only file, loopback-only target;
+      // preserves binary request streams in WebKit (Playwright's intercepted
+      // File bodies are not always available through postDataBuffer()).
+      const port = Number(process.env.DASHBOARD_API_FIXTURE_PORT);
+      if (path.startsWith("/api/grove/") && Number.isInteger(port) && port > 0 && port < 65536) {
+        const upstream = proxyRequest({ hostname: "127.0.0.1", port, path: request.url.replace(/^\/api\/grove/, "/v1"), method: request.method,
+          headers: { ...request.headers, host: `127.0.0.1:${port}`, origin: `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`, authorization: "Bearer fixture" } }, (incoming) => {
+          response.writeHead(incoming.statusCode, incoming.headers); incoming.pipe(response);
+        });
+        upstream.on("error", () => { if (!response.headersSent) response.writeHead(503); response.end(); });
+        request.on("aborted", () => upstream.destroy());
+        response.on("close", () => upstream.destroy());
+        request.pipe(upstream); return;
+      }
       response.writeHead(503).end();
       return;
     }
@@ -190,6 +207,7 @@ createServer(async (request, response) => {
           : html,
       );
   } catch {
-    response.writeHead(404).end();
+    if (response.headersSent) response.destroy();
+    else response.writeHead(404).end();
   }
 }).listen(Number(process.env.DASHBOARD_TEST_PORT || 3101), "127.0.0.1");
