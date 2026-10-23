@@ -5,6 +5,11 @@ export async function openNoteAction(
   scope: Page | Locator,
   name: "Export" | "Delete note…" | "Commands",
 ) {
+  // The sidebar disappears when a deferred mobile editor mounts. Choose an
+  // action only after that transition, not from the temporary loading layout.
+  await scope
+    .locator(".note-editor .note-editor-bar")
+    .waitFor({ state: "visible" });
   const direct = scope.getByRole("button", { name, exact: true });
   if (await direct.isVisible()) {
     await direct.click();
