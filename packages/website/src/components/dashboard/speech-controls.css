@@ -19,6 +19,10 @@
   font-size: 0.8125rem;
   color: var(--color-muted);
 }
+.speech-permission a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
 .speech-panel {
   position: relative;
   width: min(100%, 34rem);
