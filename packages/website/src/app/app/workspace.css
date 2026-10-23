@@ -1006,9 +1006,6 @@ html:has(.grove-app) {
   font-size: 12px;
   margin-top: 6px;
 }
-.filter-notebook {
-  flex: 0 1 220px;
-}
 .library-filter-trigger {
   flex-shrink: 0;
 }
@@ -1102,10 +1099,6 @@ html:has(.grove-app) {
   .library-caption .segmented-control {
     grid-column: 2;
     grid-row: 1;
-  }
-  .library-caption .library-sort {
-    grid-column: 1 / -1;
-    justify-self: end;
   }
   .selection-toolbar button span {
     display: none;
@@ -1435,8 +1428,7 @@ html:has(.grove-app) {
 .editor-focus .note-editor-bar {
   background: #fff;
 }
-.editor-focus
-  :is(.editor-tools, .editor-format-menu, .editor-footer, .note-editor-hint) {
+.editor-focus :is(.editor-tools, .editor-format-menu, .editor-footer) {
   display: none;
 }
 .editor-focus .editor-heading {
@@ -1501,6 +1493,14 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 600px) {
+  .notebook-daily-note {
+    width: 44px;
+    min-height: 44px;
+    padding: 8px;
+  }
+  .notebook-daily-note > span {
+    display: none;
+  }
   .settings-save-row {
     gap: 8px;
     align-items: stretch;
@@ -1590,14 +1590,15 @@ html:has(.grove-app) {
     padding: 12px;
   }
   .workspace-search {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
   }
   .workspace-search .app-search {
-    flex-basis: 100%;
-  }
-  .filter-notebook {
     flex: 1;
+    min-width: 0;
+  }
+  .library-filter-trigger .filter-trigger-label {
+    display: none;
   }
   .settings-navigation a {
     padding: 8px;

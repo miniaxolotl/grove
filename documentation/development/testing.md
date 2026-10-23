@@ -176,7 +176,12 @@ renderers must remain read-only. The mobile subset also runs in the focused WebK
 
 Sidebar checks cover 320–1440px, long notebook names, expanded trees, short heights,
 enlarged labels, inset keyboard focus, sticky explorer controls and notebook-scoped
-creation. Row dropdowns must leave list rectangles unchanged, dismiss independently,
+creation. Mobile shares the heading row between brand, New note and search, and
+keeps Commands in the note-actions menu; touch dispatches for the destination tray
+move in finger-like steps so autoscroll keeps receiving pointer deltas. Filter
+checks treat the popover as self-positioning: sorting may reorder rows and drop
+date headings, while the trigger keeps its geometry. Row dropdowns must leave list
+rectangles unchanged, dismiss independently,
 restore focus after export/move dialogs and preserve swipe cancellation. Browser
 checks switch overlapping row menus by keyboard and test touch light-dismiss separately.
 

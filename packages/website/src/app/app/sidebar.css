@@ -60,6 +60,8 @@
   white-space: normal;
 }
 .workspace-search-launcher {
+  grid-column: 1 / -1;
+  grid-row: 3;
   min-height: 40px;
   border: 1px solid var(--color-line);
   background: #fcfdfb;
@@ -256,7 +258,7 @@
   .app-sidebar-heading {
     grid-column: 1 / -1;
     display: flex;
-    gap: 10px;
+    gap: 6px;
   }
   .app-sidebar-heading > a:first-child {
     padding: 0;
@@ -269,8 +271,24 @@
     font-size: 12px;
   }
   .workspace-search-launcher {
-    grid-column: 1;
+    justify-content: center;
+    flex: 0 0 44px;
+    width: 44px;
     min-height: 44px;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+  }
+  .workspace-search-launcher > span {
+    display: none;
+  }
+  .workspace-utilities {
+    grid-column: 2;
+    grid-row: 3;
+    align-self: start;
+  }
+  .workspace-utilities > .app-icon {
+    display: none;
   }
   .workspace-command-launcher {
     justify-content: center;
@@ -303,7 +321,8 @@
     display: none;
   }
   .notebook-browser {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 3;
     min-height: 0;
     margin: 0;
   }

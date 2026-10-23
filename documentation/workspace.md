@@ -2,9 +2,9 @@
 
 Grove is a place for notes, ideas, and everyday writing. Start in **Notes** to write
 and organize, or **Ask Grove** to talk about your notes. Notebooks live in the sidebar;
-on a phone, tap **Notebooks** to browse them. Connected agents use the same notes and
-permissions; their references live in **Note properties → Agent details**. The sidebar
-logo always returns to Notes.
+on a phone, tap **Notebooks** beside the heading to browse them, and share the row with
+search. Connected agents use the same notes and permissions; their references live in
+**Note properties → Agent details**. The sidebar logo always returns to Notes.
 
 ## Write, find, and organize
 
@@ -31,16 +31,17 @@ logo always returns to Notes.
   Reopening a draft during a save follows the same request rather than creating
   another note.
   **History** opens earlier revisions without leaving the workspace.
-  **Linked notes** is a collapsed accordion below your writing. **Export** and
-  **Delete note…** are directly reachable in the toolbar, including focus mode.
-  **Note actions** orders Move, Export, revision history/properties, Archive or
-  Restore, then separated Delete. On phones it also holds focus mode and
-  previous/next controls. Save state stays visible; feedback does not move the page.
+  **Linked notes** is a collapsed accordion below your writing. On a wide screen
+  **Export** sits in the toolbar and **Delete note…** beside it, including focus
+  mode. **Note actions** orders Move, Export, revision history/properties, Archive
+  or Restore, then separated Delete; compact screens keep every secondary action —
+  Export, Delete, focus mode, previous/next and Commands — in this one menu. Save state stays visible; feedback does not move the page.
   Save stays visually quiet until there are changes to save.
 - Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
-  Results update after a short pause as you type. Combine
-  notebook, note type, topic, source, updated date, and retention filters. Queries
-  stay in POST bodies. Sorting and filtering apply to the entire matching library.
+  Results update after a short pause as you type. **Filters** gathers notebook,
+  note type, topic, source, updated date, retention and sorting in one panel.
+  Queries stay in POST bodies. Sorting and filtering apply to the entire
+  matching library; the note count shows the active notebook when one is chosen.
 - Create a notebook with the sidebar **+** and just a name. **Manage notebooks** opens all
   notebook settings. Each notebook's action menu includes **New sub-notebook**;
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
@@ -127,7 +128,8 @@ See [public sharing](sharing.md) for lifecycle and permission details.
 
 ## Commands and keyboard shortcuts
 
-Open **Commands** in the sidebar or press `Ctrl`/`Cmd` + `Shift` + `P`. Type an
+Open **Commands** from the sidebar utilities or the note-actions menu on compact
+screens, or press `Ctrl`/`Cmd` + `Shift` + `P`. Type an
 action, use Up/Down to choose, and Enter to run it. The menu includes actions for
 the current note, including after a new note's first save. Escape returns focus to
 where you were. **Keyboard shortcuts**
