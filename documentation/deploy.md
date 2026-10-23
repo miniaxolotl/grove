@@ -15,6 +15,26 @@ documentation refresh.
 
 ## Topology
 
+### Connection quality policy cutover
+
+The substantive-bridge policy requires no new database migration. Coordinate the
+matching API and worker application versions:
+
+1. Pause enrichment dispatch and drain/stop every old worker consumer before
+   enabling the new policy. Do not mix old/new relationship writers; profile-based
+   job selection alone does not prevent old binaries overwriting canonical pairs.
+2. Deploy the admitted matching API/worker image, then resume enrichment. Fresh
+   reads use `relationships-v3-*`; old assessments stay retained but hidden until
+   bounded reconciliation replaces them within existing budgets. Unchanged-source
+   dismissals survive and old inspector revisions cannot act on new assessments.
+3. Verify concrete positive links, template-only abstention, canonical graph/list
+   agreement and stale cleanup-preview rejection using owned synthetic notes.
+   No source edits, eager live reset/reindex or bulk all-pairs inference is needed.
+4. For rollback, pause consumers again and coordinate API/worker rollback. Retain
+   notes and review state; do not reverse migrations or run mixed policy writers.
+
+See [connection processing and recovery](relationships.md#migration-and-recovery).
+
 ### Ask Grove tools rollout (020)
 
 Apply `20261023_020_ask_tools` with the owner connection after the notebook lifecycle

@@ -128,6 +128,7 @@ export class NotebookAssistance {
       const profile = assistanceProfile(
         generation.profile,
         this.service.providers.embedding?.profile,
+        input.kind,
       );
       await trx("assistance_requests").insert({
         accountId: account.id,
@@ -224,7 +225,7 @@ export class NotebookAssistance {
     if (
       !generation ||
       row.profile !==
-        assistanceProfile(generation.profile, embedding?.profile) ||
+        assistanceProfile(generation.profile, embedding?.profile, row.kind) ||
       (committed &&
         (committed.generation !== generation.profile ||
           committed.embedding !== (embedding?.profile ?? null)))

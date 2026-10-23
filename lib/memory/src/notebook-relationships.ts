@@ -1,5 +1,6 @@
 import type { MemoryModel, Knex } from "@lib/database";
 import type { Providers } from "@lib/ai";
+import { relationshipTerms } from "./relationship-discovery.ts";
 import {
   activeNotes,
   connectionSource,
@@ -45,30 +46,7 @@ export const similarity = (a: number[], b: number[]) =>
     : 0;
 export const vectorOf = (value: string | number[] | undefined): number[] =>
   typeof value === "string" ? JSON.parse(value) : (value ?? []);
-export const words = (content: string) =>
-  [...new Set(content.toLocaleLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [])]
-    .filter(
-      (s) =>
-        ![
-          "this",
-          "that",
-          "with",
-          "from",
-          "have",
-          "will",
-          "your",
-          "they",
-          "their",
-          "been",
-          "into",
-          "about",
-          "when",
-          "then",
-          "were",
-          "there",
-        ].includes(s),
-    )
-    .slice(0, 100);
+export const words = (content: string) => relationshipTerms(content, 100);
 
 export async function scheduleNotebookProfiles(
   trx: Knex.Transaction,

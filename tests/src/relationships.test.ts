@@ -16,7 +16,9 @@ import {
   relationshipTable,
 } from "../../lib/memory/src/relationship-data.ts";
 import { MemoryModel } from "@lib/database";
+import { noteCandidates, queuePair } from "../../lib/memory/src/relationship-jobs.ts";
 import type { GenerationProvider } from "@lib/ai";
+import { relationshipCases } from "../fixtures/relationship-quality.ts";
 
 const url = process.env.TEST_MIGRATION_DATABASE_URL!;
 if (!url || !new URL(url).pathname.endsWith("_test"))
@@ -312,6 +314,18 @@ function groundedGenerator(connected = false): GenerationProvider["generate"] {
         "Both cover the October Kyoto trip; lodging adds detail to the itinerary.",
       basis: connected ? "shared_goal" : "additional_context",
       direction: "both",
+      support: [
+        {
+          kind: "specific_subject",
+          subject: "October Kyoto trip",
+          property: "lodging and itinerary",
+          leftValue: "itinerary",
+          rightValue: "lodging",
+          conditions: "October trip",
+          leftEvidence: [0],
+          rightEvidence: [1],
+        },
+      ],
       evidence: selected.map((s) => ({
         id: s.id,
         version: s.version,
@@ -413,6 +427,197 @@ test("asynchronous scans coalesce opposite pairs, retain dismissals, and never c
     ).items.length,
     1,
   );
+});
+
+test("template-only judgments are cached as abstentions and model inputs omit filing metadata", async () => {
+  const f = await fixture();
+  await f.service.remember(
+    f.principal,
+    input("Perfect Days review. Rating 4/5. Rewatch. Director: Wim Wenders."),
+  );
+  await f.service.remember(
+    f.principal,
+    input("Arrival review. Rating 4/5. Rewatch. Director: Denis Villeneuve."),
+  );
+  let calls = 0;
+  f.worker.providers.generation!.generate = async (
+    schema,
+    _instructions,
+    sources,
+  ) => {
+    calls++;
+    assert(sources.every((s) => !("projectId" in s) && !("title" in s)));
+    return schema.parse({
+      relationship: "complementary",
+      basis: "additional_context",
+      direction: "both",
+      reason: "Both film reviews have the same rating and Rewatch verdict.",
+      evidence: sources.map((s) => ({
+        id: s.id,
+        version: s.version,
+        quote: s.content,
+      })),
+      support: [
+        {
+          kind: "template",
+          subject: "Film reviews",
+          property: "rating and verdict",
+          leftValue: "4/5 Rewatch",
+          rightValue: "4/5 Rewatch",
+          conditions: "review template",
+          leftEvidence: [0],
+          rightEvidence: [1],
+        },
+      ],
+    });
+  };
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  assert.equal(calls, 1);
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "note" }),
+      )
+    ).items.length,
+    0,
+  );
+  await f.worker.scheduleOrganization(60);
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  assert.equal(
+    calls,
+    1,
+    "Checked abstentions do not repeatedly spend inference",
+  );
+});
+
+test("text-only discovery retains short substantive terms", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(f.principal, input("Gin, 30 ml."));
+  const b = await f.service.remember(f.principal, input("Gin; 45 ml."));
+  const candidates = await tenant(db, f.principal.accountId, async (trx) =>
+    noteCandidates(trx, (await MemoryModel.query(trx).findById(a.id))!, {}),
+  );
+  assert(candidates.some((c) => c.id === b.id));
+});
+
+test("bounded text-only candidate recall covers labelled positive pairs amid template distractors", async (t) => {
+  const positives = relationshipCases.filter((c) => c.level === "note" && !c.expected.includes("unrelated"));
+  let found = 0;
+  for (const sample of positives) {
+    // Keep independent subjects in independent accounts, below ordinary API quotas.
+    const f = await fixture();
+    const notebook = await f.service.project(f.principal, { name: sample.name, identity: randomUUID() });
+    const a = await f.service.remember(f.principal, input(sample.left[0], { projectId: notebook.id }));
+    const b = await f.service.remember(f.principal, input(sample.right[0], { projectId: notebook.id }));
+    for (let i = 0; i < 8; i++) await f.service.remember(f.principal,
+      input(`Review journal recipe rating 4/5 Rewatch. Unconnected observation ${i}.`, { projectId: notebook.id }));
+    const candidates = await tenant(db, f.principal.accountId, async (trx) =>
+      noteCandidates(trx, (await MemoryModel.query(trx).findById(a.id))!, {}));
+    assert(candidates.length <= 8);
+    if (candidates.some((c) => c.id === b.id)) found++;
+    // Completed recall-only accounts must not occupy later scheduler tests' window.
+    await admin("accounts").where({ id: f.principal.accountId }).update({
+      organizationDueAt: admin.raw("now() + interval '1 day'"),
+    });
+  }
+  t.diagnostic(`Text-only labelled candidate recall: ${found}/${positives.length}; eight distractors per pair`);
+  assert(found / positives.length >= 0.9);
+});
+
+test("policy cutover rechecks old pairs, preserves dismissals and fences stale reviews", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: book lodging."),
+  );
+  const b = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: reserve three nights."),
+  );
+  const [leftId, rightId] = [a.id, b.id].sort();
+  const oldProfile = `relationships-v2-${relationHash([f.service.providers.generation!.profile, null])}`;
+  assert.notEqual(currentRelationshipProfile(f.service.providers), oldProfile);
+  const oldRevision = relationHash(["note", leftId, rightId, 1, 1, null]);
+  const row = await seed(f, [a.id, b.id]);
+  await admin("memory_relationships").where({ id: row.id }).update({
+    profile: oldProfile,
+    revision: oldRevision,
+    dismissedRevision: oldRevision,
+  });
+  assert.equal(
+    (
+      await f.service.relationships.list(
+        f.principal,
+        connectionQuerySchema.parse({ level: "note", includeDismissed: true }),
+      )
+    ).items.length,
+    0,
+  );
+  f.worker.providers.generation!.generate = groundedGenerator();
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  const page = await f.service.relationships.list(
+    f.principal,
+    connectionQuerySchema.parse({ level: "note", includeDismissed: true }),
+  );
+  assert.equal(page.items.length, 1);
+  const item = page.items[0];
+  assert.equal(item.id, row.id);
+  assert.notEqual(item.revision, oldRevision);
+  assert.equal(item.dismissed, true);
+  await assert.rejects(
+    f.service.relationships.review(f.principal, "note", item.id, {
+      operationId: randomUUID(),
+      expectedRevision: oldRevision,
+      expectedReviewVersion: 0,
+      dismissed: false,
+    }),
+    { code: "relationship_changed" },
+  );
+});
+
+test("policy reconciliation eventually reaches old pairs beyond a note's twenty-pair window", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(f.principal, input("Anchor itinerary."));
+  for (let i = 0; i < 24; i++) {
+    const b = await f.service.remember(
+      f.principal,
+      input(`Unique${i} glyph${i}.`),
+    );
+    const pair = await seed(f, [a.id, b.id]);
+    await admin("memory_relationships")
+      .where({ id: pair.id })
+      .update({ profile: "relationships-v2-old-policy" });
+  }
+  await admin("jobs")
+    .where({ accountId: f.principal.accountId, kind: "relationship_scan" })
+    .whereNot({ memoryId: a.id })
+    .delete();
+  f.worker.providers.generation!.generate = groundedGenerator();
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  await f.worker.scheduleOrganization(60);
+  await drain(f, ["relationship_scan", "note_relationship"]);
+  const stale = await admin("memory_relationships")
+    .where({ accountId: f.principal.accountId })
+    .whereNot({ profile: currentRelationshipProfile(f.service.providers) });
+  assert.equal(stale.length, 0);
+});
+
+test("old-policy backfill skips queued or exhausted pairs rather than starving later pairs", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(f.principal, input("Anchor itinerary."));
+  for (let i = 0; i < 24; i++) {
+    const b = await f.service.remember(f.principal, input(`Unique${i} glyph${i}.`));
+    const pair = await seed(f, [a.id, b.id]);
+    await admin("memory_relationships").where({ id: pair.id }).update({ profile: "relationships-v2-old-policy" });
+  }
+  const first = await admin("memory_relationships").where({ accountId: f.principal.accountId }).orderBy("id").limit(20);
+  for (const pair of first) await tenant(db, f.principal.accountId, (trx) =>
+    queuePair(trx, f.principal.accountId, "note", pair.leftId, pair.rightId, currentRelationshipProfile(f.service.providers)!));
+  await admin("jobs").where({ accountId: f.principal.accountId, kind: "note_relationship" }).update({ attempts: 5, failedAt: admin.fn.now() });
+  await f.worker.scheduleOrganization(60);
+  const pending = await admin("jobs").where({ accountId: f.principal.accountId, kind: "note_relationship" }).whereNull("failedAt");
+  assert.equal(pending.length, 4);
 });
 
 test("late evidence cannot publish after a source edit, settings disable, or committed model switch", async () => {
@@ -647,6 +852,18 @@ test("invalid evidence exhausts bounded retries; explicit retry and daily-budget
     schema.parse({
       relationship: "complementary",
       reason: "This must not publish.",
+      support: [
+        {
+          kind: "specific_subject",
+          subject: "Kyoto trip",
+          property: "lodging",
+          leftValue: "lodging",
+          rightValue: "lodging",
+          conditions: "recorded trip",
+          leftEvidence: [0],
+          rightEvidence: [1],
+        },
+      ],
       basis: "additional_context",
       direction: "both",
       evidence: sources.map((s) => ({
