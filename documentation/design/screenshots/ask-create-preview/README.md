@@ -3,8 +3,9 @@
 Reviewed 23 October 2026 using synthetic cocktail-note content, production CSS build
 `zJWm1lDCUK4a0jzuxRN9O` and Playwright 1.64.1.
 
-- [Desktop, 1440px](new-note-chromium-1440.png)
-- [Phone, 390px](new-note-chromium-390.png)
+| Desktop · 1440px | Phone · 390px | Narrow phone · 320px |
+| --- | --- | --- |
+| ![Desktop preview](new-note-chromium-1440.png) | ![Phone preview](new-note-chromium-390.png) | ![Narrow WebKit preview](new-note-webkit-320.png) |
 
 New-note proposals contain one Markdown preview and **Save note**. There is no
 empty Current note column or Review changes disclosure. The existing preview
