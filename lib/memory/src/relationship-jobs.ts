@@ -119,7 +119,19 @@ export async function queuePair(
     level === "note" ? "note_relationship" : "notebook_relationship",
     `${leftId}:${rightId}`,
     profile,
-    { leftId, rightId, snapshot },
+    {
+      leftId,
+      rightId,
+      snapshot,
+      leftVersion:
+        level === "note" ? endpoints[0].version : endpoints[0].contentVersion,
+      rightVersion:
+        level === "note" ? endpoints[1].version : endpoints[1].contentVersion,
+      expiresAt:
+        earliestExpiry(
+          endpoints.map((endpoint) => endpoint.expiresAt),
+        )?.getTime() ?? null,
+    },
   );
 }
 async function scanNote(
@@ -208,21 +220,38 @@ export async function noteCandidates(
       .limit(5);
   }
   // OR terms supplement vectors and work when embedding generation is disabled.
-  const terms = relationshipTerms(note.content).join(" OR ");
-  const lexical = !terms
-    ? []
-    : lexicalCandidates(
-        note.content,
-        await sameScope()
-          .whereRaw("search @@ websearch_to_tsquery('english', ?)", [terms])
-          .orderByRaw(
-            "ts_rank(search, websearch_to_tsquery('english', ?)) DESC",
-            [terms],
-          )
-          .orderBy("id")
-          .limit(32),
-        5,
-      );
+  const terms = relationshipTerms(note.content);
+  let pool: MemoryModel[] = [];
+  if (terms.length) {
+    const shortlist = (hints: string[]) => {
+      const query = hints.join(" OR ");
+      return sameScope()
+        .whereRaw("search @@ websearch_to_tsquery('english', ?)", [query])
+        .orderByRaw(
+          "ts_rank(search, websearch_to_tsquery('english', ?)) DESC",
+          [query],
+        )
+        .orderBy("id")
+        .limit(16);
+    };
+    pool = await shortlist(terms);
+    const documents = pool.map(
+      (row) => new Set(relationshipTerms(row.content)),
+    );
+    const counts = terms.map(
+      (term) => documents.filter((tokens) => tokens.has(term)).length,
+    );
+    const minimum = Math.min(...counts);
+    const focused = terms.filter((_, i) => counts[i] === minimum);
+    // A template-saturated SQL shortlist can hide distinguishing terms before
+    // reranking. Reserve half the 32-row budget for its least represented hints.
+    if (focused.length < terms.length) pool.push(...(await shortlist(focused)));
+  }
+  const lexical = lexicalCandidates(
+    note.content,
+    [...new Map(pool.map((row) => [row.id, row])).values()],
+    5,
+  );
   // Interleave independent rankings rather than letting vectors consume the cap.
   for (let i = 0; i < Math.max(vectors.length, lexical.length); i++) {
     for (const row of [lexical[i], vectors[i]])
@@ -317,9 +346,6 @@ export async function scheduleRelationships(
       .join(`${endpoint} as l`, "l.id", "r.leftId")
       .join(`${endpoint} as n`, "n.id", "r.rightId")
       .whereNot("r.profile", profile)
-      .whereNotExists(trx("jobs as j").select(trx.raw("1"))
-        .where({ "j.profile": profile, "j.kind": level === "note" ? "note_relationship" : "notebook_relationship" })
-        .whereRaw("j.account_id=r.account_id AND j.target=r.left_id::text || ':' || r.right_id::text"))
       .where({ "l.status": "active", "n.status": "active" });
     if (level === "note") {
       old
@@ -344,6 +370,29 @@ export async function scheduleRelationships(
           "(lp.expires_at IS NULL OR lp.expires_at>now()) AND (np.expires_at IS NULL OR np.expires_at>now())",
         );
     }
+    // Existing jobs suppress only the snapshot they actually checked. Changed
+    // sources must revisit even an exhausted pair outside the per-note window.
+    const version = level === "note" ? "version" : "content_version";
+    const leftExpiry = level === "note" ? "l.expires_at" : "lp.expires_at";
+    const rightExpiry = level === "note" ? "n.expires_at" : "np.expires_at";
+    old.whereNotExists(
+      trx("jobs as j")
+        .select(trx.raw("1"))
+        .where({
+          "j.profile": profile,
+          "j.kind":
+            level === "note" ? "note_relationship" : "notebook_relationship",
+        })
+        .whereRaw(
+          "j.account_id=r.account_id AND j.target=r.left_id::text || ':' || r.right_id::text",
+        )
+        .whereRaw(
+          `(j.scope->>'leftVersion')::int=l.${version} AND (j.scope->>'rightVersion')::int=n.${version}`,
+        )
+        .whereRaw(
+          `(j.scope->>'expiresAt')::numeric IS NOT DISTINCT FROM FLOOR(EXTRACT(EPOCH FROM LEAST(${leftExpiry}, ${rightExpiry}))*1000)`,
+        ),
+    );
     for (const pair of await old
       .orderBy("r.id")
       .limit(20)

@@ -59,16 +59,25 @@ without inventing explanations for legacy enum-only labels.
   vectors: at most eight new candidates, plus twenty existing pairs per scan.
   Lexical hints sample the whole note, retain short terms such as gin/rum and
   rerank at most 32 lexical results by distinguishing overlap rather than repeated
-  template words. Lexical/vector rankings are interleaved within the same cap.
+  template words. A broad sixteen-result query is supplemented by at most sixteen
+  matches for hints least represented in that shortlist, so frequent templates
+  cannot always crowd out distinguishing facts before reranking. This uses at most
+  two lexical queries, not one per term. Lexical/vector rankings are interleaved
+  within the same cap.
 - Canonical ordered pairs coalesce reverse-direction jobs. Current unrelated
   results are cached too. Unchanged-source retries preserve dismissals.
 - Notebook profiles scan 64 notes per job, persisting progress, a centroid, bounded
-  lexical terms and twelve diverse representatives. All eligible notes participate
-  in discovery; old/new notes also supplement assessment selection.
+  lexical terms and twelve diverse representatives. Up to 128 terms reserve half
+  the vocabulary for minority hints rather than only frequent template words.
+  All eligible notes participate in discovery; bounded sampling cannot preserve
+  every subject. Old/new notes also supplement assessment selection.
 - Discovery walks other current notebook profiles in resumable batches of twenty,
-  retaining the best five candidates across batches. Re-enabling organization
-  resumes an interrupted discovery pass. Each completed profile proposes at most
-  five candidate notebooks.
+  retaining at most five lexical and five vector hints across batches. Lexical
+  overlap is weighted by within-notebook document frequency; a single shared term
+  can nominate assessment, never establish a link. Interleaved rankings propose
+  at most five candidate notebooks. Re-enabling connections resumes an interrupted
+  discovery pass. Two highest-weight shared terms nominate original source notes,
+  alongside diverse/vector representatives and oldest/newest supplements.
   Generation sees at most eight original notes / 12,000 characters per side.
 - Grounding requires verbatim excerpts, exact versions and evidence from both
   endpoints. Generation must also identify one specific bridge, its endpoint
@@ -79,7 +88,8 @@ without inventing explanations for legacy enum-only labels.
   not semantic truth: model judgments still need labelled quality evaluation.
 - Reconciliation resumes at most 100 note scans and 20 notebook profiles per pass.
   It also schedules at most twenty old-policy pairs per level, skipping already
-  queued/exhausted jobs so later pairs are not stranded behind the scan window.
+  queued/exhausted jobs for the same source snapshot so later pairs are not stranded
+  behind the scan window. A changed version or expiry can replace that failed job.
   Failed jobs remain exhausted until explicit retry or a changed source snapshot;
   budgets defer until the next
   database day. Pair records are checked before spending another generation request.
@@ -188,3 +198,7 @@ runs are not independent labelled examples. Supplied-pair evaluation does not
 measure retrieval recall. Database tests separately exercise bounded text-only
 discovery amid distractors. Review explanation support, not only label matches.
 See [quality evidence and limits](development/connection-quality-results.md).
+
+Existing split labels identify development partitions; cases inspected during
+tuning are not an independent held-out evaluation, regardless of their label.
+Approve provider/model and request/token/spend bounds before a paid run.

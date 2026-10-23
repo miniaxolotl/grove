@@ -16,9 +16,17 @@ import {
   relationshipTable,
 } from "../../lib/memory/src/relationship-data.ts";
 import { MemoryModel } from "@lib/database";
-import { noteCandidates, queuePair } from "../../lib/memory/src/relationship-jobs.ts";
+import {
+  noteCandidates,
+  queuePair,
+  scheduleRelationships,
+} from "../../lib/memory/src/relationship-jobs.ts";
 import type { GenerationProvider } from "@lib/ai";
 import { relationshipCases } from "../fixtures/relationship-quality.ts";
+import {
+  advanceNotebookProfile,
+  notebookPairInput,
+} from "../../lib/memory/src/notebook-relationships.ts";
 
 const url = process.env.TEST_MIGRATION_DATABASE_URL!;
 if (!url || !new URL(url).pathname.endsWith("_test"))
@@ -501,27 +509,87 @@ test("text-only discovery retains short substantive terms", async () => {
   assert(candidates.some((c) => c.id === b.id));
 });
 
+test("text-only discovery reaches distinguishing facts beyond a saturated template shortlist", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(
+    f.principal,
+    input("Film review rating Rewatch director Céline Sciamma"),
+  );
+  const b = await f.service.remember(
+    f.principal,
+    input("Director Céline Sciamma: Portrait of a Lady on Fire"),
+  );
+  for (let i = 0; i < 40; i++)
+    await f.service.remember(
+      f.principal,
+      input(`Film review rating Rewatch. Unrelated observation ${i}.`),
+    );
+  const queries: string[] = [];
+  const observe = ({ sql }: { sql: string }) => {
+    if (sql.includes("websearch_to_tsquery")) queries.push(sql);
+  };
+  db.on("query", observe);
+  try {
+    const candidates = await tenant(db, f.principal.accountId, async (trx) =>
+      noteCandidates(trx, (await MemoryModel.query(trx).findById(a.id))!, {}),
+    );
+    assert(candidates.length <= 8);
+    assert(
+      candidates.some((candidate) => candidate.id === b.id),
+      "Reranking cannot recover an anchor excluded by the first SQL shortlist",
+    );
+    assert(
+      queries.length <= 2,
+      "Lexical discovery must stay bounded, not issue one query per term",
+    );
+  } finally {
+    db.off("query", observe);
+  }
+});
+
 test("bounded text-only candidate recall covers labelled positive pairs amid template distractors", async (t) => {
-  const positives = relationshipCases.filter((c) => c.level === "note" && !c.expected.includes("unrelated"));
+  const positives = relationshipCases.filter(
+    (c) => c.level === "note" && !c.expected.includes("unrelated"),
+  );
   let found = 0;
   for (const sample of positives) {
     // Keep independent subjects in independent accounts, below ordinary API quotas.
     const f = await fixture();
-    const notebook = await f.service.project(f.principal, { name: sample.name, identity: randomUUID() });
-    const a = await f.service.remember(f.principal, input(sample.left[0], { projectId: notebook.id }));
-    const b = await f.service.remember(f.principal, input(sample.right[0], { projectId: notebook.id }));
-    for (let i = 0; i < 8; i++) await f.service.remember(f.principal,
-      input(`Review journal recipe rating 4/5 Rewatch. Unconnected observation ${i}.`, { projectId: notebook.id }));
+    const notebook = await f.service.project(f.principal, {
+      name: sample.name,
+      identity: randomUUID(),
+    });
+    const a = await f.service.remember(
+      f.principal,
+      input(sample.left[0], { projectId: notebook.id }),
+    );
+    const b = await f.service.remember(
+      f.principal,
+      input(sample.right[0], { projectId: notebook.id }),
+    );
+    for (let i = 0; i < 8; i++)
+      await f.service.remember(
+        f.principal,
+        input(
+          `Review journal recipe rating 4/5 Rewatch. Unconnected observation ${i}.`,
+          { projectId: notebook.id },
+        ),
+      );
     const candidates = await tenant(db, f.principal.accountId, async (trx) =>
-      noteCandidates(trx, (await MemoryModel.query(trx).findById(a.id))!, {}));
+      noteCandidates(trx, (await MemoryModel.query(trx).findById(a.id))!, {}),
+    );
     assert(candidates.length <= 8);
     if (candidates.some((c) => c.id === b.id)) found++;
     // Completed recall-only accounts must not occupy later scheduler tests' window.
-    await admin("accounts").where({ id: f.principal.accountId }).update({
-      organizationDueAt: admin.raw("now() + interval '1 day'"),
-    });
+    await admin("accounts")
+      .where({ id: f.principal.accountId })
+      .update({
+        organizationDueAt: admin.raw("now() + interval '1 day'"),
+      });
   }
-  t.diagnostic(`Text-only labelled candidate recall: ${found}/${positives.length}; eight distractors per pair`);
+  t.diagnostic(
+    `Text-only labelled candidate recall: ${found}/${positives.length}; eight distractors per pair`,
+  );
   assert(found / positives.length >= 0.9);
 });
 
@@ -606,18 +674,165 @@ test("policy reconciliation eventually reaches old pairs beyond a note's twenty-
 test("old-policy backfill skips queued or exhausted pairs rather than starving later pairs", async () => {
   const f = await fixture();
   const a = await f.service.remember(f.principal, input("Anchor itinerary."));
+  // PostgreSQL expiry precision exceeds the Date precision used in job snapshots.
+  await admin("memories")
+    .where({ id: a.id })
+    .update({
+      retentionDays: 1,
+      expiresAt: admin.raw(
+        "date_trunc('milliseconds', now()) + interval '1 day 0.000123 seconds'",
+      ),
+      purgeAt: admin.raw("now() + interval '2 days'"),
+    });
   for (let i = 0; i < 24; i++) {
-    const b = await f.service.remember(f.principal, input(`Unique${i} glyph${i}.`));
+    const b = await f.service.remember(
+      f.principal,
+      input(`Unique${i} glyph${i}.`),
+    );
     const pair = await seed(f, [a.id, b.id]);
-    await admin("memory_relationships").where({ id: pair.id }).update({ profile: "relationships-v2-old-policy" });
+    await admin("memory_relationships")
+      .where({ id: pair.id })
+      .update({ profile: "relationships-v2-old-policy" });
   }
-  const first = await admin("memory_relationships").where({ accountId: f.principal.accountId }).orderBy("id").limit(20);
-  for (const pair of first) await tenant(db, f.principal.accountId, (trx) =>
-    queuePair(trx, f.principal.accountId, "note", pair.leftId, pair.rightId, currentRelationshipProfile(f.service.providers)!));
-  await admin("jobs").where({ accountId: f.principal.accountId, kind: "note_relationship" }).update({ attempts: 5, failedAt: admin.fn.now() });
+  const first = await admin("memory_relationships")
+    .where({ accountId: f.principal.accountId })
+    .orderBy("id")
+    .limit(20);
+  for (const pair of first)
+    await tenant(db, f.principal.accountId, (trx) =>
+      queuePair(
+        trx,
+        f.principal.accountId,
+        "note",
+        pair.leftId,
+        pair.rightId,
+        currentRelationshipProfile(f.service.providers)!,
+      ),
+    );
+  await admin("jobs")
+    .where({ accountId: f.principal.accountId, kind: "note_relationship" })
+    .update({ attempts: 5, failedAt: admin.fn.now() });
   await f.worker.scheduleOrganization(60);
-  const pending = await admin("jobs").where({ accountId: f.principal.accountId, kind: "note_relationship" }).whereNull("failedAt");
+  const pending = await admin("jobs")
+    .where({ accountId: f.principal.accountId, kind: "note_relationship" })
+    .whereNull("failedAt");
   assert.equal(pending.length, 4);
+});
+
+test("old-policy reconciliation retries exhausted jobs only after their source snapshot changes", async () => {
+  for (const level of ["note", "notebook"] as const) {
+    const f = await fixture();
+    const origin = await f.service.project(f.principal, {
+      name: "Origin",
+      identity: randomUUID(),
+    });
+    const destination =
+      level === "note"
+        ? origin
+        : await f.service.project(f.principal, {
+            name: "Other",
+            identity: randomUUID(),
+          });
+    const a = await f.service.remember(
+      f.principal,
+      input("October Kyoto itinerary.", { projectId: origin.id }),
+    );
+    const b = await f.service.remember(
+      f.principal,
+      input("October Kyoto hotel.", { projectId: destination.id }),
+    );
+    const row = await seed(f, [a.id, b.id], level);
+    await admin(relationshipTable(level))
+      .where({ id: row.id })
+      .update({ profile: "relationships-v2-old-policy" });
+    const profile = currentRelationshipProfile(f.service.providers)!;
+    const generation = f.service.providers.generation!.profile;
+    if (level === "notebook")
+      await tenant(db, f.principal.accountId, async (trx) => {
+        for (const project of [origin, destination]) {
+          await advanceNotebookProfile(
+            trx,
+            {
+              id: randomUUID(),
+              accountId: f.principal.accountId,
+              target: project.id,
+              profile,
+            },
+            {},
+            false,
+          );
+          await trx("notebook_profiles")
+            .where({ projectId: project.id, profile })
+            .update({
+              data: trx.raw(
+                "jsonb_set(data, '{discoveryComplete}', 'true'::jsonb)",
+              ),
+            });
+        }
+      });
+    const reconcile = () =>
+      tenant(db, f.principal.accountId, (trx) =>
+        scheduleRelationships(trx, f.principal.accountId, {
+          generation,
+          embedding: null,
+          decision: null,
+        }),
+      );
+    await tenant(db, f.principal.accountId, (trx) =>
+      queuePair(
+        trx,
+        f.principal.accountId,
+        level,
+        row.leftId,
+        row.rightId,
+        profile,
+      ),
+    );
+    const job = await admin("jobs")
+      .where({
+        accountId: f.principal.accountId,
+        kind: level === "note" ? "note_relationship" : "notebook_relationship",
+      })
+      .first();
+    await admin("jobs")
+      .where({ id: job.id })
+      .update({ attempts: 5, failedAt: admin.fn.now() });
+    await reconcile();
+    assert(
+      (await admin("jobs").where({ id: job.id }).first()).failedAt,
+      "Unchanged failures stay exhausted",
+    );
+    await f.service.remember(
+      f.principal,
+      input("October Kyoto itinerary: amended dates.", {
+        id: a.id,
+        expectedVersion: a.version,
+        projectId: origin.id,
+      }),
+    );
+    if (level === "notebook")
+      await tenant(db, f.principal.accountId, (trx) =>
+        advanceNotebookProfile(
+          trx,
+          {
+            id: randomUUID(),
+            accountId: f.principal.accountId,
+            target: origin.id,
+            profile,
+          },
+          {},
+          false,
+        ),
+      );
+    await reconcile();
+    const refreshed = await admin("jobs").where({ id: job.id }).first();
+    assert.equal(
+      refreshed.failedAt,
+      null,
+      `${level}: changed sources must not remain excluded by the failed job`,
+    );
+    assert.equal(refreshed.attempts, 0);
+  }
 });
 
 test("late evidence cannot publish after a source edit, settings disable, or committed model switch", async () => {
@@ -681,6 +896,76 @@ test("late evidence cannot publish after a source edit, settings disable, or com
       0,
     );
   }
+});
+
+test("a dismissal committed during reassessment survives publication and fences old Undo", async () => {
+  const f = await fixture();
+  const a = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: reserve train seats."),
+  );
+  const b = await f.service.remember(
+    f.principal,
+    input("October Kyoto trip: reserve lodging."),
+  );
+  const row = await seed(f, [a.id, b.id]);
+  await tenant(db, f.principal.accountId, (trx) =>
+    queuePair(
+      trx,
+      f.principal.accountId,
+      "note",
+      a.id,
+      b.id,
+      currentRelationshipProfile(f.service.providers)!,
+    ),
+  );
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  f.worker.providers.generation!.generate = async (...args) => {
+    entered();
+    await held;
+    return groundedGenerator()(...args);
+  };
+  const job = await admin("jobs")
+    .where({ accountId: f.principal.accountId, kind: "note_relationship" })
+    .first();
+  await admin("jobs").where({ id: job.id }).update({ dueAt: admin.fn.now() });
+  const pending = f.worker.runJob(job.id);
+  await started;
+  try {
+    await f.service.relationships.review(f.principal, "note", row.id, {
+      operationId: randomUUID(),
+      expectedRevision: row.revision,
+      expectedReviewVersion: 0,
+      dismissed: true,
+    });
+  } finally {
+    release();
+  }
+  await pending;
+  const page = await f.service.relationships.list(
+    f.principal,
+    connectionQuerySchema.parse({ level: "note", includeDismissed: true }),
+  );
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0].id, row.id);
+  assert.equal(page.items[0].dismissed, true);
+  assert.equal(page.items[0].reviewVersion, 1);
+  assert.notEqual(page.items[0].revision, row.revision);
+  await assert.rejects(
+    f.service.relationships.review(f.principal, "note", row.id, {
+      operationId: randomUUID(),
+      expectedRevision: row.revision,
+      expectedReviewVersion: 1,
+      dismissed: false,
+    }),
+    { code: "relationship_changed" },
+  );
 });
 
 test("notebook profiles resume bounded batches, use both notebooks, and disclose limited evidence", async () => {
@@ -1152,6 +1437,375 @@ test("notebook candidate discovery resumes beyond the first hundred collections"
     [pair.scope.leftId, pair.scope.rightId].sort(),
     [origin.id, target].sort(),
   );
+});
+
+test("notebook discovery ranks a minority thread ahead of repeated template vocabulary", async () => {
+  const f = await fixture();
+  const origin = await f.service.project(f.principal, {
+    name: "Films",
+    identity: randomUUID(),
+  });
+  const template =
+    "Film review rating rewatch verdict genre mood recommendation";
+  for (let i = 0; i < 11; i++)
+    await f.service.remember(
+      f.principal,
+      input(`${template}. Different observation ${i}.`, {
+        projectId: origin.id,
+      }),
+    );
+  await f.service.remember(
+    f.principal,
+    input("Studio Willow made Moon Garden.", { projectId: origin.id }),
+  );
+  const profile = currentRelationshipProfile(f.service.providers)!;
+  const ids = Array.from({ length: 7 }, () => randomUUID()).sort();
+  const target = ids.at(-1)!;
+  await tenant(db, f.principal.accountId, async (trx) => {
+    await trx("projects").insert(
+      ids.map((id) => ({
+        id,
+        accountId: f.principal.accountId,
+        name: "Candidate",
+        identity: id,
+      })),
+    );
+    await trx("notebook_profiles").insert(
+      ids.map((id) => ({
+        accountId: f.principal.accountId,
+        projectId: id,
+        contentVersion: 0,
+        profile,
+        total: 12,
+        processed: 12,
+        complete: true,
+        data: JSON.stringify({
+          discoveryComplete: true,
+          sum: [],
+          vectors: 0,
+          hashes: [],
+          representatives: [],
+          terms:
+            id === target
+              ? { willow: 1 }
+              : Object.fromEntries(
+                  template
+                    .toLowerCase()
+                    .split(" ")
+                    .map((term) => [term, 12]),
+                ),
+        }),
+      })),
+    );
+    await advanceNotebookProfile(
+      trx,
+      {
+        id: randomUUID(),
+        accountId: f.principal.accountId,
+        target: origin.id,
+        profile,
+      },
+      {},
+    );
+  });
+  const pairs = await admin("jobs").where({
+    accountId: f.principal.accountId,
+    kind: "notebook_relationship",
+  });
+  assert(pairs.length <= 5);
+  assert(
+    pairs.some((pair) =>
+      [pair.scope.leftId, pair.scope.rightId].includes(target),
+    ),
+    "The rare shared studio must survive the five-candidate cap",
+  );
+});
+
+test("notebook candidate fusion retains lexical nominations among vector-only neighbors", async () => {
+  const f = await fixture();
+  const origin = await f.service.project(f.principal, {
+    name: "Research",
+    identity: randomUUID(),
+  });
+  await f.service.remember(
+    f.principal,
+    input("Willow", { projectId: origin.id }),
+  );
+  const profile = currentRelationshipProfile(f.service.providers)!;
+  const ids = Array.from({ length: 7 }, () => randomUUID()).sort();
+  const target = ids.at(-1)!;
+  await tenant(db, f.principal.accountId, async (trx) => {
+    const job = {
+      id: randomUUID(),
+      accountId: f.principal.accountId,
+      target: origin.id,
+      profile,
+    };
+    await advanceNotebookProfile(trx, job, {}, false);
+    await trx("notebook_profiles")
+      .where({ projectId: origin.id, profile })
+      .update({
+        data: trx.raw("jsonb_set(data, '{sum}', '[1,0]'::jsonb)"),
+      });
+    await trx("projects").insert(
+      ids.map((id) => ({
+        id,
+        accountId: f.principal.accountId,
+        name: "Candidate",
+        identity: id,
+      })),
+    );
+    await trx("notebook_profiles").insert(
+      ids.map((id) => ({
+        accountId: f.principal.accountId,
+        projectId: id,
+        contentVersion: 0,
+        profile,
+        total: 1,
+        processed: 1,
+        complete: true,
+        data: JSON.stringify({
+          discoveryComplete: true,
+          sum: id === target ? [0, 1] : [1, 0],
+          vectors: 1,
+          hashes: [],
+          representatives: [],
+          terms: id === target ? { willow: 1 } : { printer: 1 },
+        }),
+      })),
+    );
+    await advanceNotebookProfile(trx, job, {});
+  });
+  const pairs = await admin("jobs").where({
+    accountId: f.principal.accountId,
+    kind: "notebook_relationship",
+  });
+  assert(pairs.length <= 5);
+  assert(
+    pairs.some((pair) =>
+      [pair.scope.leftId, pair.scope.rightId].includes(target),
+    ),
+    "Vector-only neighbors cannot consume the entire candidate cap",
+  );
+});
+
+test("notebook source selection reaches a middle-aged minority thread outside representatives", async () => {
+  const f = await fixture();
+  const origin = await f.service.project(f.principal, {
+    name: "Research",
+    identity: randomUUID(),
+  });
+  const other = await f.service.project(f.principal, {
+    name: "Journal",
+    identity: randomUUID(),
+  });
+  const template =
+    "Film review rating rewatch verdict genre mood recommendation score stars format category";
+  const notes: { id: string }[] = [];
+  for (let i = 0; i < 8; i++) {
+    notes.push(
+      await f.service.remember(
+        f.principal,
+        input(
+          i === 4
+            ? "Studio Willow made Moon Garden using watercolor."
+            : `${template}. Observation ${i}.`,
+          { projectId: origin.id },
+        ),
+      ),
+    );
+  }
+  const right = await f.service.remember(
+    f.principal,
+    input("Studio Willow made Glass River using hand-drawn crowds.", {
+      projectId: other.id,
+    }),
+  );
+  const profile = currentRelationshipProfile(f.service.providers)!;
+  await tenant(db, f.principal.accountId, async (trx) => {
+    for (const id of [origin.id, other.id]) {
+      const project = await trx("projects").where({ id }).first();
+      const own = id === origin.id ? notes.filter((_, i) => i !== 4) : [right];
+      await trx("notebook_profiles").insert({
+        accountId: f.principal.accountId,
+        projectId: id,
+        contentVersion: project.contentVersion,
+        profile,
+        total: id === origin.id ? 8 : 1,
+        processed: id === origin.id ? 8 : 1,
+        complete: true,
+        data: JSON.stringify({
+          discoveryComplete: true,
+          sum: [],
+          vectors: 0,
+          hashes: [],
+          representatives: own
+            .slice(0, 4)
+            .map((note) => ({ id: note.id, vector: [], hash: note.id })),
+          terms: {
+            ...Object.fromEntries(
+              template
+                .toLowerCase()
+                .split(" ")
+                .map((term) => [term, id === origin.id ? 7 : 1]),
+            ),
+            studio: 1,
+            willow: 1,
+          },
+        }),
+      });
+    }
+    const [leftId, rightId] = [origin.id, other.id].sort();
+    const pair = await notebookPairInput(trx, leftId, rightId, profile, {});
+    assert(pair);
+    const selected = [...pair.left, ...pair.right];
+    assert(
+      selected.some((note) => note.id === notes[4].id),
+      "The bridge note must not be hidden by the first twelve template terms",
+    );
+    for (const side of [pair.left, pair.right]) {
+      assert(side.length <= 8);
+      assert(
+        side.reduce((length, note) => length + note.content.length, 0) <= 12000,
+      );
+    }
+  });
+});
+
+test("notebook term profiles retain minority hints alongside frequent vocabulary", async () => {
+  const f = await fixture();
+  const origin = await f.service.project(f.principal, {
+    name: "Mixed",
+    identity: randomUUID(),
+  });
+  for (let group = 0; group < 3; group++) {
+    const content = Array.from(
+      { length: 100 },
+      (_, i) => `template${group}word${i}`,
+    ).join(" ");
+    for (let i = 0; i < 4; i++)
+      await f.service.remember(
+        f.principal,
+        input(`${content} observation${i}`, { projectId: origin.id }),
+      );
+  }
+  await f.service.remember(
+    f.principal,
+    input("Studio Willow", { projectId: origin.id }),
+  );
+  const profile = currentRelationshipProfile(f.service.providers)!;
+  await tenant(db, f.principal.accountId, (trx) =>
+    advanceNotebookProfile(
+      trx,
+      {
+        id: randomUUID(),
+        accountId: f.principal.accountId,
+        target: origin.id,
+        profile,
+      },
+      {},
+      false,
+    ),
+  );
+  const row = await admin("notebook_profiles")
+    .where({ projectId: origin.id, profile })
+    .first();
+  assert(Object.keys(row.data.terms).length <= 128);
+  assert.equal(
+    row.data.terms.willow,
+    1,
+    "Rare subjects cannot all be evicted by frequent template words",
+  );
+});
+
+test("text-only notebook candidate recall covers labelled threads within the five-pair cap", async (t) => {
+  const samples = relationshipCases.filter(
+    (sample) =>
+      sample.level === "notebook" && sample.expected.includes("connected"),
+  );
+  let found = 0,
+    maxQueries = 0;
+  const started = performance.now();
+  for (const sample of samples) {
+    const f = await fixture();
+    const projects: { id: string }[] = [];
+    for (const texts of [
+      sample.left,
+      sample.right,
+      ...Array.from({ length: 6 }, (_, i) => [
+        `Unconnected printer toner reference ${i}.`,
+      ]),
+    ]) {
+      const project = await f.service.project(f.principal, {
+        name: "Synthetic collection",
+        identity: randomUUID(),
+      });
+      projects.push(project);
+      for (const content of texts)
+        await f.service.remember(
+          f.principal,
+          input(content, { projectId: project.id }),
+        );
+    }
+    const profile = currentRelationshipProfile(f.service.providers)!;
+    let queryCount = 0;
+    const observe = () => {
+      queryCount++;
+    };
+    db.on("query", observe);
+    try {
+      await tenant(db, f.principal.accountId, async (trx) => {
+        for (const project of projects.slice(1))
+          await advanceNotebookProfile(
+            trx,
+            {
+              id: randomUUID(),
+              accountId: f.principal.accountId,
+              target: project.id,
+              profile,
+            },
+            {},
+            false,
+          );
+        const complete = await advanceNotebookProfile(
+          trx,
+          {
+            id: randomUUID(),
+            accountId: f.principal.accountId,
+            target: projects[0].id,
+            profile,
+          },
+          {},
+        );
+        assert(
+          complete,
+          "Small collections should finish one bounded profile/discovery step",
+        );
+        const [leftId, rightId] = [projects[0].id, projects[1].id].sort();
+        const pair = await notebookPairInput(trx, leftId, rightId, profile, {});
+        assert(pair, `Original source input must be available: ${sample.name}`);
+        assert(pair.left.length <= 8 && pair.right.length <= 8);
+      });
+    } finally {
+      db.off("query", observe);
+    }
+    maxQueries = Math.max(maxQueries, queryCount);
+    const jobs = await admin("jobs").where({
+      accountId: f.principal.accountId,
+      kind: "notebook_relationship",
+    });
+    assert(jobs.length <= 5);
+    if (
+      jobs.some((job) =>
+        [job.scope.leftId, job.scope.rightId].includes(projects[1].id),
+      )
+    )
+      found++;
+  }
+  t.diagnostic(
+    `Text-only notebook candidate recall: ${found}/${samples.length}; six distractors per pair; max ${maxQueries} SQL statements including all eight profile builds and source selection; ${Math.round(performance.now() - started)} ms`,
+  );
+  assert(found / samples.length >= 0.9);
 });
 
 test("library relationship projection batches canonical reads instead of adding queries per note", async () => {
