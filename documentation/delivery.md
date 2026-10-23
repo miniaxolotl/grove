@@ -1,5 +1,20 @@
 # Delivery evidence
 
+## Shared reader polish (23 October 2026)
+
+Shared notes and notebooks use one Read only label, a clear title/date and the saved
+content. Repeated sharing labels, promotional footer and reader cookie notice are
+removed. Unavailable links mention expiry and request a new link; temporary failures
+offer a single retry. Generic HTML/Open Graph/Twitter metadata explicitly omits
+marketing images and author/keyword tags and includes no-referrer.
+
+Root/website lint, types and builds, five artifacts and bundle budgets pass.
+All **40 Chromium** sharing/privacy/consent/public-site scenarios and **five focused
+iPhone/WebKit** reader scenarios pass. Six states pass 18 viewport/accessibility
+checks at 1440/390/320px, plus metadata/headers, keyboard, retry and active-reader
+no-JavaScript checks. [Fourteen captures and verification scope](design/screenshots/shared-readers/README.md)
+record the production build and the framework's no-JavaScript error-fallback limitation.
+
 ## Ask Grove history (23 October 2026)
 
 History now offers private title/question search, date-grouped rows with question

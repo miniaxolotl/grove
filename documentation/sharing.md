@@ -57,6 +57,25 @@ enrichment, relationships, conversations and credentials. Markdown excludes HTML
 and active controls; remote images are click-to-open links. Internal note links
 navigate only within this capability's scope.
 
+## Public reader
+
+The reader has a compact Grove header with **Read only**, the note title and update
+date, then the saved content. Notebooks use simple linked rows; nested pages link
+back to the shared notebook. Reading and navigation work without JavaScript.
+Shared routes omit the site cookie notice; visiting the main site still offers the
+normal consent choices.
+
+Expired, revoked, missing and out-of-scope links use the same **This link is
+unavailable** screen and ask the visitor to request a new link from the sender.
+The reader does not reveal which condition caused the denial. Temporary failures
+show **Could not open this link** with **Try again**, which makes a fresh request.
+
+All reader states use the generic **Shared with you · Grove** title and description
+in HTML, Open Graph and Twitter metadata. Note titles, excerpts, capability URLs
+and marketing preview images are omitted from metadata. The page sets `no-referrer`
+and `noindex, nofollow, noarchive`; the HTTP privacy headers also remain in force.
+See the [reader screenshots](design/screenshots/shared-readers/README.md).
+
 ## API contract
 
 Management requires the owning **website session**; API keys and OAuth grants
