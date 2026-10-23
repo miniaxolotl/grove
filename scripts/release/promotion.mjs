@@ -492,7 +492,18 @@ if (
       }
       if (!pr && process.env.GITHUB_REF_NAME?.startsWith("promote/"))
         throw new Error("Promotion CI requires its PR number");
-      if (pr && pr.base.ref !== "development")
+      // A same-repository feature stack is source CI, not a production promotion.
+      // Unknown targets, downstream branches and promote/* heads still fail closed
+      // through the existing frozen-candidate admission path.
+      const featureStack =
+        pr &&
+        !event.inputs?.promotion_pr &&
+        !policy.branches.includes(pr.base.ref) &&
+        /^(feat|feature|fix|docs|perf)\//.test(pr.base.ref) &&
+        !pr.head.ref.startsWith("promote/") &&
+        pr.base.repo?.full_name === policy.repository &&
+        pr.head.repo?.full_name === policy.repository;
+      if (pr && pr.base.ref !== "development" && !featureStack)
         output(admitPromotion(policy, pr, git("rev-parse", "HEAD")));
     } else if (command === "production")
       output(productionCandidate(policy, first));
