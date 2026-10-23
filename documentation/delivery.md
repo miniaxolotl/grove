@@ -30,6 +30,21 @@ Combined verification passes all **223 Chromium / 12 focused WebKit** cases,
 **240 backend cases / four optional-service skips**, root/site lint/types/builds,
 five packaged artifacts, 50 automation/provider contracts and workflow lint.
 
+## Ask note limits and organization follow-ups (23 October 2026)
+
+Ordinary saves, Ask previews, organization batches and assistance action lists now
+share one account-locked note-capacity check. Over-limit batches roll back all
+writes and retain their previews; edits, moves, replay and Undo remain available
+at capacity. Organization history pairs each created note with its applied ID and
+bounded excerpt, while follow-up retrieval still checks current scope and versions.
+
+All six new real-PostgreSQL regressions failed before the fixes and pass afterward.
+Root lint/types/build and five packaged-artifact checks pass. The complete backend
+suite after integration with media/speech passes **246 tests**, with four optional
+RabbitMQ/S3 skips and zero failures.
+Verification uses disposable databases and non-owner runtime roles; no migration
+is required.
+
 ## Agent plugin startup (23 October 2026)
 
 OpenCode's installed Grove plugin loaded its skill/automatic context while its MCP
