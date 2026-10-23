@@ -1,6 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { createOpenAiSpeech } from "../../lib/ai/src/speech.ts";
 
 let origin: string;
@@ -45,6 +46,24 @@ before(async () => {
 after(() => {
   server.closeAllConnections();
   server.close();
+});
+
+test("narration profile cutover invalidates audio from the old Markdown filter", () => {
+  const legacy = createHash("sha256")
+    .update(
+      JSON.stringify([
+        "https://api.openai.com/v1",
+        "tts-1",
+        "alloy:mp3",
+        "fixture-key",
+        "speech-v1",
+      ]),
+    )
+    .digest("hex");
+  assert.notEqual(
+    createOpenAiSpeech({ apiKey: "fixture-key" }).synthesis.profile,
+    legacy,
+  );
 });
 
 test("speech adapters send only explicit WAV/text inputs to the selected OpenAI models", async () => {

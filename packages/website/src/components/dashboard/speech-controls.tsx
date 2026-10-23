@@ -75,6 +75,36 @@ function useSpeechJob(source: Source) {
       controller.abort();
     };
   }, [job, refresh]);
+  function clear() {
+    setJob(null);
+    setError("");
+    current.current = null;
+    operation.current = null;
+  }
+  async function cancel() {
+    if (!operation.current) return;
+    work.current?.abort();
+    const controller = new AbortController();
+    work.current = controller;
+    setBusy(true);
+    setError("");
+    try {
+      const next = await api<SpeechTask>(
+        `/speech/${operation.current}/cancel`,
+        {},
+        "POST",
+        controller.signal,
+      );
+      if (!controller.signal.aborted) {
+        current.current = next;
+        setJob(next);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) setError(errorMessage(error));
+    } finally {
+      if (!controller.signal.aborted) setBusy(false);
+    }
+  }
   return {
     job,
     busy,
@@ -83,15 +113,21 @@ function useSpeechJob(source: Source) {
       setError("");
       setRefresh((value) => value + 1);
     },
-    clear() {
-      setJob(null);
-      current.current = null;
-      operation.current = null;
+    clear,
+    cancel,
+    dismiss() {
+      // A missing response is not a terminal job: retain its operation identity
+      // and attempt cancellation before it can be forgotten on close/unmount.
+      if (operation.current && (!current.current || active(current.current)))
+        void cancel();
+      else clear();
     },
     async start() {
       if (busy || active(job)) return;
       if (job) operation.current = null;
       operation.current ??= crypto.randomUUID();
+      current.current = null;
+      setJob(null);
       const controller = new AbortController();
       work.current = controller;
       setBusy(true);
@@ -104,30 +140,6 @@ function useSpeechJob(source: Source) {
             version: source.version,
             ...(source.mediaId ? { mediaId: source.mediaId } : {}),
           },
-          "POST",
-          controller.signal,
-        );
-        if (!controller.signal.aborted) {
-          current.current = next;
-          setJob(next);
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) setError(errorMessage(error));
-      } finally {
-        if (!controller.signal.aborted) setBusy(false);
-      }
-    },
-    async cancel() {
-      if (!operation.current) return;
-      work.current?.abort();
-      const controller = new AbortController();
-      work.current = controller;
-      setBusy(true);
-      setError("");
-      try {
-        const next = await api<SpeechTask>(
-          `/speech/${operation.current}/cancel`,
-          {},
           "POST",
           controller.signal,
         );
@@ -278,8 +290,7 @@ export function ReadAloud({ noteId, version }: Source) {
     access = useSpeechAccess(source, open),
     controller = useSpeechJob(source);
   const close = () => {
-    if (active(controller.job) || controller.busy) void controller.cancel();
-    else controller.clear();
+    controller.dismiss();
     setOpen(false);
   };
   return (

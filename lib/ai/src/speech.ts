@@ -26,7 +26,7 @@ export function createOpenAiSpeech(config: {
   const profile = (model: string, settings: string) =>
     createHash("sha256")
       .update(
-        JSON.stringify([base, model, settings, config.apiKey, "speech-v1"]),
+        JSON.stringify([base, model, settings, config.apiKey, "speech-v2"]),
       )
       .digest("hex");
   const request = async (
