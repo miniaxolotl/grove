@@ -1,5 +1,19 @@
 # Verification
 
+Note-context verification combines the unchanged full Chromium suite and focused
+navigation WebKit suite with real-component manual journeys against synthetic note,
+PNG and WAV data. In each engine check right-click and Shift+F10, retained selection,
+format/Undo, copy/cut/paste, denied clipboard and a delayed paste after cursor movement.
+Target the second duplicate image in a CRLF note, remove/Undo, select its source and
+reopen the source menu at the reference's end. Verify original-download byte identity
+through a loopback upstream (native downloads bypass Playwright page routing), lazy
+recording playback, mute and transcript access without overriding transcript fields.
+Hold an image upload and confirm disabled menus cannot edit/remove but can still copy.
+Review 1440/390/320px bounds, outside dismissal and the Shift+right-click native escape.
+No personal media, new frontend coverage files or production API fixtures are involved.
+See [context action guide](../note-context-actions.md) and
+[captures](../design/screenshots/note-context-actions/README.md).
+
 Custom recording playback is verified with real retained WAV bytes through a
 disposable API/database and the actual website components. Chromium and touch/mobile
 WebKit cover delayed source loading, play/pause, range seeking, speed, mute,

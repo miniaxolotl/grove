@@ -1,5 +1,24 @@
 # Delivery evidence
 
+## Note context actions (23 October 2026)
+
+The editable note surface has app-matched text, image, link and recording right-click
+menus in writing/source/preview, with keyboard invocation and viewport-bounded action
+rows. Text edits preserve selection, normal Undo and autosave. Media uses parsed exact
+source ranges, authenticated originals and existing playback/transcript controls;
+reference removal never deletes retained media/history. Native fields and public
+readers retain their existing controls. [Behaviour/limits](note-context-actions.md).
+
+Root/site lint, types and builds, five packed artifacts and bundle budgets pass.
+The unchanged full **223 Chromium** suite and **12 focused WebKit** cases pass.
+Targeted journeys also pass in both engines: pointer/keyboard selection, format/Undo,
+copy/paste denial and delayed-selection guards, repeated-image CRLF identity,
+remove/Undo, original PNG download bytes, source-end targeting, lazy recording
+playback/mute/transcript, disabled upload guards and 1440/390/320px bounds. Verification
+uses synthetic fixtures/loopback media, not personal or production data. Notes entry
+is **488,018 gzip bytes** and the editor remains deferred. No backend/schema/provider
+or deployment change. [Reviewed gallery](design/screenshots/note-context-actions/README.md).
+
 ## Custom recording player (23 October 2026)
 
 Recording playback now uses a quiet inline strip rather than browser chrome:
