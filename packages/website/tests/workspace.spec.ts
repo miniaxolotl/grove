@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page, type Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
 import { chooseOption } from "./fixtures/select";
 import {
   listSchema,
@@ -40,6 +42,7 @@ const project = {
   identity: "git:github.com/example/website",
   parentId: null as string | null,
   version: 1,
+  status: "active" as "active" | "archived",
 };
 const note: Memory = {
   id: "00000000-0000-4000-a000-000000000011",
@@ -85,6 +88,353 @@ const handoff: Memory = {
     tags: ["frontend"],
   },
 };
+
+async function notebookLifecycleFixture(page: Page) {
+  const state = await fixture(page, [handoff]);
+  const child = {
+    ...project,
+    id: crypto.randomUUID(),
+    name: "Project research",
+    parentId: project.id,
+  };
+  state.projects.push(child);
+  const removed = new Set<string>();
+  const operations = new Map<string, unknown>();
+  let loseNext = false;
+  const lifecycleCalls: unknown[] = [];
+  const preview = (id: string) => {
+    const current = state.projects.find((p) => p.id === id)!;
+    const ids = new Set([id]);
+    for (let i = 0; i < state.projects.length; i++)
+      state.projects.forEach((p) => {
+        if (p.parentId && ids.has(p.parentId)) ids.add(p.id);
+      });
+    const notes = [...state.records.values()].filter(
+      (n) => n.projectId && ids.has(n.projectId),
+    );
+    return {
+      project: current,
+      projectIds: [...ids],
+      notebooks: ids.size,
+      notes: notes.length,
+      fingerprint: createHash("sha256")
+        .update(JSON.stringify([state.projects, [...state.records.values()]]))
+        .digest("hex"),
+      canRestore:
+        current.status === "archived" &&
+        (!current.parentId ||
+          state.projects.find((p) => p.id === current.parentId)?.status ===
+            "active"),
+    };
+  };
+  await page.route("**/api/grove/projects**", async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace("/api/grove", "");
+    let data: unknown;
+    if (route.request().method() === "GET" && path === "/projects")
+      data = state.projects.filter(
+        (p) =>
+          !removed.has(p.id) &&
+          p.status === (url.searchParams.get("status") ?? "active"),
+      );
+    else if (path.endsWith("/lifecycle")) data = preview(path.split("/")[2]);
+    else if (/\/(archive|restore|delete)$/.test(path)) {
+      const input = notebookLifecycleSchema.parse(
+        route.request().postDataJSON(),
+      );
+      lifecycleCalls.push(input);
+      if (operations.has(input.operationId))
+        data = operations.get(input.operationId);
+      else {
+        const current = preview(path.split("/")[2]);
+        if (
+          input.fingerprint !== current.fingerprint ||
+          input.expectedVersion !== current.project.version
+        ) {
+          await route.fulfill({
+            status: 409,
+            json: {
+              success: false,
+              error: {
+                code: "version_conflict",
+                message:
+                  "Your notebooks or notes changed. Review the affected contents again.",
+              },
+            },
+          });
+          return;
+        }
+        const action = path.split("/").at(-1)!;
+        for (const p of state.projects.filter((p) =>
+          current.projectIds.includes(p.id),
+        )) {
+          if (action === "delete") removed.add(p.id);
+          else {
+            p.status = action === "archive" ? "archived" : "active";
+            p.version++;
+          }
+        }
+        for (const [id, note] of state.records) {
+          if (!note.projectId || !current.projectIds.includes(note.projectId))
+            continue;
+          if (action === "delete") state.records.delete(id);
+          else
+            state.records.set(id, {
+              ...note,
+              status: action === "archive" ? "archived" : "active",
+              version: note.version + 1,
+            });
+        }
+        data = { action, projectIds: current.projectIds };
+        operations.set(input.operationId, data);
+      }
+    } else {
+      await route.fallback();
+      return;
+    }
+    if (loseNext && /\/(archive|restore|delete)$/.test(path)) {
+      loseNext = false;
+      await route.abort("failed");
+      return;
+    }
+    await route.fulfill({ json: { success: true, data } });
+  });
+  return {
+    ...state,
+    child,
+    removed,
+    lifecycleCalls,
+    loseNextResponse: () => {
+      loseNext = true;
+    },
+  };
+}
+
+for (const width of [1440, 390, 320]) {
+  test.describe(`notebook lifecycle at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
+    test("confirms all contents, cancels safely, restores archives and soft-deletes through notebook actions", async ({
+      page,
+    }, info) => {
+      const state = await notebookLifecycleFixture(page);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(`${base}/app/projects/${project.id}`);
+      await page
+        .getByRole("button", { name: "Notebook options", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Archive notebook", exact: true })
+        .click();
+      let dialog = page.getByRole("dialog", {
+        name: "Archive notebook",
+        exact: true,
+      });
+      await expect(dialog).toContainText("2 notebooks and 1 note");
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      expect(state.lifecycleCalls).toHaveLength(0);
+      await page.goto(`${base}/app/projects`);
+      await page
+        .getByRole("button", {
+          name: `More actions for ${project.name}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Archive notebook", exact: true })
+        .click();
+      dialog = page.getByRole("dialog", {
+        name: "Archive notebook",
+        exact: true,
+      });
+      await expect(
+        dialog.getByRole("button", { name: "Archive notebooks", exact: true }),
+      ).toBeEnabled();
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`archive-notebook-${width}.png`),
+        fullPage: true,
+      });
+      await dialog
+        .getByRole("button", { name: "Archive notebooks", exact: true })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "Archived notebooks", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("list", { name: "Archived notebooks" }),
+      ).toContainText(state.child.name);
+      await page.screenshot({
+        path: info.outputPath(`archived-notebooks-${width}.png`),
+        fullPage: true,
+      });
+      await page
+        .getByRole("button", {
+          name: `Notebook actions for ${project.name}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Restore notebook", exact: true })
+        .click();
+      dialog = page.getByRole("dialog", {
+        name: "Restore notebook",
+        exact: true,
+      });
+      await dialog
+        .getByRole("button", { name: "Restore notebooks", exact: true })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "Notebooks", exact: true }),
+      ).toBeVisible();
+      expect(state.records.get(handoff.id)?.status).toBe("active");
+      // Sidebar uses the same confirmation, including on narrow/touch layouts.
+      if (width < 1024)
+        await page
+          .getByRole("button", { name: "Notebooks", exact: true })
+          .click();
+      const sidebar = page.getByRole("complementary", {
+        name: "Workspace sidebar",
+      });
+      await sidebar
+        .getByRole("button", {
+          name: `Notebook actions for ${project.name}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Delete notebook…", exact: true })
+        .click();
+      dialog = page.getByRole("dialog", {
+        name: "Delete notebook",
+        exact: true,
+      });
+      await expect(dialog).toContainText("soft deletion");
+      await expect(dialog).toContainText("not permanently erased");
+      await page.screenshot({
+        path: info.outputPath(`delete-notebook-${width}.png`),
+        fullPage: true,
+      });
+      const overflow = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>("body *")]
+          .filter(
+            (node) =>
+              node.getClientRects().length &&
+              node.getBoundingClientRect().right > innerWidth,
+          )
+          .map((node) => ({
+            tag: node.tagName,
+            class: node.className,
+            right: node.getBoundingClientRect().right,
+          }))
+          .slice(0, 20),
+      );
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        JSON.stringify(overflow),
+      ).toBe(true);
+      await dialog
+        .getByRole("button", { name: "Delete notebooks", exact: true })
+        .click();
+      await expect(dialog).not.toBeVisible();
+      expect(state.removed.size).toBe(2);
+      expect(state.revisions.get(handoff.id)?.[0].content).toBe(
+        handoff.content,
+      );
+    });
+  });
+}
+
+test("notebook deletion freezes reviewed scope, re-reviews conflicts and retries an uncertain response with the same operation", async ({
+  page,
+}) => {
+  const state = await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/projects`);
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete notebook…", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Delete notebook",
+    exact: true,
+  });
+  await expect(dialog).toContainText("2 notebooks and 1 note");
+  state.projects.push({
+    ...project,
+    id: crypto.randomUUID(),
+    parentId: project.id,
+    name: "Newly added",
+  });
+  await dialog
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(dialog).toContainText("Review the affected contents again");
+  await expect(
+    dialog.getByRole("button", { name: "Delete notebooks", exact: true }),
+  ).toBeDisabled();
+  await dialog
+    .getByRole("button", { name: "Review current contents", exact: true })
+    .click();
+  await expect(dialog).toContainText("3 notebooks and 1 note");
+  state.loseNextResponse();
+  await dialog
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  expect(state.lifecycleCalls).toHaveLength(3);
+  expect(state.lifecycleCalls[2]).toEqual(state.lifecycleCalls[1]);
+});
+
+test("notebook archive never discards a retained local draft", async ({
+  page,
+}) => {
+  await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/memories/${handoff.id}?mode=edit`);
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.fill("Unsaved writing ".repeat(450));
+  const notebooksToggle = page.getByRole("button", {
+    name: "Notebooks",
+    exact: true,
+  });
+  if (await notebooksToggle.isVisible()) await notebooksToggle.click();
+  await page
+    .getByRole("link", { name: "Manage notebooks", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Archive notebook", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Archive notebook",
+    exact: true,
+  });
+  await expect(dialog).toContainText(
+    "Your local writing will not be discarded",
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Archive notebooks", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.goBack();
+  await expect(editor).toContainText("Unsaved writing");
+});
 
 test("sidebar remains reachable with long names, short height and enlarged text", async ({
   page,
@@ -3998,6 +4348,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
           ...input,
           parentId: input.parentId ?? null,
           version: 1,
+          status: "active" as const,
         };
         projects.push(created);
         data = created;
@@ -4139,7 +4490,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
     else throw new Error(`Unexpected fixture request: ${path}`);
     await route.fulfill({ json: { success: true, data } });
   });
-  return { records, calls, projects, chats, pairs };
+  return { records, calls, projects, chats, pairs, revisions };
 }
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({

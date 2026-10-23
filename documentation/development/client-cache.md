@@ -54,6 +54,12 @@ membership is server-owned. Note changes cover the old/new notebook, global list
 search, briefs and history; conversation apply/undo refreshes note dependencies.
 Notebook patches preserve the directory's previous freshness timestamp. A single
 create response cannot become a supposedly complete project directory.
+Notebook lifecycle responses contain affected notebook IDs rather than note bodies.
+Archive/Delete cancels held workspace reads, prunes cached note/search/connection
+sources across those scopes and refreshes active/archived directories. Cross-tab
+lifecycle messages carry only action and notebook IDs. Failed/uncertain lifecycle
+writes revalidate without changing the dialog's original retry identity; the reviewed
+preview stays frozen until explicit conflict review. Local drafts block confirmation.
 Source changes invalidate the relationship family and remove affected evidence
 before late reads can restore it. Notebook edits and review/retry actions also
 invalidate that family; review does not refresh unrelated note lists.

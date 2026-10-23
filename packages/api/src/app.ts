@@ -9,6 +9,7 @@ import {
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z, ZodError } from "zod";
+import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
 import { Webhook } from "svix";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMemoryMcp, type ToolName } from "@lib/integration-core/mcp";
@@ -481,8 +482,35 @@ export function createApp(deps: AppDependencies) {
     });
   });
   app.get("/v1/projects", async (c) =>
-    c.json({ success: true, data: await service.projects(c.get("principal")) }),
+    c.json({
+      success: true,
+      data: await service.projects(
+        c.get("principal"),
+        z.enum(["active", "archived"]).parse(c.req.query("status") ?? "active"),
+      ),
+    }),
   );
+  app.get("/v1/projects/:id/lifecycle", async (c) =>
+    c.json({
+      success: true,
+      data: await service.previewProjectLifecycle(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  for (const action of ["archive", "restore", "delete"] as const)
+    app.post(`/v1/projects/:id/${action}`, async (c) =>
+      c.json({
+        success: true,
+        data: await service.projectLifecycle(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          action,
+          await body(c, notebookLifecycleSchema),
+        ),
+      }),
+    );
   app.post("/v1/briefs", async (c) =>
     c.json({
       success: true,
