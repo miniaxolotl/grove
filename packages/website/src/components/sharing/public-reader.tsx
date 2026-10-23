@@ -58,6 +58,7 @@ export function PublicReader({
       </header>
       {data.note ? (
         <Markdown
+          media={{ noteId: data.note.id }}
           shared={{
             root,
             origin: site.url,

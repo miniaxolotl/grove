@@ -118,7 +118,12 @@ function plainText(node: Nodes): string {
   return "children" in node ? node.children.map(plainText).join("") : "";
 }
 
-export function notePdfDocument(root: Root, title: string, origin: string) {
+export function notePdfDocument(
+  root: Root,
+  title: string,
+  origin: string,
+  images: Record<string, string> = {},
+) {
   const definitions = new Map<string, string>();
   function collect(node: Nodes) {
     if (node.type === "definition") definitions.set(node.identifier, node.url);
@@ -264,13 +269,32 @@ export function notePdfDocument(root: Root, title: string, origin: string) {
         };
         return [heading];
       }
-      case "paragraph":
+      case "paragraph": {
+        const embedded: Content[] = [];
+        function collectImages(node: Nodes) {
+          const url =
+            node.type === "image"
+              ? node.url
+              : node.type === "imageReference"
+                ? definitions.get(node.identifier)
+                : undefined;
+          if (url && images[url])
+            embedded.push({
+              image: images[url],
+              fit: [context.width, 420],
+              margin: [0, 0, 0, 10],
+            });
+          if ("children" in node) node.children.forEach(collectImages);
+        }
+        collectImages(node);
         return [
           {
             text: inline(node.children),
             margin: [0, 0, 0, context.compact ? 2 : 10],
           },
+          ...embedded,
         ];
+      }
       case "blockquote":
         return [
           {

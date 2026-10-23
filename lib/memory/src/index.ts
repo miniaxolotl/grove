@@ -83,6 +83,7 @@ import {
 
 export { ConnectionSetup } from "./connect.ts";
 export { Sharing } from "./sharing.ts";
+export { MediaAttachments, mediaDescriptor } from "./media.ts";
 
 type Connection = Omit<Grant, "expiresAt"> & {
   id: string;
@@ -379,13 +380,26 @@ export class MemoryService {
   }
 
   async revise(trx: Knex.Transaction, row: MemoryModel) {
-    await trx("memory_revisions").insert({
-      accountId: row.accountId,
-      memoryId: row.id,
-      version: row.version,
-      content: row.content,
-      source: JSON.stringify(row.source),
-    });
+    await trx("memory_revisions")
+      .insert({
+        accountId: row.accountId,
+        memoryId: row.id,
+        version: row.version,
+        content: row.content,
+        source: JSON.stringify(row.source),
+      })
+      .catch((error) => {
+        if (
+          error.code === "23514" &&
+          error.message.includes("media_reference_unavailable")
+        )
+          throw new GroveError(
+            "media_reference_unavailable",
+            "An attachment is not available to this note. Upload it here before saving.",
+            400,
+          );
+        throw error;
+      });
     await trx("memory_embeddings").where({ memoryId: row.id }).delete();
     await this.changed(trx, row.accountId);
     await this.queue(trx, row);

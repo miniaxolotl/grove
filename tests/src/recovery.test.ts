@@ -36,6 +36,7 @@ test("isolated restore replays current deletions and revocations without changin
       forgotten = randomUUID(),
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
+    const pendingMedia = randomUUID();
     const notebookIds = [randomUUID(), randomUUID()].sort();
     const assistanceId = randomUUID();
     const deletedChat = randomUUID(),
@@ -107,6 +108,17 @@ test("isolated restore replays current deletions and revocations without changin
           source: {},
         },
       ]);
+      await db("media_objects").insert({
+        accountId: a,
+        id: pendingMedia,
+        memoryId: keep,
+        mime: "image/png",
+        bytes: 10,
+        sha256: "a".repeat(64),
+        objectKey: `media/${a}/${pendingMedia}/${pendingMedia}`,
+        leaseId: pendingMedia,
+        leaseUntil: new Date(Date.now() + 60000),
+      });
       await db("embedding_profiles").insert({
         id: "fixture",
         model: "fixture",
@@ -245,6 +257,16 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    assert.equal(
+      (await target("media_objects").where({ id: pendingMedia }).first())
+        .status,
+      "failed",
+    );
+    assert.equal(
+      (await source("media_objects").where({ id: pendingMedia }).first())
+        .status,
+      "pending",
+    );
     const operation = await target("assistance_requests")
       .where({ id: assistanceId })
       .first();

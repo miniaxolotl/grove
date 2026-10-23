@@ -139,6 +139,11 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("public_share_operations").delete();
       await target("public_share_rates").delete();
       await target("memory_operations").delete();
+      // Restored in-flight uploads must never publish using an old lease. Ready
+      // originals/bindings stay immutable; access still follows replayed tombstones.
+      await target("media_objects")
+        .where({ status: "pending" })
+        .update({ status: "failed", leaseUntil: target.fn.now() });
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();

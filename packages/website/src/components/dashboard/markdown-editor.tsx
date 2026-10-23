@@ -42,6 +42,7 @@ import {
   Redo2,
   ListTree,
   Type,
+  ImagePlus,
 } from "lucide-react";
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
@@ -122,6 +123,8 @@ export function MarkdownEditor({
   onPreviewChange,
   presentation = "page",
   children,
+  media,
+  upload,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -132,6 +135,8 @@ export function MarkdownEditor({
   onPreviewChange?: (preview: boolean) => void;
   presentation?: "page" | "drawer" | "expanded" | "focus";
   children?: ReactNode;
+  media?: { noteId: string; version?: number };
+  upload?: (file: File, signal: AbortSignal) => Promise<string>;
 }) {
   const id = useId();
   const documentValue = value.replace(/\r\n?/g, "\n");
@@ -140,6 +145,56 @@ export function MarkdownEditor({
   const scrollPositions = useRef(new Map<string, number>());
   const previousScroll = useRef(0);
   const view = useRef<EditorView | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const uploadWork = useRef<AbortController | null>(null);
+  const [uploadError, setUploadError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [retryFile, setRetryFile] = useState<File | null>(null);
+  const insertImage = async (file: File) => {
+    if (!upload || uploadWork.current) {
+      setUploadError("Save the note and its changes before adding an image.");
+      return;
+    }
+    const controller = new AbortController();
+    uploadWork.current = controller;
+    setRetryFile(file);
+    setUploading(true);
+    setUploadError("");
+    try {
+      const markdown = await upload(file, controller.signal);
+      if (controller.signal.aborted || !view.current) return;
+      const editor = view.current;
+      if (editor.state.doc.length + markdown.length + 2 > 6000)
+        throw new Error(
+          "The image uploaded, but the note is full. Shorten it and retry to insert the image.",
+        );
+      editor.dispatch({
+        changes: {
+          from: editor.state.selection.main.head,
+          insert: `\n${markdown}\n`,
+        },
+        annotations: isolateHistory.of("full"),
+        userEvent: "input.media",
+      });
+      setRetryFile(null);
+    } catch (error) {
+      if (!controller.signal.aborted)
+        setUploadError(
+          error instanceof Error ? error.message : "Image upload failed.",
+        );
+    } finally {
+      if (uploadWork.current === controller) {
+        uploadWork.current = null;
+        setUploading(false);
+      }
+    }
+  };
+  useEffect(
+    () => () => {
+      uploadWork.current?.abort();
+    },
+    [],
+  );
   const initial = useRef({ value: documentValue, placeholder });
   const change = useRef(onChange);
   const compartments = useRef({
@@ -312,6 +367,25 @@ export function MarkdownEditor({
     <div
       className={`markdown-editor live-editor${fullPage ? " page-writing" : ""}`}
       data-mode={mode}
+      onPaste={(event) => {
+        const file = Array.from(event.clipboardData.files).find((file) =>
+          file.type.startsWith("image/"),
+        );
+        if (file) {
+          event.preventDefault();
+          void insertImage(file);
+        }
+      }}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        const file = event.dataTransfer.files[0];
+        if (file) {
+          event.preventDefault();
+          void insertImage(file);
+        }
+      }}
       onKeyDown={(event) => {
         if (!preview || !isActiveSurface(host.current)) return;
         const run = matchesShortcut(event.nativeEvent, shortcuts.undo)
@@ -365,7 +439,57 @@ export function MarkdownEditor({
         >
           <ListTree size={17} />
         </IconButton>
+        <IconButton
+          label="Add image"
+          disabled={!upload || uploading || disabled}
+          title={
+            upload
+              ? "Add image (PNG, JPEG or WebP; up to 3 MiB). Original metadata is retained."
+              : "Save this note and its changes to add an image"
+          }
+          onClick={() => fileInput.current?.click()}
+        >
+          <ImagePlus size={17} />
+        </IconButton>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void insertImage(file);
+          }}
+        />
       </div>
+      {uploading && (
+        <div className="media-feedback" role="status">
+          Uploading image…{" "}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => uploadWork.current?.abort()}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {uploadError && (
+        <div className="media-feedback" role="alert">
+          {uploadError}{" "}
+          {retryFile && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={!upload}
+              onClick={() => void insertImage(retryFile)}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
       <div className="editor-surface">
         <div ref={layout} className="writing-layout">
           <div className="writing-paper">
@@ -381,6 +505,7 @@ export function MarkdownEditor({
               >
                 {value ? (
                   <Markdown
+                    media={media}
                     disabled={disabled}
                     onToggleTask={(offset, checked) => {
                       const editor = view.current;

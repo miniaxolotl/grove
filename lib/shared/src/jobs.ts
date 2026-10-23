@@ -43,6 +43,7 @@ export const exportRequestSchema = z
     id: z.uuid(),
     projectId: z.uuid().optional(),
     includeDescendants: z.boolean().default(false),
+    includeMedia: z.boolean().optional(),
   })
   .strict();
 export type ExportRequest = z.infer<typeof exportRequestSchema>;

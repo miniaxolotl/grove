@@ -1,14 +1,17 @@
 "use client";
 import { createContext, useContext, type ComponentProps } from "react";
 import ReactMarkdown, {
+  defaultUrlTransform,
   type Components,
   type ExtraProps,
 } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Square, SquareCheck } from "lucide-react";
+import { mediaReferenceId } from "@lib/shared/media";
 
 type SharedLinks = { root: string; origin: string; linkedNoteIds: string[] };
 type MarkdownOptions = {
+  media?: { noteId: string; version?: number };
   source: string;
   shared?: SharedLinks;
   onToggleTask?: (offset: number, checked: boolean) => void;
@@ -155,7 +158,32 @@ const components: Components = {
   },
   // Notes do not make third-party image requests just by being opened.
   img: function ImageLink({ src, alt }) {
-    const { shared } = useContext(MarkdownContext);
+    const { shared, media } = useContext(MarkdownContext);
+    const id = typeof src === "string" ? mediaReferenceId(src) : null;
+    if (id) {
+      if (!media) return <span>Image: {alt || "Attachment"}</span>;
+      const url = shared
+        ? `${shared.root}/notes/${media.noteId}/media/${id}`
+        : `/api/grove/memories/${media.noteId}/media/${id}${media.version ? `?version=${media.version}` : ""}`;
+      // Authenticated same-origin bytes must bypass the public Next image cache.
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={url}
+          src={url}
+          alt={alt || "Attached image"}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          style={{
+            maxWidth: "100%",
+            maxHeight: "70vh",
+            height: "auto",
+            objectFit: "contain",
+          }}
+        />
+      );
+    }
     const target =
       typeof src === "string" ? sharedLink(src, shared) : undefined;
     return target ? (
@@ -184,6 +212,9 @@ export function Markdown({
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           skipHtml
+          urlTransform={(url) =>
+            mediaReferenceId(url) ? url : defaultUrlTransform(url)
+          }
           components={components}
         >
           {children}

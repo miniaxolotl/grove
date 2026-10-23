@@ -33,11 +33,13 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [descendants, setDescendants] = useState(false);
+  const [includeMedia, setIncludeMedia] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const request = useRef<{
     id: string;
     projectId?: string;
     includeDescendants: boolean;
+    includeMedia?: boolean;
   } | null>(null);
   const inFlight = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -55,6 +57,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
           id: crypto.randomUUID(),
           projectId,
           includeDescendants: descendants,
+          ...(includeMedia ? { includeMedia: true } : {}),
         };
         setSubmitted(true);
         await cache.api("/exports", request.current);
@@ -110,6 +113,15 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
           Include sub-notebooks
         </label>
       )}
+      <label className="mt-4 flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={includeMedia}
+          disabled={!!busy || submitted || !!running}
+          onChange={(event) => setIncludeMedia(event.target.checked)}
+        />
+        Include original media (larger NDJSON download)
+      </label>
       {(error || query.isError) && (
         <div className="mt-3 flex items-center gap-2">
           <p className="app-error" role="alert">

@@ -64,12 +64,11 @@ lost create responses safe to retry. Typed NDJSON records are `notebook`, `note`
 `assistance_operation`. Notebook exports omit conversations and account-wide
 assistance reviews/operations.
 
-These exports contain structured records, not attachment binaries. The
-[media plan review](development/media-plan.md) proposes separate durable storage
-and an additive media-complete archive. Initial
-[storage primitives](development/media-foundation.md) are in development; no
-attachment API or media-complete export is available yet. Do not store authored
-media in the expiring export bucket.
+Default v2 exports contain structured records. With `includeMedia:true`, v3 adds
+checksummed original-media metadata and bounded base64 chunks for authorized
+current/history bindings; see [media exports and recovery](media.md#exports-and-recovery).
+Source bytes live in a separate durable store. Do not store authored media in the
+expiring export bucket.
 
 Workers page source records into private parts, then stream final assembly.
 Buffers are bounded by a 100-record page; S3 assembly uses two 5 MiB buffers.

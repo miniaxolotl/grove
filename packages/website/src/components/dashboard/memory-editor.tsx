@@ -24,6 +24,7 @@ import {
   type Project,
 } from "@/lib/dashboard-api";
 import { MarkdownEditor } from "./markdown-editor";
+import { uploadImage } from "@/lib/media-upload";
 import { useDialogBusy } from "./dialog";
 import { Button } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
@@ -164,6 +165,7 @@ export function MemoryEditor({
   );
   useSetCurrentNotebook(projectId || null, fullPage);
   const [saving, setSaving] = useState(draft?.saving);
+  const [mediaBusy, setMediaBusy] = useState(false);
   const busy = !!saving;
   const [error, setError] = useState(draft?.error ?? "");
   const [expanded, setExpanded] = useState(false);
@@ -428,11 +430,17 @@ export function MemoryEditor({
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [dirty]);
   const saveDisabled =
-    busy || !!latest || !content.trim() || content.length > 6000 || !dirty;
+    mediaBusy ||
+    busy ||
+    !!latest ||
+    !content.trim() ||
+    content.length > 6000 ||
+    !dirty;
   useEffect(() => {
-    onLockChange?.(busy || dirty || !!latest);
-  }, [onLockChange, busy, dirty, latest]);
+    onLockChange?.(mediaBusy || busy || dirty || !!latest);
+  }, [onLockChange, mediaBusy, busy, dirty, latest]);
   function persist() {
+    if (mediaBusy) return;
     // Retrying an uncertain save must use its original payload even if newer
     // local edits are empty or exceed the save limit.
     if (saveDisabled && !(pending.current?.input && !busy && !latest)) return;
@@ -482,14 +490,28 @@ export function MemoryEditor({
   const openExport = () =>
     noteExport.open({
       key: draftKey ?? (base ? `note:${base.id}` : "new:compact"),
-      snapshot: { content, unsaved: dirty || busy || !base },
+      snapshot: {
+        content,
+        unsaved: dirty || busy || !base,
+        noteId: base?.id,
+        version: base?.version,
+      },
     });
   useEffect(() => {
-    if (!autoSave || saveDisabled || error || held || deleteRequested) return;
+    if (
+      !autoSave ||
+      saveDisabled ||
+      error ||
+      held ||
+      deleteRequested ||
+      mediaBusy
+    )
+      return;
     const timer = setTimeout(() => autosave(), 900);
     return () => clearTimeout(timer);
   }, [
     autoSave,
+    mediaBusy,
     saveDisabled,
     error,
     content,
@@ -804,12 +826,32 @@ export function MemoryEditor({
           {guidance && <p className="editor-guidance">{guidance}</p>}
           <div className="note-editor-workspace">
             <MarkdownEditor
+              media={
+                base ? { noteId: base.id, version: base.version } : undefined
+              }
+              upload={
+                base &&
+                !dirty &&
+                !busy &&
+                !held &&
+                !latest &&
+                !deleteRequested
+                  ? async (file, signal) => {
+                      setMediaBusy(true);
+                      try {
+                        return await uploadImage(file, base, signal);
+                      } finally {
+                        setMediaBusy(false);
+                      }
+                    }
+                  : undefined
+              }
               value={content}
               onChange={(value) => {
                 setContent(value);
                 if (!latest) setError("");
               }}
-              disabled={busy && !autoSave}
+              disabled={mediaBusy || (busy && !autoSave)}
               fullPage={pageView}
               presentation={
                 focused
