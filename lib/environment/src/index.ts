@@ -149,6 +149,9 @@ export const serverEnvironmentSchema = z.object({
   MEDIA_S3_BUCKET: z.string().optional(),
   MEDIA_S3_ACCESS_KEY_ID: z.string().optional(),
   MEDIA_S3_SECRET_ACCESS_KEY: z.string().optional(),
+  // Exact endpoint/bucket receipt from an operator lifecycle/ACL inspection.
+  // Spaces scoped keys cannot read these settings; never use an account-wide key in runtime.
+  MEDIA_S3_LIFECYCLE_VERIFIED_FOR: z.string().optional(),
   MEDIA_S3_PATH_STYLE: z
     .enum(["true", "false"])
     .default("false")

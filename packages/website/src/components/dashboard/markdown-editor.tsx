@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useMemo,
@@ -150,7 +151,11 @@ export function MarkdownEditor({
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [retryFile, setRetryFile] = useState<File | null>(null);
-  const insertImage = async (file: File) => {
+  const drag = useRef<{ from: number; to: number; source: string } | null>(
+    null,
+  );
+  const [dragToken] = useState(() => crypto.randomUUID());
+  const insertImage = async (file: File, destination?: number) => {
     if (!upload || uploadWork.current) {
       setUploadError("Save the note and its changes before adding an image.");
       return;
@@ -170,7 +175,10 @@ export function MarkdownEditor({
         );
       editor.dispatch({
         changes: {
-          from: editor.state.selection.main.head,
+          from: Math.min(
+            destination ?? editor.state.selection.main.head,
+            editor.state.doc.length,
+          ),
           insert: `\n${markdown}\n`,
         },
         annotations: isolateHistory.of("full"),
@@ -203,6 +211,102 @@ export function MarkdownEditor({
   });
   const [writingMode, setWritingMode] = useState<"live" | "source">("live");
   const mode = preview ? "preview" : writingMode;
+  const moveImage = (from: number, to: number, destination: number) => {
+    const editor = view.current;
+    if (
+      !editor ||
+      disabled ||
+      editor.state.readOnly ||
+      editor.state.doc.toString() !== documentValue
+    )
+      return;
+    const start = value.slice(0, from).replace(/\r\n?/g, "\n").length;
+    const end = value.slice(0, to).replace(/\r\n?/g, "\n").length;
+    const target = value.slice(0, destination).replace(/\r\n?/g, "\n").length;
+    if (target >= start && target <= end) return;
+    if (editor.state.doc.length + 4 > 6000) {
+      setUploadError("Shorten the note before moving the image.");
+      return;
+    }
+    const source = editor.state.sliceDoc(start, end);
+    editor.dispatch({
+      changes: [
+        { from: start, to: end, insert: "" },
+        { from: target, insert: `\n\n${source}\n\n` },
+      ].sort((a, b) => a.from - b.from),
+      annotations: isolateHistory.of("full"),
+      userEvent: "move.media",
+    });
+  };
+  const workspaceDrop = useEffectEvent((event: globalThis.DragEvent) => {
+    const files = event.dataTransfer?.files;
+    const internal =
+      event.dataTransfer?.getData("application/x-grove-media") === dragToken;
+    if (!files?.length && !internal) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!internal && files && files.length > 1) {
+      setUploadError("Drop one image at a time.");
+      return;
+    }
+    const editor = view.current;
+    if (!editor) return;
+    let target = value.length;
+    if (preview) {
+      const block =
+        event.target instanceof Element
+          ? event.target.closest<HTMLElement>("[data-source-from]")
+          : null;
+      if (block) {
+        const rect = block.getBoundingClientRect();
+        target = Number(
+          event.clientY < rect.top + rect.height / 2
+            ? block.dataset.sourceFrom
+            : block.dataset.sourceTo,
+        );
+      }
+    } else {
+      const normalized =
+        editor.posAtCoords({ x: event.clientX, y: event.clientY }) ??
+        editor.state.doc.length;
+      target = 0;
+      for (
+        let index = 0;
+        index < normalized && target < value.length;
+        index++, target++
+      )
+        if (value[target] === "\r" && value[target + 1] === "\n") target++;
+    }
+    if (internal && drag.current) {
+      const source = drag.current;
+      drag.current = null;
+      if (value.slice(source.from, source.to) === source.source)
+        moveImage(source.from, source.to, target);
+    } else if (files?.[0])
+      void insertImage(
+        files[0],
+        value.slice(0, target).replace(/\r\n?/g, "\n").length,
+      );
+  });
+  useEffect(() => {
+    const surface = host.current?.closest("form");
+    if (!surface) return;
+    const over = (event: globalThis.DragEvent) => {
+      if (
+        event.dataTransfer?.types.some((type) =>
+          ["Files", "application/x-grove-media"].includes(type),
+        )
+      )
+        event.preventDefault();
+    };
+    const drop = (event: globalThis.DragEvent) => workspaceDrop(event);
+    surface.addEventListener("dragover", over);
+    surface.addEventListener("drop", drop, true);
+    return () => {
+      surface.removeEventListener("dragover", over);
+      surface.removeEventListener("drop", drop, true);
+    };
+  }, []);
   const [outline, setOutline] = useState(false);
   const [historyState, setHistoryState] = useState({
     undo: false,
@@ -376,16 +480,6 @@ export function MarkdownEditor({
           void insertImage(file);
         }
       }}
-      onDragOver={(event) => {
-        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
-      }}
-      onDrop={(event) => {
-        const file = event.dataTransfer.files[0];
-        if (file) {
-          event.preventDefault();
-          void insertImage(file);
-        }
-      }}
       onKeyDown={(event) => {
         if (!preview || !isActiveSurface(host.current)) return;
         const run = matchesShortcut(event.nativeEvent, shortcuts.undo)
@@ -506,6 +600,35 @@ export function MarkdownEditor({
                 {value ? (
                   <Markdown
                     media={media}
+                    onImageDrag={
+                      disabled
+                        ? undefined
+                        : (event, from, to) => {
+                            drag.current = {
+                              from,
+                              to,
+                              source: value.slice(from, to),
+                            };
+                            event.dataTransfer.setData(
+                              "application/x-grove-media",
+                              dragToken,
+                            );
+                            event.dataTransfer.effectAllowed = "move";
+                          }
+                    }
+                    onImageMove={(from, to, direction) => {
+                      const previous = value.lastIndexOf(
+                        "\n\n",
+                        Math.max(0, from - 3),
+                      );
+                      const target =
+                        direction === "up"
+                          ? previous < 0
+                            ? 0
+                            : previous + 2
+                          : value.indexOf("\n\n", to + 2);
+                      moveImage(from, to, target < 0 ? value.length : target);
+                    }}
                     disabled={disabled}
                     onToggleTask={(offset, checked) => {
                       const editor = view.current;

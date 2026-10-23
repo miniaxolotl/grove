@@ -22,3 +22,8 @@ account content is used.
 Additional capture: [public reader without JavaScript](public-no-javascript.png).
 The production-built Next reader fetched the image through the real public API,
 made no third-party requests, and returned 404 after revoking its synthetic link.
+
+Follow-up in both Chromium and WebKit verifies trusted image drag to another
+paragraph, one-step Undo, keyboard/touch Move up/down, and a file drop on the note
+toolbar outside the editor text area. The same media reference moves without
+another upload; a new file dropped in the workspace creates its own attachment.

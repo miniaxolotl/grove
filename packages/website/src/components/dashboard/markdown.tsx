@@ -1,5 +1,10 @@
 "use client";
-import { createContext, useContext, type ComponentProps } from "react";
+import {
+  createContext,
+  useContext,
+  type ComponentProps,
+  type DragEvent,
+} from "react";
 import ReactMarkdown, {
   defaultUrlTransform,
   type Components,
@@ -11,6 +16,12 @@ import { mediaReferenceId } from "@lib/shared/media";
 
 type SharedLinks = { root: string; origin: string; linkedNoteIds: string[] };
 type MarkdownOptions = {
+  onImageDrag?: (
+    event: DragEvent<HTMLImageElement>,
+    from: number,
+    to: number,
+  ) => void;
+  onImageMove?: (from: number, to: number, direction: "up" | "down") => void;
   media?: { noteId: string; version?: number };
   source: string;
   shared?: SharedLinks;
@@ -119,6 +130,14 @@ function sharedLink(href: string | undefined, shared: SharedLinks | undefined) {
 
 // Stable renderer identities preserve the focused task control during autosave.
 const components: Components = {
+  p: ({ node, children }) => (
+    <p
+      data-source-from={node?.position?.start.offset}
+      data-source-to={node?.position?.end.offset}
+    >
+      {children}
+    </p>
+  ),
   li: TaskItem,
   input: TaskCheckbox,
   a: function Link({ href, children }) {
@@ -157,8 +176,9 @@ const components: Components = {
     );
   },
   // Notes do not make third-party image requests just by being opened.
-  img: function ImageLink({ src, alt }) {
-    const { shared, media } = useContext(MarkdownContext);
+  img: function ImageLink({ src, alt, node }) {
+    const { shared, media, onImageDrag, onImageMove } =
+      useContext(MarkdownContext);
     const id = typeof src === "string" ? mediaReferenceId(src) : null;
     if (id) {
       if (!media) return <span>Image: {alt || "Attachment"}</span>;
@@ -166,22 +186,53 @@ const components: Components = {
         ? `${shared.root}/notes/${media.noteId}/media/${id}`
         : `/api/grove/memories/${media.noteId}/media/${id}${media.version ? `?version=${media.version}` : ""}`;
       // Authenticated same-origin bytes must bypass the public Next image cache.
+      const from = node?.position?.start.offset,
+        to = node?.position?.end.offset;
+      const movable =
+        !shared &&
+        onImageDrag &&
+        typeof from === "number" &&
+        typeof to === "number";
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={url}
-          src={url}
-          alt={alt || "Attached image"}
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
-          style={{
-            maxWidth: "100%",
-            maxHeight: "70vh",
-            height: "auto",
-            objectFit: "contain",
-          }}
-        />
+        <span className="owned-image">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={url}
+            src={url}
+            alt={alt || "Attached image"}
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            draggable={!!movable}
+            onDragStart={
+              movable ? (event) => onImageDrag(event, from, to) : undefined
+            }
+            style={{
+              maxWidth: "100%",
+              maxHeight: "70vh",
+              height: "auto",
+              objectFit: "contain",
+            }}
+          />
+          {movable && onImageMove && (
+            <span className="owned-image-actions">
+              <button
+                type="button"
+                onClick={() => onImageMove(from, to, "up")}
+                aria-label={`Move ${alt || "image"} up`}
+              >
+                Move up
+              </button>
+              <button
+                type="button"
+                onClick={() => onImageMove(from, to, "down")}
+                aria-label={`Move ${alt || "image"} down`}
+              >
+                Move down
+              </button>
+            </span>
+          )}
+        </span>
       );
     }
     const target =

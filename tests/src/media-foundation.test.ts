@@ -561,6 +561,58 @@ test("S3 readiness detects providers that silently ignore conditional writes and
   }
 });
 
+test("Spaces scoped keys accept only an exact operator-verified retention receipt while still probing immutability", async (t) => {
+  const probes = new Set<string>();
+  t.mock.method(S3Client.prototype, "send", async (command: unknown) => {
+    if (command instanceof GetBucketLifecycleConfigurationCommand)
+      throw Object.assign(new Error("scoped keys cannot inspect lifecycle"), {
+        name: "AccessDenied",
+      });
+    if (command instanceof PutObjectCommand) {
+      if (probes.has(command.input.Key!))
+        throw Object.assign(new Error("precondition"), {
+          $metadata: { httpStatusCode: 412 },
+        });
+      probes.add(command.input.Key!);
+    }
+    return {};
+  });
+  const options = {
+    MEDIA_STORAGE: "s3",
+    MEDIA_S3_BUCKET: "source",
+    MEDIA_S3_ENDPOINT: "https://nyc3.digitaloceanspaces.com",
+    MEDIA_S3_ACCESS_KEY_ID: "fixture",
+    MEDIA_S3_SECRET_ACCESS_KEY: "fixture-only",
+  };
+  for (const receipt of [
+    "",
+    "https://nyc3.digitaloceanspaces.com/another-bucket",
+    "https://sfo3.digitaloceanspaces.com/source",
+  ]) {
+    const store = await createMediaStore(
+      env({ ...options, MEDIA_S3_LIFECYCLE_VERIFIED_FOR: receipt }),
+    );
+    try {
+      await assert.rejects(store!.ready());
+    } finally {
+      store!.close!();
+    }
+  }
+  const store = await createMediaStore(
+    env({
+      ...options,
+      MEDIA_S3_LIFECYCLE_VERIFIED_FOR:
+        "https://nyc3.digitaloceanspaces.com/source",
+    }),
+  );
+  try {
+    await store!.ready();
+    assert(probes.size > 0);
+  } finally {
+    store!.close!();
+  }
+});
+
 test(
   "real disposable S3 media stays private, byte-identical and immutable; lifecycle expiry is refused",
   {

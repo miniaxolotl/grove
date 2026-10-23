@@ -6,6 +6,13 @@ static PNG, JPEG and WebP up to **3 MiB** (within the hosted proxy request budge
 The API supports **10 MiB**, 24 million decoded pixels and 10,000 pixels per axis.
 SVG, APNG, animated WebP and invalid/truncated images are refused.
 
+Drop a file anywhere in the note workspace (including its surrounding whitespace)
+to upload at the nearest writing position or preview paragraph boundary. Drag an
+existing preview image to move its reference, or use **Move up / Move down** with
+keyboard or touch. Moves are one Undo transaction and use ordinary autosave; they
+do not upload another copy or erase retained history. A drag is accepted only from
+the same mounted editor and unchanged source range. Drop one new file at a time.
+
 Upload progress offers cancellation; an uncertain retry retains its upload ID.
 After upload, insertion is one editor Undo transaction and uses normal autosave and
 version conflict handling. Original bytes and metadata, including EXIF, are retained:
@@ -107,11 +114,22 @@ and offers a separate persistent local volume for self-hosting only.
 
 Startup checks lifecycle and conditional-write behavior using a unique disposable
 `media-probes/` object. Source keys never enter the probe deletion path. A provider
-that ignores conditional PUT or denies required inspection is refused; Garage
-2.4.1 is not supported for retained source media. Actual Spaces qualification,
-private ACL/policies, source non-expiry, host body limits and capability-log
-redaction are operator rollout checks. No live provider resource is provisioned by
-the feature. See [storage details](development/media-foundation.md),
+that ignores conditional PUT is refused; Garage2.4.1 is not supported for source
+media. Spaces scoped keys deny lifecycle inspection: only for a regional Spaces
+endpoint, an operator may set `MEDIA_S3_LIFECYCLE_VERIFIED_FOR` to the exact
+`https://<region>.digitaloceanspaces.com/<bucket>` after independently inspecting
+its private ACL and absence of expiration. This receipt permits only that specific
+AccessDenied case; known expiration rules and failed conditional writes still fail.
+Reverify the receipt after bucket/retention changes and before activation. Do not
+put an account-wide Spaces credential in the API/worker to enable inspection.
+
+User-authorized NYC3 provisioning verified private source and temporary buckets,
+source non-expiry, one-day exports/speech expiry, anonymous403, conditional412 and
+cross-bucket scoped denial. Active keys are in Grove Doppler configs `prd_media`
+and `prd_artifacts`, mirrored in the main checkout's ignored0600 `secrets.md`.
+Temporary operator keys were revoked. Runtime configs were not activated and no
+application deployment occurred. Hosting body limits and capability-log redaction
+remain rollout checks. See [storage details](development/media-foundation.md),
 [sharing limitations](sharing.md) and [deployment](deploy.md).
 
 Recordings and STT/TTS are subsequent stacked slices, not delivered by this image

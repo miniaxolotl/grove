@@ -2,6 +2,20 @@
 
 ## Saved-note images — stacked continuation
 
+The follow-up supports file drop throughout the note workspace and moving an
+existing preview image with pointer drag or Move up/down. Both engines verify
+single-reference movement, Undo and normal autosave; 14 affected Chromium checks
+pass again. Source-store tests now include the scoped-Spaces lifecycle receipt.
+
+Explicitly authorized NYC3 provisioning created private source/temporary buckets
+and independent bucket-scoped keys. Live readbacks verify anonymous403,
+conditional412, cross-bucket denial, no source lifecycle and one-day temporary
+exports/speech expiry. Keys are in isolated Grove Doppler configs and ignored0600
+secrets.md; temporary operator keys are revoked and runtime deployment is unchanged.
+Actual source-store readiness passes with the scoped key and exact-bucket operator
+receipt, resolving the #86 lifecycle-inspection incompatibility without broad
+runtime credentials. See [current configuration](media.md#configuration-and-rollout).
+
 Migration017 binds tenant-owned immutable image objects to every saved revision.
 Session-owner uploads use current-note versions, actual-byte validation, account-
 locked attempt quotas and fenced completion. Private/history reads preserve narrow
