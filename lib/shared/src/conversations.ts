@@ -64,19 +64,22 @@ export const organizationProposalSchema = z
           .object({
             key: z.string().regex(/^[a-z0-9_-]{1,40}$/),
             name: z.string().trim().min(1).max(120),
-            parent: destinationSchema,
+            parent: destinationSchema.default(null),
           })
           .strict(),
       )
-      .max(6),
+      .max(6)
+      .default([]),
     renames: z
       .array(
         sourceRefSchema.extend({ name: z.string().trim().min(1).max(120) }),
       )
-      .max(6),
+      .max(6)
+      .default([]),
     moves: z
       .array(sourceRefSchema.extend({ destination: destinationSchema }))
-      .max(30),
+      .max(30)
+      .default([]),
     notes: z
       .array(
         z
@@ -86,7 +89,8 @@ export const organizationProposalSchema = z
           })
           .strict(),
       )
-      .max(3),
+      .max(3)
+      .default([]),
   })
   .strict();
 export type OrganizationChanges = z.infer<typeof organizationProposalSchema>;
@@ -156,6 +160,41 @@ export const conversationGenerationSchema = conversationReplySchema
       .max(1),
   });
 export type ConversationScope = z.infer<typeof conversationScopeSchema>;
+/** Expose only the action/evidence shapes that this turn can actually authorize.
+ * Empty tuples avoid providers inventing records merely to fill an object schema. */
+export function conversationResponseSchema(
+  intent: string,
+  notes: boolean,
+  web: boolean,
+  writes: boolean,
+) {
+  const proposal = conversationGenerationSchema.shape.proposals.element;
+  return conversationGenerationSchema.extend({
+    statements: notes ? conversationReplySchema.shape.statements : z.tuple([]),
+    webStatements: web
+      ? conversationReplySchema.shape.webStatements
+      : z.tuple([]).default([]),
+    organization:
+      writes && intent === "organize"
+        ? conversationGenerationSchema.shape.organization
+        : z.tuple([]).default([]),
+    proposals: !writes
+      ? z.tuple([]).default([])
+      : intent === "create"
+        ? z
+            .array(
+              proposal.extend({
+                kind: z.literal("create"),
+                target: z.tuple([]),
+                sources: z.tuple([]),
+              }),
+            )
+            .max(1)
+        : notes && (intent === "edit" || intent === "merge")
+          ? z.array(proposal.extend({ kind: z.literal(intent) })).max(1)
+          : z.tuple([]).default([]),
+  });
+}
 export type ConversationCreate = z.infer<typeof conversationCreateSchema>;
 export type ConversationTurnRequest = z.infer<typeof conversationTurnSchema>;
 export type NoteProposal = z.infer<typeof noteProposalSchema> & {

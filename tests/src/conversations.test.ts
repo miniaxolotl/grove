@@ -16,6 +16,7 @@ import {
   conversationCreateSchema,
   conversationPlanSchema,
   conversationTurnSchema,
+  conversationResponseSchema,
 } from "@lib/shared/conversations";
 import { createGenerationProvider, type Providers, type Source } from "@lib/ai";
 import { generationConfigSchema } from "@lib/shared/models";
@@ -63,6 +64,7 @@ async function fixture() {
     intent: "find" as "find" | "edit" | "merge" | "create" | "organize",
     references: [] as string[],
     calls: [] as { sources: Source[]; context: unknown }[],
+    schemas: [] as { safeParse: (value: unknown) => { success: boolean } }[],
     wait: undefined as (() => Promise<void>) | undefined,
     invalid: false,
     fail: false,
@@ -80,6 +82,7 @@ async function fixture() {
       profile: "chat-fixture",
       generate: async (schema, _instructions, sources, options) => {
         behavior.calls.push({ sources, context: options?.context });
+        behavior.schemas.push(schema);
         if (Object.is(schema, conversationPlanSchema))
           return schema.parse({
             query: "garden",
@@ -307,6 +310,11 @@ test("notebook and note batches preview, apply atomically, replay and undo witho
     ),
   );
   assert.equal(result.turns[0].result?.organization?.status, "proposed");
+  assert.deepEqual(
+    result.turns[0].result?.statements,
+    [],
+    "Grove owns unapplied batch descriptions",
+  );
   assert.equal((await service.projects(principal)).length, 0);
   const applied = await service.conversations.apply(
     principal,
@@ -541,6 +549,78 @@ test("partial page extraction is explicit rather than reported as complete resea
     turn("Read this article"),
   );
   assert.equal(result.turns[0].result?.researchIncomplete, true);
+});
+
+test("generation schemas exclude competing action shapes and unavailable evidence", async () => {
+  const f = await fixture();
+  f.behavior.intent = "create";
+  const chat = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Create a garden note"),
+  );
+  const schema = f.behavior.schemas.at(-1)!;
+  assert.equal(
+    schema.safeParse({
+      message: "Preview",
+      statements: [],
+      webStatements: [],
+      proposals: [],
+      organization: [
+        {
+          notebooks: [],
+          renames: [],
+          moves: [],
+          notes: [{ content: "Garden", destination: null }],
+        },
+      ],
+    }).success,
+    false,
+    "plain note requests cannot choose a notebook action wire shape",
+  );
+  assert.equal(
+    schema.safeParse({
+      message: "Answer",
+      statements: [
+        {
+          text: "Invented citation",
+          sources: [{ id: randomUUID(), version: 1 }],
+        },
+      ],
+      webStatements: [],
+      proposals: [],
+      organization: [],
+    }).success,
+    false,
+    "no note evidence means no note citation slots",
+  );
+});
+
+test("organization wire responses normalize omitted empty fields but reject incomplete writes", () => {
+  const schema = conversationResponseSchema("organize", true, false, true);
+  const response = {
+    message: "Preview",
+    statements: [],
+    organization: [
+      {
+        notebooks: [{ key: "garden", name: "Garden" }],
+        renames: [],
+        moves: [],
+      },
+    ],
+  };
+  assert.equal(schema.safeParse(response).success, true);
+  const normalized = schema.parse(response);
+  assert.equal(normalized.organization[0].notebooks[0].parent, null);
+  assert.deepEqual(normalized.organization[0].notes, []);
+  assert.equal(
+    schema.safeParse({
+      ...response,
+      organization: [{ notes: [{ destination: null }] }],
+    }).success,
+    false,
+  );
 });
 
 test("chat stays available with summaries off, while disabled chat blocks generation and Apply but permits Undo", async () => {

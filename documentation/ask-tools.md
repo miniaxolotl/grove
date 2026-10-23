@@ -115,3 +115,9 @@ Verification: deterministic MCP transport fixtures, real PostgreSQL/RLS, populat
 upgrade, concurrency/cancellation/retry, atomic batch/Undo and recovery tests. Live
 synthetic searches/extractions verify both actual hosted MCP contracts. Screenshots
 and exact verification evidence are linked from [delivery](delivery.md).
+
+Generation schemas are narrowed by intent and available evidence. Omitted empty
+batch arrays normalize to empty; a notebook without a parent is a root notebook.
+Incomplete writes and invented citations are rejected. Batch status/descriptions
+come from Grove's validated operations, so model wording cannot claim unapplied
+notebook changes already happened. Invalid model responses remain retryable errors.
