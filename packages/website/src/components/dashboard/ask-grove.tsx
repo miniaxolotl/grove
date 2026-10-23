@@ -923,15 +923,17 @@ function Answer({
           )}
           {proposal.status === "proposed" && (
             <>
-              <details>
-                <summary>Review changes</summary>
-                <RevisionCompare
-                  before={target?.content ?? ""}
-                  after={proposal.content}
-                  beforeLabel="Current note"
-                  afterLabel="Proposed note"
-                />
-              </details>
+              {proposal.kind !== "create" && (
+                <details>
+                  <summary>Review changes</summary>
+                  <RevisionCompare
+                    before={target?.content ?? ""}
+                    after={proposal.content}
+                    beforeLabel="Current note"
+                    afterLabel="Proposed note"
+                  />
+                </details>
+              )}
               <div className="ask-proposal-preview">
                 <Markdown>{proposal.content}</Markdown>
               </div>

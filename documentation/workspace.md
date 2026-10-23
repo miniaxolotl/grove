@@ -246,8 +246,10 @@ Source links open the cited note and identify when it has since changed.
 
 Use **History** to reopen or delete saved conversations across visits. Changing the
 scope starts a new conversation. Stop cancels the current reply; interrupted replies
-can be retried. Explicit edit, create and merge requests show a preview with **Apply**
-and version-checked **Undo**. Merges archive the originals and keep earlier revisions.
+can be retried. Explicit edit, create and merge requests show a preview before
+saving, with version-checked **Undo** afterward. Merges archive the originals and keep earlier revisions.
+New-note proposals show one preview and **Save note**, without an empty comparison.
+Edit and merge proposals retain **Review changes** to compare existing and proposed text.
 If a note changes after the preview, ask for an updated preview before applying it.
 
 The message box grows with your writing. The formatting toggle reveals Markdown tools and a
