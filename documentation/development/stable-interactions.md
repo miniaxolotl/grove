@@ -33,6 +33,10 @@ controls and transient feedback should use space already available.
   window containing more distinct matched words, break ties by first occurrence,
   and use the opening excerpt when no literal word occurs. JSX text/`mark` rendering
   never executes query regexes or HTML. Match the query belonging to visible results.
+  Tokenize the original query before lowercasing each token (case folding can add
+  combining marks, as in `İstanbul`). Search extraction turns underscores into word
+  separators before ordinary Markdown cleanup so `DATABASE_URL` retains both words;
+  non-search excerpts are unchanged.
 - `note-headings.ts` uses CommonMark/GFM rather than line regexes or DOM indices.
   ATX/Setext headings, nested structures, inline labels and CRLF positions use one
   model. Fenced examples are not headings. NFC/lowercase letter/number slugs have
@@ -43,12 +47,16 @@ controls and transient feedback should use space already available.
   above 1000px of **editor container** width. Do not remount CodeMirror when pinning,
   opening the inspector or changing modes. Selection navigation adds no history or
   autosave. Preview follows scroll; writing follows cursor or scrolled source block;
-  the last section is active at the document's scroll end.
+  edits recompute from the cursor, while actual scroll/resize events remain scroll-
+  based. The last section is active at the document's scroll end.
 - Saved-note fragments resolve inside the mounted editor after data/chunks load and
   on hash/history changes. Unknown or malformed fragments do nothing. New-note copy
   stays disabled until first-save identity arrives. These links never create public
   capabilities; existing shared-link rewrites preserve fragments only after their
-  ordinary linked-note scope check.
+  ordinary linked-note scope check. Public readers generate IDs from the complete
+  saved source before hiding an exact duplicate title; body offsets are rebased,
+  and the displayed title keeps the removed heading's anchor. Duplicate suffixes
+  therefore identify the same sections in authenticated and permitted shared links.
 - Sidebar persistence belongs to the authenticated account owner, not a reusable
   tree or a module-level global. Follow the metadata/restore contract in
   [client caching](client-cache.md); scroll listeners are passive and writes debounced.

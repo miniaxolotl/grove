@@ -342,7 +342,7 @@ export function MarkdownEditor({
     const track = () => queueTracking();
     element?.addEventListener("scroll", track, { passive: true });
     window.addEventListener("resize", track);
-    track();
+    queueTracking(preview ? "scroll" : "cursor");
     return () => {
       element?.removeEventListener("scroll", track);
       window.removeEventListener("resize", track);

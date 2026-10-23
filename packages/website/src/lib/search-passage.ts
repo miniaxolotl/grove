@@ -4,18 +4,20 @@ import { memoryExcerpt } from "./memory-display";
 export function queryWords(query: string) {
   return [
     ...new Set(
-      query
-        .slice(0, 500)
-        .toLowerCase()
-        .match(/[\p{L}\p{N}]+/gu) ?? [],
+      (query.slice(0, 500).match(/[\p{L}\p{N}]+/gu) ?? [])
+        .filter((word) => word.length > 1)
+        .map((word) => word.toLowerCase()),
     ),
-  ]
-    .filter((word) => word.length > 1)
-    .slice(0, 16);
+  ].slice(0, 16);
 }
 
 export function searchPassage(content: string, query: string, length = 180) {
-  const text = memoryExcerpt({ content: content.slice(0, 100_000) }, 100_000);
+  // The ordinary excerpt removes Markdown underscores. Keep their word boundaries
+  // in search so identifiers such as DATABASE_URL match the same query tokens.
+  const text = memoryExcerpt(
+    { content: content.slice(0, 100_000).replace(/_/g, " ") },
+    100_000,
+  );
   const words = queryWords(query);
   // Regex matching preserves original UTF-16 offsets even for case-folding expansions.
   const tokens = [...text.matchAll(/[\p{L}\p{N}]+/gu)];

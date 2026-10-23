@@ -23,6 +23,11 @@ all five targeted Chromium repeats pass, retaining reading-position assertions.
 
 ## Original navigation captures
 
+Later review corrections preserve the pictured layouts while fixing cursor tracking
+on edits, full-source public heading IDs and Unicode/identifier literal matches.
+Targeted Chromium/WebKit checks cover each reproduced case. Review build
+`l6aPcAV9c3GGr-XMFB7af` has **487,681 gzip Notes bytes**, editor still deferred.
+
 Application source: `c544123`. Production build `Rm33UWwzrqV1JnCluojuo` on Node
 24.22.1 / pnpm 10.33.0, with synthetic telemetry identifiers and fixture-only notes.
 Captured 23 October 2026 with Playwright 1.64.1. WebKit runs in

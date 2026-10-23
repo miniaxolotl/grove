@@ -16,11 +16,16 @@ checks this manual matrix in each engine against synthetic fixture API data:
   same-note hash and use Back/Forward. Try missing/malformed fragments and new notes.
   Source navigation must not save; an intentional edit at the target must Undo
   through normal history. Check ATX/Setext, formatting, nesting, CRLF and fenced code.
+  Include a shared `# Title` followed by duplicate `## Title` sections: the header
+  retains `section-title`, and subsections keep `section-title-2` / `section-title-3`.
 - Open Commands → Jump to heading and `Ctrl`/`Cmd` + `Alt` + `O` from writing/reading.
   Search, Enter, Escape/focus return and clipboard success/manual fallback must work.
 - Pin/unpin, scroll/current-section tracking, focus mode and resizing at
   1440/768/390/320px must retain the document instance, fit controls and keep narrow
   screens on the inspector. Review reduced motion, enlarged text and forced colours.
+  In writing mode, type under a later visible heading while the top visible block
+  belongs to an earlier one; edits must retain the caret's section. Search a late
+  `İstanbul` and `DATABASE_URL` occurrence and verify passage selection/highlights.
 
 Run production builds **before**, not during, browser suites: rebuilding removes
 old CSS chunks used by the fixture servers. Use separate ports/output directories

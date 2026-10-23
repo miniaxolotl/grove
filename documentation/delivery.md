@@ -50,6 +50,15 @@ Four existing compact checks now use the current shared navigation/action paths
 without dropping save, Undo or focus assertions. Current-head hosted evidence is
 recorded on PR #97.
 
+Review follow-up corrects four reproduced edge cases: edits retain cursor-based
+section tracking; shared readers preserve IDs from the complete saved source even
+when hiding its repeated title; query tokenization precedes Unicode lowercasing;
+and search-only extraction retains underscore word boundaries. Targeted real-
+component checks pass in Chromium/WebKit for later-heading edits, duplicate-title
+public anchors, `İstanbul` and `DATABASE_URL` passage/highlight matching. Root/site
+gates, five artifacts, bundle budgets and 12 focused WebKit checks pass. Notes entry
+is **487,681 gzip bytes**; ordinary non-search excerpts/access scope are unchanged.
+
 ## Streamlined workspace (23 October 2026)
 
 Notes and notebook libraries keep search beside one Filters control; notebook
