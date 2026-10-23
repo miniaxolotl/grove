@@ -120,9 +120,11 @@ within the connection's approved scope.
 Speech always requires a separate user action; enabling it never starts transcription
 or read aloud. Accepted transcripts and original recording playback remain usable.
 
-Provider availability is separate from the saved preference. The UI identifies
-unconfigured providers while retaining the user's choices. Availability describes
-configuration, not a successful provider health check or remaining quota.
+Feature availability is separate from the saved preference. The UI marks unavailable
+features while retaining the user's choices; it does not show backend vendor names
+to ordinary users. Editable operator configuration keeps its technical labels.
+Availability describes configuration, not a successful provider health check or
+remaining quota. See [product-copy guidance](development/product-copy.md).
 
 `GET /v1/me` includes all sixteen booleans, `aiAvailability` and separate
 `speechAvailable`. Session-only

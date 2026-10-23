@@ -166,7 +166,8 @@ new editor/search cases and lost-response/return-to-draft paths.
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale
-and synthetic live-provider runners. The shared AI preferences now have 14 controls;
+and synthetic live-provider runners. The shared AI preferences now have 16 controls,
+including the two independent speech choices;
 Chromium and focused WebKit cover assistance dialogs at 1440/390/320px.
 
 Queue coverage (`queue.test.ts`, `queue-migration.test.ts`) uses fresh PostgreSQL
