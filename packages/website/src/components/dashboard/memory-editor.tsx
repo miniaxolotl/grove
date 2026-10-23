@@ -820,6 +820,7 @@ export function MemoryEditor({
           {guidance && <p className="editor-guidance">{guidance}</p>}
           <div className="note-editor-workspace">
             <MarkdownEditor
+              noteId={base?.id}
               value={content}
               onChange={(value, immediate) => {
                 setContent(value);

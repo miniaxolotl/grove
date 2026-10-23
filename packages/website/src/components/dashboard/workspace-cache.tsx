@@ -8,6 +8,7 @@ import {
 } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { WorkspaceCache } from "@/lib/workspace-cache";
+import { WorkspaceNavigationState } from "./workspace-navigation-state";
 
 const Context = createContext<WorkspaceCache | null>(null);
 export function WorkspaceCacheProvider({
@@ -35,7 +36,9 @@ export function WorkspaceCacheProvider({
   return (
     <Context.Provider value={cache}>
       <QueryClientProvider client={cache.client}>
-        {children}
+        <WorkspaceNavigationState key={account} account={account}>
+          {children}
+        </WorkspaceNavigationState>
       </QueryClientProvider>
     </Context.Provider>
   );

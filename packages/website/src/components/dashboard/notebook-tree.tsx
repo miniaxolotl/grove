@@ -13,6 +13,7 @@ import {
   type WorkspaceDragItem,
 } from "./memory-drag";
 import { NotebookPages } from "./notebook-pages";
+import { useWorkspaceNavigationState } from "./workspace-navigation-state";
 
 /** Disclosure navigation uses ordinary links/buttons, with full native keyboard access. */
 export function NotebookTree({
@@ -24,6 +25,7 @@ export function NotebookTree({
   defaultExpanded = false,
   showNotes = false,
   notesVisible = true,
+  remember = false,
 }: {
   projects: readonly Project[];
   selectedId?: string | null;
@@ -33,8 +35,23 @@ export function NotebookTree({
   defaultExpanded?: boolean;
   showNotes?: boolean;
   notesVisible?: boolean;
+  remember?: boolean;
 }) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const navigation = useWorkspaceNavigationState();
+  const [localExpanded, setLocalExpanded] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [dragExpanded, setDragExpanded] = useState<{
+    owner: WorkspaceDragItem | null;
+    ids: Record<string, boolean>;
+  }>({ owner: null, ids: {} });
+  const { active } = useWorkspaceDrag();
+  const expanded =
+    remember && navigation?.ready ? navigation.state.expanded : localExpanded;
+  const setExpanded = (next: Record<string, boolean>) => {
+    if (remember && navigation?.ready) navigation.update({ expanded: next });
+    else setLocalExpanded(next);
+  };
   const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name));
   const ids = new Set(projects.map((p) => p.id));
   const ancestors = new Set(
@@ -65,6 +82,9 @@ export function NotebookTree({
           const hasChildren = showNotes || children(project.id).length > 0;
           const open =
             matching ||
+            (active &&
+              dragExpanded.owner === active &&
+              dragExpanded.ids[project.id]) ||
             (expanded[project.id] ??
               (defaultExpanded || ancestors.has(project.id)));
           const Icon = hasChildren && open ? FolderOpen : Folder;
@@ -79,11 +99,18 @@ export function NotebookTree({
               open={!!open}
               hasChildren={hasChildren}
               expand={() =>
-                setExpanded((value) => ({ ...value, [project.id]: true }))
+                setDragExpanded((value) => ({
+                  owner: active,
+                  ids: {
+                    ...(value.owner === active ? value.ids : {}),
+                    [project.id]: true,
+                  },
+                }))
               }
               disclosure={
                 hasChildren ? (
                   <IconButton
+                    disabled={remember && !!navigation && !navigation.ready}
                     label={`${open ? "Collapse" : "Expand"} ${project.name}`}
                     aria-expanded={!!open}
                     className="notebook-disclosure"

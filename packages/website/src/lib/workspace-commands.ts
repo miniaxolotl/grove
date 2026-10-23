@@ -69,6 +69,14 @@ export const commandDefinitions = {
     order: 13,
     keywords: "details kind notebook",
   },
+  "note-outline": {
+    label: "Jump to heading",
+    group: "note",
+    icon: "notes",
+    order: 14,
+    keywords: "outline sections contents heading jump",
+    shortcut: shortcuts.outline,
+  },
   "note-share": {
     label: "Share note",
     group: "note",
