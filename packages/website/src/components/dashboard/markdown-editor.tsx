@@ -57,6 +57,7 @@ import { IconButton } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
 import { InspectorDialog } from "./ui/inspector-dialog";
 import { RecordingControl } from "./recording-control";
+import { memoryExcerpt } from "@/lib/memory-display";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -128,7 +129,7 @@ export function MarkdownEditor({
   upload,
 }: {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, immediate?: boolean) => void;
   placeholder?: string;
   disabled?: boolean;
   fullPage?: boolean;
@@ -209,6 +210,7 @@ export function MarkdownEditor({
   );
   const initial = useRef({ value: documentValue, placeholder });
   const change = useRef(onChange);
+  const reading = useRef(preview);
   const compartments = useRef({
     mode: new Compartment(),
     editable: new Compartment(),
@@ -312,6 +314,7 @@ export function MarkdownEditor({
     };
   }, []);
   const [outline, setOutline] = useState(false);
+  const [activeHeading, setActiveHeading] = useState(0);
   const [historyState, setHistoryState] = useState({
     undo: false,
     redo: false,
@@ -319,7 +322,8 @@ export function MarkdownEditor({
   const limit = value.length > 6000;
   useEffect(() => {
     change.current = onChange;
-  }, [onChange]);
+    reading.current = preview;
+  }, [onChange, preview]);
   useEffect(() => {
     const editor = new EditorView({
       parent: host.current!,
@@ -357,7 +361,16 @@ export function MarkdownEditor({
           ]),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
-              change.current(update.state.doc.toString());
+              change.current(
+                update.state.doc.toString(),
+                update.transactions.some(
+                  (transaction) =>
+                    transaction.isUserEvent("input.task") ||
+                    (reading.current &&
+                      (transaction.isUserEvent("undo") ||
+                        transaction.isUserEvent("redo"))),
+                ),
+              );
             }
             const next = {
               undo: undoDepth(update.state) > 0,
@@ -423,23 +436,48 @@ export function MarkdownEditor({
   }, [preview, presentation]);
   const headings = useMemo(() => {
     const result: { title: string; from: number; level: number }[] = [];
-    markdownLanguage.parser.parse(value).iterate({
+    markdownLanguage.parser.parse(documentValue).iterate({
       enter(node) {
         const match = /^(?:ATX|Setext)Heading([1-6])$/.exec(node.name);
         if (match)
           result.push({
-            title: value
-              .slice(node.from, node.to)
-              .split("\n")[0]
-              .replace(/^#+\s*/, "")
-              .replace(/\s+#+$/, ""),
+            title: memoryExcerpt(
+              {
+                content: documentValue
+                  .slice(node.from, node.to)
+                  .split("\n")[0]
+                  .replace(/^#+\s*/, "")
+                  .replace(/\s+#+$/, ""),
+              },
+              160,
+            ),
             from: node.from,
             level: Number(match[1]),
           });
       },
     });
     return result;
-  }, [value]);
+  }, [documentValue]);
+  function openOutline() {
+    let current = 0;
+    if (preview && layout.current) {
+      const top = layout.current.getBoundingClientRect().top;
+      layout.current
+        .querySelectorAll<HTMLElement>(
+          ".editor-preview :is(h1, h2, h3, h4, h5, h6)",
+        )
+        .forEach((heading, index) => {
+          if (heading.getBoundingClientRect().top <= top + 48) current = index;
+        });
+    } else {
+      const position = view.current?.state.selection.main.head ?? 0;
+      headings.forEach((heading, index) => {
+        if (heading.from <= position) current = index;
+      });
+    }
+    setActiveHeading(current);
+    setOutline(true);
+  }
   function command(run: (editor: EditorView) => unknown) {
     if (view.current && !disabled) {
       run(view.current);
@@ -533,7 +571,7 @@ export function MarkdownEditor({
           label="Note outline"
           className="editor-outline-toggle"
           aria-expanded={outline}
-          onClick={() => setOutline(true)}
+          onClick={openOutline}
         >
           <ListTree size={17} />
         </IconButton>
@@ -702,7 +740,7 @@ export function MarkdownEditor({
         </div>
         {outline && (
           <InspectorDialog title="Note outline" close={() => setOutline(false)}>
-            <div className="writing-outline">
+            <nav className="writing-outline" aria-label="Sections in this note">
               {headings.length ? (
                 <ul>
                   {headings.map((heading, index) => (
@@ -710,8 +748,20 @@ export function MarkdownEditor({
                       <button
                         type="button"
                         disabled={disabled}
+                        aria-label={heading.title || "Untitled heading"}
+                        aria-current={
+                          index === activeHeading ? "location" : undefined
+                        }
+                        data-autofocus={index === activeHeading || undefined}
                         style={{
-                          paddingLeft: Math.min(heading.level - 1, 3) * 12,
+                          paddingLeft:
+                            8 +
+                            Math.min(
+                              heading.level -
+                                Math.min(...headings.map((item) => item.level)),
+                              3,
+                            ) *
+                              12,
                         }}
                         onClick={() => {
                           setOutline(false);
@@ -739,7 +789,10 @@ export function MarkdownEditor({
                           });
                         }}
                       >
-                        {heading.title || "Untitled heading"}
+                        <span className="outline-level" aria-hidden="true">
+                          H{heading.level}
+                        </span>
+                        <span>{heading.title || "Untitled heading"}</span>
                       </button>
                     </li>
                   ))}
@@ -747,7 +800,7 @@ export function MarkdownEditor({
               ) : (
                 <p>Add a heading to find your way around.</p>
               )}
-            </div>
+            </nav>
           </InspectorDialog>
         )}
         <div className="editor-footer" id={`${id}-help`}>

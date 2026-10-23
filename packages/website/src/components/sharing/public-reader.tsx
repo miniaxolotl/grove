@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronRight,
-  Eye,
   FileText,
   Folder,
 } from "lucide-react";
@@ -42,10 +41,6 @@ export function PublicReader({
         </a>
       )}
       <header className="shared-heading">
-        <p className="shared-eyebrow">
-          <Eye size={14} aria-hidden="true" />
-          Shared {data.note ? "note" : "notebook"} · Read only
-        </p>
         <h1>{title || "Untitled note"}</h1>
         {data.note && (
           <p className="shared-date">

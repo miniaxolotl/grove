@@ -859,7 +859,7 @@ test("large exports keep batches bounded while foreground reads remain available
     }
     const complete = await tasks.get(principal, task.id);
     assert.equal(complete.status, "succeeded", JSON.stringify(complete));
-    assert.equal(complete.processed, 2000);
+    assert.equal(complete.processed, 2001); // Notes, revisions and Ask Grove defaults.
     assert.equal((await tasks.get(principal, task.id)).downloadable, true);
     assert(maxBatch < 1024 * 1024);
     const p95 = (values: number[]) =>
@@ -867,7 +867,7 @@ test("large exports keep batches bounded while foreground reads remain available
     t.diagnostic(
       JSON.stringify({
         notes: 1000,
-        records: 2000,
+        records: 2001,
         durationMs: Math.round(performance.now() - started),
         maxBatchBytes: maxBatch,
         peakRssGrowthBytes: peakRss - initialRss,

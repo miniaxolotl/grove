@@ -143,7 +143,7 @@ export class Sharing {
       projectId:
         target.kind === "note" ? (row.projectId as string | null) : target.id,
       eligible:
-        target.kind === "notebook" ||
+        (target.kind === "notebook" && row.status === "active") ||
         (row.status === "active" &&
           (!row.expiresAt || new Date(row.expiresAt) > new Date())),
     };

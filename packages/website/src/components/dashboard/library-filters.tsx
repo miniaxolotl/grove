@@ -197,26 +197,14 @@ export function LibraryFilterBar({
           inputRef={input}
           value={query}
           onChange={setQuery}
-          placeholder="Search words or describe an idea…"
+          placeholder="Search your notes…"
         />
-        {fixedProject === undefined && (
-          <NotebookSelect
-            aria-label="Notebook"
-            className="filter-notebook"
-            value={value.project}
-            onValueChange={(project) => update({ project })}
-            projects={projects}
-            leading={[
-              { value: "all", label: "All notes" },
-              { value: "personal", label: "Unfiled" },
-            ]}
-          />
-        )}
         <button
           type="button"
           ref={trigger}
           className="app-button secondary library-filter-trigger"
           aria-label="Filters"
+          title="Filters and sorting"
           aria-describedby={`${id}-active-count`}
           aria-expanded={expanded}
           aria-controls={`${id}-filters`}
@@ -224,7 +212,7 @@ export function LibraryFilterBar({
           popoverTarget={`${id}-filters`}
         >
           <SlidersHorizontal size={16} />
-          Filters
+          <span className="filter-trigger-label">Filters</span>
           <span
             className="filter-count"
             style={{ visibility: active > 0 ? "visible" : "hidden" }}
@@ -271,6 +259,30 @@ export function LibraryFilterBar({
             update({ tag: tag.trim() });
           }}
         >
+          {fixedProject === undefined && (
+            <NotebookSelect
+              label="Notebook"
+              value={value.project}
+              onValueChange={(project) => update({ project })}
+              projects={projects}
+              leading={[
+                { value: "all", label: "All notes" },
+                { value: "personal", label: "Unfiled" },
+              ]}
+            />
+          )}
+          <Select
+            label="Sort notes"
+            value={value.sort}
+            onValueChange={(sort) =>
+              update({ sort: sort as LibraryFilters["sort"] })
+            }
+            options={[
+              { value: "updated_desc", label: "Recently updated" },
+              { value: "updated_asc", label: "Oldest updated" },
+              { value: "created_desc", label: "Date written" },
+            ]}
+          />
           <Select
             label="Note type"
             value={value.kind}

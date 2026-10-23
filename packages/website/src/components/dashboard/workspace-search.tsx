@@ -28,6 +28,15 @@ import {
 } from "@/lib/workspace-shortcuts";
 
 export type AskSession = {
+  conversationDrafts?: Record<
+    string,
+    {
+      draft: string;
+      unconfirmed?: ConversationTurn;
+      scope?: string;
+      includePersonal?: boolean;
+    }
+  >;
   scope: string;
   includePersonal: boolean;
   draft: string;

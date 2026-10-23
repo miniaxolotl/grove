@@ -112,18 +112,37 @@
   font-size: 12px;
 }
 .writing-outline li + li {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .writing-outline button {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   width: 100%;
-  min-height: 44px;
+  min-height: 36px;
+  padding: 8px;
+  border-radius: 6px;
+  line-height: 1.5;
   text-align: left;
   overflow-wrap: anywhere;
   color: var(--color-muted);
 }
 .writing-outline button:hover {
   color: var(--color-forest);
+  background: var(--color-paper);
+}
+.writing-outline button[aria-current] {
+  background: var(--color-sage);
+  color: var(--color-forest);
+  font-weight: 500;
+}
+.outline-level {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font: 10px var(--font-mono);
+}
+.writing-outline button:focus-visible {
+  outline-offset: -2px;
 }
 .writing-outline > p {
   font-size: 12px;
@@ -224,6 +243,9 @@
 .live-editor .editor-preview {
   overflow-wrap: anywhere;
 }
+.live-editor[data-mode="preview"] :is(.editor-tools, .editor-format-menu) {
+  visibility: hidden;
+}
 .live-editor .editor-preview .memory-markdown {
   max-width: 100%;
 }
@@ -308,7 +330,7 @@
 .note-save-button {
   flex-shrink: 0;
   width: 96px;
-  min-height: 44px;
+  min-height: 36px;
 }
 .note-editor-full .editor-fields {
   position: relative;
@@ -383,15 +405,6 @@
   border-top-color: #e9ede6;
   padding: 6px 16px;
 }
-.note-editor-hint {
-  padding: 6px 16px;
-  font-size: 10px;
-  color: var(--color-muted);
-  flex-shrink: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .grove-app:has(.editor-focus) {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -444,9 +457,6 @@
   .page-writing .editor-footer {
     padding-inline: 20px;
     font-size: 10px;
-  }
-  .note-editor-hint {
-    padding-inline: 20px;
   }
   .grove-app:has(.editor-focus) {
     grid-template-rows: minmax(0, 1fr);
@@ -596,6 +606,16 @@
 .inspector-dialog[open] {
   display: flex;
   flex-direction: column;
+}
+.inspector-dialog:has(.writing-outline) {
+  height: auto;
+  max-height: min(480px, calc(var(--overlay-viewport-height, 100dvh) - 24px));
+}
+.inspector-dialog:has(.writing-outline) .inspector-body {
+  padding: 8px;
+}
+.writing-outline > p {
+  padding: 16px 10px;
 }
 .inspector-dialog::backdrop {
   background: #15251b26;

@@ -125,7 +125,15 @@ export class WorkspaceCache {
           (value.resource !== undefined && typeof value.resource !== "string")
         )
           return;
-        this.invalidate(value);
+        if (
+          value.resource?.startsWith("/projects/lifecycle/") &&
+          value.scopes
+        ) {
+          this.notebookLifecycle(
+            value.resource.split("/").at(-1)!,
+            value.scopes,
+          );
+        } else this.invalidate(value);
       };
     }
     this.timer = setInterval(() => {
@@ -476,6 +484,40 @@ export class WorkspaceCache {
     this.client.setQueriesData({ predicate: revisions }, null);
     this.client.removeQueries({ predicate: revisions });
   }
+  private notebookLifecycle(action: string, scopes: (string | null)[]) {
+    void this.client.cancelQueries({ queryKey: root });
+    const notes = new Map<string, Memory | null>();
+    for (const query of this.client.getQueryCache().getAll()) {
+      const data = query.state.data;
+      const candidates =
+        query.queryKey[1] === "note"
+          ? [data as Memory | null]
+          : query.queryKey[1] === "notes"
+            ? ((data as NotePages | undefined)?.pages.flatMap(
+                (page) => page.items,
+              ) ?? [])
+            : query.queryKey[2] === "/ask"
+              ? ((data as AskResult | undefined)?.sources ?? [])
+              : [];
+      for (const note of candidates)
+        if (note && scopes.includes(note.projectId)) notes.set(note.id, null);
+    }
+    for (const [id] of notes) {
+      if (action === "delete") this.forget(id);
+      else this.client.setQueryData(workspaceKeys.note(id), null);
+    }
+    this.patchPages(notes);
+    for (const path of ["/projects", "/projects?status=archived"]) {
+      this.client.setQueryData<Notebook[]>(
+        workspaceKeys.resource(path),
+        (old) => old?.filter((project) => !scopes.includes(project.id)),
+      );
+      void this.client.invalidateQueries({
+        queryKey: workspaceKeys.resource(path),
+      });
+    }
+    this.invalidate({});
+  }
   private patchPages(notes: Map<string, Memory | null>) {
     for (const query of this.client
       .getQueryCache()
@@ -618,6 +660,7 @@ export class WorkspaceCache {
     const read =
       verb === "GET" ||
       path === "/memories/search" ||
+      path === "/conversations/search" ||
       path === "/briefs" ||
       path === "/relationships/search" ||
       path === "/ask";
@@ -686,6 +729,13 @@ export class WorkspaceCache {
           this.invalidate({ resource: "/assistance" });
           this.publish?.({ resource: "/assistance" });
         }
+      } else if (/^\/projects\/[^/]+\/(archive|restore|delete)$/.test(path)) {
+        const resultChange = result as { action: string; projectIds: string[] };
+        this.notebookLifecycle(resultChange.action, resultChange.projectIds);
+        this.publish?.({
+          resource: `/projects/lifecycle/${resultChange.action}`,
+          scopes: resultChange.projectIds,
+        });
       } else if (path.startsWith("/projects")) {
         const project = result as Notebook;
         const key = workspaceKeys.resource("/projects");
@@ -725,13 +775,59 @@ export class WorkspaceCache {
             workspaceKeys.resource(`/conversations/${chat.id}`),
             chat,
           );
-        if (verb === "DELETE")
+        if (verb === "DELETE") {
           this.client.setQueryData(workspaceKeys.resource(path), null);
+          const id = path.split("/")[2];
+          this.client.setQueriesData<{
+            items?: { id: string }[];
+            pages?: { items: { id: string }[] }[];
+          }>(
+            {
+              predicate: (query) =>
+                query.queryKey[1] === "resource" &&
+                ["/conversations", "/conversations/search"].includes(
+                  query.queryKey[2] as string,
+                ),
+            },
+            (old) =>
+              old
+                ? {
+                    ...old,
+                    ...(old.items
+                      ? { items: old.items.filter((item) => item.id !== id) }
+                      : {}),
+                    ...(old.pages
+                      ? {
+                          pages: old.pages.map((page) => ({
+                            ...page,
+                            items: page.items.filter((item) => item.id !== id),
+                          })),
+                        }
+                      : {}),
+                  }
+                : old,
+          );
+        }
         this.invalidate(change);
         if (/\/(apply|undo)$/.test(path)) {
           // Merge/undo may affect archived source notes absent from the reply. Revalidate all note dependencies.
           this.invalidate({});
           this.publish?.({});
+          if (
+            chat.turns?.some(
+              (turn) =>
+                turn.id === path.split("/")[4] && turn.result?.organization,
+            )
+          ) {
+            for (const resource of ["/projects", "/projects?status=archived"]) {
+              this.invalidate({ resource });
+              this.publish?.({ resource });
+            }
+          }
+        }
+        if (path.endsWith("/tools")) {
+          this.invalidate({ resource: "/ask-tools" });
+          this.publish?.({ resource: "/ask-tools" });
         }
         this.publish?.(change);
       } else if (
@@ -792,7 +888,12 @@ export class WorkspaceCache {
           this.invalidate({});
           this.publish?.({});
         } else if (path.startsWith("/projects")) {
+          if (/\/(archive|restore|delete)$/.test(path)) {
+            this.invalidate({});
+            this.publish?.({});
+          }
           this.invalidate({ resource: "/projects" });
+          this.invalidate({ resource: "/projects?status=archived" });
           this.publish?.({ resource: "/projects" });
         } else if (path.startsWith("/relationships/")) {
           this.invalidate({ resource: "/relationships/search" });

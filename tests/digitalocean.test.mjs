@@ -5,6 +5,8 @@ import {
   createAppSpec,
   findDeployment,
   updateImageSpec,
+  assertUnchangedApp,
+  assertActiveDeployment,
 } from "../scripts/deploy-digitalocean.mjs";
 
 const { structuredClone } = globalThis;
@@ -23,7 +25,33 @@ const env = {
   SHARE_LINK_KEY: "ab".repeat(32),
   DEEPINFRA_API_KEY: "deepinfra-fixture",
   MINIMAX_API_KEY: "minimax-fixture",
+  EXA_API_KEY: "exa-fixture",
+  TAVILY_API_KEY: "tavily-fixture",
 };
+
+test("rollout pre-write readback rejects changed configuration and deployment identity", () => {
+  const original = {
+    id: "app-fixture",
+    spec: { envs: [{ value: "private-fixture" }] },
+    active_deployment: { id: "previous" },
+  };
+  assert.doesNotThrow(() =>
+    assertUnchangedApp(original, structuredClone(original)),
+  );
+  for (const change of [
+    { id: "other" },
+    { spec: { envs: [{ value: "new-private-fixture" }] } },
+    { active_deployment: { id: "newer" } },
+    { in_progress_deployment: { id: "newer" } },
+  ])
+    assert.throws(
+      () => assertUnchangedApp(original, { ...original, ...change }),
+      (error) => {
+        assert.ok(!String(error).includes("private-fixture"));
+        return true;
+      },
+    );
+});
 
 test("initial spec isolates runtime secrets and never deploys the migration owner", () => {
   const spec = createAppSpec(env);
@@ -67,6 +95,13 @@ test("initial spec isolates runtime secrets and never deploys the migration owne
     },
   );
   assert(!spec.workers[0].envs.some((item) => item.key === "SHARE_LINK_KEY"));
+  for (const key of ["EXA_API_KEY", "TAVILY_API_KEY"]) {
+    assert.equal(
+      spec.services[0].envs.find((item) => item.key === key)?.type,
+      "SECRET",
+    );
+    assert(!spec.workers[0].envs.some((item) => item.key === key));
+  }
 });
 
 test("provisioning rejects owner connections, insecure TLS and stale Clerk keys", () => {
@@ -163,5 +198,34 @@ test("deployment wait ignores previous generations and mismatched worker images"
   assert.equal(
     findDeployment([current, old, other], digest, [old.id]),
     current,
+  );
+});
+
+test("rollout completion requires the provider's actual active generation and both image digests", () => {
+  const deployment = {
+    id: "accepted",
+    phase: "ACTIVE",
+    spec: updateImageSpec(createAppSpec(env), digest),
+  };
+  const app = { active_deployment: deployment };
+  assert.doesNotThrow(() => assertActiveDeployment(app, deployment.id, digest));
+  assert.throws(() =>
+    assertActiveDeployment(
+      { active_deployment: { ...deployment, id: "newer" } },
+      deployment.id,
+      digest,
+    ),
+  );
+  assert.throws(() =>
+    assertActiveDeployment(
+      { ...app, in_progress_deployment: { id: "newer" } },
+      deployment.id,
+      digest,
+    ),
+  );
+  const mismatched = structuredClone(app);
+  mismatched.active_deployment.spec.workers[0].image.digest = `sha256:${"b".repeat(64)}`;
+  assert.throws(() =>
+    assertActiveDeployment(mismatched, deployment.id, digest),
   );
 });
