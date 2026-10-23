@@ -5,13 +5,19 @@ import type { Root } from "mdast";
 
 pdfMake.addVirtualFileSystem(fonts);
 self.onmessage = async (
-  event: MessageEvent<{ root: Root; title: string; origin: string }>,
+  event: MessageEvent<{
+    root: Root;
+    title: string;
+    origin: string;
+    images?: Record<string, string>;
+  }>,
 ) => {
   try {
     const { document, substituted, usesCode } = notePdfDocument(
       event.data.root,
       event.data.title,
       event.data.origin,
+      event.data.images,
     );
     if (usesCode) {
       // The TTF is same-origin and loaded only for PDFs containing code. WOFF2

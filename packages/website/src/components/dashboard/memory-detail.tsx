@@ -441,13 +441,22 @@ export function MemoryDetail({
                 </div>
                 {compare === revision.version ? (
                   <RevisionCompare
+                    media={{
+                      noteId: memory.id,
+                      beforeVersion: revision.version,
+                      afterVersion: memory.version,
+                    }}
                     before={revision.content}
                     after={memory.content}
                     beforeLabel={`Version ${revision.version}`}
                     afterLabel={`Current · version ${memory.version}`}
                   />
                 ) : (
-                  <Markdown>{revision.content}</Markdown>
+                  <Markdown
+                    media={{ noteId: memory.id, version: revision.version }}
+                  >
+                    {revision.content}
+                  </Markdown>
                 )}
                 {revision.version !== memory.version && (
                   <div className="flex flex-wrap gap-4">

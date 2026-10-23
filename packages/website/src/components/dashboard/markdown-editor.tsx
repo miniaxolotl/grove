@@ -43,6 +43,7 @@ import {
   Redo2,
   ListTree,
   Type,
+  ImagePlus,
 } from "lucide-react";
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
@@ -132,6 +133,8 @@ export function MarkdownEditor({
   onPreviewChange,
   presentation = "page",
   children,
+  media,
+  upload,
   noteId,
 }: {
   value: string;
@@ -143,6 +146,8 @@ export function MarkdownEditor({
   onPreviewChange?: (preview: boolean) => void;
   presentation?: "page" | "drawer" | "expanded" | "focus";
   children?: ReactNode;
+  media?: { noteId: string; version?: number };
+  upload?: (file: File, signal: AbortSignal) => Promise<string>;
   noteId?: string;
 }) {
   const id = useId();
@@ -153,6 +158,63 @@ export function MarkdownEditor({
   const scrollPositions = useRef(new Map<string, number>());
   const previousScroll = useRef(0);
   const view = useRef<EditorView | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const uploadWork = useRef<AbortController | null>(null);
+  const [uploadError, setUploadError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [retryFile, setRetryFile] = useState<File | null>(null);
+  const drag = useRef<{ from: number; to: number; source: string } | null>(
+    null,
+  );
+  const [dragToken] = useState(() => crypto.randomUUID());
+  const insertImage = async (file: File, destination?: number) => {
+    if (!upload || uploadWork.current) {
+      setUploadError("Save the note and its changes before adding an image.");
+      return;
+    }
+    const controller = new AbortController();
+    uploadWork.current = controller;
+    setRetryFile(file);
+    setUploading(true);
+    setUploadError("");
+    try {
+      const markdown = await upload(file, controller.signal);
+      if (controller.signal.aborted || !view.current) return;
+      const editor = view.current;
+      if (editor.state.doc.length + markdown.length + 2 > 6000)
+        throw new Error(
+          "The image uploaded, but the note is full. Shorten it and retry to insert the image.",
+        );
+      editor.dispatch({
+        changes: {
+          from: Math.min(
+            destination ?? editor.state.selection.main.head,
+            editor.state.doc.length,
+          ),
+          insert: `\n${markdown}\n`,
+        },
+        annotations: isolateHistory.of("full"),
+        userEvent: "input.media",
+      });
+      setRetryFile(null);
+    } catch (error) {
+      if (!controller.signal.aborted)
+        setUploadError(
+          error instanceof Error ? error.message : "Image upload failed.",
+        );
+    } finally {
+      if (uploadWork.current === controller) {
+        uploadWork.current = null;
+        setUploading(false);
+      }
+    }
+  };
+  useEffect(
+    () => () => {
+      uploadWork.current?.abort();
+    },
+    [],
+  );
   const initial = useRef({ value: documentValue, placeholder });
   const change = useRef(onChange);
   const reading = useRef(preview);
@@ -162,6 +224,102 @@ export function MarkdownEditor({
   });
   const [writingMode, setWritingMode] = useState<"live" | "source">("live");
   const mode = preview ? "preview" : writingMode;
+  const moveImage = (from: number, to: number, destination: number) => {
+    const editor = view.current;
+    if (
+      !editor ||
+      disabled ||
+      editor.state.readOnly ||
+      editor.state.doc.toString() !== documentValue
+    )
+      return;
+    const start = value.slice(0, from).replace(/\r\n?/g, "\n").length;
+    const end = value.slice(0, to).replace(/\r\n?/g, "\n").length;
+    const target = value.slice(0, destination).replace(/\r\n?/g, "\n").length;
+    if (target >= start && target <= end) return;
+    if (editor.state.doc.length + 4 > 6000) {
+      setUploadError("Shorten the note before moving the image.");
+      return;
+    }
+    const source = editor.state.sliceDoc(start, end);
+    editor.dispatch({
+      changes: [
+        { from: start, to: end, insert: "" },
+        { from: target, insert: `\n\n${source}\n\n` },
+      ].sort((a, b) => a.from - b.from),
+      annotations: isolateHistory.of("full"),
+      userEvent: "move.media",
+    });
+  };
+  const workspaceDrop = useEffectEvent((event: globalThis.DragEvent) => {
+    const files = event.dataTransfer?.files;
+    const internal =
+      event.dataTransfer?.getData("application/x-grove-media") === dragToken;
+    if (!files?.length && !internal) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!internal && files && files.length > 1) {
+      setUploadError("Drop one image at a time.");
+      return;
+    }
+    const editor = view.current;
+    if (!editor) return;
+    let target = value.length;
+    if (preview) {
+      const block =
+        event.target instanceof Element
+          ? event.target.closest<HTMLElement>("[data-source-from]")
+          : null;
+      if (block) {
+        const rect = block.getBoundingClientRect();
+        target = Number(
+          event.clientY < rect.top + rect.height / 2
+            ? block.dataset.sourceFrom
+            : block.dataset.sourceTo,
+        );
+      }
+    } else {
+      const normalized =
+        editor.posAtCoords({ x: event.clientX, y: event.clientY }) ??
+        editor.state.doc.length;
+      target = 0;
+      for (
+        let index = 0;
+        index < normalized && target < value.length;
+        index++, target++
+      )
+        if (value[target] === "\r" && value[target + 1] === "\n") target++;
+    }
+    if (internal && drag.current) {
+      const source = drag.current;
+      drag.current = null;
+      if (value.slice(source.from, source.to) === source.source)
+        moveImage(source.from, source.to, target);
+    } else if (files?.[0])
+      void insertImage(
+        files[0],
+        value.slice(0, target).replace(/\r\n?/g, "\n").length,
+      );
+  });
+  useEffect(() => {
+    const surface = host.current?.closest("form");
+    if (!surface) return;
+    const over = (event: globalThis.DragEvent) => {
+      if (
+        event.dataTransfer?.types.some((type) =>
+          ["Files", "application/x-grove-media"].includes(type),
+        )
+      )
+        event.preventDefault();
+    };
+    const drop = (event: globalThis.DragEvent) => workspaceDrop(event);
+    surface.addEventListener("dragover", over);
+    surface.addEventListener("drop", drop, true);
+    return () => {
+      surface.removeEventListener("dragover", over);
+      surface.removeEventListener("drop", drop, true);
+    };
+  }, []);
   const [outline, setOutline] = useState(false);
   const pendingJump = useRef<NoteHeading | null>(null);
   const [activeHeading, setActiveHeading] = useState(0);
@@ -439,6 +597,15 @@ export function MarkdownEditor({
       ref={root}
       className={`markdown-editor live-editor${fullPage ? " page-writing" : ""}`}
       data-mode={mode}
+      onPaste={(event) => {
+        const file = Array.from(event.clipboardData.files).find((file) =>
+          file.type.startsWith("image/"),
+        );
+        if (file) {
+          event.preventDefault();
+          void insertImage(file);
+        }
+      }}
       onKeyDown={(event) => {
         if (!preview || !isActiveSurface(host.current)) return;
         const run = matchesShortcut(event.nativeEvent, shortcuts.undo)
@@ -492,7 +659,57 @@ export function MarkdownEditor({
         >
           <ListTree size={17} />
         </IconButton>
+        <IconButton
+          label="Add image"
+          disabled={!upload || uploading || disabled}
+          title={
+            upload
+              ? "Add image (PNG, JPEG or WebP; up to 3 MiB). Original metadata is retained."
+              : "Save this note and its changes to add an image"
+          }
+          onClick={() => fileInput.current?.click()}
+        >
+          <ImagePlus size={17} />
+        </IconButton>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void insertImage(file);
+          }}
+        />
       </div>
+      {uploading && (
+        <div className="media-feedback" role="status">
+          Uploading image…{" "}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => uploadWork.current?.abort()}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {uploadError && (
+        <div className="media-feedback" role="alert">
+          {uploadError}{" "}
+          {retryFile && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={!upload}
+              onClick={() => void insertImage(retryFile)}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
       <div className="editor-surface">
         <div className="writing-with-outline" data-pinned={pinned || undefined}>
           <div ref={layout} className="writing-layout">
@@ -510,6 +727,36 @@ export function MarkdownEditor({
                   {value ? (
                     <Markdown
                       headings={previewHeadings}
+                      media={media}
+                      onImageDrag={
+                        disabled
+                          ? undefined
+                          : (event, from, to) => {
+                              drag.current = {
+                                from,
+                                to,
+                                source: value.slice(from, to),
+                              };
+                              event.dataTransfer.setData(
+                                "application/x-grove-media",
+                                dragToken,
+                              );
+                              event.dataTransfer.effectAllowed = "move";
+                            }
+                      }
+                      onImageMove={(from, to, direction) => {
+                        const previous = value.lastIndexOf(
+                          "\n\n",
+                          Math.max(0, from - 3),
+                        );
+                        const target =
+                          direction === "up"
+                            ? previous < 0
+                              ? 0
+                              : previous + 2
+                            : value.indexOf("\n\n", to + 2);
+                        moveImage(from, to, target < 0 ? value.length : target);
+                      }}
                       disabled={disabled}
                       onToggleTask={(offset, checked) => {
                         const editor = view.current;

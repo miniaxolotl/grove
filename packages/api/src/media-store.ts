@@ -138,7 +138,11 @@ export function localMedia(root: string): MediaStore {
   };
 }
 
-export function s3Media(client: S3Client, bucket: string): MediaStore {
+export function s3Media(
+  client: S3Client,
+  bucket: string,
+  spacesLifecycleVerified = false,
+): MediaStore {
   return {
     async ready() {
       const signal = AbortSignal.timeout(5000);
@@ -160,8 +164,10 @@ export function s3Media(client: S3Client, bucket: string): MediaStore {
           throw new Error("media_bucket_must_not_expire_source");
       } catch (error) {
         // AccessDenied/unsupported/provider failures must not masquerade as safe.
+        const name = (error as { name?: string }).name;
         if (
-          (error as { name?: string }).name !== "NoSuchLifecycleConfiguration"
+          name !== "NoSuchLifecycleConfiguration" &&
+          !(name === "AccessDenied" && spacesLifecycleVerified)
         )
           throw error;
       }
@@ -294,5 +300,11 @@ export async function createMediaStore(
       },
     }),
     env.MEDIA_S3_BUCKET,
+    !!env.MEDIA_S3_ENDPOINT &&
+      /^https:\/\/[a-z]{3}\d\.digitaloceanspaces\.com\/?$/.test(
+        env.MEDIA_S3_ENDPOINT,
+      ) &&
+      env.MEDIA_S3_LIFECYCLE_VERIFIED_FOR ===
+        `${env.MEDIA_S3_ENDPOINT.replace(/\/$/, "")}/${env.MEDIA_S3_BUCKET}`,
   );
 }

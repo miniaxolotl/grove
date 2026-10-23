@@ -57,7 +57,9 @@ export function SourceRevision({
             </p>
           )}
           <div className="mt-6">
-            <Markdown>{revision.content}</Markdown>
+            <Markdown media={{ noteId: id, version }}>
+              {revision.content}
+            </Markdown>
           </div>
         </>
       )}

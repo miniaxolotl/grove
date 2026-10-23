@@ -1,5 +1,17 @@
 # Private image foundation (in development)
 
+The following records the initial storage-only increment in #86. The stacked
+[Images implementation](../media.md) now wires these primitives to runtime,
+revision authorization, uploads, UI and exports; use that document for current
+feature behavior and rollout. Historical verification below is not live Spaces
+qualification.
+
+The subsequent user-authorized Spaces provisioning verified private objects,
+conditional PUT412 and separate source/temporary lifecycle. Scoped Spaces keys
+cannot inspect lifecycle/ACL configuration; the continuation supports an exact
+endpoint/bucket operator-verification receipt for this AccessDenied case, keeping
+account-wide keys out of runtime. See [current rollout](../media.md#configuration-and-rollout).
+
 The first Images increment implements storage/validation primitives only. It does
 **not** enable uploads, render images, add media tables or change public sharing.
 `MEDIA_STORAGE` defaults to `disabled`; the API/worker do not call the new factory

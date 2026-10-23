@@ -34,6 +34,8 @@ import {
 import {
   ConnectionSetup,
   Sharing,
+  MediaAttachments,
+  mediaDescriptor,
   Tasks,
   type ArtifactStore,
   withMemoryOperation,
@@ -54,6 +56,10 @@ import {
   shareScopeSchema,
 } from "@lib/shared/sharing";
 import type { Authentication } from "./auth.ts";
+import type { MediaStore } from "./media-store.ts";
+import { verifyImage } from "./media-images.ts";
+import { noteArchive } from "./media-archive.ts";
+import { imageLimits, imageMimeTypes } from "@lib/shared/media";
 import {
   askSchema,
   briefRequestSchema,
@@ -82,6 +88,7 @@ import {
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
+  media?: MediaStore | null;
   artifacts?: ArtifactStore | null;
   memories: MemoryService;
   models?: ModelRegistry;
@@ -148,13 +155,15 @@ export function createApp(deps: AppDependencies) {
     "*",
     cors({
       origin: deps.siteUrl,
-      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: [
         "Authorization",
         "Content-Type",
         "Idempotency-Key",
         "MCP-Protocol-Version",
         "X-Grove-Telemetry",
+        "X-Grove-Note-Version",
+        "X-Grove-Content-Sha256",
       ],
       exposeHeaders: ["WWW-Authenticate", "X-Request-ID", "Retry-After"],
     }),
@@ -215,7 +224,13 @@ export function createApp(deps: AppDependencies) {
       c.req.path.startsWith("/.well-known/")
     )
       return next();
+    const mediaUpload =
+      c.req.method === "PUT" &&
+      /^\/v1\/memories\/[0-9a-f-]+\/media\/[0-9a-f-]+$/.test(c.req.path);
     const long =
+      mediaUpload ||
+      /\/archive-file$/.test(c.req.path) ||
+      /\/media\/[0-9a-f-]+$/.test(c.req.path) ||
       c.req.path === "/v1/ask" ||
       c.req.path === "/v1/models/test" ||
       /^\/v1\/tasks\/[^/]+\/download$/.test(c.req.path) ||
@@ -244,7 +259,7 @@ export function createApp(deps: AppDependencies) {
     try {
       release = await (long ? interactive : foreground).acquire(signal);
       await withMemoryOperation(async () => {
-        c.req.raw = await admittedRequest(c.req.raw, signal);
+        if (!mediaUpload) c.req.raw = await admittedRequest(c.req.raw, signal);
         await next();
         if (!c.get("streaming") && !c.error) signal.throwIfAborted();
       }, signal);
@@ -356,6 +371,179 @@ export function createApp(deps: AppDependencies) {
     key: deps.shareLinkKey,
     siteUrl: deps.siteUrl,
   });
+  const attachments = new MediaAttachments(service);
+  app.get("/v1/memories/:id/archive-file", async (c) => {
+    if (!deps.media)
+      throw new GroveError(
+        "media_unavailable",
+        "Media storage is not configured",
+        503,
+      );
+    const id = uuidSchema.parse(c.req.param("id")),
+      version = c.req.query("version")
+        ? z.coerce.number().int().positive().parse(c.req.query("version"))
+        : undefined;
+    const cancelled = new AbortController(),
+      signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
+    const source = await noteArchive(
+        service,
+        deps.media,
+        c.get("principal"),
+        id,
+        version,
+        signal,
+      ),
+      stream = new PassThrough();
+    stream.once("close", () => {
+      if (!stream.readableEnded) cancelled.abort();
+    });
+    c.set("streaming", true);
+    void pipeline(source, stream, { signal })
+      .catch(() => {})
+      .finally(c.get("finish"));
+    c.header("Content-Type", "application/x-tar");
+    c.header(
+      "Content-Disposition",
+      `attachment; filename="grove-note-${id}.tar"`,
+    );
+    return c.body(Readable.toWeb(stream) as ReadableStream);
+  });
+  app.put("/v1/memories/:memoryId/media/:id", async (c) => {
+    if (!deps.media)
+      throw new GroveError(
+        "media_unavailable",
+        "Media storage is not configured",
+        503,
+      );
+    const principal = c.get("principal");
+    const input = {
+      id: uuidSchema.parse(c.req.param("id")),
+      memoryId: uuidSchema.parse(c.req.param("memoryId")),
+      version: z.coerce
+        .number()
+        .int()
+        .positive()
+        .parse(c.req.header("x-grove-note-version")),
+      bytes: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(imageLimits.bytes)
+        .parse(c.req.header("content-length")),
+      mime: z.enum(imageMimeTypes).parse(c.req.header("content-type")),
+      sha256: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/)
+        .parse(c.req.header("x-grove-content-sha256")),
+    };
+    const claim = await attachments.claim(principal, input);
+    if (claim.replay)
+      return c.json({ success: true, data: mediaDescriptor(claim.row) });
+    try {
+      if (!c.req.raw.body)
+        throw new GroveError("invalid_image", "Image body required", 400);
+      const verified = await verifyImage(
+        Readable.fromWeb(
+          c.req.raw.body as import("node:stream/web").ReadableStream,
+        ),
+        input.mime,
+        c.get("signal"),
+      );
+      if (
+        verified.bytes.length !== input.bytes ||
+        verified.sha256 !== input.sha256
+      )
+        throw new GroveError(
+          "invalid_image",
+          "Image length or checksum does not match",
+          400,
+        );
+      await deps.media.write(claim.row.objectKey, verified, c.get("signal"));
+      return c.json(
+        {
+          success: true,
+          data: await attachments.finish(
+            principal,
+            input,
+            claim.row.leaseId,
+            verified,
+          ),
+        },
+        201,
+      );
+    } catch (error) {
+      await attachments
+        .fail(principal, input.id, claim.row.leaseId)
+        .catch(() => {});
+      throw error;
+    }
+  });
+  const mediaResponse = async (
+    c: import("hono").Context<Environment>,
+    authorizeMedia: () => Promise<{
+      key: string;
+      mime: string;
+      bytes: number;
+      sha256: string;
+    }>,
+  ) => {
+    if (!deps.media)
+      throw new GroveError(
+        "media_unavailable",
+        "Media storage is not configured",
+        503,
+      );
+    const object = await authorizeMedia();
+    const cancelled = new AbortController(),
+      signal = AbortSignal.any([c.get("signal"), cancelled.signal]);
+    const source = await deps.media.read(object.key, signal),
+      stream = new PassThrough();
+    stream.once("close", () => {
+      if (!stream.readableEnded) cancelled.abort();
+    });
+    c.set("streaming", true);
+    void pipeline(
+      source,
+      async function* (chunks) {
+        let checked = Date.now();
+        for await (const chunk of chunks) {
+          if (Date.now() - checked >= 1000) {
+            const fresh = await withDatabaseSignal(signal, authorizeMedia);
+            if (fresh.key !== object.key) throw new Error("media_changed");
+            checked = Date.now();
+          }
+          yield chunk;
+        }
+      },
+      stream,
+      { signal },
+    )
+      .catch(() => {})
+      .finally(c.get("finish"));
+    c.header("Content-Type", object.mime);
+    c.header("Content-Length", String(object.bytes));
+    c.header("Content-Disposition", "inline");
+    return c.body(Readable.toWeb(stream) as ReadableStream);
+  };
+  app.get("/v1/memories/:memoryId/media/:id", async (c) => {
+    const memoryId = uuidSchema.parse(c.req.param("memoryId")),
+      id = uuidSchema.parse(c.req.param("id"));
+    const version = c.req.query("version")
+      ? z.coerce.number().int().positive().parse(c.req.query("version"))
+      : undefined;
+    return mediaResponse(c, () =>
+      attachments.read(c.get("principal"), memoryId, id, version),
+    );
+  });
+  app.get("/public/shares/:token/notes/:memoryId/media/:id", async (c) => {
+    if (!deps.shareLinkKey)
+      throw new GroveError("not_found", "Media is unavailable", 404);
+    const memoryId = uuidSchema.parse(c.req.param("memoryId")),
+      id = uuidSchema.parse(c.req.param("id"));
+    return mediaResponse(c, () =>
+      attachments.publicRead(c.req.param("token"), memoryId, id),
+    );
+  });
   for (const [resource, kind] of [
     ["memories", "note"],
     ["projects", "notebook"],
@@ -441,7 +629,13 @@ export function createApp(deps: AppDependencies) {
     );
   }
   app.get("/v1/me", async (c) =>
-    c.json({ success: true, data: await service.me(c.get("principal")) }),
+    c.json({
+      success: true,
+      data: {
+        ...(await service.me(c.get("principal"))),
+        mediaAvailable: !!deps.media,
+      },
+    }),
   );
   const setup = new ConnectionSetup(service);
   app.post("/v1/connect", async (c) => {

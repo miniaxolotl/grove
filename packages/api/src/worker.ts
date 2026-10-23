@@ -53,7 +53,7 @@ const recipient = async (subject: string) => {
   );
 };
 const handlers: Partial<Record<TaskKind, TaskHandler>> = {
-  ...(runtime.artifacts ? exportHandlers(runtime.db, runtime.artifacts) : {}),
+  ...(runtime.artifacts ? exportHandlers(runtime.db, runtime.artifacts, runtime.media) : {}),
   ...importHandlers(runtime.memories),
   ...cleanupHandlers(runtime.db, async (subject) => {
     try {

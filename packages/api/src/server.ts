@@ -16,6 +16,7 @@ export async function startServer() {
     memories,
     models: runtime.models,
     artifacts: runtime.artifacts,
+    media: runtime.media,
     auth: new Authentication(db, clerkVerifier(env), (account, request) =>
       reporter
         .forIdentity(
