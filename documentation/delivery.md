@@ -39,6 +39,36 @@ creates no identity or analytics requests. All **nine packed-artifact checks**, 
 client/boundary tests**, three pinned native hosts, root lint/types/build and **50
 automation/provider contracts** plus workflow lint pass after integrating #102.
 
+## Note context actions (23 October 2026)
+
+The editable note surface has app-matched text, image, link and recording right-click
+menus in writing/source/preview, with keyboard invocation and viewport-bounded action
+rows. Text edits preserve selection, normal Undo and autosave. Media uses parsed exact
+source ranges, authenticated originals and existing playback/transcript controls;
+reference removal never deletes retained media/history. Native fields and public
+readers retain their existing controls. [Behaviour/limits](note-context-actions.md).
+
+Root/site lint, types and builds, five packed artifacts and bundle budgets pass.
+The unchanged full **223 Chromium** suite and **12 focused WebKit** cases pass.
+Targeted journeys also pass in both engines: pointer/keyboard selection, format/Undo,
+copy/paste denial and delayed-selection guards, repeated-image CRLF identity,
+remove/Undo, original PNG download bytes, source-end targeting, lazy recording
+playback/mute/transcript, disabled upload guards and 1440/390/320px bounds. Verification
+uses synthetic fixtures/loopback media, not personal or production data. Notes entry
+is **488,018 gzip bytes** and the editor remains deferred. No backend/schema/provider
+or deployment change. [Reviewed gallery](design/screenshots/note-context-actions/README.md).
+
+Merge review integrates landed speech without changing its backend/runtime contracts.
+Five reproduced findings are corrected: CommonMark URL decoding, generation-fenced
+clipboard edits after mode/identity/read-only transitions, normalized paste offsets,
+incremental shortening of oversized drafts and persistent Preview removal focus.
+Thirteen focused actual-component journeys pass in each browser engine, including
+normal delayed-action completion and keyboard Undo. Notes entry is **488,021 gzip
+bytes**, with the editor still deferred. Original gallery/build provenance is retained.
+Combined verification passes all **223 Chromium / 12 focused WebKit** cases,
+**240 backend cases / four optional-service skips**, root/site lint/types/builds,
+five packaged artifacts, 50 automation/provider contracts and workflow lint.
+
 ## Ask note limits and organization follow-ups (23 October 2026)
 
 Ordinary saves, Ask previews, organization batches and assistance action lists now

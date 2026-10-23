@@ -8,6 +8,15 @@
 .note-delete-button {
   color: #923a32;
 }
+.note-context-menu {
+  width: 228px;
+}
+.note-context-menu > button > svg {
+  flex-shrink: 0;
+}
+.note-context-menu > button:disabled {
+  opacity: 0.45;
+}
 .note-export-button {
   display: inline-flex;
   align-items: center;
