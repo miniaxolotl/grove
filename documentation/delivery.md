@@ -11,12 +11,14 @@ Undo. Organization continues beyond its first 50-note candidate batch. Migration
 [Feature and API](ask-tools.md) and [rollout](deploy.md#ask-grove-tools-rollout-020)
 describe the limits and operator setup.
 
-On application source `840b8eb`, all **183 backend tests** pass (two optional
+On integrated application source `da27de5`, all **186 backend tests** pass (two optional
 RabbitMQ/S3 checks skipped), with root/website lint, types and production builds,
 all **five packaged artifacts**, bundle budgets, **19 release/deployment contracts**
-and pinned workflow lint passing. The complete **217 Chromium** suite passes on
-the final UI source. Two focused existing WebKit conversation cases pass. Notes entry is
-**486,073 gzip bytes**, within the existing budget.
+and pinned workflow lint passing. The complete **223 Chromium** suite passes on
+the final UI source, along with **seven focused WebKit history/conversation cases**.
+Notes entry is **486,094 gzip bytes**, within the existing budget. The integration
+preserves landed conversation history #91; tool vocabulary/defaults, scope checks
+and activity formatting share canonical implementations.
 
 Six additional real-API/disposable-database browser journeys pass at Chromium
 1440/768/390/320px and WebKit 390/320px, covering toggles/drafts/activity/citations,

@@ -1,6 +1,6 @@
 # Ask Grove tools — visual verification
 
-UI source: `840b8eb`, production website build `CIsupZLAGrAMXNpvpkD38`.
+UI source: `da27de5`, production website build `FcjGUIgoeCD_xTlv9lqIM`.
 Captures use synthetic garden notes and model/search responses, the real
 conversation API and a disposable PostgreSQL database with the non-owner API role.
 No customer notes, provider credentials or billing pages are pictured.
@@ -12,7 +12,7 @@ note Save/Undo, notebook creation/filing Apply/Undo and sidebar invalidation.
 Web search, Research and Manage notes use distinct icons and switches; the desktop
 journey also exercises failed-save rollback, refresh recovery and default confirmation.
 Tool-menu WCAG A/AA checks and page overflow checks pass in both engines.
-Two existing focused WebKit conversation/reading-position regressions also pass.
+Seven focused WebKit history/conversation regressions also pass on the integrated source.
 
 The mobile research captures intentionally scroll to the saved-source section;
 organization captures bring the proposed changes into view. The composer remains
