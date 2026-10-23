@@ -33,6 +33,11 @@ matching API and worker application versions:
 4. For rollback, pause consumers again and coordinate API/worker rollback. Retain
    notes and review state; do not reverse migrations or run mixed policy writers.
 
+Older binaries do not understand policy-aware dismissal carryover. Do not resume
+old enrichment writers assuming reviews will remain effective after their next
+assessment. Prefer a compatible forward fix, or keep enrichment paused until an
+explicitly reviewed rollback/review-state procedure is available.
+
 See [connection processing and recovery](relationships.md#migration-and-recovery).
 
 ### Speech rollout (019)

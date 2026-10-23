@@ -184,7 +184,7 @@ held-out cases are marked separately; the original cases belong to development.
 Run it with a server-side generation credential:
 
 ```sh
-GENERATION_API_KEY=... pnpm exec tsx scripts/testing/relationships.ts --live
+GENERATION_API_KEY=... pnpm exec tsx scripts/testing/relationships.ts --live --output=/tmp/opencode/grove-relationship-quality.json
 # Explicitly cap a repeated run, or select --split=development / --split=held-out:
 GENERATION_API_KEY=... pnpm exec tsx scripts/testing/relationships.ts --live --repeat=3 --max-calls=114
 ```
@@ -198,6 +198,15 @@ runs are not independent labelled examples. Supplied-pair evaluation does not
 measure retrieval recall. Database tests separately exercise bounded text-only
 discovery amid distractors. Review explanation support, not only label matches.
 See [quality evidence and limits](development/connection-quality-results.md).
+
+The transport cap counts actual requests, including failures or any future adapter
+retries, and a fatal provider error stops all repetitions. Disabled providers are
+rejected; `openai-compatible` requires an explicit URL and model rather than
+silently inheriting MiniMax defaults. Reports include provider/model/policy identity,
+support bridges and completeness. `--output` atomically replaces its path only
+after a complete run (including completed runs with label mismatches); interrupted
+or fatal incomplete runs preserve the previous report. Avoid shell redirection over
+an existing result, which truncates the file before the runner starts.
 
 Existing split labels identify development partitions; cases inspected during
 tuning are not an independent held-out evaluation, regardless of their label.

@@ -1,5 +1,30 @@
 # Delivery evidence
 
+## Connection quality — local implementation checkpoint (23 October 2026)
+
+Connections require a specific source-backed bridge and abstain on filing,
+templates, ratings and generic topics. Policy-versioned reassessment hides old
+results while preserving unchanged-source dismissal intent and fencing stale Undo.
+Cleanup shares the substantive duplicate/conflict policy without changing reviewed
+Apply/Undo authority. Bounded note/notebook discovery retains short/late facts,
+minority hints and independent lexical/vector nominations.
+
+On application `eb64413` and runner `e726c23` (development `ad1b9fe` integrated),
+**279 backend tests** pass with four optional-service skips; root/website lint,
+types and builds, **nine artifacts**, bundle budgets, **eight affected Chromium**
+and **four focused iPhone/WebKit** scenarios pass. Notes entry is **488,019 gzip
+bytes**, editor deferred. PostgreSQL/RLS/worker/recovery checks use disposable
+resources and non-owner roles. No frontend source changes or new captures.
+
+Deterministic candidate fixtures nominate **18/18 note** and **4/4 notebook**
+positive pairs, with separate adversarial template/minority-thread regressions.
+These are not live semantic accuracy results. Paid current-policy qualification
+remains pending explicit provider/budget approval; the historical old-policy
+baseline is 30/38. [Evidence and limitations](development/connection-quality-results.md)
+and [coordinated cutover](deploy.md#connection-quality-policy-cutover) describe the
+no-new-migration rollout and old-binary/rollback limits. No production activation,
+backfill or deployment was performed; this checkpoint does not claim PR readiness.
+
 ## Agent plugin startup and diagnostics (23 October 2026)
 
 OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for

@@ -25,13 +25,59 @@ final evaluation set. Supplied-pair results do not measure discovery recall.
 The current text-only database fixture nominates **18/18 labelled positive note
 pairs**, each within its own notebook among eight template distractors. It uses
 the real lexical query and bounded candidate selection, without embeddings or a
-generation provider. This small fixture does not establish notebook recall,
-semantic classification accuracy, or recall under a saturated 32-row shortlist.
+generation provider. A separate regression with forty template distractors failed
+before the SQL shortlist fix and now nominates the recorded director. Two lexical
+queries reserve at most sixteen rows each for broad and least-represented hints;
+reranking alone could not recover a note excluded by the original single shortlist.
+This does not establish general semantic accuracy or saturated-shortlist recall.
+
+The labelled notebook fixture nominates **4/4 positive notebook pairs**, each among
+six unrelated notebooks without embeddings or generation. The isolated run took
+1,494 ms including fixture writes and used at most 56 SQL statements for all eight
+profile builds, candidate discovery and both-side source selection per case. This
+small local observation is not a production latency/capacity estimate.
+
+Four additional database regressions initially failed, then passed after bounded
+notebook-discovery changes:
+
+- A minority studio hint survives six template-heavy candidate notebooks, even
+  when only one shared term nominates it for assessment.
+- A lexical-only nomination survives six vector-only neighbors within five pairs.
+- Source selection reaches a middle-aged supporting note outside the representative
+  set; common template terms no longer take the first twelve lexical hints.
+- A rare subject survives a vocabulary dominated by more than 128 frequent terms;
+  retained terms remain bounded at 128, with a minority-hint reservation.
+
+These are targeted adversarial fixtures, separate from the four labelled pairs.
+Profiles keep up to five hints per retrieval channel, but still propose at most
+five pairs. Sources remain capped at eight notes / 12,000 characters per side.
+
+### Structural query/input budgets
+
+Compared with the pre-change code, lexical nomination uses at most two SQL queries
+instead of one and fetches at most 32 rows instead of three; these are code bounds,
+not a paired latency benchmark. The second query uses bounded statistics from the
+first sixteen results, not one query per term or an account-wide text scan. Exact
+and vector channels retain their existing bounds. Each pair still uses one model
+call, including cached abstention reuse; no entity-extraction or verifier call is
+added. Notebook discovery reads twenty profiles per page and retains at most ten
+candidate hints, projecting those into five assessment jobs.
+
+## Reassessment regression
+
+An exhausted current-policy job previously excluded its pair from old-policy
+reconciliation even after sources changed. A new note/notebook regression fails
+before the fix and passes with explicit source-version/expiry job snapshots.
+Unchanged failed jobs remain exhausted, allowing later old-policy pairs to advance.
+An additional regression covers PostgreSQL sub-millisecond expiry precision so
+the same first twenty failed pairs do not repeatedly occupy the backfill window.
+The database comparison uses the same millisecond precision as JavaScript Dates.
 
 ## Remaining qualification
 
-- Finish bounded notebook selection/ranking and adversarial candidate fixtures.
-- Verify policy cutover, worker/cleanup races, RLS, recovery and final-source gates.
+- Extend corpus breadth and characterize discovery overhead against a paired
+  runtime baseline; current small fixtures are not a broad recall guarantee.
+- Obtain hosted CI and complete approved semantic qualification before PR readiness.
 - Agree provider/model, actual-request/token/spend limits and semantic targets
   before another paid evaluation. Freeze an independent evaluation set; report
   exact counts, errors, explanation support and usage separately from retrieval.
@@ -40,6 +86,35 @@ semantic classification accuracy, or recall under a saturated 32-row shortlist.
 No current-policy live accuracy result is available. The prior current-policy
 output file was empty, not a successful run. Repeated synthetic runs are not
 independent labelled examples or a general production accuracy estimate.
+
+## Local verification checkpoint
+
+Application source is `eb64413`; runner tests/tooling are `e726c23`, integrated
+with development `ad1b9fe`. Node 24.21.0 and pnpm 10.33.0 use newly owned PostgreSQL
+17 / pgvector 0.8.2, owner migrations and separate non-owner API/worker roles.
+The final combined suite passes **279 tests**, with four optional RabbitMQ/S3
+skips. All **nine packaged artifacts**, root/website lint and types, root build and
+telemetry-enabled website production build pass. The combined suite includes
+all **nine runner tests/subtests** without paid provider access.
+
+The affected browser fixture cases pass **eight Chromium** and **four iPhone/WebKit**
+scenarios (Playwright 1.64.1 Noble container). Notes entry is **488,019 gzip bytes**;
+the existing budget and deferred-editor gate pass. Website application/test source
+is unchanged from development. No screenshots are added: this changes backend
+selection/assessment, not the visual design, and synthetic provider screenshots
+would not prove live semantic quality.
+
+Initial failures are retained in execution notes: the test base database needed
+development's forward media/speech migrations; host WebKit lacked dependencies;
+and an extra Chromium-native-fullscreen assertion is unsupported on iPhone WebKit.
+The supported focused WebKit cases pass without changing frontend assertions.
+
+Runner regressions first reproduced repeated fatal provider calls, disabled/default
+provider selection sending credentials, absent report output and missing transport
+caps. Local HTTP fixtures now prove bounded actual requests (including failed or
+concurrent attempts), fatal abort across repetitions, explicit provider/model
+selection, token accounting and atomic completed-report publication. No paid
+credential retrieval or live generation was performed for this checkpoint.
 
 ## Rollout boundary
 
