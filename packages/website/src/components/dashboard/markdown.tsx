@@ -1,5 +1,6 @@
 "use client";
-import { createContext, useContext, type ComponentProps } from "react";
+import { createContext, useContext, useMemo, type ComponentProps } from "react";
+import { noteHeadings, type NoteHeading } from "@/lib/note-headings";
 import ReactMarkdown, {
   type Components,
   type ExtraProps,
@@ -13,6 +14,7 @@ type MarkdownOptions = {
   shared?: SharedLinks;
   onToggleTask?: (offset: number, checked: boolean) => void;
   disabled?: boolean;
+  headings?: NoteHeading[];
 };
 const MarkdownContext = createContext<MarkdownOptions>({ source: "" });
 const TaskContext = createContext<{ offset: number; label: string } | null>(
@@ -105,13 +107,33 @@ function sharedLink(href: string | undefined, shared: SharedLinks | undefined) {
         .match(/^\/app\/memories\/([0-9a-f-]+)(?:\/edit)?$/i)?.[1]
         ?.toLowerCase();
       return id && shared.linkedNoteIds.includes(id)
-        ? `${shared.root}/notes/${id}`
+        ? `${shared.root}/notes/${id}${url.hash}`
         : undefined;
     }
     return href;
   } catch {
     return undefined;
   }
+}
+
+function Heading({ node, children }: ComponentProps<"h1"> & ExtraProps) {
+  const { shared, headings } = useContext(MarkdownContext);
+  const level = Number(node?.tagName.slice(1) ?? 1);
+  const Tag =
+    `h${shared ? Math.max(2, level) : level <= 3 ? level + 2 : level}` as
+      | "h2"
+      | "h3"
+      | "h4"
+      | "h5"
+      | "h6";
+  const heading = headings?.find(
+    (item) => item.from === node?.position?.start.offset,
+  );
+  return (
+    <Tag id={heading?.id} data-section-id={heading?.id}>
+      {children}
+    </Tag>
+  );
 }
 
 // Stable renderer identities preserve the focused task control during autosave.
@@ -132,27 +154,12 @@ const components: Components = {
       <span>{children}</span>
     );
   },
-  h1: function Heading({ children }) {
-    return useContext(MarkdownContext).shared ? (
-      <h2>{children}</h2>
-    ) : (
-      <h3>{children}</h3>
-    );
-  },
-  h2: function Heading({ children }) {
-    return useContext(MarkdownContext).shared ? (
-      <h2>{children}</h2>
-    ) : (
-      <h4>{children}</h4>
-    );
-  },
-  h3: function Heading({ children }) {
-    return useContext(MarkdownContext).shared ? (
-      <h3>{children}</h3>
-    ) : (
-      <h5>{children}</h5>
-    );
-  },
+  h1: Heading,
+  h2: Heading,
+  h3: Heading,
+  h4: Heading,
+  h5: Heading,
+  h6: Heading,
   // Notes do not make third-party image requests just by being opened.
   img: function ImageLink({ src, alt }) {
     const { shared } = useContext(MarkdownContext);
@@ -178,8 +185,14 @@ export function Markdown({
   children,
   ...options
 }: Omit<MarkdownOptions, "source"> & { children: string }) {
+  const headings = useMemo(
+    () => options.headings ?? noteHeadings(children),
+    [children, options.headings],
+  );
   return (
-    <MarkdownContext.Provider value={{ source: children, ...options }}>
+    <MarkdownContext.Provider
+      value={{ source: children, ...options, headings }}
+    >
       <div className="memory-markdown">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}

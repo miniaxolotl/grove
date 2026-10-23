@@ -675,6 +675,7 @@ export function MemoryLibrary({
                           </li>
                         )}
                       <MemoryRow
+                        query={search}
                         onIntent={() => {
                           void loadDetail().catch(() => {});
                         }}

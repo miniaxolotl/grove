@@ -1834,3 +1834,14 @@ html:has(.grove-app) {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.search-match {
+  background: #e3ebd7;
+  color: inherit;
+  border-radius: 2px;
+}
+@media (forced-colors: active) {
+  .search-match {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

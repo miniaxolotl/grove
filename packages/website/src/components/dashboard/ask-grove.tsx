@@ -29,6 +29,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
 import { memoryExcerpt, memoryTitle } from "@/lib/memory-display";
+import { notebookPath } from "@/lib/notebooks";
+import { SearchPassage } from "./search-passage";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
@@ -871,6 +873,7 @@ export function AskGrove({
                   />
                 ) : visibleSearch.result!.sources.length ? (
                   <SourceList
+                    query={search}
                     sources={visibleSearch.result!.sources}
                     onOpen={setSelected}
                   />
@@ -1115,10 +1118,13 @@ function Answer({
 function SourceList({
   sources,
   onOpen,
+  query,
 }: {
   sources: Memory[];
   onOpen: (source: Pick<Memory, "id" | "version">) => void;
+  query?: string;
 }) {
+  const { projects } = useNotebooks();
   return (
     <ol className="ask-source-list">
       {sources.map((source, index) => (
@@ -1127,7 +1133,20 @@ function SourceList({
             <span className="source-number">{index + 1}</span>
             <span>
               <strong>{memoryTitle(source)}</strong>
-              <p>{memoryExcerpt(source)}</p>
+              {query !== undefined && (
+                <small>
+                  {notebookPath(projects, source.projectId)
+                    .map((p) => p.name)
+                    .join(" / ") || "Unfiled"}
+                </small>
+              )}
+              <p>
+                {query !== undefined ? (
+                  <SearchPassage content={source.content} query={query} />
+                ) : (
+                  memoryExcerpt(source)
+                )}
+              </p>
             </span>
             <ArrowUpRight size={15} />
           </button>
