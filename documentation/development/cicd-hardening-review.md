@@ -1,5 +1,25 @@
 # CI/CD hardening — Grove review
 
+## Implementation update
+
+The owner expanded this review into executable fixes. Grove now shares bounded
+GET-only GitHub JSON reads, checksum-preserving bootstrap retries, common-action
+pin/checkout contracts and protected browser/Next cache writers with all products.
+Three read attempts share a 30-second budget; writes are not replayed and terminal
+auth/not-found/persistent invalid evidence fails with redacted diagnostics.
+
+Development PR CI now selects website, backend/contracts/artifacts and image work
+by actual dependency families. Shared libraries and package manifests are
+conservative; unknown/empty/unreadable diffs select all, docs-only selects none,
+and renames include both paths. CI Gate requires exact job/selection inventory,
+successful classification/admission and selected success versus intentional skip.
+Full push/manual source CI remains independent release evidence. Frozen promotion
+PRs/dispatches reuse it only through authenticated admission; a development PR
+cannot masquerade as a dispatched promotion. Deployment operations remain unchanged
+in this slice. The owner explicitly retained current runner placement, superseding
+the vendor move; automatic recovery remains subsequent work. The dated baseline
+below is historical where this update supersedes it.
+
 Reviewed **22 October 2026**, development `22e76b4dd002be8f2debf13d7d9ea3dfb80484b6`.
 This refreshes the recovered plan, not the runtime, workflow or provider settings.
 Follow [deployment operations](../deploy.md) for today's supported path and the

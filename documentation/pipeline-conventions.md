@@ -25,6 +25,12 @@ Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build
   credentials and independent immutable publication source identities.
 - Shared `Promotion Admission`, `Website` and `CI Gate` names; source evidence
   requires every stack-specific job listed by the release policy.
+- Development PRs classify dependency families and strictly require selected jobs;
+  full source push/manual evidence qualifies frozen promotion reuse. Unknown diffs
+  select all; malformed/missing selected results never count as successful skips.
+- Browser/Next cache saves are limited to successful non-PR protected-ref runs.
+  Common action pins, checkout credentials and bounded read/bootstrap behavior
+  are enforced by `scripts/ci` contracts shared across the four repositories.
 - CI cancels superseded PR runs only. Release/selection/deployment operations
   serialize without cancellation. Every job has a timeout.
 - The same checksum-verified actionlint **1.7.12** launcher validates workflows.

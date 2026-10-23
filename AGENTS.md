@@ -30,7 +30,9 @@ isolation, delete retained provider data or reset an existing database to pass C
 - Development performs CI and Release Please only. Production publishes npm and
   images, deploys API/worker and builds the Vercel site. Existing preview resources
   need an explicit separate retirement decision.
-- `CI Gate` aggregates every CI job. Frozen selection requires independent exact
+- `CI Gate` validates the full job inventory and requires classification, admission
+  and every selected job; unselected jobs must be skipped. Push/manual source CI
+  remains full. Frozen selection requires independent exact
   source CI, Release Please provenance, matching trees and operator/run evidence.
   `GITHUB_TOKEN` automation explicitly dispatches generated-PR CI; no PAT is used.
 - Check every package's registry integrity and provider configuration before
