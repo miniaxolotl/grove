@@ -25,6 +25,10 @@ and [coordinated cutover](deploy.md#connection-quality-policy-cutover) describe 
 no-new-migration rollout and old-binary/rollback limits. No production activation,
 backfill or deployment was performed; this checkpoint does not claim PR readiness.
 
+Test-only agent follow-up #104 is subsequently integrated in `cfbdc46`, with runtime
+source unchanged. Fresh root lint/types, nine artifacts, five client-boundary cases
+and the complete 279-pass/four-skip backend suite pass on the combined tree.
+
 ## Agent plugin startup and diagnostics (23 October 2026)
 
 OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for

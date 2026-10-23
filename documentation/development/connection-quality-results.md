@@ -97,6 +97,13 @@ skips. All **nine packaged artifacts**, root/website lint and types, root build 
 telemetry-enabled website production build pass. The combined suite includes
 all **nine runner tests/subtests** without paid provider access.
 
+The later test-only agent follow-up #104 (`1dd5aec`) is integrated in `cfbdc46`.
+Runtime and evaluation source are unchanged; fresh root lint/types, all nine
+artifacts, five affected client-boundary tests and the complete **279-pass / four-skip**
+backend suite also pass on that integration. A restart changed the disposable
+container's ephemeral host port; the private verification wrapper now resolves
+its actual mapping rather than retaining a stale address. No database was reset.
+
 The affected browser fixture cases pass **eight Chromium** and **four iPhone/WebKit**
 scenarios (Playwright 1.64.1 Noble container). Notes entry is **488,019 gzip bytes**;
 the existing budget and deferred-editor gate pass. Website application/test source
