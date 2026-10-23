@@ -1,5 +1,13 @@
 # Verification
 
+Ask review regressions in `conversations.test.ts` and `notebook-assistance.test.ts`
+exercise the real account note limit through ordinary saves, conversation Apply,
+organization batches and action-list saves. They cover whole-batch rollback,
+concurrent final-slot claims, replay, edits/Undo at capacity and retained previews.
+Organization follow-ups cover mixed move/create batches, note-to-ID mapping, fresh
+edit versions and exclusion of undone or out-of-scope notes. Run them with the same
+disposable PostgreSQL/non-owner roles as the backend suite below.
+
 Workspace navigation uses the existing full Chromium suite and focused WebKit
 checks for sidebar bounds, mode/outline geometry, first autosave, held-save retry,
 command availability, nested shortcut scope and note-search recovery. Frontend

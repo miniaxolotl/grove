@@ -1,4 +1,5 @@
 import { MemoryModel, type Knex } from "@lib/database";
+import { policy } from "@lib/config";
 import { GroveError } from "@lib/shared/contracts";
 import type { SourceRef } from "@lib/shared/models";
 
@@ -23,6 +24,17 @@ export const changedSources = () =>
     "These notes changed. Refresh the preview.",
     409,
   );
+
+/** Call inside the account-locked write transaction; edits and Undo need no slots. */
+export async function assertNoteCapacity(
+  trx: Knex.Transaction,
+  creates: number,
+) {
+  if (!creates) return;
+  const total = await trx("memories").count("id as count").first();
+  if (Number(total?.count) + creates > policy.maxMemories)
+    throw new GroveError("storage_limit", "Memory limit reached", 429);
+}
 
 /** Reads are fenced independently from writes: citing a note never grants a write. */
 export async function applyNoteChanges(
@@ -66,6 +78,7 @@ export async function applyNoteChanges(
     writes.filter((w) => w.id).length
   )
     throw changedSources();
+  await assertNoteCapacity(trx, writes.filter((write) => !write.id).length);
   const originals: NoteUndo = [],
     applied: SourceRef[] = [];
   for (const write of writes) {

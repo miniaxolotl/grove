@@ -36,6 +36,7 @@ import {
 } from "@lib/shared/models";
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
+import { assertNoteCapacity } from "./note-changes.ts";
 import { Relationships } from "./relationships.ts";
 import { presentMemories } from "./presentation.ts";
 import { semanticMatches } from "./search.ts";
@@ -495,15 +496,7 @@ export class MemoryService {
                   409,
                 );
             }
-            if (!input.id) {
-              const total = await trx("memories").count("id as count").first();
-              if (Number(total?.count) >= policy.maxMemories)
-                throw new GroveError(
-                  "storage_limit",
-                  "Memory limit reached",
-                  429,
-                );
-            }
+            if (!input.id) await assertNoteCapacity(trx, 1);
             const retentionDays =
               input.retentionDays !== undefined
                 ? input.retentionDays
