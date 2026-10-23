@@ -7,10 +7,13 @@ Claude and Codex integrations. Shared code lives under `lib/`; the server is
 `packages/api`, CLI/MCP under `packages/mcp`, and website under `packages/website`.
 Use pnpm 10.33 and Node 24. Preserve package paths and user worktrees.
 
-Read the parent workspace's `plans/README.md`, active Grove plan/status files, related
+Read `~/Development/bramble-labs/plans/README.md`, Grove's active `plan.md`,
+`notes.md` and `status.md` under `~/Development/bramble-labs/plans/grove/`, related
 tickets and `documentation/delivery.md` before work. Use a clean worktree under
-`worktrees/`, keep local plans under ignored `plans/`, and update status as work
-progresses. Create minimally labelled PRs assigned to `miniaxolotl`.
+`~/Development/bramble-labs/worktrees/`; do not take over another workstream's
+checkout. Keep local execution plans outside source and update status as work
+progresses. Create minimally labelled PRs assigned to `miniaxolotl`. After a PR
+is merged, remove only its stale clean worktree, preserving unrelated user work.
 
 Run `pnpm lint`, `pnpm check-types`, `pnpm build`, `pnpm test:artifacts` and the
 relevant tests. `documentation/development/testing.md` describes disposable

@@ -126,6 +126,9 @@ their values. The website submits only changed fields. The keys are
 `notebookConnectionsEnabled`, `notebookSummariesEnabled`, `personalSummaryEnabled`,
 `progressSummariesEnabled`, `askEnabled`, `recallEnabled`, `captureEnabled`,
 `filingEnabled`, `actionListsEnabled`, `digestsEnabled`, and `cleanupEnabled`.
+The four assistance controls are on-demand and documented in
+[notebook assistance](notebook-assistance.md). STT/TTS are not current provider
+roles or preferences; see the [media plan review](development/media-plan.md).
 
 For older clients, `organizeEnabled` updates the four organization/connection
 controls and `summariesEnabled` updates all three summary controls plus Ask Grove.

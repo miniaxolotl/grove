@@ -1,5 +1,22 @@
 # Delivery evidence
 
+## Media plan review (22 October 2026)
+
+The [images, recordings and speech review](development/media-plan.md) reconciles
+the recovered setup-only plan with v1.11.0 source and the still-open refinement
+PR #82. It separates proposed feature scope from shipped behavior and identifies
+storage retention, revision-scoped authorization, streaming upload, export/recovery
+and speech-provider decisions that must precede implementation. The three-slice
+order remains images → recordings → speech. No media code, migrations, provisioning
+or release is included. Related stale documentation now reflects retained deletion,
+14 AI controls, all existing export record types and external execution-plan paths.
+
+Local review verification passes on Node 24.22.1 / pnpm 10.33.0: root lint,
+type checks and build, all five packaged-artifact tests, 17 release/deployment
+contracts, workflow lint and 30 local documentation links/anchors. No new media
+database/storage/browser behavior is claimed; feature qualification remains gated
+by the review's acceptance matrix and successful exact-head PR CI.
+
 ## Workspace navigation (23 October 2026)
 
 Search shows query-aware plain-text passages and literal highlights, with notebook
