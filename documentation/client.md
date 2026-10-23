@@ -115,9 +115,9 @@ automatic recall and capture. A response already sent to a host cannot be recall
 ```
 
 The V2 plugin registers its packaged stdio MCP bridge, a memory skill and a bounded
-context hook through the V2 APIs. It reuses OpenCode's executable, with Bun runtime
-mode for compiled hosts, instead of assuming `node` is on a desktop/service PATH.
-It does not add a second Grove server if one is
+context hook through the V2 APIs. The bridge reuses OpenCode's executable (with
+Bun runtime mode for compiled hosts), so desktop/background launches do not need
+`node` on PATH. It does not add a second Grove server if one is
 already configured. No V1 hook or handwritten MCP transport remains. Plugin option
 `private: true` or session metadata `private: true` also disables automatic recall.
 OpenCode reloads watched configuration automatically; check its MCP tools and
@@ -126,8 +126,8 @@ only the matching plugin entry; it does not delete memories or credentials.
 
 ## Claude Code
 
-The actual host needs Node.js 22+ on PATH for the packaged MCP and SessionStart
-commands. A shell's version-manager environment may not reach a desktop host.
+The native host must have Node.js 22 or newer on PATH for the packaged MCP and
+SessionStart commands. A shell's version-manager setup may not reach desktop hosts.
 
 ```sh
 npx @miniaxolotl/grove connect claude

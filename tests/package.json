@@ -23,6 +23,8 @@
     "@lib/integration-core": "workspace:*"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "3.1155.0",
+    "sharp": "0.35.5",
     "@lib/eslint-config": "workspace:*",
     "@lib/typescript-config": "workspace:*",
     "tsx": "~4.21.0"

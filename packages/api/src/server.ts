@@ -7,15 +7,19 @@ import { Authentication, clerkVerifier } from "./auth.ts";
 import { createRuntime } from "./runtime.ts";
 import { accountIdentity, closeTelemetry, telemetry } from "@lib/telemetry";
 import { requestCollectionAllowed } from "@lib/telemetry/context";
+import { configureSpeech } from "@lib/memory";
 
 export async function startServer() {
   const runtime = await createRuntime();
   const { env, db, memories } = runtime;
+  await configureSpeech(db, runtime.speech);
   const reporter = telemetry("api");
   const app = createApp({
     memories,
     models: runtime.models,
     artifacts: runtime.artifacts,
+    media: runtime.media,
+    speech: runtime.speech,
     auth: new Authentication(db, clerkVerifier(env), (account, request) =>
       reporter
         .forIdentity(

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+export { createOpenAiSpeech, type SpeechProviders } from "./speech.ts";
 import { currentTelemetry, outcome } from "@lib/telemetry/context";
 import { z } from "zod";
 export {

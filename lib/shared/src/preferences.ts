@@ -20,10 +20,17 @@ export const preferenceKeys = [
   "actionListsEnabled",
   "digestsEnabled",
   "cleanupEnabled",
+  "transcriptionEnabled",
+  "readAloudEnabled",
 ] as const;
 export type PreferenceKey = (typeof preferenceKeys)[number];
 export type AccountPreferences = Record<PreferenceKey, boolean>;
-export type AiAvailability = { classification: boolean; generation: boolean };
+export type AiAvailability = {
+  classification: boolean;
+  generation: boolean;
+  transcription?: boolean;
+  synthesis?: boolean;
+};
 const legacyGroups = {
   organizeEnabled: organizationPreferences,
   summariesEnabled: [...summaryPreferences, "askEnabled"],
@@ -33,7 +40,10 @@ export type LegacyPreferences = Partial<
 >;
 export type PreferencesUpdate = Partial<AccountPreferences> & LegacyPreferences;
 const defaults = Object.fromEntries(
-  preferenceKeys.map((key) => [key, true]),
+  preferenceKeys.map((key) => [
+    key,
+    key !== "transcriptionEnabled" && key !== "readAloudEnabled",
+  ]),
 ) as AccountPreferences;
 
 /** Legacy API clients can still read/write their original grouped switches. */

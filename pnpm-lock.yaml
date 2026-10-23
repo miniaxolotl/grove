@@ -136,6 +136,9 @@ importers:
 
   lib/shared:
     dependencies:
+      mdast-util-from-markdown:
+        specifier: 2.0.2
+        version: 2.0.2
       zod:
         specifier: ~4.1.8
         version: 4.1.13
@@ -146,6 +149,9 @@ importers:
       '@lib/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/mdast':
+        specifier: 4.0.4
+        version: 4.0.4
 
   lib/telemetry:
     dependencies:
@@ -199,6 +205,9 @@ importers:
       pg:
         specifier: 8.16.3
         version: 8.16.3
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5(@types/node@25.5.2)
       svix:
         specifier: ^1.80.0
         version: 1.99.1
@@ -530,12 +539,18 @@ importers:
         specifier: ^1.80.0
         version: 1.99.1
     devDependencies:
+      '@aws-sdk/client-s3':
+        specifier: 3.1155.0
+        version: 3.1155.0
       '@lib/eslint-config':
         specifier: workspace:*
         version: link:../lib/eslint-config
       '@lib/typescript-config':
         specifier: workspace:*
         version: link:../lib/typescript-config
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5(@types/node@25.5.2)
       tsx:
         specifier: ~4.21.0
         version: 4.21.0
@@ -7437,8 +7452,7 @@ snapshots:
 
   '@iarna/toml@3.0.0': {}
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.33.5':
     optionalDependencies:
@@ -12568,7 +12582,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
       '@types/node': 25.5.2
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

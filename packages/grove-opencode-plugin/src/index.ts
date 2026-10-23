@@ -12,7 +12,7 @@ export default Plugin.define({
       if (!editor.get("grove"))
         editor.set("grove", {
           type: "local",
-          // Services/desktops may not inherit a shell's Node/version-manager PATH.
+          // Reuse the host runtime: desktop/services may not have Node on PATH.
           command: [
             process.execPath,
             bridge,
@@ -21,7 +21,7 @@ export default Plugin.define({
             "--client",
             "opencode",
           ],
-          // A compiled Bun host must execute JavaScript rather than its own CLI.
+          // OpenCode's compiled Bun executable must run the bridge, not its CLI.
           ...(process.versions.bun ? { environment: { BUN_BE_BUN: "1" } } : {}),
         });
     });

@@ -62,6 +62,7 @@ export function PublicReader({
       </header>
       {data.note ? (
         <Markdown
+          media={{ noteId: data.note.id }}
           headings={bodyHeadings}
           shared={{
             root,
