@@ -45,6 +45,12 @@ records, operation receipts and per-link rate state. Backup recovery invalidates
 **all** restored links, including links narrowed/revoked after the backup.
 Already-read or copied content cannot be recalled from visitors.
 
+Archiving/deleting a notebook includes its entire subtree and revokes direct
+notebook/note links there. The public reader also excludes inactive notebooks
+inside a shared ancestor's scope. Restore never reactivates a revoked direct link,
+but a still-active ancestor link can cover restored descendants again. See
+[notebook lifecycle](notebook-lifecycle.md).
+
 Public responses contain saved text, content-derived title, update time and scoped
 navigation IDs. They omit owner/repository identity, source/task metadata, history,
 enrichment, relationships, conversations and credentials. Markdown excludes HTML

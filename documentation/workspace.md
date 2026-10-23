@@ -81,6 +81,23 @@ its edge does not. Action menus follow their opener when scrolling/resizing and
 scroll internally in short viewports. Confirmed mutations finish before
 closing; background autosave retains its request and draft when you navigate away.
 
+## Archive and delete notebooks
+
+Use **Archive notebook** or **Delete notebook…** from notebook options, sidebar
+actions, or the notebook manager's **More actions** menu. Confirmation includes
+all sub-notebooks and their notes, with counts. Cancel leaves everything unchanged;
+finish saving or resolving local drafts before confirming.
+
+**Manage notebooks → Archived** offers **Restore notebook** and **Delete notebook…**.
+Restore a parent before its archived child. Restoration keeps earlier independent
+archives and original retention dates. Archived notebooks stay out of notebook
+pickers and cannot receive new notes or edits until restored.
+
+Delete is **soft deletion only**: notebooks, notes and history become hidden, not
+permanently erased. There is no in-app Undo. Direct links are turned off; restore
+does not reactivate them, though a shared parent can include restored content again.
+See [notebook lifecycle](notebook-lifecycle.md) for permissions and recovery.
+
 ## Notebook assistance
 
 **Summary** adapts to your notebook's subject and links its sources. Use the icon in

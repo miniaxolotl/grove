@@ -44,3 +44,16 @@ Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build
   PR/merge-group CI, complete exact-tag dispatch, Blacksmith sizing and coverage.
 
 The workflow files contain authoritative SHA pins and job details.
+
+## Grove feature-stack admission
+
+Same-repository PRs targeting `feat/`, `feature/`, `fix/`, `docs/` or `perf/`
+branches are ordinary source CI. `Promotion Admission` does not interpret them
+as production candidates. Configured downstream branches, `promote/` heads,
+explicit promotion dispatches, foreign repositories and unknown target names
+retain the existing frozen-candidate validation. A passing feature-stack run
+does not authorize publication or deployment.
+
+Ordinary workflow triggers still select development/production; explicitly dispatch
+source CI for stacked heads as needed. Retarget to development after the parent
+merges and verify integration checks again.

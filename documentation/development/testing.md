@@ -1,5 +1,21 @@
 # Verification
 
+Notebook lifecycle tests (`notebook-lifecycle.test.ts` and
+`notebook-lifecycle-migration.test.ts`) require the same disposable owner/API/worker
+URLs below. They verify populated 015→016 preservation, atomic whole-subtree
+archive/restore/soft-delete, retained history and recovery, independent archives,
+unchanged expiry, owner-only administration, cross-tenant denial, stale scope,
+retry identities, public sharing and inactive-note/notebook write guards. The
+existing 014→015 test stays pinned to its migration boundary.
+
+Browser `workspace.spec.ts` exercises notebook page/sidebar/manager entry points,
+scope counts, Cancel, Archived navigation, Restore/Delete, conflict re-review,
+committed-but-lost responses and retained draft blocking. `cache.spec.ts` checks
+immediate source pruning and held-response fencing across descendant scopes. Run
+the `notebook lifecycle|notebook deletion|notebook archive` subset in Chromium and
+`playwright.webkit.config.ts`; captures cover 1440/390/320px. Check the active
+manager behind dialogs too: touch-sized action rows must wrap rather than overflow.
+
 Workspace refinement adds timer-paused viewer-checkbox saves, a held first save
 that preserves the editor node, viewport and undo/redo, and fresh creation after
 the saved route is adopted. The real shared `(notes)` layout owns the document;

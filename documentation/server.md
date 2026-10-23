@@ -40,7 +40,7 @@ pagination, independent public limits and revocation.
 | `remember` | Durable save or versioned correction           | `operationId`, `content`, `kind`, `projectId`, `source`; correction: `id`, `expectedVersion` |
 | `recall`   | Bounded active context                         | `query`, `projectId`, `includePersonal`, optional `taskId`                                   |
 | `memories` | Inspect IDs, versions, provenance and statuses | `query`, `projectId`, `kind`, `status`, `cursor`, `limit`                                    |
-| `forget`   | Permanent exact-ID deletion                    | `operationId`, `items: [{id, expectedVersion}]`                                              |
+| `forget`   | Exact-ID soft deletion; retained history is hidden | `operationId`, `items: [{id, expectedVersion}]`                                              |
 
 Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope is
 `projectId: null`. Project IDs are account-owned UUIDs. A handoff requires a stable
@@ -84,6 +84,8 @@ Responses use `{success: true, data}` or
 | `POST /v1/connect/:id/approve`                                         | Owning website session; transactional project link and grant                     |
 | `POST /v1/connect/:id/cancel`                                          | Request's agent connection or owning website session                             |
 | `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                     | Approved scope; create needs all-project access or website session               |
+| `GET /v1/projects?status=archived`; `GET /v1/projects/:id/lifecycle` | Archived listing and full-subtree preview; owner website session only |
+| `POST /v1/projects/:id/archive`, `/restore`, `/delete` | Owner-only, version/snapshot-checked subtree lifecycle; deletion is soft only |
 | `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                   |
 | `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                    |
 | `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                     |

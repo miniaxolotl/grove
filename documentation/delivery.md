@@ -1,5 +1,33 @@
 # Delivery evidence
 
+## Notebook archive and soft deletion (23 October 2026)
+
+Notebook page/sidebar/manager actions confirm the complete subtree and note counts.
+Archive hides its notebooks and archives active notes; Archived notebooks offers
+Restore and Delete. Restore preserves separately archived contents and retention
+dates. Delete uses the existing tombstone mechanism: source records and revisions
+remain retained behind visibility policies. Local drafts block confirmation; stale
+scope requires review and uncertain requests keep their original retry identity.
+
+Forward migration **016**, after **015**, adds notebook status/archive provenance,
+write guards and public-reader filtering. Owner-only atomic mutations preserve
+tenant/grant boundaries, fence old jobs and revoke direct links. An existing shared
+ancestor can include restored descendants again. See [contract](notebook-lifecycle.md)
+and [rollout](deploy.md#notebook-lifecycle-rollout-016).
+
+Fresh root/website lint/types/builds, five packaged artifacts and bundle budgets
+pass. The full backend suite passes **165 cases** with two optional RabbitMQ/S3
+skips; the subsequent nine-case lifecycle run also verifies current-profile queue
+recreation and old lease removal. Populated upgrade and isolated recovery preserve
+authored data. All **217 Chromium** cases and **five focused iPhone/WebKit browser
+scenarios** pass, plus a WebKit cache check. A narrow manager overflow and a mobile
+test navigation omission were corrected during verification. Notes entry is
+**485,883 gzip bytes**, with the editor deferred.
+
+[Reviewed captures](design/screenshots/notebook-lifecycle/README.md) cover desktop,
+390px and 320px. Tests use disposable local PostgreSQL/non-owner roles and synthetic
+browser data; production migration/deployment remains a separate operator action.
+
 ## Workspace refinement (22 October 2026)
 
 Notebook titles gain space from combined folder/file drag handles, aligned disclosure

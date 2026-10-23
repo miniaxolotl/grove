@@ -31,6 +31,53 @@ function cacheWith(
 }
 test.afterEach(() => caches.splice(0).forEach((cache) => cache.dispose()));
 
+for (const action of ["archive", "delete"] as const) {
+  test(`notebook ${action} prunes cached sources and fences held reads across the entire subtree`, async () => {
+    const projectId = "00000000-0000-4000-a000-000000000010";
+    const childId = "00000000-0000-4000-a000-000000000011";
+    const scoped = { ...note, projectId: childId };
+    const response = Promise.withResolvers<unknown>();
+    let hold = false;
+    const cache = cacheWith(async (path) => {
+      if (path.endsWith(`/${action}`))
+        return { action, projectIds: [projectId, childId] };
+      if (path === "/memories/search")
+        return hold ? response.promise : { items: [scoped], nextCursor: null };
+      if (path === "/projects") return [{ id: projectId }, { id: childId }];
+      if (path === "/ask") return { status: "search", sources: [scoped] };
+      throw new Error(`Unexpected ${path}`);
+    });
+    await cache.client.fetchInfiniteQuery(cache.notes());
+    await cache.fetch("/projects");
+    await cache.fetch("/ask", { mode: "search", query: "original" });
+    hold = true;
+    const held = cache.client
+      .fetchInfiniteQuery({
+        ...cache.notes({ projectId: childId }),
+        staleTime: 0,
+      })
+      .catch(() => "cancelled");
+    await cache.api(`/projects/${projectId}/${action}`, {
+      operationId: "fixture",
+    });
+    response.resolve({ items: [scoped], nextCursor: null });
+    await held;
+    expect(cache.client.getQueryData(workspaceKeys.note(note.id))).toBeNull();
+    expect(
+      cache.client.getQueryData(workspaceKeys.resource("/projects")),
+    ).toEqual([]);
+    expect(
+      cache.client.getQueryData(
+        workspaceKeys.resource("/ask", { mode: "search", query: "original" }),
+      ),
+    ).toMatchObject({ sources: [] });
+    const pages = cache.client.getQueryData<{ pages: { items: Memory[] }[] }>(
+      cache.notes().queryKey,
+    );
+    expect(pages?.pages.flatMap((page) => page.items)).toEqual([]);
+  });
+}
+
 test("shared misses survive one subscriber leaving, and the final departure cancels transport", async () => {
   let reads = 0;
   let signal: AbortSignal | undefined;
