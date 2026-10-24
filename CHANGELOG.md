@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.11.2](https://github.com/miniaxolotl/grove/compare/v1.11.1...v1.11.2) (2026-10-24)
+
+
+### Features
+
+* **billing:** add $5 Pro subscriptions ([#112](https://github.com/miniaxolotl/grove/issues/112)) ([2024c07](https://github.com/miniaxolotl/grove/commit/2024c072162f3d90326fb5554ab45a9d431a282a))
+* **speech:** add selectable read-aloud voices ([#108](https://github.com/miniaxolotl/grove/issues/108)) ([9a36767](https://github.com/miniaxolotl/grove/commit/9a367674826fb71590625be8d80542f10652edee))
+* **speech:** simplify voice selection ([#109](https://github.com/miniaxolotl/grove/issues/109)) ([f159036](https://github.com/miniaxolotl/grove/commit/f159036987f7b6d5064ce74c5ed1061d50504e46))
+* **tools:** expand note and notebook management ([#111](https://github.com/miniaxolotl/grove/issues/111)) ([d8cf0c1](https://github.com/miniaxolotl/grove/commit/d8cf0c10574fdd476a9e3605acdb16fd59dd8d59))
+* **website:** add support and contact pages ([#115](https://github.com/miniaxolotl/grove/issues/115)) ([9158c4c](https://github.com/miniaxolotl/grove/commit/9158c4c0ffbd1da8449ff3b7e6d79a0b8e89aaac))
+
+
+### Bug Fixes
+
+* **app:** simplify copy and speech defaults ([#106](https://github.com/miniaxolotl/grove/issues/106)) ([f8e6b0f](https://github.com/miniaxolotl/grove/commit/f8e6b0f3bb3a8ed3e0177eb6f1dc04c1bd76ab02))
+* **billing:** recover checkout and resubscription lifecycle ([#114](https://github.com/miniaxolotl/grove/issues/114)) ([03a999d](https://github.com/miniaxolotl/grove/commit/03a999ddab5fc35e2d4aaf661b95de55bb2c6d07))
+* **relationships:** require specific source-backed connections ([72feb9f](https://github.com/miniaxolotl/grove/commit/72feb9f9f1abd445772d05e30da1a131e3cb63f4))
+* **website:** recover sessions without losing drafts ([#110](https://github.com/miniaxolotl/grove/issues/110)) ([59f1788](https://github.com/miniaxolotl/grove/commit/59f17883e63f7dd7723a8c268ff5e468f84762b2))
+* **website:** track consented new registrations safely ([#113](https://github.com/miniaxolotl/grove/issues/113)) ([c9e134e](https://github.com/miniaxolotl/grove/commit/c9e134e8eff3af5ea4ae8bd1709b10b62469c1dc))
+
 ## [1.11.1](https://github.com/miniaxolotl/grove/compare/v1.11.0...v1.11.1) (2026-10-23)
 
 
