@@ -541,17 +541,19 @@ export class MemoryService {
                 : request,
             );
             this.scope(grant, input.projectId);
-            if (
-              input.projectId &&
-              !(await trx("projects")
-                .where({ id: input.projectId, status: "active" })
-                .first("id"))
-            )
-              throw new GroveError(
-                "not_found",
-                "Active notebook not found",
-                404,
-              );
+            if (input.projectId) {
+              const notebook = await trx("projects")
+                .where({ id: input.projectId })
+                .first("status");
+              if (!notebook)
+                throw new GroveError("not_found", "Notebook not found", 404);
+              if (notebook.status !== "active")
+                throw new GroveError(
+                  "notebook_inactive",
+                  "Restore this notebook before changing its notes.",
+                  409,
+                );
+            }
             if (!input.id && input.taskId) {
               const existing = await this.query(trx, grant)
                 .where({ projectId: input.projectId, taskId: input.taskId })
@@ -672,6 +674,7 @@ export class MemoryService {
     if (input.status === "archived" && principal.type !== "session")
       throw forbidden();
     return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      if (input.parentId) this.scope(grant, input.parentId);
       const { cursor, limit, ...filters } = input;
       const binding = digest(
         stable({
@@ -702,17 +705,15 @@ export class MemoryService {
         "version",
         "status",
       );
-      const items: Notebook[] = rows
-        .slice(0, limit)
-        .map((row) => ({
-          ...row,
-          parentId:
-            grant &&
-            !grant.allProjects &&
-            !grant.projectIds.includes(row.parentId)
-              ? null
-              : row.parentId,
-        }));
+      const items: Notebook[] = rows.slice(0, limit).map((row) => ({
+        ...row,
+        parentId:
+          grant &&
+          !grant.allProjects &&
+          !grant.projectIds.includes(row.parentId)
+            ? null
+            : row.parentId,
+      }));
       return {
         items,
         nextCursor:

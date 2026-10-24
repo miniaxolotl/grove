@@ -251,7 +251,7 @@ function ApprovalForm({
   const labels = {
     "memory:read": "Read memories",
     "memory:write": "Save and update memories",
-    "memory:delete": "Permanently delete memories",
+    "memory:delete": "Delete memories",
   };
   return (
     <form

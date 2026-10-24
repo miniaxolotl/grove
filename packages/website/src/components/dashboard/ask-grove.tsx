@@ -45,6 +45,7 @@ import { LoadError } from "./load-error";
 import {
   AskToolMenu,
   OrganizationPreview,
+  LifecyclePreview,
   initialTools,
   researchActivityLabel,
   type ToolCapabilities,
@@ -1000,9 +1001,20 @@ function Answer({
           onUndo={onUndo}
         />
       )}
+      {result.lifecycle && (
+        <LifecyclePreview
+          proposal={result.lifecycle}
+          sources={result.sources}
+          busy={busy}
+          canApply={canApply}
+          onApply={onApply}
+          onUndo={onUndo}
+        />
+      )}
       {!canApply &&
         (proposal?.status === "proposed" ||
-          result.organization?.status === "proposed") && (
+          result.organization?.status === "proposed" ||
+          result.lifecycle?.status === "proposed") && (
           <p className="ask-answer-note">
             Enable {askToolCatalog.organize.label} in Tools to apply these
             changes.
@@ -1081,7 +1093,12 @@ function Answer({
       {!!result.sources.length && (
         <details
           className="ask-sources"
-          open={!result.statements.length && !proposal && !result.organization}
+          open={
+            !result.statements.length &&
+            !proposal &&
+            !result.organization &&
+            !result.lifecycle
+          }
         >
           <summary>
             <BookOpen size={14} />

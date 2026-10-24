@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { type Knex, MemoryModel } from "@lib/database";
 import { type Principal } from "@lib/shared/contracts";
 import type {
@@ -31,11 +32,19 @@ export function organizationPreview(
   sources: SourceRef[],
   notebooks: Notebook[],
   coverage: OrganizationProposal["coverage"],
+  scope: ConversationScope,
 ): OrganizationProposal {
+  if (
+    [...changes.renames, ...(changes.notebookMoves ?? [])].some(
+      (item) => !scopeAllows(scope, item.id),
+    )
+  )
+    throw changedSources();
   if (
     !changes.notebooks.length &&
     !changes.renames.length &&
     !changes.moves.length &&
+    !changes.notebookMoves?.length &&
     !changes.notes.length
   )
     throw changedSources();
@@ -43,7 +52,10 @@ export function organizationPreview(
     new Set(changes.notebooks.map((n) => n.key)).size !==
       changes.notebooks.length ||
     new Set(changes.moves.map((n) => n.id)).size !== changes.moves.length ||
-    new Set(changes.renames.map((n) => n.id)).size !== changes.renames.length
+    new Set(
+      [...changes.renames, ...(changes.notebookMoves ?? [])].map((n) => n.id),
+    ).size !==
+      changes.renames.length + (changes.notebookMoves?.length ?? 0)
   )
     throw changedSources();
   const refs = new Set<string>();
@@ -72,6 +84,19 @@ export function organizationPreview(
     )
       throw changedSources();
     refs.add(rename.id);
+  }
+  for (const move of changes.notebookMoves ?? []) {
+    if (
+      !notebooks.some(
+        (n) =>
+          n.id === move.id &&
+          n.version === move.version &&
+          n.status === "active",
+      )
+    )
+      throw changedSources();
+    refs.add(move.id);
+    destination(move.destination);
   }
   return {
     ...changes,
@@ -102,6 +127,13 @@ export async function applyOrganization(
     .orderBy("id")
     .forUpdate();
   const refs = undo?.notebooks ?? proposal.notebookRefs;
+  const domain = service.inTransaction(trx);
+  if (
+    [...proposal.renames, ...(proposal.notebookMoves ?? [])].some(
+      (item) => !scopeAllows(scope, item.id),
+    )
+  )
+    throw changedSources();
   if (
     refs.some(
       (ref) =>
@@ -126,7 +158,10 @@ export async function applyOrganization(
         .first("id");
       const extraChildren = await trx("projects")
         .whereIn("parentId", created)
-        .whereNotIn("id", created)
+        .whereNotIn(
+          "id",
+          undo.notebooks.map((n) => n.id),
+        )
         .first("id");
       if (extraNotes || extraChildren) throw changedSources();
     }
@@ -141,18 +176,25 @@ export async function applyOrganization(
       revise,
       { undo: true },
     );
-    for (const original of undo.notebooks) {
-      await trx("projects")
-        .where({ id: original.id })
-        .update(
-          original.created
-            ? {
-                status: "archived",
-                archiveOperationId: turnId,
-                version: original.version + 1,
-              }
-            : { name: original.name, version: original.version + 1 },
-        );
+    for (const original of [...undo.notebooks].sort(
+      (a, b) => Number(a.created) - Number(b.created),
+    )) {
+      if (original.created) {
+        await trx("projects")
+          .where({ id: original.id })
+          .update({
+            status: "archived",
+            archiveOperationId: turnId,
+            version: original.version + 1,
+          });
+      } else
+        await domain.updateNotebook(principal, {
+          operationId: randomUUID(),
+          id: original.id,
+          expectedVersion: original.version,
+          name: original.name,
+          parentId: original.parentId,
+        });
     }
     return { undo, applied, createdNotebooks: created };
   }
@@ -178,7 +220,6 @@ export async function applyOrganization(
     )
   )
     throw changedSources();
-  const domain = service.inTransaction(trx);
   const created = new Map<string, string>();
   const notebookUndo: OrganizationUndo["notebooks"] = [];
   async function resolve(id: string | null): Promise<string | null> {
@@ -214,6 +255,20 @@ export async function applyOrganization(
       },
       rename.id,
     );
+    notebookUndo.push({
+      ...original,
+      version: changed.version!,
+      created: false,
+    });
+  }
+  for (const move of proposal.notebookMoves ?? []) {
+    const original = notebooks.find((n) => n.id === move.id)!;
+    const changed = await domain.updateNotebook(principal, {
+      operationId: randomUUID(),
+      id: move.id,
+      expectedVersion: move.version,
+      parentId: await resolve(move.destination),
+    });
     notebookUndo.push({
       ...original,
       version: changed.version!,

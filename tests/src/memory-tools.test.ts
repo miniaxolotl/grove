@@ -309,3 +309,99 @@ test("lifecycle tools hide archived/deleted notes and retain owner-only notebook
   });
   assert.equal(missing.status, 404);
 });
+
+test("notebook discovery cannot expose a hidden parent through filters or pagination", async () => {
+  const parent = await service.project(owner, {
+    name: "Private parent",
+    identity: randomUUID(),
+  });
+  const child = await service.project(owner, {
+    name: "Granted child",
+    identity: randomUUID(),
+    parentId: parent.id,
+  });
+  const granted = await service.grant(
+    owner,
+    {
+      name: "Child only",
+      capabilities: ["memory:read"],
+      personal: false,
+      allProjects: false,
+      projectIds: [child.id],
+    },
+    { key: true },
+  );
+  const agent: Principal = {
+    ...owner,
+    type: "key",
+    connectionId: granted.connection.id,
+  };
+  const page = await tool("notebooks", {}, agent);
+  assert.equal(page.body.data.items.length, 1);
+  assert.equal(page.body.data.items[0].parentId, null);
+  assert.equal(
+    (await tool("notebooks", { parentId: parent.id }, agent)).status,
+    403,
+  );
+  assert.equal(
+    (await tool("notebooks", { status: "archived" }, agent)).status,
+    403,
+  );
+  assert.equal(
+    (
+      await tool(
+        "create_notebook",
+        { operationId: randomUUID(), name: "Denied" },
+        agent,
+      )
+    ).status,
+    403,
+  );
+  await service.revoke(owner, granted.connection.id);
+  assert.equal((await tool("notebooks", {}, agent)).status, 403);
+});
+
+test("partial edits validate merged handoff metadata and paused automatic capture", async () => {
+  const note = await save({ kind: "handoff", taskId: "tool-test" });
+  const base = {
+    operationId: randomUUID(),
+    id: note.id,
+    expectedVersion: note.version,
+  };
+  const edited = await tool("update_memory", {
+    ...base,
+    content: "Verified progress",
+  });
+  assert.equal(edited.body.data.taskId, note.taskId);
+  assert.equal(edited.body.data.kind, "handoff");
+  const next = {
+    ...base,
+    operationId: randomUUID(),
+    expectedVersion: edited.body.data.version,
+  };
+  assert.equal(
+    (await tool("update_memory", { ...next, kind: "fact" })).status,
+    400,
+  );
+  const converted = await tool("update_memory", {
+    ...next,
+    kind: "fact",
+    taskId: null,
+    retentionDays: null,
+  });
+  assert.equal(converted.body.data.kind, "fact");
+  assert.equal(converted.body.data.taskId, null);
+  await service.settings(owner, { captureEnabled: false });
+  const paused = await tool("update_memory", {
+    ...next,
+    operationId: randomUUID(),
+    expectedVersion: converted.body.data.version,
+    content: "Automatic",
+    capture: "automatic",
+  });
+  assert.equal(paused.status, 403);
+  assert.equal(
+    (await service.get(owner, note.id)).content,
+    "Verified progress",
+  );
+});

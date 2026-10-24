@@ -115,6 +115,12 @@ test("isolated restore replays current deletions and revocations without changin
         result: JSON.stringify({
           proposal: { status: "proposed", content: "Old preview" },
           organization: { status: "proposed", notebooks: [] },
+          lifecycle: {
+            status: "proposed",
+            action: "delete",
+            notes: [],
+            notebooks: [],
+          },
         }),
       });
       await db("memories").insert([
@@ -386,6 +392,7 @@ test("isolated restore replays current deletions and revocations without changin
     assert.equal(restoredTurn.status, "failed");
     assert.equal(restoredTurn.result.proposal.status, "unavailable");
     assert.equal(restoredTurn.result.organization.status, "unavailable");
+    assert.equal(restoredTurn.result.lifecycle.status, "unavailable");
     assert.equal(
       (await target("accounts").where({ id: a }).first()).askTools.exa,
       false,
