@@ -31,6 +31,7 @@ export async function startServer() {
     ),
     origin: env.API_ORIGIN,
     siteUrl: env.SITE_URL,
+    openaiAppsChallenge: env.OPENAI_APPS_CHALLENGE,
     issuer: env.CLERK_ISSUER,
     webhookSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
     ready: async () => {

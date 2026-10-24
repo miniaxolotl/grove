@@ -29,6 +29,7 @@ import {
   projectSchema,
   grantSchema,
   connectionSchema,
+  connectionUpdateSchema,
   connectSchema,
   approveConnectSchema,
   uuidSchema,
@@ -104,6 +105,7 @@ export type AppDependencies = {
   auth: Pick<Authentication, "principal">;
   origin: string;
   siteUrl: string;
+  openaiAppsChallenge?: string;
   issuer: string;
   webhookSecret: string;
   ready: () => Promise<void>;
@@ -294,6 +296,11 @@ export function createApp(deps: AppDependencies) {
   };
   app.get("/.well-known/oauth-protected-resource/mcp", (c) => c.json(metadata));
   app.get("/.well-known/oauth-protected-resource", (c) => c.json(metadata));
+  app.get("/.well-known/openai-apps-challenge", (c) => {
+    if (!deps.openaiAppsChallenge) return c.notFound();
+    c.header("Cache-Control", "no-store");
+    return c.text(deps.openaiAppsChallenge);
+  });
   app.get("/health/live", (c) => c.json({ status: "ok" }));
   app.get("/health/ready", async (c) => {
     await deps.ready();
@@ -1301,16 +1308,16 @@ export function createApp(deps: AppDependencies) {
       data: await service.grant(c.get("principal"), grant, { clientId }),
     });
   });
-  app.patch("/v1/connections/:id", async (c) =>
-    c.json({
+  app.patch("/v1/connections/:id", async (c) => {
+    const { expectedState, ...grant } = await body(c, connectionUpdateSchema);
+    return c.json({
       success: true,
-      data: await service.grant(
-        c.get("principal"),
-        await body(c, grantSchema),
-        { id: uuidSchema.parse(c.req.param("id")) },
-      ),
-    }),
-  );
+      data: await service.grant(c.get("principal"), grant, {
+        id: uuidSchema.parse(c.req.param("id")),
+        expectedState,
+      }),
+    });
+  });
   app.delete("/v1/connections/:id", async (c) =>
     c.json({
       success: true,
@@ -1477,16 +1484,26 @@ export function createApp(deps: AppDependencies) {
   });
   app.all("/mcp", async (c) => {
     const principal = c.get("principal");
-    await service.me(principal);
+    const identity = await service.me(principal);
     const execute = async (
       tool: ToolName,
       value: unknown,
       signal?: AbortSignal,
-    ) =>
-      withDatabaseSignal(
+    ) => {
+      if (principal.type === "oauth" && !identity.capabilities.length) {
+        const approval = new URL("/app/settings/connections", deps.siteUrl);
+        approval.hash = `connection-${principal.connectionId}`;
+        throw new GroveError(
+          "connection_required",
+          `Sign-in is complete. Approve OAuth client ${principal.clientId} in Grove Connections: ${approval.href} . Use the same Grove account, then return to your chat and retry. Sign-in alone grants no note access.`,
+          403,
+        );
+      }
+      return withDatabaseSignal(
         AbortSignal.any([databaseSignal()!, ...(signal ? [signal] : [])]),
         () => executeMemoryTool(service, principal, tool, value, signal),
       );
+    };
     const server = createMemoryMcp(execute);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

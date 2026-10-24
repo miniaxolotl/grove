@@ -311,6 +311,39 @@ refresh rotation and provider revocation pass. Consent remains required, followe
 by an explicit Grove connection grant. See the browser-automation qualification in
 [delivery evidence](delivery.md#hosted-production-verification).
 
+### Hosted chat connections
+
+ChatGPT and Claude web use the same `/mcp` resource and per-user OAuth grants;
+see [setup and acceptance limits](hosted-chat.md). No new secret or migration is
+required. Deploy the matching API before the website via the protected release
+path. This source feature does not publish a directory listing or change provider
+configuration.
+
+For official OpenAI setup, configure **API-only** `OPENAI_APPS_CHALLENGE` with the
+real portal-issued token. The admitted API serves it as exact plain text at
+`/.well-known/openai-apps-challenge`; unset means 404. It is public domain proof,
+not a credential, and creates no memory permission. Do not overwrite another app's
+existing proof: read the URL first, or use a portal-supported eligible parent host.
+Keep actual portal IDs/proof custody in the operator workflow, not generic examples.
+Set the value in the API's explicit runtime configuration; normal image-only rollout
+preserves existing provider settings and must not infer new variables or change
+the worker. No database migration is introduced by verification/tool titles.
+
+- Ensure both the API and issuer are reachable by the hosts, including discovery,
+  registration and token endpoints. Preserve the exact `/mcp` audience and S256 PKCE.
+- The current path is **DCR**, not CIMD. Do not advertise CIMD unless the actual
+  issuer implements it. Do not replace per-user OAuth with a shared static key.
+- If a predefined client is necessary, register exactly the callback the host shows.
+  Claude's hosted callback is `https://claude.ai/api/mcp/auth_callback`; ChatGPT's
+  callback depends on its issuer/connection setup. CLI loopback callbacks are not
+  hosted callbacks. Provider writes require explicit owner authorization.
+- Before advertising real-host support, qualify fresh sign-in, zero note access
+  before owner approval, save/recall across both hosts, narrowed scope, refresh,
+  wrong-account denial and revocation against the admitted deployment. Current
+  discovery/fixture evidence is not end-to-end hosted-client acceptance.
+- Rollback may restore previous API/website copy together; retained grants/notes
+  are preserved. No database rollback or permission broadening is needed.
+
 ## Compose
 
 ```sh

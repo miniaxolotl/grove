@@ -6,8 +6,8 @@ import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
 
 export const metadata = pageMetadata(
-  "Connect your coding agent to Grove",
-  "Connect OpenCode, Claude Code or Codex to Grove. Sign in and choose which notebooks your agent can use across sessions.",
+  "Connect your AI tools to Grove",
+  "Use Grove in ChatGPT or Claude web, or connect OpenCode, Claude Code and Codex. Sign in and choose which notes each tool can use.",
   "/install",
 );
 
@@ -27,16 +27,16 @@ export default async function InstallPage() {
         <h1 className="section-heading mt-4 text-[56px]! sm:text-[72px]!">
           Connect your
           <br />
-          <em>coding agent.</em>
+          <em>AI tools.</em>
         </h1>
         <p className="mt-6 max-w-lg text-sm leading-7 text-muted">
-          Choose your agent, run the command and sign in. Then choose the
-          notebooks it can access.
+          Choose your web chat or coding agent, sign in, and approve the notes
+          it can use. Your context stays together across tools.
         </p>
       </div>
       <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-y border-line py-5 text-xs text-leaf">
         <span className="flex items-center gap-2">
-          <Terminal size={14} /> Node.js 24+
+          <Terminal size={14} /> Node.js 22+ for terminal clients only
         </span>
         <span className="flex items-center gap-2">
           <BookOpen size={14} /> An MCP-compatible client
@@ -51,8 +51,8 @@ export default async function InstallPage() {
           Documentation and self-hosting
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-          Explore the four memory tools, manage connections in your dashboard,
-          or set up Grove on your own server.
+          Explore the memory and notebook tools, manage connections in your
+          dashboard, or set up Grove on your own server.
         </p>
         <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2">
           {[
