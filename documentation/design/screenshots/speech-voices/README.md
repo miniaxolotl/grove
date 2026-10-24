@@ -1,5 +1,9 @@
 # Selectable read-aloud voices
 
+Historical gallery for the original inline picker in PR #108. The current workflow
+uses an [on-demand chooser and compact playback](../speech-voice-flow/README.md).
+The provider/sample evidence below still applies.
+
 Captured and visually reviewed on 24 October 2026. The actual Grove components run
 against synthetic API fixtures; screenshots contain an invented river note and
 fixture account. Production CSS comes from build `bIHR8uR0FWEGyU8Fx8nT-`, based on

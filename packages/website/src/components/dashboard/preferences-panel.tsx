@@ -40,7 +40,6 @@ export function PreferencesPanel() {
               value={editor.value}
               availability={editor.availability}
               voices={editor.voices}
-              rememberedVoice={editor.rememberedVoice}
               onChange={editor.edit}
             />
             <p className="text-xs leading-6 text-muted">
