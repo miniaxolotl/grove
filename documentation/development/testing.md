@@ -59,12 +59,16 @@ disposable PostgreSQL/non-owner roles as the backend suite below.
 
 Speech adds `speech-provider.test.ts`, `speech-jobs.test.ts`, `speech-text.test.ts`,
 `speech-storage.test.ts` and `speech-migration.test.ts`. They exercise bounded real
-HTTP adapter responses, independent default-off preferences, non-owner source/RLS
+HTTP adapter responses, independent speech preferences, non-owner source/RLS
 checks, retained machine-versus-authored transcripts, retry/lease races, global
 provider slots, conservative budgets, source/profile/session/restore fences,
 private Range/HEAD playback, exact cache expiry and derived-only maintenance.
 The populated 018→019 upgrade preserves authored notes, WAV metadata and transcript
-history. Narration uses real CommonMark parsing; regression cases exclude code,
+history and the historical default-off behavior. `speech-defaults.test.ts` checks
+the forward 020→021 upgrade, preserving all saved speech combinations and preference
+versions while new authenticated accounts get transcription off/Read aloud on.
+Opening an account and saving Read aloud off must not queue speech. Narration uses
+real CommonMark parsing; regression cases exclude code,
 images/media and link definitions while retaining labels and escaped prose. Its
 profile cutover prevents reusing audio from the prior extractor. Restore
 verification also seeds completed speech and checks that results
@@ -190,7 +194,8 @@ new editor/search cases and lost-response/return-to-draft paths.
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale
-and synthetic live-provider runners. The shared AI preferences now have 14 controls;
+and synthetic live-provider runners. The shared AI preferences now have 16 controls,
+including the two independent speech choices;
 Chromium and focused WebKit cover assistance dialogs at 1440/390/320px.
 
 Queue coverage (`queue.test.ts`, `queue-migration.test.ts`) uses fresh PostgreSQL

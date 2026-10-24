@@ -56,7 +56,8 @@ originals remain in the private durable bucket with no expiry; generated MP3 sha
 the private artifact bucket's one-day `speech/` lifecycle, never the source bucket.
 Confirm bucket policy/lifecycle through an authorized operator, not a broader runtime
 key. Keep maintenance enabled for bounded candidate expiry and artifact removal.
-Both new account preferences remain off until explicitly saved by the user.
+Migration 019 originally starts both speech preferences off. The forward default
+change below enables Read aloud only for accounts created after migration 021.
 
 Then deploy the matching website and use a disposable account to verify opt-in,
 candidate review/save, read aloud, cancellation, scoped Range playback and expiry.
@@ -64,6 +65,20 @@ Recovery must use the updated reconciliation script: it cancels speech tasks,
 clears machine results and expires derived artifacts without deleting original
 audio or accepted transcript history. See [speech contracts](speech.md). This is
 an operator procedure, not evidence that production activation has occurred.
+
+### Speech defaults (021)
+
+Apply `20261023_021_speech_defaults` with the owner connection after 020 during the
+normal migration window. It changes only the database default for future accounts:
+transcription remains off and Read aloud starts on. Existing rows, saved choices,
+preference versions and queued work are untouched. Do not update existing accounts
+to simulate a default change, and do not edit historical migration 019.
+
+Roll out the matching API/worker and website through the normal protected release.
+Verify a disposable new account reports transcription off/Read aloud on, that it
+can save Read aloud off, and that opening a note or the audio controls never
+prepares/plays audio automatically. This source change does not authorize applying
+the migration to a retained database or changing production preferences.
 
 ### Ask Grove tools rollout (020)
 

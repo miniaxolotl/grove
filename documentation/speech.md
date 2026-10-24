@@ -1,17 +1,21 @@
 # Transcription and read aloud
 
-Speech is an optional, session-owner-only feature. Both account preferences start
-**off**, independently of other AI choices. Neither opening a note nor enabling a
-preference sends speech data. Original recordings, manual transcripts and ordinary
-editing remain usable when speech is disabled or unavailable.
+Speech is an optional, session-owner-only feature. For new accounts, **Recording
+transcription starts off** and **Read aloud starts on**, independently of other AI
+choices. Existing saved choices are preserved. Neither opening a note nor enabling
+a preference sends speech data. Audio preparation and playback still require
+explicit actions. Original recordings, manual transcripts and ordinary editing
+remain usable when speech is disabled or unavailable.
 
 ## Using speech
 
-1. Enable **Recording transcription** and/or **Read aloud** in
-   **Settings → Preferences → Speech**, then save. Availability describes configured
-   providers, not their health or remaining quota.
+1. Choose **Recording transcription** and **Read aloud** in
+   **Settings → Preferences → Speech**, then save. If a feature is off, its prompt
+   names that feature and links to **AI preferences**. Unavailable features are
+   identified without showing backend setup details. Availability reflects setup,
+   not a successful health check or remaining quota.
 2. In a current note's **Preview**, expand a recording's **Transcript** and choose
-   **Transcribe**. Whisper's result appears as a **Suggested transcript**, separate
+   **Transcribe**. The result appears as a **Suggested transcript**, separate
    from your draft. **Use transcription** (or **Replace draft with transcription**)
    explicitly copies it into the draft. **Save transcript** retains an authored
    version; **Use in note** uses normal editing, autosave and Undo. A background job
@@ -34,6 +38,11 @@ No anonymous reader or connected agent can generate or retrieve this derived aud
 Public links still play their separately authorized original recordings.
 
 ## Provider and privacy contract
+
+The interface describes the feature, not its backend vendor. The privacy policy
+explains the external processing, data sent, controls and retention without vendor
+branding. The technical details below are for operators; see the
+[product-copy guidance](development/product-copy.md) for user-facing wording.
 
 | Role          | Selected model     | Input                                                             | Output                                                                  |
 | ------------- | ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |

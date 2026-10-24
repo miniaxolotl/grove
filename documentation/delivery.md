@@ -1,5 +1,33 @@
 # Delivery evidence
 
+## Feature-focused product copy (23 October 2026)
+
+Speech controls/preferences, sign-in and feature-availability messages describe what
+people can do without naming backend vendors or installation details. Speech prompts
+name the exact preference and retain visibly underlined settings links. Privacy copy
+keeps external processing, inputs, controls, retention and irreversible-send disclosures
+using recipient categories. Operator configuration and source attribution stay accurate.
+
+Root/site lint, types and builds, all **nine packaged-artifact checks**, bundle budgets,
+the full **223 Chromium** suite and **six focused iPhone/WebKit** settings cases pass.
+Actual-component journeys in both engines verify 1440/390/320px copy, bounds and WCAG
+A/AA, settings navigation, unavailable speech/sharing and zero writes when opening
+controls. Notes entry is **488,014 gzip bytes** with the editor deferred. No provider
+configuration or deployment changes are included.
+
+The requested default follow-up keeps transcription off and starts Read aloud on
+for new accounts. Forward migration **021** changes only the future-account default;
+saved choices and preference versions are untouched, and generation/playback remain
+explicit actions. New default/upgrade regressions first failed for the old default
+and missing migration; all three new cases, including saved-choice preservation,
+pass in the full **254-backend-test** run (four optional-service skips). Historical
+migration tests remain pinned to their advertised upgrade boundary.
+The [owner rollout](deploy.md#speech-defaults-021) remains a separate operation.
+
+[Copy guidance](development/product-copy.md) and [five reviewed synthetic captures](design/screenshots/product-copy/README.md)
+record the boundaries and evidence. Current speech instructions and availability docs
+are aligned; the testing guide now counts all sixteen AI preferences.
+
 ## Connection quality — local implementation checkpoint (23 October 2026)
 
 Connections require a specific source-backed bridge and abstain on filing,
