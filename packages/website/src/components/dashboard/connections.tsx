@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { KeyRound, Plug } from "lucide-react";
@@ -25,6 +25,12 @@ type Connection = Grant & {
   createdAt: string;
   lastUsedAt: string | null;
   setup?: ConnectAttempt | null;
+  state?: string;
+};
+const capabilityLabels = {
+  "memory:read": "Read notes",
+  "memory:write": "Save and update notes",
+  "memory:delete": "Delete notes",
 };
 export function Connections({ origin }: { origin: string }) {
   const api = useWorkspaceApi();
@@ -43,16 +49,29 @@ export function Connections({ origin }: { origin: string }) {
   const error = actionError || (query.error ? errorMessage(query.error) : "");
   const [selected, setSelected] = useState<Connection | "new" | null>(null);
   const [secret, setSecret] = useState("");
+  const [notice, setNotice] = useState("");
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const revokeLock = useRef(false);
   const reload = () => {
     setError("");
+    setNotice("");
     void query.refetch();
   };
   async function revoke(id: string) {
+    if (revokeLock.current) return;
+    revokeLock.current = true;
+    setRevoking(id);
     try {
       await api(`/connections/${id}`, undefined, "DELETE");
       setError("");
+      setNotice(
+        "Connection revoked. Future Grove requests are denied; text already delivered to a chat cannot be retracted.",
+      );
     } catch (e) {
       setError(errorMessage(e));
+    } finally {
+      revokeLock.current = false;
+      setRevoking(null);
     }
   }
   return (
@@ -72,9 +91,9 @@ export function Connections({ origin }: { origin: string }) {
             <h2 className="font-editorial text-2xl">Connect an agent</h2>
           </div>
           <p className="mt-3 text-sm leading-7 text-muted">
-            Browser sign-in (OAuth) is recommended. Choose your agent, run its
-            connection command, and approve its access. No key to copy; access
-            can be changed or revoked here.
+            Choose a web chat or coding agent, sign in with OAuth, and approve
+            its access. Web chats need no terminal. No key to copy; access can
+            be changed or revoked here.
           </p>
           <div className="mt-4">
             <AgentSetup origin={origin || undefined} />
@@ -99,6 +118,24 @@ export function Connections({ origin }: { origin: string }) {
           provide the key through standard input.
         </p>
       </Disclosure>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs leading-6 text-muted">
+          Just signed in from your chat? Refresh to find its pending OAuth
+          client.
+        </p>
+        <Button
+          variant="secondary"
+          onClick={reload}
+          disabled={query.isFetching}
+        >
+          {query.isFetching ? "Refreshing…" : "Refresh connections"}
+        </Button>
+      </div>
+      {notice && (
+        <p role="status" className="mb-4 text-sm leading-7">
+          {notice}
+        </p>
+      )}
       {error && <LoadError message={error} retry={reload} />}
       {loading ? (
         <p role="status">Loading connections…</p>
@@ -115,7 +152,11 @@ export function Connections({ origin }: { origin: string }) {
       ) : (
         <ul className="space-y-3">
           {items.map((item) => (
-            <li key={item.id} className="app-panel">
+            <li
+              key={item.id}
+              id={`connection-${item.id}`}
+              className="app-panel connection-grant"
+            >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="font-medium">{item.name}</h2>
@@ -141,7 +182,10 @@ export function Connections({ origin }: { origin: string }) {
                   ) : (
                     <button
                       className="app-button secondary"
-                      onClick={() => setSelected(item)}
+                      onClick={() => {
+                        setNotice("");
+                        setSelected(item);
+                      }}
                     >
                       {item.capabilities.length ? "Edit scope" : "Approve"}
                     </button>
@@ -150,21 +194,24 @@ export function Connections({ origin }: { origin: string }) {
                     <button
                       className="app-button danger"
                       onClick={() => revoke(item.id)}
+                      disabled={revoking !== null}
                     >
-                      Revoke
+                      {revoking === item.id ? "Revoking…" : "Revoke"}
                     </button>
                   )}
                 </div>
               </div>
               <p className="mt-4 text-xs leading-6 text-muted">
-                {item.capabilities.join(" · ") || "No capabilities"}
+                {item.capabilities
+                  .map((capability) => capabilityLabels[capability])
+                  .join(" · ") || "No note access until approved"}
                 <br />
                 {item.personal
                   ? "Personal memories"
                   : "No personal access"} ·{" "}
                 {item.allProjects
-                  ? "All projects"
-                  : `${item.projectIds.length} selected projects`}
+                  ? "All notebooks"
+                  : `${item.projectIds.length} selected notebooks`}
               </p>
               {item.clientId && (
                 <p className="mt-2 break-all font-mono text-[10px] text-muted">
@@ -172,7 +219,9 @@ export function Connections({ origin }: { origin: string }) {
                 </p>
               )}
               <p className="mt-2 text-[10px] text-muted">
-                Last used:{" "}
+                Created: {new Date(item.createdAt).toLocaleString()}
+                <br />
+                Last contact:{" "}
                 {item.lastUsedAt
                   ? new Date(item.lastUsedAt).toLocaleString()
                   : "Not yet"}
@@ -192,6 +241,13 @@ export function Connections({ origin }: { origin: string }) {
             connection={selected === "new" ? undefined : selected}
             projects={projects}
             done={(value) => {
+              setNotice(
+                selected !== "new" && selected.clientId
+                  ? "Access approved. Return to your chat, refresh or retry Grove, then ask it to save and recall a note to verify the connection."
+                  : selected === "new"
+                    ? ""
+                    : "Access updated.",
+              );
               setSelected(null);
               setSecret(value ?? "");
               setError("");
@@ -249,11 +305,14 @@ function GrantForm({
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
   return (
     <form
       className="app-form"
       onSubmit={async (event) => {
         event.preventDefault();
+        if (submitting.current) return;
+        submitting.current = true;
         setBusy(true);
         setError("");
         try {
@@ -265,6 +324,7 @@ function GrantForm({
               personal,
               allProjects,
               projectIds,
+              ...(connection?.state ? { expectedState: connection.state } : {}),
               ...(expiry
                 ? { expiresAt: new Date(`${expiry}T23:59:59Z`).toISOString() }
                 : {}),
@@ -275,16 +335,31 @@ function GrantForm({
         } catch (e) {
           setError(errorMessage(e));
         } finally {
+          submitting.current = false;
           setBusy(false);
         }
       }}
     >
+      {connection?.clientId && (
+        <div className="text-sm leading-7 text-muted">
+          <p>
+            Approve only the client you just signed in with, using the same
+            Grove account. A name alone does not identify a chat provider.
+          </p>
+          <p className="mt-2 break-all text-xs">
+            OAuth client: <code>{connection.clientId}</code>
+          </p>
+          <p className="text-xs">
+            Created: {new Date(connection.createdAt).toLocaleString()}
+          </p>
+        </div>
+      )}
       <label>
         Name
         <input
           required
           maxLength={100}
-          placeholder="My laptop · Claude"
+          placeholder="ChatGPT, Claude web, or my laptop"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -305,7 +380,7 @@ function GrantForm({
                   )
                 }
               />
-              {capability}
+              {capabilityLabels[capability]}
             </label>
           ))}
         </div>
@@ -326,7 +401,7 @@ function GrantForm({
             checked={allProjects}
             onChange={(e) => setAllProjects(e.target.checked)}
           />
-          All current and future projects
+          All current and future notebooks
         </label>
         {!allProjects &&
           notebookOptions(projects).map((project) => (
