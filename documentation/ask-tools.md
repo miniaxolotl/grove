@@ -39,11 +39,17 @@ Examples:
 - “Read this article and add its key points to my Gardening notebook.”
 - “Create a Garden notebook and file these garden notes into it.”
 - “Rename my Trip planning notebook to Japan.”
+- “Move Japan inside Travel.”
+- “Archive my old garden checklist.”
+- “Restore the Gardening notebook.”
+- “Delete these two notes.”
 
 ## Organization
 
 Requests can create up to six notebooks, rename up to six, move up to 30 notes and
-create up to three notes in one preview. New destinations may be nested. Existing
+create up to three notes in one preview. Up to six existing notebooks can also move
+to another notebook, a new destination or the root. A notebook cannot be renamed and
+moved in the same preview; ask in two steps. New destinations may be nested. Existing
 note edits/merges retain their own previews; new notes have a single content preview.
 Grove writes only after **Apply changes** / **Save note** / **Apply edit**.
 
@@ -69,6 +75,29 @@ Applied organization notes remain identifiable in follow-up requests, including
 batches that also move existing notes. History carries bounded excerpts and the
 created note IDs; retrieval checks current versions, active status and conversation
 scope before using them as evidence or proposing another edit.
+
+## Archive, restore and delete
+
+Explicit requests produce a separate preview of up to 30 exact notes and six
+non-overlapping notebook subtrees. Archive removes active items from recall; restore
+can find archived or expired notes. Notebook previews show the full note/notebook
+counts, including descendants. A notebook-scoped conversation cannot administer
+children outside its exact scope; use an all-notebook conversation for a subtree.
+
+The named **Archive selected items**, **Restore selected items** or **Delete selected
+items** button is the commit step. Every source version and complete subtree
+fingerprint is checked before applying the atomic batch. Changed notes or notebook
+membership require a fresh preview. A request to organize or clean up does not
+authorize deletion.
+
+Archive/restore support version-checked Undo, preserving note lifetimes on Undo.
+Undo also rejects notebook cycles or new contents in a created destination. Deleted
+items are retained but hidden; **deletion has no ordinary Undo or restore**. Restoring
+an archived notebook does not republish its old public links. Disabling Manage notes
+blocks Apply but still allows non-destructive Undo. Retries return committed status.
+Retained local drafts in selected notes/notebooks block lifecycle Apply until saved
+or resolved. Cross-tab lifecycle notifications contain only IDs and prune cached
+notes even when the other tab is offline.
 
 ## Operator setup
 
@@ -125,14 +154,21 @@ final release's migration list rather than assuming absent numbers must exist.
 - `PATCH /v1/conversations/:id/tools`: `{ tools: { exa, tavily, organize }, expectedVersion, saveDefault? }`.
 - Conversation reads include tool settings/revision and redacted per-turn activity.
 - Replies add `webStatements`, `webSources`, `researchIncomplete` and optional
-  `organization`; existing note `proposal` semantics remain intact.
-- Existing turn Apply/Undo endpoints accept notebook batches too.
+  `organization` and `lifecycle`; existing note `proposal` semantics remain intact.
+- Organization adds optional `notebookMoves`; lifecycle contains the action, exact
+  note/notebook refs and server-calculated subtree previews. Existing turn Apply/Undo
+  endpoints handle these actions; deletion rejects Undo with `not_undoable`.
 
 Account export includes conversation choices, web citations, authoritative batch
 results and an `ask_settings` record. Private evidence follows conversation ownership
 and retained-deletion visibility. Recovery preserves current defaults/settings and
 conservative spending, invalidates proposals and clears resumable tool executions.
 It never automatically reruns paid calls from a backup.
+
+Note-management expansion requires no schema migration. Deploy matching API and
+website code together; restored lifecycle previews/Undo are invalidated like other
+conversation actions. Agent MCP tools use the same domain operations but retain
+their connection grants; notebook subtree administration remains session-owner only.
 
 Verification: deterministic MCP transport fixtures, real PostgreSQL/RLS, populated
 upgrade, concurrency/cancellation/retry, atomic batch/Undo and recovery tests. Live

@@ -40,6 +40,7 @@ import {
   SpeechJobs,
   type ArtifactStore,
   withMemoryOperation,
+  executeMemoryTool,
   type MemoryService,
 } from "@lib/memory";
 import { exportRequestSchema, importRequestSchema } from "@lib/shared/jobs";
@@ -383,6 +384,18 @@ export function createApp(deps: AppDependencies) {
     siteUrl: deps.siteUrl,
   });
   const attachments = new MediaAttachments(service);
+  app.post("/v1/tools/:tool", async (c) =>
+    c.json({
+      success: true,
+      data: await executeMemoryTool(
+        service,
+        c.get("principal"),
+        c.req.param("tool"),
+        await mutation(c, z.record(z.string(), z.unknown())),
+        c.get("signal"),
+      ),
+    }),
+  );
   app.get("/v1/memories/:id/archive-file", async (c) => {
     if (!deps.media)
       throw new GroveError(
@@ -1428,15 +1441,7 @@ export function createApp(deps: AppDependencies) {
     ) =>
       withDatabaseSignal(
         AbortSignal.any([databaseSignal()!, ...(signal ? [signal] : [])]),
-        async () => {
-          if (tool === "remember")
-            return service.remember(principal, rememberSchema.parse(value));
-          if (tool === "recall")
-            return service.recall(principal, recallSchema.parse(value), signal);
-          if (tool === "memories")
-            return service.list(principal, listSchema.parse(value));
-          return service.forget(principal, forgetSchema.parse(value));
-        },
+        () => executeMemoryTool(service, principal, tool, value, signal),
       );
     const server = createMemoryMcp(execute);
     const transport = new WebStandardStreamableHTTPServerTransport({
