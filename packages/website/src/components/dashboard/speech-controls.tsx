@@ -86,7 +86,7 @@ function JobControls({
       {job?.status === "failed" && (
         <span role="status">
           {job.error === "speech_budget" || job.error === "inference_budget"
-            ? "Speech limit reached. Try tomorrow."
+            ? "Speech allowance reached. Check Settings for usage and reset dates."
             : job.error === "speech_changed"
               ? "The source or settings changed. Start again."
               : "Speech couldn’t finish. Try again."}

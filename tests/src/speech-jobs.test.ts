@@ -10,6 +10,7 @@ import {
   configureSpeech,
   runTask,
   speechHandlers,
+  configureBillingQuotas,
 } from "@lib/memory";
 import { rememberSchema, type Principal } from "@lib/shared/contracts";
 import { preferencesFor } from "@lib/shared/preferences";
@@ -511,6 +512,36 @@ test("profile cutovers, session revocation and restore epochs invalidate pending
     assert.equal(cross.rows[0].active, false);
   } finally {
     await owner.destroy();
+  }
+});
+test("monthly Free speech allowance stops worker provider dispatch", async () => {
+  const n = await note();
+  configureBillingQuotas(worker, { enabled: async () => true, priceIds: [] });
+  try {
+    await tenant(db, principal.accountId, async (trx) => {
+      await trx("speech_usage")
+        .insert({
+          accountId: principal.accountId,
+          kind: "speech_synthesize",
+          requests: 1,
+          units: 10000,
+        })
+        .onConflict(["accountId", "day", "kind"])
+        .merge({ requests: 1, units: 10000 });
+    });
+    const queued = await jobs.enqueue(principal, n.id, {
+      id: randomUUID(),
+      version: n.version,
+    });
+    const before = calls;
+    await run(queued.id);
+    assert.equal(calls, before);
+    assert.equal((await jobs.get(principal, queued.id)).error, "speech_budget");
+  } finally {
+    configureBillingQuotas(worker, {
+      enabled: async () => false,
+      priceIds: [],
+    });
   }
 });
 test("daily unit/request limits refuse provider work without deleting originals or transcripts", async () => {

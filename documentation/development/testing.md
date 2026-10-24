@@ -1,5 +1,31 @@
 # Verification
 
+Billing tests use the disposable PostgreSQL/non-owner API and worker URLs below.
+`billing.test.ts` covers tenant isolation, non-superuser owner lookup, optional
+configuration, concurrent quotas, recognized/expired subscriptions, UTC windows,
+signed raw HTTP webhooks, duplicate events and canonical state, Checkout ownership,
+idempotency and duplicate prevention, flag-off concealment and cancellation.
+`billing-pricing.test.ts` verifies a 5-dollar flag resolves 500-cent immutable monthly
+prices, stale quote rejection and invalid/offline price refusal; product entitlements
+preserve grandfathered subscribers across flag amount changes.
+The Stripe SDK calls a local synthetic HTTP service; no real payment is created.
+Research and speech suites also verify monthly quotas stop actual provider dispatch.
+
+```sh
+pnpm exec tsx --test tests/src/billing.test.ts tests/src/billing-pricing.test.ts tests/src/billing-migration.test.ts tests/src/conversations.test.ts tests/src/speech-jobs.test.ts
+```
+
+Use the real Billing component fixture for Free/Pro, the 5-dollar monthly price,
+exhausted/zero allowances, pending checkout, errors/retry, refresh after payment,
+period-end cancellation and hidden flag-off information at 1440/390/320px. Check
+labelled usage meters, short reset dates, keyboard focus and overflow in Chromium
+and iPhone/WebKit. Confirm the complete active settings tab remains visible after
+fonts load; checkout failures must show a concise recovery action without upstream
+provider details. Keep customer copy focused on plans, usage and actions.
+Flag-off production routes must hide new checkout; discovery requires Flags SDK
+authentication. Actual Stripe test/live lifecycle and Vercel cohort evaluation
+are rollout verification, not inferred from synthetic local success.
+
 ## Workspace session recovery
 
 Run the existing `cache.spec.ts`, `client-cache.spec.ts` and `telemetry.spec.ts`
