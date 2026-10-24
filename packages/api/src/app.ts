@@ -92,6 +92,7 @@ import {
   conversationTurnSchema,
   toolSettingsSchema,
   askToolsSchema,
+  askToolsPatchSchema,
   defaultAskTools,
 } from "@lib/shared/conversations";
 
@@ -1202,6 +1203,15 @@ export function createApp(deps: AppDependencies) {
             dailyCalls: service.researchLimits.dailyCalls,
           };
         },
+      ),
+    }),
+  );
+  app.patch("/v1/ask-tools", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.configureDefaults(
+        c.get("principal"),
+        await body(c, askToolsPatchSchema),
       ),
     }),
   );
