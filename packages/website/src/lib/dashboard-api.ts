@@ -39,15 +39,34 @@ export function createDashboardApi(
         signal,
       });
       if (response.status >= 500) outcome = "error";
-      const result = (await response.json()) as ApiEnvelope<T>;
-      if (!response.ok || !result.success)
+      let result: ApiEnvelope<T> | null;
+      try {
+        result = (await response.json()) as ApiEnvelope<T>;
+      } catch (error) {
+        signal?.throwIfAborted();
+        if (
+          response.ok ||
+          (error instanceof Error && error.name === "AbortError")
+        )
+          throw error;
+        // A middleware/proxy error need not have Grove's JSON envelope. Keep
+        // its HTTP status so auth denials cannot turn into transient retries.
+        result = null;
+      }
+      if (!response.ok || result?.success !== true) {
+        const failure = result?.success === false ? result.error : undefined;
         throw new DashboardApiError(
-          !result.success ? result.error.code : "unavailable",
-          !result.success
-            ? result.error.message
-            : "Grove could not complete the request",
+          typeof failure?.code === "string" ? failure.code : "unavailable",
+          typeof failure?.message === "string"
+            ? failure.message
+            : response.status === 401
+              ? "Sign in to Grove to continue"
+              : response.status === 403
+                ? "This request is not allowed."
+                : "Grove could not complete the request",
           response.status,
         );
+      }
       outcome = "success";
       return result.data;
     } finally {

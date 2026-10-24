@@ -1,4 +1,9 @@
 import { createDashboardApi, DashboardApiError } from "./dashboard-api";
+import { telemetryAllowed } from "./telemetry-choice";
+
+type Credential = { value: string; generation: number };
+const unauthorized = () =>
+  new DashboardApiError("unauthorized", "Sign in to Grove to continue", 401);
 
 /** A refresh outage is retryable by the user, not evidence of an ended session. */
 export class SessionRefreshError extends DashboardApiError {
@@ -41,7 +46,7 @@ export function createSessionApi(session: {
   isCurrent: () => boolean;
 }) {
   let refreshed = 0;
-  let refreshing: Promise<string> | undefined;
+  let refreshing: Promise<Credential> | undefined;
   const check = (signal?: AbortSignal | null) => {
     signal?.throwIfAborted();
     if (!session.isCurrent())
@@ -49,6 +54,7 @@ export function createSessionApi(session: {
   };
   async function token(skipCache = false) {
     check();
+    const generation = refreshed;
     let value: string | null;
     try {
       value = await waitFor(
@@ -60,13 +66,12 @@ export function createSessionApi(session: {
       throw new SessionRefreshError();
     }
     check();
-    if (!value)
-      throw new DashboardApiError(
-        "unauthorized",
-        "Sign in to Grove to continue",
-        401,
-      );
-    return value;
+    if (!value) {
+      if (generation !== refreshed || (!skipCache && refreshing))
+        throw new SessionRefreshError();
+      throw unauthorized();
+    }
+    return { value, generation };
   }
   function refresh(version: number) {
     if (refreshing) return refreshing;
@@ -74,10 +79,7 @@ export function createSessionApi(session: {
     // token, rather than force another refresh for the same batch of requests.
     if (version !== refreshed) return token();
     refreshing = token(true)
-      .then((value) => {
-        refreshed++;
-        return value;
-      })
+      .then((credential) => ({ ...credential, generation: ++refreshed }))
       .finally(() => {
         refreshing = undefined;
       });
@@ -86,24 +88,35 @@ export function createSessionApi(session: {
   return createDashboardApi(async (url, init) => {
     const { signal } = init;
     check(signal);
-    const version = refreshed;
     const initial = await waitFor(refreshing ?? token(), signal);
-    const send = (credential: string) => {
+    const send = (credential: Credential) => {
       check(signal);
       const headers = new Headers(init.headers);
-      headers.set("Authorization", `Bearer ${credential}`);
+      headers.set("Authorization", `Bearer ${credential.value}`);
+      // A token wait can outlive a preference change. Keep either opt-out;
+      // re-enabling collection must not weaken the original request's choice.
+      if (!telemetryAllowed()) headers.set("X-Grove-Telemetry", "off");
       return fetch(url, { ...init, headers });
     };
     let response = await send(initial);
     check(signal);
     if (response.status === 401) {
-      await response.body?.cancel();
+      await response.body?.cancel().catch(() => {});
       check(signal);
-      const renewed = await waitFor(refresh(version), signal);
+      const renewed = await waitFor(refresh(initial.generation), signal);
       // Only an explicit auth rejection is replayed, once. init already contains
       // the serialized original body, including its version and operation ID.
       response = await send(renewed);
       check(signal);
+      if (response.status === 401) {
+        await response.body?.cancel().catch(() => {});
+        check(signal);
+        // A newer refresh may finish while this replay is in flight. Its old
+        // rejection cannot end the current session or discard its drafts.
+        if (renewed.generation !== refreshed || refreshing)
+          throw new SessionRefreshError();
+        throw unauthorized();
+      }
     }
     return response;
   });
