@@ -6,6 +6,7 @@ import type { SpeechVoiceId } from "@lib/shared/speech-voices";
 export interface SpeechSynthesis {
   profile: string;
   sampleId?: string;
+  available?(): Promise<boolean>;
   synthesize(text: string, signal: AbortSignal): Promise<Buffer>;
 }
 export interface SpeechProviders {

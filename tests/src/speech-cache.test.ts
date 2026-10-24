@@ -32,10 +32,21 @@ const service = new MemoryService(
 );
 const bytes = Buffer.concat([Buffer.from("ID3"), Buffer.alloc(200)]);
 let calls = 0;
+let alternateEnabled = true;
 const providers = {
   synthesis: {
     reed: {
       profile: "speech-cache-reed",
+      async synthesize() {
+        calls++;
+        return bytes;
+      },
+    },
+    willow: {
+      profile: "speech-cache-willow",
+      async available() {
+        return alternateEnabled;
+      },
       async synthesize() {
         calls++;
         return bytes;
@@ -381,5 +392,131 @@ test("archival and scheduled note expiry bound otherwise matching cache retentio
   assert.equal(
     (await object(principal, audio.audio.key)).expiresAt.getTime(),
     current.expiresAt.getTime() + 7 * 86400000,
+  );
+});
+
+test("alternate flag controls discovery, cached reads and new requests independently of Reed", async () => {
+  const { principal, note } = await fixture();
+  const first = await jobs.enqueue(principal, note.id, {
+    id: randomUUID(),
+    version: note.version,
+    voiceId: "willow",
+  });
+  await runTask(
+    worker,
+    speechHandlers(service, providers, store, null, worker),
+    { id: first.id },
+  );
+  assert.equal((await jobs.get(principal, first.id)).playable, true);
+  const audio = await jobs.audio(principal, first.id);
+  alternateEnabled = false;
+  try {
+    const description = await jobs.describe();
+    assert.equal(
+      description.speechVoices.find((voice) => voice.id === "willow")
+        ?.available,
+      false,
+    );
+    assert.equal(
+      description.speechVoices.find((voice) => voice.id === "reed")?.available,
+      true,
+    );
+    await assert.rejects(jobs.audio(principal, first.id));
+    await assert.rejects(
+      jobs.enqueue(principal, note.id, {
+        id: randomUUID(),
+        version: note.version,
+        voiceId: "willow",
+      }),
+    );
+    assert.equal((await jobs.get(principal, first.id)).playable, false);
+  } finally {
+    alternateEnabled = true;
+  }
+  const before = calls;
+  const reused = await jobs.enqueue(principal, note.id, {
+    id: randomUUID(),
+    version: note.version,
+    voiceId: "willow",
+  });
+  assert.equal(reused.status, "succeeded");
+  assert.equal((await jobs.audio(principal, reused.id)).key, audio.key);
+  assert.equal(calls, before);
+});
+
+test("worker rechecks alternate flag before dispatch and after held inference", async () => {
+  for (const phase of ["before", "during"] as const) {
+    const { principal, note } = await fixture();
+    const task = await jobs.enqueue(principal, note.id, {
+      id: randomUUID(),
+      version: note.version,
+      voiceId: "willow",
+    });
+    const before = calls;
+    const gated = {
+      ...providers,
+      synthesis: {
+        ...providers.synthesis,
+        willow: {
+          ...providers.synthesis.willow,
+          async synthesize() {
+            calls++;
+            alternateEnabled = false;
+            return bytes;
+          },
+        },
+      },
+    };
+    if (phase === "before") alternateEnabled = false;
+    try {
+      await runTask(
+        worker,
+        speechHandlers(service, gated, store, null, worker),
+        { id: task.id },
+      );
+      assert.equal(calls, before + (phase === "during" ? 1 : 0));
+      assert.equal((await jobs.get(principal, task.id)).playable, false);
+      const objects = await tenant(db, principal.accountId, (trx) =>
+        trx("export_objects").where({ taskId: task.id }),
+      );
+      assert.equal(objects.length, 0);
+    } finally {
+      alternateEnabled = true;
+    }
+  }
+});
+
+test("flag evaluation failures deny alternates without affecting Reed or disclosing diagnostics", async () => {
+  const { principal, note } = await fixture();
+  const unavailable = {
+    ...providers,
+    synthesis: {
+      ...providers.synthesis,
+      willow: {
+        ...providers.synthesis.willow,
+        async available(): Promise<boolean> {
+          throw new Error("private_flag_diagnostic");
+        },
+      },
+    },
+  };
+  const failed = new SpeechJobs(service, unavailable, store);
+  const description = await failed.describe();
+  assert.equal(
+    description.speechVoices.find((voice) => voice.id === "willow")?.available,
+    false,
+  );
+  assert.equal(
+    description.speechVoices.find((voice) => voice.id === "reed")?.available,
+    true,
+  );
+  await assert.rejects(
+    failed.enqueue(principal, note.id, {
+      id: randomUUID(),
+      version: note.version,
+      voiceId: "willow",
+    }),
+    (error) =>
+      error instanceof Error && error.message === "Speech is not configured",
   );
 });

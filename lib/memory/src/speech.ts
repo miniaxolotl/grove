@@ -1,7 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { tenant, type Knex } from "@lib/database";
-import { InferenceError, type SpeechProviders } from "@lib/ai";
+import {
+  InferenceError,
+  type SpeechProviders,
+  type SpeechSynthesis,
+} from "@lib/ai";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
   speechLimits,
@@ -72,6 +76,14 @@ const changed = () =>
   );
 
 const synthesisProtocol = "speech-content-cache-v1";
+async function synthesisAvailable(provider: SpeechSynthesis | undefined) {
+  if (!provider) return false;
+  try {
+    return provider.available ? (await provider.available()) === true : true;
+  } catch {
+    return false;
+  }
+}
 type Configuration = {
   transcription: string | null;
   synthesis: string | null;
@@ -193,6 +205,11 @@ async function validate(
   )
     throw changed();
   const control = await trx("processing_control").first("epoch");
+  if (
+    row.kind === "speech_synthesize" &&
+    !(await synthesisAvailable(providers.synthesis?.[payload.voiceId!]))
+  )
+    throw unavailable();
   const session = await trx.raw(
     "SELECT grove_speech_session_active(?::uuid) AS active",
     [row.id],
@@ -260,19 +277,21 @@ export class SpeechJobs {
   }
   async describe() {
     const configuration = await this.service.db("speech_configuration").first();
-    const voices: SpeechVoice[] = speechVoices.map((voice) => {
-      const provider = this.providers.synthesis?.[voice.id];
-      const available =
-        !!this.store &&
-        !!provider &&
-        configuredProfile(configuration, "speech_synthesize", voice.id) ===
-          provider.profile;
-      return {
-        ...voice,
-        available,
-        ...(provider?.sampleId ? { sampleId: provider.sampleId } : {}),
-      };
-    });
+    const voices: SpeechVoice[] = await Promise.all(
+      speechVoices.map(async (voice) => {
+        const provider = this.providers.synthesis?.[voice.id];
+        const available =
+          !!this.store &&
+          (await synthesisAvailable(provider)) &&
+          configuredProfile(configuration, "speech_synthesize", voice.id) ===
+            provider?.profile;
+        return {
+          ...voice,
+          available,
+          ...(provider?.sampleId ? { sampleId: provider.sampleId } : {}),
+        };
+      }),
+    );
     return {
       speechVoices: voices,
       speechAvailable: {
@@ -309,6 +328,11 @@ export class SpeechJobs {
         : (input.voiceId ?? account.readAloudVoiceId);
       const provider = selectedProvider(this.providers, kind, voiceId);
       if (!provider || (!input.mediaId && !this.store)) throw unavailable();
+      if (
+        !input.mediaId &&
+        !(await synthesisAvailable(this.providers.synthesis?.[voiceId!]))
+      )
+        throw unavailable();
       const current = await source(trx, memoryId, input.version, input.mediaId);
       const { epoch } = await trx("processing_control").first("epoch");
       const owner = await trx("accounts").where({ id: account.id }).first();
