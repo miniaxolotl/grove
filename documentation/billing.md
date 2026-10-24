@@ -35,7 +35,7 @@ and an independent installation-wide estimated monthly provider-spend cap.
 
 Allowances reset at **UTC midnight** and the **first of each UTC calendar month**,
 not the subscription renewal date. They do not roll over. The Billing page shows
-remaining monthly usage, daily request usage and local-time reset dates. Usage
+monthly usage meters, daily counts and short local reset dates. Usage
 already recorded in the current month counts when a rollout or upgrade starts.
 Daily protections still apply: 180 API operations/minute/account, 2,000 total AI
 attempts/day/account, and 20 speech attempts/day/type with 10 transcription minutes

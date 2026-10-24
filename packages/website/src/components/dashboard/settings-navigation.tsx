@@ -31,8 +31,10 @@ export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
     reveal();
     const observer = new ResizeObserver(reveal);
     observer.observe(nav);
+    // Font loading can widen the links without resizing the navigation itself.
+    nav.querySelectorAll("a").forEach((link) => observer.observe(link));
     return () => observer.disconnect();
-  }, [path]);
+  }, [path, billing]);
   return (
     <nav
       ref={navigation}

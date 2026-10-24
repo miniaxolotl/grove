@@ -18,7 +18,10 @@ pnpm exec tsx --test tests/src/billing.test.ts tests/src/billing-pricing.test.ts
 Use the real Billing component fixture for Free/Pro, the 5-dollar monthly price,
 exhausted/zero allowances, pending checkout, errors/retry, refresh after payment,
 period-end cancellation and hidden flag-off information at 1440/390/320px. Check
-keyboard focus, accessible labels and overflow in Chromium and iPhone/WebKit.
+labelled usage meters, short reset dates, keyboard focus and overflow in Chromium
+and iPhone/WebKit. Confirm the complete active settings tab remains visible after
+fonts load; checkout failures must show a concise recovery action without upstream
+provider details. Keep customer copy focused on plans, usage and actions.
 Flag-off production routes must hide new checkout; discovery requires Flags SDK
 authentication. Actual Stripe test/live lifecycle and Vercel cohort evaluation
 are rollout verification, not inferred from synthetic local success.

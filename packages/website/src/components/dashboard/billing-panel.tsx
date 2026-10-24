@@ -1,20 +1,27 @@
 "use client";
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { RotateCw } from "lucide-react";
 import type { BillingStatus, BillingMetric } from "@lib/shared/billing";
-import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
+import { DashboardApiError } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
+import "./billing-panel.css";
 
 const labels: Record<BillingMetric, string> = {
-  generation: "AI generation requests",
-  research: "Web research calls",
-  transcription: "Transcription minutes",
-  synthesis: "Read-aloud characters",
+  generation: "AI requests",
+  research: "Research",
+  transcription: "Transcription",
+  synthesis: "Read aloud",
 };
 const units = (metric: BillingMetric, value: number) =>
   new Intl.NumberFormat(undefined, {
     maximumFractionDigits: metric === "transcription" ? 1 : 0,
   }).format(metric === "transcription" ? value / 60000 : value);
+const shortDate = (value: string) =>
+  new Date(value).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 const date = (value: string) =>
   new Date(value).toLocaleString(undefined, {
     month: "short",
@@ -32,6 +39,17 @@ const money = (amount: number, currency: string) => {
     amount / 10 ** (format.resolvedOptions().maximumFractionDigits ?? 2),
   );
 };
+const suffix = (metric: BillingMetric) =>
+  metric === "transcription"
+    ? " min"
+    : metric === "synthesis"
+      ? " characters"
+      : "";
+const resetDate = (value: string) => (
+  <time dateTime={value} title={date(value)}>
+    {shortDate(value)}
+  </time>
+);
 
 export function BillingPanel() {
   const cache = useWorkspaceCache();
@@ -40,8 +58,9 @@ export function BillingPanel() {
     staleTime: 0,
     refetchInterval: 60000,
   });
-  const [busy, setBusy] = useState(false),
+  const [action, setAction] = useState<string | null>(null),
     [error, setError] = useState("");
+  const busy = action !== null;
   const pending = useRef(false);
   async function open(
     path: string,
@@ -50,7 +69,7 @@ export function BillingPanel() {
   ) {
     if (pending.current) return;
     pending.current = true;
-    setBusy(true);
+    setAction(interval ?? "portal");
     setError("");
     try {
       const result = await cache.api<{ url: string }>(
@@ -65,10 +84,14 @@ export function BillingPanel() {
         throw new Error("Billing could not open. Try again.");
       window.location.assign(target.href);
     } catch (e) {
-      setError(errorMessage(e));
+      setError(
+        e instanceof DashboardApiError && e.code === "billing_price_changed"
+          ? "The price changed. Refresh to review it."
+          : "Couldn’t open billing. Please try again.",
+      );
     } finally {
       pending.current = false;
-      setBusy(false);
+      setAction(null);
     }
   }
   const state = query.data,
@@ -77,22 +100,19 @@ export function BillingPanel() {
   const ongoing =
     subscription &&
     !["canceled", "incomplete_expired"].includes(subscription.status);
+  const paymentDue =
+    subscription && ["past_due", "unpaid"].includes(subscription.status);
   if (
     (query.error instanceof DashboardApiError && query.error.status === 404) ||
     state?.enabled === false
   )
     return null;
   return (
-    <div className="settings-content">
-      <div>
-        <h2 className="settings-section-heading">Billing</h2>
-        <p className="settings-section-description">
-          Start free. Subscribe to Pro when you need more AI usage.
-        </p>
-      </div>
+    <div className="billing-sheet">
+      <h2 className="settings-section-heading">Billing</h2>
       {error || query.error ? (
-        <div className="app-error" role="alert">
-          <p>{error || errorMessage(query.error)}</p>
+        <div className="billing-error" role="alert">
+          <p>{error || "Couldn’t load your plan."}</p>
           <button
             className="text-button"
             onClick={() => {
@@ -100,153 +120,185 @@ export function BillingPanel() {
               void query.refetch();
             }}
           >
-            Refresh billing
+            Try again
           </button>
         </div>
       ) : null}
       {!state ? (
-        <p role="status">
-          {query.isPending
-            ? "Loading your plan and usage…"
-            : "Your billing details could not load."}
+        <p className="billing-loading" role="status">
+          {query.isPending ? "Loading your plan…" : "Your plan is unavailable."}
         </p>
       ) : (
         <>
-          <section className="app-panel" aria-label="Current plan">
-            <h3 className="font-editorial text-2xl">
-              {usage?.plan === "pro" ? "Grove Pro" : "Grove Free"}
-            </h3>
-            <p className="mt-3 text-sm text-muted">
-              {usage?.plan === "pro"
-                ? "Higher allowances for your notebook and connected agents."
-                : "Writing, reading, editing and exporting stay available when you reach an AI allowance."}
-            </p>
-            {subscription ? (
-              <p className="mt-3 text-sm">
-                {subscription.status === "past_due" ||
-                subscription.status === "unpaid"
-                  ? "Your payment needs attention. Update it to restore Pro usage."
-                  : subscription.cancelAtPeriodEnd
-                    ? `Your subscription ends ${date(subscription.periodEnd)}.`
-                    : ongoing
-                      ? `Subscription status: ${subscription.status.replaceAll("_", " ")}. Current period ends ${date(subscription.periodEnd)}.`
-                      : "Your subscription has ended."}
-              </p>
-            ) : null}
-            {state.enabled && !ongoing ? (
-              <p className="mt-3 text-sm text-muted">
-                Pro includes{" "}
-                {units("generation", state.proLimits.generation.monthly)} AI
-                generation requests,{" "}
-                {units("research", state.proLimits.research.monthly)} research
-                calls,{" "}
-                {units("transcription", state.proLimits.transcription.monthly)}{" "}
-                transcription minutes and{" "}
-                {units("synthesis", state.proLimits.synthesis.monthly)}{" "}
-                read-aloud characters each month. Daily limits still apply.
-              </p>
-            ) : null}
-            <div className="mt-5 flex flex-wrap gap-3">
-              {state.customer ? (
-                <button
-                  className="app-button secondary"
-                  disabled={busy}
-                  onClick={() => void open("/billing/portal")}
-                >
-                  {busy ? "Opening billing…" : "Manage subscription"}
-                </button>
+          <section className="billing-plan" aria-label="Current plan">
+            <div>
+              <div className="billing-plan-name">
+                <h3>{usage?.plan === "pro" ? "Pro" : "Free"}</h3>
+                <span className="billing-current">Current plan</span>
+              </div>
+              {subscription ? (
+                <p className="billing-caption">
+                  {paymentDue ? (
+                    "Payment overdue"
+                  ) : subscription.cancelAtPeriodEnd ? (
+                    <>Ends {resetDate(subscription.periodEnd)}</>
+                  ) : ["active", "trialing"].includes(subscription.status) ? (
+                    <>
+                      {subscription.status === "trialing"
+                        ? "Trial ends"
+                        : "Renews"}{" "}
+                      {resetDate(subscription.periodEnd)}
+                    </>
+                  ) : ongoing ? (
+                    "Payment pending"
+                  ) : (
+                    "Subscription ended"
+                  )}
+                </p>
               ) : null}
-              {state.enabled && !ongoing
-                ? state.prices.map((price) => (
-                    <button
-                      key={price.interval}
-                      className="app-button"
-                      disabled={busy}
-                      onClick={() =>
-                        void open(
-                          "/billing/checkout",
-                          price.interval,
-                          price.amount,
-                        )
-                      }
-                    >
-                      {busy
-                        ? "Opening billing…"
-                        : `Upgrade to Pro · ${money(price.amount, price.currency)}/${price.interval === "month" ? "month" : "year"}`}
-                    </button>
-                  ))
-                : null}
             </div>
-            <p className="mt-3 text-sm text-muted">
-              Payments and cancellation are managed securely through Stripe. No
-              automatic usage overage charges.
-            </p>
+            {state.customer ? (
+              <button
+                className="app-button secondary"
+                disabled={busy}
+                onClick={() => void open("/billing/portal")}
+              >
+                {action === "portal"
+                  ? "Opening…"
+                  : paymentDue
+                    ? "Update payment"
+                    : "Manage plan"}
+              </button>
+            ) : null}
           </section>
           {usage ? (
             <section
-              className="app-panel"
+              className="billing-usage"
               aria-labelledby="billing-usage-heading"
             >
-              <h3
-                id="billing-usage-heading"
-                className="font-editorial text-2xl"
-              >
-                Your usage
-              </h3>
-              <p className="mt-3 text-sm text-muted">
-                Monthly allowances reset {date(usage.monthlyResetAt)}. Unused
-                allowances do not roll over.
-              </p>
-              <dl className="mt-5 grid gap-5">
+              <div className="billing-usage-heading">
+                <h3 id="billing-usage-heading">This month</h3>
+                <span className="billing-caption">
+                  Resets {resetDate(usage.monthlyResetAt)}
+                </span>
+                <button
+                  type="button"
+                  className="app-icon billing-refresh"
+                  title="Refresh usage"
+                  aria-label="Refresh usage"
+                  disabled={query.isFetching}
+                  onClick={() => void query.refetch()}
+                >
+                  <RotateCw size={14} aria-hidden="true" />
+                </button>
+                <span className="sr-only" role="status">
+                  {query.isFetching ? "Refreshing usage…" : ""}
+                </span>
+              </div>
+              <dl className="billing-metrics">
                 {(Object.keys(labels) as BillingMetric[]).map((metric) => {
                   const value = usage.metrics[metric];
+                  const monthlyFull = value.month >= value.monthlyLimit;
+                  const dailyFull =
+                    value.dailyLimit !== null &&
+                    value.today >= value.dailyLimit;
+                  const labelId = `billing-${metric}`;
                   return (
-                    <div
-                      key={metric}
-                      className="border-t border-current/10 pt-4"
-                    >
-                      <dt className="text-sm font-medium">{labels[metric]}</dt>
-                      <dd className="mt-1 text-sm text-muted">
-                        {units(
-                          metric,
-                          Math.max(0, value.monthlyLimit - value.month),
-                        )}{" "}
-                        remaining of {units(metric, value.monthlyLimit)} this
-                        month
+                    <div key={metric} className="billing-metric">
+                      <dt id={labelId}>{labels[metric]}</dt>
+                      <dd className="billing-metric-count">
+                        <span>{units(metric, value.month)}</span>
+                        <span className="billing-caption">
+                          {" "}
+                          / {units(metric, value.monthlyLimit)}
+                          {suffix(metric)}
+                        </span>
+                      </dd>
+                      <dd className="billing-meter">
+                        <meter
+                          aria-labelledby={labelId}
+                          aria-valuetext={`${units(metric, value.month)} of ${units(metric, value.monthlyLimit)}${suffix(metric)} used`}
+                          min={0}
+                          max={Math.max(1, value.monthlyLimit)}
+                          value={Math.min(
+                            value.month,
+                            Math.max(1, value.monthlyLimit),
+                          )}
+                        />
                       </dd>
                       {value.dailyLimit !== null ? (
-                        <dd className="mt-1 text-sm text-muted">
-                          {units(metric, value.today)} of{" "}
-                          {units(metric, value.dailyLimit)} today
+                        <dd className="billing-metric-note">
+                          <span>
+                            {units(metric, value.today)} /{" "}
+                            {units(metric, value.dailyLimit)} today
+                          </span>
+                          {monthlyFull ? (
+                            <span>Monthly limit reached</span>
+                          ) : dailyFull ? (
+                            <span>Resets {resetDate(usage.dailyResetAt)}</span>
+                          ) : null}
+                        </dd>
+                      ) : monthlyFull ? (
+                        <dd className="billing-metric-note">
+                          Monthly limit reached
                         </dd>
                       ) : null}
                     </div>
                   );
                 })}
               </dl>
-              <p className="mt-5 text-sm text-muted">
-                Daily allowances reset {date(usage.dailyResetAt)}. One action
-                may use several AI generation requests. Background generation
-                counts too; writing and basic search do not use this allowance.
-                Provider attempts, including retries, count even when no result
-                is returned.
-              </p>
-              <p className="mt-3 text-sm text-muted">
-                Additional safety limits apply: 180 API requests per minute,
-                2,000 total AI requests per day, and per speech type 20 attempts
-                per day with up to 10 transcription minutes or 60,000 read-aloud
-                characters. Research also depends on the service’s shared
-                provider budget.
-              </p>
             </section>
           ) : null}
-          <button
-            className="text-button w-fit"
-            disabled={query.isFetching}
-            onClick={() => void query.refetch()}
-          >
-            {query.isFetching ? "Refreshing…" : "Refresh usage"}
-          </button>
+          {state.enabled && !ongoing && state.prices.length ? (
+            <section
+              className="billing-upgrade"
+              aria-labelledby="billing-pro-heading"
+            >
+              <div className="billing-offer-heading">
+                <h3 id="billing-pro-heading">Pro</h3>
+                <span className="billing-caption">Monthly allowances</span>
+              </div>
+              {state.prices.map((price) => (
+                <div className="billing-purchase" key={price.interval}>
+                  <p
+                    className="billing-price"
+                    id={`billing-price-${price.interval}`}
+                  >
+                    <strong>{money(price.amount, price.currency)}</strong>
+                    <span>
+                      {" "}
+                      / {price.interval === "month" ? "month" : "year"}
+                    </span>
+                  </p>
+                  <button
+                    className="app-button"
+                    aria-describedby={`billing-price-${price.interval}`}
+                    disabled={busy}
+                    onClick={() =>
+                      void open(
+                        "/billing/checkout",
+                        price.interval,
+                        price.amount,
+                      )
+                    }
+                  >
+                    {action === price.interval ? "Opening…" : "Upgrade to Pro"}
+                  </button>
+                </div>
+              ))}
+              <dl className="billing-included">
+                {(Object.keys(labels) as BillingMetric[]).map((metric) => (
+                  <div key={metric}>
+                    <dt>{labels[metric]}</dt>
+                    <dd>
+                      {units(metric, state.proLimits[metric].monthly)}
+                      {suffix(metric)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
         </>
       )}
     </div>
