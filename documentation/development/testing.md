@@ -4,7 +4,13 @@ Billing tests use the disposable PostgreSQL/non-owner API and worker URLs below.
 `billing.test.ts` covers tenant isolation, non-superuser owner lookup, optional
 configuration, concurrent quotas, recognized/expired subscriptions, UTC windows,
 signed raw HTTP webhooks, duplicate events and canonical state, Checkout ownership,
-idempotency and duplicate prevention, flag-off concealment and cancellation.
+idempotency and duplicate prevention, flag-off concealment and cancellation. The
+loopback provider preserves original idempotent POST responses separately from live
+Checkout state, covering lost responses followed by expiry/payment, resubscription
+after canceled/expired-incomplete subscriptions in either interval, webhook failure
+and retry, payment-state downgrades, late events after deletion and worker cancellation.
+Concurrent API/worker reservations exercise both Free and Pro monthly generation
+boundaries while ordinary note writes, reads and exports remain available.
 `billing-pricing.test.ts` verifies a 5-dollar flag resolves 500-cent immutable monthly
 prices, stale quote rejection and invalid/offline price refusal; product entitlements
 preserve grandfathered subscribers across flag amount changes.
@@ -25,6 +31,7 @@ provider details. Keep customer copy focused on plans, usage and actions.
 Flag-off production routes must hide new checkout; discovery requires Flags SDK
 authentication. Actual Stripe test/live lifecycle and Vercel cohort evaluation
 are rollout verification, not inferred from synthetic local success.
+See the [post-merge billing review](billing-review.md) for findings and scope.
 
 ## Workspace session recovery
 

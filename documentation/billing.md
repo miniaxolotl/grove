@@ -69,7 +69,13 @@ automatic overage charges.
 - Customer creation has an account idempotency key. Checkout reserves an operation
   and its price before the remote write, serializes competing requests, reuses an
   open checkout and refuses a second ongoing subscription. Expired checkouts can
-  be replaced. Billing reads reconcile from Stripe, including after a lost webhook.
+  be replaced. A completed checkout can be replaced only when its exact Stripe
+  subscription is canonically `canceled` or `incomplete_expired`; a missing or still
+  ongoing subscription stays fenced. This permits resubscription after cancellation
+  without opening a second subscription while payment is processing.
+  Idempotent create responses are historical: the server retrieves current Checkout
+  state before returning its URL or trying to expire it during account deletion.
+  Billing reads reconcile from Stripe, including after a lost webhook.
 - Signed webhooks reconcile current Stripe state under the same customer lock.
   Duplicate event IDs are recorded only after successful reconciliation, and
   out-of-order event bodies cannot restore obsolete entitlement. Raw event bodies,
@@ -154,3 +160,5 @@ Authenticated responses are private/no-store. The website proxy allowlists only
 these billing operations and checks request origin for writes.
 
 See [rollout](deploy.md#billing-rollout-023) and [verification](development/testing.md).
+The [post-merge review](development/billing-review.md) records recovered Checkout
+edge cases and distinguishes synthetic lifecycle coverage from paid acceptance.
