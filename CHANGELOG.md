@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.3](https://github.com/miniaxolotl/grove/compare/v1.11.2...v1.11.3) (2026-10-24)
+
+
+### Features
+
+* **integrations:** connect ChatGPT and Claude web ([#116](https://github.com/miniaxolotl/grove/issues/116)) ([eac83c0](https://github.com/miniaxolotl/grove/commit/eac83c00cf381dd00b7a847dec3ddba63818d313))
+
 ## [1.11.2](https://github.com/miniaxolotl/grove/compare/v1.11.1...v1.11.2) (2026-10-24)
 
 
