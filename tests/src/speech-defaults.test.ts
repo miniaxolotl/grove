@@ -66,6 +66,15 @@ test("020→021 changes future speech defaults without changing existing choices
     assert.deepEqual(applied, ["20261023_021_speech_defaults"]);
     assert.deepEqual(await owner("accounts").orderBy("id"), before);
 
+    const [fresh] = await owner("accounts")
+      .insert({ clerkSubject: `default_${randomUUID()}` })
+      .returning("*");
+    assert.equal(fresh.transcriptionEnabled, false);
+    assert.equal(fresh.readAloudEnabled, true);
+    // Historical assertions above stop at 021. Current service code requires the
+    // current schema, including the separately migrated voice preference.
+    await owner.migrate.latest();
+
     const auth = new Authentication(runtime, {
       async verify() {
         return {

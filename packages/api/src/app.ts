@@ -754,7 +754,7 @@ export function createApp(deps: AppDependencies) {
       data: {
         ...(await service.me(c.get("principal"))),
         mediaAvailable: !!deps.media,
-        speechAvailable: await speech.availability(),
+        ...(await speech.describe()),
       },
     }),
   );

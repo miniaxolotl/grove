@@ -272,7 +272,9 @@ test("isolated restore replays current deletions and revocations without changin
       personalSummaryEnabled: false,
       askEnabled: false,
     });
-    await source("accounts").where({ id: a }).update(preferences);
+    await source("accounts")
+      .where({ id: a })
+      .update({ ...preferences, readAloudVoiceId: "cedar" });
     await source("accounts")
       .where({ id: a })
       .update({
@@ -298,6 +300,10 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    assert.equal(
+      (await target("accounts").where({ id: a }).first()).readAloudVoiceId,
+      "cedar",
+    );
     for (const id of [speechTranscript, speechAudio]) {
       const task = await target("background_tasks").where({ id }).first();
       assert.equal(task.result, null);

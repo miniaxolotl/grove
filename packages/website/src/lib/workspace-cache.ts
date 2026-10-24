@@ -73,6 +73,7 @@ export class WorkspaceCache {
   private generation = 0;
   private active = true;
   private lifetime = new AbortController();
+  private settingsWrites: Promise<void> = Promise.resolve();
   private deleted = new Set<string>();
   private pendingSince = new WeakMap<object, number>();
   private channel?: BroadcastChannel;
@@ -669,7 +670,20 @@ export class WorkspaceCache {
         ? this.fetch<T>(path, body, signal)
         : this.read<T>(path, body, signal);
     try {
-      const result = await this.transport<T>(path, body, method, signal);
+      // Keep preference writes ordered across panels and in-app navigation. A
+      // superseded account/session must never start a queued write.
+      const send = () => {
+        this.assertActive(generation, signal);
+        return this.transport<T>(path, body, method, signal);
+      };
+      const request =
+        path === "/account/settings" ? this.settingsWrites.then(send) : send();
+      if (path === "/account/settings")
+        this.settingsWrites = request.then(
+          () => {},
+          () => {},
+        );
+      const result = await request;
       this.assertActive(generation, signal);
       if (path === "/account/delete") {
         this.dispose();

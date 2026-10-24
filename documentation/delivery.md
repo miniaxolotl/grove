@@ -1,5 +1,42 @@
 # Delivery evidence
 
+## Selectable read-aloud voices (24 October 2026)
+
+**Reed · Basic** retains the existing OpenAI default; **Willow**, **Cedar** and
+**Brook** add curated MiniMax presets. Read aloud remembers the account's choice;
+Speech settings uses Save/Discard. Samples, Prepare audio and Play remain explicit.
+Serialized preference writes retain newer choices, and switching voices releases
+playback and fences/cancels superseded requests. Cancellation reports confirmed
+server state or offers recovery when confirmation is unavailable.
+
+Forward migration **022** adds the default and per-voice profile map without changing
+consent flags/generations. Immutable task identity and per-voice profile checks
+support exact routing, omitted-default replay and A→B→A cache reuse while fencing
+legacy/mismatched workers. Restore retains the current default and expires derived
+audio. MiniMax transport bounds wire/decoded sizes, validates final hex/MP3 output,
+sanitizes failures and renders provider control notation as prose.
+
+Local verification passes root/site lint, types and production builds, **nine
+packaged-artifact checks**, and **293 backend tests** with four optional-service
+skips. The existing Chromium suite passed **221 cases**, with its two trace-directory
+collisions passing on isolated rerun; **four existing iPhone/WebKit settings cases**
+pass. **Eleven voice journey groups per engine** cover saves, late/lost replies,
+cancellation, playback, keyboard focus, 1440/390/320px bounds and WCAG A/AA. Notes
+entry is **488,115 gzip bytes**, editor deferred; Settings is **480,498 gzip bytes**.
+
+Live MiniMax system listing and all three synthetic samples succeed. Numbers,
+multilingual prose, control-like notation and a 3,000-unit narration synthesize and
+decode; the maximum produces **1,662,036 bytes in 7.348 seconds**. Reed's sample is
+omitted because OpenAI credential access was unavailable. Subjective listening and
+language quality remain unverified. [Twelve reviewed captures and provider evidence](design/screenshots/speech-voices/README.md)
+include sample provenance/checksums and distinguish fixture playback from provider
+qualification. Updated [speech/privacy](speech.md), product-copy and testing docs
+describe the behavior and MiniMax's current processing terms.
+
+`MINIMAX_TTS_ENABLED` defaults false and explicitly gates reuse of the server-only
+MiniMax key. The [coordinated 022 rollout](deploy.md#selectable-speech-voices-022)
+requires matching API/worker binaries and a separate owner migration/activation.
+
 ## Feature-focused product copy (23 October 2026)
 
 Speech controls/preferences, sign-in and feature-availability messages describe what

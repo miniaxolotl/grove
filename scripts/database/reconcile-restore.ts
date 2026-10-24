@@ -22,6 +22,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "deletedAt",
       "providerDeletedAt",
       ...preferenceKeys,
+      "readAloudVoiceId",
       "organizeEnabled",
       "summariesEnabled",
       "askVersion",
@@ -308,6 +309,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
               ? (current.providerDeletedAt ?? target.fn.now())
               : current.providerDeletedAt,
             ...preferencesFor(current),
+            readAloudVoiceId: current.readAloudVoiceId,
             ...legacyPreferences(preferencesFor(current)),
             askVersion: current.askVersion + 1,
             askTools: JSON.stringify(current.askTools),

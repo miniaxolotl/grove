@@ -143,12 +143,14 @@ export const privacy: LegalDocument = {
           <p>
             If you enable speech, an external speech service receives original
             audio when you choose Transcribe, or saved note text when you
-            prepare read-aloud audio. For new accounts, transcription starts off
-            and Read aloud starts on. Neither runs automatically or on anonymous
-            shared reads. Generated speech is temporary; saved transcripts
-            follow your note history. The service applies its own data controls
-            and retention policies. Turning a feature off cannot recall data
-            already sent.
+            prepare read-aloud audio. Your selected voice determines which
+            speech service receives the note text. Voice samples use fixed
+            example text and do not send your notes. For new accounts,
+            transcription starts off and Read aloud starts on. Neither runs
+            automatically or on anonymous shared reads. Generated speech is
+            temporary; saved transcripts follow your note history. The service
+            applies its own data controls and retention policies. Turning a
+            feature off cannot recall data already sent.
           </p>
           <p>
             Authorized support and operations personnel may access information

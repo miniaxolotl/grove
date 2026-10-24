@@ -6,6 +6,8 @@ import { createArtifacts } from "./artifacts.ts";
 import { createMediaStore } from "./media-store.ts";
 import {
   createOpenAiSpeech,
+  createMiniMaxSpeech,
+  miniMaxSpeechVoices,
   createResearchProvider,
   type SpeechProviders,
 } from "@lib/ai";
@@ -21,8 +23,9 @@ export async function createRuntime() {
   try {
     await probeDatabase(db);
     await db.raw(
-      "SELECT transcription_enabled,read_aloud_enabled FROM accounts LIMIT 0",
+      "SELECT transcription_enabled,read_aloud_enabled,read_aloud_voice_id FROM accounts LIMIT 0",
     );
+    await db.raw("SELECT synthesis_profiles FROM speech_configuration LIMIT 0");
     if (env.MEDIA_STORAGE !== "disabled") {
       await db.raw(
         "SELECT status,lease_id,object_key,duration_ms FROM media_objects LIMIT 0",
@@ -78,8 +81,27 @@ export async function createRuntime() {
       });
       speech = {
         ...(media ? { transcription: remote.transcription } : {}),
-        ...(artifacts ? { synthesis: remote.synthesis } : {}),
+        ...(artifacts ? { synthesis: { reed: remote.synthesis } } : {}),
       };
+      if (env.MINIMAX_TTS_ENABLED) {
+        if (!env.MINIMAX_API_KEY?.trim() || !artifacts) {
+          artifacts?.close?.();
+          media?.close?.();
+          throw new Error("minimax_speech_key_and_storage_required");
+        }
+        speech.synthesis = {
+          ...speech.synthesis,
+          ...Object.fromEntries(
+            Object.entries(miniMaxSpeechVoices).map(([id, voice]) => [
+              id,
+              {
+                ...createMiniMaxSpeech({ apiKey: env.MINIMAX_API_KEY!, voice }),
+                sampleId: `${id}-v1`,
+              },
+            ]),
+          ),
+        };
+      }
     }
     return {
       env,
