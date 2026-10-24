@@ -108,6 +108,18 @@ async function fixture(
           return schema.parse({
             relationship: "duplicate",
             reason: "Both request short examples.",
+            support: [
+              {
+                kind: "same_information",
+                subject: "Example preference",
+                property: "length",
+                leftValue: "short",
+                rightValue: "short",
+                conditions: "recorded preference",
+                leftEvidence: [0],
+                rightEvidence: [1],
+              },
+            ],
             basis: "same_information",
             direction: "both",
             evidence: sources.map((s) => ({

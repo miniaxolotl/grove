@@ -10,11 +10,22 @@ Expand **Supporting notes** for current excerpts and notebook coverage. Source
 revision numbers are checked internally. Graph guides and the keyboard-accessible
 **Connection list** are collapsed until opened.
 
-- **Related** identifies useful additional context about a specific subject.
-- **May conflict** identifies incompatible claims under the same conditions.
+- **Related** requires a concrete, useful link: for example the same recorded
+  director/studio, base spirit, perfume brand/base notes, vacation destination,
+  specific event or mechanism. One strong supported link is sufficient.
+- **May conflict** identifies incompatible asserted claims about the same subject
+  and property under overlapping conditions and time. Different films, recipes,
+  products, trips, tastes or environments are not automatically conflicts.
   An edit timestamp alone does not establish which claim is correct.
 - **Possible duplicate** identifies substantially equivalent information and
   explains differences. A single repeated sentence is insufficient.
+
+Shared filing, note type, review format, ratings, “Rewatch”, generic praise or broad
+topics are not enough, even together. Grove abstains when a specific link is not
+supported; Related is not a fallback for pairs that are neither duplicate nor
+conflicting. Attributes must be recorded in the original notes: Grove does not
+look up missing directors, brands or ingredients or fill them from model knowledge.
+Ingredient roles, negation, uncertainty and explicit supersession matter.
 
 **Compare notes** opens a read-only comparison over the retained editor.
 **Dismiss suggestion** removes the connection from both views. **Undo dismissal**
@@ -39,26 +50,46 @@ only when explicitly evidenced; these are not whole-notebook conflict/duplicate 
 
 ## Processing and limits
 
-Generation is asynchronous and respects the organization setting and shared daily
+Generation is asynchronous and respects independent note/notebook connection preferences and the shared daily
 inference budget. Turning summaries off does not disable relationships or enqueue
 replacement briefs. Generation-disabled installations expose a disabled state,
 without inventing explanations for legacy enum-only labels.
 
 - Note discovery combines exact matches, lexical matches and current same-scope
   vectors: at most eight new candidates, plus twenty existing pairs per scan.
+  Lexical hints sample the whole note, retain short terms such as gin/rum and
+  rerank at most 32 lexical results by distinguishing overlap rather than repeated
+  template words. A broad sixteen-result query is supplemented by at most sixteen
+  matches for hints least represented in that shortlist, so frequent templates
+  cannot always crowd out distinguishing facts before reranking. This uses at most
+  two lexical queries, not one per term. Lexical/vector rankings are interleaved
+  within the same cap.
 - Canonical ordered pairs coalesce reverse-direction jobs. Current unrelated
   results are cached too. Unchanged-source retries preserve dismissals.
 - Notebook profiles scan 64 notes per job, persisting progress, a centroid, bounded
-  lexical terms and twelve diverse representatives. All eligible notes participate
-  in discovery; old/new notes also supplement assessment selection.
+  lexical terms and twelve diverse representatives. Up to 128 terms reserve half
+  the vocabulary for minority hints rather than only frequent template words.
+  All eligible notes participate in discovery; bounded sampling cannot preserve
+  every subject. Old/new notes also supplement assessment selection.
 - Discovery walks other current notebook profiles in resumable batches of twenty,
-  retaining the best five candidates across batches. Re-enabling organization
-  resumes an interrupted discovery pass. Each completed profile proposes at most
-  five candidate notebooks.
+  retaining at most five lexical and five vector hints across batches. Lexical
+  overlap is weighted by within-notebook document frequency; a single shared term
+  can nominate assessment, never establish a link. Interleaved rankings propose
+  at most five candidate notebooks. Re-enabling connections resumes an interrupted
+  discovery pass. Two highest-weight shared terms nominate original source notes,
+  alongside diverse/vector representatives and oldest/newest supplements.
   Generation sees at most eight original notes / 12,000 characters per side.
 - Grounding requires verbatim excerpts, exact versions and evidence from both
-  endpoints. Deterministic validation establishes provenance, not semantic truth.
+  endpoints. Generation must also identify one specific bridge, its endpoint
+  facts/conditions and which excerpts support each side. Template/organizational/
+  generic-topic bridges abstain. Malformed or unsupported citations remain errors.
+  Internal support fields do not change the public connection contract or add a
+  second model call. Deterministic validation establishes provenance and structure,
+  not semantic truth: model judgments still need labelled quality evaluation.
 - Reconciliation resumes at most 100 note scans and 20 notebook profiles per pass.
+  It also schedules at most twenty old-policy pairs per level, skipping already
+  queued/exhausted jobs for the same source snapshot so later pairs are not stranded
+  behind the scan window. A changed version or expiry can replace that failed job.
   Failed jobs remain exhausted until explicit retry or a changed source snapshot;
   budgets defer until the next
   database day. Pair records are checked before spending another generation request.
@@ -110,12 +141,27 @@ their level, assessments and review state.
 
 ## Migration and recovery
 
-Apply forward migration `20261021_010_relationship_evidence` with the database
-owner while API/worker consumers are paused, then deploy the matching API, worker
-and website. Do not mix old consumers with the new job kinds. The new worker uses
-a separate `relationships-v2-*` profile for claim/outbox dispatch; old workers
-cannot select that profile. Reconciliation supplies a bounded, resumable backfill
-without rewriting notes. No bulk live backfill is part of feature verification.
+The original relationship tables require migration
+`20261021_010_relationship_evidence`. The substantive-bridge policy adds **no new
+SQL migration**. Its `relationships-v3-*` profile includes the explicit policy
+version as well as provider profiles, invalidating old positives and abstentions.
+Reconciliation rebuilds bounded derived assessments without rewriting notes;
+graphs may temporarily show fewer connections while work respects daily budgets.
+
+Pause/drain **all** old enrichment consumers, deploy matching API/worker code, then
+resume dispatch. Do not run v2 and v3 workers together: separate claim profiles
+prevent claiming each other's jobs, but an already-running old binary can still
+write the canonical pair table. This is a coordinated cutover, not a database fence
+against arbitrary old binaries. New readers hide old-policy results immediately
+on fresh reads; already-open/offline browser snapshots retain normal refresh rules.
+No bulk live backfill or production rollout is part of feature verification.
+
+Pair IDs and unchanged-source dismissals survive reassessment. Assessment revisions
+include profile identity, so an old inspector cannot review/undo a new-policy
+assessment. Changed sources require fresh review. Cleanup uses the same substantive
+duplicate/conflict policy and its own policy-versioned preview profile; unrelated
+assistance kinds keep their cache identity. Existing reviewed Apply/Undo authority
+is unchanged. See [rollout](deploy.md#connection-quality-policy-cutover).
 
 Model reindexing clears profiles/scan checkpoints and schedules reconciliation;
 pair reviews survive. Recovery reconciliation copies current authoritative
@@ -132,14 +178,36 @@ review metadata. Re-enable only with compatible workers/API. Follow
 
 `tests/fixtures/relationship-quality.ts` contains an explicitly labelled synthetic corpus:
 paraphrases, partial overlap, dates, negation, changed decisions, environments,
-uncertainty, prompt injection, mixed claims, notebook coverage and empty notebooks.
+uncertainty, prompt injection, mixed claims, notebook coverage and empty notebooks,
+plus film/cocktail/perfume/journal hard positives and negatives. Development and
+held-out cases are marked separately; the original cases belong to development.
 Run it with a server-side generation credential:
 
 ```sh
-GENERATION_API_KEY=... pnpm exec tsx scripts/testing/relationships.ts --live
+GENERATION_API_KEY=... pnpm exec tsx scripts/testing/relationships.ts --live --output=/tmp/opencode/grove-relationship-quality.json
+# Explicitly cap a repeated run, or select --split=development / --split=held-out:
+GENERATION_API_KEY=... pnpm exec tsx scripts/testing/relationships.ts --live --repeat=3 --max-calls=114
 ```
 
-The runner makes at most one request per case and prints synthetic reasons,
-validated excerpts, classifications and mismatches. Transport failures are not
-model-quality results. Review every mismatch separately from deterministic
-database, grounding and browser tests.
+The runner makes one request per case/repetition and refuses selections above the
+explicit cap (50 default, 200 maximum; at most three repetitions). Provider/model
+can be selected with `GENERATION_PROVIDER`, `GENERATION_URL`, `GENERATION_MODEL`.
+It prints synthetic reasons/excerpts, per-label precision/recall, domain results,
+token usage and mismatches. Transport/schema failures remain separate; repeated
+runs are not independent labelled examples. Supplied-pair evaluation does not
+measure retrieval recall. Database tests separately exercise bounded text-only
+discovery amid distractors. Review explanation support, not only label matches.
+See [quality evidence and limits](development/connection-quality-results.md).
+
+The transport cap counts actual requests, including failures or any future adapter
+retries, and a fatal provider error stops all repetitions. Disabled providers are
+rejected; `openai-compatible` requires an explicit URL and model rather than
+silently inheriting MiniMax defaults. Reports include provider/model/policy identity,
+support bridges and completeness. `--output` atomically replaces its path only
+after a complete run (including completed runs with label mismatches); interrupted
+or fatal incomplete runs preserve the previous report. Avoid shell redirection over
+an existing result, which truncates the file before the runner starts.
+
+Existing split labels identify development partitions; cases inspected during
+tuning are not an independent held-out evaluation, regardless of their label.
+Approve provider/model and request/token/spend bounds before a paid run.

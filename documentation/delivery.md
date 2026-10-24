@@ -1,5 +1,41 @@
 # Delivery evidence
 
+## Connection quality — local implementation checkpoint (23 October 2026)
+
+Connections require a specific source-backed bridge and abstain on filing,
+templates, ratings and generic topics. Policy-versioned reassessment hides old
+results while preserving unchanged-source dismissal intent and fencing stale Undo.
+Cleanup shares the substantive duplicate/conflict policy without changing reviewed
+Apply/Undo authority. Bounded note/notebook discovery retains short/late facts,
+minority hints and independent lexical/vector nominations.
+
+On application `eb64413` and runner `e726c23` (development `ad1b9fe` integrated),
+**279 backend tests** pass with four optional-service skips; root/website lint,
+types and builds, **nine artifacts**, bundle budgets, **eight affected Chromium**
+and **four focused iPhone/WebKit** scenarios pass. Notes entry is **488,019 gzip
+bytes**, editor deferred. PostgreSQL/RLS/worker/recovery checks use disposable
+resources and non-owner roles. No frontend source changes or new captures.
+
+Deterministic candidate fixtures nominate **18/18 note** and **4/4 notebook**
+positive pairs, with separate adversarial template/minority-thread regressions.
+These are not live semantic accuracy results. Paid current-policy qualification
+remains pending explicit provider/budget approval; the historical old-policy
+baseline is 30/38. [Evidence and limitations](development/connection-quality-results.md)
+and [coordinated cutover](deploy.md#connection-quality-policy-cutover) describe the
+no-new-migration rollout and old-binary/rollback limits. No production activation,
+backfill or deployment was performed; this checkpoint does not claim PR readiness.
+
+Test-only agent follow-up #104 is subsequently integrated in `cfbdc46`, with runtime
+source unchanged. Fresh root lint/types, nine artifacts, five client-boundary cases
+and the complete 279-pass/four-skip backend suite pass on the combined tree.
+
+Owner-approved [draft #105](https://github.com/miniaxolotl/grove/pull/105) now has
+passing [full CI 40034164506](https://github.com/miniaxolotl/grove/actions/runs/40034164506)
+on `83dd0a8`: all six jobs and GitGuardian pass, including **281 backend tests**
+(two optional skips), **nine artifacts** and **223 Chromium scenarios**. The final
+test-only follow-up initializes isolated evaluator scratch storage. Live semantic
+qualification remains pending; passing CI does not authorize ready/merge/deployment.
+
 ## Agent plugin startup and diagnostics (23 October 2026)
 
 OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for

@@ -5,13 +5,18 @@ import type { ModelProfiles } from "@lib/shared/models";
 import { currentTelemetry } from "@lib/telemetry/context";
 import { retryDelay } from "./task-runner.ts";
 import {
+  lexicalCandidates,
+  relationshipTerms,
+} from "./relationship-discovery.ts";
+import {
   groundRelationship,
+  assessRelationship,
   noteRelationshipInstructions,
   notebookRelationshipInstructions,
   noteAssessmentSchema,
   notebookAssessmentSchema,
+  type RelationshipJudgment,
   type RelationshipAssessment,
-  normalizeRelationshipAssessment,
   type ConnectionLevel,
   type ConnectionSource,
 } from "@lib/shared/relationships";
@@ -59,8 +64,9 @@ export type PairInput = {
   leftTotal: number;
   rightTotal: number;
 };
-export const pairRevision = (input: PairInput) =>
+export const pairRevision = (input: PairInput, profile: string) =>
   relationHash([
+    profile,
     input.level,
     input.leftId,
     input.rightId,
@@ -113,7 +119,19 @@ export async function queuePair(
     level === "note" ? "note_relationship" : "notebook_relationship",
     `${leftId}:${rightId}`,
     profile,
-    { leftId, rightId, snapshot },
+    {
+      leftId,
+      rightId,
+      snapshot,
+      leftVersion:
+        level === "note" ? endpoints[0].version : endpoints[0].contentVersion,
+      rightVersion:
+        level === "note" ? endpoints[1].version : endpoints[1].contentVersion,
+      expiresAt:
+        earliestExpiry(
+          endpoints.map((endpoint) => endpoint.expiresAt),
+        )?.getTime() ?? null,
+    },
   );
 }
 async function scanNote(
@@ -166,6 +184,7 @@ export async function noteCandidates(
   providers: Providers,
 ) {
   const candidates = new Map<string, MemoryModel>();
+  let vectors: MemoryModel[] = [];
   const sameScope = () =>
     activeNotes(trx)
       .where({ projectId: note.projectId })
@@ -185,7 +204,7 @@ export async function noteCandidates(
       })
       .first());
   if (vector) {
-    for (const other of await sameScope()
+    vectors = await sameScope()
       .whereRaw(
         `EXISTS (SELECT 1 FROM memory_embeddings e WHERE e.account_id=memories.account_id AND e.memory_id=memories.id AND e.version=memories.version AND CASE WHEN e.profile=? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
         [
@@ -198,26 +217,46 @@ export async function noteCandidates(
         `(SELECT e.embedding <=> ?::vector FROM memory_embeddings e WHERE e.account_id=memories.account_id AND e.memory_id=memories.id AND e.version=memories.version AND e.profile=?)`,
         [vector.embedding, providers.embedding!.profile],
       )
-      .limit(5))
-      candidates.set(other.id, other);
+      .limit(5);
   }
   // OR terms supplement vectors and work when embedding generation is disabled.
-  const terms = [
-    ...new Set(
-      note.content.toLocaleLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [],
-    ),
-  ]
-    .slice(0, 16)
-    .join(" OR ");
-  if (terms)
-    for (const other of await sameScope()
-      .whereRaw("search @@ websearch_to_tsquery('english', ?)", [terms])
-      .orderByRaw("ts_rank(search, websearch_to_tsquery('english', ?)) DESC", [
-        terms,
-      ])
-      .orderBy("id")
-      .limit(3))
-      candidates.set(other.id, other);
+  const terms = relationshipTerms(note.content);
+  let pool: MemoryModel[] = [];
+  if (terms.length) {
+    const shortlist = (hints: string[]) => {
+      const query = hints.join(" OR ");
+      return sameScope()
+        .whereRaw("search @@ websearch_to_tsquery('english', ?)", [query])
+        .orderByRaw(
+          "ts_rank(search, websearch_to_tsquery('english', ?)) DESC",
+          [query],
+        )
+        .orderBy("id")
+        .limit(16);
+    };
+    pool = await shortlist(terms);
+    const documents = pool.map(
+      (row) => new Set(relationshipTerms(row.content)),
+    );
+    const counts = terms.map(
+      (term) => documents.filter((tokens) => tokens.has(term)).length,
+    );
+    const minimum = Math.min(...counts);
+    const focused = terms.filter((_, i) => counts[i] === minimum);
+    // A template-saturated SQL shortlist can hide distinguishing terms before
+    // reranking. Reserve half the 32-row budget for its least represented hints.
+    if (focused.length < terms.length) pool.push(...(await shortlist(focused)));
+  }
+  const lexical = lexicalCandidates(
+    note.content,
+    [...new Map(pool.map((row) => [row.id, row])).values()],
+    5,
+  );
+  // Interleave independent rankings rather than letting vectors consume the cap.
+  for (let i = 0; i < Math.max(vectors.length, lexical.length); i++) {
+    for (const row of [lexical[i], vectors[i]])
+      if (row) candidates.set(row.id, row);
+  }
   return [...candidates.values()].slice(0, 8);
 }
 async function pairInput(
@@ -294,6 +333,79 @@ export async function scheduleRelationships(
   const account = await trx("accounts").where({ id: accountId }).first();
   if (account.notebookConnectionsEnabled)
     await scheduleNotebookProfiles(trx, accountId, profile);
+  // A scan's twenty-pair window must not strand lower-ranked old-policy pairs.
+  for (const level of ["note", "notebook"] as const) {
+    if (
+      !(level === "note"
+        ? account.noteConnectionsEnabled
+        : account.notebookConnectionsEnabled)
+    )
+      continue;
+    const endpoint = level === "note" ? "memories" : "projects";
+    const old = trx(`${relationshipTable(level)} as r`)
+      .join(`${endpoint} as l`, "l.id", "r.leftId")
+      .join(`${endpoint} as n`, "n.id", "r.rightId")
+      .whereNot("r.profile", profile)
+      .where({ "l.status": "active", "n.status": "active" });
+    if (level === "note") {
+      old
+        .whereRaw("l.project_id IS NOT DISTINCT FROM n.project_id")
+        .whereRaw(
+          "(l.expires_at IS NULL OR l.expires_at>now()) AND (n.expires_at IS NULL OR n.expires_at>now())",
+        );
+    } else {
+      old
+        .join("notebook_profiles as lp", "lp.projectId", "l.id")
+        .join("notebook_profiles as np", "np.projectId", "n.id")
+        .where({
+          "lp.profile": profile,
+          "np.profile": profile,
+          "lp.complete": true,
+          "np.complete": true,
+        })
+        .whereRaw(
+          "lp.content_version=l.content_version AND np.content_version=n.content_version",
+        )
+        .whereRaw(
+          "(lp.expires_at IS NULL OR lp.expires_at>now()) AND (np.expires_at IS NULL OR np.expires_at>now())",
+        );
+    }
+    // Existing jobs suppress only the snapshot they actually checked. Changed
+    // sources must revisit even an exhausted pair outside the per-note window.
+    const version = level === "note" ? "version" : "content_version";
+    const leftExpiry = level === "note" ? "l.expires_at" : "lp.expires_at";
+    const rightExpiry = level === "note" ? "n.expires_at" : "np.expires_at";
+    old.whereNotExists(
+      trx("jobs as j")
+        .select(trx.raw("1"))
+        .where({
+          "j.profile": profile,
+          "j.kind":
+            level === "note" ? "note_relationship" : "notebook_relationship",
+        })
+        .whereRaw(
+          "j.account_id=r.account_id AND j.target=r.left_id::text || ':' || r.right_id::text",
+        )
+        .whereRaw(
+          `(j.scope->>'leftVersion')::int=l.${version} AND (j.scope->>'rightVersion')::int=n.${version}`,
+        )
+        .whereRaw(
+          `(j.scope->>'expiresAt')::numeric IS NOT DISTINCT FROM FLOOR(EXTRACT(EPOCH FROM LEAST(${leftExpiry}, ${rightExpiry}))*1000)`,
+        ),
+    );
+    for (const pair of await old
+      .orderBy("r.id")
+      .limit(20)
+      .select("r.leftId", "r.rightId"))
+      await queuePair(
+        trx,
+        accountId,
+        level,
+        pair.leftId,
+        pair.rightId,
+        profile,
+      );
+  }
   return rows.length;
 }
 
@@ -356,7 +468,7 @@ export async function runRelationshipJob(
             .first();
           if (
             !old ||
-            old.revision !== pairRevision(value) ||
+            old.revision !== pairRevision(value, job.profile) ||
             old.profile !== job.profile ||
             !unexpired(old.expiresAt)
           )
@@ -367,28 +479,35 @@ export async function runRelationshipJob(
       outcome = "success";
     });
     if (!input) return true;
-    const assessment = normalizeRelationshipAssessment(
-      await budgetedInference(
-        db,
-        job.accountId,
-        "generation",
-        dailyLimit,
-        (options) =>
-          providers.generation!.generate<RelationshipAssessment>(
-            input.level === "note"
-              ? noteAssessmentSchema
-              : notebookAssessmentSchema,
-            `${input.level === "note" ? noteRelationshipInstructions : notebookRelationshipInstructions}\nLEFT source IDs: ${input.left.map((s) => s.id).join(", ")}. RIGHT source IDs: ${input.right.map((s) => s.id).join(", ")}. Examining ${input.left.length} of ${input.leftTotal} left notes and ${input.right.length} of ${input.rightTotal} right notes.`,
-            [...input.left, ...input.right].map((s) => ({
-              ...s,
-              kind: "fact",
-            })),
-            { ...options, signal },
-          ),
-      ),
+    const generated = await budgetedInference(
+      db,
+      job.accountId,
+      "generation",
+      dailyLimit,
+      (options) =>
+        providers.generation!.generate<RelationshipJudgment>(
+          input.level === "note"
+            ? noteAssessmentSchema
+            : notebookAssessmentSchema,
+          `${input.level === "note" ? noteRelationshipInstructions : notebookRelationshipInstructions}\nLEFT source IDs: ${input.left.map((s) => s.id).join(", ")}. RIGHT source IDs: ${input.right.map((s) => s.id).join(", ")}. Examining ${input.left.length} of ${input.leftTotal} left notes and ${input.right.length} of ${input.rightTotal} right notes.`,
+          [...input.left, ...input.right].map(({ id, version, content }) => ({
+            id,
+            version,
+            content,
+            kind: "fact",
+          })),
+          { ...options, signal },
+        ),
     );
+    let assessment: RelationshipAssessment;
     let evidence;
     try {
+      assessment = assessRelationship(
+        generated,
+        input.level,
+        input.left,
+        input.right,
+      );
       evidence = groundRelationship(
         assessment,
         input.level,
@@ -424,14 +543,33 @@ export async function runRelationshipJob(
     };
     await inLease(async (trx) => {
       const current = await pairInput(trx, job, providers);
-      if (current && pairRevision(current) === pairRevision(input)) {
+      if (
+        current &&
+        pairRevision(current, job.profile) === pairRevision(input, job.profile)
+      ) {
+        const previous = await trx<RelationshipRow>(
+          relationshipTable(input.level),
+        )
+          .where({ leftId: input.leftId, rightId: input.rightId })
+          .forUpdate()
+          .first();
+        const revision = pairRevision(input, job.profile);
+        const carryDismissal =
+          previous &&
+          previous.dismissedRevision === previous.revision &&
+          previous.leftVersion === input.leftVersion &&
+          previous.rightVersion === input.rightVersion &&
+          String(previous.expiresAt) === String(input.expiresAt);
         const payload = {
           accountId: job.accountId,
           leftId: input.leftId,
           rightId: input.rightId,
           leftVersion: input.leftVersion,
           rightVersion: input.rightVersion,
-          revision: pairRevision(input),
+          revision,
+          dismissedRevision: carryDismissal
+            ? revision
+            : (previous?.dismissedRevision ?? null),
           profile: job.profile,
           expiresAt: input.expiresAt,
           assessment: JSON.stringify(data),

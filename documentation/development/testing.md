@@ -1,5 +1,29 @@
 # Verification
 
+Connection-quality tests use a freshly migrated disposable database and non-owner
+API/worker roles, as described below. Rerun `pnpm test:db:setup` after integrating
+development's forward migrations; a database bootstrapped before media/speech
+integration lacks the columns needed by the full current suite. Never reset an
+existing database to fix this.
+
+```sh
+pnpm exec tsx --test tests/src/relationship-evidence.test.ts tests/src/relationship-discovery.test.ts tests/src/relationship-evaluation.test.ts tests/src/relationships.test.ts tests/src/notebook-assistance.test.ts
+```
+
+These cover substantive support/provenance, cached abstention, bounded note/notebook
+candidate recall, template-saturated shortlists, minority threads, policy backfill,
+changed/exhausted source snapshots, microsecond expiry, concurrent Dismiss/Undo,
+cleanup and tenant isolation. Evaluation-runner tests use only a local synthetic
+HTTP provider: they verify actual request caps, fatal aborts, usage and atomic
+report replacement without paid calls. Live semantic qualification is separate;
+see [quality results and limits](connection-quality-results.md).
+
+Browser compatibility uses the existing connection/evidence/graph/cache and cleanup
+scenarios with unchanged public payloads. Run the three connection scenarios and
+cleanup preview in Chromium and supported container iPhone/WebKit; include the
+native fullscreen graph scenario in Chromium only. Browser fixture checks do not
+establish live model quality or replace real database/worker cutover tests.
+
 Note-context verification combines the unchanged full Chromium suite and focused
 navigation WebKit suite with real-component manual journeys against synthetic note,
 PNG and WAV data. In each engine check right-click and Shift+F10, retained selection,

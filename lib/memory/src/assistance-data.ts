@@ -9,17 +9,29 @@ import type {
   Assistance,
   AssistanceRequest,
   AssistanceResult,
+  AssistanceKind,
 } from "@lib/shared/assistance";
 import type { SummaryEvidence } from "@lib/shared/summaries";
 import { activeNotes } from "./relationship-data.ts";
+import { relationshipPolicyVersion } from "@lib/shared/relationships";
 import {
   changedSources,
   type NoteUndo,
   type ReadDependency,
 } from "./note-changes.ts";
 
-export const assistanceProfile = (generation: string, embedding?: string) =>
-  profileId("assistance-v2", { generation, embedding: embedding ?? null });
+export const assistanceProfile = (
+  generation: string,
+  embedding?: string,
+  kind?: AssistanceKind,
+) =>
+  kind === "cleanup"
+    ? profileId("assistance-cleanup-v3", {
+        generation,
+        embedding: embedding ?? null,
+        policy: relationshipPolicyVersion,
+      })
+    : profileId("assistance-v2", { generation, embedding: embedding ?? null });
 export type ScopeDependency = {
   id: string;
   version?: number;

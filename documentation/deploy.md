@@ -15,6 +15,31 @@ documentation refresh.
 
 ## Topology
 
+### Connection quality policy cutover
+
+The substantive-bridge policy requires no new database migration. Coordinate the
+matching API and worker application versions:
+
+1. Pause enrichment dispatch and drain/stop every old worker consumer before
+   enabling the new policy. Do not mix old/new relationship writers; profile-based
+   job selection alone does not prevent old binaries overwriting canonical pairs.
+2. Deploy the admitted matching API/worker image, then resume enrichment. Fresh
+   reads use `relationships-v3-*`; old assessments stay retained but hidden until
+   bounded reconciliation replaces them within existing budgets. Unchanged-source
+   dismissals survive and old inspector revisions cannot act on new assessments.
+3. Verify concrete positive links, template-only abstention, canonical graph/list
+   agreement and stale cleanup-preview rejection using owned synthetic notes.
+   No source edits, eager live reset/reindex or bulk all-pairs inference is needed.
+4. For rollback, pause consumers again and coordinate API/worker rollback. Retain
+   notes and review state; do not reverse migrations or run mixed policy writers.
+
+Older binaries do not understand policy-aware dismissal carryover. Do not resume
+old enrichment writers assuming reviews will remain effective after their next
+assessment. Prefer a compatible forward fix, or keep enrichment paused until an
+explicitly reviewed rollback/review-state procedure is available.
+
+See [connection processing and recovery](relationships.md#migration-and-recovery).
+
 ### Speech rollout (019)
 
 Back up retained source objects and the database together. After 018, apply forward

@@ -60,6 +60,7 @@ export async function runAssistanceJob(
         row.status !== "pending" ||
         !account?.[assistancePreferences[row.kind]] ||
         !providers.generation ||
+        row.profile !== job.profile ||
         (profiles &&
           (profiles.generation !== providers.generation.profile ||
             profiles.embedding !== (providers.embedding?.profile ?? null))) ||
@@ -67,6 +68,7 @@ export async function runAssistanceJob(
           assistanceProfile(
             providers.generation.profile,
             providers.embedding?.profile,
+            row.kind,
           )
       ) {
         await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
