@@ -112,6 +112,10 @@ export const serverEnvironmentSchema = z.object({
   TTS_VOICE: z
     .enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"])
     .default("alloy"),
+  MINIMAX_TTS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   SPEECH_PROVIDER_CONCURRENCY: z.coerce
     .number()
     .int()

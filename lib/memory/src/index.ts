@@ -14,10 +14,13 @@ import {
   legacyPreferences,
   preferenceKeys,
   preferencePatch,
-  preferencesFor,
   type AccountPreferences,
-  type PreferencesUpdate,
 } from "@lib/shared/preferences";
+import {
+  settingsFor,
+  type AccountSettings,
+  type SettingsUpdate,
+} from "@lib/shared/account-settings";
 import { settingsUpdateSchema } from "@lib/shared/settings";
 import type {
   NotebookLifecycleAction,
@@ -105,7 +108,7 @@ type Connection = Omit<Grant, "expiresAt"> & {
   authorizedAfter: Date;
   setup?: unknown;
 };
-type Account = AccountPreferences & {
+type Account = AccountSettings & {
   exportVersion: string;
   id: string;
   clerkSubject: string;
@@ -449,7 +452,7 @@ export class MemoryService {
         (c) => !grant || grant.capabilities.includes(c),
       ),
       contentVersion: account.contentVersion,
-      ...preferencesFor(account),
+      ...settingsFor(account),
       ...legacyPreferences(account),
       aiAvailability: {
         classification: !!this.providers.decision,
@@ -1537,11 +1540,15 @@ export class MemoryService {
       return { revoked: true };
     });
   }
-  async settings(principal: Principal, input: PreferencesUpdate) {
+  async settings(principal: Principal, input: SettingsUpdate) {
     return this.access(principal, "admin", async ({ trx, account }) => {
+      const parsed = settingsUpdateSchema.parse(input);
       const next = {
-        ...preferencesFor(account),
-        ...preferencePatch(settingsUpdateSchema.parse(input)),
+        ...settingsFor(account),
+        ...preferencePatch(parsed),
+        ...(parsed.readAloudVoiceId !== undefined
+          ? { readAloudVoiceId: parsed.readAloudVoiceId }
+          : {}),
       };
       const enabled = preferenceKeys.filter(
         (key) => next[key] && !account[key],

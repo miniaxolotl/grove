@@ -74,6 +74,24 @@ profile cutover prevents reusing audio from the prior extractor. Restore
 verification also seeds completed speech and checks that results
 and artifact access expire rather than being revived.
 
+Selectable voices add `speech-voices-provider.test.ts` and
+`speech-voices-migration.test.ts`, extending jobs/recovery coverage for exact
+voice routing, immutable omitted-default replay, A→B→A cache reuse, independent
+profile cutovers, legacy/mismatched workers, consent generations and retained
+defaults after restore. The 021→022 upgrade preserves existing settings and tenant
+isolation. Historical migration assertions stop at their own boundary; current
+service checks then migrate forward to the current schema.
+
+Actual-component voice journeys use synthetic API responses and the bundled sample
+MP3s in Chromium and iPhone/WebKit. Exercise serialized quick saves, held/failed
+saves, retained newer Settings drafts, late enqueue cancellation, lost replies,
+both close controls/navigation, explicit playback, sample/player ownership,
+unavailable saved choices, keyboard focus, 1440/390/320px bounds and WCAG A/AA.
+Run concurrent browser suites with distinct ports **and** `--output` directories;
+the runner clears its output directory and can otherwise delete another engine's
+active traces. Paid provider checks remain separate from CI. See
+[voice evidence and captures](../design/screenshots/speech-voices/README.md).
+
 The actual-component/disposable-API browser journeys cover both opt-ins, explicit
 candidate use/save/normal note insertion, generated playback, exact cache reuse,
 failure/retry, cancellation and desktop/390/320px accessibility in Chromium and

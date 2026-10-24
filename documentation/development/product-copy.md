@@ -14,6 +14,11 @@ Do not name backend companies, model names, hosting platforms or internal jobs.
   opening the controls nor enabling a preference starts that work.
 - Use availability language, not configuration diagnoses: “Read aloud is currently
   unavailable.” Do not tell an ordinary user to configure an installation/server.
+- Use nature names for voice choices: **Reed · Basic**, **Willow**, **Cedar**,
+  **Brook**. **Default** marks the remembered account choice; Basic is not a pricing
+  tier. **Play sample**, voice selection, **Prepare audio** and Play are distinct
+  actions. Samples use fixed example text. Keep selected/result voice identity
+  visible and explain failed preference saves without replacing the local choice.
 - Keep privacy information meaningful. Describe external recipient categories,
   the information sent, controls, retention and the limits of cancellation. Do not
   imply local-only processing or that disabling a feature recalls transmitted data.

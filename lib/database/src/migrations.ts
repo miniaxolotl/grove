@@ -1,4 +1,5 @@
 import type { Knex } from "knex";
+import { speechVoices } from "./speech-voices-migration.ts";
 import { hardening, identityState } from "./hardening.ts";
 import { modelProviders } from "./model-migration.ts";
 import { memoryLifetimes } from "./lifetime-migration.ts";
@@ -243,6 +244,7 @@ export const migrations = [
   speech,
   researchTools,
   speechDefaults,
+  speechVoices,
 ];
 
 export const migrationSource: Knex.MigrationSource<

@@ -1,8 +1,7 @@
-import type {
-  AccountPreferences,
-  AiAvailability,
-  PreferenceKey,
-} from "@lib/shared/preferences";
+import type { AiAvailability, PreferenceKey } from "@lib/shared/preferences";
+import type { AccountSettings } from "@lib/shared/account-settings";
+import type { SpeechVoice, SpeechVoiceId } from "@lib/shared/speech-voices";
+import { VoiceSelector } from "./voice-selector";
 
 const groups: {
   title: string;
@@ -152,10 +151,14 @@ export function AiPreferences({
   value,
   availability,
   onChange,
+  voices,
+  rememberedVoice,
 }: {
-  value: AccountPreferences;
+  value: AccountSettings;
   availability?: AiAvailability;
-  onChange: (value: AccountPreferences) => void;
+  onChange: (value: AccountSettings) => void;
+  voices?: SpeechVoice[];
+  rememberedVoice?: SpeechVoiceId;
 }) {
   return groups.map(({ title, features }) => (
     <fieldset className="ai-preference-group" key={title}>
@@ -198,6 +201,16 @@ export function AiPreferences({
           />
         </label>
       ))}
+      {title === "Speech" && (
+        <VoiceSelector
+          value={value.readAloudVoiceId}
+          voices={voices}
+          remembered={rememberedVoice}
+          onChange={(readAloudVoiceId) =>
+            onChange({ ...value, readAloudVoiceId })
+          }
+        />
+      )}
     </fieldset>
   ));
 }

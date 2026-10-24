@@ -20,12 +20,28 @@ remain usable when speech is disabled or unavailable.
    explicitly copies it into the draft. **Save transcript** retains an authored
    version; **Use in note** uses normal editing, autosave and Undo. A background job
    never overwrites authored text or an edited transcript.
-3. In a saved, unchanged note's Preview, open **Read aloud → Prepare audio**.
+3. In a saved, unchanged note's Preview, open **Read aloud**, choose a **Voice**,
+   then **Prepare audio**. **Reed · Basic** is the initial default; **Willow**,
+   **Cedar** and **Brook** are additional nature-named voices when available.
    When ready, use the same minimalist player as recordings. Playback is a separate
    user gesture; its voice is explicitly identified as AI-generated. The narration
    uses a CommonMark syntax tree: code (including indented/nested/unfinished fences),
    images, raw HTML nodes, owned-media references and link definitions are silent.
    Ordinary link labels remain prose, without sending their destinations or titles.
+
+The Read aloud picker remembers the voice for your account. Settings → Preferences
+→ Speech uses the same choice with **Save preferences** and **Discard changes**.
+Changing voices stops old playback and attempts cancellation of unfinished work;
+it never prepares or plays the new voice automatically. A failed preference save
+keeps the selected local voice and offers **Retry saving voice**. Preparation uses
+that explicit selection. An unavailable remembered voice stays selected until you
+choose another; errors never silently route notes to a different voice/service.
+
+**Play sample** loads a fixed same-origin example only on request, without sending
+note content or enabling speech. The bundled Willow/Cedar/Brook samples are
+AI-generated from synthetic editorial text. Reed currently has no bundled sample;
+its installation-specific `TTS_VOICE` mapping is retained. Samples and narration
+share playback ownership, so starting one pauses the other.
 
 Queued/running work has **Cancel speech**. Failed jobs offer **Try again**; failed
 status reads offer **Check again**, without starting another paid request. Closing
@@ -44,15 +60,24 @@ explains the external processing, data sent, controls and retention without vend
 branding. The technical details below are for operators; see the
 [product-copy guidance](development/product-copy.md) for user-facing wording.
 
-| Role          | Selected model     | Input                                                             | Output                                                                  |
-| ------------- | ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Transcription | OpenAI `whisper-1` | Immutable, checksum-verified original PCM16 WAV, up to 60 seconds | Suggested text, up to 6,000 characters; language detected automatically |
-| Read aloud    | OpenAI `tts-1`     | Saved narration text, up to 3,000 characters                      | MP3, at most 3 MiB; default voice `alloy`                               |
+| Role                   | Selected model             | Input                                                             | Output                                                                  |
+| ---------------------- | -------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Transcription          | OpenAI `whisper-1`         | Immutable, checksum-verified original PCM16 WAV, up to 60 seconds | Suggested text, up to 6,000 characters; language detected automatically |
+| Reed · Basic           | OpenAI `tts-1`             | Saved narration text, up to 3,000 UTF-16 units                    | MP3, at most 3 MiB; `TTS_VOICE`, default `alloy`                        |
+| Willow / Cedar / Brook | MiniMax `speech-2.8-turbo` | The same bounded narration                                        | Mono MP3, 32 kHz / 64 kbps, at most 3 MiB                               |
 
-No text-generation provider/key is reused as a fallback. `OPENAI_API_KEY` remains
-server-only; credentials, audio, note text, transcript text and upstream diagnostics
-do not enter application telemetry. Requests use the fixed OpenAI API endpoint,
-disallow redirects, bound streamed responses and have a 45-second provider deadline.
+MiniMax mappings are `English_CalmWoman` (Willow), `English_ManWithDeepVoice`
+(Cedar) and `English_Upbeat_Woman` (Brook). These are curated system presets;
+Grove creates no custom or cloned voices. MiniMax speech explicitly reuses the
+server-only `MINIMAX_API_KEY` through `/v1/t2a_v2`, independently gated by
+`MINIMAX_TTS_ENABLED`. OpenAI continues to use `OPENAI_API_KEY`. There is no provider
+fallback. Credentials, audio, note text, transcripts and upstream diagnostics do
+not enter application telemetry. Both fixed endpoints disallow redirects, bound
+streamed responses and have a 45-second provider deadline. MiniMax additionally
+checks HTTP-success body errors, final status, strict hexadecimal encoding and the
+decoded MP3 bound. Parenthetical text becomes bracketed prose and numeric pause
+tags become bracketed numbers, preventing provider pronunciation/interjection and
+pause controls. Optional LLM text normalization is not requested.
 Do not interpret a configured key as a successful health or billing check.
 
 According to [OpenAI's data controls](https://developers.openai.com/api/docs/guides/your-data)
@@ -63,6 +88,16 @@ normally up to 30 days of abuse-monitoring retention, subject to the provider's
 exceptions. Grove does **not** claim this account has approved Zero Data Retention,
 regional processing or additional contractual controls. Already transmitted data
 cannot be recalled by cancellation, disabling a preference or deleting a note.
+
+[MiniMax's API privacy policy](https://platform.minimax.io/protocol/privacy-policy)
+(effective 30 March 2026, checked 24 October 2026) covers inputs and outputs,
+describes US data-center storage and cross-border processing, and permits retention
+as necessary for service purposes or law; it gives no fixed speech-request retention
+period. Its [terms](https://platform.minimax.io/protocol/terms-of-service) permit
+using input/generated content to provide, maintain, develop and improve services.
+OpenAI's endpoint-specific retention statements above do not apply to MiniMax.
+No account-specific no-training, zero-retention or regional-processing agreement
+has been established by this implementation.
 
 ## Queue, limits and freshness
 
@@ -80,6 +115,9 @@ across roles. Retries and uncertain calls retain their reservations; cancellatio
 does not promise a refund. These are inference bounds, not a guaranteed dollar bill
 or an installation-wide spending limit.
 
+All four voices share the same synthesis allowance and provider slots. Selecting
+another voice does not create a separate quota.
+
 Every send/publication/read checks current account and session authorization,
 active/unexpired note, exact source revision and audio binding/checksum,
 transcript version, preference generation, installation provider profile and
@@ -88,6 +126,13 @@ profile changes,
 revocation and lost leases cannot publish or revive an old result. Worker guards
 check during inference and propagate cancellation. Speech opt-ins do not reschedule
 unrelated organization work.
+
+The remembered voice is a future-request default, not a consent generation. A
+voice-only save neither cancels another tab's audio nor invalidates the account's
+cache. A→B→A can reuse A's matching unexpired audio. Each task freezes its resolved
+Grove voice and provider profile; an omitted-voice retry keeps that resolution even
+after the default changes. Reusing an operation ID with different explicit inputs
+is rejected. Per-voice profile checks mean a MiniMax cutover leaves Reed valid.
 
 ## Temporary output and recovery
 
@@ -111,38 +156,52 @@ candidates and generated MP3 are not portable source data. Restore reconciliatio
 cancels unfinished jobs, clears speech results and expires tracked artifacts; old
 speech is never replayed automatically. Original WAV and accepted transcript history
 remain intact. See [recordings](recordings.md) and [jobs](jobs.md).
+Account backup/restore retains the remembered voice; reconciliation replays its
+current value while expiring derived speech from every voice.
 
 ## Installation and API
 
-Apply forward migration **019 `20261023_019_speech`** after 018, using the owner
+Apply forward migration **022 `20261024_022_speech_voices`** after 021, using the owner
 procedure in [deploy](deploy.md). Configure API and worker identically:
 
 ```sh
 SPEECH_ENABLED=true
 OPENAI_API_KEY=YOUR_SERVER_KEY
 TTS_VOICE=alloy
+MINIMAX_TTS_ENABLED=false
 SPEECH_PROVIDER_CONCURRENCY=2
 ```
 
 The installation flag defaults false. STT needs the original media store; TTS needs
 temporary artifact storage. Cloud must keep the private durable media bucket
 separate from the expiring artifact bucket; the existing `speech/` one-day lifecycle
-belongs only on the latter. Local storage is for self-hosting/tests. Voice choices
-are `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`. API startup publishes desired
-speech profiles; older/mismatched workers fail closed. Runtime startup verifies the
-new account schema; this slice does not apply a production migration or activate
-the flag. Initial/image-only hosting operations do not infer missing speech secrets.
+belongs only on the latter. Local storage is for self-hosting/tests. Reed's
+`TTS_VOICE` override accepts `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`.
+To activate Willow/Cedar/Brook, additionally set `MINIMAX_TTS_ENABLED=true` and the
+existing `MINIMAX_API_KEY` on both API and worker; the gate requires artifact storage.
+API startup publishes per-voice profiles plus the `speech-voices-v1` protocol
+marker. Older/mismatched workers fail closed; legacy TTS tasks without a voice
+identity require starting again. Transcription keeps its independent profile.
+Runtime startup verifies the new account/configuration schema. Initial/image-only
+hosting operations do not infer missing speech secrets or activate the new flag.
+See the coordinated [022 rollout](deploy.md#selectable-speech-voices-022).
 
-- `GET /v1/me`: adds `transcriptionEnabled`, `readAloudEnabled` and
-  `speechAvailable: {transcription,synthesis}`; normal settings PATCH updates either
-  preference independently.
-- `POST /v1/memories/:noteId/speech`: `{id,version,mediaId?}`. With `mediaId`, queue
-  transcription; otherwise queue read aloud. Returns 202 and the safe task view.
+- `GET /v1/me`: includes `transcriptionEnabled`, `readAloudEnabled`,
+  `readAloudVoiceId`, `speechVoices: [{id,name,description,basic,available,sampleId?}]`
+  and `speechAvailable: {transcription,synthesis}`. Synthesis means at least one
+  voice passes the installation/storage gates, not a live health check.
+- `PATCH /v1/account/settings`: accepts `readAloudVoiceId` independently of boolean
+  preferences. Only `reed`, `willow`, `cedar`, `brook` are accepted, including known
+  choices whose providers are temporarily unavailable.
+- `POST /v1/memories/:noteId/speech`: `{id,version,mediaId?,voiceId?}`. With `mediaId`,
+  queue transcription and reject `voiceId`; otherwise resolve the explicit voice
+  or saved default and queue read aloud. Returns 202 and the safe task view.
   Reuse `id` to recover an uncertain response; a deliberate retry uses a new UUID.
-- `GET /v1/speech/:id`: safe status, optional suggested `transcript`, `playable`
+- `GET /v1/speech/:id`: safe status, synthesis `voiceId`, optional suggested `transcript`, `playable`
   and a sanitized error code; no object key, token or provider diagnostic.
 - `POST /v1/speech/:id/cancel`: `{}`; fences unfinished work.
 - `GET`/`HEAD /v1/speech/:id/audio`: authorized MP3, with single byte-range
   206/416 handling. Source changes/expiry make audio unavailable.
 
 [Verification and reviewed synthetic captures](design/screenshots/speech/README.md).
+[Selectable voices, sample provenance and captures](design/screenshots/speech-voices/README.md).

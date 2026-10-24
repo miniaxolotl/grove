@@ -14,6 +14,7 @@ import {
 import { rememberSchema, type Principal } from "@lib/shared/contracts";
 import { preferencesFor } from "@lib/shared/preferences";
 import { speechText } from "@lib/shared/speech";
+import { speechVoiceIds, type SpeechVoiceId } from "@lib/shared/speech-voices";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { createApp } from "../../packages/api/src/app.ts";
 import { localArtifacts } from "../../packages/api/src/artifacts.ts";
@@ -36,6 +37,7 @@ const auth = new Authentication(db, {
 });
 const generated = Buffer.concat([Buffer.from("ID3"), Buffer.alloc(200)]);
 let calls = 0;
+const routed: SpeechVoiceId[] = [];
 let hold: (() => Promise<void>) | undefined;
 const providers: SpeechProviders = {
   transcription: {
@@ -46,14 +48,20 @@ const providers: SpeechProviders = {
       return "Meet by the river.";
     },
   },
-  synthesis: {
-    profile: "speech-test-tts-alloy",
-    async synthesize() {
-      calls++;
-      await hold?.();
-      return generated;
-    },
-  },
+  synthesis: Object.fromEntries(
+    speechVoiceIds.map((voiceId) => [
+      voiceId,
+      {
+        profile: `speech-test-${voiceId}`,
+        async synthesize() {
+          calls++;
+          routed.push(voiceId);
+          await hold?.();
+          return generated;
+        },
+      },
+    ]),
+  ),
 };
 let root: string, principal: Principal, other: Principal;
 let media: ReturnType<typeof localMedia>,
@@ -196,7 +204,6 @@ test("speech requires a provider, session ownership, saved source and explicit p
     403,
   );
   const disabled = new SpeechJobs(service, {}, store);
-  await assert.rejects(disabled.enqueue(principal, n.id, input), /configured/);
   await assert.rejects(jobs.enqueue(other, n.id, input));
   await assert.rejects(
     jobs.enqueue({ ...principal, type: "key" }, n.id, input),
@@ -210,6 +217,7 @@ test("speech requires a provider, session ownership, saved source and explicit p
     transcriptionEnabled: true,
     readAloudEnabled: true,
   });
+  await assert.rejects(disabled.enqueue(principal, n.id, input), /configured/);
   const afterDue = await tenant(db, principal.accountId, (trx) =>
     trx("accounts")
       .where({ id: principal.accountId })
@@ -336,13 +344,13 @@ test("provider retries reserve units per attempt and a lost lease cannot publish
       id: randomUUID(),
       version: n.version,
     });
-  const original = providers.synthesis!.synthesize;
-  providers.synthesis!.synthesize = async () => {
+  const original = providers.synthesis!.reed!.synthesize;
+  providers.synthesis!.reed!.synthesize = async () => {
     throw new InferenceError("provider_unavailable", true);
   };
   await run(queued.id);
   assert.equal((await jobs.get(principal, queued.id)).status, "pending");
-  providers.synthesis!.synthesize = original;
+  providers.synthesis!.reed!.synthesize = original;
   await tenant(db, principal.accountId, (trx) =>
     trx("background_tasks")
       .where({ id: queued.id })
@@ -458,7 +466,10 @@ test("profile cutovers, session revocation and restore epochs invalidate pending
     });
   await configureSpeech(db, {
     ...providers,
-    synthesis: { ...providers.synthesis!, profile: "new-voice" },
+    synthesis: {
+      ...providers.synthesis,
+      reed: { ...providers.synthesis!.reed!, profile: "new-voice" },
+    },
   });
   const before = calls;
   await run(queued.id);
@@ -525,6 +536,230 @@ test("daily unit/request limits refuse provider work without deleting originals 
   const failed = await jobs.get(principal, queued.id);
   assert.equal(failed.status, "failed");
   assert.equal(failed.error, "speech_budget");
+});
+
+test("voice defaults are account-owned, partial and independent of consent generations", async () => {
+  const before = await tenant(db, principal.accountId, (trx) =>
+    trx("accounts").where({ id: principal.accountId }).first(),
+  );
+  assert.equal((await service.me(principal)).readAloudVoiceId, "reed");
+  const response = await req("/v1/account/settings", "PATCH", {
+    readAloudVoiceId: "willow",
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).data.readAloudVoiceId, "willow");
+  const after = await tenant(db, principal.accountId, (trx) =>
+    trx("accounts").where({ id: principal.accountId }).first(),
+  );
+  assert.equal(after.readAloudVersion, before.readAloudVersion);
+  assert.equal(after.transcriptionVersion, before.transcriptionVersion);
+  assert.equal(after.readAloudEnabled, before.readAloudEnabled);
+  assert.deepEqual(after.organizationDueAt, before.organizationDueAt);
+  assert.equal((await service.me(other)).readAloudVoiceId, "reed");
+  await assert.rejects(
+    service.settings(
+      { ...principal, type: "key" },
+      { readAloudVoiceId: "cedar" },
+    ),
+  );
+  assert.equal(
+    (
+      await req("/v1/account/settings", "PATCH", {
+        readAloudVoiceId: "arbitrary",
+      })
+    ).status,
+    400,
+  );
+  const me = (await (await req("/v1/me")).json()).data;
+  assert.deepEqual(
+    me.speechVoices.map((v: { id: string; available: boolean }) => [
+      v.id,
+      v.available,
+    ]),
+    speechVoiceIds.map((id) => [id, true]),
+  );
+  assert(!JSON.stringify(me.speechVoices).includes("speech-test"));
+  await service.settings(principal, { readAloudVoiceId: "reed" });
+});
+
+test("voice requests route exactly, replay omitted defaults and reuse A→B→A audio with its original expiry", async () => {
+  const n = await service.remember(
+    other,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      content: "A stream runs through the woods.",
+    }),
+  );
+  const input = { id: randomUUID(), version: n.version };
+  const first = await jobs.enqueue(other, n.id, input);
+  assert.equal(first.voiceId, "reed");
+  await run(first.id);
+  const original = await tenant(db, other.accountId, (trx) =>
+    trx("background_tasks").where({ id: first.id }).first(),
+  );
+  for (const voiceId of ["willow", "cedar", "brook"] as const) {
+    await service.settings(other, { readAloudVoiceId: voiceId });
+    assert.equal(
+      (await jobs.enqueue(other, n.id, input)).voiceId,
+      "reed",
+      "a lost-response retry retains the originally resolved default",
+    );
+    await assert.rejects(
+      jobs.enqueue(other, n.id, { ...input, voiceId }),
+      /changed/,
+    );
+    const task = await jobs.enqueue(other, n.id, {
+      id: randomUUID(),
+      version: n.version,
+    });
+    assert.equal(task.voiceId, voiceId);
+    await run(task.id);
+    assert.equal((await jobs.get(other, task.id)).playable, true);
+    assert.equal(routed.at(-1), voiceId);
+  }
+  const before = calls;
+  const cached = await jobs.enqueue(other, n.id, {
+    id: randomUUID(),
+    version: n.version,
+    voiceId: "reed",
+  });
+  assert.equal(cached.status, "succeeded");
+  assert.equal(cached.voiceId, "reed");
+  assert.equal(calls, before);
+  const receipt = await tenant(db, other.accountId, (trx) =>
+    trx("background_tasks").where({ id: cached.id }).first(),
+  );
+  assert.deepEqual(receipt.expiresAt, original.expiresAt);
+  assert.equal(receipt.result.key, original.result.key);
+  await assert.rejects(jobs.audio(principal, cached.id));
+  await service.settings(other, { readAloudVoiceId: "reed" });
+});
+
+test("per-voice cutovers fence mismatched and legacy workers while leaving Reed and transcription available", async () => {
+  const n = await service.remember(
+    other,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      content: "Keep the same voice.",
+    }),
+  );
+  const a = await jobs.enqueue(other, n.id, {
+    id: randomUUID(),
+    version: n.version,
+    voiceId: "reed",
+  });
+  const b = await jobs.enqueue(other, n.id, {
+    id: randomUUID(),
+    version: n.version,
+    voiceId: "willow",
+  });
+  await run(a.id);
+  const changedProviders = {
+    ...providers,
+    synthesis: {
+      ...providers.synthesis,
+      willow: { ...providers.synthesis!.willow!, profile: "changed-willow" },
+    },
+  };
+  await configureSpeech(db, changedProviders);
+  assert.equal((await jobs.get(other, a.id)).playable, true);
+  const before = calls;
+  await run(b.id);
+  assert.equal(calls, before);
+  assert.equal((await jobs.get(other, b.id)).status, "failed");
+  await assert.rejects(
+    jobs.enqueue(other, n.id, {
+      id: randomUUID(),
+      version: n.version,
+      voiceId: "willow",
+    }),
+    /configured/,
+  );
+  assert.equal((await jobs.availability()).transcription, true);
+  const currentJobs = new SpeechJobs(service, changedProviders, store);
+  const current = await currentJobs.enqueue(other, n.id, {
+    id: randomUUID(),
+    version: n.version,
+    voiceId: "willow",
+  });
+  await run(current.id); // This worker still has the old profile.
+  assert.equal(calls, before);
+  await configureSpeech(db, {
+    ...providers,
+    synthesis: { reed: providers.synthesis!.reed },
+  });
+  assert.equal((await jobs.get(other, a.id)).playable, true);
+  await service.settings(other, { readAloudVoiceId: "brook" });
+  await assert.rejects(
+    jobs.enqueue(other, n.id, { id: randomUUID(), version: n.version }),
+    /configured/,
+  );
+  assert.equal((await service.me(other)).readAloudVoiceId, "brook");
+  await configureSpeech(db, providers);
+  await service.settings(other, { readAloudVoiceId: "reed" });
+  const legacy = await jobs.enqueue(other, n.id, {
+    id: randomUUID(),
+    version: n.version,
+    voiceId: "cedar",
+  });
+  await tenant(db, other.accountId, (trx) =>
+    trx("background_tasks")
+      .where({ id: legacy.id })
+      .update({ payload: trx.raw("payload - 'voiceId'") }),
+  );
+  await run(legacy.id);
+  assert.equal(calls, before);
+  assert.equal((await jobs.get(other, legacy.id)).error, "speech_changed");
+  const configuration = await db("speech_configuration").first();
+  assert.equal(configuration.synthesis, "speech-voices-v1");
+  assert.notEqual(
+    configuration.synthesis,
+    providers.synthesis!.reed!.profile,
+    "legacy workers compare their single profile and fail closed",
+  );
+});
+
+test("a future default change preserves in-flight voice identity but its profile cutover prevents publication", async () => {
+  for (const cutover of [false, true]) {
+    const n = await service.remember(
+      other,
+      rememberSchema.parse({
+        operationId: randomUUID(),
+        content: "Let the current reading finish.",
+      }),
+    );
+    const queued = await jobs.enqueue(other, n.id, {
+      id: randomUUID(),
+      version: n.version,
+      voiceId: "willow",
+    });
+    let release!: () => void, entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    hold = async () => {
+      entered();
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    };
+    const pending = run(queued.id);
+    await started;
+    await service.settings(other, { readAloudVoiceId: "cedar" });
+    if (cutover)
+      await configureSpeech(db, {
+        ...providers,
+        synthesis: { reed: providers.synthesis!.reed },
+      });
+    release();
+    await pending;
+    hold = undefined;
+    const ready = await jobs.get(other, queued.id);
+    assert.equal(ready.voiceId, "willow");
+    assert.equal(ready.playable, !cutover);
+    await configureSpeech(db, providers);
+  }
+  await service.settings(other, { readAloudVoiceId: "reed" });
 });
 test("maintenance expires machine candidates without touching accepted transcripts or original audio", async () => {
   const candidate = await tenant(db, principal.accountId, (trx) =>

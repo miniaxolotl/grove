@@ -80,6 +80,30 @@ can save Read aloud off, and that opening a note or the audio controls never
 prepares/plays audio automatically. This source change does not authorize applying
 the migration to a retained database or changing production preferences.
 
+### Selectable speech voices (022)
+
+Apply `20261024_022_speech_voices` with the owner connection after 021. It backfills
+only the new Reed default, preserving consent flags/generations, and adds the
+per-voice installation profile map. Both runtime processes now require this schema.
+
+Drain old API/worker instances, install matching registry-aware binaries with
+`MINIMAX_TTS_ENABLED=false`, and let API startup publish `speech-voices-v1` plus
+the desired profile map. The protocol marker fences legacy single-voice workers;
+legacy TTS receipts require starting again. Do not restart old API instances that
+could republish the single-profile configuration. Verify Reed and transcription
+before enabling `MINIMAX_TTS_ENABLED=true` on API and worker with the existing
+server-only `MINIMAX_API_KEY` and temporary artifact storage. Keep `SPEECH_ENABLED`,
+`OPENAI_API_KEY`, `TTS_VOICE` and `SPEECH_PROVIDER_CONCURRENCY` consistent too.
+
+Deploy the matching website and verify remembered voices, explicit prepare/play,
+switch cancellation, cache reuse, and scoped playback with synthetic notes. Provider
+qualification and sample provenance are in the [voice evidence](design/screenshots/speech-voices/README.md).
+Operational rollback disables MiniMax TTS while retaining the new schema/binaries:
+saved choices remain visible as unavailable and Reed can be selected explicitly.
+Use the current restore reconciliation script to preserve the remembered choice
+without reviving generated audio. Production migration, provider activation and
+deployment remain separate operator operations.
+
 ### Ask Grove tools rollout (020)
 
 Apply `20261023_020_ask_tools` with the owner connection after the notebook lifecycle
