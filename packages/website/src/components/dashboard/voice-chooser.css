@@ -22,7 +22,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 18px 18px;
+  padding: 6px 12px 14px;
   font-size: 0.8125rem;
   line-height: 1.5;
 }
@@ -32,9 +32,20 @@
 .speech-voice-option {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--color-line);
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 8px;
+}
+.speech-voice-option:has(input:checked) {
+  background: color-mix(in srgb, var(--color-forest) 7%, transparent);
+}
+@media (hover: hover) {
+  .speech-voice-option:has(input:not(:disabled)):hover {
+    background: color-mix(in srgb, var(--color-forest) 4%, transparent);
+  }
+  .speech-voice-option:has(input:checked):hover {
+    background: color-mix(in srgb, var(--color-forest) 9%, transparent);
+  }
 }
 .speech-voice-chooser .speech-voice-option > label {
   display: flex;
@@ -59,14 +70,21 @@
   color: var(--color-muted);
   font-size: 0.75rem;
 }
-.speech-voice-hint {
-  margin: 1rem 0;
+.speech-voice-basic {
   color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.speech-voice-hint {
+  margin: 0.75rem 0.5rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
 }
 .speech-voice-footer {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+  padding-inline: 0.5rem;
 }
 .speech-voice-footer > button {
   min-height: 44px;
@@ -74,15 +92,20 @@
 .speech-sample {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   max-width: 7rem;
   font-size: 0.75rem;
 }
-.speech-sample button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 44px;
+.speech-sample .app-icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+}
+.speech-sample .app-icon[data-playing] {
+  color: var(--color-paper);
+  background: var(--color-forest);
+  border-color: var(--color-forest);
 }
 .speech-voice-chooser :is(button, input):focus-visible,
 .speech-voice-preference > button:focus-visible {

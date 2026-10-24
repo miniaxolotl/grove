@@ -8,7 +8,7 @@ import {
   type SpeechVoiceId,
 } from "@lib/shared/speech-voices";
 import { Dialog } from "./dialog";
-import { Button } from "./ui/button";
+import { Button, IconButton } from "./ui/button";
 import { claimAudio, releaseAudio } from "./audio-focus";
 import "./voice-chooser.css";
 
@@ -90,7 +90,9 @@ export function VoiceChooser({
                 <span>
                   <span id={`${group}-${voice.id}-name`}>
                     {voice.name}
-                    {voice.basic ? " · Basic" : ""}
+                    {voice.basic && (
+                      <span className="speech-voice-basic"> · Basic</span>
+                    )}
                   </span>
                   <span
                     id={`${group}-${voice.id}-description`}
@@ -109,8 +111,8 @@ export function VoiceChooser({
         </fieldset>
         <p className="speech-voice-hint">
           {settings
-            ? "Save preferences to keep your selection."
-            : "Your choice is remembered for future Read aloud requests."}
+            ? "Save preferences to keep this voice."
+            : "Used for future read-alouds."}
         </p>
         <div className="speech-voice-footer">
           <Button variant="secondary" onClick={close}>
@@ -184,20 +186,18 @@ function VoiceSample({ voice }: { voice: SpeechVoice }) {
           setError(true);
         }}
       />
-      <button
-        type="button"
-        className="text-button"
-        aria-label={`${playing ? "Pause" : "Play"} ${voice.name} sample`}
+      <IconButton
+        label={`${playing ? "Pause" : "Play"} ${voice.name} sample`}
+        data-playing={playing || undefined}
         onClick={() => void toggle()}
       >
         {playing ? (
-          <Pause size={14} aria-hidden="true" />
+          <Pause size={16} aria-hidden="true" />
         ) : (
-          <Play size={14} aria-hidden="true" />
+          <Play size={16} aria-hidden="true" />
         )}
-        {playing ? "Pause sample" : "Play sample"}
-      </button>
-      {error && <span role="alert">Sample couldn’t play. Try again.</span>}
+      </IconButton>
+      {error && <span role="alert">Couldn’t play. Try again.</span>}
     </span>
   );
 }
