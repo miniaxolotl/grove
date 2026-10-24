@@ -1,8 +1,9 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { clientOptions } from "@/content/install";
 
-const choices = ["opencode", "claude", "codex", "mcp"];
+const choices = clientOptions.map((option) => option.value);
 const key = "grove.selected-agent";
 let transient: string | undefined;
 function selected() {

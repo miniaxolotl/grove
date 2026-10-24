@@ -16,14 +16,57 @@ Both components already use S3 artifacts. The [rollout](deploy.md#content-addres
 documents flag activation, the forward migration and lifecycle-independent
 `narration/` storage. Production configuration and data were not changed.
 
-Root lint, types, build, **355 backend/service tests** (four optional service
+After integrating hosted-chat #116, root lint, types, build, **362 backend/service tests** (four optional service
 skips), **nine packaged artifacts** and **seven deployment contracts** pass.
 Regression-first checks reproduced revision-bound reuse, one-day expiry and a
 cleanup/revert race, then pass with the fix. Populated 023→024 preservation and
 loopback S3 request metadata also pass. Preferences/privacy copy replaces the
-stale one-day promise. Website lint, types and production build plus **14 focused
-Chromium settings/public-page checks** pass; no layout or interaction change
+stale one-day promise. Website lint, types and production build plus **20 focused
+Chromium settings/public-page/hosted-chat checks** pass; no layout or interaction change
 requires new screenshots.
+
+## Hosted ChatGPT and Claude setup (24 October 2026)
+
+Installation and Connections distinguish ChatGPT/Claude web from native coding
+agents, with remote URLs, OAuth/DCR guidance, Personal examples and explicit
+pending-client refresh/approval. A denied remote tool links the exact authenticated
+connection instead of restarting OAuth. Approval forms identify the client and
+carry a row-locked state fingerprint: newer scope edits/revocation reject stale
+reviews, while normal last-contact updates do not. No new tool, migration, secret,
+or source label is introduced. At the owner's request, new connection forms and
+native proposals select all action/scope checkboxes, including deletion and all
+notebooks; users can narrow them before approving. Existing grants retain saved
+choices, and sign-in alone still grants no note access.
+
+Root/site lint, types and production builds, **350 backend tests** (four optional
+S3/broker skips), **nine packed artifacts**, **all 233 Chromium cases**, **11 focused
+iPhone/WebKit cases**, three native hosts and bundle budgets pass. The backend
+guidance and stale-review cases were verified failing before implementation.
+Fifty CI/release/deployment contracts, pinned workflow lint and the API Docker build
+also pass. Notes entry is **489,087 gzip bytes**, with the editor still deferred.
+[Four reviewed captures](design/screenshots/hosted-chat/README.md) cover desktop
+and phone, with WCAG A/AA and 320/390/1440px overflow checks.
+The all-selected-default follow-up retains explicit narrowed/retry/resume tests;
+its compact native permission summary keeps the primary action entirely visible
+at 320×640 in both engines without hiding permissions or loosening the assertion.
+
+Official-directory preflight adds titles to all existing tools and optional API-only
+public domain proof at `/.well-known/openai-apps-challenge`. Four isolated tests
+cover exact text/headers/HEAD, absent/invalid configuration, no database or identity
+calls, private MCP's unchanged 401 and real-SDK discovery. Three expectations failed
+before implementation. This adds no migration or new memory tool. An overlapping
+local run timed out in an unchanged packaged telemetry control and two browser
+cases; all passed unchanged in isolation, then the complete nine-artifact and
+233-case browser suites passed without relaxed timeouts/assertions.
+
+Initial real ChatGPT/Claude discovery selected DCR; CIMD is not advertised. That
+check did not create/approve a memory connection or deploy this feature. An official
+OpenAI package draft has since been created after publisher verification, but
+domain setup, reviewer access and live tests remain review gates; no accepted or
+published directory listing is claimed. **End-to-end hosted-client acceptance
+against this source candidate remains unverified**, pending the protected rollout
+and real sign-in/save/recall/refresh/revocation in both hosts. This is not an automatic
+every-chat memory hook. [Setup, permissions and rollout limits](hosted-chat.md).
 
 ## Billing lifecycle review follow-up (24 October 2026)
 

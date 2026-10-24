@@ -1,5 +1,10 @@
 # Grove Cloud agent connection
 
+This page describes **terminal/coding-agent setup**. For ChatGPT and Claude web,
+use the [browser-only hosted-chat flow](hosted-chat.md): remote OAuth sign-in,
+explicit approval in Connections, then return/retry in the host. Hosted clients
+do not run `/v1/connect`, a loopback callback or a native installer.
+
 `npx @miniaxolotl/grove connect opencode` (or `claude`, `codex`) is the Cloud setup
 entry point. `/install` presents the agent picker first; `/self-host` documents
 Grove Open Source. Both use the same authenticated API and native integrations.
@@ -25,8 +30,10 @@ and returns to the pending setup. Fresh `grove login` defaults to Cloud.
    client/connection IDs, and an approval URL containing only the attempt UUID.
 4. The loopback OAuth callback redirects the same browser to `/app/connect/:id`.
    Clerk preserves this destination through website sign-in/sign-up. The page shows
-   the agent, repository and proposed access. Defaults for a new connection are
-   read/write, personal + current project, no permanent deletion. Existing grants
+   the agent, repository and proposed access. All permission and scope checkboxes
+   are selected for a new connection: read/write/delete, Personal and all current
+   and future notebooks, including the current project. The user can uncheck them
+   before approving. Existing grants
    are preserved when adding a project. Customization exposes name, actions,
    selected/all projects and optional expiry.
 5. Owner-session `POST /v1/connect/:id/approve` takes the grant plus `currentProject`.

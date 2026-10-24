@@ -25,13 +25,38 @@ cutoff. Client-supplied owner IDs are rejected.
 
 Protected-resource discovery: `/.well-known/oauth-protected-resource/mcp`.
 Anonymous requests receive 401 and `WWW-Authenticate`. Provider outages return 503,
-not a fabricated connected state. Live Clerk development OAuth passed; production
-configuration remains a deployment gate. See [delivery evidence](delivery.md).
+not a fabricated connected state. Development and production OAuth verification
+are recorded in [delivery evidence](delivery.md#hosted-production-verification);
+this is not acceptance of either hosted-chat client. See [hosted-chat setup](hosted-chat.md).
+
+An authenticated, unapproved OAuth client can initialize MCP and list tool schemas,
+but cannot read or write notes. Remote tool calls return `connection_required` with
+an exact connection link and authenticated client ID for owner approval. This is
+a Grove permission failure, not a 401 challenge that should restart OAuth. Tool
+listing and the connection's last-contact timestamp do not prove host tool use.
+
+Owner `GET /v1/connections` includes a `state` fingerprint. The website sends it as
+`expectedState` on `PATCH /v1/connections/:id`; an atomic mismatch returns 409
+`connection_conflict` without editing/reactivating the grant. Contact timestamps
+are excluded. Existing API callers may omit it for backward compatibility; it
+does not authorize anything and never replaces an owner session.
 
 Public read-only sharing uses separate capability-checked `/public/shares/*`
 routes. Link management requires the owning website session; OAuth/API keys cannot
 publish content. See [sharing](sharing.md) for routes, permissions, live membership,
 pagination, independent public limits and revocation.
+
+## Directory domain verification
+
+Set optional API-only `OPENAI_APPS_CHALLENGE` to the exact public token issued by
+OpenAI. `GET /.well-known/openai-apps-challenge` returns only that plain text, with
+`no-store` and `nosniff`; it returns 404 when unset. HEAD returns no body. There is
+no proof-upload endpoint, redirect, database lookup, authentication grant or access
+to notes. The token is a public ownership proof, not an access credential. Whitespace
+and values over 512 characters are rejected rather than silently changed.
+
+All memory tools publish human-readable titles and explicit safety annotations
+for directory discovery. Names, arguments and per-call permissions remain unchanged.
 
 ## Memory and notebook tools
 
