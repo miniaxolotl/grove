@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+export { mp3DurationMs } from "./audio-duration.ts";
 export {
   createOpenAiSpeech,
   createMiniMaxSpeech,
