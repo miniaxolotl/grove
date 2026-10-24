@@ -146,12 +146,14 @@ release path; merging source does not deploy it. Public listings remain separate
 Local browser evidence and actual gate results are recorded in
 [delivery](delivery.md) and the [reviewed gallery](design/screenshots/hosted-chat/README.md).
 
-## Public-directory follow-up
+## Official directory submissions
 
-After live private-beta acceptance, separately review each directory's current
-eligibility and submission requirements. Prepare descriptions/icons, privacy and
+Official listings are being prepared; this does not claim review acceptance or
+publication. Until a listing is published, use the custom-connection paths above.
+Review each directory's current eligibility and submission requirements. Prepare descriptions/icons, privacy and
 support URLs, representative prompts, a synthetic reviewer account and repeatable
 OAuth/permissions tests. Evaluate stable client registration for scale rather than
 assuming the issuer supports CIMD. Submission, publication, provider changes,
-embedded UI and deep-research adapters need their own approval; none is implied
-by this source PR.
+embedded UI and deep-research adapters remain distinct decisions. Operators can
+serve OpenAI's public domain proof with the [optional API configuration](server.md#directory-domain-verification);
+this does not authorize note access or satisfy the real-host/reviewer test gates.

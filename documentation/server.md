@@ -46,6 +46,18 @@ routes. Link management requires the owning website session; OAuth/API keys cann
 publish content. See [sharing](sharing.md) for routes, permissions, live membership,
 pagination, independent public limits and revocation.
 
+## Directory domain verification
+
+Set optional API-only `OPENAI_APPS_CHALLENGE` to the exact public token issued by
+OpenAI. `GET /.well-known/openai-apps-challenge` returns only that plain text, with
+`no-store` and `nosniff`; it returns 404 when unset. HEAD returns no body. There is
+no proof-upload endpoint, redirect, database lookup, authentication grant or access
+to notes. The token is a public ownership proof, not an access credential. Whitespace
+and values over 512 characters are rejected rather than silently changed.
+
+All memory tools publish human-readable titles and explicit safety annotations
+for directory discovery. Names, arguments and per-call permissions remain unchanged.
+
 ## Memory and notebook tools
 
 | Tool                               | Purpose                                            | Main fields                                                                                  |

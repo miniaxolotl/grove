@@ -2,6 +2,12 @@
 
 ## Hosted chat connections
 
+`pnpm exec tsx --test tests/src/directory.test.ts` runs without a database listener.
+It verifies exact optional public proof, content type/cache/nosniff, HEAD and wrong
+method/path handling, zero identity/database calls, private MCP's unchanged 401,
+bounded unchanged token validation, and titles/annotations through the actual MCP
+SDK. Public verification must never become an account-approval shortcut.
+
 With the disposable database/non-owner roles below, run
 `pnpm exec tsx --test tests/src/hosted-chat.test.ts tests/src/connect.test.ts tests/src/memory-tools.test.ts`.
 The official MCP HTTP client initializes/lists tools before approval, receives

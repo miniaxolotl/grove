@@ -13,7 +13,7 @@ native proposals select all action/scope checkboxes, including deletion and all
 notebooks; users can narrow them before approving. Existing grants retain saved
 choices, and sign-in alone still grants no note access.
 
-Root/site lint, types and production builds, **346 backend tests** (four optional
+Root/site lint, types and production builds, **350 backend tests** (four optional
 S3/broker skips), **nine packed artifacts**, **all 233 Chromium cases**, **11 focused
 iPhone/WebKit cases**, three native hosts and bundle budgets pass. The backend
 guidance and stale-review cases were verified failing before implementation.
@@ -25,12 +25,22 @@ The all-selected-default follow-up retains explicit narrowed/retry/resume tests;
 its compact native permission summary keeps the primary action entirely visible
 at 320×640 in both engines without hiding permissions or loosening the assertion.
 
-Real ChatGPT and Claude inspected the current public endpoint's OAuth discovery
-and selected DCR; CIMD is not advertised. No new connection/consent, provider
-configuration or deployment was submitted. **End-to-end hosted-client acceptance
-against this source candidate remains unverified**, requiring an explicitly
-authorized HTTPS deployment and live sign-in/save/recall/refresh/revocation in
-both hosts. Source delivery is not a public-directory listing or an automatic
+Official-directory preflight adds titles to all existing tools and optional API-only
+public domain proof at `/.well-known/openai-apps-challenge`. Four isolated tests
+cover exact text/headers/HEAD, absent/invalid configuration, no database or identity
+calls, private MCP's unchanged 401 and real-SDK discovery. Three expectations failed
+before implementation. This adds no migration or new memory tool. An overlapping
+local run timed out in an unchanged packaged telemetry control and two browser
+cases; all passed unchanged in isolation, then the complete nine-artifact and
+233-case browser suites passed without relaxed timeouts/assertions.
+
+Initial real ChatGPT/Claude discovery selected DCR; CIMD is not advertised. That
+check did not create/approve a memory connection or deploy this feature. An official
+OpenAI package draft has since been created after publisher verification, but
+domain setup, reviewer access and live tests remain review gates; no accepted or
+published directory listing is claimed. **End-to-end hosted-client acceptance
+against this source candidate remains unverified**, pending the protected rollout
+and real sign-in/save/recall/refresh/revocation in both hosts. This is not an automatic
 every-chat memory hook. [Setup, permissions and rollout limits](hosted-chat.md).
 
 ## Billing lifecycle review follow-up (24 October 2026)
