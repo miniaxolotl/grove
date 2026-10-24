@@ -15,6 +15,74 @@ documentation refresh.
 
 ## Topology
 
+### Billing rollout (023)
+
+Billing source does not authorize a production migration, Stripe live-mode change
+or charging customers. Follow [billing configuration and limits](billing.md).
+
+1. Back up the database; apply forward `20261024_023_billing` after 022 using the
+   owner connection. It adds billing tables/functions without rewriting retained
+   notes, accounts or existing usage. Do not reverse the migration.
+2. Keep `billing-enabled=false`. Install matching API/worker binaries and configure
+   the same Vercel SDK key, Stripe mode/credentials, Pro product/portal and allowances.
+   The Vercel numeric `billing-pro-monthly-usd` flag starts at 5; it controls new-sale
+   pricing in the API as well as the displayed quote. Existing prices are retained.
+   `BILLING_CONFIGURED=true` requires the billing schema at runtime startup.
+   Image-only deployments do not infer or activate these variables.
+3. Configure Stripe's customer portal, tax/legal/payment/receipt settings and the
+   signed API webhook endpoint. Use test mode and an internal Vercel flag cohort
+   first. Deploy the matching website with flag integration, not Stripe secrets.
+4. Verify Free usage, owned Checkout, completed payment → Pro, duplicate/lost
+   responses, signed webhook retry/reordering, period-end cancellation, past-due
+   downgrade, reset dates, API/worker quotas and account-deletion cancellation.
+   Confirm a second account and agent credentials cannot manage another customer.
+5. Enable the intended cohort only after real Stripe test-mode/provider checks.
+   Live price selection, enablement and charging need separate operator approval.
+
+Hide all billing information and pause new sales/plan enforcement by turning the
+flag off, not by removing credentials or downgrading binaries. Website billing
+page/navigation and API status/checkout/portal return no billing details while off.
+Webhooks and deletion cancellation continue; the flag does not stop renewals.
+Existing safety limits remain. Retain provider billing records.
+
+Owner-authorized provider setup on 24 October 2026 created Grove Pro on the verified
+Bramble Labs Inc. live Stripe account, a $5 USD/month price, a dedicated portal and
+`https://api.usegrove.cloud/v1/webhooks/stripe` endpoint (API2026-09-30.endive).
+Restricted-key reads and live Checkout creation/expiry verified 500 cents/USD;
+no payment or subscription was created. Vercel `bramble-labs-inc/grove` has both
+flags configured, with billing **off in all environments**. New runtime credentials
+and configuration are saved in Doppler `grove/prd_api`, `prd_worker`, `prd_website`
+and ignored private local `secrets.md` inventories. Vercel production website has
+`BILLING_CONFIGURED=true` and its saved Flags Explorer secret for the next deployment.
+Production migration, API/worker runtime-variable synchronization, source promotion
+and website deployment remain release operations; catalog setup is not a deployed
+webhook-delivery or paid lifecycle acceptance claim.
+
+Customer support and Stripe reply-to use `hello@bramblelabs.co`. Stripe's custom
+email domain is `bramblelabs.co`; its required verification, six DKIM and bounce
+records are installed DNS-only, with all nine pre-existing DNS records preserved.
+Stripe must finish verification before the domain can be selected for sending;
+return to Customer emails → bramblelabs.co later and select Send email from this
+domain once available. Owner approved continuing the PR while verification waits.
+Stripe fixes sender local parts such as `billing` and `receipts`; the reply-to
+address remains `hello`, not a configurable sender local part.
+
+MXroute's verified `hello@bramblelabs.co` mailbox receives eight configured base
+forwarders: `billing`, `card-expiring`, `failed-payments`, `invoice`, `receipts`,
+`support`, `trial-ending` and `upcoming-invoice`. Stripe's `invoice+statements` and
+`support+express` use plus addressing; the panel rejects literal plus signs in
+forwarder names. The owner additionally approved a domain catch-all: every unmatched
+`@bramblelabs.co` address forwards to `hello@bramblelabs.co`. Its selected forward
+mode and destination were verified after reload. Existing mailboxes and named
+forwarders retain their normal handling. Actual external message delivery was not
+tested; no mailbox contents or pre-existing forwarding destinations were changed.
+
+After database restore, keep the flag **off** and provider traffic fenced until an
+owner reconciles customer mappings, subscriptions and deleted-account tombstones
+against Stripe. Do not open new Checkout from a pre-billing/stale customer snapshot
+or infer entitlement from restored rows/event receipts. Verify canonical status
+with disposable accounts before reopening; restore is not payment reconciliation.
+
 ### Connection quality policy cutover
 
 The substantive-bridge policy requires no new database migration. Coordinate the

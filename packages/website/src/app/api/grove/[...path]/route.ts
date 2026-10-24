@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { type NextRequest } from "next/server";
 import { site } from "@/lib/site";
+import { showBilling } from "@/lib/flags";
 
 export const maxDuration = 180;
 
@@ -26,6 +27,10 @@ async function forward(
   )
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
+  const billing = /^(billing|billing\/(?:checkout|portal))$/.test(path);
+  if (billing && process.env.BILLING_CONFIGURED !== "true")
+    return fail(404, "Route not found");
+  if (billing && !(await showBilling())) return fail(404, "Route not found");
   const media =
     /^memories\/[0-9a-f-]+\/(?:media\/[0-9a-f-]+(?:\/transcript)?|archive-file)$/.test(
       path,
@@ -36,6 +41,7 @@ async function forward(
     );
   if (
     !media &&
+    !billing &&
     !speech &&
     !allowed.test(path) &&
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&

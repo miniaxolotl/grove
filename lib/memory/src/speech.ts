@@ -19,6 +19,7 @@ import {
 import type { ArtifactStore } from "./exports.ts";
 import { fingerprint } from "./tasks.ts";
 import { budgetedInference } from "./processing.ts";
+import { billingAllows } from "./billing-quotas.ts";
 import {
   TaskError,
   taskTransaction,
@@ -501,7 +502,7 @@ export function speechHandlers(
         await validate(trx, row, providers);
         const usage = await trx("speech_usage")
           .where({ kind: row.kind })
-          .whereRaw("day=CURRENT_DATE")
+          .whereRaw("day=(now() AT TIME ZONE 'UTC')::date")
           .first();
         const limit =
           row.kind === "speech_transcribe"
@@ -509,11 +510,18 @@ export function speechHandlers(
             : speechLimits.dailyCharacters;
         if (
           (usage?.requests ?? 0) >= speechLimits.dailyRequests ||
-          (usage?.units ?? 0) + current.units > limit
+          (usage?.units ?? 0) + current.units > limit ||
+          !(await billingAllows(
+            db,
+            trx,
+            row.accountId!,
+            key.provider,
+            current.units,
+          ))
         )
           throw new TaskError("speech_budget", false);
         await trx.raw(
-          `INSERT INTO speech_usage(account_id,kind,requests,units) VALUES(?,?,1,?)
+          `INSERT INTO speech_usage(account_id,kind,day,requests,units) VALUES(?,?,(now() AT TIME ZONE 'UTC')::date,1,?)
           ON CONFLICT(account_id,day,kind) DO UPDATE SET requests=speech_usage.requests+1,units=speech_usage.units+excluded.units`,
           [row.accountId, row.kind, current.units],
         );

@@ -52,6 +52,7 @@ import {
 } from "./notebook-summaries.ts";
 import { assistanceProfile } from "./assistance-data.ts";
 import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
+import { billingAllows } from "./billing-quotas.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -337,6 +338,7 @@ type Job = {
   attempts: number;
 };
 async function reserve(
+  db: Knex,
   trx: Knex.Transaction,
   accountId: string,
   role: string,
@@ -346,12 +348,17 @@ async function reserve(
     accountId,
   ]);
   const result = await trx("inference_usage")
-    .whereRaw("day = CURRENT_DATE")
+    .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")
     .sum("requests as count")
     .first();
   if (Number(result?.count ?? 0) >= limit) return false;
+  if (
+    role === "generation" &&
+    !(await billingAllows(db, trx, accountId, "generation"))
+  )
+    return false;
   await trx.raw(
-    `INSERT INTO inference_usage(account_id, role, requests) VALUES (?, ?, 1)
+    `INSERT INTO inference_usage(account_id, role, day, requests) VALUES (?, ?, (now() AT TIME ZONE 'UTC')::date, 1)
     ON CONFLICT(account_id, day, role) DO UPDATE SET requests = inference_usage.requests + 1`,
     [accountId, role],
   );
@@ -384,7 +391,7 @@ export async function budgetedInference<T>(
   run: (options: InferenceOptions) => Promise<T>,
 ) {
   const allowed = await tenant(db, accountId, (trx) =>
-    reserve(trx, accountId, role, limit),
+    reserve(db, trx, accountId, role, limit),
   );
   if (!allowed) throw new InferenceError("inference_budget");
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
@@ -411,7 +418,7 @@ async function recordUsage(
   await tenant(db, accountId, async (trx) => {
     await trx("inference_usage")
       .where({ accountId, role })
-      .whereRaw("day = CURRENT_DATE")
+      .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")
       .increment({
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
@@ -571,7 +578,7 @@ export async function runProcessingJob(
         selected.push(row);
         remaining -= row.content.length;
       }
-      if (!(await reserve(trx, job.accountId, role, dailyLimit))) {
+      if (!(await reserve(db, trx, job.accountId, role, dailyLimit))) {
         await trx("jobs")
           .where({ id: job.id, leaseId: job.leaseId })
           .update({

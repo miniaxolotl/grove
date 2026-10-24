@@ -45,3 +45,10 @@ After correcting the branded titles, all **227 Chromium cases** pass, including
 the four contact/page scenarios, no-JavaScript reading, signed-out access,
 canonical/sitemap/navigation and 320/1440px accessibility checks. Root/site lint,
 types and builds, nine packaged-artifact checks, and changed-file formatting pass.
+
+Integration follow-up: development advanced to billing commit `2024c07` while the
+PR was opening. The merge preserves its billing implementation and historical
+evidence, while retaining this task's designated Grove support address and page
+links. The integrated tree again passes root/site lint, types/builds, all nine
+artifacts, and all 227 Chromium cases. No provider or database operation is part
+of this source integration.
