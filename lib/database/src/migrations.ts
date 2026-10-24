@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import { billing } from "./billing-migration.ts";
+import { speechCache } from "./speech-cache-migration.ts";
 import { speechVoices } from "./speech-voices-migration.ts";
 import { hardening, identityState } from "./hardening.ts";
 import { modelProviders } from "./model-migration.ts";
@@ -247,6 +248,7 @@ export const migrations = [
   speechDefaults,
   speechVoices,
   billing,
+  speechCache,
 ];
 
 export const migrationSource: Knex.MigrationSource<

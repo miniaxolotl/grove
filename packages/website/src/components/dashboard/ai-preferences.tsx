@@ -140,7 +140,7 @@ const groups: {
         key: "readAloudEnabled",
         label: "Read aloud",
         description:
-          "Use saved note text to create spoken audio when you ask. Audio expires within a day.",
+          "Create spoken audio when you ask. Reuse it while the text matches; previous versions stay cached for seven days.",
         provider: "synthesis",
       },
     ],

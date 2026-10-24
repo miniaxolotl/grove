@@ -1,5 +1,20 @@
 # Verification
 
+Speech-cache regressions in `speech-cache.test.ts` use a separate disposable
+database and real non-owner API/worker roles. They cover exact text-hash A→B→A
+reuse, receipt-independent lifetime, seven-day stale retention without extension,
+metadata-only revisions, note expiry/archive, consent/restore fences, tenant/note
+isolation, failed storage publication and cleanup racing an older transaction.
+`speech-cache-migration.test.ts` verifies populated 023→024 preservation.
+`speech-storage.test.ts` sends the S3 adapter to a loopback HTTP endpoint and checks
+the separate narration prefix, MP3 type and private/no-store metadata; it is not a
+live bucket lifecycle qualification.
+
+The cache suite also exercises dynamic alternate-voice flags: off/on discovery,
+cached playback, denial before dispatch/after inference, error fallback and Reed
+independence. `speech-runtime.test.ts` checks Vercel precedence over the legacy
+opt-in, self-host fallback, missing credentials/storage and master speech disable.
+
 ## Hosted chat connections
 
 `pnpm exec tsx --test tests/src/directory.test.ts` runs without a database listener.
