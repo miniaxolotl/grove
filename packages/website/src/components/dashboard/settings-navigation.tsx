@@ -41,9 +41,7 @@ export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
     >
       {[
         ...sections,
-        ...(billing || path === "/app/settings/billing"
-          ? [["/app/settings/billing", "Billing"]]
-          : []),
+        ...(billing ? [["/app/settings/billing", "Billing"]] : []),
       ].map(([href, label]) => (
         <Link
           key={href}

@@ -1,5 +1,22 @@
 # Delivery evidence
 
+## Five-dollar pricing and hidden billing (24 October 2026)
+
+Owner-selected **USD5/month** is configured in Vercel's numeric
+`billing-pro-monthly-usd` flag. The API resolves immutable monthly Stripe Prices
+under the Grove Pro product, rejects stale browser quotes and preserves existing
+subscribers' product-based entitlement. The boolean flag now hides **all** billing
+navigation, page, status and portal responses when off; webhooks and deletion
+cancellation continue. This supersedes the initial paused-portal behavior below.
+
+Owner-authorized live configuration creates the Grove Pro product/price, dedicated
+portal, webhook and restricted runtime key. The key verifies provider reads and a
+live500-cent/USD Checkout which is immediately expired without payment/subscription.
+Actual Vercel SDK evaluation confirms billing=false and monthly USD=5. Credentials
+are saved and read back in Doppler and ignored0600 local inventories. The price
+catalog and flags are configured; the API/worker schema/runtime rollout and normal
+protected source deployment remain outstanding. [Operator record](deploy.md#billing-rollout-023).
+
 ## Flagged Stripe subscriptions and usage (24 October 2026)
 
 Grove Cloud starts on Free, with configurable Pro allowances for generation,

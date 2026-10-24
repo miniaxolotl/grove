@@ -12,7 +12,7 @@ export const billing = {
       );
       CREATE TABLE billing_subscriptions (
         id text PRIMARY KEY, account_id uuid NOT NULL, customer_id text NOT NULL,
-        price_id text NOT NULL, status text NOT NULL,
+        price_id text NOT NULL, product_id text, status text NOT NULL,
         period_end timestamptz NOT NULL, cancel_at_period_end boolean NOT NULL DEFAULT false,
         updated_at timestamptz NOT NULL DEFAULT now(),
         FOREIGN KEY(account_id,customer_id) REFERENCES billing_customers(account_id,customer_id)

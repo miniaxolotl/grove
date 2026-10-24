@@ -1,12 +1,12 @@
 # Billing interface
 
 Synthetic Free/Pro accounts, Stripe-hosted destination fixtures and fixed UTC reset
-dates. Prices shown here ($12/month and $120/year) are **test prices**, not an
-activated production pricing decision. No real payment or provider data is used.
+dates. The displayed **USD5/month** matches the approved launch amount and numeric
+Vercel flag. Accounts and usage in the screenshots are synthetic; no payment is made.
 
 The actual Billing component is bundled by the isolated dashboard fixture and
-uses production CSS from Next build `Oj40C2i5gEHApFrCbP2UI`, based on development
-`9a36767` plus the billing working tree. Node24.21.0 / pnpm10.33.0, Chromium and
+uses production CSS from Next build `G2R_z51IolyDrH-zwVD3R`, based on billing source
+`25265ea` plus the pricing/concealment follow-up. Node24.21.0 / pnpm10.33.0, Chromium and
 Playwright1.64.1 Noble container iPhone/WebKit; locale en-US, local timezone shown
 in each capture. Pro's monthly allowances are disclosed before opening Checkout.
 
@@ -22,9 +22,10 @@ remaining allowances and reset explanation. Links below show the WebKit subset:
 | --- | --- | --- |
 | ![WebKit Free](webkit-free-390.png) | ![WebKit Pro](webkit-pro-390.png) | ![WebKit payment attention](webkit-payment-320.png) |
 
-Both-engine journeys check exhausted generation allowance, monthly/yearly prices,
+Both-engine journeys check exhausted generation allowance,5-dollar monthly prices,
 zero writes on open, keyboard focus, double-submit suppression, hosted Checkout,
-Pro state after return, period-end cancellation, paused-sales portal access,
+Pro state after return, period-end cancellation, portal access while enabled,
+complete removal of billing details after a flag-off404,
 load/retry/past-due recovery, WCAG A/AA and no document overflow or browser errors.
 Backend tests separately cover real PostgreSQL/RLS and actual Stripe SDK requests
 to a loopback provider. These screenshots do not establish real Stripe payment,

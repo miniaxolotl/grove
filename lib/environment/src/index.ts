@@ -77,8 +77,13 @@ const serverSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   FLAGS: z.string().min(1).optional(),
-  STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
+  STRIPE_SECRET_KEY: z
+    .string()
+    .regex(/^(sk|rk)_(test|live)_/)
+    .optional(),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+  STRIPE_PRO_PRODUCT_ID: z.string().startsWith("prod_").optional(),
+  STRIPE_PORTAL_CONFIGURATION_ID: z.string().startsWith("bpc_").optional(),
   STRIPE_PRO_MONTHLY_PRICE_ID: z.string().startsWith("price_").optional(),
   STRIPE_PRO_YEARLY_PRICE_ID: z.string().startsWith("price_").optional(),
   BILLING_FREE_GENERATION_DAILY: allowance(10),
@@ -248,7 +253,9 @@ export const serverEnvironmentSchema = serverSchema.superRefine((env, ctx) => {
       !env.FLAGS ||
       !env.STRIPE_SECRET_KEY ||
       !env.STRIPE_WEBHOOK_SECRET ||
-      (!env.STRIPE_PRO_MONTHLY_PRICE_ID && !env.STRIPE_PRO_YEARLY_PRICE_ID))
+      (!env.STRIPE_PRO_PRODUCT_ID &&
+        !env.STRIPE_PRO_MONTHLY_PRICE_ID &&
+        !env.STRIPE_PRO_YEARLY_PRICE_ID))
   )
     ctx.addIssue({
       code: "custom",

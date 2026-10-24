@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
+import type { MonthlyPricing } from "./billing-pricing.ts";
 import { tenant, type Knex } from "@lib/database";
 import { billingUsage, type MemoryService } from "@lib/memory";
 import { GroveError, type Principal } from "@lib/shared/contracts";
@@ -14,6 +15,8 @@ type Options = {
   webhookSecret: string;
   siteUrl: string;
   prices: Partial<Record<"month" | "year", string>>;
+  pricing?: MonthlyPricing;
+  portalConfigurationId?: string;
   enabled: (subject: string) => Promise<boolean>;
   proLimits?: PlanLimits;
 };
@@ -154,11 +157,23 @@ export class Billing {
               ? item.price.id
               : "unsupported",
           status: subscription.status,
+          productId:
+            subscription.items.data.length === 1 && item.quantity === 1
+              ? typeof item.price.product === "string"
+                ? item.price.product
+                : item.price.product?.id
+              : null,
           periodEnd: new Date(item.current_period_end * 1000),
           cancelAtPeriodEnd: subscription.cancel_at_period_end,
         })
         .onConflict("id")
-        .merge(["priceId", "status", "periodEnd", "cancelAtPeriodEnd"]);
+        .merge([
+          "priceId",
+          "productId",
+          "status",
+          "periodEnd",
+          "cancelAtPeriodEnd",
+        ]);
     }
     // A provider-side removal cannot leave an old local entitlement active.
     await trx("billing_subscriptions")
@@ -177,6 +192,8 @@ export class Billing {
       "admin",
       ({ account }) => this.options.enabled(account.clerkSubject),
     );
+    if (!enabled)
+      throw new GroveError("billing_disabled", "Route not found", 404);
     const state = await this.service.access(
       principal,
       "admin",
@@ -205,20 +222,22 @@ export class Billing {
         };
       },
     );
-    const prices = enabled
-      ? await Promise.all(
-          (Object.keys(this.options.prices) as ("month" | "year")[]).map(
-            async (interval) => {
-              const price = await this.price(interval);
-              return {
-                interval,
-                amount: price.unit_amount!,
-                currency: price.currency,
-              };
-            },
-          ),
-        )
-      : [];
+    const prices = this.options.pricing
+      ? [await this.options.pricing.quote(principal.subject)]
+      : enabled
+        ? await Promise.all(
+            (Object.keys(this.options.prices) as ("month" | "year")[]).map(
+              async (interval) => {
+                const price = await this.price(interval);
+                return {
+                  interval,
+                  amount: price.unit_amount!,
+                  currency: price.currency,
+                };
+              },
+            ),
+          )
+        : [];
     return {
       enabled,
       ...state,
@@ -230,6 +249,7 @@ export class Billing {
   async checkout(
     principal: Principal,
     interval: "month" | "year",
+    expectedAmount?: number,
   ): Promise<{ url: string }> {
     await this.service.access(principal, "admin", async ({ account, trx }) => {
       if (!(await this.options.enabled(account.clerkSubject)))
@@ -243,7 +263,15 @@ export class Billing {
         .onConflict("accountId")
         .ignore();
     });
-    const price = await this.price(interval);
+    if (this.options.pricing && interval !== "month")
+      throw new GroveError(
+        "billing_price_missing",
+        "This subscription option is unavailable",
+        400,
+      );
+    const price = this.options.pricing
+      ? await this.options.pricing.resolve(principal.subject, expectedAmount)
+      : await this.price(interval);
     // Persist the selected price before the remote write: lost responses must reuse
     // both the idempotency key and its original request parameters.
     await this.service.access(principal, "admin", async ({ trx }) => {
@@ -363,12 +391,13 @@ export class Billing {
         return destination(session.url, "checkout.stripe.com");
       },
     );
-    return result ?? this.checkout(principal, interval);
+    return result ?? this.checkout(principal, interval, expectedAmount);
   }
 
   async portal(principal: Principal) {
-    // Existing customers retain access to cancellation while new sales are paused.
-    return this.service.access(principal, "admin", async ({ trx }) => {
+    return this.service.access(principal, "admin", async ({ trx, account }) => {
+      if (!(await this.options.enabled(account.clerkSubject)))
+        throw new GroveError("billing_disabled", "Route not found", 404);
       const customer = await trx("billing_customers")
         .where({ accountId: principal.accountId })
         .first();
@@ -380,6 +409,9 @@ export class Billing {
         );
       const session = await this.options.stripe.billingPortal.sessions.create({
         customer: customer.customerId,
+        ...(this.options.portalConfigurationId
+          ? { configuration: this.options.portalConfigurationId }
+          : {}),
         return_url: `${this.options.siteUrl}/app/settings/billing`,
       });
       return destination(session.url, "billing.stripe.com");

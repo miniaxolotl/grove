@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Billing } from "./billing.ts";
 export { Billing };
+export { MonthlyPricing } from "./billing-pricing.ts";
 import { PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
@@ -189,9 +190,7 @@ export function createApp(deps: AppDependencies) {
           ? new GroveError(
               error.code,
               error.code === "inference_budget"
-                ? deps.billing
-                  ? "Your AI allowance is used up. Open Settings → Billing to upgrade or check when it resets. Writing and exporting remain available."
-                  : "The daily AI request limit is reached. Try after the next daily reset."
+                ? "Your AI usage limit is reached. Check Settings for your allowance and reset dates. Writing and exporting remain available."
                 : `Model request failed (${error.code})`,
               error.code === "inference_budget" ? 429 : 503,
             )
@@ -388,12 +387,19 @@ export function createApp(deps: AppDependencies) {
   );
   app.post("/v1/billing/checkout", async (c) => {
     const input = z
-      .object({ interval: z.enum(["month", "year"]) })
+      .object({
+        interval: z.enum(["month", "year"]),
+        expectedAmount: z.number().int().positive().optional(),
+      })
       .strict()
       .parse(await c.req.json());
     return c.json({
       success: true,
-      data: await billing().checkout(c.get("principal"), input.interval),
+      data: await billing().checkout(
+        c.get("principal"),
+        input.interval,
+        input.expectedAmount,
+      ),
     });
   });
   app.post("/v1/billing/portal", async (c) =>

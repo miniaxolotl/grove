@@ -30,8 +30,7 @@ async function forward(
   const billing = /^(billing|billing\/(?:checkout|portal))$/.test(path);
   if (billing && process.env.BILLING_CONFIGURED !== "true")
     return fail(404, "Route not found");
-  if (path === "billing/checkout" && !(await showBilling()))
-    return fail(404, "Subscriptions are not available yet");
+  if (billing && !(await showBilling())) return fail(404, "Route not found");
   const media =
     /^memories\/[0-9a-f-]+\/(?:media\/[0-9a-f-]+(?:\/transcript)?|archive-file)$/.test(
       path,

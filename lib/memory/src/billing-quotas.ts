@@ -9,6 +9,7 @@ import {
 type Configuration = {
   enabled: (subject: string) => Promise<boolean>;
   priceIds: string[];
+  productId?: string;
   limits?: Record<"free" | "pro", PlanLimits>;
 };
 // Each explicitly configured runtime owns its policy; tests and self-hosted installs
@@ -31,7 +32,10 @@ export async function billingUsage(
   const paid = await trx("billing_subscriptions")
     .where({ accountId })
     .whereIn("status", ["active", "trialing"])
-    .whereIn("priceId", config.priceIds)
+    .where((query) => {
+      query.whereIn("priceId", config.priceIds);
+      if (config.productId) query.orWhere({ productId: config.productId });
+    })
     .where("periodEnd", ">", trx.fn.now())
     .first("id");
   const plan = paid ? "pro" : "free";

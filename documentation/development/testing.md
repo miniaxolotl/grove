@@ -4,17 +4,20 @@ Billing tests use the disposable PostgreSQL/non-owner API and worker URLs below.
 `billing.test.ts` covers tenant isolation, non-superuser owner lookup, optional
 configuration, concurrent quotas, recognized/expired subscriptions, UTC windows,
 signed raw HTTP webhooks, duplicate events and canonical state, Checkout ownership,
-idempotency and duplicate prevention, paused-sales portal access and cancellation.
+idempotency and duplicate prevention, flag-off concealment and cancellation.
+`billing-pricing.test.ts` verifies a5-dollar flag resolves500-cent immutable monthly
+prices, stale quote rejection and invalid/offline price refusal; product entitlements
+preserve grandfathered subscribers across flag amount changes.
 The Stripe SDK calls a local synthetic HTTP service; no real payment is created.
 Research and speech suites also verify monthly quotas stop actual provider dispatch.
 
 ```sh
-pnpm exec tsx --test tests/src/billing.test.ts tests/src/billing-migration.test.ts tests/src/conversations.test.ts tests/src/speech-jobs.test.ts
+pnpm exec tsx --test tests/src/billing.test.ts tests/src/billing-pricing.test.ts tests/src/billing-migration.test.ts tests/src/conversations.test.ts tests/src/speech-jobs.test.ts
 ```
 
-Use the real Billing component fixture for Free/Pro, monthly/yearly price labels,
+Use the real Billing component fixture for Free/Pro, the5-dollar monthly price,
 exhausted/zero allowances, pending checkout, errors/retry, refresh after payment,
-period-end cancellation and paused-sales portal journeys at 1440/390/320px. Check
+period-end cancellation and hidden flag-off information at1440/390/320px. Check
 keyboard focus, accessible labels and overflow in Chromium and iPhone/WebKit.
 Flag-off production routes must hide new checkout; discovery requires Flags SDK
 authentication. Actual Stripe test/live lifecycle and Vercel cohort evaluation

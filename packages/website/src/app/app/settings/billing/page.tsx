@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { BillingPanel } from "@/components/dashboard/billing-panel";
+import { showBilling } from "@/lib/flags";
 
-export default function BillingPage() {
-  // Keep existing customers' cancellation accessible during a sales pause.
-  if (process.env.BILLING_CONFIGURED !== "true") notFound();
+export default async function BillingPage() {
+  if (!(await showBilling())) notFound();
   return <BillingPanel />;
 }

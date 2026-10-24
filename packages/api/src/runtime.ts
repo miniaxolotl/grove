@@ -46,7 +46,7 @@ export async function createRuntime() {
     const models = new ModelRegistry(db, env, memories);
     if (env.BILLING_CONFIGURED) {
       await db.raw(
-        "SELECT id,price_id,period_end FROM billing_subscriptions LIMIT 0",
+        "SELECT id,price_id,product_id,period_end FROM billing_subscriptions LIMIT 0",
       );
     }
     memories.research = {

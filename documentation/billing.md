@@ -1,9 +1,18 @@
 # Billing and usage
 
 Grove Cloud starts on **Free**. **Pro** increases AI allowances through a Stripe
-subscription; it does not sell a prepaid credit balance. The checkout price and
-currency come from configured Stripe Price IDs, not hard-coded marketing prices.
-Monthly and optional yearly billing grant the same monthly usage allowances.
+subscription; it does not sell a prepaid credit balance. Pro starts at **USD5/month**.
+The Vercel number flag `billing-pro-monthly-usd` controls the displayed amount and
+the amount charged for new monthly subscriptions. No yearly price is offered in
+the configured Cloud launch.
+
+The server validates whole-cent USD amounts between1 and10,000 dollars, resolves
+an immutable Stripe Price under the configured Grove Pro product, and refuses an
+outdated browser quote with `billing_price_changed`. Missing/invalid flag evaluation
+stops new checkout rather than silently charging a fallback amount. Changing the
+flag does not reprice existing subscriptions; product-based entitlement preserves
+their Pro access. Reusing an open checkout retains its original agreed price;
+review the new amount after that checkout expires before starting another.
 
 | Usage                       | Free                    | Pro                      |
 | --------------------------- | ----------------------- | ------------------------ |
@@ -43,7 +52,9 @@ automatic overage charges.
 ## Subscriptions
 
 - **Settings → Billing** opens Stripe-hosted Checkout and the customer portal.
-  The browser supplies only month/year, never customer, account, price or return URL.
+  The browser supplies an interval and the last displayed amount in cents, never
+  customer, account, Stripe Price ID or return URL. The amount is a stale-quote
+  check, not permission to choose a different charge.
 - Only the owning website session can manage subscriptions. Connected agents and
   API keys cannot check out or open billing management.
 - Customer/account mappings and subscriptions are tenant-isolated. Workers read
@@ -77,12 +88,13 @@ uses `@vercel/flags-core` with a project/environment SDK key. Website flag overr
 cannot override API/worker authorization or entitlements.
 
 `BILLING_CONFIGURED=false` leaves billing unconfigured and self-hosting unchanged.
-When configured, the flag controls new subscriptions, Settings navigation and
-plan quota enforcement. Turning it off resumes the pre-existing safety limits;
-it **does not cancel subscriptions or stop Stripe renewals**. Existing customers
-can still open `/app/settings/billing` and use the portal during a sales pause.
-Webhooks and account-deletion cancellation remain active. Keep configuration and
-credentials installed until all subscriptions are intentionally retired.
+When configured, the flag controls subscriptions, all billing information and
+plan quota enforcement. **Off hides Settings navigation, returns404 for the billing
+page/API/portal, and removes previously loaded billing details on refresh.**
+The open Billing page refreshes every minute. Turning it off resumes pre-existing
+safety limits; it does not cancel subscriptions or stop Stripe renewals. Webhooks
+and account-deletion cancellation remain active. Keep credentials installed for
+that lifecycle handling; while hidden, customer requests can be managed in Stripe.
 
 Flags Explorer discovery is available at `/.well-known/vercel/flags` using the
 SDK's `FLAGS_SECRET` authentication. Set up the Vercel flag with false defaults
@@ -98,15 +110,17 @@ BILLING_CONFIGURED=true
 FLAGS=YOUR_VERCEL_ENVIRONMENT_SDK_KEY
 STRIPE_SECRET_KEY=YOUR_SERVER_STRIPE_KEY
 STRIPE_WEBHOOK_SECRET=YOUR_ENDPOINT_SIGNING_SECRET
-STRIPE_PRO_MONTHLY_PRICE_ID=price_YOUR_MONTHLY_PRICE
-# Optional:
-STRIPE_PRO_YEARLY_PRICE_ID=price_YOUR_YEARLY_PRICE
+STRIPE_PRO_PRODUCT_ID=prod_YOUR_GROVE_PRODUCT
+STRIPE_PORTAL_CONFIGURATION_ID=bpc_YOUR_GROVE_PORTAL
 ```
 
-Use active, positive-price, licensed recurring prices with interval count one.
-Do not remove/replace a recognized Price ID while existing customers still use it;
-review grandfathering or migrate those subscriptions explicitly first. Stripe
-test/live keys, Price IDs and webhook endpoints must all belong to the same mode.
+Use a dedicated Grove product and active, licensed recurring monthly USD prices
+with interval count one. Runtime needs Customers/Subscriptions/Checkout/Portal/Prices
+write and Products read; restricted `rk_live_` keys are supported. Stripe test/live
+keys, products and webhook endpoints must all belong to the same mode. The optional
+legacy fixed `STRIPE_PRO_MONTHLY_PRICE_ID`/`STRIPE_PRO_YEARLY_PRICE_ID` path remains
+available, but product/flag pricing takes precedence. Preserve recognized legacy
+IDs for existing subscribers when migrating to the product path.
 Configure the portal to allow payment updates and cancellation, but not arbitrary
 price/quantity changes. Configure tax, payment methods, receipts, legal details and
 customer support in Stripe before accepting payments.
@@ -126,10 +140,11 @@ and Compose forwarding are in `.env.example` and `docker-compose.yml`.
 ## API
 
 - `GET /v1/billing`: subscription status, Stripe prices, plan usage and reset dates.
-- `POST /v1/billing/checkout`: `{ "interval": "month" }` or `"year"`; returns a
-  Stripe-hosted URL. Disabled rollout refuses new checkout.
-- `POST /v1/billing/portal`: opens the existing customer's portal, including during
-  a flag pause. Ownership and account/session availability are always checked.
+- `POST /v1/billing/checkout`: `{ "interval": "month", "expectedAmount": 500 }`;
+  returns a Stripe-hosted URL. Flag-disabled requests are rejected. The legacy
+  fixed-price path additionally supports a configured yearly interval.
+- `POST /v1/billing/portal`: opens the existing customer's configured portal.
+  Ownership, account/session availability and the flag are always checked.
 - `POST /v1/webhooks/stripe`: raw signed events; no Clerk session is required.
   Subscribe to `customer.subscription.created/updated/deleted`,
   `checkout.session.completed/async_payment_succeeded/async_payment_failed`, and

@@ -1,7 +1,7 @@
 import { createFlagsDiscoveryEndpoint } from "flags/next";
 import { getProviderData } from "@flags-sdk/vercel";
-import { billingEnabled } from "@/lib/flags";
+import { billingEnabled, billingMonthlyUsd } from "@/lib/flags";
 
 export const GET = createFlagsDiscoveryEndpoint(() =>
-  getProviderData({ billingEnabled }),
+  getProviderData({ billingEnabled, billingMonthlyUsd }),
 );

@@ -24,7 +24,9 @@ or charging customers. Follow [billing configuration and limits](billing.md).
    owner connection. It adds billing tables/functions without rewriting retained
    notes, accounts or existing usage. Do not reverse the migration.
 2. Keep `billing-enabled=false`. Install matching API/worker binaries and configure
-   the same Vercel SDK key, Stripe mode/credentials, Pro prices and allowances.
+   the same Vercel SDK key, Stripe mode/credentials, Pro product/portal and allowances.
+   The Vercel numeric `billing-pro-monthly-usd` flag starts at5; it controls new-sale
+   pricing in the API as well as the displayed quote. Existing prices are retained.
    `BILLING_CONFIGURED=true` requires the billing schema at runtime startup.
    Image-only deployments do not infer or activate these variables.
 3. Configure Stripe's customer portal, tax/legal/payment/receipt settings and the
@@ -37,10 +39,24 @@ or charging customers. Follow [billing configuration and limits](billing.md).
 5. Enable the intended cohort only after real Stripe test-mode/provider checks.
    Live price selection, enablement and charging need separate operator approval.
 
-Pause new sales/plan enforcement by turning the flag off, not by removing Stripe
-credentials or downgrading to pre-billing binaries. Webhooks, existing-customer
-portal access and deletion cancellation must continue; the flag does not stop
-renewals. Existing safety limits remain. Retain provider billing records.
+Hide all billing information and pause new sales/plan enforcement by turning the
+flag off, not by removing credentials or downgrading binaries. Website billing
+page/navigation and API status/checkout/portal return no billing details while off.
+Webhooks and deletion cancellation continue; the flag does not stop renewals.
+Existing safety limits remain. Retain provider billing records.
+
+Owner-authorized provider setup on24 October2026 created Grove Pro on the verified
+Bramble Labs Inc. live Stripe account, a USD5/month price, a dedicated portal and
+`https://api.usegrove.cloud/v1/webhooks/stripe` endpoint (API2026-09-30.endive).
+Restricted-key reads and live Checkout creation/expiry verified500 cents/USD;
+no payment or subscription was created. Vercel `bramble-labs-inc/grove` has both
+flags configured, with billing **off in all environments**. New runtime credentials
+and configuration are saved in Doppler `grove/prd_api`, `prd_worker`, `prd_website`
+and ignored private local `secrets.md` inventories. Vercel production website has
+`BILLING_CONFIGURED=true` and its saved Flags Explorer secret for the next deployment.
+Production migration, API/worker runtime-variable synchronization, source promotion
+and website deployment remain release operations; catalog setup is not a deployed
+webhook-delivery or paid lifecycle acceptance claim.
 
 After database restore, keep the flag **off** and provider traffic fenced until an
 owner reconciles customer mappings, subscriptions and deleted-account tombstones

@@ -113,6 +113,18 @@ test("billing configuration is optional but activation requires cloud, flags and
   });
   assert.equal(configured.BILLING_FREE_GENERATION_MONTHLY, 100);
   assert.equal(configured.BILLING_PRO_TRANSCRIPTION_MONTHLY_MS, 7200000);
+  assert.equal(
+    readServerEnvironment({
+      ...env,
+      GROVE_EDITION: "cloud",
+      BILLING_CONFIGURED: "true",
+      FLAGS: "flags_fixture",
+      STRIPE_SECRET_KEY: "rk_live_fixture",
+      STRIPE_WEBHOOK_SECRET: "whsec_fixture",
+      STRIPE_PRO_PRODUCT_ID: "prod_grove",
+    }).STRIPE_PRO_PRODUCT_ID,
+    "prod_grove",
+  );
 });
 
 test("webhook customer lookup works with a non-superuser migration owner without opening runtime table access", async () => {
@@ -249,6 +261,41 @@ test("monthly usage, subscription expiry, recognized prices and rollout pause de
     2000,
     async () => true,
   );
+});
+
+test("Pro product entitlement survives flag price changes and rejects another product", async () => {
+  const a = await account();
+  memory.configureBillingQuotas(db, {
+    enabled: async () => true,
+    priceIds: [],
+    productId: "prod_grove",
+  });
+  await tenant(db, a.accountId, async (trx) => {
+    await trx("billing_customers").insert({
+      accountId: a.accountId,
+      customerId: "cus_product",
+    });
+    await trx("billing_subscriptions").insert({
+      id: "sub_product",
+      accountId: a.accountId,
+      customerId: "cus_product",
+      priceId: "price_old_500",
+      productId: "prod_other",
+      status: "active",
+      periodEnd: new Date(Date.now() + 86400000),
+    });
+    assert.equal(
+      (await memory.billingUsage(db, trx, a.accountId))?.plan,
+      "free",
+    );
+    await trx("billing_subscriptions")
+      .where({ id: "sub_product" })
+      .update({ productId: "prod_grove" });
+    assert.equal(
+      (await memory.billingUsage(db, trx, a.accountId))?.plan,
+      "pro",
+    );
+  });
 });
 
 test("UTC monthly boundaries and per-metric allowances do not mix tenants or charge embeddings", async () => {
@@ -534,10 +581,8 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
       code: "subscription_exists",
     });
     enabled = false;
-    assert.equal(
-      (await billing.portal(a)).url,
-      "https://billing.stripe.com/p/session/test",
-    );
+    await assert.rejects(billing.portal(a), { code: "billing_disabled" });
+    await assert.rejects(billing.status(a), { code: "billing_disabled" });
     const app = application.createApp({
       memories: service,
       billing,
@@ -573,7 +618,10 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
       body: "{}",
     });
     assert.equal(exhausted.status, 429);
-    assert.match((await exhausted.json()).error.message, /Billing/);
+    assert.doesNotMatch(
+      (await exhausted.json()).error.message,
+      /Billing|upgrade|subscription/i,
+    );
     assert.equal(
       typeof billing.cancelForDeletion,
       "function",

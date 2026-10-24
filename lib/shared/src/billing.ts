@@ -1,4 +1,5 @@
 export const billingFlagKey = "billing-enabled";
+export const billingPriceFlagKey = "billing-pro-monthly-usd";
 export type BillingMetric =
   | "generation"
   | "research"

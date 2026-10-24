@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { BillingStatus, BillingMetric } from "@lib/shared/billing";
-import { errorMessage } from "@/lib/dashboard-api";
+import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 
 const labels: Record<BillingMetric, string> = {
@@ -38,11 +38,16 @@ export function BillingPanel() {
   const query = useQuery({
     ...cache.resource<BillingStatus>("/billing"),
     staleTime: 0,
+    refetchInterval: 60000,
   });
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const pending = useRef(false);
-  async function open(path: string, interval?: "month" | "year") {
+  async function open(
+    path: string,
+    interval?: "month" | "year",
+    expectedAmount?: number,
+  ) {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
@@ -50,7 +55,7 @@ export function BillingPanel() {
     try {
       const result = await cache.api<{ url: string }>(
         path,
-        interval ? { interval } : {},
+        interval ? { interval, expectedAmount } : {},
       );
       const target = new URL(result.url);
       if (
@@ -72,6 +77,11 @@ export function BillingPanel() {
   const ongoing =
     subscription &&
     !["canceled", "incomplete_expired"].includes(subscription.status);
+  if (
+    (query.error instanceof DashboardApiError && query.error.status === 404) ||
+    state?.enabled === false
+  )
+    return null;
   return (
     <div className="settings-content">
       <div>
@@ -104,11 +114,7 @@ export function BillingPanel() {
         <>
           <section className="app-panel" aria-label="Current plan">
             <h3 className="font-editorial text-2xl">
-              {!state.enabled && ongoing
-                ? "Your subscription"
-                : usage?.plan === "pro"
-                  ? "Grove Pro"
-                  : "Grove Free"}
+              {usage?.plan === "pro" ? "Grove Pro" : "Grove Free"}
             </h3>
             <p className="mt-3 text-sm text-muted">
               {usage?.plan === "pro"
@@ -125,12 +131,6 @@ export function BillingPanel() {
                     : ongoing
                       ? `Subscription status: ${subscription.status.replaceAll("_", " ")}. Current period ends ${date(subscription.periodEnd)}.`
                       : "Your subscription has ended."}
-              </p>
-            ) : null}
-            {!state.enabled ? (
-              <p className="mt-3 text-sm text-muted">
-                New subscriptions are currently unavailable. Existing
-                subscriptions can still be managed below.
               </p>
             ) : null}
             {state.enabled && !ongoing ? (
@@ -163,7 +163,11 @@ export function BillingPanel() {
                       className="app-button"
                       disabled={busy}
                       onClick={() =>
-                        void open("/billing/checkout", price.interval)
+                        void open(
+                          "/billing/checkout",
+                          price.interval,
+                          price.amount,
+                        )
                       }
                     >
                       {busy
