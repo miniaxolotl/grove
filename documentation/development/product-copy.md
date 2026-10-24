@@ -17,7 +17,8 @@ Do not name backend companies, model names, hosting platforms or internal jobs.
 - Use nature names for voice choices: **Reed · Basic**, **Willow**, **Cedar**,
   **Brook**. Basic is not a pricing tier. Keep ordinary playback compact, with the
   applied voice identified once. **Read aloud options** → **Change voice** opens
-  **Choose a voice**; descriptions and **Play sample** belong in that dialog.
+  **Choose a voice**; descriptions and sample previews belong in that dialog.
+  Use labelled play/pause icons for previews and a quiet selected-row highlight.
   Browsing and samples do not apply the choice; **Use voice** confirms it.
   **Prepare audio** and Play remain separate actions. Samples use fixed example
   text. Settings shows **Reading voice** / current name / **Change** only while

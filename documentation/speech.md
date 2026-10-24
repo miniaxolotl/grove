@@ -46,8 +46,8 @@ An unavailable remembered voice stays selected until you choose another. Read al
 offers **Change voice** when alternatives are available; Settings can still remember
 an unavailable choice. Errors never silently route notes to a different voice/service.
 
-**Play sample** loads a fixed same-origin example only on request, without sending
-note content or enabling speech. The bundled Willow/Cedar/Brook samples are
+The play icon beside a voice loads a fixed same-origin sample only on request,
+without sending note content or enabling speech. The bundled Willow/Cedar/Brook samples are
 AI-generated from synthetic editorial text. Reed currently has no bundled sample;
 its installation-specific `TTS_VOICE` mapping is retained. Samples and narration
 share playback ownership, so starting one pauses the other. Each sample button is

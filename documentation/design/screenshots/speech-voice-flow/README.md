@@ -1,7 +1,7 @@
 # On-demand voice selection
 
-Captured and visually reviewed on 24 October 2026 from source `3ae7c7f`, using
-production CSS build `pyrcNmPdVCknb9c94Yv7m`. The actual dashboard components run
+Captured and visually reviewed on 24 October 2026 from source `1506a85`, using
+production CSS build `rIyJK3KJf2fQ6BtlkOapi`. The actual dashboard components run
 against synthetic API responses, an invented river note and bundled sample MP3s.
 The narration endpoint returns the fixed Willow sample to verify playback behavior;
 these captures do not represent newly synthesized narration of the displayed note.
@@ -15,7 +15,8 @@ system libraries.
 ## Reviewed captures
 
 Ordinary listening keeps only playback controls and the applied voice. **Read aloud
-options** → **Change voice** opens one chooser; Settings shows a compact summary.
+options** → **Change voice** opens compact rows with a selected highlight and circular
+preview controls. Settings shows a compact summary.
 Compare the [original inline picker](../speech-voices/README.md).
 
 | Desktop playback · 1440px                                    | On-demand chooser · 1440px                          | Settings summary · 1440px                                        |
@@ -60,8 +61,8 @@ and the screenshots above show the corrected layout.
 Root/site lint, types and production builds pass, along with **nine artifact
 checks**, **19 speech provider/narration tests**, **31 existing Chromium models/cache
 cases** and **four existing iPhone/WebKit Settings cases**. The local bundle gate
-passes at **432,956 gzip bytes** for Notes, with the editor deferred; Settings is
-**425,629 gzip bytes**. Telemetry is disabled in this local build, so these figures
+passes at **432,958 gzip bytes** for Notes, with the editor deferred; Settings is
+**425,623 gzip bytes**. Telemetry is disabled in this local build, so these figures
 are not directly comparable to the original telemetry-enabled voice release.
 
 The [speech guide](../../../speech.md) and [verification guide](../../../development/testing.md)
