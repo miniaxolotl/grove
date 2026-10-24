@@ -29,6 +29,7 @@ import {
   projectSchema,
   grantSchema,
   connectionSchema,
+  connectionUpdateSchema,
   connectSchema,
   approveConnectSchema,
   uuidSchema,
@@ -1301,16 +1302,16 @@ export function createApp(deps: AppDependencies) {
       data: await service.grant(c.get("principal"), grant, { clientId }),
     });
   });
-  app.patch("/v1/connections/:id", async (c) =>
-    c.json({
+  app.patch("/v1/connections/:id", async (c) => {
+    const { expectedState, ...grant } = await body(c, connectionUpdateSchema);
+    return c.json({
       success: true,
-      data: await service.grant(
-        c.get("principal"),
-        await body(c, grantSchema),
-        { id: uuidSchema.parse(c.req.param("id")) },
-      ),
-    }),
-  );
+      data: await service.grant(c.get("principal"), grant, {
+        id: uuidSchema.parse(c.req.param("id")),
+        expectedState,
+      }),
+    });
+  });
   app.delete("/v1/connections/:id", async (c) =>
     c.json({
       success: true,

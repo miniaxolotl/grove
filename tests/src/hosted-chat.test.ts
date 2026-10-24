@@ -267,3 +267,96 @@ test("two hosted clients share only owner-granted notes and keep mutation and re
     await Promise.all([first.close(), second.close()]);
   }
 });
+
+test("a stale browser approval cannot undo a newer scope edit or revocation", async () => {
+  const bearer = token("owner", `hosted_stale_${randomUUID()}`);
+  const me = await request(bearer, "/v1/me");
+  const id = me.body.data.connectionId;
+  const snapshot = async () =>
+    (await request(owner, "/v1/connections")).body.data.find(
+      (item: { id: string }) => item.id === id,
+    );
+  const initial = await snapshot();
+  assert.match(initial.state, /^[a-f0-9]{64}$/);
+  await request(bearer, "/v1/me");
+  assert.equal(
+    (await snapshot()).state,
+    initial.state,
+    "Ordinary OAuth contact must not invalidate a review",
+  );
+  const grant = {
+    name: "Reviewed hosted client",
+    capabilities: ["memory:read"],
+    personal: true,
+    allProjects: false,
+    projectIds: [],
+  };
+  assert.equal(
+    (
+      await request(
+        owner,
+        `/v1/connections/${id}`,
+        { ...grant, expectedState: initial.state },
+        "PATCH",
+      )
+    ).status,
+    200,
+  );
+  const approved = await snapshot();
+  assert.notEqual(approved.state, initial.state);
+  assert.equal(
+    (
+      await request(
+        owner,
+        `/v1/connections/${id}`,
+        {
+          ...grant,
+          capabilities: ["memory:read", "memory:write"],
+          expectedState: initial.state,
+        },
+        "PATCH",
+      )
+    ).status,
+    409,
+  );
+  assert.deepEqual((await snapshot()).capabilities, ["memory:read"]);
+  const competing = await Promise.all(
+    ["First review", "Second review"].map((name) =>
+      request(
+        owner,
+        `/v1/connections/${id}`,
+        { ...grant, name, expectedState: approved.state },
+        "PATCH",
+      ),
+    ),
+  );
+  assert.deepEqual(competing.map((result) => result.status).sort(), [200, 409]);
+  const beforeRevoke = await snapshot();
+  await request(owner, `/v1/connections/${id}`, undefined, "DELETE");
+  assert.equal(
+    (
+      await request(
+        owner,
+        `/v1/connections/${id}`,
+        { ...grant, expectedState: beforeRevoke.state },
+        "PATCH",
+      )
+    ).status,
+    409,
+  );
+  assert(
+    (await snapshot()).revokedAt,
+    "A stale grant must not reactivate the connection",
+  );
+  assert.equal(
+    (
+      await request(
+        other,
+        `/v1/connections/${id}`,
+        { ...grant, expectedState: approved.state },
+        "PATCH",
+      )
+    ).status,
+    404,
+  );
+});
