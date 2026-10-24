@@ -1,5 +1,27 @@
 # Verification
 
+## System administration
+
+Run `tests/src/system-admin.test.ts` and `system-admin-migration.test.ts` with the
+disposable non-owner API/worker URLs below, plus `recovery.test.ts`. They cover
+website-only roles, current account/subject/session checks, exact-email/user-ID
+lookup after authorization, agent/ordinary-user denial, role/grant revocation,
+last-admin protection, version conflicts/concurrent edits and audit/idempotent
+retries. Runtime/worker direct writes, audit access and bootstrap are denied;
+non-superuser-owner functions expose only account metadata, not private notes.
+The populated024→025 upgrade fingerprints every existing table and rejects inherited
+table/function privileges. Restore replays current role/grant authority rather
+than resurrecting the backup's admin/unlimited privileges. Actual generation
+dispatch exceeds a plan allowance with unlimited but still obeys the daily safety cap.
+
+For browser verification use the actual AdminPanel and production CSS through the
+isolated dashboard fixture. Use synthetic Clerk identities and a disposable real
+API/database, not owner notes. Check exact-email search, all three access options,
+separate system roles, reason validation, keyboard dismissal/focus, lost-response
+same-operation retries and audit-once behavior, revoke/refresh concealment and
+1440/390/320px accessibility/overflow. Do not add production authentication bypasses.
+See [reviewed captures](../design/screenshots/system-admin/README.md).
+
 Speech-cache regressions in `speech-cache.test.ts` use a separate disposable
 database and real non-owner API/worker roles. They cover exact text-hash A→B→A
 reuse, receipt-independent lifetime, seven-day stale retention without extension,

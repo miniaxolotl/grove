@@ -15,6 +15,27 @@ documentation refresh.
 
 ## Topology
 
+### System administration rollout (025)
+
+1. Verify the frozen candidate and production migration history. Back up and verify
+   the retained database, then apply forward `20261025_025_system_administration`
+   using the migration owner **after 024**. If speech-cache024 is pending, follow its
+   rollout below first; do not skip or repeat applied migrations. The new schema
+   creates no admins and changes no retained notes, accounts, subscriptions or usage.
+2. Deploy matching admitted API/worker images and website through the protected
+   release path. Preserve runtime configuration, billing flags and provider records.
+   No new credential or environment allowlist is required for system roles.
+3. Verify the owner's exact production Clerk identity and existing active account.
+   Invoke the owner-only, parameterized bootstrap described in
+   [system administration](system-administration.md#first-administrator-and-recovery).
+   Grant only the requested role; system-admin does not imply unlimited access.
+4. Verify the owner's Admin navigation/search, ordinary-user and agent denial,
+   private/no-store responses and an owned synthetic grant/revoke/audit round trip.
+   Confirm API/worker grants do not widen private-note access or activate billing.
+5. Retain the forward schema on rollback. Keep restored databases offline until
+   current-authority role/grant reconciliation and credential invalidation complete.
+   Never rebootstrap an unverified identity or revive a revoked snapshot role.
+
 ### Billing rollout (023)
 
 Billing source does not authorize a production migration, Stripe live-mode change

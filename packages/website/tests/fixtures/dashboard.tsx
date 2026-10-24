@@ -15,6 +15,7 @@ import { SettingsPanel } from "../../src/components/dashboard/settings-panel";
 import { SettingsFrame } from "../../src/components/dashboard/settings-frame";
 import { SourceRevision } from "../../src/components/dashboard/source-revision";
 import { BillingPanel } from "../../src/components/dashboard/billing-panel";
+import { AdminPanel } from "../../src/components/dashboard/admin-panel";
 
 function DashboardFixture() {
   const location = useLocation();
@@ -31,6 +32,8 @@ function DashboardFixture() {
     />
   ) : path === "/app/notes/new" || path.startsWith("/app/memories/") ? (
     <></>
+  ) : path.endsWith("/settings/admin") ? (
+    <AdminPanel />
   ) : path.endsWith("/settings/billing") ? (
     <BillingPanel />
   ) : path.endsWith("/settings/models") ? (

@@ -1,0 +1,227 @@
+.admin-sheet {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+  max-width: 820px;
+  font-size: 13px;
+  line-height: 1.5;
+  padding-block: 4px;
+}
+.admin-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.admin-heading h2 {
+  margin: 0;
+}
+.admin-caption {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.admin-heading .admin-caption {
+  margin-top: 4px;
+}
+.admin-search {
+  display: grid;
+  gap: 8px;
+}
+.admin-search > label,
+.admin-editor > label,
+.admin-editor legend {
+  font-weight: 500;
+}
+.admin-search > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-search input {
+  flex: 1;
+  min-width: 0;
+}
+.admin-search input,
+.admin-editor select,
+.admin-editor textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-paper);
+  color: inherit;
+  font: inherit;
+}
+.admin-search .app-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-feedback {
+  min-height: 20px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.admin-accounts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.admin-accounts > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.admin-accounts > li:first-child {
+  border-top: 1px solid var(--color-line);
+}
+.admin-person {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-person strong {
+  font-weight: 500;
+}
+.admin-access {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.admin-badge {
+  display: inline-block;
+  background: var(--color-sage);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.admin-history {
+  margin-top: 12px;
+}
+.admin-history h3 {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.admin-history ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.admin-history li {
+  display: grid;
+  gap: 5px;
+  border-top: 1px solid var(--color-line);
+  padding: 14px 0;
+  overflow-wrap: anywhere;
+}
+.admin-history li > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.admin-history strong {
+  font-weight: 500;
+  font-size: 12px;
+}
+.admin-editor {
+  display: grid;
+  gap: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.app-dialog.inspector-dialog:has(.admin-editor) {
+  --inspector-width: min(
+    480px,
+    calc(var(--overlay-viewport-width, 100vw) - var(--inspector-inset) * 2)
+  );
+  left: calc(
+    var(--overlay-viewport-left, 0px) +
+      (var(--overlay-viewport-width, 100vw) - var(--inspector-width)) / 2
+  );
+  height: auto;
+  max-height: calc(var(--overlay-viewport-height, 100dvh) - 24px);
+}
+.admin-editor > label {
+  display: grid;
+  gap: 8px;
+}
+.admin-editor fieldset {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+.admin-editor legend {
+  margin-bottom: 10px;
+}
+.admin-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.admin-options label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.admin-options label:has(:checked) {
+  border-color: var(--color-forest);
+  background: var(--color-sage);
+}
+.admin-options input {
+  accent-color: var(--color-forest);
+}
+.admin-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-error,
+.admin-role-warning {
+  color: var(--color-forest);
+  padding: 10px 12px;
+  background: var(--color-sage);
+  border-radius: 6px;
+}
+.admin-sheet :is(input, textarea, select):focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: 3px;
+}
+@media (max-width: 560px) {
+  .admin-accounts > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .admin-access {
+    grid-row: 2;
+  }
+  .admin-accounts > li > button {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .admin-search .app-button {
+    padding-inline: 12px;
+  }
+  .admin-options {
+    gap: 4px;
+  }
+  .admin-options label {
+    font-size: 12px;
+  }
+}
