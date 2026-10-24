@@ -26,9 +26,10 @@ single installed agent or offers a terminal choice. Use `connect opencode`,
 `connect claude` or `connect codex` to select explicitly, including in scripts.
 The command selects Cloud automatically, reuses valid credentials, and opens
 account creation or sign-in if needed. The same browser continues to a contextual
-approval page. Defaults are reading/saving personal and current-project memories,
-with deletion off; **Customize access** changes actions, scope, name or
-expiry. Approval creates/links the project without granting all-project access.
+approval page. New connections propose all permission and scope checkboxes selected:
+read/save/delete, Personal and all current/future notebooks. Review and uncheck
+unwanted access under **Customize access** before approving. Existing connections
+preserve their saved choices. Approval can also create/link the current project.
 
 Leave the terminal open. It waits up to ten minutes for approval, checks the effective
 grant, performs a bounded read when permitted, and installs the native integration.

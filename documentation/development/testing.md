@@ -14,7 +14,10 @@ competing approvals and preserve a review across ordinary contact updates.
 After a production website build, `hosted-chat.spec.ts` and `connect.spec.ts` cover
 web/native setup separation, endpoint copy/manual fallback, storage-disabled
 selection, pending-client refresh, exact-client approval, narrowed retry and
-responsive accessibility. Run the hosted subset in supported iPhone/WebKit too.
+responsive accessibility. New OAuth/API-key/native forms select all action/scope
+checkboxes; existing connections and narrowed resumed approvals retain their
+choices. Tests explicitly narrow a new proposal before exercising denied writes.
+Run the hosted subset in supported iPhone/WebKit too.
 Use synthetic notes and the actual components; only save relevant reviewed captures.
 
 ```sh

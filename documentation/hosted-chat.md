@@ -55,9 +55,11 @@ tool catalog while approval is pending, but note tool calls remain denied.
    client ID. A user-chosen name is not proof that a connection belongs to a provider.
    If several entries are ambiguous, do not guess or approve them all.
 3. Select **Approve**, name the connection, and review its permissions. New
-   connections start with **Read notes**, **Save and update notes**, **Personal**,
-   no selected notebooks and **Delete notes off**. Read-only also works. Existing
-   grants retain their choices; notebook nesting does not inherit permissions.
+   connections start with every permission and scope checkbox selected:
+   **Read notes**, **Save and update notes**, **Delete notes**, **Personal** and
+   **All current and future notebooks**. Uncheck any access you do not want before
+   approving. Read-only and selected-notebook access still work. Existing grants
+   retain their saved choices; notebook nesting does not inherit permissions.
 4. Approve, return to the host, and retry. Website approval alone does not prove
    the host is working: complete the synthetic save/recall check below.
 
@@ -98,7 +100,7 @@ labels are not authenticated host identities.
 - Hosted OAuth cannot administer account credentials, public sharing or notebook
   subtrees, or read Grove's saved chat history. A listed owner-only tool still
   refuses the call. Notebook creation needs explicitly granted all-notebook write
-  access; it is not enabled by the Personal default.
+  access. Uncheck all-notebook access if you do not want to allow it.
 - Agent-initiated saves must use `capture: automatic`; requested saves use
   `explicit`. Grove's server preferences still apply. A local coding-agent pause
   or environment variable is not a hosted-chat privacy control.
