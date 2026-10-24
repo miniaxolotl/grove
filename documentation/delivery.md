@@ -1,5 +1,28 @@
 # Delivery evidence
 
+## Remembered Ask tools and clearer history (24 October 2026)
+
+Tools now saves each changed switch to account defaults automatically, across
+sessions and restarts. Before the first message it saves without creating an empty
+conversation. Saved-chat changes retain their version check and update the chat
+and changed defaults atomically; simply reopening an old chat leaves defaults
+alone. Ordered workspace writes survive navigation, cancel stale reads and refresh
+other tabs. Uncertain saves retain the message and require confirmation before send.
+
+History has labelled Delete actions, distinct previews, readable metadata and
+quiet current/focus treatments. Existing named confirmation, retained deletion,
+Cancel/retry and focus recovery keep saved notes intact. Current user/API/cache
+documentation replaces the separate default-save instructions.
+
+After integrating speech #119, root/site lint, types, builds, **nine artifacts**,
+**368 backend cases** (four optional service skips), **239 Chromium** and **seven
+focused iPhone/WebKit** scenarios pass. Fresh Node processes verify saved defaults
+after API/service reinitialization; synthetic proxy checks cover PATCH admission,
+private/no-store and origin/auth denial. Notes entry is **489,194 gzip bytes** and
+the bundle budget passes. [Six reviewed captures](design/screenshots/ask-settings-history/README.md)
+record desktop/390/320px, confirmation and tool save/recovery states. This feature
+needs no new migration and records local source verification, not production rollout.
+
 ## Text-addressed read-aloud cache (24 October 2026)
 
 Migration **024** stores exact saved-text SHA-256 and voice/profile-aware cache
