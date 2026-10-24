@@ -41,6 +41,15 @@ Local WebKit is blocked by missing host browser dependencies, not counted as a p
 See [route/verification details](website-support-contact.md) and the
 [reviewed browser gallery](design/screenshots/website-support-contact/README.md).
 
+## Advertising registration handoff (24 October 2026)
+
+Source adds a server-qualified, content-free `/welcome` page and consent-gated
+AdRoll account-created segment delivery. Default auth/private/shared tracking
+exclusions remain; fresh-document navigation and no-referrer headers protect the
+boundary. This is source implementation, not production rollout or paid-ad launch.
+See [contract and verification](advertising-conversions.md) and
+[local screenshots](design/screenshots/registration/README.md).
+
 ## Minimal billing and shared support contact (24 October 2026)
 
 Billing uses one open settings sheet: current plan, labelled usage meters,

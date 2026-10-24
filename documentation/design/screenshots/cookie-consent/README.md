@@ -22,6 +22,10 @@ to production public marketing routes, excluding authentication, workspaces and
 shared notes. Navigation creates a fresh document once advertising is active.
 Public copy uses purpose descriptions, not supplier names.
 
+The [registration handoff](../../../advertising-conversions.md) adds one separately
+server-qualified, content-free `/welcome` exception. It does not permit vendors
+on authentication, private notebooks or shared notes.
+
 Verification: website lint, types, production build and 159 browser scenarios pass
 after integrating the independently merged client-performance update. Root lint,
 types, build and all five packed-artifact checks also pass.

@@ -2,24 +2,30 @@
 
 import { useEffect } from "react";
 import { consentAllowed, subscribeConsent } from "@/lib/cookie-consent";
+import { registrationDocumentReady } from "@/lib/registration-document";
 
 const containerId = "GTM-M5WKD5LZ";
 const hosts = new Set(["usegrove.cloud", "www.usegrove.cloud"]);
 const paths = new Set(["/", "/privacy", "/terms", "/install", "/self-host"]);
 let started = false;
 
-function publicLocation(url: URL) {
+function publicLocation(url: URL, registrationComplete = false) {
   return (
     url.protocol === "https:" &&
     hosts.has(url.hostname) &&
-    paths.has(url.pathname) &&
+    (paths.has(url.pathname) ||
+      (registrationComplete && url.pathname === "/welcome" && !url.hash)) &&
     [...url.searchParams.keys()].every((key) =>
       /^utm_(source|medium|campaign|term|content)$/.test(key),
     )
   );
 }
 
-export function WebsiteTagManager() {
+export function WebsiteTagManager({
+  registrationComplete = false,
+}: {
+  registrationComplete?: boolean;
+}) {
   useEffect(() => {
     const initialLocation = new URL(location.href);
     if (initialLocation.searchParams.get("tracking") === "off")
@@ -28,7 +34,8 @@ export function WebsiteTagManager() {
     // not install a third-party script into a document that held private notes.
     if (
       process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT !== "production" ||
-      !publicLocation(initialLocation)
+      (registrationComplete && !registrationDocumentReady()) ||
+      !publicLocation(initialLocation, registrationComplete)
     )
       return;
     const update = () => {
@@ -41,7 +48,11 @@ export function WebsiteTagManager() {
         }
         return;
       }
-      if (started || !publicLocation(new URL(location.href))) return;
+      if (
+        started ||
+        !publicLocation(new URL(location.href), registrationComplete)
+      )
+        return;
       started = true;
       const browser = window as typeof window & { dataLayer?: unknown[] };
       browser.dataLayer ??= [];
@@ -90,6 +101,6 @@ export function WebsiteTagManager() {
       unsubscribe();
       document.removeEventListener("click", navigate, true);
     };
-  }, []);
+  }, [registrationComplete]);
   return null;
 }

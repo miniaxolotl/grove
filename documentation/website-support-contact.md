@@ -57,3 +57,10 @@ The subsequent billing-review merge `03a999d` is also preserved unchanged. Its
 only overlap with this task is the delivery-record insertion, so the current
 review entry stays first and both records are retained. Website source is
 unchanged by that merge; targeted page checks and root/build gates are repeated.
+
+The concurrent registration handoff `c9e134e` is retained too, including its
+`/welcome` signup redirect and consent/tracking boundary. Its delivery section
+and the support/contact entry are both kept; the shared auth provider still
+points help to `/support`. No conversion/provider behavior is reimplemented here.
+The final integrated tree passes root/site lint, types/builds, nine artifacts,
+nine registration-eligibility checks and the complete 227-case Chromium suite.
