@@ -14,49 +14,54 @@ export class DashboardApiError extends Error {
   }
 }
 
-export async function api<T>(
-  path: string,
-  body?: unknown,
-  method?: string,
-  signal?: AbortSignal,
-): Promise<T> {
-  const started = performance.now();
-  const verb = method ?? (body === undefined ? "GET" : "POST");
-  let outcome: Outcome = "unavailable";
-  try {
-    const response = await fetch(`/api/grove${path}`, {
-      method: verb,
-      credentials: "same-origin",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        ...(!telemetryAllowed() ? { "X-Grove-Telemetry": "off" } : {}),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
-    });
-    if (response.status >= 500) outcome = "error";
-    const result = (await response.json()) as ApiEnvelope<T>;
-    if (!response.ok || !result.success)
-      throw new DashboardApiError(
-        !result.success ? result.error.code : "unavailable",
-        !result.success
-          ? result.error.message
-          : "Grove could not complete the request",
-        response.status,
-      );
-    outcome = "success";
-    return result.data;
-  } finally {
-    // Only a closed operation category and timing cross this boundary.
-    if (!signal?.aborted)
-      recordWebsiteOperation(
-        operationForRequest(path, verb),
-        outcome,
-        performance.now() - started,
-      );
-  }
+export function createDashboardApi(
+  send: (url: string, init: RequestInit) => Promise<Response>,
+) {
+  return async function api<T>(
+    path: string,
+    body?: unknown,
+    method?: string,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    const started = performance.now();
+    const verb = method ?? (body === undefined ? "GET" : "POST");
+    let outcome: Outcome = "unavailable";
+    try {
+      const response = await send(`/api/grove${path}`, {
+        method: verb,
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          ...(!telemetryAllowed() ? { "X-Grove-Telemetry": "off" } : {}),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal,
+      });
+      if (response.status >= 500) outcome = "error";
+      const result = (await response.json()) as ApiEnvelope<T>;
+      if (!response.ok || !result.success)
+        throw new DashboardApiError(
+          !result.success ? result.error.code : "unavailable",
+          !result.success
+            ? result.error.message
+            : "Grove could not complete the request",
+          response.status,
+        );
+      outcome = "success";
+      return result.data;
+    } finally {
+      // Only a closed operation category and timing cross this boundary.
+      if (!signal?.aborted)
+        recordWebsiteOperation(
+          operationForRequest(path, verb),
+          outcome,
+          performance.now() - started,
+        );
+    }
+  };
 }
+export const api = createDashboardApi((url, init) => fetch(url, init));
 export type { Notebook as Project } from "@lib/shared/contracts";
 export const errorMessage = (error: unknown) =>
   error instanceof Error

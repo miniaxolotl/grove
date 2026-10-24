@@ -15,6 +15,7 @@ import type {
   ConnectionQuery,
 } from "@lib/shared/relationships";
 import { api, DashboardApiError } from "./dashboard-api";
+import { SessionRefreshError } from "./dashboard-session";
 
 type Filters = Omit<MemoryList, "cursor">;
 type Change = { ids?: string[]; scopes?: (string | null)[]; resource?: string };
@@ -93,6 +94,7 @@ export class WorkspaceCache {
           gcTime: 300_000,
           retry: (count, error) =>
             count < 1 &&
+            !(error instanceof SessionRefreshError) &&
             !(error instanceof DashboardApiError && error.status < 500),
           refetchOnWindowFocus: true,
           refetchOnReconnect: true,
@@ -185,15 +187,12 @@ export class WorkspaceCache {
     } catch (error) {
       this.assertActive(generation, signal);
       if (error instanceof DashboardApiError) {
-        if (
-          error.status === 401 ||
-          (error.status === 403 &&
-            ["/memories/search", "/projects"].includes(path))
-        ) {
+        if (error.status === 401) {
           this.dispose();
           this.accessLost();
         } else if (
           [403, 404].includes(error.status) &&
+          path !== "/memories/search" &&
           /^\/memories\/[^/]+$/.test(path)
         ) {
           void this.client.cancelQueries({

@@ -18,11 +18,23 @@ export function useUser() {
   };
 }
 export const useAuth = () => ({ sessionId: "telemetry-fixture-session" });
+export function useSession() {
+  useUser();
+  return { isLoaded: true, isSignedIn: true, session: clerk.session };
+}
 export const RedirectToSignIn = () => <Link href="/sign-in">Sign in</Link>;
 export const UserButton = () => (
   <button onClick={changeAccount}>Switch account</button>
 );
-export const useClerk = () => ({
+const clerk = {
+  get user() {
+    return { id };
+  },
+  session: {
+    id: "telemetry-fixture-session",
+    getToken: async () => "fixture-token",
+  },
   signOut: async () => {},
   openUserProfile: () => {},
-});
+};
+export const useClerk = () => clerk;
