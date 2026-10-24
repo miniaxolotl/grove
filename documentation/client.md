@@ -1,10 +1,19 @@
 # Agent installation
 
-Use Node 22+ for clients; server/development baseline is Node 24. See
+Use Node 22+ for terminal clients; hosted chats need no local runtime.
+Server/development baseline is Node 24. See
 [delivery evidence](delivery.md) for tested host versions and provider gates.
 
 Grove Cloud is at [usegrove.cloud](https://usegrove.cloud), with API origin
 `https://api.usegrove.cloud`. Grove Open Source is the self-hosted edition.
+
+## ChatGPT and Claude web
+
+Add Grove's remote `/mcp` endpoint as a custom OAuth connection, approve the exact
+pending client in Grove Settings → Connections, then return to your chat and test
+save/recall. Follow the [hosted-chat guide](hosted-chat.md) for host-specific setup,
+permissions and current qualification limits. No CLI or session-start hook runs in
+either web chat; the Claude Code and Codex packages below are separate integrations.
 
 ## CLI
 
@@ -18,7 +27,7 @@ single installed agent or offers a terminal choice. Use `connect opencode`,
 The command selects Cloud automatically, reuses valid credentials, and opens
 account creation or sign-in if needed. The same browser continues to a contextual
 approval page. Defaults are reading/saving personal and current-project memories,
-with permanent deletion off; **Customize access** changes actions, scope, name or
+with deletion off; **Customize access** changes actions, scope, name or
 expiry. Approval creates/links the project without granting all-project access.
 
 Leave the terminal open. It waits up to ten minutes for approval, checks the effective
