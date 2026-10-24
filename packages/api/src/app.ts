@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { Billing } from "./billing.ts";
+export { Billing };
 import { PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
@@ -91,6 +93,7 @@ import {
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
+  billing?: Billing;
   media?: MediaStore | null;
   artifacts?: ArtifactStore | null;
   speech?: SpeechProviders;
@@ -185,8 +188,12 @@ export function createApp(deps: AppDependencies) {
         : error instanceof InferenceError
           ? new GroveError(
               error.code,
-              `Model request failed (${error.code})`,
-              503,
+              error.code === "inference_budget"
+                ? deps.billing
+                  ? "Your AI allowance is used up. Open Settings → Billing to upgrade or check when it resets. Writing and exporting remain available."
+                  : "The daily AI request limit is reached. Try after the next daily reset."
+                : `Model request failed (${error.code})`,
+              error.code === "inference_budget" ? 429 : 503,
             )
           : error instanceof ZodError || error instanceof SyntaxError
             ? new GroveError("invalid_request", "Check the request fields", 400)
@@ -356,11 +363,42 @@ export function createApp(deps: AppDependencies) {
     else await next();
   };
   app.use("/v1/*", async (c, next) => {
-    if (c.req.path === "/v1/webhooks/clerk") return next();
+    if (["/v1/webhooks/clerk", "/v1/webhooks/stripe"].includes(c.req.path))
+      return next();
     return authorize(c, next);
   });
   app.use("/mcp", authorize);
   const service = deps.memories;
+  app.post("/v1/webhooks/stripe", async (c) => {
+    if (!deps.billing)
+      throw new GroveError("billing_disabled", "Billing is unavailable", 503);
+    await deps.billing.webhook(
+      await c.req.text(),
+      c.req.header("stripe-signature") ?? "",
+    );
+    return c.json({ success: true });
+  });
+  const billing = () => {
+    if (!deps.billing)
+      throw new GroveError("billing_disabled", "Billing is unavailable", 404);
+    return deps.billing;
+  };
+  app.get("/v1/billing", async (c) =>
+    c.json({ success: true, data: await billing().status(c.get("principal")) }),
+  );
+  app.post("/v1/billing/checkout", async (c) => {
+    const input = z
+      .object({ interval: z.enum(["month", "year"]) })
+      .strict()
+      .parse(await c.req.json());
+    return c.json({
+      success: true,
+      data: await billing().checkout(c.get("principal"), input.interval),
+    });
+  });
+  app.post("/v1/billing/portal", async (c) =>
+    c.json({ success: true, data: await billing().portal(c.get("principal")) }),
+  );
   const body = async <T>(
     c: import("hono").Context<Environment>,
     schema: z.ZodType<T>,

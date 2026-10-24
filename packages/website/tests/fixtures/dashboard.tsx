@@ -14,6 +14,7 @@ import { NoteDocument } from "../../src/components/dashboard/note-document";
 import { SettingsPanel } from "../../src/components/dashboard/settings-panel";
 import { SettingsFrame } from "../../src/components/dashboard/settings-frame";
 import { SourceRevision } from "../../src/components/dashboard/source-revision";
+import { BillingPanel } from "../../src/components/dashboard/billing-panel";
 
 function DashboardFixture() {
   const location = useLocation();
@@ -30,6 +31,8 @@ function DashboardFixture() {
     />
   ) : path === "/app/notes/new" || path.startsWith("/app/memories/") ? (
     <></>
+  ) : path.endsWith("/settings/billing") ? (
+    <BillingPanel />
   ) : path.endsWith("/settings/models") ? (
     <ModelSettings />
   ) : path.endsWith("/settings/account") ? (
@@ -64,7 +67,7 @@ function DashboardFixture() {
   return (
     <DashboardShell>
       {path.startsWith("/app/settings") || path === "/app/connections" ? (
-        <SettingsFrame>
+        <SettingsFrame billing={path.endsWith("/settings/billing")}>
           {cloneElement(content, { key: location })}
         </SettingsFrame>
       ) : path === "/app/notes/new" || path.startsWith("/app/memories/") ? (

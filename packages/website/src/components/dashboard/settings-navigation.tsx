@@ -11,7 +11,7 @@ const sections = [
   ["/app/settings/models", "AI & search"],
   ["/app/settings/data", "Your data"],
 ];
-export function SettingsNavigation() {
+export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
   const { dirty } = usePreferenceEditor();
   const path = usePathname();
   const navigation = useRef<HTMLElement>(null);
@@ -39,7 +39,12 @@ export function SettingsNavigation() {
       className="settings-navigation"
       aria-label="Settings sections"
     >
-      {sections.map(([href, label]) => (
+      {[
+        ...sections,
+        ...(billing || path === "/app/settings/billing"
+          ? [["/app/settings/billing", "Billing"]]
+          : []),
+      ].map(([href, label]) => (
         <Link
           key={href}
           href={href}

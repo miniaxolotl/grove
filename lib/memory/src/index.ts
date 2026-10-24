@@ -138,7 +138,13 @@ const stable = (value: unknown): string =>
 export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
+export { configureBillingQuotas, billingUsage } from "./billing-quotas.ts";
+
 export class MemoryService {
+  beforeAccountDeletion?: (
+    trx: Knex.Transaction,
+    accountId: string,
+  ) => Promise<void>;
   readonly assistance: NotebookAssistance;
   readonly visits: NotebookVisits;
   private internalWork = false;
@@ -1695,7 +1701,7 @@ export class MemoryService {
     return this.access(principal, "admin", async ({ trx }) => ({
       dailyRequestLimit: this.dailyRequestLimit,
       today: await trx("inference_usage")
-        .whereRaw("day = CURRENT_DATE")
+        .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")
         .select("role", "requests", "inputTokens", "outputTokens"),
       failedJobs: Number(
         (
@@ -1709,6 +1715,7 @@ export class MemoryService {
   }
   async deleteAccount(principal: Principal) {
     return this.access(principal, "admin", async ({ trx, account }) => {
+      await this.beforeAccountDeletion?.(trx, account.id);
       await trx("accounts")
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });

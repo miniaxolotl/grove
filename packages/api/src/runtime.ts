@@ -2,6 +2,7 @@ import { createDatabase, closeDatabase, probeDatabase } from "@lib/database";
 import { readServerEnvironment } from "@lib/environment";
 import { MemoryService } from "@lib/memory";
 import { ModelRegistry } from "./models.ts";
+import { createBilling } from "./billing-runtime.ts";
 import { createArtifacts } from "./artifacts.ts";
 import { createMediaStore } from "./media-store.ts";
 import {
@@ -43,6 +44,11 @@ export async function createRuntime() {
       env.AI_DAILY_REQUEST_LIMIT,
     );
     const models = new ModelRegistry(db, env, memories);
+    if (env.BILLING_CONFIGURED) {
+      await db.raw(
+        "SELECT id,price_id,period_end FROM billing_subscriptions LIMIT 0",
+      );
+    }
     memories.research = {
       ...(env.EXA_API_KEY
         ? { exa: createResearchProvider("exa", env.EXA_API_KEY) }
@@ -103,6 +109,7 @@ export async function createRuntime() {
         };
       }
     }
+    const billingRuntime = createBilling(env, memories);
     return {
       env,
       db,
@@ -111,7 +118,9 @@ export async function createRuntime() {
       artifacts,
       media,
       speech,
+      billing: billingRuntime?.billing,
       close: async () => {
+        await billingRuntime?.close();
         artifacts?.close?.();
         media?.close?.();
         await closeDatabase(db);

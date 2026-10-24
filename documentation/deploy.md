@@ -15,6 +15,39 @@ documentation refresh.
 
 ## Topology
 
+### Billing rollout (023)
+
+Billing source does not authorize a production migration, Stripe live-mode change
+or charging customers. Follow [billing configuration and limits](billing.md).
+
+1. Back up the database; apply forward `20261024_023_billing` after 022 using the
+   owner connection. It adds billing tables/functions without rewriting retained
+   notes, accounts or existing usage. Do not reverse the migration.
+2. Keep `billing-enabled=false`. Install matching API/worker binaries and configure
+   the same Vercel SDK key, Stripe mode/credentials, Pro prices and allowances.
+   `BILLING_CONFIGURED=true` requires the billing schema at runtime startup.
+   Image-only deployments do not infer or activate these variables.
+3. Configure Stripe's customer portal, tax/legal/payment/receipt settings and the
+   signed API webhook endpoint. Use test mode and an internal Vercel flag cohort
+   first. Deploy the matching website with flag integration, not Stripe secrets.
+4. Verify Free usage, owned Checkout, completed payment → Pro, duplicate/lost
+   responses, signed webhook retry/reordering, period-end cancellation, past-due
+   downgrade, reset dates, API/worker quotas and account-deletion cancellation.
+   Confirm a second account and agent credentials cannot manage another customer.
+5. Enable the intended cohort only after real Stripe test-mode/provider checks.
+   Live price selection, enablement and charging need separate operator approval.
+
+Pause new sales/plan enforcement by turning the flag off, not by removing Stripe
+credentials or downgrading to pre-billing binaries. Webhooks, existing-customer
+portal access and deletion cancellation must continue; the flag does not stop
+renewals. Existing safety limits remain. Retain provider billing records.
+
+After database restore, keep the flag **off** and provider traffic fenced until an
+owner reconciles customer mappings, subscriptions and deleted-account tombstones
+against Stripe. Do not open new Checkout from a pre-billing/stale customer snapshot
+or infer entitlement from restored rows/event receipts. Verify canonical status
+with disposable accounts before reopening; restore is not payment reconciliation.
+
 ### Connection quality policy cutover
 
 The substantive-bridge policy requires no new database migration. Coordinate the

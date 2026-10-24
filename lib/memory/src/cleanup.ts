@@ -9,6 +9,7 @@ export async function scheduleCleanup(db: Knex) {
 export function cleanupHandlers(
   db: Knex,
   deleteIdentity: (subject: string) => Promise<void>,
+  cancelBilling?: (accountId: string) => Promise<void>,
 ) {
   const account_cleanup: TaskHandler = async (task, signal) => {
     const tables = [
@@ -75,6 +76,9 @@ export function cleanupHandlers(
     );
     if (!account || !["deleting", "deleted"].includes(account.status))
       throw new TaskError("account_unavailable", false);
+    // Also runs when Clerk deletion initiated cleanup. Failures retain the task
+    // for retry instead of silently leaving future subscription renewals enabled.
+    await cancelBilling?.(task.accountId!);
     if (!account.providerDeletedAt) {
       signal.throwIfAborted();
       try {

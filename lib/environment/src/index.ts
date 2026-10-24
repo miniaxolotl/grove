@@ -22,7 +22,9 @@ const origin = z.url().transform((value, ctx) => {
   }
   return url.origin;
 });
-export const serverEnvironmentSchema = z.object({
+const allowance = (value: number) =>
+  z.coerce.number().int().min(0).max(1000000000).default(value);
+const serverSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -70,6 +72,27 @@ export const serverEnvironmentSchema = z.object({
   CLERK_ISSUER: origin,
   CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1),
   GROVE_EDITION: z.enum(["self-hosted", "cloud"]).default("self-hosted"),
+  BILLING_CONFIGURED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  FLAGS: z.string().min(1).optional(),
+  STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+  STRIPE_PRO_MONTHLY_PRICE_ID: z.string().startsWith("price_").optional(),
+  STRIPE_PRO_YEARLY_PRICE_ID: z.string().startsWith("price_").optional(),
+  BILLING_FREE_GENERATION_DAILY: allowance(10),
+  BILLING_FREE_GENERATION_MONTHLY: allowance(100),
+  BILLING_PRO_GENERATION_DAILY: allowance(200),
+  BILLING_PRO_GENERATION_MONTHLY: allowance(2000),
+  BILLING_FREE_RESEARCH_DAILY: allowance(3),
+  BILLING_FREE_RESEARCH_MONTHLY: allowance(10),
+  BILLING_PRO_RESEARCH_DAILY: allowance(20),
+  BILLING_PRO_RESEARCH_MONTHLY: allowance(200),
+  BILLING_FREE_TRANSCRIPTION_MONTHLY_MS: allowance(600000),
+  BILLING_PRO_TRANSCRIPTION_MONTHLY_MS: allowance(7200000),
+  BILLING_FREE_SYNTHESIS_MONTHLY_CHARACTERS: allowance(10000),
+  BILLING_PRO_SYNTHESIS_MONTHLY_CHARACTERS: allowance(200000),
   EMBEDDING_MODE: z.enum(["local", "remote", "disabled"]).optional(),
   EMBEDDING_CACHE: z.string().default("./data/models"),
   EMBEDDING_URL: z.string().optional(),
@@ -217,6 +240,21 @@ export const serverEnvironmentSchema = z.object({
     .string()
     .regex(/^[0-9a-f]{64}$/i)
     .optional(),
+});
+export const serverEnvironmentSchema = serverSchema.superRefine((env, ctx) => {
+  if (
+    env.BILLING_CONFIGURED &&
+    (env.GROVE_EDITION !== "cloud" ||
+      !env.FLAGS ||
+      !env.STRIPE_SECRET_KEY ||
+      !env.STRIPE_WEBHOOK_SECRET ||
+      (!env.STRIPE_PRO_MONTHLY_PRICE_ID && !env.STRIPE_PRO_YEARLY_PRICE_ID))
+  )
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "Billing requires cloud edition, FLAGS, Stripe credentials and at least one Pro price",
+    });
 });
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 export function readServerEnvironment(env = process.env): ServerEnvironment {
