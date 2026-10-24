@@ -105,6 +105,7 @@ export type AppDependencies = {
   auth: Pick<Authentication, "principal">;
   origin: string;
   siteUrl: string;
+  openaiAppsChallenge?: string;
   issuer: string;
   webhookSecret: string;
   ready: () => Promise<void>;
@@ -295,6 +296,11 @@ export function createApp(deps: AppDependencies) {
   };
   app.get("/.well-known/oauth-protected-resource/mcp", (c) => c.json(metadata));
   app.get("/.well-known/oauth-protected-resource", (c) => c.json(metadata));
+  app.get("/.well-known/openai-apps-challenge", (c) => {
+    if (!deps.openaiAppsChallenge) return c.notFound();
+    c.header("Cache-Control", "no-store");
+    return c.text(deps.openaiAppsChallenge);
+  });
   app.get("/health/live", (c) => c.json({ status: "ok" }));
   app.get("/health/ready", async (c) => {
     await deps.ready();

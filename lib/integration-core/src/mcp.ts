@@ -23,6 +23,7 @@ export function createMemoryMcp(execute: ToolExecutor) {
     server.registerTool(
       name,
       {
+        title: tool.title,
         description: tool.description,
         inputSchema: tool.schema.shape,
         annotations: {
