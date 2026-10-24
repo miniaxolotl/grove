@@ -58,6 +58,25 @@ Production migration, API/worker runtime-variable synchronization, source promot
 and website deployment remain release operations; catalog setup is not a deployed
 webhook-delivery or paid lifecycle acceptance claim.
 
+Customer support and Stripe reply-to use `hello@bramblelabs.co`. Stripe's custom
+email domain is `bramblelabs.co`; its required verification, six DKIM and bounce
+records are installed DNS-only, with all nine pre-existing DNS records preserved.
+Stripe must finish verification before the domain can be selected for sending;
+return to Customer emails → bramblelabs.co later and select Send email from this
+domain once available. Owner approved continuing the PR while verification waits.
+Stripe fixes sender local parts such as `billing` and `receipts`; the reply-to
+address remains `hello`, not a configurable sender local part.
+
+MXroute's verified `hello@bramblelabs.co` mailbox receives eight configured base
+forwarders: `billing`, `card-expiring`, `failed-payments`, `invoice`, `receipts`,
+`support`, `trial-ending` and `upcoming-invoice`. Stripe's `invoice+statements` and
+`support+express` use plus addressing; the panel rejects literal plus signs in
+forwarder names. The owner additionally approved a domain catch-all: every unmatched
+`@bramblelabs.co` address forwards to `hello@bramblelabs.co`. Its selected forward
+mode and destination were verified after reload. Existing mailboxes and named
+forwarders retain their normal handling. Actual external message delivery was not
+tested; no mailbox contents or pre-existing forwarding destinations were changed.
+
 After database restore, keep the flag **off** and provider traffic fenced until an
 owner reconciles customer mappings, subscriptions and deleted-account tombstones
 against Stripe. Do not open new Checkout from a pre-billing/stale customer snapshot

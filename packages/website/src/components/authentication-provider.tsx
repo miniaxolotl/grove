@@ -34,7 +34,7 @@ export function AuthenticationProvider({
           logoLinkUrl: "/",
           privacyPageUrl: "/privacy",
           termsPageUrl: "/terms",
-          helpPageUrl: "mailto:grove@mawa.dev",
+          helpPageUrl: "mailto:hello@bramblelabs.co",
         },
       }}
     >

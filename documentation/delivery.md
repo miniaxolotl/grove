@@ -1,5 +1,26 @@
 # Delivery evidence
 
+## Minimal billing and shared support contact (24 October 2026)
+
+Billing uses one open settings sheet: current plan, labelled usage meters,
+short reset/renewal dates, compact included allowances and a visible $5 upgrade
+action. Payment recovery has one Update payment control. Customer copy omits
+provider names, API limits and internal accounting explanations. Settings observes
+link-size changes so late font loading keeps the full active tab visible on phones.
+
+Root/site lint, types and production builds, nine artifacts, 22 focused settings/
+cache cases and three final navigation cases pass. Updated Chromium and iPhone/
+WebKit journeys at 1440/390/320px verify meter labels/values, visible price/action,
+checkout failure/retry and double-submit, cancellation, hidden-flag state, keyboard,
+WCAG A/AA and overflow. [Twenty refreshed captures](design/screenshots/billing/README.md)
+record the review. Sixteen public-site/shared-reader cases also pass after all
+website help, legal and authentication contacts adopt `hello@bramblelabs.co`.
+
+Stripe's live customer support/reply-to address is saved and verified as that same
+address. Custom sending-domain and mailbox forwarding progress is recorded in the
+[billing rollout](deploy.md#billing-rollout-023); no payment or application release
+is implied by these provider settings.
+
 ## Five-dollar pricing and hidden billing (24 October 2026)
 
 Owner-selected **$5 USD/month** is configured in Vercel's numeric
