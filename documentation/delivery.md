@@ -1,5 +1,27 @@
 # Delivery evidence
 
+## On-demand voice selection (24 October 2026)
+
+Read aloud keeps playback compact and exposes **Change voice** through its options
+menu. Settings shows **Reading voice / current name / Change** only while Read aloud
+is on. Compact voice rows pair a quiet selection highlight with labelled preview
+icons and brief helper text. One chooser separates candidates and audition from
+**Use voice**:
+browsing/cancelling and same-voice confirmation preserve prepared narration; a
+confirmed different voice releases old playback and fences unfinished requests.
+Settings confirmation changes only its existing Save/Discard draft.
+
+Source `1506a85` passes root/site lint, types and production builds, **nine artifact
+checks**, **19 relevant speech tests**, **31 existing Chromium models/cache cases**
+and **four existing iPhone/WebKit Settings cases**. **Fifteen actual-component journey
+groups per engine** verify zero-write browsing, independent samples, save races,
+late/lost replies, cancellation, unavailable/off states, keyboard focus, responsive
+bounds and WCAG A/AA. The Notes bundle gate passes with the editor deferred.
+[Eight reviewed captures and verification details](design/screenshots/speech-voice-flow/README.md)
+document desktop/mobile playback, chooser and Settings. Speech, product-copy and
+testing guidance now describes the on-demand flow; the prior inline-picker gallery
+is marked historical.
+
 ## Selectable read-aloud voices (24 October 2026)
 
 **Reed · Basic** retains the existing OpenAI default; **Willow**, **Cedar** and

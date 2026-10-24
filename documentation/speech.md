@@ -20,8 +20,8 @@ remain usable when speech is disabled or unavailable.
    explicitly copies it into the draft. **Save transcript** retains an authored
    version; **Use in note** uses normal editing, autosave and Undo. A background job
    never overwrites authored text or an edited transcript.
-3. In a saved, unchanged note's Preview, open **Read aloud**, choose a **Voice**,
-   then **Prepare audio**. **Reed · Basic** is the initial default; **Willow**,
+3. In a saved, unchanged note's Preview, open **Read aloud**, then **Prepare audio**
+   with your remembered voice. **Reed · Basic** is the initial default; **Willow**,
    **Cedar** and **Brook** are additional nature-named voices when available.
    When ready, use the same minimalist player as recordings. Playback is a separate
    user gesture; its voice is explicitly identified as AI-generated. The narration
@@ -29,19 +29,30 @@ remain usable when speech is disabled or unavailable.
    images, raw HTML nodes, owned-media references and link definitions are silent.
    Ordinary link labels remain prose, without sending their destinations or titles.
 
-The Read aloud picker remembers the voice for your account. Settings → Preferences
-→ Speech uses the same choice with **Save preferences** and **Discard changes**.
-Changing voices stops old playback and attempts cancellation of unfinished work;
-it never prepares or plays the new voice automatically. A failed preference save
-keeps the selected local voice and offers **Retry saving voice**. Preparation uses
-that explicit selection. An unavailable remembered voice stays selected until you
-choose another; errors never silently route notes to a different voice/service.
+To change the voice, open **Read aloud options** (`⋯`) → **Change voice**. The
+**Choose a voice** dialog contains the descriptions, radio choices and samples.
+Browsing or dismissing it leaves the preference and prepared narration intact.
+**Use voice** remembers the confirmed choice for your account. Confirming the same
+voice preserves narration; confirming a different voice stops old playback and
+attempts cancellation of unfinished work. It never prepares or plays new audio
+automatically. A failed preference save keeps the applied local voice and offers
+**Retry saving voice** beside the player.
 
-**Play sample** loads a fixed same-origin example only on request, without sending
-note content or enabling speech. The bundled Willow/Cedar/Brook samples are
+In **Settings → Preferences → Speech**, **Reading voice** shows the current name
+and **Change** only while Read aloud is enabled. The same chooser updates the form
+draft; **Save preferences** persists it and **Discard changes** restores the saved
+choice. Turning Read aloud off hides the summary without clearing the voice.
+An unavailable remembered voice stays selected until you choose another. Read aloud
+offers **Change voice** when alternatives are available; Settings can still remember
+an unavailable choice. Errors never silently route notes to a different voice/service.
+
+The play icon beside a voice loads a fixed same-origin sample only on request,
+without sending note content or enabling speech. The bundled Willow/Cedar/Brook samples are
 AI-generated from synthetic editorial text. Reed currently has no bundled sample;
 its installation-specific `TTS_VOICE` mapping is retained. Samples and narration
-share playback ownership, so starting one pauses the other.
+share playback ownership, so starting one pauses the other. Each sample button is
+independent of the radio selection and never saves a preference. Dismissing the
+chooser stops samples and leaves narration paused at its retained position.
 
 Queued/running work has **Cancel speech**. Failed jobs offer **Try again**; failed
 status reads offer **Check again**, without starting another paid request. Closing
@@ -205,3 +216,4 @@ See the coordinated [022 rollout](deploy.md#selectable-speech-voices-022).
 
 [Verification and reviewed synthetic captures](design/screenshots/speech/README.md).
 [Selectable voices, sample provenance and captures](design/screenshots/speech-voices/README.md).
+[On-demand chooser and compact playback captures](design/screenshots/speech-voice-flow/README.md).
