@@ -28,7 +28,15 @@ export async function billingUsage(
   const account = await trx("accounts")
     .where({ id: accountId })
     .first("clerkSubject");
-  if (!account || !(await config.enabled(account.clerkSubject))) return null;
+  if (!account) return null;
+  const grant = await trx("account_administration")
+    .where({ accountId })
+    .first("access");
+  const override =
+    grant?.access === "pro" || grant?.access === "unlimited"
+      ? (grant.access as "pro" | "unlimited")
+      : null;
+  if (!override && !(await config.enabled(account.clerkSubject))) return null;
   const paid = await trx("billing_subscriptions")
     .where({ accountId })
     .whereIn("status", ["active", "trialing"])
@@ -38,8 +46,10 @@ export async function billingUsage(
     })
     .where("periodEnd", ">", trx.fn.now())
     .first("id");
-  const plan = paid ? "pro" : "free";
-  const limits = (config.limits ?? billingLimits)[plan];
+  const plan = override ?? (paid ? "pro" : "free");
+  const limits = (config.limits ?? billingLimits)[
+    plan === "unlimited" ? "pro" : plan
+  ];
   const {
     rows: [clock],
   } = await trx.raw(`SELECT
@@ -83,8 +93,8 @@ export async function billingUsage(
     metrics[metric] = {
       today: Number(usage.today),
       month: Number(usage.month),
-      dailyLimit: limits[metric].daily,
-      monthlyLimit: limits[metric].monthly,
+      dailyLimit: plan === "unlimited" ? null : limits[metric].daily,
+      monthlyLimit: plan === "unlimited" ? null : limits[metric].monthly,
     };
   }
   return {
@@ -108,6 +118,6 @@ export async function billingAllows(
   const usage = snapshot.metrics[metric];
   return (
     (usage.dailyLimit === null || usage.today + units <= usage.dailyLimit) &&
-    usage.month + units <= usage.monthlyLimit
+    (usage.monthlyLimit === null || usage.month + units <= usage.monthlyLimit)
   );
 }

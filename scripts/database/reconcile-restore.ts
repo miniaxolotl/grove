@@ -37,6 +37,8 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       .whereNull("deletedAt")
       .select("id", "accountId", "tools", "toolsVersion");
     const sessions = await source("session_revocations").select("*");
+    const administration = await source("account_administration").select("*");
+    const adminAudit = await source("system_admin_audit").select("*");
     const assistanceReviews = await source("assistance_reviews").select("*");
     const assistanceOperations = await source("assistance_requests")
       .whereRaw("jsonb_array_length(applied)>0")
@@ -125,6 +127,26 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
           "Restored account is absent from the current authority; keep recovery offline",
         );
       }
+      // A backup must never restore a revoked system role or complimentary grant.
+      // Reconcile only metadata from current authority, leaving private notes alone.
+      const adminAccounts = new Set(existing.map((row) => row.id));
+      await target("account_administration").delete();
+      for (const row of administration)
+        if (adminAccounts.has(row.accountId))
+          await target("account_administration").insert(row);
+      for (const row of adminAudit)
+        if (
+          adminAccounts.has(row.accountId) &&
+          (!row.actorId || adminAccounts.has(row.actorId))
+        )
+          await target("system_admin_audit")
+            .insert({
+              ...row,
+              before: JSON.stringify(row.before),
+              after: JSON.stringify(row.after),
+            })
+            .onConflict("id")
+            .ignore();
       // All restored credentials require reauthorization, including grants that
       // were reduced (rather than revoked) after the backup was taken.
       const invalidatedConnections = await target("connections").update({
