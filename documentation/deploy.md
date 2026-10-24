@@ -125,6 +125,7 @@ infer new variables or activate stored Doppler secrets.
 Verify original-media storage and temporary artifact storage separately. Cloud
 originals remain in the private durable bucket with no expiry; generated MP3 shares
 the private artifact bucket's one-day `speech/` lifecycle, never the source bucket.
+Migration [024](#content-addressed-speech-cache-024) supersedes this for new audio.
 Confirm bucket policy/lifecycle through an authorized operator, not a broader runtime
 key. Keep maintenance enabled for bounded candidate expiry and artifact removal.
 Migration 019 originally starts both speech preferences off. The forward default
@@ -153,6 +154,9 @@ the migration to a retained database or changing production preferences.
 
 ### Selectable speech voices (022)
 
+The historical environment-only activation below is superseded by migration 024's
+Vercel flag integration when `FLAGS` is configured; see the current rollout below.
+
 Apply `20261024_022_speech_voices` with the owner connection after 021. It backfills
 only the new Reed default, preserving consent flags/generations, and adds the
 per-voice installation profile map. Both runtime processes now require this schema.
@@ -174,6 +178,54 @@ saved choices remain visible as unavailable and Reed can be selected explicitly.
 Use the current restore reconciliation script to preserve the remembered choice
 without reviving generated audio. Production migration, provider activation and
 deployment remain separate operator operations.
+
+### Content-addressed speech cache (024)
+
+Apply forward `20261024_024_speech_cache` after 023 with the owner connection and
+the normal backup/migration procedure. It adds tenant-isolated cache metadata to
+the existing artifact registry and a note-write retention trigger. Existing authored
+notes, recordings, transcripts and legacy `speech/` objects retain their data and
+deadlines. Runtime startup checks the new columns.
+
+Before activation, inspect the private artifact bucket's lifecycle and runtime IAM
+prefix permissions. Allow MP3 reads/writes/deletes under `narration/`, and ensure
+**no bucket-wide or prefix age-expiration rule covers it**. Keep ordinary export
+and legacy `speech/` expiration scoped to their own prefixes. A seven-day bucket
+rule is unsuitable: matching audio is retained until its text becomes stale, not
+seven days after creation. Application maintenance owns stale-audio deletion.
+
+Drain older API/worker instances, then deploy the matching admitted image. API
+startup now publishes `speech-content-cache-v1`; older workers fail closed and
+pre-upgrade read-aloud receipts require starting again. Never restart an old API
+that would republish its older protocol. New failed writes still expire after one
+day; successful audio remains current, or expires seven days after its first text
+mismatch. Cleanup claims cannot be revived during object deletion. Restore still
+expires every derived artifact and advances the restore epoch.
+
+Verify with synthetic notes: prepare A, edit to B, revert to A and confirm the
+original object is reused; expire a request receipt and confirm a fresh receipt
+reuses its audio; verify stale-only cleanup and authenticated Range/HEAD playback.
+This source change does not apply production migrations or change bucket rules.
+
+**Alternate-voice investigation (24 October 2026):** read-only production spec
+inspection of active deployment `0ea705f1-ed0f-4b56-8b3d-637dcaaa3dd5` found
+`SPEECH_ENABLED=true` and both provider keys present on API/worker, but no
+`MINIMAX_TTS_ENABLED` on either. Its default is false, explaining the unavailable
+Willow/Cedar/Brook choices. Activation requires setting it true on both components
+and verifying the resulting voice availability; key presence is not a provider
+health/billing check. That initial investigation made no production changes.
+
+**Owner-authorized flag setup:** Vercel project `bramble-labs-inc/grove` now has
+`minimax-tts-enabled` (`flg_UFDbNBSQfL2MZSfLnMPbnGVZnuHI`), active boolean, serving
+**On in production**, **Off in preview/development**, verified by CLI readback.
+API and worker already have `FLAGS` configured. The new runtime uses this flag
+instead of the legacy environment opt-in when that SDK key is present. Use the
+same Vercel environment key on both replicas; retain `SPEECH_ENABLED`, provider
+credentials and artifact storage. The SDK falls back false and has no
+stale-on-error allowance. No billing flag was changed. Old deployed binaries do
+not read this new flag: voice activation still requires the protected source rollout
+after migration 024 and narration-storage verification. Rollback can turn this flag
+Off without changing credentials, saved voice choices or cached objects.
 
 ### Ask Grove tools rollout (020)
 

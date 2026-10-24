@@ -43,7 +43,7 @@ export const privacy: LegalDocument = {
               identities, tags, generated summaries, revisions, timestamps, and
               archive/deletion state. Attachments include images, original
               recordings and saved transcripts; optional speech also creates
-              temporary machine suggestions and generated audio.
+              temporary machine suggestions and cached generated audio.
             </li>
             <li>
               <strong>Search information:</strong> recall queries and the memory
@@ -148,10 +148,14 @@ export const privacy: LegalDocument = {
             speech service receives the note text. Voice samples use fixed
             example text and do not send your notes. For new accounts,
             transcription starts off and Read aloud starts on. Neither runs
-            automatically or on anonymous shared reads. Generated speech is
-            temporary; saved transcripts follow your note history. The service
-            applies its own data controls and retention policies. Turning a
-            feature off cannot recall data already sent.
+            automatically or on anonymous shared reads. Grove caches generated
+            audio while it matches the text of an active note. Superseded audio
+            is eligible for cleanup after seven days and can be reused if you
+            restore the text before then. Archiving, deleting or expiring the
+            note also starts that retention window. Saved transcripts follow
+            your note history. The service applies its own data controls and
+            retention policies. Turning a feature off cannot recall data already
+            sent.
           </p>
           <p>
             Authorized support and operations personnel may access information

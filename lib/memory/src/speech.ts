@@ -1,7 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { tenant, type Knex } from "@lib/database";
-import { InferenceError, type SpeechProviders } from "@lib/ai";
+import {
+  InferenceError,
+  type SpeechProviders,
+  type SpeechSynthesis,
+} from "@lib/ai";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
   speechLimits,
@@ -41,6 +45,7 @@ type Payload = {
   fingerprint: string;
   cacheKey: string;
   sha256?: string;
+  textHash?: string;
   transcriptVersion?: number;
 };
 type Row = ClaimedTask & {
@@ -70,7 +75,15 @@ const changed = () =>
     409,
   );
 
-const synthesisProtocol = "speech-voices-v1";
+const synthesisProtocol = "speech-content-cache-v1";
+async function synthesisAvailable(provider: SpeechSynthesis | undefined) {
+  if (!provider) return false;
+  try {
+    return provider.available ? (await provider.available()) === true : true;
+  } catch {
+    return false;
+  }
+}
 type Configuration = {
   transcription: string | null;
   synthesis: string | null;
@@ -161,6 +174,8 @@ async function source(
   return {
     object: undefined,
     text,
+    textHash: createHash("sha256").update(note.content).digest("hex"),
+    expiresAt: note.expiresAt,
     units: text.length,
     transcriptVersion: undefined,
   };
@@ -190,6 +205,11 @@ async function validate(
   )
     throw changed();
   const control = await trx("processing_control").first("epoch");
+  if (
+    row.kind === "speech_synthesize" &&
+    !(await synthesisAvailable(providers.synthesis?.[payload.voiceId!]))
+  )
+    throw unavailable();
   const session = await trx.raw(
     "SELECT grove_speech_session_active(?::uuid) AS active",
     [row.id],
@@ -211,6 +231,8 @@ async function validate(
     (current.object.sha256 !== payload.sha256 ||
       current.transcriptVersion !== payload.transcriptVersion)
   )
+    throw changed();
+  if (row.kind === "speech_synthesize" && current.textHash !== payload.textHash)
     throw changed();
   return current;
 }
@@ -255,19 +277,21 @@ export class SpeechJobs {
   }
   async describe() {
     const configuration = await this.service.db("speech_configuration").first();
-    const voices: SpeechVoice[] = speechVoices.map((voice) => {
-      const provider = this.providers.synthesis?.[voice.id];
-      const available =
-        !!this.store &&
-        !!provider &&
-        configuredProfile(configuration, "speech_synthesize", voice.id) ===
-          provider.profile;
-      return {
-        ...voice,
-        available,
-        ...(provider?.sampleId ? { sampleId: provider.sampleId } : {}),
-      };
-    });
+    const voices: SpeechVoice[] = await Promise.all(
+      speechVoices.map(async (voice) => {
+        const provider = this.providers.synthesis?.[voice.id];
+        const available =
+          !!this.store &&
+          (await synthesisAvailable(provider)) &&
+          configuredProfile(configuration, "speech_synthesize", voice.id) ===
+            provider?.profile;
+        return {
+          ...voice,
+          available,
+          ...(provider?.sampleId ? { sampleId: provider.sampleId } : {}),
+        };
+      }),
+    );
     return {
       speechVoices: voices,
       speechAvailable: {
@@ -304,6 +328,11 @@ export class SpeechJobs {
         : (input.voiceId ?? account.readAloudVoiceId);
       const provider = selectedProvider(this.providers, kind, voiceId);
       if (!provider || (!input.mediaId && !this.store)) throw unavailable();
+      if (
+        !input.mediaId &&
+        !(await synthesisAvailable(this.providers.synthesis?.[voiceId!]))
+      )
+        throw unavailable();
       const current = await source(trx, memoryId, input.version, input.mediaId);
       const { epoch } = await trx("processing_control").first("epoch");
       const owner = await trx("accounts").where({ id: account.id }).first();
@@ -316,7 +345,7 @@ export class SpeechJobs {
               sha256: current.object.sha256,
               transcriptVersion: current.transcriptVersion,
             }
-          : { voiceId }),
+          : { voiceId, textHash: current.textHash }),
         profile: provider.profile,
         preferenceVersion: owner[key.version],
         epoch,
@@ -327,7 +356,7 @@ export class SpeechJobs {
       payload.cacheKey = fingerprint([
         account.id,
         memoryId,
-        input.version,
+        input.mediaId ? input.version : payload.textHash,
         voiceId,
         provider.profile,
         payload.preferenceVersion,
@@ -349,19 +378,10 @@ export class SpeechJobs {
         );
       const cached =
         kind === "speech_synthesize" &&
-        (await trx("background_tasks as t")
-          .where({ "t.kind": kind, "t.status": "succeeded" })
-          .whereRaw("t.payload->>'cacheKey'=?", [payload.cacheKey])
-          .where("t.expiresAt", ">", trx.fn.now())
-          .whereExists(
-            trx("export_objects as o")
-              .select(trx.raw("1"))
-              .whereRaw(
-                "o.account_id=t.account_id AND o.object_key=t.result->>'key'",
-              )
-              .where("o.expiresAt", ">", trx.fn.now()),
-          )
-          .first("t.*"));
+        (await trx("export_objects")
+          .where({ accountId: account.id, speechCacheKey: payload.cacheKey })
+          .where("expiresAt", ">", trx.fn.now())
+          .first());
       const [row] = await trx("background_tasks")
         .insert({
           id: input.id,
@@ -369,13 +389,15 @@ export class SpeechJobs {
           kind,
           dedupeKey: input.id,
           payload: JSON.stringify(payload),
-          expiresAt: cached
-            ? cached.expiresAt
-            : trx.raw("now()+interval '1 day'"),
+          expiresAt: trx.raw("now()+interval '1 day'"),
           ...(cached
             ? {
                 status: "succeeded",
-                result: JSON.stringify(cached.result),
+                result: JSON.stringify({
+                  key: cached.objectKey,
+                  bytes: Number(cached.bytes),
+                  sha256: cached.speechSha256,
+                }),
                 finishedAt: trx.fn.now(),
               }
             : {}),
@@ -563,7 +585,7 @@ export function speechHandlers(
             throw new TaskError("speech_audio_limit", false);
           await check();
           signal.throwIfAborted();
-          const objectKey = `speech/${row.accountId}/${row.id}/${randomUUID()}.mp3`;
+          const objectKey = `narration/${row.accountId}/${row.id}/${randomUUID()}.mp3`;
           await tenant(db, row.accountId!, async (trx) => {
             await trx("accounts")
               .where({ id: row.accountId })
@@ -587,7 +609,24 @@ export function speechHandlers(
       );
       signal.throwIfAborted();
       await taskTransaction(db, row, async (trx) => {
-        await validate(trx, row, providers);
+        const source = await validate(trx, row, providers);
+        if (row.kind === "speech_synthesize" && "key" in result) {
+          // Publish retention and the receipt atomically, only after the write and
+          // lease/source fences pass. Failed attempts retain their one-day expiry.
+          await trx("export_objects")
+            .where({ objectKey: result.key, taskId: row.id })
+            .update({
+              speechMemoryId: row.payload.memoryId,
+              speechTextHash: row.payload.textHash,
+              speechCacheKey: row.payload.cacheKey,
+              speechSha256: result.sha256,
+              expiresAt: source.expiresAt
+                ? trx.raw("?::timestamptz+interval '7 days'", [
+                    source.expiresAt,
+                  ])
+                : trx.raw("'infinity'::timestamptz"),
+            });
+        }
         return { complete: true, processed: 1, result };
       });
     } catch (error) {
