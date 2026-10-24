@@ -1,7 +1,23 @@
 .speech-read-aloud {
+  width: min(100%, 34rem);
   margin-bottom: 0.5rem;
   font-size: 0.8125rem;
   line-height: 1.5;
+}
+.speech-header,
+.speech-header-actions,
+.speech-preparation-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.speech-header-actions {
+  margin-left: auto;
+}
+.speech-preparation-actions {
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  min-height: 44px;
 }
 .speech-trigger,
 .speech-actions {
@@ -24,18 +40,20 @@
   text-underline-offset: 0.15em;
 }
 .speech-panel {
-  position: relative;
-  width: min(100%, 34rem);
-  padding: 0.5rem 2rem 0.5rem 0;
+  padding: 0.25rem 0 0.5rem;
 }
-.speech-close {
-  position: absolute;
-  right: 0;
-  top: 0;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
+.speech-caption {
+  margin-top: 0.375rem;
+}
+.speech-remembering {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--color-muted);
+}
+.speech-remembering button,
+.speech-permission button {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 .speech-transcription,
 .speech-candidate,
@@ -55,7 +73,7 @@
   overflow-y: auto;
   margin: 0.5rem 0;
 }
-.speech-panel :is(button, a):focus-visible,
+.speech-read-aloud :is(button, a):focus-visible,
 .speech-transcription button:focus-visible {
   outline: 2px solid var(--color-forest);
   outline-offset: 2px;
