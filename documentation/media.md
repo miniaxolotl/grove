@@ -123,7 +123,7 @@ AccessDenied case; known expiration rules and failed conditional writes still fa
 Reverify the receipt after bucket/retention changes and before activation. Do not
 put an account-wide Spaces credential in the API/worker to enable inspection.
 
-User-authorized NYC3 provisioning verified private source and temporary buckets,
+Initial user-authorized NYC3 provisioning verified private source and temporary buckets,
 source non-expiry, one-day exports/speech expiry, anonymous403, conditional412 and
 cross-bucket scoped denial. Active keys are in Grove Doppler configs `prd_media`
 and `prd_artifacts`, mirrored in the main checkout's ignored0600 `secrets.md`.
@@ -133,5 +133,7 @@ remain rollout checks. See [storage details](development/media-foundation.md),
 [sharing limitations](sharing.md) and [deployment](deploy.md).
 
 [Recordings](recordings.md) add original WAV playback and editable transcripts;
-STT/TTS follows separately. [Screenshots](design/screenshots/media-images/README.md) show synthetic
+current [STT/TTS contracts](speech.md) include text-hash audio caching. Migration
+024's `narration/` prefix must be excluded from the original one-day speech rule.
+[Screenshots](design/screenshots/media-images/README.md) show synthetic
 desktop/phone and export states; the PR uses three previews per row.

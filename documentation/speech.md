@@ -147,18 +147,34 @@ is rejected. Per-voice profile checks mean a MiniMax cutover leaves Reed valid.
 
 ## Temporary output and recovery
 
-Generated MP3 uses `speech/ACCOUNT/TASK/ATTEMPT.mp3` in the **temporary artifact
-store**, never the retained source-media store. Objects are tracked before writing
+Before migration 024, generated MP3 used `speech/ACCOUNT/TASK/ATTEMPT.mp3` in the
+**artifact store**, never the retained source-media store. Objects are tracked before writing
 in the existing artifact cleanup registry; failed writes remain cleanup candidates.
-Cache reuse requires the same tenant, note/revision, provider/model/voice/format,
-preference generation and restore epoch, plus an unexpired tracked object. Reuse
-creates a retry-safe request receipt without another provider call.
+Legacy objects keep their original expiry. New generated MP3 uses
+`narration/ACCOUNT/TASK/ATTEMPT.mp3` in the same private S3 artifact store, on a
+prefix **without an age-based bucket lifecycle**. Self-hosting can use the same
+local artifact adapter. Successful publication stores the SHA-256 of the exact
+saved UTF-8 note text alongside the audio checksum and a cache identity containing
+tenant, note, text hash, provider/model/voice/format, preference generation and
+restore epoch. It does not store another copy of the note text.
 
-Task/candidate access expires no later than 24 hours after enqueue; reused output
-keeps the original deadline. Worker maintenance clears expired machine-result text
-in bounded batches, and artifact cleanup removes expired objects. Physical deletion
-depends on running maintenance or the operator's bucket lifecycle; expiry is not an
-exact deletion-time promise. Playback uses private/no-store authenticated Range/HEAD
+Matching audio has no age expiry while the note is active and unexpired. A text
+change starts a **seven-day** retention window for the superseded audio; subsequent
+different edits do not extend that window. Reverting to the original text before
+expiry reuses its audio without another provider call and removes its stale deadline.
+Metadata-only revisions also reuse matching text. Voices have independent cache
+entries. An expired entry cannot be revived, even if cleanup has not removed it yet.
+Archiving/deleting a note starts the same grace window; a scheduled note expiry
+bounds audio retention to seven days after that expiry. Failed/unpublished writes
+remain one-day cleanup candidates.
+
+Task/candidate access expires no later than 24 hours after enqueue. A cache hit
+creates a fresh retry-safe receipt for the current revision/session without
+extending an old receipt's authorization window. Cache metadata survives receipt
+and machine-result expiry. Worker maintenance clears expired machine-result text
+in bounded batches, and artifact cleanup claims expired objects irreversibly before
+removing their bytes. Matching audio is excluded. Physical deletion depends on
+running maintenance; expiry is not an exact deletion-time promise. Playback uses private/no-store authenticated Range/HEAD
 streams with renewed authorization, not raw S3 URLs. Delivered bytes cannot be revoked.
 
 Accepted, saved transcripts are retained authored data and already belong to the
@@ -172,7 +188,7 @@ current value while expiring derived speech from every voice.
 
 ## Installation and API
 
-Apply forward migration **022 `20261024_022_speech_voices`** after 021, using the owner
+Apply forward migration **024 `20261024_024_speech_cache`** after 023, using the owner
 procedure in [deploy](deploy.md). Configure API and worker identically:
 
 ```sh
@@ -185,17 +201,18 @@ SPEECH_PROVIDER_CONCURRENCY=2
 
 The installation flag defaults false. STT needs the original media store; TTS needs
 temporary artifact storage. Cloud must keep the private durable media bucket
-separate from the expiring artifact bucket; the existing `speech/` one-day lifecycle
-belongs only on the latter. Local storage is for self-hosting/tests. Reed's
+separate from the artifact bucket; existing `speech/` and export expiry rules must
+not cover `narration/`. Local storage is for self-hosting/tests. Reed's
 `TTS_VOICE` override accepts `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`.
 To activate Willow/Cedar/Brook, additionally set `MINIMAX_TTS_ENABLED=true` and the
 existing `MINIMAX_API_KEY` on both API and worker; the gate requires artifact storage.
-API startup publishes per-voice profiles plus the `speech-voices-v1` protocol
+API startup publishes per-voice profiles plus the `speech-content-cache-v1` protocol
 marker. Older/mismatched workers fail closed; legacy TTS tasks without a voice
 identity require starting again. Transcription keeps its independent profile.
 Runtime startup verifies the new account/configuration schema. Initial/image-only
 hosting operations do not infer missing speech secrets or activate the new flag.
-See the coordinated [022 rollout](deploy.md#selectable-speech-voices-022).
+See voice [activation](deploy.md#selectable-speech-voices-022) and the coordinated
+[024 rollout](deploy.md#content-addressed-speech-cache-024).
 
 - `GET /v1/me`: includes `transcriptionEnabled`, `readAloudEnabled`,
   `readAloudVoiceId`, `speechVoices: [{id,name,description,basic,available,sampleId?}]`

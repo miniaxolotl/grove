@@ -1,5 +1,30 @@
 # Delivery evidence
 
+## Text-addressed read-aloud cache (24 October 2026)
+
+Migration **024** stores exact saved-text SHA-256 and voice/profile-aware cache
+metadata with private derived audio. Matching audio persists independently of
+24-hour request receipts; text edits retain previous versions for seven days.
+Reverting before expiry reuses the original object without inference. Publication
+retains source, session, consent, profile, restore and lease guards. Cleanup
+irreversibly claims expired objects before deletion, including when an editing
+transaction began before the expiry boundary.
+
+Production read-only investigation found the alternate voices disabled by an
+absent `MINIMAX_TTS_ENABLED` on both API and worker; both provider keys are present.
+Both components already use S3 artifacts. The [rollout](deploy.md#content-addressed-speech-cache-024)
+documents flag activation, the forward migration and lifecycle-independent
+`narration/` storage. Production configuration and data were not changed.
+
+Root lint, types, build, **355 backend/service tests** (four optional service
+skips), **nine packaged artifacts** and **seven deployment contracts** pass.
+Regression-first checks reproduced revision-bound reuse, one-day expiry and a
+cleanup/revert race, then pass with the fix. Populated 023→024 preservation and
+loopback S3 request metadata also pass. Preferences/privacy copy replaces the
+stale one-day promise. Website lint, types and production build plus **14 focused
+Chromium settings/public-page checks** pass; no layout or interaction change
+requires new screenshots.
+
 ## Billing lifecycle review follow-up (24 October 2026)
 
 Post-merge [#112 review](development/billing-review.md) reproduced and repaired three
