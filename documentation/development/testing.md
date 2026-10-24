@@ -1,5 +1,21 @@
 # Verification
 
+Note-management coverage in `memory-tools.test.ts` and `memory.test.ts` exercises
+the shared HTTP/remote-MCP contracts, metadata-preserving partial updates, exact
+revision reads, atomic batch moves, retry conflicts, scoped/hidden-parent discovery,
+revocation and owner-only notebook lifecycle. `conversations.test.ts` covers explicit
+lifecycle intent, whole-subtree previews, Apply/Undo, stale versions, deletion without
+Undo and hierarchy-cycle rejection. Recovery invalidates the new previews too.
+Use the disposable database/non-owner roles below. All packaged bridges enumerate
+the expanded catalog and exercise new tool routing and paused automatic corrections.
+
+Actual-component Ask journeys use synthetic notes/notebooks at 1440/390/320px:
+review lifecycle targets/counts, verify no write before Apply, archive/restore/Undo,
+delete without Undo, notebook moves, disabled Manage notes and failed/stale Apply.
+Verify navigation/cache refresh, keyboard focus, accessible labels and no horizontal
+overflow. [Note tools gallery](../design/screenshots/note-tools/README.md) records
+the relevant reviewed captures.
+
 Connection-quality tests use a freshly migrated disposable database and non-owner
 API/worker roles, as described below. Rerun `pnpm test:db:setup` after integrating
 development's forward migrations; a database bootstrapped before media/speech
@@ -361,10 +377,11 @@ absolute isolated binaries of those qualified versions.
 The existing TypeScript CI job runs this suite without changing runner placement
 or CI Gate inventory. Temporary HOME/XDG/client stores, local marketplaces and
 loopback API/model fixtures isolate it from live credentials, sessions and billing.
-Native install/uninstall, skills, four tools, Claude's SessionStart and Codex's
+Native install/uninstall, skills, the complete tool catalog, Claude's SessionStart and Codex's
 paused automatic writes are checked. Missing-Node native failures are intentional
 negative controls. OpenCode connects with an empty PATH and its compiled runtime
-also exercises all four packaged bridge tools. Paths contain spaces; owned
+also exercises the original four bridge operations; packed-artifact tests cover all
+new tool routes. Paths contain spaces; owned
 processes are stopped on success/failure. macOS/Windows and other host versions
 are not qualified by this Linux runner.
 

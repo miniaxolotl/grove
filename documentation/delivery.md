@@ -1,5 +1,46 @@
 # Delivery evidence
 
+## Note and notebook management tools (24 October 2026)
+
+Remote MCP and every bundled bridge share **14 tools**: the existing save/recall/
+search/delete operations plus exact reads/history, metadata-preserving partial
+updates, atomic filing, archive/restore and paginated notebook create/rename/move.
+Source/destination grants, versions, retry identities and owner-only subtree
+administration remain enforced. Deletion is retained soft deletion, not physical
+erasure; stale tool/skill/approval wording is corrected.
+
+Ask Grove adds explicit archive/restore/delete previews with full subtree counts,
+existing-notebook parent moves and version-checked Apply/Undo. Delete has no Undo.
+Source allowlists, exact conversation scope, overlap checks and complete fingerprints
+prevent unseen/stale batches; recovery invalidates lifecycle previews. Retained
+drafts block Apply. Metadata-only notifications prune deleted sources in offline
+tabs, not just invalidate them for an unavailable refresh.
+
+On application source `98742ee`, root/site lint, types and production builds, all
+**nine packaged-artifact checks**, **three pinned native hosts**, **310 backend
+tests** (four optional RabbitMQ/S3 skips) and **34 release/deployment contracts**
+pass locally. PostgreSQL uses disposable data and non-owner API/worker roles.
+Final-source repeats pass the full **223 Chromium** suite and **12 focused
+iPhone/WebKit** checks. Actual-component
+journeys pass subtree preview/no-write/Apply/Undo, note lifecycle, notebook moves,
+disabled tools, interrupted Apply/retry, retained drafts and offline-tab deletion
+in both engines. Desktop/390/320px axe and overflow checks pass.
+
+Notes entry is **488,327 gzip bytes**, editor deferred, within its existing budget.
+[Nine reviewed captures](design/screenshots/note-tools/README.md) use synthetic
+notes and deterministic generation with the actual disposable API. No paid-model
+intent accuracy or production rollout is claimed. No schema migration is required;
+deploy the matching API before upgraded clients and website. [API](server.md),
+[client](client.md), [Ask](ask-tools.md) and [verification](development/testing.md)
+document the new contracts and retained authorization boundaries.
+
+Merge verification integrates voice-selection #109 (`f159036`) without overlapping
+Ask/MCP/runtime edits. The combined tree passes root/site lint, types and builds,
+nine artifacts, three native hosts, 310 backend tests (four optional-service skips),
+223 Chromium and 12 focused WebKit checks, both-engine note-management journeys,
+50 automation contracts and workflow lint. Notes entry is 488,208 gzip bytes with
+the editor deferred. Both feature histories and original capture provenance remain.
+
 ## On-demand voice selection (24 October 2026)
 
 Read aloud keeps playback compact and exposes **Change voice** through its options

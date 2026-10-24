@@ -62,7 +62,7 @@ from an unavailable runtime or malformed configuration; existing credentials are
 never deleted to repair a startup problem.
 
 `--probe` starts only a separate packaged Grove bridge, initializes it and lists its
-four tools, then makes an authenticated `/v1/me` request. It does not call memory
+tool catalog, then makes an authenticated `/v1/me` request. It does not call memory
 tools or write notes. Normal OAuth refresh may update saved credentials. Bridge/API
 checks each have a five-second deadline, plus bounded transport teardown.
 
@@ -182,6 +182,15 @@ First run `grove login --client cli`. `grove --help` prints help. The bridge
 uses the official MCP SDK and the authenticated HTTP API. Stdout is protocol-only.
 
 ## Scope and capture
+
+Connected agents can search/read exact notes, partially edit them, inspect history,
+move notes, archive/restore, delete and list/create/rename/move notebooks. Ask for an
+action in ordinary language; the agent discovers IDs and checks current versions.
+For example: “Move these notes into Gardening” or “Restore the archived checklist.”
+`update_memory` preserves omitted metadata; `remember` remains the full-save contract.
+Both honor paused automatic capture. Deletion hides retained history and has no
+ordinary Undo; notebook subtree lifecycle is available only to the owner website
+session. See the [complete tool reference](server.md#memory-and-notebook-tools).
 
 Git HTTPS/SSH origins normalize to `git:host/owner/repository`, stripping credentials,
 query data and `.git`. Local-only repositories use a hash of their common Git

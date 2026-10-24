@@ -134,6 +134,11 @@ export class WorkspaceCache {
             value.resource.split("/").at(-1)!,
             value.scopes,
           );
+        } else if (
+          value.resource?.startsWith("/memories/lifecycle/") &&
+          value.ids
+        ) {
+          this.noteLifecycle(value.resource.split("/").at(-1)!, value.ids);
         } else this.invalidate(value);
       };
     }
@@ -519,6 +524,20 @@ export class WorkspaceCache {
     }
     this.invalidate({});
   }
+  private noteLifecycle(action: string, ids: string[]) {
+    const change = { ids };
+    void this.client.cancelQueries({
+      predicate: (query) => this.affected(query, change),
+    });
+    const notes = new Map<string, Memory | null>();
+    for (const id of ids) {
+      if (action === "delete") this.forget(id);
+      else this.client.setQueryData(workspaceKeys.note(id), null);
+      notes.set(id, null);
+    }
+    this.patchPages(notes);
+    this.invalidate(change);
+  }
   private patchPages(notes: Map<string, Memory | null>) {
     for (const query of this.client
       .getQueryCache()
@@ -824,13 +843,37 @@ export class WorkspaceCache {
         }
         this.invalidate(change);
         if (/\/(apply|undo)$/.test(path)) {
+          const action = chat.turns?.find(
+            (turn) => turn.id === path.split("/")[4],
+          )?.result?.lifecycle;
+          if (action && ["applied", "undone"].includes(action.status)) {
+            const removing =
+              action.status === "applied" && action.action === "delete";
+            const ids = action.notes.map((note) => note.id);
+            this.noteLifecycle(removing ? "delete" : "refresh", ids);
+            this.publish?.({
+              resource: `/memories/lifecycle/${removing ? "delete" : "refresh"}`,
+              ids,
+            });
+            if (action.notebookPreviews.length) {
+              const scopes = action.notebookPreviews.flatMap(
+                (preview) => preview.projectIds,
+              );
+              this.notebookLifecycle(removing ? "delete" : "archive", scopes);
+              this.publish?.({
+                resource: `/projects/lifecycle/${removing ? "delete" : "archive"}`,
+                scopes,
+              });
+            }
+          }
           // Merge/undo may affect archived source notes absent from the reply. Revalidate all note dependencies.
           this.invalidate({});
           this.publish?.({});
           if (
             chat.turns?.some(
               (turn) =>
-                turn.id === path.split("/")[4] && turn.result?.organization,
+                turn.id === path.split("/")[4] &&
+                (turn.result?.organization || turn.result?.lifecycle),
             )
           ) {
             for (const resource of ["/projects", "/projects?status=archived"]) {

@@ -62,7 +62,15 @@ async function fixture() {
   const { rows } = await db.raw("SELECT * FROM grove_account(?)", [subject]);
   const principal = sessionPrincipal(rows[0].id, subject);
   const behavior = {
-    intent: "find" as "find" | "edit" | "merge" | "create" | "organize",
+    intent: "find" as
+      | "find"
+      | "edit"
+      | "merge"
+      | "create"
+      | "organize"
+      | "archive"
+      | "restore"
+      | "delete",
     references: [] as string[],
     calls: [] as { sources: Source[]; context: unknown }[],
     schemas: [] as { safeParse: (value: unknown) => { success: boolean } }[],
@@ -76,6 +84,7 @@ async function fixture() {
     }[],
     webStatements: [] as { text: string; urls: string[] }[],
     organization: [] as unknown[],
+    lifecycle: [] as unknown[],
     organizeAfter: null as string | null,
   };
   const providers: Providers = {
@@ -111,23 +120,30 @@ async function fixture() {
           })),
           webStatements: behavior.webStatements,
           organization: behavior.organization,
-          proposals:
-            behavior.intent === "find" || behavior.intent === "organize"
-              ? []
-              : [
-                  {
-                    kind: behavior.intent,
-                    content: "# Garden\n\nWater the garden every morning.",
-                    target:
-                      behavior.intent === "create" ? [] : refs.slice(0, 1),
-                    sources:
-                      behavior.intent === "create"
-                        ? []
-                        : behavior.intent === "edit"
-                          ? refs.slice(0, 1)
-                          : refs.slice(0, 2),
-                  },
-                ],
+          ...(behavior.lifecycle.length
+            ? { lifecycle: behavior.lifecycle }
+            : {}),
+          proposals: [
+            "find",
+            "organize",
+            "archive",
+            "restore",
+            "delete",
+          ].includes(behavior.intent)
+            ? []
+            : [
+                {
+                  kind: behavior.intent,
+                  content: "# Garden\n\nWater the garden every morning.",
+                  target: behavior.intent === "create" ? [] : refs.slice(0, 1),
+                  sources:
+                    behavior.intent === "create"
+                      ? []
+                      : behavior.intent === "edit"
+                        ? refs.slice(0, 1)
+                        : refs.slice(0, 2),
+                },
+              ],
         });
       },
     },
@@ -157,6 +173,459 @@ async function fixture() {
 }
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
+
+test("Ask moves existing notebooks with atomic version checks and exact hierarchy Undo", async () => {
+  const f = await fixture();
+  const root = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  const target = await f.service.project(f.principal, {
+    name: "Home",
+    identity: randomUUID(),
+  });
+  f.behavior.intent = "organize";
+  f.behavior.organization = [
+    {
+      notebookMoves: [
+        { id: root.id, version: root.version, destination: target.id },
+      ],
+    },
+  ];
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Move Garden inside Home"),
+  );
+  assert.equal(
+    (await f.service.projects(f.principal)).find((n) => n.id === root.id)
+      ?.parentId,
+    null,
+  );
+  chat = await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+  );
+  assert.equal(
+    (await f.service.projects(f.principal)).find((n) => n.id === root.id)
+      ?.parentId,
+    target.id,
+  );
+  await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+    true,
+  );
+  assert.equal(
+    (await f.service.projects(f.principal)).find((n) => n.id === root.id)
+      ?.parentId,
+    null,
+  );
+});
+
+test("Ask note lifecycle previews archive, restore and delete only after Apply", async () => {
+  const f = await fixture();
+  let note = await f.save("Garden pruning checklist", { retentionDays: 14 });
+  const originalExpiry = note.expiresAt;
+  for (const action of ["archive", "restore", "delete"] as const) {
+    f.behavior.intent = action;
+    f.behavior.lifecycle = [
+      {
+        action,
+        notes: [{ id: note.id, version: note.version }],
+        notebooks: [],
+      },
+    ];
+    let chat = await f.create();
+    chat = await f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn(`${action} my garden note`),
+    );
+    assert.equal(
+      (await f.service.get(f.principal, note.id)).version,
+      note.version,
+    );
+    await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+    await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+    if (action === "delete") {
+      await assert.rejects(f.service.get(f.principal, note.id), {
+        code: "not_found",
+      });
+      await assert.rejects(
+        f.service.conversations.apply(
+          f.principal,
+          chat.id,
+          chat.turns[0].id,
+          true,
+        ),
+        { code: "not_undoable" },
+      );
+    } else {
+      note = await f.service.get(f.principal, note.id);
+      assert.equal(note.status, action === "archive" ? "archived" : "active");
+      if (action === "restore") {
+        await f.service.conversations.apply(
+          f.principal,
+          chat.id,
+          chat.turns[0].id,
+          true,
+        );
+        note = await f.service.get(f.principal, note.id);
+        assert.equal(note.status, "archived");
+        assert.equal(note.expiresAt, originalExpiry);
+      }
+    }
+  }
+});
+
+test("Ask notebook lifecycle validates complete subtree snapshots and supports archive Undo", async () => {
+  const f = await fixture();
+  const parent = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  const child = await f.service.project(f.principal, {
+    name: "Seeds",
+    identity: randomUUID(),
+    parentId: parent.id,
+  });
+  const note = await f.save("Garden seeds", { projectId: child.id });
+  f.behavior.intent = "archive";
+  f.behavior.lifecycle = [
+    {
+      action: "archive",
+      notes: [],
+      notebooks: [{ id: parent.id, version: parent.version }],
+    },
+  ];
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Archive Garden and its contents"),
+  );
+  await f.save("Garden new note", { projectId: child.id });
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id),
+    { code: "version_conflict" },
+  );
+  assert.equal((await f.service.get(f.principal, note.id)).status, "active");
+  chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Archive Garden and its contents"),
+  );
+  await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+  assert.equal((await f.service.get(f.principal, note.id)).status, "archived");
+  await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+    true,
+  );
+  assert.equal((await f.service.get(f.principal, note.id)).status, "active");
+});
+
+test("Ask rejects lifecycle changes in ordinary answers and stale note batches", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden safety checklist");
+  f.behavior.lifecycle = [
+    {
+      action: "delete",
+      notes: [{ id: note.id, version: note.version }],
+      notebooks: [],
+    },
+  ];
+  let chat = await f.create();
+  await assert.rejects(
+    f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Find my garden notes"),
+    ),
+  );
+  assert.equal((await f.service.get(f.principal, note.id)).status, "active");
+  f.behavior.intent = "delete";
+  chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Delete the garden note"),
+  );
+  await f.save("Garden edited", { id: note.id, expectedVersion: note.version });
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id),
+    { code: "sources_changed" },
+  );
+  assert.equal(
+    (await f.service.get(f.principal, note.id)).content,
+    "Garden edited",
+  );
+});
+
+test("Ask notebook move Undo rejects a cycle introduced after Apply", async () => {
+  const f = await fixture();
+  const oldParent = await f.service.project(f.principal, {
+    name: "Original",
+    identity: randomUUID(),
+  });
+  const folder = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+    parentId: oldParent.id,
+  });
+  f.behavior.intent = "organize";
+  f.behavior.organization = [
+    {
+      notebookMoves: [
+        { id: folder.id, version: folder.version, destination: null },
+      ],
+    },
+  ];
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Move Garden to the root"),
+  );
+  await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+  await f.service.project(
+    f.principal,
+    {
+      name: oldParent.name,
+      identity: oldParent.identity,
+      expectedVersion: oldParent.version,
+      parentId: folder.id,
+    },
+    oldParent.id,
+  );
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id, true),
+  );
+  assert.equal(
+    (await f.service.projects(f.principal)).find((n) => n.id === folder.id)
+      ?.parentId,
+    null,
+  );
+});
+
+test("Ask can undo moving an existing notebook into a new notebook", async () => {
+  const f = await fixture();
+  const folder = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  f.behavior.intent = "organize";
+  f.behavior.organization = [
+    {
+      notebooks: [{ key: "home", name: "Home" }],
+      notebookMoves: [
+        { id: folder.id, version: folder.version, destination: "new:home" },
+      ],
+    },
+  ];
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Create Home and move Garden into it"),
+  );
+  await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+  await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    chat.turns[0].id,
+    true,
+  );
+  const folders = await f.service.projects(f.principal);
+  assert.equal(folders.length, 1);
+  assert.equal(folders[0].parentId, null);
+});
+
+test("Ask lifecycle rejects overlapping targets and keeps an entire stale note batch unchanged", async () => {
+  const f = await fixture();
+  const folder = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  const first = await f.save("Garden first", { projectId: folder.id });
+  const second = await f.save("Garden second", { projectId: folder.id });
+  f.behavior.intent = "delete";
+  f.behavior.lifecycle = [
+    {
+      action: "delete",
+      notes: [{ id: first.id, version: first.version }],
+      notebooks: [{ id: folder.id, version: folder.version }],
+    },
+  ];
+  let chat = await f.create();
+  await assert.rejects(
+    f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Delete the Garden notebook and note"),
+    ),
+    { code: "sources_changed" },
+  );
+  f.behavior.lifecycle = [
+    {
+      action: "delete",
+      notes: [first, second].map(({ id, version }) => ({ id, version })),
+      notebooks: [],
+    },
+  ];
+  chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Delete both garden notes"),
+  );
+  await f.save("Garden second changed", {
+    id: second.id,
+    expectedVersion: second.version,
+    projectId: folder.id,
+  });
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id),
+    { code: "sources_changed" },
+  );
+  assert.equal(
+    (await f.service.get(f.principal, first.id)).version,
+    first.version,
+  );
+});
+
+test("Ask notebook lifecycle delete retains hidden source history and cannot be undone", async () => {
+  const f = await fixture();
+  const folder = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  const note = await f.save("Garden reference", { projectId: folder.id });
+  f.behavior.intent = "delete";
+  f.behavior.lifecycle = [
+    {
+      action: "delete",
+      notes: [],
+      notebooks: [{ id: folder.id, version: folder.version }],
+    },
+  ];
+  let chat = await f.create();
+  chat = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Delete the Garden notebook and all its contents"),
+  );
+  await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+  await f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id);
+  await assert.rejects(f.service.get(f.principal, note.id), {
+    code: "not_found",
+  });
+  assert.equal(
+    (await admin("memory_revisions").where({ memoryId: note.id })).length,
+    1,
+  );
+  await assert.rejects(
+    f.service.conversations.apply(f.principal, chat.id, chat.turns[0].id, true),
+    { code: "not_undoable" },
+  );
+});
+
+test("Ask notebook lifecycle cannot expand a notebook-scoped conversation into children", async () => {
+  const f = await fixture();
+  const folder = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  await f.service.project(f.principal, {
+    name: "Seeds",
+    identity: randomUUID(),
+    parentId: folder.id,
+  });
+  f.behavior.intent = "archive";
+  f.behavior.lifecycle = [
+    {
+      action: "archive",
+      notes: [],
+      notebooks: [{ id: folder.id, version: folder.version }],
+    },
+  ];
+  const chat = await f.create({ projectId: folder.id });
+  await assert.rejects(
+    f.service.conversations.turn(f.principal, chat.id, turn("Archive Garden")),
+    { code: "sources_changed" },
+  );
+});
+
+test("Ask lifecycle rejects notebook targets not supplied to the generation snapshot", async () => {
+  const f = await fixture();
+  const started = deferred(),
+    release = deferred();
+  f.behavior.intent = "delete";
+  f.behavior.wait = async () => {
+    started.resolve();
+    await release.promise;
+  };
+  const chat = await f.create();
+  const response = f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Delete the Garden notebook"),
+  );
+  await started.promise;
+  const unseen = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  f.behavior.lifecycle = [
+    {
+      action: "delete",
+      notes: [],
+      notebooks: [{ id: unseen.id, version: unseen.version }],
+    },
+  ];
+  release.resolve();
+  await assert.rejects(response, { code: "sources_changed" });
+});
+
+test("Ask notebook organization cannot move or rename a notebook outside conversation scope", async () => {
+  const f = await fixture();
+  const folder = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  const outside = await f.service.project(f.principal, {
+    name: "Home",
+    identity: randomUUID(),
+  });
+  f.behavior.intent = "organize";
+  for (const changes of [
+    {
+      notebookMoves: [
+        { id: outside.id, version: outside.version, destination: folder.id },
+      ],
+    },
+    {
+      renames: [{ id: outside.id, version: outside.version, name: "Changed" }],
+    },
+  ]) {
+    f.behavior.organization = [changes];
+    const chat = await f.create({ projectId: folder.id });
+    await assert.rejects(
+      f.service.conversations.turn(
+        f.principal,
+        chat.id,
+        turn("Organize this notebook"),
+      ),
+      { code: "sources_changed" },
+    );
+  }
+});
 
 async function seedNotes(accountId: string, count: number) {
   await admin.raw(

@@ -18,6 +18,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { build } from "esbuild";
+import { memoryTools } from "@lib/shared/memory-tools";
 
 const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -193,7 +194,7 @@ test("packed stdio MCP authenticates explicit saves, records provenance and bloc
       await client.connect(transport);
       assert.deepEqual(
         (await client.listTools()).tools.map((t) => t.name),
-        ["remember", "recall", "memories", "forget"],
+        Object.keys(memoryTools),
       );
       const automatic = await client.callTool({
         name: "remember",
@@ -205,6 +206,61 @@ test("packed stdio MCP authenticates explicit saves, records provenance and bloc
       });
       assert.equal(automatic.isError, true);
       assert.match(JSON.stringify(automatic), /capture_paused/);
+      const privateEdit = await client.callTool({
+        name: "update_memory",
+        arguments: {
+          operationId: randomUUID(),
+          id: accountId,
+          expectedVersion: 1,
+          content: "Automatic correction",
+          capture: "automatic",
+        },
+      });
+      assert.equal(privateEdit.isError, true);
+      assert.match(JSON.stringify(privateEdit), /capture_paused/);
+      for (const [tool, args] of [
+        ["get_memory", { id: accountId }],
+        ["memory_history", { id: accountId }],
+        [
+          "update_memory",
+          { id: accountId, expectedVersion: 1, content: "Edit" },
+        ],
+        [
+          "move_memories",
+          { projectId: null, items: [{ id: accountId, expectedVersion: 1 }] },
+        ],
+        ["archive_memory", { id: accountId, expectedVersion: 1 }],
+        ["restore_memory", { id: accountId, expectedVersion: 2 }],
+        ["notebooks", {}],
+        ["create_notebook", { name: "Fixture" }],
+        [
+          "update_notebook",
+          { id: accountId, expectedVersion: 1, parentId: null },
+        ],
+        ["notebook_lifecycle", { id: accountId, action: "preview" }],
+      ] as const) {
+        const readOnly = [
+          "get_memory",
+          "memory_history",
+          "notebooks",
+          "notebook_lifecycle",
+        ].includes(tool);
+        const result = await client.callTool({
+          name: tool,
+          arguments: {
+            ...args,
+            ...(readOnly ? {} : { operationId: randomUUID() }),
+          },
+        });
+        assert.notEqual(result.isError, true, JSON.stringify(result));
+        assert.equal(requests.at(-1)?.path, `/v1/tools/${tool}`);
+        if (tool === "update_memory")
+          assert.equal(
+            requests.at(-1)?.body.source,
+            undefined,
+            "Partial updates must preserve existing provenance unless supplied",
+          );
+      }
       const saved = await client.callTool({
         name: "remember",
         arguments: {

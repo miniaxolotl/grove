@@ -29,6 +29,11 @@ tabs. Pending conversation reads poll actual progress every two seconds and reta
 the optimistic turn until the server acknowledges it. Organization Apply/Undo
 invalidates active/archived notebook directories as well as note dependencies;
 generic note invalidation alone does not refresh the sidebar's notebook list.
+Lifecycle Apply/Undo also prunes exact note targets and full notebook scopes before
+refresh. Metadata-only `memories/lifecycle` and `projects/lifecycle` broadcasts do
+the same in other tabs, including offline snapshots; generic invalidation alone
+would leave deleted writing visible after a failed refresh. Retained drafts block
+lifecycle Apply and remain separate from these read snapshots.
 
 Use `useWorkspaceCache()` and the query factories in
 `packages/website/src/lib/workspace-cache.ts`:
