@@ -287,17 +287,19 @@ function GrantForm({
   done: (secret?: string) => void;
 }) {
   const api = useWorkspaceApi();
+  const creating =
+    !connection || (!connection.capabilities.length && !connection.revokedAt);
   const [name, setName] = useState(
     connection?.name === "Awaiting approval" ? "" : (connection?.name ?? ""),
   );
   const [selected, setSelected] = useState<string[]>(
-    connection?.capabilities.length
-      ? connection.capabilities
-      : ["memory:read", "memory:write"],
+    creating ? [...capabilities] : (connection?.capabilities ?? []),
   );
-  const [personal, setPersonal] = useState(connection?.personal ?? true);
+  const [personal, setPersonal] = useState(
+    creating || (connection?.personal ?? true),
+  );
   const [allProjects, setAllProjects] = useState(
-    connection?.allProjects ?? false,
+    creating || (connection?.allProjects ?? false),
   );
   const [projectIds, setProjectIds] = useState(connection?.projectIds ?? []);
   const [expiry, setExpiry] = useState(

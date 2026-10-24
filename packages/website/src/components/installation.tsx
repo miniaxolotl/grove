@@ -125,18 +125,16 @@ export function Installation() {
           </p>
         </div>
         <div className="rounded-xl border border-line bg-sage/40 p-6 text-sm leading-7">
-          <h4 className="font-medium">Choose what your agent can access.</h4>
+          <h4 className="font-medium">Review connection access.</h4>
           <p className="mt-3 text-muted">
-            Start with reading and saving personal memories
-            {hosted
-              ? ". Add selected notebooks only when you need them"
-              : " and context for this project"}
-            . Customize access before connecting, or change it later in
-            Connections.
+            New connections start with all permission and scope checkboxes
+            selected, including deletion and all current and future notebooks.
+            Uncheck any access you do not want before approving. Existing
+            connections keep their saved choices.
           </p>
           <p className="mt-3 text-muted">
             {hosted
-              ? "Grove approval is separate from signing in. Return to your chat and ask Grove to save and recall a note to check that the connection works. Delete access is off by default."
+              ? "Grove approval is separate from signing in. Return to your chat and ask Grove to save and recall a note to check that the connection works."
               : "Keep the terminal open while you approve. Grove finishes setup and tells you how to load its tools. Interrupted? Run the same command to resume."}
           </p>
         </div>

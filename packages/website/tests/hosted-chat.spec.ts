@@ -151,10 +151,14 @@ test("browser approval identifies the exact OAuth client, preserves narrowed cho
   await dialog.getByLabel("Name", { exact: true }).fill("ChatGPT test");
   await expect(
     dialog.getByLabel("Delete notes", { exact: true }),
-  ).not.toBeChecked();
+  ).toBeChecked();
   await expect(
     dialog.getByLabel("All current and future notebooks", { exact: true }),
-  ).not.toBeChecked();
+  ).toBeChecked();
+  await dialog.getByLabel("Delete notes", { exact: true }).uncheck();
+  await dialog
+    .getByLabel("All current and future notebooks", { exact: true })
+    .uncheck();
   await dialog.getByLabel("Save and update notes", { exact: true }).uncheck();
   await dialog
     .getByRole("button", { name: "Approve access", exact: true })
@@ -174,6 +178,56 @@ test("browser approval identifies the exact OAuth client, preserves narrowed cho
   await expect(status).toContainText("Access approved. Return to your chat");
   await expect(status).toContainText("save and recall");
   expect(writes).toBe(2);
+});
+
+test("new API keys select every permission and scope while existing connections keep saved choices", async ({
+  page,
+}) => {
+  await page.route("**/api/grove/**", async (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        data: new URL(route.request().url()).pathname.endsWith("/connections")
+          ? [
+              {
+                ...pending,
+                name: "Existing reader",
+                capabilities: ["memory:read"],
+                personal: false,
+                allProjects: false,
+              },
+            ]
+          : [],
+      },
+    }),
+  );
+  await page.goto(`${base}/app/settings/connections`);
+  await page
+    .getByText("Advanced: API keys & headless clients", { exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Create API key", exact: true })
+    .click();
+  const key = page.getByRole("dialog", { name: "Create a scoped API key" });
+  for (const name of [
+    "Read notes",
+    "Save and update notes",
+    "Delete notes",
+    "Personal memories",
+    "All current and future notebooks",
+  ])
+    await expect(key.getByLabel(name, { exact: true })).toBeChecked();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Edit scope", exact: true }).click();
+  const edit = page.getByRole("dialog", { name: "Connection access" });
+  await expect(edit.getByLabel("Read notes", { exact: true })).toBeChecked();
+  for (const name of [
+    "Save and update notes",
+    "Delete notes",
+    "Personal memories",
+    "All current and future notebooks",
+  ])
+    await expect(edit.getByLabel(name, { exact: true })).not.toBeChecked();
 });
 
 test("Connections offers an explicit refresh for newly signed-in hosted clients", async ({

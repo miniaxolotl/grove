@@ -14,14 +14,14 @@ const initial: ConnectAttempt = {
   expiresAt: new Date(Date.now() + 600000).toISOString(),
   grant: {
     name: "OpenCode · My project",
-    capabilities: ["memory:read", "memory:write"],
+    capabilities: ["memory:read", "memory:write", "memory:delete"],
     personal: true,
-    allProjects: false,
+    allProjects: true,
     projectIds: [],
   },
 };
 
-test("contextual approval has scoped defaults, preserves choices after failure and completes without a dashboard detour", async ({
+test("contextual approval starts with every permission selected, preserves narrowed choices after failure and completes without a dashboard detour", async ({
   page,
 }) => {
   let fail = true;
@@ -64,7 +64,7 @@ test("contextual approval has scoped defaults, preserves choices after failure a
   ).toBeChecked();
   await expect(page.getByLabel("This project: My project")).toBeChecked();
   await expect(page.getByLabel("Permission summary")).toHaveText(
-    /Read memoriesSave and update memories/,
+    /Read memoriesSave and update memoriesDelete memoriesAll current and future projects/,
   );
   for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -84,10 +84,14 @@ test("contextual approval has scoped defaults, preserves choices after failure a
   await page.getByText("Customize access", { exact: true }).click();
   await expect(
     page.getByLabel("Delete memories", { exact: true }),
-  ).not.toBeChecked();
+  ).toBeChecked();
   await expect(
     page.getByLabel("All current and future projects", { exact: true }),
-  ).not.toBeChecked();
+  ).toBeChecked();
+  await page.getByLabel("Delete memories", { exact: true }).uncheck();
+  await page
+    .getByLabel("All current and future projects", { exact: true })
+    .uncheck();
   await page.getByLabel("Save and update memories", { exact: true }).uncheck();
   await page
     .getByRole("button", { name: "Connect OpenCode", exact: true })

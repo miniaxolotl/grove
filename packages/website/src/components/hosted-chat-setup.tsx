@@ -75,9 +75,9 @@ export function HostedChatSetup({
       </ol>
       <p className="text-xs leading-6 text-muted">
         Custom connections depend on your chat plan and workspace policy.
-        Sign-in does not grant note access. Start with Personal; add only the
-        notebooks you need. Your host decides when to call Grove tools—this does
-        not capture every chat automatically.
+        Sign-in does not grant note access. All permission and scope checkboxes
+        start selected; review them before approving. Your host decides when to
+        call Grove tools—this does not capture every chat automatically.
       </p>
     </div>
   );
