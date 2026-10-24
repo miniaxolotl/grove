@@ -34,7 +34,10 @@ or charging customers. Follow [billing configuration and limits](billing.md).
    first. Deploy the matching website with flag integration, not Stripe secrets.
 4. Verify Free usage, owned Checkout, completed payment → Pro, duplicate/lost
    responses, signed webhook retry/reordering, period-end cancellation, past-due
-   downgrade, reset dates, API/worker quotas and account-deletion cancellation.
+    downgrade, resubscription after cancellation, reset dates, API/worker quotas and
+    account-deletion cancellation. Include a lost Checkout response followed by
+    expiry or completed payment; historical idempotent responses must not redirect
+    to expired Checkout or block deletion by trying to expire paid Checkout.
    Confirm a second account and agent credentials cannot manage another customer.
 5. Enable the intended cohort only after real Stripe test-mode/provider checks.
    Live price selection, enablement and charging need separate operator approval.

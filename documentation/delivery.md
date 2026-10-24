@@ -1,5 +1,28 @@
 # Delivery evidence
 
+## Billing lifecycle review follow-up (24 October 2026)
+
+Post-merge [#112 review](development/billing-review.md) reproduced and repaired three
+Checkout edge cases: blocked resubscription after a subscription ends, expired URLs
+returned from lost-response replays, and deletion blocked by attempted expiry of an
+already-paid Checkout before renewal cancellation. Current session retrieval replaces
+historical POST state; only an exact canonical terminal subscription permits reuse
+of the completed-checkout slot. Ongoing/missing subscriptions remain fenced.
+
+Root/site lint, types and production builds, **nine packed artifacts** and **334
+backend/service tests** pass (four optional RabbitMQ/S3 skips). Twenty billing cases
+cover lifecycle/RLS/quota behavior, with separate pricing/migration tests; research
+and speech suites verify provider dispatch stops at their allowances. Concurrent
+Free/Pro monthly generation reservations share API/worker caps while note writes,
+reads and exports remain available. Existing Billing journeys pass again in Chromium
+and container iPhone/WebKit at 1440/390/320px, including checkout/portal navigation,
+double-submit, payment recovery, cancellation display, flag-off hiding and WCAG A/AA.
+
+This is synthetic provider and disposable PostgreSQL verification, not a paid Stripe
+lifecycle or production acceptance claim. No UI change, new screenshot, migration,
+provider configuration or deployment is introduced; the existing gallery remains
+applicable. Real payment, renewal and endpoint-delivery checks remain rollout gates.
+
 ## Website support and contact (24 October 2026)
 
 Public `/support` and `/contact` pages use `support@usegrove.cloud`. Current
@@ -74,9 +97,10 @@ exports remain available at the AI allowance. No prepaid credits or usage overag
 charges are introduced. See [billing contracts and configuration](billing.md).
 
 The server-side Vercel `billing-enabled` flag defaults false and gates new checkout,
-navigation and quota enforcement across website, API and workers. Existing-customer
-portal access, signed webhooks and deletion cancellation remain available during a
-sales pause. Migration **023** adds tenant-isolated billing state without changing
+navigation and quota enforcement across website, API and workers. The initial
+paused-portal behavior was superseded by the hidden-billing follow-up above; only
+signed webhooks and deletion cancellation remain available while off.
+Migration **023** adds tenant-isolated billing state without changing
 retained content. Current Stripe state, not redirect/event arrival order, decides
 entitlement. Persisted checkout operations fence duplicates, lost responses and
 interval races; deletion recovers/invalidates uncertain checkout before cancellation.
@@ -98,9 +122,10 @@ discovery denies anonymous requests. The initial browser run lacked the document
 production telemetry build variables; rebuilding with synthetic telemetry identifiers
 passes the complete suite without changing its assertions.
 
-No Stripe live/test account configuration, payment, Vercel cohort activation,
-production migration or deployment is performed. Those are explicit operator
-steps in the [023 rollout](deploy.md#billing-rollout-023).
+This initial verification used no Stripe account configuration or payment. The
+later catalog setup is recorded above; payment, cohort activation, production
+migration and deployment remain separate [023 rollout](deploy.md#billing-rollout-023)
+steps, not implied by this source delivery.
 
 ## Workspace session recovery (24 October 2026)
 

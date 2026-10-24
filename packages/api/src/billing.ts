@@ -22,6 +22,22 @@ type Options = {
 };
 const ongoing = (status: string) =>
   !["canceled", "incomplete_expired"].includes(status);
+const replaceableCheckout = (
+  session: Stripe.Checkout.Session,
+  subscriptions: Stripe.Subscription[],
+) => {
+  if (session.status === "expired") return true;
+  const id =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+  return (
+    session.status === "complete" &&
+    subscriptions.some(
+      (subscription) => subscription.id === id && !ongoing(subscription.status),
+    )
+  );
+};
 const destination = (url: string | null, host: string) => {
   if (
     !url ||
@@ -58,21 +74,34 @@ export class Billing {
     };
   }
 
+  private async checkoutSession(
+    accountId: string,
+    row: {
+      customerId: string;
+      checkoutId: string | null;
+      checkoutPrice: string;
+      checkoutOperation: string;
+    },
+  ) {
+    const id =
+      row.checkoutId ??
+      (
+        await this.options.stripe.checkout.sessions.create(
+          this.checkoutParameters(accountId, row.customerId, row.checkoutPrice),
+          { idempotencyKey: `grove-checkout-${row.checkoutOperation}` },
+        )
+      ).id;
+    // Idempotent POST replays are historical responses, not current state. A lost
+    // response may now refer to an expired or paid Checkout, including on deletion.
+    return this.options.stripe.checkout.sessions.retrieve(id);
+  }
+
   async cancelForDeletion(accountId: string, transaction?: Knex.Transaction) {
     const cancel = async (trx: Knex.Transaction) => {
       const row = await trx("billing_customers").where({ accountId }).first();
       if (!row?.customerId) return;
       if (row.checkoutId || row.checkoutPrice) {
-        const session = row.checkoutId
-          ? await this.options.stripe.checkout.sessions.retrieve(row.checkoutId)
-          : await this.options.stripe.checkout.sessions.create(
-              this.checkoutParameters(
-                accountId,
-                row.customerId,
-                row.checkoutPrice,
-              ),
-              { idempotencyKey: `grove-checkout-${row.checkoutOperation}` },
-            );
+        const session = await this.checkoutSession(accountId, row);
         if (session.status === "open")
           await this.options.stripe.checkout.sessions.expire(session.id);
       }
@@ -280,19 +309,14 @@ export class Billing {
         .forUpdate()
         .first();
       if (row.checkoutPrice && row.checkoutPrice !== price.id) {
-        const previous = row.checkoutId
-          ? await this.options.stripe.checkout.sessions.retrieve(row.checkoutId)
-          : row.customerId
-            ? await this.options.stripe.checkout.sessions.create(
-                this.checkoutParameters(
-                  principal.accountId,
-                  row.customerId,
-                  row.checkoutPrice,
-                ),
-                { idempotencyKey: `grove-checkout-${row.checkoutOperation}` },
-              )
-            : null;
-        if (previous && previous.status !== "expired")
+        const previous = row.customerId
+          ? await this.checkoutSession(principal.accountId, row)
+          : null;
+        const subscriptions =
+          previous?.status === "complete"
+            ? await this.sync(trx, principal.accountId, row.customerId)
+            : [];
+        if (previous && !replaceableCheckout(previous, subscriptions))
           throw new GroveError(
             "checkout_pending",
             "Finish or let your existing checkout expire before changing billing frequency",
@@ -360,18 +384,8 @@ export class Billing {
             "Manage your existing subscription instead",
             409,
           );
-        if (row.checkoutId) {
-          const session = await this.options.stripe.checkout.sessions.retrieve(
-            row.checkoutId,
-          );
-          if (session.status === "open")
-            return destination(session.url, "checkout.stripe.com");
-          if (session.status === "complete")
-            throw new GroveError(
-              "checkout_processing",
-              "Your subscription is processing. Refresh billing shortly.",
-              409,
-            );
+        const session = await this.checkoutSession(principal.accountId, row);
+        if (replaceableCheckout(session, subscriptions)) {
           await trx("billing_customers")
             .where({ accountId: principal.accountId })
             .update({
@@ -381,10 +395,12 @@ export class Billing {
             });
           return null;
         }
-        const session = await this.options.stripe.checkout.sessions.create(
-          this.checkoutParameters(principal.accountId, customerId, price.id),
-          { idempotencyKey: `grove-checkout-${row.checkoutOperation}` },
-        );
+        if (session.status !== "open")
+          throw new GroveError(
+            "checkout_processing",
+            "Your subscription is processing. Refresh billing shortly.",
+            409,
+          );
         await trx("billing_customers")
           .where({ accountId: principal.accountId })
           .update({ checkoutId: session.id });

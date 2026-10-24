@@ -52,3 +52,8 @@ evidence, while retaining this task's designated Grove support address and page
 links. The integrated tree again passes root/site lint, types/builds, all nine
 artifacts, and all 227 Chromium cases. No provider or database operation is part
 of this source integration.
+
+The subsequent billing-review merge `03a999d` is also preserved unchanged. Its
+only overlap with this task is the delivery-record insertion, so the current
+review entry stays first and both records are retained. Website source is
+unchanged by that merge; targeted page checks and root/build gates are repeated.
