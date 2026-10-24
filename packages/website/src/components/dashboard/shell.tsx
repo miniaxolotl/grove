@@ -197,7 +197,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <Link href="/install">Setup guide</Link>
                             <Link href="/privacy">Privacy</Link>
                             <Link href="/terms">Terms</Link>
-                            <a href="mailto:hello@bramblelabs.co">Get help</a>
+                            <Link href="/support">Get help</Link>
                           </nav>
                         </footer>
                       </div>

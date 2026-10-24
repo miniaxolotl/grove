@@ -22,7 +22,8 @@ export function RecoveryPage(
       </main>
       <footer className="recovery-footer">
         <span>Need a hand?</span>
-        <a href="mailto:hello@bramblelabs.co">Get in touch</a>
+        {/* Full navigation also works when the app router itself has failed. */}
+        <a href="/support">Get in touch</a>
       </footer>
     </div>
   );

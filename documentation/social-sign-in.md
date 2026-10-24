@@ -34,12 +34,12 @@ All four production connection settings confirm the same exact callback:
 `https://clerk.usegrove.cloud/v1/oauth_callback`. Development uses a separate
 Clerk instance, with all four shared development connections enabled.
 
-| Provider | Registration requirements | Clerk configuration section |
-| --- | --- | --- |
-| GitHub | OAuth app, homepage, exact authorization callback, client ID and secret | `connection_oauth_github` |
-| Google | Web OAuth client; External audience published to production; Grove branding, authorized origins and exact redirect | `connection_oauth_google` |
-| Microsoft | Entra app supporting organizational and personal accounts; web redirect; client-secret value; email verification claims per Clerk's guide | `connection_oauth_microsoft` |
-| Apple | App ID with Sign in with Apple, web Services ID, Team ID, Key ID, `.p8` private key, exact return URL and Clerk private-relay email source | `connection_oauth_apple` |
+| Provider  | Registration requirements                                                                                                                  | Clerk configuration section  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| GitHub    | OAuth app, homepage, exact authorization callback, client ID and secret                                                                    | `connection_oauth_github`    |
+| Google    | Web OAuth client; External audience published to production; Grove branding, authorized origins and exact redirect                         | `connection_oauth_google`    |
+| Microsoft | Entra app supporting organizational and personal accounts; web redirect; client-secret value; email verification claims per Clerk's guide  | `connection_oauth_microsoft` |
+| Apple     | App ID with Sign in with Apple, web Services ID, Team ID, Key ID, `.p8` private key, exact return URL and Clerk private-relay email source | `connection_oauth_apple`     |
 
 Configure each connection with `enabled: true`, `authenticatable: true`,
 `client_id` and `client_secret` together. Apple additionally needs `team_id` and
@@ -53,12 +53,12 @@ calendar, email inbox or cloud administration access to sign users in.
 
 ### Registration status (2026-10-19)
 
-| Provider | Production state | Registration |
-| --- | --- | --- |
-| GitHub | Enabled; real-account sign-in and authenticated account access passed | OAuth app `3944913`, client `Ov23liUu9OnmcwEZjPSY` |
-| Google | Enabled; External audience In production; real-account linking, cancellation and subsequent sign-in passed | Project `grove-clerk-auth-2026`, Web client `913831798455-k1uv2lgpv8mffqkfp61pg4saq57mcdr3.apps.googleusercontent.com` |
-| Microsoft | Enabled for personal and organizational accounts; existing-account connection verified | App `4772cb1f-a86c-423b-b123-a3efb67e7f4f`, tenant `345c25c1-c7f1-404b-b756-06f33854ab7d` |
-| Apple | Enabled; existing-account connection verified; private-relay sender registered and SPF verified | App ID `cloud.usegrove.app`, Services ID `cloud.usegrove.web`, team `Q266AQB5H8`, key `8D923PV78Q` |
+| Provider  | Production state                                                                                           | Registration                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| GitHub    | Enabled; real-account sign-in and authenticated account access passed                                      | OAuth app `3944913`, client `Ov23liUu9OnmcwEZjPSY`                                                                     |
+| Google    | Enabled; External audience In production; real-account linking, cancellation and subsequent sign-in passed | Project `grove-clerk-auth-2026`, Web client `913831798455-k1uv2lgpv8mffqkfp61pg4saq57mcdr3.apps.googleusercontent.com` |
+| Microsoft | Enabled for personal and organizational accounts; existing-account connection verified                     | App `4772cb1f-a86c-423b-b123-a3efb67e7f4f`, tenant `345c25c1-c7f1-404b-b756-06f33854ab7d`                              |
+| Apple     | Enabled; existing-account connection verified; private-relay sender registered and SPF verified            | App ID `cloud.usegrove.app`, Services ID `cloud.usegrove.web`, team `Q266AQB5H8`, key `8D923PV78Q`                     |
 
 Microsoft's client secret expires **2027-04-17**. Rotate it in Entra and Clerk
 before that date. Its saved manifest includes `email` and `xms_edov` in both ID
@@ -73,8 +73,9 @@ Its Services ID and signing key are associated with Grove's own primary App ID.
 Google's authorized JavaScript origin is `https://usegrove.cloud`; its External
 audience is published **In production**. Branding links to the separately published
 homepage, [privacy policy](https://usegrove.cloud/privacy) and
-[terms](https://usegrove.cloud/terms). Those pages use `hello@bramblelabs.co` as the
-public support contact. Google's console contact is recorded in the private inventory.
+[terms](https://usegrove.cloud/terms). Current website source uses
+`support@usegrove.cloud` as the public support contact; publication follows the
+normal release process. Google's console contact is separate and recorded in the private inventory.
 
 Google declares only `openid`, `https://www.googleapis.com/auth/userinfo.email`
 and `https://www.googleapis.com/auth/userinfo.profile`. The live authorization

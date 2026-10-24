@@ -23,6 +23,24 @@ lifecycle or production acceptance claim. No UI change, new screenshot, migratio
 provider configuration or deployment is introduced; the existing gallery remains
 applicable. Real payment, renewal and endpoint-delivery checks remain rollout gates.
 
+## Website support and contact (24 October 2026)
+
+Public `/support` and `/contact` pages use `support@usegrove.cloud`. Current
+policy, marketing, recovery, sign-in and workspace help destinations are updated;
+the public contact module is safe for client imports. Canonical/social metadata,
+sitemap entries and safe reporting guidance accompany the pages. No auth policy,
+provider configuration, API, billing, deployment or production release is changed.
+
+The app-specific website contact supersedes the shared website email snapshot
+in the earlier billing entry below. Stripe's company-wide reply-to address remains
+separate; this work does not change that provider setting or the merged billing behavior.
+
+Root/site lint, types, builds, nine artifacts and **227 Chromium cases** pass.
+Eight additional local axe audits cover both pages at 320/390/768/1440px.
+Local WebKit is blocked by missing host browser dependencies, not counted as a pass.
+See [route/verification details](website-support-contact.md) and the
+[reviewed browser gallery](design/screenshots/website-support-contact/README.md).
+
 ## Advertising registration handoff (24 October 2026)
 
 Source adds a server-qualified, content-free `/welcome` page and consent-gated
