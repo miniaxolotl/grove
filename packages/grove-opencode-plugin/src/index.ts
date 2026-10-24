@@ -39,7 +39,7 @@ export default Plugin.define({
     );
     await ctx.tool.hook("execute.before", async (event) => {
       if (
-        event.tool !== "grove_remember" ||
+        !["grove_remember", "grove_update_memory"].includes(event.tool) ||
         (event.input as { capture?: string } | null)?.capture !== "automatic"
       )
         return;

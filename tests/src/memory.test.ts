@@ -20,6 +20,7 @@ import {
 } from "@lib/shared/contracts";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { createApp } from "../../packages/api/src/app.ts";
+import { memoryTools } from "@lib/shared/memory-tools";
 
 const url = process.env.TEST_DATABASE_URL;
 const workerUrl = process.env.TEST_WORKER_DATABASE_URL;
@@ -567,7 +568,7 @@ test("HTTP authorization, validation, and official MCP initialize/tools/errors",
     const tools = await client.listTools();
     assert.deepEqual(
       tools.tools.map((t) => t.name),
-      ["remember", "recall", "memories", "forget"],
+      Object.keys(memoryTools),
     );
     const saved = await client.callTool({
       name: "remember",
@@ -575,6 +576,34 @@ test("HTTP authorization, validation, and official MCP initialize/tools/errors",
     });
     assert.notEqual(saved.isError, true);
     assert(saved.structuredContent);
+    const stored = (saved.structuredContent as { data: { id: string; version: number } }).data;
+    const updated = await client.callTool({
+      name: "update_memory",
+      arguments: {
+        operationId: randomUUID(),
+        id: stored.id,
+        expectedVersion: stored.version,
+        content: "Updated through remote MCP",
+      },
+    });
+    assert.notEqual(updated.isError, true);
+    const exact = await client.callTool({
+      name: "get_memory",
+      arguments: { id: stored.id },
+    });
+    assert.equal(
+      (exact.structuredContent as { data: { content: string } }).data.content,
+      "Updated through remote MCP",
+    );
+    const invalidPartial = await client.callTool({
+      name: "update_memory",
+      arguments: {
+        operationId: randomUUID(),
+        id: stored.id,
+        expectedVersion: 2,
+      },
+    });
+    assert.equal(invalidPartial.isError, true);
     const foreign = await service.remember(b, input("Bob owns this memory."));
     const result = await client.callTool({
       name: "remember",
