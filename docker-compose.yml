@@ -120,6 +120,7 @@ services:
       <<: *runtime
       DATABASE_URL: postgresql://grove_api:${API_DATABASE_PASSWORD}@postgres:5432/grove
       SHARE_LINK_KEY: ${SHARE_LINK_KEY:-}
+      OPENAI_APPS_CHALLENGE: ${OPENAI_APPS_CHALLENGE:-}
       EXA_API_KEY: ${EXA_API_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       RESEARCH_DAILY_CALL_LIMIT: ${RESEARCH_DAILY_CALL_LIMIT:-20}

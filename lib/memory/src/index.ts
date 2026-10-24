@@ -1673,15 +1673,49 @@ export class MemoryService {
     return result;
   }
 
+  private connectionState(connection: Connection) {
+    // Exclude last contact: listing/scanning tools must not invalidate a review.
+    return createHmac("sha256", this.cursorSecret)
+      .update(
+        JSON.stringify([
+          "connection-review-v1",
+          connection.accountId,
+          connection.id,
+          connection.clientId,
+          connection.name,
+          [...connection.capabilities].sort(),
+          connection.personal,
+          connection.allProjects,
+          [...connection.projectIds].sort(),
+          connection.expiresAt,
+          connection.revokedAt,
+          connection.authorizedAfter,
+          connection.setup ?? null,
+        ]),
+      )
+      .digest("hex");
+  }
   async connections(principal: Principal) {
     return this.access(principal, "admin", async ({ trx }) =>
-      trx("connections").orderBy("createdAt", "desc").limit(100),
+      (
+        await trx<Connection>("connections")
+          .orderBy("createdAt", "desc")
+          .limit(100)
+      ).map((connection) => ({
+        ...connection,
+        state: this.connectionState(connection),
+      })),
     );
   }
   async grant(
     principal: Principal,
     input: Grant,
-    options: { id?: string; clientId?: string; key?: boolean } = {},
+    options: {
+      id?: string;
+      clientId?: string;
+      key?: boolean;
+      expectedState?: string;
+    } = {},
   ) {
     return this.access(principal, "admin", async ({ trx, account }) => {
       for (const id of input.projectIds)
@@ -1702,6 +1736,15 @@ export class MemoryService {
           .first();
         if (!old)
           throw new GroveError("not_found", "Connection not found", 404);
+        if (
+          options.expectedState &&
+          options.expectedState !== this.connectionState(old)
+        )
+          throw new GroveError(
+            "connection_conflict",
+            "Connection access changed. Close this dialog, refresh Connections, and review the current permissions before saving.",
+            409,
+          );
         if (old.revokedAt && !old.clientId)
           throw new GroveError(
             "connection_revoked",

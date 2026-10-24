@@ -100,29 +100,34 @@ export const notebookToolLifecycleSchema = z
 /** One contract for remote MCP, the stdio bridge and HTTP tool calls. */
 export const memoryTools = {
   remember: {
+    title: "Save a memory",
     schema: rememberSchema,
     description:
       "Save a concise memory or replace it by id/expectedVersion. Corrections replace metadata too: prefer update_memory for partial edits. Reuse operationId on retries. Handoffs default to 30 days; expired records are hidden and later soft-deleted.",
   },
   recall: {
+    title: "Recall saved context",
     schema: recallSchema,
     readOnly: true,
     description:
       "Recall bounded relevant active memories in the explicit project/personal scope. Without query, retrieve a compact profile and selected task handoff.",
   },
   memories: {
+    title: "Find memories",
     schema: listSchema,
     readOnly: true,
     description:
       "Search and list notes with IDs, versions, provenance, status/tag filters and cursor pagination. Omit projectId to inspect all granted scopes; null means Personal.",
   },
   forget: {
+    title: "Delete selected memories",
     schema: forgetSchema,
     destructive: true,
     description:
       "Soft-delete exact note IDs at their expectedVersion. Retained authored history is hidden, not physically erased. There is no ordinary restore/Undo for deletion. Inspect each outcome; previously delivered text cannot be retracted.",
   },
   get_memory: {
+    title: "Read a memory",
     schema: z
       .object({
         id: uuidSchema,
@@ -134,22 +139,26 @@ export const memoryTools = {
       "Read one exact note by ID, optionally at a historical revision. Current scope, deletion and historical-source expiry checks still apply.",
   },
   memory_history: {
+    title: "Read memory history",
     schema: z.object({ id: uuidSchema }).strict(),
     readOnly: true,
     description:
       "Read up to 100 most recent revisions of an accessible note. Use get_memory with revision for historical content.",
   },
   update_memory: {
+    title: "Update a memory",
     schema: memoryUpdateSchema,
     description:
       "Partially update a note at expectedVersion. Omitted content, scope, kind, provenance and lifetime are preserved. projectId moves the note; null means Personal. Reuse operationId on retry.",
   },
   move_memories: {
+    title: "Move memories",
     schema: moveMemoriesSchema,
     description:
       "Atomically move up to 50 exact ID/version notes into an existing notebook (projectId) or Personal (null). Preserve content and metadata; source and destination must be granted. Reuse operationId.",
   },
   archive_memory: {
+    title: "Archive a memory",
     schema: z
       .object({
         id: uuidSchema,
@@ -161,27 +170,32 @@ export const memoryTools = {
       "Archive an exact note at expectedVersion, removing it from recall. Content/history remain available; restore_memory reverses archive. Reuse operationId.",
   },
   restore_memory: {
+    title: "Restore a memory",
     schema: versionSchema.extend({ id: uuidSchema }),
     description:
       "Restore an archived/expired note or a historical revision at expectedVersion. Deleted notes cannot be restored. Optional revision selects history; durable removes expiry. Reuse operationId.",
   },
   notebooks: {
+    title: "Find notebooks",
     schema: notebookListSchema,
     readOnly: true,
     description:
       "List/search granted notebooks (folders) with IDs, names, parentId, versions and cursor pagination. Follow every page to build a tree. Archived notebooks require an owner website session.",
   },
   create_notebook: {
+    title: "Create a notebook",
     schema: notebookCreateSchema,
     description:
       "Create a notebook, optionally under parentId. Requires all-project write access or an owner session. Reuse operationId for retry-safe creation.",
   },
   update_notebook: {
+    title: "Update a notebook",
     schema: notebookUpdateSchema,
     description:
       "Rename and/or move an existing notebook at expectedVersion. Omitted fields are preserved; parentId=null moves to root. Source and parent must be granted; cycles are rejected. Reuse operationId.",
   },
   notebook_lifecycle: {
+    title: "Manage notebook lifecycle",
     schema: notebookToolLifecycleSchema,
     destructive: true,
     description:

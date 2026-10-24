@@ -20,7 +20,15 @@ add semantic search, generated titles/tags, related memories, and source-linked
 personal profiles, project briefs and task handoffs. Cloud uses full 4,096-dimensional
 Qwen embeddings and Clef decisions on DeepInfra, with MiniMax M3.1 Flash generation.
 
-## Connect an agent
+## Connect a web chat
+
+Use the remote MCP endpoint `https://api.usegrove.cloud/mcp` in **ChatGPT** or
+**Claude web**, sign in with OAuth, then approve the matching client in Grove
+Connections. No terminal or API key is needed. This is a custom-connection beta,
+not a public-directory listing; host/account policies apply. See the
+[setup steps, permissions and verification limits](documentation/hosted-chat.md).
+
+## Connect a coding agent
 
 Connect to **Grove Cloud**, from your project directory (Node 22+ and your agent installed):
 

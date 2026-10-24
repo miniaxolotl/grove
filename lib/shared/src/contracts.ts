@@ -145,6 +145,12 @@ export const grantSchema = z
 export const connectionSchema = grantSchema.extend({
   clientId: z.string().min(1).max(500),
 });
+export const connectionUpdateSchema = grantSchema.extend({
+  expectedState: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
+});
 export const agentSchema = z.enum(["opencode", "claude", "codex"]);
 export const agentNames = {
   opencode: "OpenCode",
