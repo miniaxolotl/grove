@@ -49,7 +49,9 @@ test("Ask tools upgrade retains old conversation content and isolates settings a
       status: "ready",
       result: JSON.stringify(result),
     });
-    const [, applied] = await owner.migrate.latest();
+    const [, applied] = await owner.migrate.up({
+      name: "20261023_020_ask_tools",
+    });
     assert.deepEqual(applied, ["20261023_020_ask_tools"]);
     assert.deepEqual(
       (await owner("conversation_turns").first()).result,

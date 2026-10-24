@@ -176,9 +176,9 @@ async function recording() {
   return { note: saved, mediaId: id };
 }
 
-test("speech defaults are independent opt-ins and read-aloud excludes attachment IDs/URLs", () => {
+test("speech defaults are independent and read-aloud excludes attachment IDs/URLs", () => {
   assert.equal(preferencesFor({}).transcriptionEnabled, false);
-  assert.equal(preferencesFor({}).readAloudEnabled, false);
+  assert.equal(preferencesFor({}).readAloudEnabled, true);
   assert.equal(
     speechText(
       "# Hello\n\n[Visit](https://private.example)\n\n![Image](grove-media:opaque)\n\n```ts\nsecretCode()\n```",
@@ -187,6 +187,7 @@ test("speech defaults are independent opt-ins and read-aloud excludes attachment
   );
 });
 test("speech requires a provider, session ownership, saved source and explicit preference", async () => {
+  await service.settings(principal, { readAloudEnabled: false });
   const n = await note(),
     id = randomUUID(),
     input = { id, version: n.version };

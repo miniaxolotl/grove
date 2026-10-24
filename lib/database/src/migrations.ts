@@ -16,6 +16,7 @@ import { mediaAttachments } from "./media-migration.ts";
 import { recordings } from "./recordings-migration.ts";
 import { speech } from "./speech-migration.ts";
 import { researchTools } from "./research-migration.ts";
+import { speechDefaults } from "./speech-defaults-migration.ts";
 
 export const migrations = [
   {
@@ -241,6 +242,7 @@ export const migrations = [
   recordings,
   speech,
   researchTools,
+  speechDefaults,
 ];
 
 export const migrationSource: Knex.MigrationSource<
