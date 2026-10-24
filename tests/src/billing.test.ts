@@ -1,4 +1,4 @@
-import { after, before, test } from "node:test";
+import { after, before, test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createHmac } from "node:crypto";
@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import Stripe from "stripe";
 import { InferenceError } from "@lib/ai";
 import { billingLimits } from "@lib/shared/billing";
+import { rememberSchema } from "@lib/shared/contracts";
 import * as application from "../../packages/api/src/app.ts";
 import { readServerEnvironment } from "@lib/environment";
 import { createDatabase, tenant, type Knex } from "@lib/database";
@@ -30,6 +31,290 @@ before(async () => {
   await admin.migrate.latest();
   db = createDatabase(target(process.env.TEST_DATABASE_URL!));
   worker = createDatabase(target(process.env.TEST_WORKER_DATABASE_URL!));
+});
+
+// Real Stripe SDK over loopback: idempotent creates replay the original response,
+// while retrieval returns the current session/subscription state.
+async function lifecycle(t: TestContext) {
+  const principal = await account();
+  const customer = `cus_${principal.accountId}`;
+  const subscriptions: Stripe.Subscription[] = [];
+  const sessions = new Map<string, Stripe.Checkout.Session>();
+  const replays = new Map<string, Stripe.Checkout.Session>();
+  const state = { loseCheckout: false, failList: false, lists: 0, canceled: 0 };
+  const remote = createServer(async (req, res) => {
+    for await (const _chunk of req) {
+      /* drain the SDK request */
+    }
+    res.setHeader("content-type", "application/json");
+    const path = req.url!.split("?")[0];
+    let result: unknown;
+    if (path.startsWith("/v1/prices/")) {
+      const id = path.split("/").at(-1)!;
+      result = {
+        id,
+        active: true,
+        type: "recurring",
+        currency: "usd",
+        unit_amount: 500,
+        recurring: {
+          interval: id === "price_year" ? "year" : "month",
+          interval_count: 1,
+          usage_type: "licensed",
+        },
+      };
+    } else if (path === "/v1/customers") result = { id: customer };
+    else if (path === "/v1/subscriptions") {
+      state.lists++;
+      if (state.failList) {
+        res.statusCode = 503;
+        result = { error: { message: "Synthetic provider outage" } };
+      } else result = { data: subscriptions, has_more: false };
+    } else if (
+      path.startsWith("/v1/subscriptions/") &&
+      req.method === "DELETE"
+    ) {
+      const subscription = subscriptions.find(
+        (s) => s.id === path.split("/").at(-1),
+      )!;
+      subscription.status = "canceled";
+      state.canceled++;
+      result = subscription;
+    } else if (path === "/v1/checkout/sessions") {
+      const key = req.headers["idempotency-key"] as string;
+      if (!replays.has(key)) {
+        const id = `cs_${sessions.size + 1}`;
+        const session = {
+          id,
+          status: "open",
+          subscription: null,
+          url: `https://checkout.stripe.com/c/pay/${id}`,
+        } as Stripe.Checkout.Session;
+        sessions.set(id, session);
+        replays.set(key, { ...session });
+      }
+      result = replays.get(key);
+      if (state.loseCheckout) {
+        res.destroy();
+        return;
+      }
+    } else if (path.startsWith("/v1/checkout/sessions/")) {
+      const session = sessions.get(path.split("/")[4])!;
+      if (path.endsWith("/expire") && session.status !== "open") {
+        res.statusCode = 400;
+        result = { error: { message: "Only open sessions can expire" } };
+      } else {
+        if (path.endsWith("/expire")) session.status = "expired";
+        result = session;
+      }
+    } else {
+      res.statusCode = 404;
+      result = { error: { message: "Unknown fixture route" } };
+    }
+    res.end(JSON.stringify(result));
+  });
+  await new Promise<void>((resolve) => remote.listen(0, "127.0.0.1", resolve));
+  t.after(
+    () =>
+      new Promise<void>((resolve, reject) =>
+        remote.close((error) => (error ? reject(error) : resolve())),
+      ),
+  );
+  const stripe = new Stripe("sk_test_fixture", {
+    host: "127.0.0.1",
+    port: (remote.address() as { port: number }).port,
+    protocol: "http",
+    maxNetworkRetries: 0,
+  });
+  const options = {
+    stripe,
+    webhookSecret: "whsec_fixture",
+    siteUrl: "https://site.example",
+    prices: { month: "price_pro", year: "price_year" },
+    enabled: async () => true,
+  };
+  const billing = new application.Billing(
+    new memory.MemoryService(db, "billing-fixture-cursor-secret-32-characters"),
+    options,
+  );
+  const subscription = (status: Stripe.Subscription.Status) =>
+    ({
+      id: `sub_${principal.accountId}`,
+      customer,
+      status,
+      cancel_at_period_end: false,
+      items: {
+        data: [
+          {
+            quantity: 1,
+            current_period_end: Math.floor(Date.now() / 1000) + 86400,
+            price: { id: "price_pro", product: "prod_grove" },
+          },
+        ],
+      },
+    }) as Stripe.Subscription;
+  const webhook = (id: string, type = "customer.subscription.updated") => {
+    const body = JSON.stringify({
+      id,
+      type,
+      data: { object: { customer, status: "active" } },
+    });
+    return billing.webhook(
+      body,
+      stripe.webhooks.generateTestHeaderString({
+        payload: body,
+        secret: options.webhookSecret,
+      }),
+    );
+  };
+  return {
+    principal,
+    billing,
+    options,
+    sessions,
+    subscriptions,
+    state,
+    subscription,
+    webhook,
+  };
+}
+
+for (const interval of ["month", "year"] as const) {
+  for (const status of ["canceled", "incomplete_expired"] as const) {
+    test(`a completed checkout permits ${interval} resubscription after ${status}`, async (t) => {
+      const f = await lifecycle(t);
+      const first = await f.billing.checkout(f.principal, "month");
+      const ended = f.subscription(status);
+      f.subscriptions.push(ended);
+      Object.assign(f.sessions.get("cs_1")!, {
+        status: "complete",
+        subscription: ended.id,
+        url: null,
+      });
+      const next = await f.billing.checkout(f.principal, interval);
+      assert.notEqual(next.url, first.url);
+      assert.equal(f.sessions.size, 2);
+    });
+  }
+}
+
+test("lost Checkout responses recover current expiry before returning a payment URL", async (t) => {
+  const f = await lifecycle(t);
+  f.state.loseCheckout = true;
+  await assert.rejects(f.billing.checkout(f.principal, "month"));
+  f.state.loseCheckout = false;
+  f.sessions.get("cs_1")!.status = "expired";
+  const next = await f.billing.checkout(f.principal, "month");
+  assert.equal(next.url, "https://checkout.stripe.com/c/pay/cs_2");
+  assert.equal(f.sessions.size, 2);
+});
+
+test("completed checkout without a canonical terminal subscription stays fenced", async (t) => {
+  const f = await lifecycle(t);
+  await f.billing.checkout(f.principal, "month");
+  Object.assign(f.sessions.get("cs_1")!, {
+    status: "complete",
+    subscription: "sub_not_visible",
+    url: null,
+  });
+  await assert.rejects(f.billing.checkout(f.principal, "month"), {
+    code: "checkout_processing",
+  });
+  assert.equal(f.sessions.size, 1);
+});
+
+test("webhook retries only commit successful canonical reconciliation and handle payment/cancellation states", async (t) => {
+  const f = await lifecycle(t);
+  memory.configureBillingQuotas(db, {
+    enabled: async () => true,
+    priceIds: ["price_pro"],
+  });
+  await f.billing.checkout(f.principal, "month");
+  f.subscriptions.push(f.subscription("active"));
+  f.state.failList = true;
+  await assert.rejects(f.webhook("evt_retry"));
+  assert.equal(
+    await admin("billing_events").where({ id: "evt_retry" }).first(),
+    undefined,
+  );
+  f.state.failList = false;
+  await f.webhook("evt_retry", "invoice.paid");
+  const lists = f.state.lists;
+  await f.webhook("evt_retry", "invoice.paid");
+  assert.equal(f.state.lists, lists);
+  const usage = () =>
+    tenant(db, f.principal.accountId, (trx) =>
+      memory.billingUsage(db, trx, f.principal.accountId),
+    );
+  assert.equal((await usage())!.plan, "pro");
+  for (const status of [
+    "past_due",
+    "unpaid",
+    "incomplete",
+    "incomplete_expired",
+    "paused",
+    "canceled",
+  ] as const) {
+    f.subscriptions[0].status = status;
+    await f.webhook(
+      `evt_${status}`,
+      status === "past_due"
+        ? "invoice.payment_failed"
+        : "customer.subscription.updated",
+    );
+    assert.equal((await usage())!.plan, "free", status);
+  }
+  f.subscriptions[0].status = "active";
+  f.subscriptions[0].cancel_at_period_end = true;
+  await f.webhook("evt_period_end");
+  assert.equal((await usage())!.plan, "pro");
+  await admin("accounts")
+    .where({ id: f.principal.accountId })
+    .update({ status: "deleting" });
+  await f.webhook("evt_late_paid", "invoice.paid");
+  assert.equal(f.state.canceled, 1);
+  assert.equal((await usage())!.plan, "free");
+});
+
+test("non-owner worker cancellation expires checkout and stops renewal idempotently", async (t) => {
+  const f = await lifecycle(t);
+  await f.billing.checkout(f.principal, "month");
+  f.subscriptions.push(f.subscription("active"));
+  const billing = new application.Billing(
+    new memory.MemoryService(
+      worker,
+      "billing-fixture-cursor-secret-32-characters",
+    ),
+    f.options,
+  );
+  await billing.cancelForDeletion(f.principal.accountId);
+  await billing.cancelForDeletion(f.principal.accountId);
+  assert.equal(f.state.canceled, 1);
+  assert.equal(f.sessions.get("cs_1")!.status, "expired");
+});
+
+test("deletion recovers a completed lost checkout without trying to expire it", async (t) => {
+  const f = await lifecycle(t);
+  f.state.loseCheckout = true;
+  await assert.rejects(f.billing.checkout(f.principal, "month"));
+  f.state.loseCheckout = false;
+  const paid = f.subscription("active");
+  f.subscriptions.push(paid);
+  Object.assign(f.sessions.get("cs_1")!, {
+    status: "complete",
+    subscription: paid.id,
+    url: null,
+  });
+  const billing = new application.Billing(
+    new memory.MemoryService(
+      worker,
+      "billing-fixture-cursor-secret-32-characters",
+    ),
+    f.options,
+  );
+  await billing.cancelForDeletion(f.principal.accountId);
+  assert.equal(f.state.canceled, 1);
+  assert.equal(f.sessions.get("cs_1")!.status, "complete");
 });
 after(async () => {
   await Promise.all([db?.destroy(), worker?.destroy(), admin?.destroy()]);
@@ -263,6 +548,86 @@ test("monthly usage, subscription expiry, recognized prices and rollout pause de
   );
 });
 
+for (const plan of ["free", "pro"] as const) {
+  test(`${plan} monthly generation cap serializes API and worker reservations`, async () => {
+    const a = await account();
+    const monthly = billingLimits[plan].generation.monthly;
+    const configuration = {
+      enabled: async () => true,
+      priceIds: ["price_pro"],
+      // Isolate the monthly boundary even on the first UTC day of the month.
+      limits: {
+        free: {
+          ...billingLimits.free,
+          generation: { daily: 3000, monthly: 100 },
+        },
+        pro: {
+          ...billingLimits.pro,
+          generation: { daily: 3000, monthly: 2000 },
+        },
+      },
+    };
+    memory.configureBillingQuotas(db, configuration);
+    memory.configureBillingQuotas(worker, configuration);
+    await tenant(db, a.accountId, async (trx) => {
+      await trx("inference_usage").insert({
+        accountId: a.accountId,
+        role: "generation",
+        requests: monthly - 1,
+      });
+      if (plan === "pro") {
+        await trx("billing_customers").insert({
+          accountId: a.accountId,
+          customerId: `cus_${a.accountId}`,
+        });
+        await trx("billing_subscriptions").insert({
+          accountId: a.accountId,
+          customerId: `cus_${a.accountId}`,
+          id: `sub_${a.accountId}`,
+          priceId: "price_pro",
+          status: "active",
+          periodEnd: new Date(Date.now() + 86400000),
+        });
+      }
+    });
+    let calls = 0;
+    const attempts = await Promise.allSettled(
+      Array.from({ length: 6 }, (_, index) =>
+        budgetedInference(
+          index % 2 ? db : worker,
+          a.accountId,
+          "generation",
+          10000,
+          async () => ++calls,
+        ),
+      ),
+    );
+    assert.equal(calls, 1);
+    assert.equal(
+      attempts.filter((result) => result.status === "rejected").length,
+      5,
+    );
+    await tenant(db, a.accountId, async (trx) => {
+      const usage = (await memory.billingUsage(db, trx, a.accountId))!;
+      assert.equal(usage.plan, plan);
+      assert.equal(usage.metrics.generation.month, monthly);
+    });
+    const service = new memory.MemoryService(
+      db,
+      "billing-fixture-cursor-secret-32-characters",
+    );
+    const note = await service.remember(
+      a,
+      rememberSchema.parse({
+        operationId: randomUUID(),
+        content: "Writing still works at the monthly AI limit.",
+      }),
+    );
+    assert.equal((await service.get(a, note.id)).content, note.content);
+    assert((await service.exportPage(a)).some((item) => item.id === note.id));
+  });
+}
+
 test("Pro product entitlement survives flag price changes and rejects another product", async () => {
   const a = await account();
   memory.configureBillingQuotas(db, {
@@ -407,7 +772,8 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
   let enabled = false,
     checkoutCalls = 0,
     cancellations = 0,
-    checkoutOpen = true;
+    checkoutOpen = true,
+    checkoutKey = "";
   const a = await account(),
     b = await account();
   const subscription = {
@@ -486,6 +852,9 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
     ) {
       if (req.method === "POST") {
         checkoutCalls++;
+        const key = req.headers["idempotency-key"] as string;
+        if (key !== checkoutKey) checkoutOpen = true;
+        checkoutKey = key;
         assert.equal(fields.get("mode"), "subscription");
         assert(
           ["price_pro", "price_year"].includes(

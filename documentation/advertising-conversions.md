@@ -53,7 +53,7 @@ the 90-day conversion audience excluded from the retargeting draft.
 
 - Nine server policy/provider tests demonstrate red/green behavior and cover
   boundaries, returning users, identity mismatches, expiry and provider failures.
-- Disposable PostgreSQL suite after integrating development billing #112: 332
+- Disposable PostgreSQL suite after integrating development billing #112/#114: 343
   passed, four optional S3/broker integrations
   skipped; packed artifacts: nine passed. Root/site lint, types and builds pass.
 - Existing website suite: all 223 scenarios pass on isolated ports, including
