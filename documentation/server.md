@@ -33,14 +33,46 @@ routes. Link management requires the owning website session; OAuth/API keys cann
 publish content. See [sharing](sharing.md) for routes, permissions, live membership,
 pagination, independent public limits and revocation.
 
-## Four everyday tools
+## Memory and notebook tools
 
-| Tool       | Purpose                                        | Main fields                                                                                  |
-| ---------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `remember` | Durable save or versioned correction           | `operationId`, `content`, `kind`, `projectId`, `source`; correction: `id`, `expectedVersion` |
-| `recall`   | Bounded active context                         | `query`, `projectId`, `includePersonal`, optional `taskId`                                   |
-| `memories` | Inspect IDs, versions, provenance and statuses | `query`, `projectId`, `kind`, `status`, `cursor`, `limit`                                    |
-| `forget`   | Exact-ID soft deletion; retained history is hidden | `operationId`, `items: [{id, expectedVersion}]`                                              |
+| Tool                               | Purpose                                            | Main fields                                                                                  |
+| ---------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `remember`                         | Durable save or versioned correction               | `operationId`, `content`, `kind`, `projectId`, `source`; correction: `id`, `expectedVersion` |
+| `recall`                           | Bounded active context                             | `query`, `projectId`, `includePersonal`, optional `taskId`                                   |
+| `memories`                         | Inspect IDs, versions, provenance and statuses     | `query`, `projectId`, `kind`, `status`, `cursor`, `limit`                                    |
+| `forget`                           | Exact-ID soft deletion; retained history is hidden | `operationId`, `items: [{id, expectedVersion}]`                                              |
+| `get_memory`                       | Exact current or historical note                   | `id`, optional `revision`                                                                    |
+| `memory_history`                   | Latest 100 revisions                               | `id`                                                                                         |
+| `update_memory`                    | Partial edit; omitted fields preserved             | `operationId`, `id`, `expectedVersion`, changed fields                                       |
+| `move_memories`                    | Atomic batch filing (up to 50)                     | `operationId`, `items`, destination `projectId` or null                                      |
+| `archive_memory`, `restore_memory` | Archive or restore an exact note                   | `operationId`, `id`, `expectedVersion`; restore: optional `revision`, `durable`              |
+| `notebooks`                        | Paginated directory/tree discovery                 | `status`, `query`, `parentId`, `cursor`, `limit`                                             |
+| `create_notebook`                  | Retry-safe notebook creation                       | `operationId`, `name`, optional `parentId`                                                   |
+| `update_notebook`                  | Partial rename/move                                | `operationId`, `id`, `expectedVersion`, `name` and/or `parentId`                             |
+| `notebook_lifecycle`               | Owner-only subtree preview/archive/restore/delete  | `id`, `action`; changes also require `operationId`, `expectedVersion`, preview `fingerprint` |
+
+All 14 tools share schemas and execution between remote MCP and the packaged stdio
+bridge. `POST /v1/tools/:tool` accepts the same arguments and normal REST envelopes.
+Existing REST routes and the original four tools remain compatible. Ship the matching
+API before the upgraded bundled clients; an older server cannot execute new tools.
+
+Use `update_memory` for corrections: omitted content, notebook, kind, provenance,
+task ID and lifetime stay unchanged. Legacy `remember` corrections still replace
+metadata, so callers must supply it. To convert a handoff, set `kind: "fact"` and
+`taskId: null`; set `retentionDays: null` too if it should become permanent. Optional
+`capture: "automatic"` obeys both server and packaged-host privacy controls.
+
+Notebooks are folders, represented internally by project IDs. Follow `notebooks`
+cursors to discover the full granted tree; hidden parents remain hidden. Moving
+notes/notebooks checks both source and destination grants. Notebook creation requires
+all-project write access or an owner session. Notebook subtree lifecycle and archived
+notebook listing remain **website-owner session only**, including through the tool
+endpoint; OAuth and API keys cannot use these operations. Hierarchy never inherits
+permissions. `parentId: null` moves a notebook to the root.
+
+Deletion is retained soft deletion, not physical erasure. Deleted notes/notebooks
+cannot be restored through these tools; use archive when later restoration is needed.
+Batch moves are all-or-nothing; `forget` retains its per-item outcome contract.
 
 Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope is
 `projectId: null`. Project IDs are account-owned UUIDs. A handoff requires a stable
@@ -52,7 +84,7 @@ automatic capture is paused; explicit user-requested saves use `"explicit"`.
 removed; 1–365 selects a temporary lifetime. New handoffs default to 30 days and
 other kinds to permanent. Omission on correction preserves retention and expiry.
 Changing retention restarts it; restore renews it. Expired notes are hidden from
-recall and retained for a60-day restoration window before soft deletion. Hidden
+recall and retained for a 60-day restoration window before soft deletion. Hidden
 source records and their revisions remain retained.
 
 Use a new UUID operation ID per mutation and keep it across retries. Reusing an ID
@@ -76,39 +108,40 @@ No server content cache can outlive deletion or revocation.
 Responses use `{success: true, data}` or
 `{success: false, error: {code, message, requestId}}`. Export is NDJSON.
 
-| Routes                                                                 | Access                                                                           |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `GET /v1/me`                                                           | Authenticated identity/effective grant and settings                              |
-| `POST /v1/connect`                                                     | Agent starts/resumes its own connection request; API keys require existing scope |
-| `GET /v1/connect/:id`                                                  | Request's agent connection or owning website session                             |
-| `POST /v1/connect/:id/approve`                                         | Owning website session; transactional project link and grant                     |
-| `POST /v1/connect/:id/cancel`                                          | Request's agent connection or owning website session                             |
-| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                     | Approved scope; create needs all-project access or website session               |
-| `GET /v1/projects?status=archived`; `GET /v1/projects/:id/lifecycle` | Archived listing and full-subtree preview; owner website session only |
-| `POST /v1/projects/:id/archive`, `/restore`, `/delete` | Owner-only, version/snapshot-checked subtree lifecycle; deletion is soft only |
-| `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                   |
-| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                    |
-| `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                     |
-| `GET /v1/memories/:id/revisions/:version`                              | Exact historical revision; current scope, deletion and expiry checks              |
-| `/v1/assistance`, `/v1/notebook-visits`                                | Owning website session; [notebook assistance](notebook-assistance.md)              |
-| `POST /v1/memories/:id/archive`; `…/restore`                           | `memory:write`, operation ID and current version                                 |
-| `POST /v1/memories/delete`                                             | `memory:delete`                                                                  |
-| `POST /v1/recall`                                                      | `memory:read`                                                                    |
-| `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                              |
-| `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`     | Owning website session only; saved chat history                                  |
-| `POST /v1/conversations/search` | Owner-only history search: `{ query?, after? }`; titles/questions, 30 results and signed cursor |
-| `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`  | Owning website session only; contextual replies and previewed note changes       |
-| `POST /v1/briefs`; `POST /v1/briefs/refresh`                           | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`               |
-| `POST /v1/memories/:id/reprocess`                                      | Scoped `memory:write`; body `{expectedVersion}`                                  |
-| `GET /v1/models`; `GET /v1/account/usage`                              | Website session; masked settings / account usage                                 |
-| `PATCH /v1/models`; `POST /v1/models/test`                             | Configured self-hosted installation administrator only                           |
-| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`       | Website session only                                                             |
-| `POST /v1/keys`                                                        | Website session only; secret returned once                                       |
-| `POST /v1/logout`                                                      | Revoke calling agent's connection                                                |
-| `PATCH /v1/account/settings`; `POST /v1/account/delete`                | Website session only                                                             |
-| `/v1/exports`, `/v1/imports`, `/v1/tasks`                              | Session-owner durable work; see [jobs](jobs.md)                                  |
-| `POST /v1/webhooks/clerk`                                              | Svix signature, replay receipt and event ordering                                |
-| `GET /health/live`, `/health/ready`                                    | Public, content-free                                                             |
+| Routes                                                                 | Access                                                                                          |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `GET /v1/me`                                                           | Authenticated identity/effective grant and settings                                             |
+| `POST /v1/connect`                                                     | Agent starts/resumes its own connection request; API keys require existing scope                |
+| `GET /v1/connect/:id`                                                  | Request's agent connection or owning website session                                            |
+| `POST /v1/connect/:id/approve`                                         | Owning website session; transactional project link and grant                                    |
+| `POST /v1/connect/:id/cancel`                                          | Request's agent connection or owning website session                                            |
+| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                     | Approved scope; create needs all-project access or website session                              |
+| `GET /v1/projects?status=archived`; `GET /v1/projects/:id/lifecycle`   | Archived listing and full-subtree preview; owner website session only                           |
+| `POST /v1/projects/:id/archive`, `/restore`, `/delete`                 | Owner-only, version/snapshot-checked subtree lifecycle; deletion is soft only                   |
+| `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                                  |
+| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                                   |
+| `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                                    |
+| `GET /v1/memories/:id/revisions/:version`                              | Exact historical revision; current scope, deletion and expiry checks                            |
+| `/v1/assistance`, `/v1/notebook-visits`                                | Owning website session; [notebook assistance](notebook-assistance.md)                           |
+| `POST /v1/memories/:id/archive`; `…/restore`                           | `memory:write`, operation ID and current version                                                |
+| `POST /v1/memories/delete`                                             | `memory:delete`                                                                                 |
+| `POST /v1/recall`                                                      | `memory:read`                                                                                   |
+| `POST /v1/tools/:tool`                                                 | Same tool schemas and scoped capabilities as MCP; notebook lifecycle remains owner-only         |
+| `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                                             |
+| `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`     | Owning website session only; saved chat history                                                 |
+| `POST /v1/conversations/search`                                        | Owner-only history search: `{ query?, after? }`; titles/questions, 30 results and signed cursor |
+| `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`  | Owning website session only; contextual replies and previewed note changes                      |
+| `POST /v1/briefs`; `POST /v1/briefs/refresh`                           | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`                              |
+| `POST /v1/memories/:id/reprocess`                                      | Scoped `memory:write`; body `{expectedVersion}`                                                 |
+| `GET /v1/models`; `GET /v1/account/usage`                              | Website session; masked settings / account usage                                                |
+| `PATCH /v1/models`; `POST /v1/models/test`                             | Configured self-hosted installation administrator only                                          |
+| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`       | Website session only                                                                            |
+| `POST /v1/keys`                                                        | Website session only; secret returned once                                                      |
+| `POST /v1/logout`                                                      | Revoke calling agent's connection                                                               |
+| `PATCH /v1/account/settings`; `POST /v1/account/delete`                | Website session only                                                                            |
+| `/v1/exports`, `/v1/imports`, `/v1/tasks`                              | Session-owner durable work; see [jobs](jobs.md)                                                 |
+| `POST /v1/webhooks/clerk`                                              | Svix signature, replay receipt and event ordering                                               |
+| `GET /health/live`, `/health/ready`                                    | Public, content-free                                                                            |
 
 Use POST search so query text stays out of URLs. Cursors are signed and bound to
 account, connection, filters, and creation-time ceiling. Pagination is bounded,
@@ -140,9 +173,11 @@ The cursor identifies an account-owned row; it contains no query text. History
 pagination reflects concurrent activity rather than a frozen snapshot.
 
 Reference resolution uses the latest eight completed turns, then retrieves current
-scoped evidence. Replies cite exact revisions and can propose one explicit create,
-edit or merge. `apply` and `undo` take `{}` and atomically fence every affected
-note version; merges archive other originals. Generation runs outside transactions,
+scoped evidence. Replies cite exact revisions and can propose explicit note edits,
+creation/merge, notebook organization, or archive/restore/delete. Lifecycle previews
+name exact notes and count full notebook subtrees. `apply` and `undo` take `{}` and
+atomically fence affected versions and subtree fingerprints. Deletion has no Undo;
+merges archive other originals. See [Ask tools](ask-tools.md). Generation runs outside transactions,
 with final account/session, provider/settings and source checks. A conversation is
 limited to100 turns with five-minute attempt leases. Deleted conversations retain
 hidden history; account deletion revokes access and soft deletes content, and account

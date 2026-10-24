@@ -1,7 +1,7 @@
 # Billing interface
 
 Synthetic Free/Pro accounts, Stripe-hosted destination fixtures and fixed UTC reset
-dates. The displayed **USD5/month** matches the approved launch amount and numeric
+dates. The displayed **$5 USD/month** matches the approved launch amount and numeric
 Vercel flag. Accounts and usage in the screenshots are synthetic; no payment is made.
 
 The actual Billing component is bundled by the isolated dashboard fixture and
@@ -22,10 +22,10 @@ remaining allowances and reset explanation. Links below show the WebKit subset:
 | --- | --- | --- |
 | ![WebKit Free](webkit-free-390.png) | ![WebKit Pro](webkit-pro-390.png) | ![WebKit payment attention](webkit-payment-320.png) |
 
-Both-engine journeys check exhausted generation allowance,5-dollar monthly prices,
+Both-engine journeys check exhausted generation allowance, 5-dollar monthly prices,
 zero writes on open, keyboard focus, double-submit suppression, hosted Checkout,
 Pro state after return, period-end cancellation, portal access while enabled,
-complete removal of billing details after a flag-off404,
+complete removal of billing details after a flag-off 404,
 load/retry/past-due recovery, WCAG A/AA and no document overflow or browser errors.
 Backend tests separately cover real PostgreSQL/RLS and actual Stripe SDK requests
 to a loopback provider. These screenshots do not establish real Stripe payment,

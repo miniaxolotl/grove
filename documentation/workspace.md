@@ -192,6 +192,11 @@ controls. Long notes scroll within the workspace while the mode switch stays vis
 
 ## Export and delete notes
 
+Ask Grove can also archive, restore or delete selected notes and notebooks after a
+named preview. Notebook previews count all descendants; deletion has no Undo.
+Retained local drafts block these lifecycle actions until saved or resolved. It can
+move existing notebooks, with version-checked Undo. See [Ask tools](ask-tools.md).
+
 **Export** opens three choices: **Markdown (.md)**, **PDF (.pdf)** and
 **Copy Markdown**. It uses the text you are reading or editing, including new and
 unsaved drafts, without requiring a save. The chooser identifies unsaved changes.

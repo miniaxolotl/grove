@@ -1,0 +1,114 @@
+.speech-voice-preference {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem;
+  border-top: 1px solid var(--color-line);
+  font-size: 0.8125rem;
+}
+.speech-voice-name {
+  margin-left: auto;
+  color: var(--color-muted);
+}
+.speech-voice-preference > button {
+  min-height: 44px;
+}
+.app-dialog.inspector-dialog:has(.speech-voice-chooser) {
+  height: auto;
+  max-height: calc(var(--overlay-viewport-height, 100dvh) - 24px);
+}
+.speech-voice-chooser {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 12px 14px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.speech-voice-options {
+  min-width: 0;
+}
+.speech-voice-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 8px;
+}
+.speech-voice-option:has(input:checked) {
+  background: color-mix(in srgb, var(--color-forest) 7%, transparent);
+}
+@media (hover: hover) {
+  .speech-voice-option:has(input:not(:disabled)):hover {
+    background: color-mix(in srgb, var(--color-forest) 4%, transparent);
+  }
+  .speech-voice-option:has(input:checked):hover {
+    background: color-mix(in srgb, var(--color-forest) 9%, transparent);
+  }
+}
+.speech-voice-chooser .speech-voice-option > label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  min-height: 44px;
+  cursor: pointer;
+}
+.speech-voice-option input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-forest);
+}
+.speech-voice-option label:has(input:disabled) {
+  cursor: default;
+}
+.speech-voice-description {
+  display: block;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+.speech-voice-basic {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.speech-voice-hint {
+  margin: 0.75rem 0.5rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+.speech-voice-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-inline: 0.5rem;
+}
+.speech-voice-footer > button {
+  min-height: 44px;
+}
+.speech-sample {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 7rem;
+  font-size: 0.75rem;
+}
+.speech-sample .app-icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+}
+.speech-sample .app-icon[data-playing] {
+  color: var(--color-paper);
+  background: var(--color-forest);
+  border-color: var(--color-forest);
+}
+.speech-voice-chooser :is(button, input):focus-visible,
+.speech-voice-preference > button:focus-visible {
+  outline: 2px solid var(--color-forest);
+  outline-offset: 2px;
+}

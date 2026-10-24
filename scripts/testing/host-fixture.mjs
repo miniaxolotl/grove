@@ -11,7 +11,22 @@ import { setTimeout, clearTimeout } from "node:timers";
 export const exec = promisify(execFile);
 export const key = "grove-isolated-fixture-key";
 export const memoryId = "00000000-0000-4000-a000-000000000002";
-export const tools = ["forget", "memories", "recall", "remember"];
+export const tools = [
+  "forget",
+  "memories",
+  "recall",
+  "remember",
+  "get_memory",
+  "memory_history",
+  "update_memory",
+  "move_memories",
+  "archive_memory",
+  "restore_memory",
+  "notebooks",
+  "create_notebook",
+  "update_notebook",
+  "notebook_lifecycle",
+].sort();
 export const calls = () => [
   ["recall", {}],
   ["memories", {}],

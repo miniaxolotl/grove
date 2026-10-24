@@ -5,7 +5,7 @@ Billing tests use the disposable PostgreSQL/non-owner API and worker URLs below.
 configuration, concurrent quotas, recognized/expired subscriptions, UTC windows,
 signed raw HTTP webhooks, duplicate events and canonical state, Checkout ownership,
 idempotency and duplicate prevention, flag-off concealment and cancellation.
-`billing-pricing.test.ts` verifies a5-dollar flag resolves500-cent immutable monthly
+`billing-pricing.test.ts` verifies a 5-dollar flag resolves 500-cent immutable monthly
 prices, stale quote rejection and invalid/offline price refusal; product entitlements
 preserve grandfathered subscribers across flag amount changes.
 The Stripe SDK calls a local synthetic HTTP service; no real payment is created.
@@ -15,13 +15,29 @@ Research and speech suites also verify monthly quotas stop actual provider dispa
 pnpm exec tsx --test tests/src/billing.test.ts tests/src/billing-pricing.test.ts tests/src/billing-migration.test.ts tests/src/conversations.test.ts tests/src/speech-jobs.test.ts
 ```
 
-Use the real Billing component fixture for Free/Pro, the5-dollar monthly price,
+Use the real Billing component fixture for Free/Pro, the 5-dollar monthly price,
 exhausted/zero allowances, pending checkout, errors/retry, refresh after payment,
-period-end cancellation and hidden flag-off information at1440/390/320px. Check
+period-end cancellation and hidden flag-off information at 1440/390/320px. Check
 keyboard focus, accessible labels and overflow in Chromium and iPhone/WebKit.
 Flag-off production routes must hide new checkout; discovery requires Flags SDK
 authentication. Actual Stripe test/live lifecycle and Vercel cohort evaluation
 are rollout verification, not inferred from synthetic local success.
+
+Note-management coverage in `memory-tools.test.ts` and `memory.test.ts` exercises
+the shared HTTP/remote-MCP contracts, metadata-preserving partial updates, exact
+revision reads, atomic batch moves, retry conflicts, scoped/hidden-parent discovery,
+revocation and owner-only notebook lifecycle. `conversations.test.ts` covers explicit
+lifecycle intent, whole-subtree previews, Apply/Undo, stale versions, deletion without
+Undo and hierarchy-cycle rejection. Recovery invalidates the new previews too.
+Use the disposable database/non-owner roles below. All packaged bridges enumerate
+the expanded catalog and exercise new tool routing and paused automatic corrections.
+
+Actual-component Ask journeys use synthetic notes/notebooks at 1440/390/320px:
+review lifecycle targets/counts, verify no write before Apply, archive/restore/Undo,
+delete without Undo, notebook moves, disabled Manage notes and failed/stale Apply.
+Verify navigation/cache refresh, keyboard focus, accessible labels and no horizontal
+overflow. [Note tools gallery](../design/screenshots/note-tools/README.md) records
+the relevant reviewed captures.
 
 Connection-quality tests use a freshly migrated disposable database and non-owner
 API/worker roles, as described below. Rerun `pnpm test:db:setup` after integrating
@@ -106,14 +122,32 @@ isolation. Historical migration assertions stop at their own boundary; current
 service checks then migrate forward to the current schema.
 
 Actual-component voice journeys use synthetic API responses and the bundled sample
-MP3s in Chromium and iPhone/WebKit. Exercise serialized quick saves, held/failed
-saves, retained newer Settings drafts, late enqueue cancellation, lost replies,
-both close controls/navigation, explicit playback, sample/player ownership,
-unavailable saved choices, keyboard focus, 1440/390/320px bounds and WCAG A/AA.
+MP3s in Chromium and iPhone/WebKit. Verify the on-demand chooser explicitly:
+
+- Ordinary playback has no selector or sample controls. Opening/browsing/cancelling
+  the chooser sends no preference, synthesis or sample requests.
+- Sample buttons audition independently of the checked radio; failed samples retry
+  in place. Samples share exclusive playback ownership and stop on dismissal.
+- Opening/cancelling and same-voice confirmation preserve the narration element and
+  position. Only a confirmed different choice resets it. Account refreshes retain
+  prepared voice identity and an edited chooser candidate.
+- Confirmations serialize quick saves; failed saves keep the applied voice with
+  visible retry. Browse during a held enqueue, then confirm another voice and check
+  cancellation/late-response fencing. Cover lost replies, both close controls,
+  in-app navigation and uncertain cancellation recovery.
+- Settings confirmation edits only its draft. Held saves retain a newer chooser
+  candidate/draft; failed saves and Discard work. Read aloud off hides the summary
+  without clearing the voice. Retain unavailable saved choices without fallback;
+  hide player configuration when the feature is off or all voices are unavailable.
+- Check menu-to-dialog focus, native radio arrows, Escape/backdrop focus return,
+  1440/390/320px bounds, short viewports and WCAG A/AA. Review actual screenshots too:
+  enclosing form styles must not override the chooser's compact radio-row layout.
+
 Run concurrent browser suites with distinct ports **and** `--output` directories;
 the runner clears its output directory and can otherwise delete another engine's
 active traces. Paid provider checks remain separate from CI. See
-[voice evidence and captures](../design/screenshots/speech-voices/README.md).
+[on-demand voice captures](../design/screenshots/speech-voice-flow/README.md) and
+[original provider/sample evidence](../design/screenshots/speech-voices/README.md).
 
 The actual-component/disposable-API browser journeys cover both opt-ins, explicit
 candidate use/save/normal note insertion, generated playback, exact cache reuse,
@@ -366,10 +400,11 @@ absolute isolated binaries of those qualified versions.
 The existing TypeScript CI job runs this suite without changing runner placement
 or CI Gate inventory. Temporary HOME/XDG/client stores, local marketplaces and
 loopback API/model fixtures isolate it from live credentials, sessions and billing.
-Native install/uninstall, skills, four tools, Claude's SessionStart and Codex's
+Native install/uninstall, skills, the complete tool catalog, Claude's SessionStart and Codex's
 paused automatic writes are checked. Missing-Node native failures are intentional
 negative controls. OpenCode connects with an empty PATH and its compiled runtime
-also exercises all four packaged bridge tools. Paths contain spaces; owned
+also exercises the original four bridge operations; packed-artifact tests cover all
+new tool routes. Paths contain spaces; owned
 processes are stopped on success/failure. macOS/Windows and other host versions
 are not qualified by this Linux runner.
 

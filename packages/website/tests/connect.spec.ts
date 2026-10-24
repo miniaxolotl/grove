@@ -83,7 +83,7 @@ test("contextual approval has scoped defaults, preserves choices after failure a
   }
   await page.getByText("Customize access", { exact: true }).click();
   await expect(
-    page.getByLabel("Permanently delete memories", { exact: true }),
+    page.getByLabel("Delete memories", { exact: true }),
   ).not.toBeChecked();
   await expect(
     page.getByLabel("All current and future projects", { exact: true }),

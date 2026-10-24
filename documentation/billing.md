@@ -1,12 +1,12 @@
 # Billing and usage
 
 Grove Cloud starts on **Free**. **Pro** increases AI allowances through a Stripe
-subscription; it does not sell a prepaid credit balance. Pro starts at **USD5/month**.
+subscription; it does not sell a prepaid credit balance. Pro starts at **$5 USD/month**.
 The Vercel number flag `billing-pro-monthly-usd` controls the displayed amount and
 the amount charged for new monthly subscriptions. No yearly price is offered in
 the configured Cloud launch.
 
-The server validates whole-cent USD amounts between1 and10,000 dollars, resolves
+The server validates whole-cent USD amounts between 1 and 10,000 dollars, resolves
 an immutable Stripe Price under the configured Grove Pro product, and refuses an
 outdated browser quote with `billing_price_changed`. Missing/invalid flag evaluation
 stops new checkout rather than silently charging a fallback amount. Changing the
@@ -89,7 +89,7 @@ cannot override API/worker authorization or entitlements.
 
 `BILLING_CONFIGURED=false` leaves billing unconfigured and self-hosting unchanged.
 When configured, the flag controls subscriptions, all billing information and
-plan quota enforcement. **Off hides Settings navigation, returns404 for the billing
+plan quota enforcement. **Off hides Settings navigation, returns 404 for the billing
 page/API/portal, and removes previously loaded billing details on refresh.**
 The open Billing page refreshes every minute. Turning it off resumes pre-existing
 safety limits; it does not cancel subscriptions or stop Stripe renewals. Webhooks

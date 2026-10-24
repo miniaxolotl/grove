@@ -12,7 +12,9 @@ import {
 } from "@lib/shared/speech-voices";
 import { useWorkspaceCache } from "./workspace-cache";
 import { AudioPlayer } from "./audio-player";
-import { VoiceSelector } from "./voice-selector";
+import { VoiceChooser } from "./voice-chooser";
+import { ActionMenu } from "./ui/action-menu";
+import { IconButton } from "./ui/button";
 import { useSpeechJob, activeSpeech as active } from "./use-speech-job";
 import "./speech-controls.css";
 
@@ -183,6 +185,7 @@ export function ReadAloud({ noteId, version }: Source) {
 }
 function ReadAloudSource({ noteId, version }: Source) {
   const [open, setOpen] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const source = { noteId, version };
   const access = useSpeechAccess(source, open);
   const cache = useWorkspaceCache();
@@ -193,7 +196,10 @@ function ReadAloudSource({ noteId, version }: Source) {
   const saveGeneration = useRef(0);
   const voiceId =
     selected ?? access.account?.readAloudVoiceId ?? defaultSpeechVoice;
-  const close = () => setOpen(false);
+  const close = () => {
+    setChoosing(false);
+    setOpen(false);
+  };
   async function remember(value: SpeechVoiceId) {
     const generation = ++saveGeneration.current;
     setSelected(value);
@@ -211,32 +217,40 @@ function ReadAloudSource({ noteId, version }: Source) {
   }
   return (
     <div className="speech-read-aloud">
-      <button
-        type="button"
-        className="text-button speech-trigger"
-        aria-expanded={open}
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        <Volume2 size={16} aria-hidden="true" />
-        Read aloud
-      </button>
+      <div className="speech-header">
+        <button
+          type="button"
+          className="text-button speech-trigger"
+          aria-expanded={open}
+          onClick={() => (open ? close() : setOpen(true))}
+        >
+          <Volume2 size={16} aria-hidden="true" />
+          Read aloud
+        </button>
+        {open && (
+          <span className="speech-header-actions">
+            {access.enabled && access.available && (
+              <ActionMenu label="Read aloud options">
+                <button type="button" onClick={() => setChoosing(true)}>
+                  Change voice
+                </button>
+              </ActionMenu>
+            )}
+            <IconButton label="Close read aloud" onClick={close}>
+              <X size={16} aria-hidden="true" />
+            </IconButton>
+          </span>
+        )}
+      </div>
       {open && (
         <div className="speech-panel">
-          <button
-            type="button"
-            className="speech-close"
-            aria-label="Close read aloud"
-            onClick={close}
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
           {access.account && (
             <ReadAloudVoice
               source={source}
               voiceId={voiceId}
               access={access}
               remembering={remembering}
-              onChange={(value) => void remember(value)}
+              onChoose={() => setChoosing(true)}
               onRetry={() => void remember(voiceId)}
               onPrepare={() => setSelected(voiceId)}
             />
@@ -245,6 +259,14 @@ function ReadAloudSource({ noteId, version }: Source) {
             <Permission access={access} feature="Read aloud" />
           )}
         </div>
+      )}
+      {open && choosing && access.enabled && access.available && (
+        <VoiceChooser
+          value={voiceId}
+          voices={access.account?.speechVoices}
+          onChange={(value) => void remember(value)}
+          close={() => setChoosing(false)}
+        />
       )}
     </div>
   );
@@ -255,7 +277,7 @@ function ReadAloudVoice({
   voiceId,
   access,
   remembering,
-  onChange,
+  onChoose,
   onRetry,
   onPrepare,
 }: {
@@ -263,23 +285,15 @@ function ReadAloudVoice({
   voiceId: SpeechVoiceId;
   access: ReturnType<typeof useSpeechAccess>;
   remembering: "saved" | "saving" | "failed";
-  onChange: (value: SpeechVoiceId) => void;
+  onChoose: () => void;
   onRetry: () => void;
   onPrepare: () => void;
 }) {
-  const [sampleGeneration, setSampleGeneration] = useState(0);
   const voice = access.account?.speechVoices?.find(
     (entry) => entry.id === voiceId,
   );
   return (
     <>
-      <VoiceSelector
-        key={sampleGeneration}
-        value={voiceId}
-        voices={access.account?.speechVoices}
-        remembered={access.account?.readAloudVoiceId}
-        onChange={onChange}
-      />
       {remembering !== "saved" && (
         <span className="speech-remembering" role="status">
           {remembering === "saving" ? (
@@ -296,18 +310,20 @@ function ReadAloudVoice({
       )}
       {!access.enabled || !access.available ? (
         <Permission access={access} feature="Read aloud" />
+      ) : voice?.available ? (
+        <SpeechPreparation
+          key={voiceId}
+          source={source}
+          voice={voice}
+          onPrepare={onPrepare}
+        />
       ) : (
-        voice?.available && (
-          <SpeechPreparation
-            key={voiceId}
-            source={source}
-            voice={voice}
-            onPrepare={() => {
-              onPrepare();
-              setSampleGeneration((value) => value + 1);
-            }}
-          />
-        )
+        <span className="speech-permission">
+          {voice?.name ?? "This voice"} is currently unavailable.{" "}
+          <button type="button" className="text-button" onClick={onChoose}>
+            Change voice
+          </button>
+        </span>
       )}
     </>
   );
@@ -322,22 +338,29 @@ function SpeechPreparation({
   onPrepare: () => void;
 }) {
   const controller = useSpeechJob({ ...source, voiceId: voice.id });
+  const playable =
+    controller.job?.playable && controller.job.voiceId === voice.id;
   return (
     <>
-      <JobControls
-        controller={controller}
-        label="Prepare audio"
-        onStart={onPrepare}
-      />
-      {controller.job?.playable && controller.job.voiceId === voice.id && (
+      {!playable && (
+        <div className="speech-preparation-actions">
+          <JobControls
+            controller={controller}
+            label="Prepare audio"
+            onStart={onPrepare}
+          />
+          <span className="speech-label">{voice.name}</span>
+        </div>
+      )}
+      {playable && (
         <>
-          <span className="speech-label">
-            {voice.name} · AI-generated voice
-          </span>
           <AudioPlayer
             label="read-aloud audio"
-            src={`/api/grove/speech/${controller.job.id}/audio`}
+            src={`/api/grove/speech/${controller.job!.id}/audio`}
           />
+          <span className="speech-label speech-caption">
+            {voice.name} · AI-generated voice
+          </span>
         </>
       )}
     </>

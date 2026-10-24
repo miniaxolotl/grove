@@ -75,7 +75,22 @@ for (const transport of [
     await client.connect(transport);
     assert.deepEqual(
       (await client.listTools()).tools.map((tool) => tool.name),
-      ["remember", "recall", "memories", "forget"],
+      [
+        "remember",
+        "recall",
+        "memories",
+        "forget",
+        "get_memory",
+        "memory_history",
+        "update_memory",
+        "move_memories",
+        "archive_memory",
+        "restore_memory",
+        "notebooks",
+        "create_notebook",
+        "update_notebook",
+        "notebook_lifecycle",
+      ],
     );
     const result = await client.callTool({
       name: "recall",

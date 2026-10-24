@@ -25,7 +25,7 @@ or charging customers. Follow [billing configuration and limits](billing.md).
    notes, accounts or existing usage. Do not reverse the migration.
 2. Keep `billing-enabled=false`. Install matching API/worker binaries and configure
    the same Vercel SDK key, Stripe mode/credentials, Pro product/portal and allowances.
-   The Vercel numeric `billing-pro-monthly-usd` flag starts at5; it controls new-sale
+   The Vercel numeric `billing-pro-monthly-usd` flag starts at 5; it controls new-sale
    pricing in the API as well as the displayed quote. Existing prices are retained.
    `BILLING_CONFIGURED=true` requires the billing schema at runtime startup.
    Image-only deployments do not infer or activate these variables.
@@ -45,10 +45,10 @@ page/navigation and API status/checkout/portal return no billing details while o
 Webhooks and deletion cancellation continue; the flag does not stop renewals.
 Existing safety limits remain. Retain provider billing records.
 
-Owner-authorized provider setup on24 October2026 created Grove Pro on the verified
-Bramble Labs Inc. live Stripe account, a USD5/month price, a dedicated portal and
+Owner-authorized provider setup on 24 October 2026 created Grove Pro on the verified
+Bramble Labs Inc. live Stripe account, a $5 USD/month price, a dedicated portal and
 `https://api.usegrove.cloud/v1/webhooks/stripe` endpoint (API2026-09-30.endive).
-Restricted-key reads and live Checkout creation/expiry verified500 cents/USD;
+Restricted-key reads and live Checkout creation/expiry verified 500 cents/USD;
 no payment or subscription was created. Vercel `bramble-labs-inc/grove` has both
 flags configured, with billing **off in all environments**. New runtime credentials
 and configuration are saved in Doppler `grove/prd_api`, `prd_worker`, `prd_website`

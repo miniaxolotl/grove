@@ -2,7 +2,7 @@
 
 ## Five-dollar pricing and hidden billing (24 October 2026)
 
-Owner-selected **USD5/month** is configured in Vercel's numeric
+Owner-selected **$5 USD/month** is configured in Vercel's numeric
 `billing-pro-monthly-usd` flag. The API resolves immutable monthly Stripe Prices
 under the Grove Pro product, rejects stale browser quotes and preserves existing
 subscribers' product-based entitlement. The boolean flag now hides **all** billing
@@ -11,11 +11,19 @@ cancellation continue. This supersedes the initial paused-portal behavior below.
 
 Owner-authorized live configuration creates the Grove Pro product/price, dedicated
 portal, webhook and restricted runtime key. The key verifies provider reads and a
-live500-cent/USD Checkout which is immediately expired without payment/subscription.
+live 500-cent/USD Checkout which is immediately expired without payment/subscription.
 Actual Vercel SDK evaluation confirms billing=false and monthly USD=5. Credentials
-are saved and read back in Doppler and ignored0600 local inventories. The price
+are saved and read back in Doppler and ignored 0600 local inventories. The price
 catalog and flags are configured; the API/worker schema/runtime rollout and normal
 protected source deployment remain outstanding. [Operator record](deploy.md#billing-rollout-023).
+
+Integrated development through note tools #111 and voice selection #109. Root/site
+lint, types and builds, **323 backend tests** (four optional-service skips), **nine
+artifact checks** and all **223 Chromium scenarios** pass. The updated $5/hidden-flag
+Billing journeys pass in both engines at 1440/390/320px. Notes entry is **488,218
+gzip bytes**, editor deferred. The application price resolver also reads the live
+Vercel amount and resolves the existing 500-cent Stripe Price without creating a
+new price or charging a customer.
 
 ## Flagged Stripe subscriptions and usage (24 October 2026)
 
@@ -54,6 +62,69 @@ passes the complete suite without changing its assertions.
 No Stripe live/test account configuration, payment, Vercel cohort activation,
 production migration or deployment is performed. Those are explicit operator
 steps in the [023 rollout](deploy.md#billing-rollout-023).
+
+## Note and notebook management tools (24 October 2026)
+
+Remote MCP and every bundled bridge share **14 tools**: the existing save/recall/
+search/delete operations plus exact reads/history, metadata-preserving partial
+updates, atomic filing, archive/restore and paginated notebook create/rename/move.
+Source/destination grants, versions, retry identities and owner-only subtree
+administration remain enforced. Deletion is retained soft deletion, not physical
+erasure; stale tool/skill/approval wording is corrected.
+
+Ask Grove adds explicit archive/restore/delete previews with full subtree counts,
+existing-notebook parent moves and version-checked Apply/Undo. Delete has no Undo.
+Source allowlists, exact conversation scope, overlap checks and complete fingerprints
+prevent unseen/stale batches; recovery invalidates lifecycle previews. Retained
+drafts block Apply. Metadata-only notifications prune deleted sources in offline
+tabs, not just invalidate them for an unavailable refresh.
+
+On application source `98742ee`, root/site lint, types and production builds, all
+**nine packaged-artifact checks**, **three pinned native hosts**, **310 backend
+tests** (four optional RabbitMQ/S3 skips) and **34 release/deployment contracts**
+pass locally. PostgreSQL uses disposable data and non-owner API/worker roles.
+Final-source repeats pass the full **223 Chromium** suite and **12 focused
+iPhone/WebKit** checks. Actual-component
+journeys pass subtree preview/no-write/Apply/Undo, note lifecycle, notebook moves,
+disabled tools, interrupted Apply/retry, retained drafts and offline-tab deletion
+in both engines. Desktop/390/320px axe and overflow checks pass.
+
+Notes entry is **488,327 gzip bytes**, editor deferred, within its existing budget.
+[Nine reviewed captures](design/screenshots/note-tools/README.md) use synthetic
+notes and deterministic generation with the actual disposable API. No paid-model
+intent accuracy or production rollout is claimed. No schema migration is required;
+deploy the matching API before upgraded clients and website. [API](server.md),
+[client](client.md), [Ask](ask-tools.md) and [verification](development/testing.md)
+document the new contracts and retained authorization boundaries.
+
+Merge verification integrates voice-selection #109 (`f159036`) without overlapping
+Ask/MCP/runtime edits. The combined tree passes root/site lint, types and builds,
+nine artifacts, three native hosts, 310 backend tests (four optional-service skips),
+223 Chromium and 12 focused WebKit checks, both-engine note-management journeys,
+50 automation contracts and workflow lint. Notes entry is 488,208 gzip bytes with
+the editor deferred. Both feature histories and original capture provenance remain.
+
+## On-demand voice selection (24 October 2026)
+
+Read aloud keeps playback compact and exposes **Change voice** through its options
+menu. Settings shows **Reading voice / current name / Change** only while Read aloud
+is on. Compact voice rows pair a quiet selection highlight with labelled preview
+icons and brief helper text. One chooser separates candidates and audition from
+**Use voice**:
+browsing/cancelling and same-voice confirmation preserve prepared narration; a
+confirmed different voice releases old playback and fences unfinished requests.
+Settings confirmation changes only its existing Save/Discard draft.
+
+Source `1506a85` passes root/site lint, types and production builds, **nine artifact
+checks**, **19 relevant speech tests**, **31 existing Chromium models/cache cases**
+and **four existing iPhone/WebKit Settings cases**. **Fifteen actual-component journey
+groups per engine** verify zero-write browsing, independent samples, save races,
+late/lost replies, cancellation, unavailable/off states, keyboard focus, responsive
+bounds and WCAG A/AA. The Notes bundle gate passes with the editor deferred.
+[Eight reviewed captures and verification details](design/screenshots/speech-voice-flow/README.md)
+document desktop/mobile playback, chooser and Settings. Speech, product-copy and
+testing guidance now describes the on-demand flow; the prior inline-picker gallery
+is marked historical.
 
 ## Selectable read-aloud voices (24 October 2026)
 

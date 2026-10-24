@@ -152,14 +152,14 @@ export async function diagnose(
         tools
           .map((tool) => tool.name)
           .sort()
-          .join(",") !== "forget,memories,recall,remember"
+          .join(",") !== Object.keys(memoryTools).sort().join(",")
       )
         throw new Error("Unexpected tool catalog");
       add(
         "bridge",
         "passed",
         "bridge_initialized",
-        "A separate packaged bridge initialized and listed four tools; no memory tool was invoked.",
+        `A separate packaged bridge initialized and listed ${Object.keys(memoryTools).length} tools; no memory tool was invoked.`,
         "bridge_probe",
       );
     } catch {
@@ -266,3 +266,4 @@ export async function diagnose(
     checks,
   };
 }
+import { memoryTools } from "@lib/shared/memory-tools";
