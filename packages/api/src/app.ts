@@ -1477,16 +1477,26 @@ export function createApp(deps: AppDependencies) {
   });
   app.all("/mcp", async (c) => {
     const principal = c.get("principal");
-    await service.me(principal);
+    const identity = await service.me(principal);
     const execute = async (
       tool: ToolName,
       value: unknown,
       signal?: AbortSignal,
-    ) =>
-      withDatabaseSignal(
+    ) => {
+      if (principal.type === "oauth" && !identity.capabilities.length) {
+        const approval = new URL("/app/settings/connections", deps.siteUrl);
+        approval.hash = `connection-${principal.connectionId}`;
+        throw new GroveError(
+          "connection_required",
+          `Sign-in is complete. Approve OAuth client ${principal.clientId} in Grove Connections: ${approval.href} . Use the same Grove account, then return to your chat and retry. Sign-in alone grants no note access.`,
+          403,
+        );
+      }
+      return withDatabaseSignal(
         AbortSignal.any([databaseSignal()!, ...(signal ? [signal] : [])]),
         () => executeMemoryTool(service, principal, tool, value, signal),
       );
+    };
     const server = createMemoryMcp(execute);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
