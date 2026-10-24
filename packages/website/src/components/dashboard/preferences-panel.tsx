@@ -39,6 +39,7 @@ export function PreferencesPanel() {
             <AiPreferences
               value={editor.value}
               availability={editor.availability}
+              voices={editor.voices}
               onChange={editor.edit}
             />
             <p className="text-xs leading-6 text-muted">

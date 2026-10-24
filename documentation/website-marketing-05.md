@@ -4,6 +4,10 @@ The website leads with a private notebook that makes saved notes easy to find.
 The main action is notebook signup. The developer section explains saved context
 across coding sessions and links to agent setup.
 
+Current support/contact routes and designated public email are documented in
+[Website support and contact](website-support-contact.md). Earlier verification
+counts below are historical, not the current browser-suite totals.
+
 ## Copy follow-up
 
 The 21 October follow-up simplifies headings, FAQs, sharing feedback, footer,

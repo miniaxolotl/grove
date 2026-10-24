@@ -11,7 +11,7 @@ const sections = [
   ["/app/settings/models", "AI & search"],
   ["/app/settings/data", "Your data"],
 ];
-export function SettingsNavigation() {
+export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
   const { dirty } = usePreferenceEditor();
   const path = usePathname();
   const navigation = useRef<HTMLElement>(null);
@@ -31,15 +31,20 @@ export function SettingsNavigation() {
     reveal();
     const observer = new ResizeObserver(reveal);
     observer.observe(nav);
+    // Font loading can widen the links without resizing the navigation itself.
+    nav.querySelectorAll("a").forEach((link) => observer.observe(link));
     return () => observer.disconnect();
-  }, [path]);
+  }, [path, billing]);
   return (
     <nav
       ref={navigation}
       className="settings-navigation"
       aria-label="Settings sections"
     >
-      {sections.map(([href, label]) => (
+      {[
+        ...sections,
+        ...(billing ? [["/app/settings/billing", "Billing"]] : []),
+      ].map(([href, label]) => (
         <Link
           key={href}
           href={href}

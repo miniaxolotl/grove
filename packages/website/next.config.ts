@@ -15,6 +15,21 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
     return [
+      ...["/sign-in/:path*", "/sign-up/:path*", "/app/:path*"].map(
+        (source) => ({
+          source,
+          headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+        }),
+      ),
+      {
+        source: "/welcome",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+        ],
+      },
       {
         source: "/s/:path*",
         headers: [

@@ -1,4 +1,6 @@
 import type { Knex } from "knex";
+import { billing } from "./billing-migration.ts";
+import { speechVoices } from "./speech-voices-migration.ts";
 import { hardening, identityState } from "./hardening.ts";
 import { modelProviders } from "./model-migration.ts";
 import { memoryLifetimes } from "./lifetime-migration.ts";
@@ -16,6 +18,7 @@ import { mediaAttachments } from "./media-migration.ts";
 import { recordings } from "./recordings-migration.ts";
 import { speech } from "./speech-migration.ts";
 import { researchTools } from "./research-migration.ts";
+import { speechDefaults } from "./speech-defaults-migration.ts";
 
 export const migrations = [
   {
@@ -241,6 +244,9 @@ export const migrations = [
   recordings,
   speech,
   researchTools,
+  speechDefaults,
+  speechVoices,
+  billing,
 ];
 
 export const migrationSource: Knex.MigrationSource<

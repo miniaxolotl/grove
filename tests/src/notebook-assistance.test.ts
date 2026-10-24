@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import { createDatabase, tenant, type Knex } from "@lib/database";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
 import type { Providers } from "@lib/ai";
+import { assistanceProfile } from "../../lib/memory/src/assistance-data.ts";
 import { policy } from "../../lib/config/src/index.ts";
 import { rememberSchema, listSchema } from "@lib/shared/contracts";
 import { exportHandlers } from "../../lib/memory/src/exports.ts";
@@ -13,7 +14,7 @@ import { runTask } from "../../lib/memory/src/task-runner.ts";
 import {
   actionListSchema,
   filingSchema,
-  cleanupAssessmentSchema,
+  cleanupJudgmentSchema as cleanupAssessmentSchema,
   digestSummarySchema,
   type AssistanceRequest,
 } from "@lib/shared/assistance";
@@ -350,6 +351,18 @@ test("cleanup keeps reviewed pairs stable, combines atomically, and restores bot
     return schema.parse({
       kind: "duplicate",
       reason: "Same train fare.",
+      support: [
+        {
+          kind: "same_information",
+          subject: "Japan train tickets",
+          property: "fare",
+          leftValue: "100 yen",
+          rightValue: "100 yen",
+          conditions: "recorded tickets",
+          leftEvidence: [0],
+          rightEvidence: [1],
+        },
+      ],
       replacement: [],
       content: "Japan train tickets cost 100 yen.",
       evidence: sources.map((s) => ({
@@ -404,6 +417,57 @@ test("cleanup keeps reviewed pairs stable, combines atomically, and restores bot
   );
   assert.equal((await f.service.get(f.principal, a.id)).status, "active");
   assert.equal((await f.service.get(f.principal, b.id)).status, "active");
+});
+
+test("cleanup rejects template-only overlap without producing a merge preview", async () => {
+  const f = await fixture();
+  await f.save("Arrival review: 4/5 Rewatch; director Denis Villeneuve.");
+  await f.save("Perfect Days review: 4/5 Rewatch; director Wim Wenders.");
+  f.providers.generation!.generate = async <T>(
+    _schema: unknown,
+    _prompt: string,
+    sources: { id: string; version: number; content: string }[],
+  ) =>
+    ({
+      kind: "duplicate",
+      reason: "Same film review template.",
+      replacement: [],
+      content: "Combined reviews.",
+      evidence: sources.map((s) => ({
+        id: s.id,
+        version: s.version,
+        quote: s.content,
+      })),
+      support: [
+        {
+          kind: "template",
+          subject: "Film reviews",
+          property: "verdict",
+          leftValue: "4/5 Rewatch",
+          rightValue: "4/5 Rewatch",
+          conditions: "template",
+          leftEvidence: [0],
+          rightEvidence: [1],
+        },
+      ],
+    }) as T;
+  const result = await f.request({
+    id: randomUUID(),
+    kind: "cleanup",
+    projectId: f.project.id,
+  });
+  assert.equal(result.status, "ready");
+  assert.deepEqual(result.result?.candidates, []);
+  await admin("assistance_requests")
+    .where({ id: result.id })
+    .update({
+      profile: assistanceProfile(f.providers.generation!.profile),
+    });
+  assert.equal(
+    (await f.service.assistance.get(f.principal, result.id)).status,
+    "stale",
+    "Old-policy cleanup previews cannot be reused",
+  );
 });
 test("visit windows are frozen and monotonic; digests compare historical revisions and omit removed content", async () => {
   const f = await fixture(),
@@ -601,6 +665,18 @@ test("invalid action quotes and age-only replacement claims fail closed", async 
       : schema.parse({
           kind: "superseded",
           reason: "The second note is newer.",
+          support: [
+            {
+              kind: "continuation",
+              subject: "Japan train tickets",
+              property: "fare",
+              leftValue: "100 yen",
+              rightValue: "200 yen",
+              conditions: "recorded tickets",
+              leftEvidence: [0],
+              rightEvidence: [1],
+            },
+          ],
           replacement: [b.id],
           content: "Japan train tickets cost 200 yen.",
           evidence: sources.map((s) => ({

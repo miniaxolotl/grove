@@ -13,7 +13,8 @@ DeepInfra receives query/document text for embedding and source/candidate text f
 classification. MiniMax receives bounded source text for organization, relationships, summaries,
 and Ask Grove conversations (including up to eight preceding completed turns).
 Optional [speech](speech.md) uses separate OpenAI whisper-1/tts-1 adapters and
-independent default-off account controls; it does not reuse a text role's provider.
+independent account controls (transcription off, Read aloud on for new accounts);
+it does not reuse a text role's provider.
 Cloud credentials are server-only. Use standard pay-as-you-go MiniMax API keys for
 the public service; a MiniMax coding subscription has separate eligibility and usage
 windows ([provider guidance](https://platform.minimax.io/docs/m-plan/usage-rules)).
@@ -120,9 +121,11 @@ within the connection's approved scope.
 Speech always requires a separate user action; enabling it never starts transcription
 or read aloud. Accepted transcripts and original recording playback remain usable.
 
-Provider availability is separate from the saved preference. The UI identifies
-unconfigured providers while retaining the user's choices. Availability describes
-configuration, not a successful provider health check or remaining quota.
+Feature availability is separate from the saved preference. The UI marks unavailable
+features while retaining the user's choices; it does not show backend vendor names
+to ordinary users. Editable operator configuration keeps its technical labels.
+Availability describes configuration, not a successful provider health check or
+remaining quota. See [product-copy guidance](development/product-copy.md).
 
 `GET /v1/me` includes all sixteen booleans, `aiAvailability` and separate
 `speechAvailable`. Session-only
@@ -134,8 +137,9 @@ their values. The website submits only changed fields. The keys are
 `filingEnabled`, `actionListsEnabled`, `digestsEnabled`, `cleanupEnabled`,
 `transcriptionEnabled`, and `readAloudEnabled`.
 The four assistance controls are on-demand and documented in
-[notebook assistance](notebook-assistance.md). The two speech controls default off;
-their separate provider, privacy, request and cache contracts are in [speech](speech.md).
+[notebook assistance](notebook-assistance.md). For new accounts, transcription defaults
+off and Read aloud defaults on; existing saved choices are preserved.
+Their separate provider, privacy, request and cache contracts are in [speech](speech.md).
 
 For older clients, `organizeEnabled` updates the four organization/connection
 controls and `summariesEnabled` updates all three summary controls plus Ask Grove.

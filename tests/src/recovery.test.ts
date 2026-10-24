@@ -115,6 +115,12 @@ test("isolated restore replays current deletions and revocations without changin
         result: JSON.stringify({
           proposal: { status: "proposed", content: "Old preview" },
           organization: { status: "proposed", notebooks: [] },
+          lifecycle: {
+            status: "proposed",
+            action: "delete",
+            notes: [],
+            notebooks: [],
+          },
         }),
       });
       await db("memories").insert([
@@ -272,7 +278,9 @@ test("isolated restore replays current deletions and revocations without changin
       personalSummaryEnabled: false,
       askEnabled: false,
     });
-    await source("accounts").where({ id: a }).update(preferences);
+    await source("accounts")
+      .where({ id: a })
+      .update({ ...preferences, readAloudVoiceId: "cedar" });
     await source("accounts")
       .where({ id: a })
       .update({
@@ -298,6 +306,10 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    assert.equal(
+      (await target("accounts").where({ id: a }).first()).readAloudVoiceId,
+      "cedar",
+    );
     for (const id of [speechTranscript, speechAudio]) {
       const task = await target("background_tasks").where({ id }).first();
       assert.equal(task.result, null);
@@ -380,6 +392,7 @@ test("isolated restore replays current deletions and revocations without changin
     assert.equal(restoredTurn.status, "failed");
     assert.equal(restoredTurn.result.proposal.status, "unavailable");
     assert.equal(restoredTurn.result.organization.status, "unavailable");
+    assert.equal(restoredTurn.result.lifecycle.status, "unavailable");
     assert.equal(
       (await target("accounts").where({ id: a }).first()).askTools.exa,
       false,

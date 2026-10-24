@@ -1,5 +1,352 @@
 # Delivery evidence
 
+## Billing lifecycle review follow-up (24 October 2026)
+
+Post-merge [#112 review](development/billing-review.md) reproduced and repaired three
+Checkout edge cases: blocked resubscription after a subscription ends, expired URLs
+returned from lost-response replays, and deletion blocked by attempted expiry of an
+already-paid Checkout before renewal cancellation. Current session retrieval replaces
+historical POST state; only an exact canonical terminal subscription permits reuse
+of the completed-checkout slot. Ongoing/missing subscriptions remain fenced.
+
+Root/site lint, types and production builds, **nine packed artifacts** and **334
+backend/service tests** pass (four optional RabbitMQ/S3 skips). Twenty billing cases
+cover lifecycle/RLS/quota behavior, with separate pricing/migration tests; research
+and speech suites verify provider dispatch stops at their allowances. Concurrent
+Free/Pro monthly generation reservations share API/worker caps while note writes,
+reads and exports remain available. Existing Billing journeys pass again in Chromium
+and container iPhone/WebKit at 1440/390/320px, including checkout/portal navigation,
+double-submit, payment recovery, cancellation display, flag-off hiding and WCAG A/AA.
+
+This is synthetic provider and disposable PostgreSQL verification, not a paid Stripe
+lifecycle or production acceptance claim. No UI change, new screenshot, migration,
+provider configuration or deployment is introduced; the existing gallery remains
+applicable. Real payment, renewal and endpoint-delivery checks remain rollout gates.
+
+## Website support and contact (24 October 2026)
+
+Public `/support` and `/contact` pages use `support@usegrove.cloud`. Current
+policy, marketing, recovery, sign-in and workspace help destinations are updated;
+the public contact module is safe for client imports. Canonical/social metadata,
+sitemap entries and safe reporting guidance accompany the pages. No auth policy,
+provider configuration, API, billing, deployment or production release is changed.
+
+The app-specific website contact supersedes the shared website email snapshot
+in the earlier billing entry below. Stripe's company-wide reply-to address remains
+separate; this work does not change that provider setting or the merged billing behavior.
+
+Root/site lint, types, builds, nine artifacts and **227 Chromium cases** pass.
+Eight additional local axe audits cover both pages at 320/390/768/1440px.
+Local WebKit is blocked by missing host browser dependencies, not counted as a pass.
+See [route/verification details](website-support-contact.md) and the
+[reviewed browser gallery](design/screenshots/website-support-contact/README.md).
+
+## Advertising registration handoff (24 October 2026)
+
+Source adds a server-qualified, content-free `/welcome` page and consent-gated
+AdRoll account-created segment delivery. Default auth/private/shared tracking
+exclusions remain; fresh-document navigation and no-referrer headers protect the
+boundary. This is source implementation, not production rollout or paid-ad launch.
+See [contract and verification](advertising-conversions.md) and
+[local screenshots](design/screenshots/registration/README.md).
+
+## Minimal billing and shared support contact (24 October 2026)
+
+Billing uses one open settings sheet: current plan, labelled usage meters,
+short reset/renewal dates, compact included allowances and a visible $5 upgrade
+action. Payment recovery has one Update payment control. Customer copy omits
+provider names, API limits and internal accounting explanations. Settings observes
+link-size changes so late font loading keeps the full active tab visible on phones.
+
+Root/site lint, types and production builds, nine artifacts, 22 focused settings/
+cache cases and three final navigation cases pass. Updated Chromium and iPhone/
+WebKit journeys at 1440/390/320px verify meter labels/values, visible price/action,
+checkout failure/retry and double-submit, cancellation, hidden-flag state, keyboard,
+WCAG A/AA and overflow. [Twenty refreshed captures](design/screenshots/billing/README.md)
+record the review. Sixteen public-site/shared-reader cases also pass after all
+website help, legal and authentication contacts adopt `hello@bramblelabs.co`.
+
+Stripe's live customer support/reply-to address is saved and verified as that same
+address. Custom sending-domain and mailbox forwarding progress is recorded in the
+[billing rollout](deploy.md#billing-rollout-023); no payment or application release
+is implied by these provider settings.
+
+## Five-dollar pricing and hidden billing (24 October 2026)
+
+Owner-selected **$5 USD/month** is configured in Vercel's numeric
+`billing-pro-monthly-usd` flag. The API resolves immutable monthly Stripe Prices
+under the Grove Pro product, rejects stale browser quotes and preserves existing
+subscribers' product-based entitlement. The boolean flag now hides **all** billing
+navigation, page, status and portal responses when off; webhooks and deletion
+cancellation continue. This supersedes the initial paused-portal behavior below.
+
+Owner-authorized live configuration creates the Grove Pro product/price, dedicated
+portal, webhook and restricted runtime key. The key verifies provider reads and a
+live 500-cent/USD Checkout which is immediately expired without payment/subscription.
+Actual Vercel SDK evaluation confirms billing=false and monthly USD=5. Credentials
+are saved and read back in Doppler and ignored 0600 local inventories. The price
+catalog and flags are configured; the API/worker schema/runtime rollout and normal
+protected source deployment remain outstanding. [Operator record](deploy.md#billing-rollout-023).
+
+Integrated development through note tools #111 and voice selection #109. Root/site
+lint, types and builds, **323 backend tests** (four optional-service skips), **nine
+artifact checks** and all **223 Chromium scenarios** pass. The updated $5/hidden-flag
+Billing journeys pass in both engines at 1440/390/320px. Notes entry is **488,218
+gzip bytes**, editor deferred. The application price resolver also reads the live
+Vercel amount and resolves the existing 500-cent Stripe Price without creating a
+new price or charging a customer.
+
+## Flagged Stripe subscriptions and usage (24 October 2026)
+
+Grove Cloud starts on Free, with configurable Pro allowances for generation,
+research, transcription and read aloud. Stripe-hosted Checkout and customer
+management use configured recurring Price IDs. Settings shows current subscription,
+upgrade allowances, remaining usage and daily/monthly reset dates; writing and
+exports remain available at the AI allowance. No prepaid credits or usage overage
+charges are introduced. See [billing contracts and configuration](billing.md).
+
+The server-side Vercel `billing-enabled` flag defaults false and gates new checkout,
+navigation and quota enforcement across website, API and workers. The initial
+paused-portal behavior was superseded by the hidden-billing follow-up above; only
+signed webhooks and deletion cancellation remain available while off.
+Migration **023** adds tenant-isolated billing state without changing
+retained content. Current Stripe state, not redirect/event arrival order, decides
+entitlement. Persisted checkout operations fence duplicates, lost responses and
+interval races; deletion recovers/invalidates uncertain checkout before cancellation.
+
+Local root/site lint, types and builds, **304 backend tests** (four optional-service
+skips), **nine packaged artifacts** and all **223 existing Chromium scenarios** pass.
+Real-component Billing journeys also pass in Chromium and container iPhone/WebKit
+at 1440/390/320px: Free/exhausted usage, disclosed monthly/yearly test prices,
+checkout/double-submit, Pro/cancellation, paused portal, errors/retry/past-due,
+keyboard focus, WCAG A/AA and no overflow/browser errors. Notes entry is **488,128
+gzip bytes**, editor deferred. [Twenty reviewed captures](design/screenshots/billing/README.md)
+use synthetic accounts and loopback Stripe responses, not real payments.
+
+Regression-first checks include non-owner RLS, a non-superuser migration owner,
+populated **022→023** preservation, concurrent caps, recognized/expired subscriptions,
+UTC accounting even with a non-UTC database session, provider dispatch and canonical
+webhook reconciliation. Unconfigured Next routes deny checkout and Flags Explorer
+discovery denies anonymous requests. The initial browser run lacked the documented
+production telemetry build variables; rebuilding with synthetic telemetry identifiers
+passes the complete suite without changing its assertions.
+
+This initial verification used no Stripe account configuration or payment. The
+later catalog setup is recorded above; payment, cohort activation, production
+migration and deployment remain separate [023 rollout](deploy.md#billing-rollout-023)
+steps, not implied by this source delivery.
+
+## Workspace session recovery (24 October 2026)
+
+Workspace requests wait for a Clerk session token and send it explicitly. An HTTP
+401 receives one shared forced refresh and a byte-identical replay. Refresh outages
+and ten-second token timeouts keep snapshots/drafts mounted with load/save retry;
+permission 403s stay local to the resource. Current-generation missing tokens or a
+rejected replay still clear private state. Cancellation and live user/session checks fence late
+work; newer typing and original mutation identities survive recovery.
+
+Application source `48aa5a3` passes root/site lint, types and production builds,
+**nine packaged-artifact checks**, the backend RS256 authorization test and **12
+existing iPhone/WebKit regressions**. The full **223-case Chromium suite** passes
+with the telemetry-enabled production build. **Fifteen recovery journeys per engine** pass
+in Chromium and iPhone-emulated WebKit with zero page errors. Nine additional
+transport groups verify bounded replay, cancellation, cache retention/teardown and
+permission handling. Four installed-Clerk-SDK cases verify explicit-Bearer precedence
+and expired-token rejection with zero network calls. Verification reproduced and
+fixed cancellation starting an unnecessary refresh and search403 cancelling its own
+query through the note-detail eviction path.
+
+Notes entry is **488,617 gzip bytes**, with the editor deferred. Updated workspace,
+cache ownership and verification guidance accompanies [six synthetic recovery
+captures](design/screenshots/session-recovery/README.md). These checks establish
+the recovery behavior; the initiating request from the reported physical Safari
+incident remains untraced.
+
+Follow-up `1d8968a` carries credential generations through replay: an older denial
+cannot clear a session after a newer refresh has started or succeeded. The failed
+operation retains its draft and retry ID without another automatic replay. Dispatch
+also rechecks telemetry opt-out while retaining a stricter original choice. Invalid
+error envelopes preserve their HTTP status rather than triggering transient retries.
+
+Integrated with voice-selection development `f159036`, the follow-up passes fresh
+root/site lint, types/builds, nine artifacts, backend auth, 12 existing WebKit cases,
+the full **223-case Chromium suite**, all fifteen recovery journeys plus two correction journeys per engine, and four
+telemetry preference-transition cases per engine. Direct checks cover eight review
+groups including 24 malformed error envelopes and pending/late token races. Notes is
+**488,769 gzip bytes**, editor deferred. [Two additional reviewed captures](design/screenshots/session-recovery/README.md#superseded-replay-follow-up)
+show draft preservation after a superseded denial.
+
+Final integration with note-management `d8cf0c1` preserves lifecycle pruning and
+both documentation histories. Fresh root/site gates, nine artifacts, backend auth,
+**223 Chromium**, **12 WebKit**, recovery/correction journeys in both engines and
+the transport checks pass. An integration probe verifies that a replayed lifecycle
+Apply prunes deleted detail/list sources with the same operation body. Notes is
+**488,937 gzip bytes**, editor deferred; original capture provenance is retained.
+
+## Note and notebook management tools (24 October 2026)
+
+Remote MCP and every bundled bridge share **14 tools**: the existing save/recall/
+search/delete operations plus exact reads/history, metadata-preserving partial
+updates, atomic filing, archive/restore and paginated notebook create/rename/move.
+Source/destination grants, versions, retry identities and owner-only subtree
+administration remain enforced. Deletion is retained soft deletion, not physical
+erasure; stale tool/skill/approval wording is corrected.
+
+Ask Grove adds explicit archive/restore/delete previews with full subtree counts,
+existing-notebook parent moves and version-checked Apply/Undo. Delete has no Undo.
+Source allowlists, exact conversation scope, overlap checks and complete fingerprints
+prevent unseen/stale batches; recovery invalidates lifecycle previews. Retained
+drafts block Apply. Metadata-only notifications prune deleted sources in offline
+tabs, not just invalidate them for an unavailable refresh.
+
+On application source `98742ee`, root/site lint, types and production builds, all
+**nine packaged-artifact checks**, **three pinned native hosts**, **310 backend
+tests** (four optional RabbitMQ/S3 skips) and **34 release/deployment contracts**
+pass locally. PostgreSQL uses disposable data and non-owner API/worker roles.
+Final-source repeats pass the full **223 Chromium** suite and **12 focused
+iPhone/WebKit** checks. Actual-component
+journeys pass subtree preview/no-write/Apply/Undo, note lifecycle, notebook moves,
+disabled tools, interrupted Apply/retry, retained drafts and offline-tab deletion
+in both engines. Desktop/390/320px axe and overflow checks pass.
+
+Notes entry is **488,327 gzip bytes**, editor deferred, within its existing budget.
+[Nine reviewed captures](design/screenshots/note-tools/README.md) use synthetic
+notes and deterministic generation with the actual disposable API. No paid-model
+intent accuracy or production rollout is claimed. No schema migration is required;
+deploy the matching API before upgraded clients and website. [API](server.md),
+[client](client.md), [Ask](ask-tools.md) and [verification](development/testing.md)
+document the new contracts and retained authorization boundaries.
+
+Merge verification integrates voice-selection #109 (`f159036`) without overlapping
+Ask/MCP/runtime edits. The combined tree passes root/site lint, types and builds,
+nine artifacts, three native hosts, 310 backend tests (four optional-service skips),
+223 Chromium and 12 focused WebKit checks, both-engine note-management journeys,
+50 automation contracts and workflow lint. Notes entry is 488,208 gzip bytes with
+the editor deferred. Both feature histories and original capture provenance remain.
+
+## On-demand voice selection (24 October 2026)
+
+Read aloud keeps playback compact and exposes **Change voice** through its options
+menu. Settings shows **Reading voice / current name / Change** only while Read aloud
+is on. Compact voice rows pair a quiet selection highlight with labelled preview
+icons and brief helper text. One chooser separates candidates and audition from
+**Use voice**:
+browsing/cancelling and same-voice confirmation preserve prepared narration; a
+confirmed different voice releases old playback and fences unfinished requests.
+Settings confirmation changes only its existing Save/Discard draft.
+
+Source `1506a85` passes root/site lint, types and production builds, **nine artifact
+checks**, **19 relevant speech tests**, **31 existing Chromium models/cache cases**
+and **four existing iPhone/WebKit Settings cases**. **Fifteen actual-component journey
+groups per engine** verify zero-write browsing, independent samples, save races,
+late/lost replies, cancellation, unavailable/off states, keyboard focus, responsive
+bounds and WCAG A/AA. The Notes bundle gate passes with the editor deferred.
+[Eight reviewed captures and verification details](design/screenshots/speech-voice-flow/README.md)
+document desktop/mobile playback, chooser and Settings. Speech, product-copy and
+testing guidance now describes the on-demand flow; the prior inline-picker gallery
+is marked historical.
+
+## Selectable read-aloud voices (24 October 2026)
+
+**Reed · Basic** retains the existing OpenAI default; **Willow**, **Cedar** and
+**Brook** add curated MiniMax presets. Read aloud remembers the account's choice;
+Speech settings uses Save/Discard. Samples, Prepare audio and Play remain explicit.
+Serialized preference writes retain newer choices, and switching voices releases
+playback and fences/cancels superseded requests. Cancellation reports confirmed
+server state or offers recovery when confirmation is unavailable.
+
+Forward migration **022** adds the default and per-voice profile map without changing
+consent flags/generations. Immutable task identity and per-voice profile checks
+support exact routing, omitted-default replay and A→B→A cache reuse while fencing
+legacy/mismatched workers. Restore retains the current default and expires derived
+audio. MiniMax transport bounds wire/decoded sizes, validates final hex/MP3 output,
+sanitizes failures and renders provider control notation as prose.
+
+Local verification passes root/site lint, types and production builds, **nine
+packaged-artifact checks**, and **293 backend tests** with four optional-service
+skips. The existing Chromium suite passed **221 cases**, with its two trace-directory
+collisions passing on isolated rerun; **four existing iPhone/WebKit settings cases**
+pass. **Eleven voice journey groups per engine** cover saves, late/lost replies,
+cancellation, playback, keyboard focus, 1440/390/320px bounds and WCAG A/AA. Notes
+entry is **488,115 gzip bytes**, editor deferred; Settings is **480,498 gzip bytes**.
+
+Live MiniMax system listing and all three synthetic samples succeed. Numbers,
+multilingual prose, control-like notation and a 3,000-unit narration synthesize and
+decode; the maximum produces **1,662,036 bytes in 7.348 seconds**. Reed's sample is
+omitted because OpenAI credential access was unavailable. Subjective listening and
+language quality remain unverified. [Twelve reviewed captures and provider evidence](design/screenshots/speech-voices/README.md)
+include sample provenance/checksums and distinguish fixture playback from provider
+qualification. Updated [speech/privacy](speech.md), product-copy and testing docs
+describe the behavior and MiniMax's current processing terms.
+
+`MINIMAX_TTS_ENABLED` defaults false and explicitly gates reuse of the server-only
+MiniMax key. The [coordinated 022 rollout](deploy.md#selectable-speech-voices-022)
+requires matching API/worker binaries and a separate owner migration/activation.
+
+## Feature-focused product copy (23 October 2026)
+
+Speech controls/preferences, sign-in and feature-availability messages describe what
+people can do without naming backend vendors or installation details. Speech prompts
+name the exact preference and retain visibly underlined settings links. Privacy copy
+keeps external processing, inputs, controls, retention and irreversible-send disclosures
+using recipient categories. Operator configuration and source attribution stay accurate.
+
+Root/site lint, types and builds, all **nine packaged-artifact checks**, bundle budgets,
+the full **223 Chromium** suite and **six focused iPhone/WebKit** settings cases pass.
+Actual-component journeys in both engines verify 1440/390/320px copy, bounds and WCAG
+A/AA, settings navigation, unavailable speech/sharing and zero writes when opening
+controls. Notes entry is **488,014 gzip bytes** with the editor deferred. No provider
+configuration or deployment changes are included.
+
+The requested default follow-up keeps transcription off and starts Read aloud on
+for new accounts. Forward migration **021** changes only the future-account default;
+saved choices and preference versions are untouched, and generation/playback remain
+explicit actions. New default/upgrade regressions first failed for the old default
+and missing migration; all three new cases, including saved-choice preservation,
+pass in the full **254-backend-test** run (four optional-service skips). Historical
+migration tests remain pinned to their advertised upgrade boundary.
+The [owner rollout](deploy.md#speech-defaults-021) remains a separate operation.
+
+[Copy guidance](development/product-copy.md) and [five reviewed synthetic captures](design/screenshots/product-copy/README.md)
+record the boundaries and evidence. Current speech instructions and availability docs
+are aligned; the testing guide now counts all sixteen AI preferences.
+
+## Connection quality — local implementation checkpoint (23 October 2026)
+
+Connections require a specific source-backed bridge and abstain on filing,
+templates, ratings and generic topics. Policy-versioned reassessment hides old
+results while preserving unchanged-source dismissal intent and fencing stale Undo.
+Cleanup shares the substantive duplicate/conflict policy without changing reviewed
+Apply/Undo authority. Bounded note/notebook discovery retains short/late facts,
+minority hints and independent lexical/vector nominations.
+
+On application `eb64413` and runner `e726c23` (development `ad1b9fe` integrated),
+**279 backend tests** pass with four optional-service skips; root/website lint,
+types and builds, **nine artifacts**, bundle budgets, **eight affected Chromium**
+and **four focused iPhone/WebKit** scenarios pass. Notes entry is **488,019 gzip
+bytes**, editor deferred. PostgreSQL/RLS/worker/recovery checks use disposable
+resources and non-owner roles. No frontend source changes or new captures.
+
+Deterministic candidate fixtures nominate **18/18 note** and **4/4 notebook**
+positive pairs, with separate adversarial template/minority-thread regressions.
+These are not live semantic accuracy results. Paid current-policy qualification
+remains pending explicit provider/budget approval; the historical old-policy
+baseline is 30/38. [Evidence and limitations](development/connection-quality-results.md)
+and [coordinated cutover](deploy.md#connection-quality-policy-cutover) describe the
+no-new-migration rollout and old-binary/rollback limits. No production activation,
+backfill or deployment was performed; this checkpoint does not claim PR readiness.
+
+Test-only agent follow-up #104 is subsequently integrated in `cfbdc46`, with runtime
+source unchanged. Fresh root lint/types, nine artifacts, five client-boundary cases
+and the complete 279-pass/four-skip backend suite pass on the combined tree.
+
+Owner-approved [draft #105](https://github.com/miniaxolotl/grove/pull/105) now has
+passing [full CI 40034164506](https://github.com/miniaxolotl/grove/actions/runs/40034164506)
+on `83dd0a8`: all six jobs and GitGuardian pass, including **281 backend tests**
+(two optional skips), **nine artifacts** and **223 Chromium scenarios**. The final
+test-only follow-up initializes isolated evaluator scratch storage. Live semantic
+qualification remains pending; passing CI does not authorize ready/merge/deployment.
+
 ## Agent plugin startup and diagnostics (23 October 2026)
 
 OpenCode's Grove bridge now reuses the host executable (Bun runtime mode only for

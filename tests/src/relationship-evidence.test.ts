@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import * as relationships from "@lib/shared/relationships";
 import {
   groundRelationship,
   normalizeRelationshipAssessment,
   relationshipAssessmentSchema,
+  noteAssessmentSchema,
   type ConnectionSource,
 } from "@lib/shared/relationships";
 
@@ -30,6 +32,88 @@ const assessment = relationshipAssessmentSchema.parse({
     version: s.version,
     quote: s.content.split(". ")[0],
   })),
+});
+
+test("generated relationships require an explicit substantive bridge, not just authentic quotes", () => {
+  assert.equal(noteAssessmentSchema.safeParse(assessment).success, false);
+});
+
+test("one substantive bridge suffices; template and organizational bridges abstain", () => {
+  const judge = (
+    relationships as unknown as {
+      assessRelationship: (
+        value: unknown,
+        level: "note" | "notebook",
+        left: ConnectionSource[],
+        right: ConnectionSource[],
+      ) => relationships.RelationshipAssessment;
+    }
+  ).assessRelationship;
+  assert.equal(typeof judge, "function");
+  const support = {
+    kind: "shared_attribute",
+    subject: "Cocktail recipes",
+    property: "base spirit",
+    leftValue: "gin",
+    rightValue: "gin",
+    conditions: "the recorded recipes",
+    leftEvidence: [0],
+    rightEvidence: [1],
+  };
+  const a = { ...left, content: "Negroni: gin, Campari and vermouth." };
+  const b = { ...right, content: "Gin sour: gin, lemon and sugar." };
+  const value = {
+    ...assessment,
+    relationship: "complementary",
+    basis: "additional_context",
+    reason: "Both use gin as the base spirit, with different additions.",
+    evidence: [a, b].map(({ id, version, content }) => ({
+      id,
+      version,
+      quote: content,
+    })),
+    support: [support],
+  };
+  assert.equal(judge(value, "note", [a], [b]).relationship, "complementary");
+  for (const kind of ["organization", "template", "generic_topic"]) {
+    const result = judge(
+      { ...value, support: [{ ...support, kind }] },
+      "note",
+      [a],
+      [b],
+    );
+    assert.deepEqual(result, {
+      relationship: "unrelated",
+      basis: "none",
+      direction: "both",
+      reason: "",
+      evidence: [],
+    });
+  }
+  for (const invalid of [
+    { ...value, support: [] },
+    { ...value, support: [{ ...support, rightEvidence: [0] }] },
+    { ...value, support: [{ ...support, rightEvidence: [7] }] },
+    { ...value, support: [{ ...support, kind: "same_information" }] },
+  ])
+    assert.throws(() => judge(invalid, "note", [a], [b]));
+  assert.throws(
+    () =>
+      judge(
+        {
+          ...value,
+          support: [{ ...support, kind: "template" }],
+          evidence: [
+            { ...value.evidence[0], quote: "Invented source material" },
+            value.evidence[1],
+          ],
+        },
+        "note",
+        [a],
+        [b],
+      ),
+    /invalid_evidence/,
+  );
 });
 
 test("relationship explanations require verbatim current evidence from both endpoints", () => {

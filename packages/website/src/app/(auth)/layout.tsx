@@ -48,7 +48,7 @@ export default function AuthLayout({
           <section className="auth-entry" aria-label="Grove account access">
             {children}
             <p className="auth-help">
-              Need help? <a href="mailto:grove@mawa.dev">Get in touch</a>
+              Need help? <Link href="/support">Get in touch</Link>
             </p>
             <nav className="auth-policies" aria-label="Legal">
               <Link href="/privacy">Privacy policy</Link>

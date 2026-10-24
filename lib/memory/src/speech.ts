@@ -10,9 +10,16 @@ import {
   type SpeechTask,
 } from "@lib/shared/speech";
 import type { MemoryService } from "./index.ts";
+import {
+  isSpeechVoice,
+  speechVoices,
+  type SpeechVoice,
+  type SpeechVoiceId,
+} from "@lib/shared/speech-voices";
 import type { ArtifactStore } from "./exports.ts";
 import { fingerprint } from "./tasks.ts";
 import { budgetedInference } from "./processing.ts";
+import { billingAllows } from "./billing-quotas.ts";
 import {
   TaskError,
   taskTransaction,
@@ -26,6 +33,7 @@ type Payload = {
   memoryId: string;
   version: number;
   mediaId?: string;
+  voiceId?: SpeechVoiceId;
   profile: string;
   preferenceVersion: number;
   epoch: number;
@@ -62,14 +70,50 @@ const changed = () =>
     409,
   );
 
+const synthesisProtocol = "speech-voices-v1";
+type Configuration = {
+  transcription: string | null;
+  synthesis: string | null;
+  synthesisProfiles: Partial<Record<SpeechVoiceId, string>>;
+};
+function configuredProfile(
+  configuration: Configuration | undefined,
+  kind: string,
+  voiceId?: SpeechVoiceId,
+) {
+  if (kind === "speech_transcribe") return configuration?.transcription;
+  return configuration?.synthesis === synthesisProtocol &&
+    isSpeechVoice(voiceId)
+    ? configuration.synthesisProfiles[voiceId]
+    : undefined;
+}
+function selectedProvider(
+  providers: SpeechProviders,
+  kind: string,
+  voiceId?: SpeechVoiceId,
+) {
+  return kind === "speech_transcribe"
+    ? providers.transcription
+    : isSpeechVoice(voiceId)
+      ? providers.synthesis?.[voiceId]
+      : undefined;
+}
+
 /** Only the API publishes desired installation profiles. Older workers may not
  * send source data or publish cached output after a provider/key/voice cutover. */
 export async function configureSpeech(db: Knex, providers: SpeechProviders) {
+  const profiles = Object.fromEntries(
+    Object.entries(providers.synthesis ?? {}).map(([id, provider]) => [
+      id,
+      provider.profile,
+    ]),
+  );
   await db("speech_configuration")
     .where({ singleton: true })
     .update({
       transcription: providers.transcription?.profile ?? null,
-      synthesis: providers.synthesis?.profile ?? null,
+      synthesis: Object.keys(profiles).length ? synthesisProtocol : null,
+      synthesisProfiles: JSON.stringify(profiles),
     });
 }
 async function source(
@@ -138,8 +182,11 @@ async function validate(
     throw changed();
   const configuration = await trx("speech_configuration").first();
   if (
-    configuration?.[key.provider] !== payload.profile ||
-    providers[key.provider]?.profile !== payload.profile
+    !payload.profile ||
+    configuredProfile(configuration, row.kind, payload.voiceId) !==
+      payload.profile ||
+    selectedProvider(providers, row.kind, payload.voiceId)?.profile !==
+      payload.profile
   )
     throw changed();
   const control = await trx("processing_control").first("epoch");
@@ -172,6 +219,9 @@ const descriptor = (row: Row, error?: string): SpeechTask => ({
   kind: row.kind === "speech_transcribe" ? "transcription" : "readAloud",
   status: error ? "failed" : row.status,
   error: error ?? row.errorCode ?? null,
+  ...(row.kind === "speech_synthesize" && isSpeechVoice(row.payload.voiceId)
+    ? { voiceId: row.payload.voiceId }
+    : {}),
   playable:
     !error && row.status === "succeeded" && row.kind === "speech_synthesize",
   ...(!error && row.status === "succeeded" && row.kind === "speech_transcribe"
@@ -201,26 +251,38 @@ export class SpeechJobs {
     private store?: ArtifactStore | null,
   ) {}
   async availability() {
-    if (!this.providers.transcription && !this.providers.synthesis)
-      return { transcription: false, synthesis: false };
+    return (await this.describe()).speechAvailable;
+  }
+  async describe() {
     const configuration = await this.service.db("speech_configuration").first();
-    return {
-      transcription:
-        !!this.providers.transcription &&
-        configuration?.transcription === this.providers.transcription.profile,
-      synthesis:
+    const voices: SpeechVoice[] = speechVoices.map((voice) => {
+      const provider = this.providers.synthesis?.[voice.id];
+      const available =
         !!this.store &&
-        !!this.providers.synthesis &&
-        configuration?.synthesis === this.providers.synthesis.profile,
+        !!provider &&
+        configuredProfile(configuration, "speech_synthesize", voice.id) ===
+          provider.profile;
+      return {
+        ...voice,
+        available,
+        ...(provider?.sampleId ? { sampleId: provider.sampleId } : {}),
+      };
+    });
+    return {
+      speechVoices: voices,
+      speechAvailable: {
+        transcription:
+          !!this.providers.transcription &&
+          configuration?.transcription === this.providers.transcription.profile,
+        synthesis: voices.some((voice) => voice.available),
+      },
     };
   }
   async enqueue(principal: Principal, memoryId: string, input: SpeechRequest) {
     const kind: Kind = input.mediaId
         ? "speech_transcribe"
         : "speech_synthesize",
-      key = keys(kind),
-      provider = this.providers[key.provider];
-    if (!provider || (!input.mediaId && !this.store)) throw unavailable();
+      key = keys(kind);
     return this.service.access(principal, "admin", async ({ trx, account }) => {
       if (!account[key.preference])
         throw new GroveError(
@@ -237,6 +299,11 @@ export class SpeechJobs {
         if (old.payload.fingerprint !== hash) throw changed();
         return this.present(trx, old);
       }
+      const voiceId = input.mediaId
+        ? undefined
+        : (input.voiceId ?? account.readAloudVoiceId);
+      const provider = selectedProvider(this.providers, kind, voiceId);
+      if (!provider || (!input.mediaId && !this.store)) throw unavailable();
       const current = await source(trx, memoryId, input.version, input.mediaId);
       const { epoch } = await trx("processing_control").first("epoch");
       const owner = await trx("accounts").where({ id: account.id }).first();
@@ -249,7 +316,7 @@ export class SpeechJobs {
               sha256: current.object.sha256,
               transcriptVersion: current.transcriptVersion,
             }
-          : {}),
+          : { voiceId }),
         profile: provider.profile,
         preferenceVersion: owner[key.version],
         epoch,
@@ -261,12 +328,14 @@ export class SpeechJobs {
         account.id,
         memoryId,
         input.version,
+        voiceId,
         provider.profile,
         payload.preferenceVersion,
         epoch,
       ]);
       const configuration = await trx("speech_configuration").first();
-      if (configuration[key.provider] !== provider.profile) throw unavailable();
+      if (configuredProfile(configuration, kind, voiceId) !== provider.profile)
+        throw unavailable();
       const pending = await trx("background_tasks")
         .whereIn("kind", kinds)
         .whereIn("status", ["pending", "running"])
@@ -433,7 +502,7 @@ export function speechHandlers(
         await validate(trx, row, providers);
         const usage = await trx("speech_usage")
           .where({ kind: row.kind })
-          .whereRaw("day=CURRENT_DATE")
+          .whereRaw("day=(now() AT TIME ZONE 'UTC')::date")
           .first();
         const limit =
           row.kind === "speech_transcribe"
@@ -441,11 +510,18 @@ export function speechHandlers(
             : speechLimits.dailyCharacters;
         if (
           (usage?.requests ?? 0) >= speechLimits.dailyRequests ||
-          (usage?.units ?? 0) + current.units > limit
+          (usage?.units ?? 0) + current.units > limit ||
+          !(await billingAllows(
+            db,
+            trx,
+            row.accountId!,
+            key.provider,
+            current.units,
+          ))
         )
           throw new TaskError("speech_budget", false);
         await trx.raw(
-          `INSERT INTO speech_usage(account_id,kind,requests,units) VALUES(?,?,1,?)
+          `INSERT INTO speech_usage(account_id,kind,day,requests,units) VALUES(?,?,(now() AT TIME ZONE 'UTC')::date,1,?)
           ON CONFLICT(account_id,day,kind) DO UPDATE SET requests=speech_usage.requests+1,units=speech_usage.units+excluded.units`,
           [row.accountId, row.kind, current.units],
         );
@@ -478,12 +554,11 @@ export function speechHandlers(
               throw new TaskError("speech_text_limit", false);
             return { transcript };
           }
-          if (!store || !providers.synthesis)
+          const provider =
+            row.payload.voiceId && providers.synthesis?.[row.payload.voiceId];
+          if (!store || !provider)
             throw new TaskError("speech_unavailable", false);
-          const bytes = await providers.synthesis.synthesize(
-            current.text,
-            signal,
-          );
+          const bytes = await provider.synthesize(current.text, signal);
           if (!bytes.length || bytes.length > speechLimits.audioBytes)
             throw new TaskError("speech_audio_limit", false);
           await check();

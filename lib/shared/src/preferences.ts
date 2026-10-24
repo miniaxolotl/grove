@@ -40,10 +40,7 @@ export type LegacyPreferences = Partial<
 >;
 export type PreferencesUpdate = Partial<AccountPreferences> & LegacyPreferences;
 const defaults = Object.fromEntries(
-  preferenceKeys.map((key) => [
-    key,
-    key !== "transcriptionEnabled" && key !== "readAloudEnabled",
-  ]),
+  preferenceKeys.map((key) => [key, key !== "transcriptionEnabled"]),
 ) as AccountPreferences;
 
 /** Legacy API clients can still read/write their original grouped switches. */

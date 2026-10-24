@@ -12,7 +12,7 @@ export function AuthenticationProvider({
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/app"
-      signUpFallbackRedirectUrl="/app"
+      signUpFallbackRedirectUrl="/welcome"
       appearance={{
         variables: {
           colorPrimary: "#326349",
@@ -34,7 +34,7 @@ export function AuthenticationProvider({
           logoLinkUrl: "/",
           privacyPageUrl: "/privacy",
           termsPageUrl: "/terms",
-          helpPageUrl: "mailto:grove@mawa.dev",
+          helpPageUrl: "/support",
         },
       }}
     >

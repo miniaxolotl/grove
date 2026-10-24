@@ -1,6 +1,10 @@
 "use client";
 import { BookOpen, FolderTree, Globe, SlidersHorizontal } from "lucide-react";
-import type { OrganizationProposal, ToolRun } from "@lib/shared/conversations";
+import type {
+  LifecycleProposal,
+  OrganizationProposal,
+  ToolRun,
+} from "@lib/shared/conversations";
 import {
   askToolCatalog,
   askToolIds,
@@ -11,6 +15,7 @@ import type { Memory } from "@lib/shared/contracts";
 import { ActionMenu } from "./ui/action-menu";
 import { Button } from "./ui/button";
 import { Markdown } from "./markdown";
+import { useNoteDraftRevision, useNoteDrafts } from "./note-drafts";
 
 export type ToolCapabilities = {
   defaults: AskTools;
@@ -168,6 +173,17 @@ export function OrganizationPreview({
             <strong>{notebook.name}</strong>
           </li>
         ))}
+        {(proposal.notebookMoves ?? []).map((notebook) => (
+          <li key={`notebook-${notebook.id}`}>
+            <FolderTree size={15} />
+            <span>
+              Move <strong>{destination(notebook.id)}</strong> to{" "}
+              {notebook.destination === null
+                ? "root notebooks"
+                : destination(notebook.destination)}
+            </span>
+          </li>
+        ))}
         {proposal.moves.map((note) => (
           <li key={note.id}>
             <span>
@@ -214,6 +230,115 @@ export function OrganizationPreview({
         </div>
       )}
       {proposal.status === "undone" && <p>Changes undone.</p>}
+      {proposal.status === "unavailable" && (
+        <p>Ask Grove for an updated preview.</p>
+      )}
+    </section>
+  );
+}
+
+export function LifecyclePreview({
+  proposal,
+  sources,
+  busy,
+  canApply,
+  onApply,
+  onUndo,
+}: {
+  proposal: LifecycleProposal;
+  sources: Pick<Memory, "id" | "content">[];
+  busy: boolean;
+  canApply: boolean;
+  onApply: () => void;
+  onUndo: () => void;
+}) {
+  const drafts = useNoteDrafts();
+  useNoteDraftRevision();
+  const affectedIds = new Set(proposal.notes.map((note) => note.id));
+  const affectedScopes = new Set(
+    proposal.notebookPreviews.flatMap((preview) => preview.projectIds),
+  );
+  const draftCount = drafts
+    ? [...drafts.entries()].filter(
+        ([key, draft]) =>
+          affectedIds.has(draft.base?.id ?? key.replace(/^note:/, "")) ||
+          affectedScopes.has(draft.projectId) ||
+          (!!draft.base?.projectId && affectedScopes.has(draft.base.projectId)),
+      ).length
+    : 0;
+  const label = { archive: "Archive", restore: "Restore", delete: "Delete" }[
+    proposal.action
+  ];
+  const completed = {
+    archive: "Archived",
+    restore: "Restored",
+    delete: "Deleted",
+  }[proposal.action];
+  return (
+    <section
+      className="ask-proposal ask-organization"
+      aria-label={`${label} preview`}
+    >
+      <h3>{label} selected items</h3>
+      {proposal.status === "proposed" && (
+        <>
+          <ul className="ask-organization-list">
+            {proposal.notes.map((note) => (
+              <li key={note.id}>
+                <BookOpen size={15} />
+                <span>
+                  {sources
+                    .find((source) => source.id === note.id)
+                    ?.content.split("\n")[0]
+                    .replace(/^#+\s*/, "")
+                    .slice(0, 100) || "Note"}
+                </span>
+              </li>
+            ))}
+            {proposal.notebookPreviews.map((preview) => (
+              <li key={preview.project.id}>
+                <FolderTree size={15} />
+                <span>
+                  <strong>{preview.project.name}</strong> — {preview.notebooks}{" "}
+                  {preview.notebooks === 1 ? "notebook" : "notebooks"},{" "}
+                  {preview.notes} {preview.notes === 1 ? "note" : "notes"},
+                  including sub-notebooks
+                </span>
+              </li>
+            ))}
+          </ul>
+          {proposal.action === "delete" && (
+            <p className="ask-answer-note">
+              Deleted items leave your library. This action cannot be undone
+              here.
+            </p>
+          )}
+          {!!draftCount && (
+            <p className="app-error" role="alert">
+              Finish saving or resolving drafts in these items first (
+              {draftCount}). Your local writing will not be discarded.
+            </p>
+          )}
+          <Button
+            variant={proposal.action === "delete" ? "danger" : "primary"}
+            disabled={busy || !canApply || !!draftCount}
+            onClick={onApply}
+          >
+            {label} selected items
+          </Button>
+        </>
+      )}
+      {proposal.status === "applied" && (
+        <div className="ask-applied" role="status">
+          <span>{completed}</span>
+          {proposal.action !== "delete" && (
+            <button className="text-button" disabled={busy} onClick={onUndo}>
+              Undo
+            </button>
+          )}
+        </div>
+      )}
+      {proposal.status === "undone" && <p role="status">Change undone.</p>}
       {proposal.status === "unavailable" && (
         <p>Ask Grove for an updated preview.</p>
       )}

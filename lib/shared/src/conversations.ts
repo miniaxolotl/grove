@@ -6,6 +6,7 @@ import {
 } from "@lib/shared/models";
 import type { Memory } from "./contracts.ts";
 import type { AskTools } from "@lib/shared/ask-tools";
+import type { NotebookLifecyclePreview } from "@lib/shared/notebook-lifecycle";
 export { defaultAskTools, type AskTools } from "@lib/shared/ask-tools";
 
 export const askToolsSchema = z
@@ -76,6 +77,10 @@ export const organizationProposalSchema = z
       .array(sourceRefSchema.extend({ destination: destinationSchema }))
       .max(30)
       .default([]),
+    notebookMoves: z
+      .array(sourceRefSchema.extend({ destination: destinationSchema }))
+      .max(6)
+      .optional(),
     notes: z
       .array(
         z
@@ -98,6 +103,20 @@ export type OrganizationProposal = OrganizationChanges & {
   coverage: { shown: number; total: number; nextCursor: string | null };
 };
 
+export const lifecycleProposalSchema = z
+  .object({
+    action: z.enum(["archive", "restore", "delete"]),
+    notes: z.array(sourceRefSchema).max(30).default([]),
+    notebooks: z.array(sourceRefSchema).max(6).default([]),
+  })
+  .strict();
+export type LifecycleChanges = z.infer<typeof lifecycleProposalSchema>;
+export type LifecycleProposal = LifecycleChanges & {
+  status: "proposed" | "applied" | "undone" | "unavailable";
+  notebookPreviews: NotebookLifecyclePreview[];
+  applied?: SourceRef[];
+};
+
 export const conversationScopeSchema = z
   .object({
     projectId: z.uuid().nullable().optional(),
@@ -118,7 +137,17 @@ export const conversationTurnSchema = z
 export const conversationPlanSchema = z
   .object({
     query: z.string().trim().min(1).max(1000),
-    intent: z.enum(["answer", "find", "edit", "merge", "create", "organize"]),
+    intent: z.enum([
+      "answer",
+      "find",
+      "edit",
+      "merge",
+      "create",
+      "organize",
+      "archive",
+      "restore",
+      "delete",
+    ]),
     references: z.array(z.uuid()).max(8),
     research: z.array(researchRequestSchema).max(2).default([]),
     organizeAfter: z.uuid().nullable().default(null),
@@ -146,6 +175,7 @@ export const conversationReplySchema = z
 export const conversationGenerationSchema = conversationReplySchema
   .omit({ proposal: true })
   .extend({
+    lifecycle: z.array(lifecycleProposalSchema).max(1).default([]),
     organization: z.array(organizationProposalSchema).max(1).default([]),
     proposals: z
       .array(
@@ -166,6 +196,17 @@ export function conversationResponseSchema(
 ) {
   const proposal = conversationGenerationSchema.shape.proposals.element;
   return conversationGenerationSchema.extend({
+    lifecycle:
+      writes && ["archive", "restore", "delete"].includes(intent)
+        ? z
+            .array(
+              lifecycleProposalSchema.extend({
+                action: z.literal(intent as LifecycleChanges["action"]),
+              }),
+            )
+            .max(1)
+            .default([])
+        : z.tuple([]).default([]),
     statements: notes ? conversationReplySchema.shape.statements : z.tuple([]),
     webStatements: web
       ? conversationReplySchema.shape.webStatements
@@ -206,6 +247,7 @@ export type ConversationReply = Omit<
   webSources?: WebSource[];
   researchIncomplete?: boolean;
   organization?: OrganizationProposal;
+  lifecycle?: LifecycleProposal;
 };
 export type ConversationTurn = {
   id: string;

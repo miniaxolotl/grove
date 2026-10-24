@@ -15,6 +15,102 @@ documentation refresh.
 
 ## Topology
 
+### Billing rollout (023)
+
+Billing source does not authorize a production migration, Stripe live-mode change
+or charging customers. Follow [billing configuration and limits](billing.md).
+
+1. Back up the database; apply forward `20261024_023_billing` after 022 using the
+   owner connection. It adds billing tables/functions without rewriting retained
+   notes, accounts or existing usage. Do not reverse the migration.
+2. Keep `billing-enabled=false`. Install matching API/worker binaries and configure
+   the same Vercel SDK key, Stripe mode/credentials, Pro product/portal and allowances.
+   The Vercel numeric `billing-pro-monthly-usd` flag starts at 5; it controls new-sale
+   pricing in the API as well as the displayed quote. Existing prices are retained.
+   `BILLING_CONFIGURED=true` requires the billing schema at runtime startup.
+   Image-only deployments do not infer or activate these variables.
+3. Configure Stripe's customer portal, tax/legal/payment/receipt settings and the
+   signed API webhook endpoint. Use test mode and an internal Vercel flag cohort
+   first. Deploy the matching website with flag integration, not Stripe secrets.
+4. Verify Free usage, owned Checkout, completed payment → Pro, duplicate/lost
+   responses, signed webhook retry/reordering, period-end cancellation, past-due
+    downgrade, resubscription after cancellation, reset dates, API/worker quotas and
+    account-deletion cancellation. Include a lost Checkout response followed by
+    expiry or completed payment; historical idempotent responses must not redirect
+    to expired Checkout or block deletion by trying to expire paid Checkout.
+   Confirm a second account and agent credentials cannot manage another customer.
+5. Enable the intended cohort only after real Stripe test-mode/provider checks.
+   Live price selection, enablement and charging need separate operator approval.
+
+Hide all billing information and pause new sales/plan enforcement by turning the
+flag off, not by removing credentials or downgrading binaries. Website billing
+page/navigation and API status/checkout/portal return no billing details while off.
+Webhooks and deletion cancellation continue; the flag does not stop renewals.
+Existing safety limits remain. Retain provider billing records.
+
+Owner-authorized provider setup on 24 October 2026 created Grove Pro on the verified
+Bramble Labs Inc. live Stripe account, a $5 USD/month price, a dedicated portal and
+`https://api.usegrove.cloud/v1/webhooks/stripe` endpoint (API2026-09-30.endive).
+Restricted-key reads and live Checkout creation/expiry verified 500 cents/USD;
+no payment or subscription was created. Vercel `bramble-labs-inc/grove` has both
+flags configured, with billing **off in all environments**. New runtime credentials
+and configuration are saved in Doppler `grove/prd_api`, `prd_worker`, `prd_website`
+and ignored private local `secrets.md` inventories. Vercel production website has
+`BILLING_CONFIGURED=true` and its saved Flags Explorer secret for the next deployment.
+Production migration, API/worker runtime-variable synchronization, source promotion
+and website deployment remain release operations; catalog setup is not a deployed
+webhook-delivery or paid lifecycle acceptance claim.
+
+Customer support and Stripe reply-to use `hello@bramblelabs.co`. Stripe's custom
+email domain is `bramblelabs.co`; its required verification, six DKIM and bounce
+records are installed DNS-only, with all nine pre-existing DNS records preserved.
+Stripe must finish verification before the domain can be selected for sending;
+return to Customer emails → bramblelabs.co later and select Send email from this
+domain once available. Owner approved continuing the PR while verification waits.
+Stripe fixes sender local parts such as `billing` and `receipts`; the reply-to
+address remains `hello`, not a configurable sender local part.
+
+MXroute's verified `hello@bramblelabs.co` mailbox receives eight configured base
+forwarders: `billing`, `card-expiring`, `failed-payments`, `invoice`, `receipts`,
+`support`, `trial-ending` and `upcoming-invoice`. Stripe's `invoice+statements` and
+`support+express` use plus addressing; the panel rejects literal plus signs in
+forwarder names. The owner additionally approved a domain catch-all: every unmatched
+`@bramblelabs.co` address forwards to `hello@bramblelabs.co`. Its selected forward
+mode and destination were verified after reload. Existing mailboxes and named
+forwarders retain their normal handling. Actual external message delivery was not
+tested; no mailbox contents or pre-existing forwarding destinations were changed.
+
+After database restore, keep the flag **off** and provider traffic fenced until an
+owner reconciles customer mappings, subscriptions and deleted-account tombstones
+against Stripe. Do not open new Checkout from a pre-billing/stale customer snapshot
+or infer entitlement from restored rows/event receipts. Verify canonical status
+with disposable accounts before reopening; restore is not payment reconciliation.
+
+### Connection quality policy cutover
+
+The substantive-bridge policy requires no new database migration. Coordinate the
+matching API and worker application versions:
+
+1. Pause enrichment dispatch and drain/stop every old worker consumer before
+   enabling the new policy. Do not mix old/new relationship writers; profile-based
+   job selection alone does not prevent old binaries overwriting canonical pairs.
+2. Deploy the admitted matching API/worker image, then resume enrichment. Fresh
+   reads use `relationships-v3-*`; old assessments stay retained but hidden until
+   bounded reconciliation replaces them within existing budgets. Unchanged-source
+   dismissals survive and old inspector revisions cannot act on new assessments.
+3. Verify concrete positive links, template-only abstention, canonical graph/list
+   agreement and stale cleanup-preview rejection using owned synthetic notes.
+   No source edits, eager live reset/reindex or bulk all-pairs inference is needed.
+4. For rollback, pause consumers again and coordinate API/worker rollback. Retain
+   notes and review state; do not reverse migrations or run mixed policy writers.
+
+Older binaries do not understand policy-aware dismissal carryover. Do not resume
+old enrichment writers assuming reviews will remain effective after their next
+assessment. Prefer a compatible forward fix, or keep enrichment paused until an
+explicitly reviewed rollback/review-state procedure is available.
+
+See [connection processing and recovery](relationships.md#migration-and-recovery).
+
 ### Speech rollout (019)
 
 Back up retained source objects and the database together. After 018, apply forward
@@ -31,7 +127,8 @@ originals remain in the private durable bucket with no expiry; generated MP3 sha
 the private artifact bucket's one-day `speech/` lifecycle, never the source bucket.
 Confirm bucket policy/lifecycle through an authorized operator, not a broader runtime
 key. Keep maintenance enabled for bounded candidate expiry and artifact removal.
-Both new account preferences remain off until explicitly saved by the user.
+Migration 019 originally starts both speech preferences off. The forward default
+change below enables Read aloud only for accounts created after migration 021.
 
 Then deploy the matching website and use a disposable account to verify opt-in,
 candidate review/save, read aloud, cancellation, scoped Range playback and expiry.
@@ -39,6 +136,44 @@ Recovery must use the updated reconciliation script: it cancels speech tasks,
 clears machine results and expires derived artifacts without deleting original
 audio or accepted transcript history. See [speech contracts](speech.md). This is
 an operator procedure, not evidence that production activation has occurred.
+
+### Speech defaults (021)
+
+Apply `20261023_021_speech_defaults` with the owner connection after 020 during the
+normal migration window. It changes only the database default for future accounts:
+transcription remains off and Read aloud starts on. Existing rows, saved choices,
+preference versions and queued work are untouched. Do not update existing accounts
+to simulate a default change, and do not edit historical migration 019.
+
+Roll out the matching API/worker and website through the normal protected release.
+Verify a disposable new account reports transcription off/Read aloud on, that it
+can save Read aloud off, and that opening a note or the audio controls never
+prepares/plays audio automatically. This source change does not authorize applying
+the migration to a retained database or changing production preferences.
+
+### Selectable speech voices (022)
+
+Apply `20261024_022_speech_voices` with the owner connection after 021. It backfills
+only the new Reed default, preserving consent flags/generations, and adds the
+per-voice installation profile map. Both runtime processes now require this schema.
+
+Drain old API/worker instances, install matching registry-aware binaries with
+`MINIMAX_TTS_ENABLED=false`, and let API startup publish `speech-voices-v1` plus
+the desired profile map. The protocol marker fences legacy single-voice workers;
+legacy TTS receipts require starting again. Do not restart old API instances that
+could republish the single-profile configuration. Verify Reed and transcription
+before enabling `MINIMAX_TTS_ENABLED=true` on API and worker with the existing
+server-only `MINIMAX_API_KEY` and temporary artifact storage. Keep `SPEECH_ENABLED`,
+`OPENAI_API_KEY`, `TTS_VOICE` and `SPEECH_PROVIDER_CONCURRENCY` consistent too.
+
+Deploy the matching website and verify remembered voices, explicit prepare/play,
+switch cancellation, cache reuse, and scoped playback with synthetic notes. Provider
+qualification and sample provenance are in the [voice evidence](design/screenshots/speech-voices/README.md).
+Operational rollback disables MiniMax TTS while retaining the new schema/binaries:
+saved choices remain visible as unavailable and Reed can be selected explicitly.
+Use the current restore reconciliation script to preserve the remembered choice
+without reviving generated audio. Production migration, provider activation and
+deployment remain separate operator operations.
 
 ### Ask Grove tools rollout (020)
 

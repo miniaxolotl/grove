@@ -1,5 +1,129 @@
 # Verification
 
+Billing tests use the disposable PostgreSQL/non-owner API and worker URLs below.
+`billing.test.ts` covers tenant isolation, non-superuser owner lookup, optional
+configuration, concurrent quotas, recognized/expired subscriptions, UTC windows,
+signed raw HTTP webhooks, duplicate events and canonical state, Checkout ownership,
+idempotency and duplicate prevention, flag-off concealment and cancellation. The
+loopback provider preserves original idempotent POST responses separately from live
+Checkout state, covering lost responses followed by expiry/payment, resubscription
+after canceled/expired-incomplete subscriptions in either interval, webhook failure
+and retry, payment-state downgrades, late events after deletion and worker cancellation.
+Concurrent API/worker reservations exercise both Free and Pro monthly generation
+boundaries while ordinary note writes, reads and exports remain available.
+`billing-pricing.test.ts` verifies a 5-dollar flag resolves 500-cent immutable monthly
+prices, stale quote rejection and invalid/offline price refusal; product entitlements
+preserve grandfathered subscribers across flag amount changes.
+The Stripe SDK calls a local synthetic HTTP service; no real payment is created.
+Research and speech suites also verify monthly quotas stop actual provider dispatch.
+
+```sh
+pnpm exec tsx --test tests/src/billing.test.ts tests/src/billing-pricing.test.ts tests/src/billing-migration.test.ts tests/src/conversations.test.ts tests/src/speech-jobs.test.ts
+```
+
+Use the real Billing component fixture for Free/Pro, the 5-dollar monthly price,
+exhausted/zero allowances, pending checkout, errors/retry, refresh after payment,
+period-end cancellation and hidden flag-off information at 1440/390/320px. Check
+labelled usage meters, short reset dates, keyboard focus and overflow in Chromium
+and iPhone/WebKit. Confirm the complete active settings tab remains visible after
+fonts load; checkout failures must show a concise recovery action without upstream
+provider details. Keep customer copy focused on plans, usage and actions.
+Flag-off production routes must hide new checkout; discovery requires Flags SDK
+authentication. Actual Stripe test/live lifecycle and Vercel cohort evaluation
+are rollout verification, not inferred from synthetic local success.
+See the [post-merge billing review](billing-review.md) for findings and scope.
+
+## Workspace session recovery
+
+Run the existing `cache.spec.ts`, `client-cache.spec.ts` and `telemetry.spec.ts`
+scenarios after the telemetry-enabled website build below. The dashboard fixture
+exposes `getWorkspaceToken(options?: { skipCache: boolean })` and
+`switchWorkspaceAccount(userId, sessionId)` only in its test bundle. Use held,
+rejected and null token promises with synthetic HTTP responses to exercise the
+actual components in Chromium and supported iPhone/WebKit:
+
+- Hold the first token: no workspace request dispatches before it resolves.
+- Reject the initial listing with 401; repeat on stale-read visibility resume.
+  Recovery uses a new Bearer token without a page reload or terminal denial.
+- Reject concurrent reads, hold their refresh, then deliver an old 401 after it
+  completes. The batch shares one forced refresh, including its late response.
+- Reject a save, type more during its held refresh, and compare both serialized
+  requests. Operation ID/version/body stay identical; newer typing and the editor
+  node survive, and the later draft saves separately.
+- Throw during refresh or let a token wait reach ten seconds. Retry feedback keeps
+  content mounted. Navigate away/back after a failed save, restore token access,
+  and retry the same operation. Query retries must not multiply refresh attempts.
+- Return 403 independently from `/projects` and `/memories/search`. Each exposes
+  its own retry and keeps the workspace mounted. Search must not enter note-detail
+  eviction or cancel its own infinite query.
+- Return null or reject the replay with 401: private state is cleared. Switch
+  sessions and accounts during a held refresh: no old mutation is replayed and no
+  old draft appears under the replacement identity.
+- Hold a replayed save, complete another request's newer token refresh, then reject
+  the old replay. Keep the editor node/draft mounted with retry feedback; an explicit
+  save retries the identical operation. Repeat while the newer refresh is pending.
+- Opt out during both initial-token and forced-refresh waits; each eventual dispatch
+  must carry `X-Grove-Telemetry: off`. Re-enable during those waits and confirm that
+  an originally opted-out request still carries the header.
+- Return empty/HTML/`null`/malformed JSON envelopes with 401: one refresh, two HTTP
+  attempts and current-generation private-state teardown. Verify raw API errors
+  retain 401/403/409/503 status even without an envelope, and a late null token from
+  before a successful refresh is recoverable.
+
+The transport-level verifier additionally cancels one of two refresh waiters,
+cancels while discarding a 401 body, fences replacement during initial token access,
+and checks no auth replay for network/403/409/5xx failures. The installed Clerk
+backend probe signs synthetic RS256 tokens and verifies fresh-Bearer precedence
+over expired/missing/other-account cookies, plus rejection of an expired Bearer
+despite a fresh cookie. Both probes run without provider traffic.
+
+[Recovery captures](../design/screenshots/session-recovery/README.md) record the
+reviewed source and outcomes. Synthetic lifecycle events and WebKit emulation verify
+the recovery paths; the initiating request from the reported physical Safari
+incident remains untraced. See [request ownership](client-cache.md#session-readiness-and-recovery).
+
+## Other verification paths
+
+Note-management coverage in `memory-tools.test.ts` and `memory.test.ts` exercises
+the shared HTTP/remote-MCP contracts, metadata-preserving partial updates, exact
+revision reads, atomic batch moves, retry conflicts, scoped/hidden-parent discovery,
+revocation and owner-only notebook lifecycle. `conversations.test.ts` covers explicit
+lifecycle intent, whole-subtree previews, Apply/Undo, stale versions, deletion without
+Undo and hierarchy-cycle rejection. Recovery invalidates the new previews too.
+Use the disposable database/non-owner roles below. All packaged bridges enumerate
+the expanded catalog and exercise new tool routing and paused automatic corrections.
+
+Actual-component Ask journeys use synthetic notes/notebooks at 1440/390/320px:
+review lifecycle targets/counts, verify no write before Apply, archive/restore/Undo,
+delete without Undo, notebook moves, disabled Manage notes and failed/stale Apply.
+Verify navigation/cache refresh, keyboard focus, accessible labels and no horizontal
+overflow. [Note tools gallery](../design/screenshots/note-tools/README.md) records
+the relevant reviewed captures.
+
+Connection-quality tests use a freshly migrated disposable database and non-owner
+API/worker roles, as described below. Rerun `pnpm test:db:setup` after integrating
+development's forward migrations; a database bootstrapped before media/speech
+integration lacks the columns needed by the full current suite. Never reset an
+existing database to fix this.
+
+```sh
+pnpm exec tsx --test tests/src/relationship-evidence.test.ts tests/src/relationship-discovery.test.ts tests/src/relationship-evaluation.test.ts tests/src/relationships.test.ts tests/src/notebook-assistance.test.ts
+```
+
+These cover substantive support/provenance, cached abstention, bounded note/notebook
+candidate recall, template-saturated shortlists, minority threads, policy backfill,
+changed/exhausted source snapshots, microsecond expiry, concurrent Dismiss/Undo,
+cleanup and tenant isolation. Evaluation-runner tests use only a local synthetic
+HTTP provider: they verify actual request caps, fatal aborts, usage and atomic
+report replacement without paid calls. Live semantic qualification is separate;
+see [quality results and limits](connection-quality-results.md).
+
+Browser compatibility uses the existing connection/evidence/graph/cache and cleanup
+scenarios with unchanged public payloads. Run the three connection scenarios and
+cleanup preview in Chromium and supported container iPhone/WebKit; include the
+native fullscreen graph scenario in Chromium only. Browser fixture checks do not
+establish live model quality or replace real database/worker cutover tests.
+
 Note-context verification combines the unchanged full Chromium suite and focused
 navigation WebKit suite with real-component manual journeys against synthetic note,
 PNG and WAV data. In each engine check right-click and Shift+F10, retained selection,
@@ -35,16 +159,56 @@ disposable PostgreSQL/non-owner roles as the backend suite below.
 
 Speech adds `speech-provider.test.ts`, `speech-jobs.test.ts`, `speech-text.test.ts`,
 `speech-storage.test.ts` and `speech-migration.test.ts`. They exercise bounded real
-HTTP adapter responses, independent default-off preferences, non-owner source/RLS
+HTTP adapter responses, independent speech preferences, non-owner source/RLS
 checks, retained machine-versus-authored transcripts, retry/lease races, global
 provider slots, conservative budgets, source/profile/session/restore fences,
 private Range/HEAD playback, exact cache expiry and derived-only maintenance.
 The populated 018→019 upgrade preserves authored notes, WAV metadata and transcript
-history. Narration uses real CommonMark parsing; regression cases exclude code,
+history and the historical default-off behavior. `speech-defaults.test.ts` checks
+the forward 020→021 upgrade, preserving all saved speech combinations and preference
+versions while new authenticated accounts get transcription off/Read aloud on.
+Opening an account and saving Read aloud off must not queue speech. Narration uses
+real CommonMark parsing; regression cases exclude code,
 images/media and link definitions while retaining labels and escaped prose. Its
 profile cutover prevents reusing audio from the prior extractor. Restore
 verification also seeds completed speech and checks that results
 and artifact access expire rather than being revived.
+
+Selectable voices add `speech-voices-provider.test.ts` and
+`speech-voices-migration.test.ts`, extending jobs/recovery coverage for exact
+voice routing, immutable omitted-default replay, A→B→A cache reuse, independent
+profile cutovers, legacy/mismatched workers, consent generations and retained
+defaults after restore. The 021→022 upgrade preserves existing settings and tenant
+isolation. Historical migration assertions stop at their own boundary; current
+service checks then migrate forward to the current schema.
+
+Actual-component voice journeys use synthetic API responses and the bundled sample
+MP3s in Chromium and iPhone/WebKit. Verify the on-demand chooser explicitly:
+
+- Ordinary playback has no selector or sample controls. Opening/browsing/cancelling
+  the chooser sends no preference, synthesis or sample requests.
+- Sample buttons audition independently of the checked radio; failed samples retry
+  in place. Samples share exclusive playback ownership and stop on dismissal.
+- Opening/cancelling and same-voice confirmation preserve the narration element and
+  position. Only a confirmed different choice resets it. Account refreshes retain
+  prepared voice identity and an edited chooser candidate.
+- Confirmations serialize quick saves; failed saves keep the applied voice with
+  visible retry. Browse during a held enqueue, then confirm another voice and check
+  cancellation/late-response fencing. Cover lost replies, both close controls,
+  in-app navigation and uncertain cancellation recovery.
+- Settings confirmation edits only its draft. Held saves retain a newer chooser
+  candidate/draft; failed saves and Discard work. Read aloud off hides the summary
+  without clearing the voice. Retain unavailable saved choices without fallback;
+  hide player configuration when the feature is off or all voices are unavailable.
+- Check menu-to-dialog focus, native radio arrows, Escape/backdrop focus return,
+  1440/390/320px bounds, short viewports and WCAG A/AA. Review actual screenshots too:
+  enclosing form styles must not override the chooser's compact radio-row layout.
+
+Run concurrent browser suites with distinct ports **and** `--output` directories;
+the runner clears its output directory and can otherwise delete another engine's
+active traces. Paid provider checks remain separate from CI. See
+[on-demand voice captures](../design/screenshots/speech-voice-flow/README.md) and
+[original provider/sample evidence](../design/screenshots/speech-voices/README.md).
 
 The actual-component/disposable-API browser journeys cover both opt-ins, explicit
 candidate use/save/normal note insertion, generated playback, exact cache reuse,
@@ -166,7 +330,8 @@ new editor/search cases and lost-response/return-to-draft paths.
 Notebook assistance adds a populated 014→015 upgrade, exact historical-source reads,
 resumable summary/reuse and on-demand preview/Apply/Undo regressions. See
 [notebook assistance](../notebook-assistance.md#verification) for the bounded scale
-and synthetic live-provider runners. The shared AI preferences now have 14 controls;
+and synthetic live-provider runners. The shared AI preferences now have 16 controls,
+including the two independent speech choices;
 Chromium and focused WebKit cover assistance dialogs at 1440/390/320px.
 
 Queue coverage (`queue.test.ts`, `queue-migration.test.ts`) uses fresh PostgreSQL
@@ -296,10 +461,11 @@ absolute isolated binaries of those qualified versions.
 The existing TypeScript CI job runs this suite without changing runner placement
 or CI Gate inventory. Temporary HOME/XDG/client stores, local marketplaces and
 loopback API/model fixtures isolate it from live credentials, sessions and billing.
-Native install/uninstall, skills, four tools, Claude's SessionStart and Codex's
+Native install/uninstall, skills, the complete tool catalog, Claude's SessionStart and Codex's
 paused automatic writes are checked. Missing-Node native failures are intentional
 negative controls. OpenCode connects with an empty PATH and its compiled runtime
-also exercises all four packaged bridge tools. Paths contain spaces; owned
+also exercises the original four bridge operations; packed-artifact tests cover all
+new tool routes. Paths contain spaces; owned
 processes are stopped on success/failure. macOS/Windows and other host versions
 are not qualified by this Linux runner.
 
@@ -320,8 +486,13 @@ calls or local writes, probes never invoke memory tools or claim live-host readi
 and malformed/unapproved/version-incompatible API results remain explicit failures.
 `tests/src/client-boundaries.test.ts` covers invalid envelopes, cancellation and
 damaged local state without implicit reauthentication or secret-bearing messages.
-Telemetry-enabled artifacts use a blocking network guard and an enabled control:
-doctor creates no telemetry identity or analytics requests, and opts out upstream.
+
+The telemetry-enabled artifact test first proves that ordinary commands initialize
+telemetry, while blocking analytics delivery. Doctor must make no offline request;
+its explicit probe may make only the requested `/v1/me` read with telemetry disabled.
+Credential regressions reject damaged authentication without rewriting it, but keep
+expired, structurally valid OAuth available for refresh. Assertion explanations make
+these guarantees explicit, including that doctor creates no telemetry identity.
 
 Website browser tests cover public routes, accessibility, keyboard navigation,
 installation copy and metadata. Dashboard fixture tests use the real components
