@@ -1,5 +1,46 @@
 # Verification
 
+## Workspace session recovery
+
+Run the existing `cache.spec.ts`, `client-cache.spec.ts` and `telemetry.spec.ts`
+scenarios after the telemetry-enabled website build below. The dashboard fixture
+exposes `getWorkspaceToken(options?: { skipCache: boolean })` and
+`switchWorkspaceAccount(userId, sessionId)` only in its test bundle. Use held,
+rejected and null token promises with synthetic HTTP responses to exercise the
+actual components in Chromium and supported iPhone/WebKit:
+
+- Hold the first token: no workspace request dispatches before it resolves.
+- Reject the initial listing with 401; repeat on stale-read visibility resume.
+  Recovery uses a new Bearer token without a page reload or terminal denial.
+- Reject concurrent reads, hold their refresh, then deliver an old 401 after it
+  completes. The batch shares one forced refresh, including its late response.
+- Reject a save, type more during its held refresh, and compare both serialized
+  requests. Operation ID/version/body stay identical; newer typing and the editor
+  node survive, and the later draft saves separately.
+- Throw during refresh or let a token wait reach ten seconds. Retry feedback keeps
+  content mounted. Navigate away/back after a failed save, restore token access,
+  and retry the same operation. Query retries must not multiply refresh attempts.
+- Return 403 independently from `/projects` and `/memories/search`. Each exposes
+  its own retry and keeps the workspace mounted. Search must not enter note-detail
+  eviction or cancel its own infinite query.
+- Return null or reject the replay with 401: private state is cleared. Switch
+  sessions and accounts during a held refresh: no old mutation is replayed and no
+  old draft appears under the replacement identity.
+
+The transport-level verifier additionally cancels one of two refresh waiters,
+cancels while discarding a 401 body, fences replacement during initial token access,
+and checks no auth replay for network/403/409/5xx failures. The installed Clerk
+backend probe signs synthetic RS256 tokens and verifies fresh-Bearer precedence
+over expired/missing/other-account cookies, plus rejection of an expired Bearer
+despite a fresh cookie. Both probes run without provider traffic.
+
+[Recovery captures](../design/screenshots/session-recovery/README.md) record the
+reviewed source and outcomes. Synthetic lifecycle events and WebKit emulation verify
+the recovery paths; the initiating request from the reported physical Safari
+incident remains untraced. See [request ownership](client-cache.md#session-readiness-and-recovery).
+
+## Other verification paths
+
 Connection-quality tests use a freshly migrated disposable database and non-owner
 API/worker roles, as described below. Rerun `pnpm test:db:setup` after integrating
 development's forward migrations; a database bootstrapped before media/speech

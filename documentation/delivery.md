@@ -1,5 +1,31 @@
 # Delivery evidence
 
+## Workspace session recovery (24 October 2026)
+
+Workspace requests wait for a Clerk session token and send it explicitly. An HTTP
+401 receives one shared forced refresh and a byte-identical replay. Refresh outages
+and ten-second token timeouts keep snapshots/drafts mounted with load/save retry;
+permission 403s stay local to the resource. Missing tokens or a rejected replay
+still clear private state. Cancellation and live user/session checks fence late
+work; newer typing and original mutation identities survive recovery.
+
+Application source `48aa5a3` passes root/site lint, types and production builds,
+**nine packaged-artifact checks**, the backend RS256 authorization test and **12
+existing iPhone/WebKit regressions**. The full **223-case Chromium suite** passes
+with the telemetry-enabled production build. **Fifteen recovery journeys per engine** pass
+in Chromium and iPhone-emulated WebKit with zero page errors. Nine additional
+transport groups verify bounded replay, cancellation, cache retention/teardown and
+permission handling. Four installed-Clerk-SDK cases verify explicit-Bearer precedence
+and expired-token rejection with zero network calls. Verification reproduced and
+fixed cancellation starting an unnecessary refresh and search403 cancelling its own
+query through the note-detail eviction path.
+
+Notes entry is **488,617 gzip bytes**, with the editor deferred. Updated workspace,
+cache ownership and verification guidance accompanies [six synthetic recovery
+captures](design/screenshots/session-recovery/README.md). These checks establish
+the recovery behavior; the initiating request from the reported physical Safari
+incident remains untraced.
+
 ## Selectable read-aloud voices (24 October 2026)
 
 **Reed · Basic** retains the existing OpenAI default; **Willow**, **Cedar** and
