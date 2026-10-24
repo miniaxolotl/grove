@@ -1,0 +1,216 @@
+.billing-sheet {
+  display: grid;
+  gap: 24px;
+  width: 100%;
+  max-width: 760px;
+  padding-block: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.billing-sheet > .settings-section-heading {
+  margin: 0;
+}
+.billing-caption {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.billing-plan {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-line);
+}
+.billing-plan-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.billing-plan-name h3 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.billing-current {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--color-sage);
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.billing-plan .billing-caption {
+  margin-top: 3px;
+}
+.billing-usage-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-bottom: 16px;
+}
+.billing-usage-heading h3,
+.billing-offer-heading h3 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.billing-usage-heading > .billing-caption {
+  margin-left: auto;
+}
+.billing-refresh {
+  width: 36px;
+  height: 36px;
+}
+.billing-metrics {
+  display: grid;
+  gap: 20px;
+}
+.billing-metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+}
+.billing-metric-count,
+.billing-metric-note,
+.billing-included dd,
+.billing-price {
+  font-variant-numeric: tabular-nums;
+}
+.billing-metric-count {
+  text-align: right;
+}
+.billing-meter,
+.billing-metric-note {
+  grid-column: 1 / -1;
+}
+.billing-meter meter {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--color-sage);
+}
+.billing-meter meter::-webkit-meter-bar {
+  border: 0;
+  border-radius: 2px;
+  background: var(--color-sage);
+}
+.billing-meter meter::-webkit-meter-optimum-value {
+  background: var(--color-forest);
+}
+.billing-meter meter::-moz-meter-bar {
+  background: var(--color-forest);
+}
+.billing-metric-note {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.billing-upgrade {
+  display: grid;
+  gap: 18px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-line);
+}
+.billing-offer-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.billing-included {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+}
+.billing-included dt {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.billing-included dd {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+.billing-purchase {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.billing-price strong {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.billing-price > span {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.billing-sheet .app-button {
+  min-height: 40px;
+}
+.billing-sheet button:focus-visible {
+  outline: 2px solid var(--color-forest);
+  outline-offset: 3px;
+}
+.billing-error {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--color-muted);
+}
+.billing-error button {
+  min-height: 36px;
+}
+.billing-loading {
+  min-height: 260px;
+  color: var(--color-muted);
+}
+@media (max-width: 480px) {
+  .billing-sheet {
+    gap: 20px;
+  }
+  .billing-metric {
+    column-gap: 8px;
+  }
+  .billing-metric-count {
+    max-width: 180px;
+  }
+  .billing-included {
+    column-gap: 16px;
+  }
+  .billing-refresh,
+  .billing-sheet .app-button {
+    min-height: 44px;
+  }
+  .billing-refresh {
+    min-width: 44px;
+  }
+}
+@media (forced-colors: active) {
+  .billing-current {
+    border: 1px solid CanvasText;
+  }
+  .billing-meter meter {
+    forced-color-adjust: none;
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+  .billing-meter meter::-webkit-meter-bar {
+    background: Canvas;
+  }
+  .billing-meter meter::-webkit-meter-optimum-value {
+    background: CanvasText;
+  }
+}

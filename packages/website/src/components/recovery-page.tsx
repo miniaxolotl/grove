@@ -22,7 +22,7 @@ export function RecoveryPage(
       </main>
       <footer className="recovery-footer">
         <span>Need a hand?</span>
-        <a href="mailto:grove@mawa.dev">Get in touch</a>
+        <a href="mailto:hello@bramblelabs.co">Get in touch</a>
       </footer>
     </div>
   );

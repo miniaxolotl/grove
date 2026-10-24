@@ -72,13 +72,19 @@ const handlers: Partial<Record<TaskKind, TaskHandler>> = {
     ? exportHandlers(runtime.db, runtime.artifacts, runtime.media)
     : {}),
   ...importHandlers(runtime.memories),
-  ...cleanupHandlers(runtime.db, async (subject) => {
-    try {
-      await clerk.users.deleteUser(subject);
-    } catch (error) {
-      if ((error as { status?: number }).status !== 404) throw error;
-    }
-  }),
+  ...cleanupHandlers(
+    runtime.db,
+    async (subject) => {
+      try {
+        await clerk.users.deleteUser(subject);
+      } catch (error) {
+        if ((error as { status?: number }).status !== 404) throw error;
+      }
+    },
+    runtime.billing
+      ? (accountId) => runtime.billing!.cancelForDeletion(accountId)
+      : undefined,
+  ),
   model_backfill: async (task) => {
     await runtime.db.raw("SELECT grove_backfill_batch(?::uuid,?::uuid,100)", [
       task.id,

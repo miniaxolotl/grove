@@ -19,6 +19,7 @@
     "@hono/node-server": "^1.19.0",
     "jose": "^6.1.0",
     "svix": "^1.80.0",
+    "stripe": "23.0.1",
     "@lib/environment": "workspace:*",
     "@lib/integration-core": "workspace:*"
   },

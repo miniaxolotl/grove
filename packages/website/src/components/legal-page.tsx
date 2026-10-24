@@ -46,8 +46,8 @@ export function LegalPage({ document }: { document: LegalDocument }) {
           ))}
           <aside className="legal-contact">
             <p>Questions about your information or these terms?</p>
-            <a href="mailto:grove@mawa.dev">
-              grove@mawa.dev <ArrowUpRight size={14} aria-hidden="true" />
+            <a href="mailto:hello@bramblelabs.co">
+              hello@bramblelabs.co <ArrowUpRight size={14} aria-hidden="true" />
             </a>
           </aside>
           <nav className="legal-related" aria-label="Related policies">

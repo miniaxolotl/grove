@@ -9,6 +9,90 @@ boundary. This is source implementation, not production rollout or paid-ad launc
 See [contract and verification](advertising-conversions.md) and
 [local screenshots](design/screenshots/registration/README.md).
 
+## Minimal billing and shared support contact (24 October 2026)
+
+Billing uses one open settings sheet: current plan, labelled usage meters,
+short reset/renewal dates, compact included allowances and a visible $5 upgrade
+action. Payment recovery has one Update payment control. Customer copy omits
+provider names, API limits and internal accounting explanations. Settings observes
+link-size changes so late font loading keeps the full active tab visible on phones.
+
+Root/site lint, types and production builds, nine artifacts, 22 focused settings/
+cache cases and three final navigation cases pass. Updated Chromium and iPhone/
+WebKit journeys at 1440/390/320px verify meter labels/values, visible price/action,
+checkout failure/retry and double-submit, cancellation, hidden-flag state, keyboard,
+WCAG A/AA and overflow. [Twenty refreshed captures](design/screenshots/billing/README.md)
+record the review. Sixteen public-site/shared-reader cases also pass after all
+website help, legal and authentication contacts adopt `hello@bramblelabs.co`.
+
+Stripe's live customer support/reply-to address is saved and verified as that same
+address. Custom sending-domain and mailbox forwarding progress is recorded in the
+[billing rollout](deploy.md#billing-rollout-023); no payment or application release
+is implied by these provider settings.
+
+## Five-dollar pricing and hidden billing (24 October 2026)
+
+Owner-selected **$5 USD/month** is configured in Vercel's numeric
+`billing-pro-monthly-usd` flag. The API resolves immutable monthly Stripe Prices
+under the Grove Pro product, rejects stale browser quotes and preserves existing
+subscribers' product-based entitlement. The boolean flag now hides **all** billing
+navigation, page, status and portal responses when off; webhooks and deletion
+cancellation continue. This supersedes the initial paused-portal behavior below.
+
+Owner-authorized live configuration creates the Grove Pro product/price, dedicated
+portal, webhook and restricted runtime key. The key verifies provider reads and a
+live 500-cent/USD Checkout which is immediately expired without payment/subscription.
+Actual Vercel SDK evaluation confirms billing=false and monthly USD=5. Credentials
+are saved and read back in Doppler and ignored 0600 local inventories. The price
+catalog and flags are configured; the API/worker schema/runtime rollout and normal
+protected source deployment remain outstanding. [Operator record](deploy.md#billing-rollout-023).
+
+Integrated development through note tools #111 and voice selection #109. Root/site
+lint, types and builds, **323 backend tests** (four optional-service skips), **nine
+artifact checks** and all **223 Chromium scenarios** pass. The updated $5/hidden-flag
+Billing journeys pass in both engines at 1440/390/320px. Notes entry is **488,218
+gzip bytes**, editor deferred. The application price resolver also reads the live
+Vercel amount and resolves the existing 500-cent Stripe Price without creating a
+new price or charging a customer.
+
+## Flagged Stripe subscriptions and usage (24 October 2026)
+
+Grove Cloud starts on Free, with configurable Pro allowances for generation,
+research, transcription and read aloud. Stripe-hosted Checkout and customer
+management use configured recurring Price IDs. Settings shows current subscription,
+upgrade allowances, remaining usage and daily/monthly reset dates; writing and
+exports remain available at the AI allowance. No prepaid credits or usage overage
+charges are introduced. See [billing contracts and configuration](billing.md).
+
+The server-side Vercel `billing-enabled` flag defaults false and gates new checkout,
+navigation and quota enforcement across website, API and workers. Existing-customer
+portal access, signed webhooks and deletion cancellation remain available during a
+sales pause. Migration **023** adds tenant-isolated billing state without changing
+retained content. Current Stripe state, not redirect/event arrival order, decides
+entitlement. Persisted checkout operations fence duplicates, lost responses and
+interval races; deletion recovers/invalidates uncertain checkout before cancellation.
+
+Local root/site lint, types and builds, **304 backend tests** (four optional-service
+skips), **nine packaged artifacts** and all **223 existing Chromium scenarios** pass.
+Real-component Billing journeys also pass in Chromium and container iPhone/WebKit
+at 1440/390/320px: Free/exhausted usage, disclosed monthly/yearly test prices,
+checkout/double-submit, Pro/cancellation, paused portal, errors/retry/past-due,
+keyboard focus, WCAG A/AA and no overflow/browser errors. Notes entry is **488,128
+gzip bytes**, editor deferred. [Twenty reviewed captures](design/screenshots/billing/README.md)
+use synthetic accounts and loopback Stripe responses, not real payments.
+
+Regression-first checks include non-owner RLS, a non-superuser migration owner,
+populated **022→023** preservation, concurrent caps, recognized/expired subscriptions,
+UTC accounting even with a non-UTC database session, provider dispatch and canonical
+webhook reconciliation. Unconfigured Next routes deny checkout and Flags Explorer
+discovery denies anonymous requests. The initial browser run lacked the documented
+production telemetry build variables; rebuilding with synthetic telemetry identifiers
+passes the complete suite without changing its assertions.
+
+No Stripe live/test account configuration, payment, Vercel cohort activation,
+production migration or deployment is performed. Those are explicit operator
+steps in the [023 rollout](deploy.md#billing-rollout-023).
+
 ## Workspace session recovery (24 October 2026)
 
 Workspace requests wait for a Clerk session token and send it explicitly. An HTTP

@@ -53,12 +53,17 @@ the 90-day conversion audience excluded from the retargeting draft.
 
 - Nine server policy/provider tests demonstrate red/green behavior and cover
   boundaries, returning users, identity mismatches, expiry and provider failures.
-- Disposable PostgreSQL suite: 319 passed, four optional S3/broker integrations
+- Disposable PostgreSQL suite after integrating development billing #112: 332
+  passed, four optional S3/broker integrations
   skipped; packed artifacts: nine passed. Root/site lint, types and builds pass.
 - Existing website suite: all 223 scenarios pass on isolated ports, including
-  consent, private-route isolation and public-to-auth document navigation. An
+  consent, private-route isolation and public-to-auth document navigation. The
+  integrated Notes bundle passes its budget at 489,098 gzip bytes. An
   interrupted earlier run reported two workspace timeouts; both passed unchanged
   in a focused rerun and the subsequent full run. No workspace repair is claimed.
+- Local HTTP readback confirms `/welcome` redirects an unauthenticated visitor
+  to `/sign-up` with private/no-store, no-referrer, nosniff and noindex headers;
+  `/sign-up` also returns no-referrer.
 - Local synthetic SDK probes cover exact payloads, wrong advertiser/pixel, delayed
   SDK, bounded retries, denied/revoked consent, private navigation, unsafe URLs,
   private initial document/referrer, reload receipt and storage/provider failures.

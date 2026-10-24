@@ -37,7 +37,7 @@ export function SiteFooter() {
           </nav>
           <div className="footer-links">
             <p className="eyebrow mb-3">STAY IN TOUCH</p>
-            <a href="mailto:grove@mawa.dev" className="footer-link">
+            <a href="mailto:hello@bramblelabs.co" className="footer-link">
               Say hello <ArrowUpRight size={12} />
             </a>
             <a href={site.github} className="footer-link">
@@ -93,7 +93,7 @@ export function SiteFooter() {
             </Link>
             <TelemetryChoice />
             <a
-              href="mailto:grove@mawa.dev"
+              href="mailto:hello@bramblelabs.co"
               className="inline-flex min-h-9 items-center hover:text-forest"
             >
               Contact

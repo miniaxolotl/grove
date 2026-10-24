@@ -73,7 +73,7 @@ Its Services ID and signing key are associated with Grove's own primary App ID.
 Google's authorized JavaScript origin is `https://usegrove.cloud`; its External
 audience is published **In production**. Branding links to the separately published
 homepage, [privacy policy](https://usegrove.cloud/privacy) and
-[terms](https://usegrove.cloud/terms). Those pages use `grove@mawa.dev` as the
+[terms](https://usegrove.cloud/terms). Those pages use `hello@bramblelabs.co` as the
 public support contact. Google's console contact is recorded in the private inventory.
 
 Google declares only `openid`, `https://www.googleapis.com/auth/userinfo.email`

@@ -9,6 +9,7 @@ import {
   sessionPrincipal,
   exportHandlers,
   runTask,
+  configureBillingQuotas,
   type ArtifactStore,
 } from "@lib/memory";
 import { rememberSchema } from "@lib/shared/contracts";
@@ -1149,6 +1150,38 @@ test("a stale organization move rolls back notebook creation and organization of
   assert.equal((await service.projects(principal)).length, 0);
 });
 
+test("monthly Free research usage stops paid research without stopping an ordinary answer", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  await admin("research_account_usage").insert({
+    accountId: f.principal.accountId,
+    day: admin.raw("(now() AT TIME ZONE 'UTC')::date"),
+    calls: 10,
+  });
+  configureBillingQuotas(db, { enabled: async () => true, priceIds: [] });
+  try {
+    const chat = await f.create();
+    const response = await f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Research compost"),
+    );
+    assert.equal(calls, 0);
+    assert.equal(response.turns[0].result?.researchIncomplete, true);
+  } finally {
+    configureBillingQuotas(db, { enabled: async () => false, priceIds: [] });
+  }
+});
 test("research reservations serialize across accounts and successful tools are reused after a failed reply", async () => {
   const a = await fixture(),
     b = await fixture();

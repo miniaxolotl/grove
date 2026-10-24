@@ -12,8 +12,9 @@ export const privacy: LegalDocument = {
           <p>
             Grove is a developer tool operated by Bramble Labs Inc. This policy
             covers usegrove.cloud, our hosted Grove service, and related
-            support. Contact <a href="mailto:grove@mawa.dev">grove@mawa.dev</a>{" "}
-            for privacy questions or requests.
+            support. Contact{" "}
+            <a href="mailto:hello@bramblelabs.co">hello@bramblelabs.co</a> for
+            privacy questions or requests.
           </p>
           <p>
             If you run Grove yourself, you control that deployment and its
@@ -373,7 +374,7 @@ export const terms: LegalDocument = {
             need. You are responsible for activity you authorize, including an
             agent&apos;s saves, edits, or deletions. Tell us about suspected
             unauthorized access at{" "}
-            <a href="mailto:grove@mawa.dev">grove@mawa.dev</a>.
+            <a href="mailto:hello@bramblelabs.co">hello@bramblelabs.co</a>.
           </p>
           <p>
             Do not use another person&apos;s account or bypass account/project
@@ -515,9 +516,9 @@ export const terms: LegalDocument = {
             We may revise these terms and will provide notice or request renewed
             acceptance where required. If a provision cannot be enforced, the
             remainder continues to the extent lawful. Contact{" "}
-            <a href="mailto:grove@mawa.dev">grove@mawa.dev</a> for service,
-            legal, or rights-holder concerns, including enough information for
-            us to understand and respond.
+            <a href="mailto:hello@bramblelabs.co">hello@bramblelabs.co</a> for
+            service, legal, or rights-holder concerns, including enough
+            information for us to understand and respond.
           </p>
         </>
       ),
