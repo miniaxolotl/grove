@@ -9,7 +9,8 @@ heading row with **New note**. Connected agents use the same notes and permissio
 Optional [speech](speech.md) belongs to a current note's Preview: review a suggested
 recording transcript before copying it into a draft and saving, or open **Read aloud**
 for user-started generated playback. Enable each feature independently in
-**Settings → Preferences → Speech**. Both default off; original recordings and
+**Settings → Preferences → Speech**. New accounts start with transcription off and
+Read aloud on; existing choices are preserved. Original recordings and
 manual transcripts remain available without either provider. Unsaved changes must
 finish saving before read aloud; shared readers never initiate inference.
 
@@ -35,12 +36,19 @@ finish saving before read aloud; shared readers never initiate inference.
   opening another **New note** starts a separate document. **Save note** or
   `Ctrl`/`Cmd` + `S` saves immediately. Formatting supports `Ctrl`/`Cmd` + `B`, `I`, and `K`.
   Drawer editors can expand without losing their selection or undo history.
-- Drafts stay in account-scoped memory while navigating Grove, including
+- Drafts stay in account/session-scoped memory while navigating Grove, including
   their original revision and retry ID. Unsaved drafts are not stored on disk;
   reload/close prompts while drafts remain. Saving checks concurrent changes and
   preserves typing that happens during a request.
   Reopening a draft during a save follows the same request rather than creating
   another note.
+  When opening or returning to Grove, workspace requests wait for a current session
+  token and recover once from an expired token. If reconnecting is temporarily
+  unavailable, your draft stays open with retry feedback. Use the save control again
+  when the connection returns. A delayed rejection from an older session refresh
+  keeps the draft available for retry. Signing out, changing accounts/sessions, or
+  rejection of the current refreshed session clears private in-memory drafts; a
+  page reload cannot restore them.
   **History** opens earlier revisions without leaving the workspace.
   **Linked notes** is a collapsed accordion below your writing. On a wide screen
   **Export** sits in the toolbar and **Delete note…** beside it, including focus
@@ -190,6 +198,11 @@ Deleting always requires confirmation. Drag handles retain their own Space/arrow
 controls. Long notes scroll within the workspace while the mode switch stays visible.
 
 ## Export and delete notes
+
+Ask Grove can also archive, restore or delete selected notes and notebooks after a
+named preview. Notebook previews count all descendants; deletion has no Undo.
+Retained local drafts block these lifecycle actions until saved or resolved. It can
+move existing notebooks, with version-checked Undo. See [Ask tools](ask-tools.md).
 
 **Export** opens three choices: **Markdown (.md)**, **PDF (.pdf)** and
 **Copy Markdown**. It uses the text you are reading or editing, including new and

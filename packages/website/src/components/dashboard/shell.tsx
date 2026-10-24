@@ -1,6 +1,11 @@
 "use client";
 import { useEffect } from "react";
-import { RedirectToSignIn, UserButton, useUser, useAuth } from "@clerk/nextjs";
+import {
+  RedirectToSignIn,
+  UserButton,
+  useUser,
+  useSession,
+} from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -66,18 +71,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           path === href || (href !== "/app" && path.startsWith(`${href}/`)),
       )?.href;
   const { user, isLoaded, isSignedIn } = useUser();
-  const { sessionId } = useAuth();
+  const { session, isLoaded: sessionLoaded } = useSession();
   useEffect(() => {
     if (isLoaded) setAccountBoundary(user?.id ?? null);
   }, [isLoaded, user?.id]);
-  if (!isLoaded)
+  if (!isLoaded || !sessionLoaded)
     return (
       <main id="main" className="app-opening">
         <Brand />
         <p role="status">Opening your Grove…</p>
       </main>
     );
-  if (!isSignedIn) return <RedirectToSignIn />;
+  if (!isSignedIn || !session) return <RedirectToSignIn />;
   if (path.startsWith("/app/connect/"))
     return (
       <div className="connect-shell" data-private>
@@ -99,7 +104,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </div>
     );
   return (
-    <WorkspaceCacheProvider key={`${user?.id}:${sessionId}`} account={user!.id}>
+    <WorkspaceCacheProvider
+      key={`${user!.id}:${session.id}`}
+      account={user!.id}
+      sessionId={session.id}
+    >
       <ToastProvider>
         <NoteDraftsProvider>
           <NoteExportProvider>
@@ -188,7 +197,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <Link href="/install">Setup guide</Link>
                             <Link href="/privacy">Privacy</Link>
                             <Link href="/terms">Terms</Link>
-                            <a href="mailto:grove@mawa.dev">Get help</a>
+                            <Link href="/support">Get help</Link>
                           </nav>
                         </footer>
                       </div>

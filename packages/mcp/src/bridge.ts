@@ -21,7 +21,7 @@ export async function startBridge(agent: AgentName = "cli") {
       if (tool === "remember")
         input.source = { ...(input.source as Record<string, unknown>), agent };
       if (
-        tool === "remember" &&
+        (tool === "remember" || tool === "update_memory") &&
         input.capture === "automatic" &&
         (process.env.GROVE_PRIVATE === "1" || (await readConfig()).paused)
       )
@@ -38,7 +38,9 @@ export async function startBridge(agent: AgentName = "cli") {
             ? "/v1/recall"
             : tool === "memories"
               ? "/v1/memories/search"
-              : "/v1/memories/delete";
+              : tool === "forget"
+                ? "/v1/memories/delete"
+                : `/v1/tools/${tool}`;
       return await client.request(path, { body: input, signal });
     } catch (error) {
       result = outcome(error);

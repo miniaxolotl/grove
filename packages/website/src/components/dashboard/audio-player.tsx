@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 import { Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { claimAudio, releaseAudio } from "./audio-focus";
 import "./audio-player.css";
 
 const subscribe = () => () => {};
@@ -53,6 +54,11 @@ function AudioPlayback({ src, label }: { src: string; label: string }) {
     return () => {
       pending.value++;
       element?.pause();
+      if (element) {
+        releaseAudio(element);
+        element.removeAttribute("src");
+        element.load();
+      }
     };
   }, []);
 
@@ -102,7 +108,10 @@ function AudioPlayback({ src, label }: { src: string; label: string }) {
           setDuration(Number.isFinite(value) && value > 0 ? value : 0);
         }}
         onTimeUpdate={(event) => setPosition(event.currentTarget.currentTime)}
-        onPlay={() => setPlaying(true)}
+        onPlay={(event) => {
+          claimAudio(event.currentTarget);
+          setPlaying(true);
+        }}
         onPlaying={() => setLoading(false)}
         onWaiting={() => setLoading(true)}
         onPause={() => {

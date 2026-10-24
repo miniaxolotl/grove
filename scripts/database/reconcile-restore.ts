@@ -22,6 +22,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "deletedAt",
       "providerDeletedAt",
       ...preferenceKeys,
+      "readAloudVoiceId",
       "organizeEnabled",
       "summariesEnabled",
       "askVersion",
@@ -308,6 +309,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
               ? (current.providerDeletedAt ?? target.fn.now())
               : current.providerDeletedAt,
             ...preferencesFor(current),
+            readAloudVoiceId: current.readAloudVoiceId,
             ...legacyPreferences(preferencesFor(current)),
             askVersion: current.askVersion + 1,
             askTools: JSON.stringify(current.askTools),
@@ -417,6 +419,9 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       );
       await target.raw(
         `UPDATE conversation_turns SET result=jsonb_set(result,'{organization,status}','"unavailable"'),undo=NULL WHERE result->'organization' IS NOT NULL AND result->'organization'<>'null'::jsonb`,
+      );
+      await target.raw(
+        `UPDATE conversation_turns SET result=jsonb_set(result,'{lifecycle,status}','"unavailable"'),undo=NULL WHERE result->'lifecycle' IS NOT NULL AND result->'lifecycle'<>'null'::jsonb`,
       );
       await target("conversation_turns").update({ toolRuns: "[]" });
       await target("jobs").update({ leaseId: null, leaseUntil: null });

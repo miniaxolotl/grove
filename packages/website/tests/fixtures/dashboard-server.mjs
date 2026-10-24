@@ -47,7 +47,7 @@ const fixtureConfig = {
                   ? 'export { usePathname, useRouter, useSearchParams } from "./tests/fixtures/navigation";'
                   : args.path === "next/image"
                     ? 'import React from "react"; export default function Image({unoptimized, ...props}) { return <img {...props}/> }'
-                    : 'export { useUser, useAuth, RedirectToSignIn, UserButton, useClerk } from "./tests/fixtures/workspace-account";',
+                    : 'export { useUser, useAuth, useSession, RedirectToSignIn, UserButton, useClerk } from "./tests/fixtures/workspace-account";',
         }));
       },
     },

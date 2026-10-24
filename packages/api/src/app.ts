@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { Billing } from "./billing.ts";
+export { Billing };
+export { MonthlyPricing } from "./billing-pricing.ts";
 import { PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
@@ -40,6 +43,7 @@ import {
   SpeechJobs,
   type ArtifactStore,
   withMemoryOperation,
+  executeMemoryTool,
   type MemoryService,
 } from "@lib/memory";
 import { exportRequestSchema, importRequestSchema } from "@lib/shared/jobs";
@@ -91,6 +95,7 @@ import {
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
+  billing?: Billing;
   media?: MediaStore | null;
   artifacts?: ArtifactStore | null;
   speech?: SpeechProviders;
@@ -185,8 +190,10 @@ export function createApp(deps: AppDependencies) {
         : error instanceof InferenceError
           ? new GroveError(
               error.code,
-              `Model request failed (${error.code})`,
-              503,
+              error.code === "inference_budget"
+                ? "Your AI usage limit is reached. Check Settings for your allowance and reset dates. Writing and exporting remain available."
+                : `Model request failed (${error.code})`,
+              error.code === "inference_budget" ? 429 : 503,
             )
           : error instanceof ZodError || error instanceof SyntaxError
             ? new GroveError("invalid_request", "Check the request fields", 400)
@@ -356,11 +363,49 @@ export function createApp(deps: AppDependencies) {
     else await next();
   };
   app.use("/v1/*", async (c, next) => {
-    if (c.req.path === "/v1/webhooks/clerk") return next();
+    if (["/v1/webhooks/clerk", "/v1/webhooks/stripe"].includes(c.req.path))
+      return next();
     return authorize(c, next);
   });
   app.use("/mcp", authorize);
   const service = deps.memories;
+  app.post("/v1/webhooks/stripe", async (c) => {
+    if (!deps.billing)
+      throw new GroveError("billing_disabled", "Billing is unavailable", 503);
+    await deps.billing.webhook(
+      await c.req.text(),
+      c.req.header("stripe-signature") ?? "",
+    );
+    return c.json({ success: true });
+  });
+  const billing = () => {
+    if (!deps.billing)
+      throw new GroveError("billing_disabled", "Billing is unavailable", 404);
+    return deps.billing;
+  };
+  app.get("/v1/billing", async (c) =>
+    c.json({ success: true, data: await billing().status(c.get("principal")) }),
+  );
+  app.post("/v1/billing/checkout", async (c) => {
+    const input = z
+      .object({
+        interval: z.enum(["month", "year"]),
+        expectedAmount: z.number().int().positive().optional(),
+      })
+      .strict()
+      .parse(await c.req.json());
+    return c.json({
+      success: true,
+      data: await billing().checkout(
+        c.get("principal"),
+        input.interval,
+        input.expectedAmount,
+      ),
+    });
+  });
+  app.post("/v1/billing/portal", async (c) =>
+    c.json({ success: true, data: await billing().portal(c.get("principal")) }),
+  );
   const body = async <T>(
     c: import("hono").Context<Environment>,
     schema: z.ZodType<T>,
@@ -383,6 +428,18 @@ export function createApp(deps: AppDependencies) {
     siteUrl: deps.siteUrl,
   });
   const attachments = new MediaAttachments(service);
+  app.post("/v1/tools/:tool", async (c) =>
+    c.json({
+      success: true,
+      data: await executeMemoryTool(
+        service,
+        c.get("principal"),
+        c.req.param("tool"),
+        await mutation(c, z.record(z.string(), z.unknown())),
+        c.get("signal"),
+      ),
+    }),
+  );
   app.get("/v1/memories/:id/archive-file", async (c) => {
     if (!deps.media)
       throw new GroveError(
@@ -754,7 +811,7 @@ export function createApp(deps: AppDependencies) {
       data: {
         ...(await service.me(c.get("principal"))),
         mediaAvailable: !!deps.media,
-        speechAvailable: await speech.availability(),
+        ...(await speech.describe()),
       },
     }),
   );
@@ -1428,15 +1485,7 @@ export function createApp(deps: AppDependencies) {
     ) =>
       withDatabaseSignal(
         AbortSignal.any([databaseSignal()!, ...(signal ? [signal] : [])]),
-        async () => {
-          if (tool === "remember")
-            return service.remember(principal, rememberSchema.parse(value));
-          if (tool === "recall")
-            return service.recall(principal, recallSchema.parse(value), signal);
-          if (tool === "memories")
-            return service.list(principal, listSchema.parse(value));
-          return service.forget(principal, forgetSchema.parse(value));
-        },
+        () => executeMemoryTool(service, principal, tool, value, signal),
       );
     const server = createMemoryMcp(execute);
     const transport = new WebStandardStreamableHTTPServerTransport({

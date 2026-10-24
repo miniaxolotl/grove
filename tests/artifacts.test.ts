@@ -18,6 +18,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { build } from "esbuild";
+import { memoryTools } from "@lib/shared/memory-tools";
 
 const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -193,7 +194,7 @@ test("packed stdio MCP authenticates explicit saves, records provenance and bloc
       await client.connect(transport);
       assert.deepEqual(
         (await client.listTools()).tools.map((t) => t.name),
-        ["remember", "recall", "memories", "forget"],
+        Object.keys(memoryTools),
       );
       const automatic = await client.callTool({
         name: "remember",
@@ -205,6 +206,61 @@ test("packed stdio MCP authenticates explicit saves, records provenance and bloc
       });
       assert.equal(automatic.isError, true);
       assert.match(JSON.stringify(automatic), /capture_paused/);
+      const privateEdit = await client.callTool({
+        name: "update_memory",
+        arguments: {
+          operationId: randomUUID(),
+          id: accountId,
+          expectedVersion: 1,
+          content: "Automatic correction",
+          capture: "automatic",
+        },
+      });
+      assert.equal(privateEdit.isError, true);
+      assert.match(JSON.stringify(privateEdit), /capture_paused/);
+      for (const [tool, args] of [
+        ["get_memory", { id: accountId }],
+        ["memory_history", { id: accountId }],
+        [
+          "update_memory",
+          { id: accountId, expectedVersion: 1, content: "Edit" },
+        ],
+        [
+          "move_memories",
+          { projectId: null, items: [{ id: accountId, expectedVersion: 1 }] },
+        ],
+        ["archive_memory", { id: accountId, expectedVersion: 1 }],
+        ["restore_memory", { id: accountId, expectedVersion: 2 }],
+        ["notebooks", {}],
+        ["create_notebook", { name: "Fixture" }],
+        [
+          "update_notebook",
+          { id: accountId, expectedVersion: 1, parentId: null },
+        ],
+        ["notebook_lifecycle", { id: accountId, action: "preview" }],
+      ] as const) {
+        const readOnly = [
+          "get_memory",
+          "memory_history",
+          "notebooks",
+          "notebook_lifecycle",
+        ].includes(tool);
+        const result = await client.callTool({
+          name: tool,
+          arguments: {
+            ...args,
+            ...(readOnly ? {} : { operationId: randomUUID() }),
+          },
+        });
+        assert.notEqual(result.isError, true, JSON.stringify(result));
+        assert.equal(requests.at(-1)?.path, `/v1/tools/${tool}`);
+        if (tool === "update_memory")
+          assert.equal(
+            requests.at(-1)?.body.source,
+            undefined,
+            "Partial updates must preserve existing provenance unless supplied",
+          );
+      }
       const saved = await client.callTool({
         name: "remember",
         arguments: {
@@ -464,7 +520,7 @@ globalThis.fetch = async (input, init) => {
   assert.match(
     await readFile(network, "utf8"),
     /sentry\.io|posthog\.com/,
-    "The control enables telemetry; outbound uploads are blocked",
+    "The same fixture enables telemetry for ordinary commands; outbound uploads are blocked",
   );
   await writeFile(network, "");
   const args = [
@@ -496,12 +552,79 @@ globalThis.fetch = async (input, init) => {
       .split("\n")
       .map((line) => JSON.parse(line)),
     [{ origin, path: "/v1/me", telemetry: "off" }],
+    "Only the requested API read is permitted",
   );
   assert.deepEqual(
     await readdir(home),
     ["bin"],
     "Doctor never creates a telemetry identity",
   );
+});
+
+test("doctor rejects malformed, unsupported or unapproved API access without exposing upstream details", async () => {
+  const home = await mkdtemp(join(directory, "doctor-response-"));
+  const bin = join(home, "bin");
+  await mkdir(bin);
+  await writeFile(join(bin, "codex"), "#!/bin/sh\nexit 92\n", { mode: 0o700 });
+  let data: unknown;
+  const upstream = createServer((_request, response) =>
+    response
+      .setHeader("Content-Type", "application/json")
+      .end(JSON.stringify({ success: true, data })),
+  );
+  await new Promise<void>((done) => upstream.listen(0, "127.0.0.1", done));
+  const address = upstream.address();
+  assert(address && typeof address !== "string");
+  const endpoint = `http://127.0.0.1:${address.port}`;
+  const env = {
+    PATH: bin,
+    HOME: home,
+    GROVE_CONFIG_HOME: join(home, "grove"),
+    GROVE_API_URL: endpoint,
+    GROVE_API_KEY: "private-doctor-canary",
+    DO_NOT_TRACK: "1",
+  };
+  try {
+    for (const [value, code] of [
+      [null, "invalid_response"],
+      [{ accountId, capabilities: [], apiVersion: 1 }, "awaiting_grant"],
+      [
+        { accountId, capabilities: ["memory:read"], apiVersion: 2 },
+        "api_version_unsupported",
+      ],
+    ] as const) {
+      data = value;
+      await assert.rejects(
+        exec(
+          process.execPath,
+          [
+            join(paths.get("mcp")!, "dist/cli.js"),
+            "doctor",
+            "--client",
+            "codex",
+            "--json",
+            "--probe",
+          ],
+          { env },
+        ),
+        (error: unknown) => {
+          const stdout = (error as { stdout: string }).stdout;
+          const report = JSON.parse(stdout);
+          assert.equal(
+            report.checks.find((check: { id: string }) => check.id === "api")
+              .code,
+            code,
+          );
+          assert.equal(report.hostVerified, false);
+          assert.doesNotMatch(stdout, /private-doctor-canary/);
+          return true;
+        },
+      );
+    }
+  } finally {
+    upstream.closeAllConnections();
+    await new Promise<void>((done) => upstream.close(() => done()));
+  }
 });
 
 test("offline doctor rejects incomplete saved authentication but accepts refreshable OAuth", async () => {
@@ -573,72 +696,6 @@ test("offline doctor rejects incomplete saved authentication but accepts refresh
   assert.equal(await readFile(credential, "utf8"), refreshable);
   assert.equal(await readFile(join(store, "config.json"), "utf8"), config);
   assert.equal(requests.length, before, "Offline checks do not refresh tokens");
-});
-
-test("doctor rejects malformed, unsupported or unapproved API access without exposing upstream details", async () => {
-  const home = await mkdtemp(join(directory, "doctor-response-"));
-  const bin = join(home, "bin");
-  await mkdir(bin);
-  await writeFile(join(bin, "codex"), "#!/bin/sh\nexit 92\n", { mode: 0o700 });
-  let data: unknown;
-  const upstream = createServer((_request, response) =>
-    response
-      .setHeader("Content-Type", "application/json")
-      .end(JSON.stringify({ success: true, data })),
-  );
-  await new Promise<void>((done) => upstream.listen(0, "127.0.0.1", done));
-  const address = upstream.address();
-  assert(address && typeof address !== "string");
-  const endpoint = `http://127.0.0.1:${address.port}`;
-  const env = {
-    PATH: bin,
-    HOME: home,
-    GROVE_CONFIG_HOME: join(home, "grove"),
-    GROVE_API_URL: endpoint,
-    GROVE_API_KEY: "private-doctor-canary",
-    DO_NOT_TRACK: "1",
-  };
-  try {
-    for (const [value, code] of [
-      [null, "invalid_response"],
-      [{ accountId, capabilities: [], apiVersion: 1 }, "awaiting_grant"],
-      [
-        { accountId, capabilities: ["memory:read"], apiVersion: 2 },
-        "api_version_unsupported",
-      ],
-    ] as const) {
-      data = value;
-      await assert.rejects(
-        exec(
-          process.execPath,
-          [
-            join(paths.get("mcp")!, "dist/cli.js"),
-            "doctor",
-            "--client",
-            "codex",
-            "--json",
-            "--probe",
-          ],
-          { env },
-        ),
-        (error: unknown) => {
-          const stdout = (error as { stdout: string }).stdout;
-          const report = JSON.parse(stdout);
-          assert.equal(
-            report.checks.find((check: { id: string }) => check.id === "api")
-              .code,
-            code,
-          );
-          assert.equal(report.hostVerified, false);
-          assert.doesNotMatch(stdout, /private-doctor-canary/);
-          return true;
-        },
-      );
-    }
-  } finally {
-    upstream.closeAllConnections();
-    await new Promise<void>((done) => upstream.close(() => done()));
-  }
 });
 
 test("a running packed bridge picks up first login and an explicit origin switch", async () => {

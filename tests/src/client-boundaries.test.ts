@@ -83,6 +83,54 @@ test("an interrupted API response body remains a network outage", async () => {
   }
 });
 
+test("invalid local configuration and damaged credentials never trigger implicit reauthentication", async () => {
+  const directory = await mkdtemp(
+    join(process.env.CI ? tmpdir() : "/tmp/opencode", "grove-damaged-store-"),
+  );
+  const previous = process.env.GROVE_CONFIG_HOME;
+  process.env.GROVE_CONFIG_HOME = directory;
+  try {
+    for (const value of [
+      "null",
+      "[]",
+      '{"paused":"false"}',
+      '{"origins":[]}',
+      '{"accounts":{"https://fixture.test":null}}',
+    ]) {
+      await writeFile(join(directory, "config.json"), value);
+      await assert.rejects(readConfig(), { code: "invalid_config" });
+    }
+    await writeFile(join(directory, "config.json"), "{}");
+    await saveCredentials({
+      origin: "https://fixture.test",
+      agent: "codex",
+      accountId: "fixture-account",
+      key: "private-canary",
+    });
+    const credential = (await readdir(directory)).find((file) =>
+      file.startsWith("credentials-"),
+    )!;
+    await writeFile(
+      join(directory, credential),
+      "private-canary: damaged JSON",
+    );
+    await assert.rejects(
+      loadCredentials("https://fixture.test", "codex"),
+      (error: unknown) => {
+        assert.equal(
+          (error as { code: string }).code,
+          "credential_store_unavailable",
+        );
+        assert.doesNotMatch(String(error), /private-canary/);
+        return true;
+      },
+    );
+  } finally {
+    if (previous === undefined) delete process.env.GROVE_CONFIG_HOME;
+    else process.env.GROVE_CONFIG_HOME = previous;
+  }
+});
+
 test("saved credentials require a complete authentication payload without discarding refreshable OAuth", async () => {
   const directory = await mkdtemp(
     join(
@@ -154,58 +202,11 @@ test("saved credentials require a complete authentication payload without discar
     assert.deepEqual(
       await loadCredentials(identity.origin, identity.agent),
       refreshable,
+      "Expired, structurally valid OAuth remains available for refresh",
     );
   } finally {
     if (previous === undefined) delete process.env.GROVE_CONFIG_HOME;
     else process.env.GROVE_CONFIG_HOME = previous;
     await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test("invalid local configuration and damaged credentials never trigger implicit reauthentication", async () => {
-  const directory = await mkdtemp(
-    join(process.env.CI ? tmpdir() : "/tmp/opencode", "grove-damaged-store-"),
-  );
-  const previous = process.env.GROVE_CONFIG_HOME;
-  process.env.GROVE_CONFIG_HOME = directory;
-  try {
-    for (const value of [
-      "null",
-      "[]",
-      '{"paused":"false"}',
-      '{"origins":[]}',
-      '{"accounts":{"https://fixture.test":null}}',
-    ]) {
-      await writeFile(join(directory, "config.json"), value);
-      await assert.rejects(readConfig(), { code: "invalid_config" });
-    }
-    await writeFile(join(directory, "config.json"), "{}");
-    await saveCredentials({
-      origin: "https://fixture.test",
-      agent: "codex",
-      accountId: "fixture-account",
-      key: "private-canary",
-    });
-    const credential = (await readdir(directory)).find((file) =>
-      file.startsWith("credentials-"),
-    )!;
-    await writeFile(
-      join(directory, credential),
-      "private-canary: damaged JSON",
-    );
-    await assert.rejects(
-      loadCredentials("https://fixture.test", "codex"),
-      (error: unknown) => {
-        assert.equal(
-          (error as { code: string }).code,
-          "credential_store_unavailable",
-        );
-        assert.doesNotMatch(String(error), /private-canary/);
-        return true;
-      },
-    );
-  } finally {
-    if (previous === undefined) delete process.env.GROVE_CONFIG_HOME;
-    else process.env.GROVE_CONFIG_HOME = previous;
   }
 });

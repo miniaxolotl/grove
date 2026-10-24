@@ -14,11 +14,24 @@ import {
   legacyPreferences,
   preferenceKeys,
   preferencePatch,
-  preferencesFor,
   type AccountPreferences,
-  type PreferencesUpdate,
 } from "@lib/shared/preferences";
+import {
+  settingsFor,
+  type AccountSettings,
+  type SettingsUpdate,
+} from "@lib/shared/account-settings";
 import { settingsUpdateSchema } from "@lib/shared/settings";
+import {
+  memoryUpdateSchema,
+  moveMemoriesSchema,
+  notebookCreateSchema,
+  notebookUpdateSchema,
+  type MemoryUpdate,
+  type MoveMemories,
+  type NotebookList,
+} from "@lib/shared/memory-tools";
+import { rememberSchema } from "@lib/shared/contracts";
 import type {
   NotebookLifecycleAction,
   NotebookLifecycleInput,
@@ -95,6 +108,7 @@ export { ConnectionSetup } from "./connect.ts";
 export { Sharing } from "./sharing.ts";
 export { MediaAttachments, mediaDescriptor } from "./media.ts";
 export { searchConversationHistory } from "./conversation-history.ts";
+export { executeMemoryTool } from "./tools.ts";
 
 type Connection = Omit<Grant, "expiresAt"> & {
   id: string;
@@ -105,7 +119,7 @@ type Connection = Omit<Grant, "expiresAt"> & {
   authorizedAfter: Date;
   setup?: unknown;
 };
-type Account = AccountPreferences & {
+type Account = AccountSettings & {
   exportVersion: string;
   id: string;
   clerkSubject: string;
@@ -135,7 +149,13 @@ const stable = (value: unknown): string =>
 export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
+export { configureBillingQuotas, billingUsage } from "./billing-quotas.ts";
+
 export class MemoryService {
+  beforeAccountDeletion?: (
+    trx: Knex.Transaction,
+    accountId: string,
+  ) => Promise<void>;
   readonly assistance: NotebookAssistance;
   readonly visits: NotebookVisits;
   private internalWork = false;
@@ -449,7 +469,7 @@ export class MemoryService {
         (c) => !grant || grant.capabilities.includes(c),
       ),
       contentVersion: account.contentVersion,
-      ...preferencesFor(account),
+      ...settingsFor(account),
       ...legacyPreferences(account),
       aiAvailability: {
         classification: !!this.providers.decision,
@@ -467,40 +487,80 @@ export class MemoryService {
   }
 
   async remember(principal: Principal, input: Remember) {
+    return this.saveMemory(principal, input, false);
+  }
+
+  async updateMemory(principal: Principal, input: MemoryUpdate) {
+    return this.saveMemory(principal, memoryUpdateSchema.parse(input), true);
+  }
+
+  private async saveMemory(
+    principal: Principal,
+    request: Remember | MemoryUpdate,
+    partial: boolean,
+  ) {
     let created = false;
     const result = await this.access(
       principal,
       "memory:write",
       async ({ trx, account, grant }) => {
-        if (input.capture === "automatic" && !account.captureEnabled)
+        if (request.capture === "automatic" && !account.captureEnabled)
           throw new GroveError(
             "capture_paused",
             "Automatic capture is paused for this account",
             403,
           );
-        this.scope(grant, input.projectId);
-        if (
-          input.projectId &&
-          !(await trx("projects").where({ id: input.projectId }).first("id"))
-        )
-          throw new GroveError("not_found", "Project not found", 404);
         const result = await this.operation(
           trx,
           account.id,
-          input.operationId,
-          { action: "remember", ...input },
+          request.operationId,
+          { action: partial ? "update_memory" : "remember", ...request },
           async () => {
             let old: MemoryModel | undefined;
-            if (input.id) {
-              old = await this.query(trx, grant).findById(input.id).forUpdate();
+            if (request.id) {
+              old = await this.query(trx, grant)
+                .findById(request.id)
+                .forUpdate();
               if (!old) throw missing();
-              if (old.version !== input.expectedVersion)
+              if (old.version !== request.expectedVersion)
                 throw new GroveError(
                   "version_conflict",
                   "Memory changed; read it again before correcting",
                   409,
                 );
-            } else if (input.taskId) {
+            }
+            const input = rememberSchema.parse(
+              partial && old
+                ? {
+                    content: old.content,
+                    kind: old.kind,
+                    autoKind: old.autoKind,
+                    projectId: old.projectId,
+                    source: old.source,
+                    retentionDays: old.retentionDays,
+                    ...request,
+                    taskId:
+                      request.taskId === null
+                        ? undefined
+                        : (request.taskId ?? old.taskId ?? undefined),
+                  }
+                : request,
+            );
+            this.scope(grant, input.projectId);
+            if (input.projectId) {
+              const notebook = await trx("projects")
+                .where({ id: input.projectId })
+                .first("status");
+              if (!notebook)
+                throw new GroveError("not_found", "Notebook not found", 404);
+              if (notebook.status !== "active")
+                throw new GroveError(
+                  "notebook_inactive",
+                  "Restore this notebook before changing its notes.",
+                  409,
+                );
+            }
+            if (!input.id && input.taskId) {
               const existing = await this.query(trx, grant)
                 .where({ projectId: input.projectId, taskId: input.taskId })
                 .first();
@@ -583,6 +643,173 @@ export class MemoryService {
       if (!row) throw missing();
       return this.present(trx, row);
     });
+  }
+
+  async moveMemories(principal: Principal, raw: MoveMemories) {
+    const input = moveMemoriesSchema.parse(raw);
+    return this.access(
+      principal,
+      "memory:write",
+      async ({ trx, account, grant }) => {
+        this.scope(grant, input.projectId);
+        const ids = await this.operation(
+          trx,
+          account.id,
+          input.operationId,
+          { action: "move_memories", ...input },
+          async () => {
+            const domain = this.inTransaction(trx);
+            for (const item of input.items)
+              await domain.updateMemory(principal, {
+                operationId: randomUUID(),
+                ...item,
+                projectId: input.projectId,
+                capture: "explicit",
+              });
+            return input.items.map((item) => item.id);
+          },
+        );
+        return Promise.all(
+          ids.map((id) => this.inTransaction(trx).get(principal, id)),
+        );
+      },
+    );
+  }
+
+  async listNotebooks(principal: Principal, input: NotebookList) {
+    if (input.status === "archived" && principal.type !== "session")
+      throw forbidden();
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      if (input.parentId) this.scope(grant, input.parentId);
+      const { cursor, limit, ...filters } = input;
+      const binding = digest(
+        stable({
+          account: principal.accountId,
+          connection: principal.connectionId,
+          notebooks: filters,
+        }),
+      );
+      const page = cursor
+        ? this.decodeCursor(cursor, binding)
+        : { after: "", ceiling: new Date().toISOString() };
+      const query = trx("projects")
+        .where({ status: input.status })
+        .where("createdAt", "<=", page.ceiling)
+        .orderBy("id")
+        .limit(limit + 1);
+      if (grant && !grant.allProjects) query.whereIn("id", grant.projectIds);
+      if (page.after) query.where("id", ">", page.after);
+      if (input.parentId !== undefined)
+        query.where({ parentId: input.parentId });
+      if (input.query)
+        query.whereRaw("strpos(lower(name), lower(?)) > 0", [input.query]);
+      const rows = await query.select(
+        "id",
+        "name",
+        "identity",
+        "parentId",
+        "version",
+        "status",
+      );
+      const items: Notebook[] = rows.slice(0, limit).map((row) => ({
+        ...row,
+        parentId:
+          grant &&
+          !grant.allProjects &&
+          !grant.projectIds.includes(row.parentId)
+            ? null
+            : row.parentId,
+      }));
+      return {
+        items,
+        nextCursor:
+          rows.length > limit
+            ? this.encodeCursor({
+                binding,
+                ceiling: page.ceiling,
+                after: items.at(-1)!.id,
+              })
+            : null,
+      };
+    });
+  }
+
+  async createNotebook(principal: Principal, raw: unknown) {
+    const input = notebookCreateSchema.parse(raw);
+    return this.access(
+      principal,
+      "memory:write",
+      async ({ trx, account, grant }) => {
+        if (grant && !grant.allProjects) throw forbidden();
+        const id = await this.operation(
+          trx,
+          account.id,
+          input.operationId,
+          { action: "create_notebook", ...input },
+          async () =>
+            (
+              await this.inTransaction(trx).project(principal, {
+                name: input.name,
+                parentId: input.parentId,
+                identity: `tool:${input.operationId}`,
+              })
+            ).id,
+        );
+        const row = await trx("projects")
+          .where({ id })
+          .first("id", "name", "identity", "parentId", "version", "status");
+        if (!row)
+          throw new GroveError("gone", "Notebook has since been deleted", 410);
+        return row as Notebook;
+      },
+    );
+  }
+
+  async updateNotebook(principal: Principal, raw: unknown) {
+    const input = notebookUpdateSchema.parse(raw);
+    return this.access(
+      principal,
+      "memory:write",
+      async ({ trx, account, grant }) => {
+        this.scope(grant, input.id);
+        await this.operation(
+          trx,
+          account.id,
+          input.operationId,
+          { action: "update_notebook", ...input },
+          async () => {
+            const old = await trx("projects").where({ id: input.id }).first();
+            if (!old)
+              throw new GroveError("not_found", "Notebook not found", 404);
+            await this.inTransaction(trx).project(
+              principal,
+              {
+                name: input.name ?? old.name,
+                identity: old.identity,
+                expectedVersion: input.expectedVersion,
+                parentId: input.parentId,
+              },
+              input.id,
+            );
+            return { id: input.id };
+          },
+        );
+        const row = await trx("projects")
+          .where({ id: input.id })
+          .first("id", "name", "identity", "parentId", "version", "status");
+        if (!row)
+          throw new GroveError("gone", "Notebook has since been deleted", 410);
+        return {
+          ...row,
+          parentId:
+            grant &&
+            !grant.allProjects &&
+            !grant.projectIds.includes(row.parentId)
+              ? null
+              : row.parentId,
+        } as Notebook;
+      },
+    );
   }
 
   async revisions(principal: Principal, id: string) {
@@ -1537,11 +1764,15 @@ export class MemoryService {
       return { revoked: true };
     });
   }
-  async settings(principal: Principal, input: PreferencesUpdate) {
+  async settings(principal: Principal, input: SettingsUpdate) {
     return this.access(principal, "admin", async ({ trx, account }) => {
+      const parsed = settingsUpdateSchema.parse(input);
       const next = {
-        ...preferencesFor(account),
-        ...preferencePatch(settingsUpdateSchema.parse(input)),
+        ...settingsFor(account),
+        ...preferencePatch(parsed),
+        ...(parsed.readAloudVoiceId !== undefined
+          ? { readAloudVoiceId: parsed.readAloudVoiceId }
+          : {}),
       };
       const enabled = preferenceKeys.filter(
         (key) => next[key] && !account[key],
@@ -1688,7 +1919,7 @@ export class MemoryService {
     return this.access(principal, "admin", async ({ trx }) => ({
       dailyRequestLimit: this.dailyRequestLimit,
       today: await trx("inference_usage")
-        .whereRaw("day = CURRENT_DATE")
+        .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")
         .select("role", "requests", "inputTokens", "outputTokens"),
       failedJobs: Number(
         (
@@ -1702,6 +1933,7 @@ export class MemoryService {
   }
   async deleteAccount(principal: Principal) {
     return this.access(principal, "admin", async ({ trx, account }) => {
+      await this.beforeAccountDeletion?.(trx, account.id);
       await trx("accounts")
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });

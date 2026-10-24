@@ -1,14 +1,19 @@
 import { z } from "zod";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Nodes } from "mdast";
+import { speechVoiceIds, type SpeechVoiceId } from "@lib/shared/speech-voices";
 
 export const speechRequestSchema = z
   .object({
     id: z.uuid(),
     version: z.number().int().positive(),
     mediaId: z.uuid().optional(),
+    voiceId: z.enum(speechVoiceIds).optional(),
   })
-  .strict();
+  .strict()
+  .refine((input) => !(input.mediaId && input.voiceId), {
+    message: "Voice selection applies only to read aloud",
+  });
 export type SpeechRequest = z.infer<typeof speechRequestSchema>;
 export interface SpeechTask {
   id: string;
@@ -17,6 +22,7 @@ export interface SpeechTask {
   transcript?: string;
   playable: boolean;
   error: string | null;
+  voiceId?: SpeechVoiceId;
 }
 export const speechLimits = {
   text: 3000,

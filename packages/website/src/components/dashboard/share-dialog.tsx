@@ -296,7 +296,7 @@ function ShareSettings({
       </div>
       {!state.available && (
         <p className="app-notice">
-          Public sharing is not configured on this server.
+          Public sharing is currently unavailable.
         </p>
       )}
       {!state.canShare && (

@@ -1,4 +1,5 @@
 import type { LegalDocument } from "@/components/legal-page";
+import { contact } from "@/lib/contact";
 
 export const privacy: LegalDocument = {
   title: "Privacy policy.",
@@ -12,8 +13,8 @@ export const privacy: LegalDocument = {
           <p>
             Grove is a developer tool operated by Bramble Labs Inc. This policy
             covers usegrove.cloud, our hosted Grove service, and related
-            support. Contact <a href="mailto:grove@mawa.dev">grove@mawa.dev</a>{" "}
-            for privacy questions or requests.
+            support. Contact <a href={contact.href}>{contact.email}</a> for
+            privacy questions or requests.
           </p>
           <p>
             If you run Grove yourself, you control that deployment and its
@@ -133,21 +134,24 @@ export const privacy: LegalDocument = {
             control these features independently in Settings.
           </p>
           <p>
-            Web search uses Exa and Research uses Tavily. When enabled in Ask
-            Grove’s Tools menu, these providers receive the research queries and
-            website URLs needed to search or read the web. Returned excerpts and
-            source links may be saved with your conversation or a note you
-            choose to create. You can disable either research tool for the
-            conversation and choose defaults for new chats.
+            When you enable Web search or Research in Ask Grove’s Tools menu,
+            external search services receive the research queries and website
+            URLs needed to search or read the web. Returned excerpts and source
+            links may be saved with your conversation or a note you choose to
+            create. You can disable either research tool for the conversation
+            and choose defaults for new chats.
           </p>
           <p>
-            If you enable speech, OpenAI receives original audio when you choose
-            Transcribe, or saved note text when you prepare read-aloud audio.
-            These independent features default off and never run on anonymous
-            shared reads. Generated speech is temporary; saved transcripts
-            follow your note history. OpenAI applies its own data controls and
-            retention policies. Turning a feature off cannot recall data
-            already sent.
+            If you enable speech, an external speech service receives original
+            audio when you choose Transcribe, or saved note text when you
+            prepare read-aloud audio. Your selected voice determines which
+            speech service receives the note text. Voice samples use fixed
+            example text and do not send your notes. For new accounts,
+            transcription starts off and Read aloud starts on. Neither runs
+            automatically or on anonymous shared reads. Generated speech is
+            temporary; saved transcripts follow your note history. The service
+            applies its own data controls and retention policies. Turning a
+            feature off cannot recall data already sent.
           </p>
           <p>
             Authorized support and operations personnel may access information
@@ -369,8 +373,7 @@ export const terms: LegalDocument = {
             scopes before approving an agent, and revoke access you no longer
             need. You are responsible for activity you authorize, including an
             agent&apos;s saves, edits, or deletions. Tell us about suspected
-            unauthorized access at{" "}
-            <a href="mailto:grove@mawa.dev">grove@mawa.dev</a>.
+            unauthorized access at <a href={contact.href}>{contact.email}</a>.
           </p>
           <p>
             Do not use another person&apos;s account or bypass account/project
@@ -512,9 +515,9 @@ export const terms: LegalDocument = {
             We may revise these terms and will provide notice or request renewed
             acceptance where required. If a provision cannot be enforced, the
             remainder continues to the extent lawful. Contact{" "}
-            <a href="mailto:grove@mawa.dev">grove@mawa.dev</a> for service,
-            legal, or rights-holder concerns, including enough information for
-            us to understand and respond.
+            <a href={contact.href}>{contact.email}</a> for service, legal, or
+            rights-holder concerns, including enough information for us to
+            understand and respond.
           </p>
         </>
       ),

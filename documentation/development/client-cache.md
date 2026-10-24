@@ -2,9 +2,10 @@
 
 The authenticated shell owns an in-memory TanStack Query client per Clerk user
 **and session**. It is destroyed on sign-out, account/session replacement or
-authentication loss. Queries, searches, drafts and note content are never persisted
-to browser storage. The authenticated `dashboard-api.ts` transport and BFF continue
-to send `private, no-store`; this cache belongs to the mounted workspace.
+terminal authentication loss after the recovery attempt below. Queries, searches,
+drafts and note content are never persisted to browser storage. Requests use
+`cache: "no-store"` and the BFF sends `Cache-Control: private, no-store`; this cache
+belongs to the mounted workspace.
 
 `WorkspaceNavigationState` separately owns optional browser UI metadata, keyed by
 Clerk account under `grove:navigation:v1:<account>`. Its bounded schema includes at
@@ -22,6 +23,42 @@ successful directory read; transient tree filtering and drag expansion are not s
 Other notebook pickers keep their own state. No storage-event synchronization of
 these preferences is promised between already-open tabs.
 
+## Session readiness and recovery
+
+The shell waits for Clerk's user and session to load before mounting the workspace.
+`WorkspaceCacheProvider` creates a `dashboard-session.ts` transport for that exact
+user/session pair. Each cache-owned JSON request waits for `session.getToken()` and
+sets its Bearer header explicitly. Clerk owns token caching and expiry; Grove does
+not store a second token or assume that a short-lived JWT expiry ends the login.
+
+An explicit HTTP 401 triggers `getToken({ skipCache: true })` and one replay.
+Concurrent failures share the pending refresh; requests starting during it wait,
+and late 401s from the previous generation reuse the SDK's refreshed token. The
+original method, serialized body, expected version, operation ID and abort signal
+are retained. Network failures, permission 403s, conflicts and server errors do not
+trigger this replay. Telemetry records one logical operation. Each dispatch rechecks
+the browser's telemetry preference and sends opt-out if either the original request
+or the current choice disallows collection. Re-enabling cannot weaken the original
+request's opt-out.
+
+Token waits are bounded to ten seconds. A thrown or timed-out SDK refresh becomes
+`SessionRefreshError`, with ordinary load/save retry feedback and no automatic query
+retry. Existing snapshots and drafts remain mounted; a later retry, stale-read
+focus/reconnect or normal revalidation can recover. A failed save keeps its original
+retry identity and newer typing. A missing token or a 401 after replay for the current
+credential generation still clears private state and shows the sign-in recovery link.
+A denial from an older generation, or while a newer refresh is pending, is recoverable
+without another automatic replay. Malformed/empty error bodies retain their HTTP
+status so they cannot bypass this policy through automatic query retries. Permission failures stay scoped
+to the requested resource instead of ending the whole workspace.
+
+Live Clerk identity and cancellation are checked around token waits and dispatch,
+including before replay. Cancelling one waiter does not cancel a refresh needed by
+another request. Account/session replacement disposes the old cache and fences
+late replies; its draft store is not transferred to the new owner. This transport
+is owned by `WorkspaceCache`; standalone dialog and binary-fetch transports have
+their own request lifecycles.
+
 ## Read ownership
 
 Ask Grove tool updates invalidate the conversation and `/ask-tools` defaults across
@@ -29,6 +66,11 @@ tabs. Pending conversation reads poll actual progress every two seconds and reta
 the optimistic turn until the server acknowledges it. Organization Apply/Undo
 invalidates active/archived notebook directories as well as note dependencies;
 generic note invalidation alone does not refresh the sidebar's notebook list.
+Lifecycle Apply/Undo also prunes exact note targets and full notebook scopes before
+refresh. Metadata-only `memories/lifecycle` and `projects/lifecycle` broadcasts do
+the same in other tabs, including offline snapshots; generic invalidation alone
+would leave deleted writing visible after a failed refresh. Retained drafts block
+lifecycle Apply and remain separate from these read snapshots.
 
 Use `useWorkspaceCache()` and the query factories in
 `packages/website/src/lib/workspace-cache.ts`:

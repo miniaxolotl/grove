@@ -5,7 +5,8 @@ Private memory across your AI agents, by **Bramble Labs Inc.**
 Keep useful preferences, confirmed decisions, facts, verified solutions, and bounded
 task handoffs. Browse, correct, archive, export, or delete them in your memory library.
 
-**Four tools:** `remember`, `recall`, `memories`, `forget`.
+**Memory and notebook tools:** recall, search, exact reads, partial edits, history,
+filing, archive/restore and deletion. [Tool reference](documentation/server.md#memory-and-notebook-tools).
 **One boundary:** every website and agent request goes through the authenticated API.
 **One database:** PostgreSQL, full-text search, and pgvector, with account-owned rows
 and non-owner runtime roles enforcing row-level security.

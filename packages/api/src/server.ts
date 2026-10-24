@@ -20,6 +20,7 @@ export async function startServer() {
     artifacts: runtime.artifacts,
     media: runtime.media,
     speech: runtime.speech,
+    billing: runtime.billing,
     auth: new Authentication(db, clerkVerifier(env), (account, request) =>
       reporter
         .forIdentity(

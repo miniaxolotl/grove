@@ -15,6 +15,7 @@ import type {
   ConnectionQuery,
 } from "@lib/shared/relationships";
 import { api, DashboardApiError } from "./dashboard-api";
+import { SessionRefreshError } from "./dashboard-session";
 
 type Filters = Omit<MemoryList, "cursor">;
 type Change = { ids?: string[]; scopes?: (string | null)[]; resource?: string };
@@ -73,6 +74,7 @@ export class WorkspaceCache {
   private generation = 0;
   private active = true;
   private lifetime = new AbortController();
+  private settingsWrites: Promise<void> = Promise.resolve();
   private deleted = new Set<string>();
   private pendingSince = new WeakMap<object, number>();
   private channel?: BroadcastChannel;
@@ -92,6 +94,7 @@ export class WorkspaceCache {
           gcTime: 300_000,
           retry: (count, error) =>
             count < 1 &&
+            !(error instanceof SessionRefreshError) &&
             !(error instanceof DashboardApiError && error.status < 500),
           refetchOnWindowFocus: true,
           refetchOnReconnect: true,
@@ -133,6 +136,11 @@ export class WorkspaceCache {
             value.resource.split("/").at(-1)!,
             value.scopes,
           );
+        } else if (
+          value.resource?.startsWith("/memories/lifecycle/") &&
+          value.ids
+        ) {
+          this.noteLifecycle(value.resource.split("/").at(-1)!, value.ids);
         } else this.invalidate(value);
       };
     }
@@ -184,15 +192,12 @@ export class WorkspaceCache {
     } catch (error) {
       this.assertActive(generation, signal);
       if (error instanceof DashboardApiError) {
-        if (
-          error.status === 401 ||
-          (error.status === 403 &&
-            ["/memories/search", "/projects"].includes(path))
-        ) {
+        if (error.status === 401) {
           this.dispose();
           this.accessLost();
         } else if (
           [403, 404].includes(error.status) &&
+          path !== "/memories/search" &&
           /^\/memories\/[^/]+$/.test(path)
         ) {
           void this.client.cancelQueries({
@@ -518,6 +523,20 @@ export class WorkspaceCache {
     }
     this.invalidate({});
   }
+  private noteLifecycle(action: string, ids: string[]) {
+    const change = { ids };
+    void this.client.cancelQueries({
+      predicate: (query) => this.affected(query, change),
+    });
+    const notes = new Map<string, Memory | null>();
+    for (const id of ids) {
+      if (action === "delete") this.forget(id);
+      else this.client.setQueryData(workspaceKeys.note(id), null);
+      notes.set(id, null);
+    }
+    this.patchPages(notes);
+    this.invalidate(change);
+  }
   private patchPages(notes: Map<string, Memory | null>) {
     for (const query of this.client
       .getQueryCache()
@@ -669,7 +688,20 @@ export class WorkspaceCache {
         ? this.fetch<T>(path, body, signal)
         : this.read<T>(path, body, signal);
     try {
-      const result = await this.transport<T>(path, body, method, signal);
+      // Keep preference writes ordered across panels and in-app navigation. A
+      // superseded account/session must never start a queued write.
+      const send = () => {
+        this.assertActive(generation, signal);
+        return this.transport<T>(path, body, method, signal);
+      };
+      const request =
+        path === "/account/settings" ? this.settingsWrites.then(send) : send();
+      if (path === "/account/settings")
+        this.settingsWrites = request.then(
+          () => {},
+          () => {},
+        );
+      const result = await request;
       this.assertActive(generation, signal);
       if (path === "/account/delete") {
         this.dispose();
@@ -810,13 +842,37 @@ export class WorkspaceCache {
         }
         this.invalidate(change);
         if (/\/(apply|undo)$/.test(path)) {
+          const action = chat.turns?.find(
+            (turn) => turn.id === path.split("/")[4],
+          )?.result?.lifecycle;
+          if (action && ["applied", "undone"].includes(action.status)) {
+            const removing =
+              action.status === "applied" && action.action === "delete";
+            const ids = action.notes.map((note) => note.id);
+            this.noteLifecycle(removing ? "delete" : "refresh", ids);
+            this.publish?.({
+              resource: `/memories/lifecycle/${removing ? "delete" : "refresh"}`,
+              ids,
+            });
+            if (action.notebookPreviews.length) {
+              const scopes = action.notebookPreviews.flatMap(
+                (preview) => preview.projectIds,
+              );
+              this.notebookLifecycle(removing ? "delete" : "archive", scopes);
+              this.publish?.({
+                resource: `/projects/lifecycle/${removing ? "delete" : "archive"}`,
+                scopes,
+              });
+            }
+          }
           // Merge/undo may affect archived source notes absent from the reply. Revalidate all note dependencies.
           this.invalidate({});
           this.publish?.({});
           if (
             chat.turns?.some(
               (turn) =>
-                turn.id === path.split("/")[4] && turn.result?.organization,
+                turn.id === path.split("/")[4] &&
+                (turn.result?.organization || turn.result?.lifecycle),
             )
           ) {
             for (const resource of ["/projects", "/projects?status=archived"]) {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { sourceRefSchema, type SourceRef } from "@lib/shared/models";
 import { summaryEvidenceSchema } from "@lib/shared/summaries";
+import { relationshipSupportSchema } from "@lib/shared/relationships";
 
 export const assistancePreferences = {
   filing: "filingEnabled",
@@ -89,6 +90,9 @@ export const cleanupAssessmentSchema = z
     content: z.string().trim().max(6000),
   })
   .strict();
+export const cleanupJudgmentSchema = cleanupAssessmentSchema.extend({
+  support: z.array(relationshipSupportSchema).max(1),
+});
 export type CleanupCandidate = z.infer<typeof cleanupAssessmentSchema> & {
   key: string;
   sources: SourceRef[];

@@ -5,10 +5,8 @@ export function ProviderOverview({ settings }: { settings: ModelSettings }) {
   return (
     <div className="settings-content">
       <p className="settings-section-description">
-        {settings.edition === "cloud"
-          ? "Grove Cloud manages these services for you."
-          : "Your installation administrator manages these services."}{" "}
-        Availability is separate from the features you enable in Preferences.
+        Check which features are available. Choose which ones Grove uses in AI
+        preferences.
       </p>
       <section className="app-panel feature-availability">
         {(
