@@ -1,5 +1,19 @@
 # Delivery evidence
 
+## Website support and contact (24 October 2026)
+
+Public `/support` and `/contact` pages use `support@usegrove.cloud`. Current
+policy, marketing, recovery, sign-in and workspace help destinations are updated;
+the public contact module is safe for client imports. Canonical/social metadata,
+sitemap entries and safe reporting guidance accompany the pages. No auth policy,
+provider configuration, API, billing, deployment or production release is changed.
+
+Root/site lint, types, builds, nine artifacts and **227 Chromium cases** pass.
+Eight additional local axe audits cover both pages at 320/390/768/1440px.
+Local WebKit is blocked by missing host browser dependencies, not counted as a pass.
+See [route/verification details](website-support-contact.md) and the
+[reviewed browser gallery](design/screenshots/website-support-contact/README.md).
+
 ## Workspace session recovery (24 October 2026)
 
 Workspace requests wait for a Clerk session token and send it explicitly. An HTTP

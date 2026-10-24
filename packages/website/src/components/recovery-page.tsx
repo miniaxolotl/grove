@@ -1,5 +1,4 @@
 import type { ComponentProps } from "react";
-import { contact } from "@/lib/contact";
 import { GroveMark } from "./brand";
 import { RecoveryState } from "./recovery-state";
 
@@ -23,7 +22,8 @@ export function RecoveryPage(
       </main>
       <footer className="recovery-footer">
         <span>Need a hand?</span>
-        <a href={contact.href}>Get in touch</a>
+        {/* Full navigation also works when the app router itself has failed. */}
+        <a href="/support">Get in touch</a>
       </footer>
     </div>
   );

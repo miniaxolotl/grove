@@ -1,5 +1,4 @@
 import { ClerkProvider } from "@clerk/nextjs";
-import { contact } from "@/lib/contact";
 
 /** Account routes own authentication; public readers never mount its browser SDK. */
 export function AuthenticationProvider({
@@ -35,7 +34,7 @@ export function AuthenticationProvider({
           logoLinkUrl: "/",
           privacyPageUrl: "/privacy",
           termsPageUrl: "/terms",
-          helpPageUrl: contact.href,
+          helpPageUrl: "/support",
         },
       }}
     >
