@@ -1,5 +1,33 @@
 # Verification
 
+## Hosted chat connections
+
+With the disposable database/non-owner roles below, run
+`pnpm exec tsx --test tests/src/hosted-chat.test.ts tests/src/connect.test.ts tests/src/memory-tools.test.ts`.
+The official MCP HTTP client initializes/lists tools before approval, receives
+exact-connection guidance without a 401 loop, then exercises owner-only grants,
+two-client save/recall, retry IDs, partial edits, read-only and revocation. Existing
+memory/connect suites retain notebook-scope, account/RLS and lifecycle coverage.
+State-fingerprint cases reject stale permission/revocation reviews, serialize
+competing approvals and preserve a review across ordinary contact updates.
+
+After a production website build, `hosted-chat.spec.ts` and `connect.spec.ts` cover
+web/native setup separation, endpoint copy/manual fallback, storage-disabled
+selection, pending-client refresh, exact-client approval, narrowed retry and
+responsive accessibility. New OAuth/API-key/native forms select all action/scope
+checkboxes; existing connections and narrowed resumed approvals retain their
+choices. Tests explicitly narrow a new proposal before exercising denied writes.
+Run the hosted subset in supported iPhone/WebKit too.
+Use synthetic notes and the actual components; only save relevant reviewed captures.
+
+```sh
+pnpm --filter website exec playwright test --config playwright.hosted-chat-webkit.config.ts
+```
+
+Real ChatGPT/Claude discovery is tracked separately from this local evidence.
+Do not label a host verified until an authorized HTTPS candidate passes the
+[live-host acceptance matrix](../hosted-chat.md#verification-and-release-status).
+
 Billing tests use the disposable PostgreSQL/non-owner API and worker URLs below.
 `billing.test.ts` covers tenant isolation, non-superuser owner lookup, optional
 configuration, concurrent quotas, recognized/expired subscriptions, UTC windows,

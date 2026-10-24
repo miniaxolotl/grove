@@ -291,13 +291,13 @@ function ApprovalForm({
         )}
         {!attempt.project && (
           <p className="text-xs leading-6 text-muted">
-            No Git project was detected. Run connect from a repository to add
-            project access later.
+            No Git project was detected. Review Personal and notebook access
+            below before approving.
           </p>
         )}
       </fieldset>
       <div
-        className="rounded-lg bg-sage/50 p-4 text-sm leading-7"
+        className="rounded-lg bg-sage/50 px-4 py-3 text-sm leading-6"
         aria-label="Permission summary"
       >
         {grant.capabilities.map((capability) => (

@@ -1,5 +1,38 @@
 # Delivery evidence
 
+## Hosted ChatGPT and Claude setup (24 October 2026)
+
+Installation and Connections distinguish ChatGPT/Claude web from native coding
+agents, with remote URLs, OAuth/DCR guidance, Personal examples and explicit
+pending-client refresh/approval. A denied remote tool links the exact authenticated
+connection instead of restarting OAuth. Approval forms identify the client and
+carry a row-locked state fingerprint: newer scope edits/revocation reject stale
+reviews, while normal last-contact updates do not. No new tool, migration, secret,
+or source label is introduced. At the owner's request, new connection forms and
+native proposals select all action/scope checkboxes, including deletion and all
+notebooks; users can narrow them before approving. Existing grants retain saved
+choices, and sign-in alone still grants no note access.
+
+Root/site lint, types and production builds, **346 backend tests** (four optional
+S3/broker skips), **nine packed artifacts**, **all 233 Chromium cases**, **11 focused
+iPhone/WebKit cases**, three native hosts and bundle budgets pass. The backend
+guidance and stale-review cases were verified failing before implementation.
+Fifty CI/release/deployment contracts, pinned workflow lint and the API Docker build
+also pass. Notes entry is **489,087 gzip bytes**, with the editor still deferred.
+[Four reviewed captures](design/screenshots/hosted-chat/README.md) cover desktop
+and phone, with WCAG A/AA and 320/390/1440px overflow checks.
+The all-selected-default follow-up retains explicit narrowed/retry/resume tests;
+its compact native permission summary keeps the primary action entirely visible
+at 320×640 in both engines without hiding permissions or loosening the assertion.
+
+Real ChatGPT and Claude inspected the current public endpoint's OAuth discovery
+and selected DCR; CIMD is not advertised. No new connection/consent, provider
+configuration or deployment was submitted. **End-to-end hosted-client acceptance
+against this source candidate remains unverified**, requiring an explicitly
+authorized HTTPS deployment and live sign-in/save/recall/refresh/revocation in
+both hosts. Source delivery is not a public-directory listing or an automatic
+every-chat memory hook. [Setup, permissions and rollout limits](hosted-chat.md).
+
 ## Billing lifecycle review follow-up (24 October 2026)
 
 Post-merge [#112 review](development/billing-review.md) reproduced and repaired three
