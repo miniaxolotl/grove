@@ -84,6 +84,53 @@ No Stripe live/test account configuration, payment, Vercel cohort activation,
 production migration or deployment is performed. Those are explicit operator
 steps in the [023 rollout](deploy.md#billing-rollout-023).
 
+## Workspace session recovery (24 October 2026)
+
+Workspace requests wait for a Clerk session token and send it explicitly. An HTTP
+401 receives one shared forced refresh and a byte-identical replay. Refresh outages
+and ten-second token timeouts keep snapshots/drafts mounted with load/save retry;
+permission 403s stay local to the resource. Current-generation missing tokens or a
+rejected replay still clear private state. Cancellation and live user/session checks fence late
+work; newer typing and original mutation identities survive recovery.
+
+Application source `48aa5a3` passes root/site lint, types and production builds,
+**nine packaged-artifact checks**, the backend RS256 authorization test and **12
+existing iPhone/WebKit regressions**. The full **223-case Chromium suite** passes
+with the telemetry-enabled production build. **Fifteen recovery journeys per engine** pass
+in Chromium and iPhone-emulated WebKit with zero page errors. Nine additional
+transport groups verify bounded replay, cancellation, cache retention/teardown and
+permission handling. Four installed-Clerk-SDK cases verify explicit-Bearer precedence
+and expired-token rejection with zero network calls. Verification reproduced and
+fixed cancellation starting an unnecessary refresh and search403 cancelling its own
+query through the note-detail eviction path.
+
+Notes entry is **488,617 gzip bytes**, with the editor deferred. Updated workspace,
+cache ownership and verification guidance accompanies [six synthetic recovery
+captures](design/screenshots/session-recovery/README.md). These checks establish
+the recovery behavior; the initiating request from the reported physical Safari
+incident remains untraced.
+
+Follow-up `1d8968a` carries credential generations through replay: an older denial
+cannot clear a session after a newer refresh has started or succeeded. The failed
+operation retains its draft and retry ID without another automatic replay. Dispatch
+also rechecks telemetry opt-out while retaining a stricter original choice. Invalid
+error envelopes preserve their HTTP status rather than triggering transient retries.
+
+Integrated with voice-selection development `f159036`, the follow-up passes fresh
+root/site lint, types/builds, nine artifacts, backend auth, 12 existing WebKit cases,
+the full **223-case Chromium suite**, all fifteen recovery journeys plus two correction journeys per engine, and four
+telemetry preference-transition cases per engine. Direct checks cover eight review
+groups including 24 malformed error envelopes and pending/late token races. Notes is
+**488,769 gzip bytes**, editor deferred. [Two additional reviewed captures](design/screenshots/session-recovery/README.md#superseded-replay-follow-up)
+show draft preservation after a superseded denial.
+
+Final integration with note-management `d8cf0c1` preserves lifecycle pruning and
+both documentation histories. Fresh root/site gates, nine artifacts, backend auth,
+**223 Chromium**, **12 WebKit**, recovery/correction journeys in both engines and
+the transport checks pass. An integration probe verifies that a replayed lifecycle
+Apply prunes deleted detail/list sources with the same operation body. Notes is
+**488,937 gzip bytes**, editor deferred; original capture provenance is retained.
+
 ## Note and notebook management tools (24 October 2026)
 
 Remote MCP and every bundled bridge share **14 tools**: the existing save/recall/
