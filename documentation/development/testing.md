@@ -10,6 +10,11 @@ isolation, failed storage publication and cleanup racing an older transaction.
 the separate narration prefix, MP3 type and private/no-store metadata; it is not a
 live bucket lifecycle qualification.
 
+The cache suite also exercises dynamic alternate-voice flags: off/on discovery,
+cached playback, denial before dispatch/after inference, error fallback and Reed
+independence. `speech-runtime.test.ts` checks Vercel precedence over the legacy
+opt-in, self-host fallback, missing credentials/storage and master speech disable.
+
 ## Hosted chat connections
 
 `pnpm exec tsx --test tests/src/directory.test.ts` runs without a database listener.

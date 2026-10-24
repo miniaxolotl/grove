@@ -154,6 +154,9 @@ the migration to a retained database or changing production preferences.
 
 ### Selectable speech voices (022)
 
+The historical environment-only activation below is superseded by migration 024's
+Vercel flag integration when `FLAGS` is configured; see the current rollout below.
+
 Apply `20261024_022_speech_voices` with the owner connection after 021. It backfills
 only the new Reed default, preserving consent flags/generations, and adds the
 per-voice installation profile map. Both runtime processes now require this schema.
@@ -210,7 +213,19 @@ inspection of active deployment `0ea705f1-ed0f-4b56-8b3d-637dcaaa3dd5` found
 `MINIMAX_TTS_ENABLED` on either. Its default is false, explaining the unavailable
 Willow/Cedar/Brook choices. Activation requires setting it true on both components
 and verifying the resulting voice availability; key presence is not a provider
-health/billing check. No production flag was changed during this investigation.
+health/billing check. That initial investigation made no production changes.
+
+**Owner-authorized flag setup:** Vercel project `bramble-labs-inc/grove` now has
+`minimax-tts-enabled` (`flg_UFDbNBSQfL2MZSfLnMPbnGVZnuHI`), active boolean, serving
+**On in production**, **Off in preview/development**, verified by CLI readback.
+API and worker already have `FLAGS` configured. The new runtime uses this flag
+instead of the legacy environment opt-in when that SDK key is present. Use the
+same Vercel environment key on both replicas; retain `SPEECH_ENABLED`, provider
+credentials and artifact storage. The SDK falls back false and has no
+stale-on-error allowance. No billing flag was changed. Old deployed binaries do
+not read this new flag: voice activation still requires the protected source rollout
+after migration 024 and narration-storage verification. Rollback can turn this flag
+Off without changing credentials, saved voice choices or cached objects.
 
 ### Ask Grove tools rollout (020)
 

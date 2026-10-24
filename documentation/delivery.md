@@ -14,9 +14,17 @@ Production read-only investigation found the alternate voices disabled by an
 absent `MINIMAX_TTS_ENABLED` on both API and worker; both provider keys are present.
 Both components already use S3 artifacts. The [rollout](deploy.md#content-addressed-speech-cache-024)
 documents flag activation, the forward migration and lifecycle-independent
-`narration/` storage. Production configuration and data were not changed.
+`narration/` storage. That initial investigation did not change production.
 
-After integrating hosted-chat #116, root lint, types, build, **362 backend/service tests** (four optional service
+The owner subsequently requested Vercel control. `minimax-tts-enabled` is created
+and verified On in production, Off in preview/development. API/worker use their
+existing server-only `FLAGS` credentials; availability, enqueue, cached reads and
+worker dispatch/publication check the global flag dynamically. Missing/error
+decisions deny only the alternate voices. Self-hosting without FLAGS keeps its
+environment opt-in. Source deployment/migration remains pending; creating the flag
+does not activate it in the currently deployed older binaries.
+
+After integrating hosted-chat #116 and the flag follow-up, root lint, types, build, **366 backend/service tests** (four optional service
 skips), **nine packaged artifacts** and **seven deployment contracts** pass.
 Regression-first checks reproduced revision-bound reuse, one-day expiry and a
 cleanup/revert race, then pass with the fix. Populated 023→024 preservation and
@@ -24,6 +32,9 @@ loopback S3 request metadata also pass. Preferences/privacy copy replaces the
 stale one-day promise. Website lint, types and production build plus **20 focused
 Chromium settings/public-page/hosted-chat checks** pass; no layout or interaction change
 requires new screenshots.
+The flag follow-up additionally verifies disabled cached reads, pre-send and
+post-inference worker guards, error fallback and environment/flag precedence.
+Root/site static/build checks and all nine artifacts pass again on this source.
 
 ## Hosted ChatGPT and Claude setup (24 October 2026)
 

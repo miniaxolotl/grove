@@ -81,7 +81,8 @@ MiniMax mappings are `English_CalmWoman` (Willow), `English_ManWithDeepVoice`
 (Cedar) and `English_Upbeat_Woman` (Brook). These are curated system presets;
 Grove creates no custom or cloned voices. MiniMax speech explicitly reuses the
 server-only `MINIMAX_API_KEY` through `/v1/t2a_v2`, independently gated by
-`MINIMAX_TTS_ENABLED`. OpenAI continues to use `OPENAI_API_KEY`. There is no provider
+Vercel's `minimax-tts-enabled` flag when `FLAGS` is configured, or the self-hosted
+`MINIMAX_TTS_ENABLED` opt-in otherwise. OpenAI continues to use `OPENAI_API_KEY`. There is no provider
 fallback. Credentials, audio, note text, transcripts and upstream diagnostics do
 not enter application telemetry. Both fixed endpoints disallow redirects, bound
 streamed responses and have a 45-second provider deadline. MiniMax additionally
@@ -204,8 +205,21 @@ temporary artifact storage. Cloud must keep the private durable media bucket
 separate from the artifact bucket; existing `speech/` and export expiry rules must
 not cover `narration/`. Local storage is for self-hosting/tests. Reed's
 `TTS_VOICE` override accepts `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`.
-To activate Willow/Cedar/Brook, additionally set `MINIMAX_TTS_ENABLED=true` and the
-existing `MINIMAX_API_KEY` on both API and worker; the gate requires artifact storage.
+To activate Willow/Cedar/Brook in Cloud, configure the same environment's server-only
+Vercel `FLAGS` SDK key and `MINIMAX_API_KEY` on API and worker, then enable the global
+boolean flag `minimax-tts-enabled`. It defaults false in code and controls the three
+voices independently from billing, Reed and transcription. With `FLAGS` configured,
+the legacy `MINIMAX_TTS_ENABLED` opt-in is ignored; without it, self-hosting continues
+to use that environment toggle. Both modes still require speech and artifact storage.
+
+Providers remain registered while the flag is off. Runtime SDK streaming/polling
+refreshes the decision without a restart; changes take effect as each replica receives
+them, not atomically across replicas. Availability, request/replay/cache access,
+worker dispatch and result publication recheck the decision. Missing/error decisions
+deny alternate voices, with no stale-on-error grace or silent Reed fallback. Pausing
+does not delete matching audio; re-enabling can reuse it under the normal guards.
+This is an installation-wide flag, not a per-user targeting contract. The website's
+authenticated Flags Explorer discovery advertises the same key.
 API startup publishes per-voice profiles plus the `speech-content-cache-v1` protocol
 marker. Older/mismatched workers fail closed; legacy TTS tasks without a voice
 identity require starting again. Transcription keeps its independent profile.
