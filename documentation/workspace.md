@@ -45,8 +45,10 @@ finish saving before read aloud; shared readers never initiate inference.
   When opening or returning to Grove, workspace requests wait for a current session
   token and recover once from an expired token. If reconnecting is temporarily
   unavailable, your draft stays open with retry feedback. Use the save control again
-  when the connection returns. Signing out, changing accounts/sessions, or a rejected
-  refreshed session clears private in-memory drafts; a page reload cannot restore them.
+  when the connection returns. A delayed rejection from an older session refresh
+  keeps the draft available for retry. Signing out, changing accounts/sessions, or
+  rejection of the current refreshed session clears private in-memory drafts; a
+  page reload cannot restore them.
   **History** opens earlier revisions without leaving the workspace.
   **Linked notes** is a collapsed accordion below your writing. On a wide screen
   **Export** sits in the toolbar and **Delete note…** beside it, including focus

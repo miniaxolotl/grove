@@ -41,7 +41,6 @@ function useEditor() {
   return {
     value,
     voices: query.data?.speechVoices,
-    rememberedVoice: loaded?.readAloudVoiceId,
     availability: query.data?.aiAvailability
       ? {
           ...query.data.aiAvailability,

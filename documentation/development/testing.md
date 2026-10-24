@@ -26,6 +26,16 @@ actual components in Chromium and supported iPhone/WebKit:
 - Return null or reject the replay with 401: private state is cleared. Switch
   sessions and accounts during a held refresh: no old mutation is replayed and no
   old draft appears under the replacement identity.
+- Hold a replayed save, complete another request's newer token refresh, then reject
+  the old replay. Keep the editor node/draft mounted with retry feedback; an explicit
+  save retries the identical operation. Repeat while the newer refresh is pending.
+- Opt out during both initial-token and forced-refresh waits; each eventual dispatch
+  must carry `X-Grove-Telemetry: off`. Re-enable during those waits and confirm that
+  an originally opted-out request still carries the header.
+- Return empty/HTML/`null`/malformed JSON envelopes with 401: one refresh, two HTTP
+  attempts and current-generation private-state teardown. Verify raw API errors
+  retain 401/403/409/503 status even without an envelope, and a late null token from
+  before a successful refresh is recoverable.
 
 The transport-level verifier additionally cancels one of two refresh waiters,
 cancels while discarding a 401 body, fences replacement during initial token access,
@@ -124,14 +134,32 @@ isolation. Historical migration assertions stop at their own boundary; current
 service checks then migrate forward to the current schema.
 
 Actual-component voice journeys use synthetic API responses and the bundled sample
-MP3s in Chromium and iPhone/WebKit. Exercise serialized quick saves, held/failed
-saves, retained newer Settings drafts, late enqueue cancellation, lost replies,
-both close controls/navigation, explicit playback, sample/player ownership,
-unavailable saved choices, keyboard focus, 1440/390/320px bounds and WCAG A/AA.
+MP3s in Chromium and iPhone/WebKit. Verify the on-demand chooser explicitly:
+
+- Ordinary playback has no selector or sample controls. Opening/browsing/cancelling
+  the chooser sends no preference, synthesis or sample requests.
+- Sample buttons audition independently of the checked radio; failed samples retry
+  in place. Samples share exclusive playback ownership and stop on dismissal.
+- Opening/cancelling and same-voice confirmation preserve the narration element and
+  position. Only a confirmed different choice resets it. Account refreshes retain
+  prepared voice identity and an edited chooser candidate.
+- Confirmations serialize quick saves; failed saves keep the applied voice with
+  visible retry. Browse during a held enqueue, then confirm another voice and check
+  cancellation/late-response fencing. Cover lost replies, both close controls,
+  in-app navigation and uncertain cancellation recovery.
+- Settings confirmation edits only its draft. Held saves retain a newer chooser
+  candidate/draft; failed saves and Discard work. Read aloud off hides the summary
+  without clearing the voice. Retain unavailable saved choices without fallback;
+  hide player configuration when the feature is off or all voices are unavailable.
+- Check menu-to-dialog focus, native radio arrows, Escape/backdrop focus return,
+  1440/390/320px bounds, short viewports and WCAG A/AA. Review actual screenshots too:
+  enclosing form styles must not override the chooser's compact radio-row layout.
+
 Run concurrent browser suites with distinct ports **and** `--output` directories;
 the runner clears its output directory and can otherwise delete another engine's
 active traces. Paid provider checks remain separate from CI. See
-[voice evidence and captures](../design/screenshots/speech-voices/README.md).
+[on-demand voice captures](../design/screenshots/speech-voice-flow/README.md) and
+[original provider/sample evidence](../design/screenshots/speech-voices/README.md).
 
 The actual-component/disposable-API browser journeys cover both opt-ins, explicit
 candidate use/save/normal note insertion, generated playback, exact cache reuse,

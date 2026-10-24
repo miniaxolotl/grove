@@ -36,14 +36,20 @@ Concurrent failures share the pending refresh; requests starting during it wait,
 and late 401s from the previous generation reuse the SDK's refreshed token. The
 original method, serialized body, expected version, operation ID and abort signal
 are retained. Network failures, permission 403s, conflicts and server errors do not
-trigger this replay. Telemetry records one logical operation.
+trigger this replay. Telemetry records one logical operation. Each dispatch rechecks
+the browser's telemetry preference and sends opt-out if either the original request
+or the current choice disallows collection. Re-enabling cannot weaken the original
+request's opt-out.
 
 Token waits are bounded to ten seconds. A thrown or timed-out SDK refresh becomes
 `SessionRefreshError`, with ordinary load/save retry feedback and no automatic query
 retry. Existing snapshots and drafts remain mounted; a later retry, stale-read
 focus/reconnect or normal revalidation can recover. A failed save keeps its original
-retry identity and newer typing. A missing token or a 401 after replay still clears
-private state and shows the sign-in recovery link. Permission failures stay scoped
+retry identity and newer typing. A missing token or a 401 after replay for the current
+credential generation still clears private state and shows the sign-in recovery link.
+A denial from an older generation, or while a newer refresh is pending, is recoverable
+without another automatic replay. Malformed/empty error bodies retain their HTTP
+status so they cannot bypass this policy through automatic query retries. Permission failures stay scoped
 to the requested resource instead of ending the whole workspace.
 
 Live Clerk identity and cancellation are checked around token waits and dispatch,

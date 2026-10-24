@@ -5,8 +5,8 @@
 Workspace requests wait for a Clerk session token and send it explicitly. An HTTP
 401 receives one shared forced refresh and a byte-identical replay. Refresh outages
 and ten-second token timeouts keep snapshots/drafts mounted with load/save retry;
-permission 403s stay local to the resource. Missing tokens or a rejected replay
-still clear private state. Cancellation and live user/session checks fence late
+permission 403s stay local to the resource. Current-generation missing tokens or a
+rejected replay still clear private state. Cancellation and live user/session checks fence late
 work; newer typing and original mutation identities survive recovery.
 
 Application source `48aa5a3` passes root/site lint, types and production builds,
@@ -25,6 +25,42 @@ cache ownership and verification guidance accompanies [six synthetic recovery
 captures](design/screenshots/session-recovery/README.md). These checks establish
 the recovery behavior; the initiating request from the reported physical Safari
 incident remains untraced.
+
+Follow-up `1d8968a` carries credential generations through replay: an older denial
+cannot clear a session after a newer refresh has started or succeeded. The failed
+operation retains its draft and retry ID without another automatic replay. Dispatch
+also rechecks telemetry opt-out while retaining a stricter original choice. Invalid
+error envelopes preserve their HTTP status rather than triggering transient retries.
+
+Integrated with voice-selection development `f159036`, the follow-up passes fresh
+root/site lint, types/builds, nine artifacts, backend auth, 12 existing WebKit cases,
+the full **223-case Chromium suite**, all fifteen recovery journeys plus two correction journeys per engine, and four
+telemetry preference-transition cases per engine. Direct checks cover eight review
+groups including 24 malformed error envelopes and pending/late token races. Notes is
+**488,769 gzip bytes**, editor deferred. [Two additional reviewed captures](design/screenshots/session-recovery/README.md#superseded-replay-follow-up)
+show draft preservation after a superseded denial.
+
+## On-demand voice selection (24 October 2026)
+
+Read aloud keeps playback compact and exposes **Change voice** through its options
+menu. Settings shows **Reading voice / current name / Change** only while Read aloud
+is on. Compact voice rows pair a quiet selection highlight with labelled preview
+icons and brief helper text. One chooser separates candidates and audition from
+**Use voice**:
+browsing/cancelling and same-voice confirmation preserve prepared narration; a
+confirmed different voice releases old playback and fences unfinished requests.
+Settings confirmation changes only its existing Save/Discard draft.
+
+Source `1506a85` passes root/site lint, types and production builds, **nine artifact
+checks**, **19 relevant speech tests**, **31 existing Chromium models/cache cases**
+and **four existing iPhone/WebKit Settings cases**. **Fifteen actual-component journey
+groups per engine** verify zero-write browsing, independent samples, save races,
+late/lost replies, cancellation, unavailable/off states, keyboard focus, responsive
+bounds and WCAG A/AA. The Notes bundle gate passes with the editor deferred.
+[Eight reviewed captures and verification details](design/screenshots/speech-voice-flow/README.md)
+document desktop/mobile playback, chooser and Settings. Speech, product-copy and
+testing guidance now describes the on-demand flow; the prior inline-picker gallery
+is marked historical.
 
 ## Selectable read-aloud voices (24 October 2026)
 

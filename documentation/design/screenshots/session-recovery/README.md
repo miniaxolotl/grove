@@ -23,3 +23,22 @@ recoverable session error. Recovery never claims an unsaved draft is saved.
 The initial-load capture follows an actual injected 401 and successful replay.
 These are controlled recovery checks, not a captured production token race or
 physical iOS suspension test. [Verification procedure](../../../development/testing.md#workspace-session-recovery).
+
+## Superseded replay follow-up
+
+The following captures use correction `1d8968a` integrated with development
+`f159036`, build `3xvGnxOh367uQOMLblcFV`. A replayed save returned 401 after a newer
+refresh succeeded. The editor and draft remain mounted with retry feedback;
+explicit retry then saved the same operation ID and serialized body in both engines.
+Finite control transitions are allowed to settle before capturing.
+
+| Chromium, 390×844                                                                                          | iPhone-emulated WebKit                                                                                 |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| ![Chromium retains the draft after a superseded replay rejection](chromium-superseded-replay-retained.png) | ![WebKit retains the draft after a superseded replay rejection](webkit-superseded-replay-retained.png) |
+
+The integrated source also passes the original fifteen recovery journeys per engine,
+current-generation malformed-401 teardown, and four preference-transition cases per
+engine: opting out or re-enabling during initial-token and forced-refresh waits.
+All applicable requests preserve the stricter opt-out; automatic replay remains
+bounded to one. Transport verification includes pending-newer-refresh and late-null
+token races plus 24 malformed 401/403/409/503 envelope combinations.
