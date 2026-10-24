@@ -1,13 +1,15 @@
 # Transcription and read aloud
 
-Speech is an optional, session-owner-only feature. Both account preferences start
-**off**, independently of other AI choices. Neither opening a note nor enabling a
-preference sends speech data. Original recordings, manual transcripts and ordinary
-editing remain usable when speech is disabled or unavailable.
+Speech is an optional, session-owner-only feature. For new accounts, **Recording
+transcription starts off** and **Read aloud starts on**, independently of other AI
+choices. Existing saved choices are preserved. Neither opening a note nor enabling
+a preference sends speech data. Audio preparation and playback still require
+explicit actions. Original recordings, manual transcripts and ordinary editing
+remain usable when speech is disabled or unavailable.
 
 ## Using speech
 
-1. Enable **Recording transcription** and/or **Read aloud** in
+1. Choose **Recording transcription** and **Read aloud** in
    **Settings → Preferences → Speech**, then save. If a feature is off, its prompt
    names that feature and links to **AI preferences**. Unavailable features are
    identified without showing backend setup details. Availability reflects setup,

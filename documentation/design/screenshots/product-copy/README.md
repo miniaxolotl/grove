@@ -1,7 +1,7 @@
 # Feature-focused copy
 
-Reviewed synthetic captures from application source `463b0e3`, production build
-`-peSNM7C7EYGVJiboKapO`, on Node 24.21.0 / pnpm 10.33.0 (23 October 2026).
+Reviewed synthetic captures from application source `a5c438f`, production build
+`m-PkJBw56TJORJFzLvZO0`, on Node 24.21.0 / pnpm 10.33.0 (24 October 2026 UTC).
 The existing browser fixture bundles real workspace components with production CSS;
 API responses contain only synthetic notes/settings. No personal note, recording,
 account or production service is used.
@@ -24,6 +24,10 @@ Additional reviewed captures:
   describing a backend vendor. Both settings links are visibly underlined.
 - Preference descriptions explain explicit transcription, reviewing suggested text,
   saved-text narration and the temporary audio lifetime.
+- Preference captures show new-account defaults: transcription off, Read aloud on.
+  Speech-prompt captures use an existing explicit opt-out. Both engines also verify
+  that default-on Read aloud offers **Prepare audio** without preparing or playing
+  anything when the note/controls open.
 - Ordinary availability copy describes features, not service configuration. Actual
   model/provider values in the synthetic response do not appear in rendered text.
 - Chromium and WebKit actual-component journeys pass at 1440/390/320px: rendered

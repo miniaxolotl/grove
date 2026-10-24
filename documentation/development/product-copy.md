@@ -7,7 +7,9 @@ Do not name backend companies, model names, hosting platforms or internal jobs.
 - Name the feature and match its control: **Read aloud**, **Recording
   transcription**, **AI preferences**, **Transcribe** and **Prepare audio**.
 - Explain what a feature does, when it runs and what the person can review.
-  Keep speech opt-ins independent and explicit. Preparing audio uses saved note
+  Keep speech preferences independent and generation explicit. New accounts start
+  with transcription off and Read aloud on; existing choices stay unchanged.
+  Preparing audio uses saved note
   text; transcription processes a recording only after **Transcribe**. Neither
   opening the controls nor enabling a preference starts that work.
 - Use availability language, not configuration diagnoses: “Read aloud is currently

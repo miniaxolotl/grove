@@ -9,7 +9,8 @@ heading row with **New note**. Connected agents use the same notes and permissio
 Optional [speech](speech.md) belongs to a current note's Preview: review a suggested
 recording transcript before copying it into a draft and saving, or open **Read aloud**
 for user-started generated playback. Enable each feature independently in
-**Settings → Preferences → Speech**. Both default off; original recordings and
+**Settings → Preferences → Speech**. New accounts start with transcription off and
+Read aloud on; existing choices are preserved. Original recordings and
 manual transcripts remain available without either provider. Unsaved changes must
 finish saving before read aloud; shared readers never initiate inference.
 
