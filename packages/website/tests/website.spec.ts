@@ -26,7 +26,7 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await page.getByRole("link", { name: "Connect your AI tools" }).click();
   await expect(page).toHaveURL(/\/install$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "coding agent.",
+    "AI tools.",
   );
   await expect(
     page.getByLabel("OpenCode connection command", { exact: true }),

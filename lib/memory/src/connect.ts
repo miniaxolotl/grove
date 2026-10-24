@@ -4,6 +4,7 @@ import type { Knex } from "@lib/database";
 import {
   GroveError,
   agentNames,
+  capabilities,
   type ConnectInput,
   type ConnectAttempt,
   type ConnectApproval,
@@ -127,9 +128,9 @@ export class ConnectionSetup {
                 0,
                 100,
               ),
-              capabilities: ["memory:read", "memory:write"],
+              capabilities: [...capabilities],
               personal: true,
-              allProjects: false,
+              allProjects: true,
               projectIds: [],
             },
       };

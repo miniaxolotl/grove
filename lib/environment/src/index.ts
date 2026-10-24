@@ -67,6 +67,16 @@ const serverSchema = z.object({
     .default(90000),
   API_ORIGIN: origin,
   SITE_URL: origin,
+  // Public ownership proof, never an account credential. Empty values are omitted below.
+  OPENAI_APPS_CHALLENGE: z
+    .string()
+    .min(1)
+    .max(512)
+    .refine(
+      (value) => !/\s/.test(value),
+      "Use the exact non-whitespace verification token",
+    )
+    .optional(),
   CLERK_PUBLISHABLE_KEY: z.string().startsWith("pk_"),
   CLERK_SECRET_KEY: z.string().startsWith("sk_"),
   CLERK_ISSUER: origin,

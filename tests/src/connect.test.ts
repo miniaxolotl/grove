@@ -95,9 +95,13 @@ test("OAuth connection flows from no access to owner-approved project scope, and
   );
   const { token, attempt, identity } = await begin();
   assert.equal(attempt.status, "pending");
-  assert.deepEqual(attempt.grant.capabilities, ["memory:read", "memory:write"]);
+  assert.deepEqual(attempt.grant.capabilities, [
+    "memory:read",
+    "memory:write",
+    "memory:delete",
+  ]);
   assert.equal(attempt.grant.personal, true);
-  assert.equal(attempt.grant.allProjects, false);
+  assert.equal(attempt.grant.allProjects, true);
   assert.deepEqual((await request(token, "/v1/me")).data.capabilities, []);
   assert.equal((await request(token, "/v1/recall", {})).status, 403);
   assert.equal((await admin("projects").where({ identity })).length, 0);
@@ -136,7 +140,11 @@ test("OAuth connection flows from no access to owner-approved project scope, and
   );
   const responses = await Promise.all(
     [1, 2].map(() =>
-      request("owner", `/v1/connect/${attempt.id}/approve`, approval(attempt)),
+      request("owner", `/v1/connect/${attempt.id}/approve`, {
+        ...approval(attempt),
+        capabilities: ["memory:read", "memory:write"],
+        allProjects: false,
+      }),
     ),
   );
   assert(
@@ -380,6 +388,7 @@ test("resuming a deliberately narrower approval preserves its chosen actions and
     ...approval(attempt),
     capabilities: ["memory:read"],
     currentProject: false,
+    allProjects: false,
   });
   assert.equal(result.status, 200);
   assert.equal(result.data.projectId, null);
