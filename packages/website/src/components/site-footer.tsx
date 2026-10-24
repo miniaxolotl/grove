@@ -1,4 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
+import { contact } from "@/lib/contact";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { BrambleFamily } from "@/components/bramble-family";
@@ -37,7 +38,7 @@ export function SiteFooter() {
           </nav>
           <div className="footer-links">
             <p className="eyebrow mb-3">STAY IN TOUCH</p>
-            <a href="mailto:grove@mawa.dev" className="footer-link">
+            <a href={contact.href} className="footer-link">
               Say hello <ArrowUpRight size={12} />
             </a>
             <a href={site.github} className="footer-link">
@@ -93,7 +94,7 @@ export function SiteFooter() {
             </Link>
             <TelemetryChoice />
             <a
-              href="mailto:grove@mawa.dev"
+              href={contact.href}
               className="inline-flex min-h-9 items-center hover:text-forest"
             >
               Contact

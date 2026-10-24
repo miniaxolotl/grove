@@ -1,4 +1,5 @@
 import { ArrowUpRight, Plus } from "lucide-react";
+import { contact } from "@/lib/contact";
 import { faqs } from "@/content/site";
 
 export function FAQ() {
@@ -15,7 +16,7 @@ export function FAQ() {
             Common questions.
           </h2>
           <a
-            href="mailto:grove@mawa.dev"
+            href={contact.href}
             className="mt-5 inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
           >
             Ask us a question <ArrowUpRight size={14} />

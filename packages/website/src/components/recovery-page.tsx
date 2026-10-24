@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+import { contact } from "@/lib/contact";
 import { GroveMark } from "./brand";
 import { RecoveryState } from "./recovery-state";
 
@@ -22,7 +23,7 @@ export function RecoveryPage(
       </main>
       <footer className="recovery-footer">
         <span>Need a hand?</span>
-        <a href="mailto:grove@mawa.dev">Get in touch</a>
+        <a href={contact.href}>Get in touch</a>
       </footer>
     </div>
   );

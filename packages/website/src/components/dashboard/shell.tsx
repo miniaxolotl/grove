@@ -1,4 +1,5 @@
 "use client";
+import { contact } from "@/lib/contact";
 import { useEffect } from "react";
 import {
   RedirectToSignIn,
@@ -197,7 +198,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <Link href="/install">Setup guide</Link>
                             <Link href="/privacy">Privacy</Link>
                             <Link href="/terms">Terms</Link>
-                            <a href="mailto:grove@mawa.dev">Get help</a>
+                            <a href={contact.href}>Get help</a>
                           </nav>
                         </footer>
                       </div>

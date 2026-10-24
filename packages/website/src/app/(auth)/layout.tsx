@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { contact } from "@/lib/contact";
 import { Brand } from "@/components/brand";
 import { GroveMark } from "@/components/brand";
 import { ArrowLeft, Check, LockKeyhole } from "lucide-react";
@@ -48,7 +49,7 @@ export default function AuthLayout({
           <section className="auth-entry" aria-label="Grove account access">
             {children}
             <p className="auth-help">
-              Need help? <a href="mailto:grove@mawa.dev">Get in touch</a>
+              Need help? <a href={contact.href}>Get in touch</a>
             </p>
             <nav className="auth-policies" aria-label="Legal">
               <Link href="/privacy">Privacy policy</Link>
