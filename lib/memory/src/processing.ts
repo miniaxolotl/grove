@@ -67,6 +67,11 @@ export const providerProfiles = (providers: Providers) => [
           providers.generation.profile,
           providers.embedding?.profile,
         ),
+        assistanceProfile(
+          providers.generation.profile,
+          providers.embedding?.profile,
+          "cleanup",
+        ),
       ]
     : []),
 ];

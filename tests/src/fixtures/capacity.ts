@@ -142,6 +142,7 @@ export async function capacityFixture(
           )
             return schema.parse({
               relationship: "unrelated",
+              support: [],
               reason: "",
               basis: "none",
               direction: "both",

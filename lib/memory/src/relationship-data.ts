@@ -14,6 +14,7 @@ import type {
   RelationshipAssessment,
   ConnectionEvidence,
 } from "@lib/shared/relationships";
+import { relationshipPolicyVersion } from "@lib/shared/relationships";
 
 export const relationshipKinds = [
   "relationship_scan",
@@ -30,7 +31,7 @@ export function relationshipProfile(
   profiles: Pick<ModelProfiles, "generation" | "embedding">,
 ) {
   return profiles.generation
-    ? `relationships-v2-${relationHash([profiles.generation, profiles.embedding])}`
+    ? `relationships-v3-${relationHash([relationshipPolicyVersion, profiles.generation, profiles.embedding])}`
     : null;
 }
 export const currentRelationshipProfile = (providers: Providers) =>

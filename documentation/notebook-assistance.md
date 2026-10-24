@@ -24,6 +24,11 @@ automatic note/notebook connections can stay off.
   pairs per pass. Coverage makes a partial scan explicit. **Keep both** is reversible;
   **Combine** previews both originals and archives the other note. **Update note**
   uses explicit replacement evidence. Age alone cannot establish supersession.
+  Duplicate/conflict suggestions use the same [substantive criteria](relationships.md)
+  as connections: shared templates/ratings or different subjects are insufficient.
+  Generation supplies a concrete, both-sided evidence bridge; weak overlap abstains
+  without proposing a merge. Cleanup policy changes invalidate old ready previews,
+  without changing action/filing/digest profiles or granting automatic write access.
 
 All mutations check the source versions again. A changed source requires a refreshed
 preview. Retried Apply requests return their original result; Undo refuses to

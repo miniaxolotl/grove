@@ -1,5 +1,6 @@
 import type { MemoryModel, Knex } from "@lib/database";
 import type { Providers } from "@lib/ai";
+import { relationshipTerms } from "./relationship-discovery.ts";
 import {
   activeNotes,
   connectionSource,
@@ -15,7 +16,12 @@ import {
 } from "./relationship-jobs.ts";
 
 type Representative = { id: string; vector: number[]; hash: string };
-type Candidate = { projectId: string; score: number; shared: number };
+type Candidate = {
+  projectId: string;
+  score: number;
+  shared: number;
+  lexical: number;
+};
 type ProfileData = {
   sum: number[];
   vectors: number;
@@ -45,30 +51,20 @@ export const similarity = (a: number[], b: number[]) =>
     : 0;
 export const vectorOf = (value: string | number[] | undefined): number[] =>
   typeof value === "string" ? JSON.parse(value) : (value ?? []);
-export const words = (content: string) =>
-  [...new Set(content.toLocaleLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [])]
-    .filter(
-      (s) =>
-        ![
-          "this",
-          "that",
-          "with",
-          "from",
-          "have",
-          "will",
-          "your",
-          "they",
-          "their",
-          "been",
-          "into",
-          "about",
-          "when",
-          "then",
-          "were",
-          "there",
-        ].includes(s),
-    )
-    .slice(0, 100);
+export const words = (content: string) => relationshipTerms(content, 100);
+
+/** Document frequency is a retrieval hint, never evidence of a semantic link. */
+function sharedTerms(left: Profile, right: Profile) {
+  return Object.entries(left.data.terms)
+    .filter(([term]) => Object.hasOwn(right.data.terms, term))
+    .map(([term, count]) => ({
+      term,
+      score:
+        Math.log1p(left.total / Math.max(1, count)) *
+        Math.log1p(right.total / Math.max(1, right.data.terms[term])),
+    }))
+    .sort((a, b) => b.score - a.score || a.term.localeCompare(b.term));
+}
 
 export async function scheduleNotebookProfiles(
   trx: Knex.Transaction,
@@ -193,11 +189,16 @@ export async function advanceNotebookProfile(
     }
   }
   data.hashes = [...seen];
-  data.terms = Object.fromEntries(
-    Object.entries(data.terms)
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 128),
+  const frequent = Object.entries(data.terms).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   );
+  // Reserve half the bounded vocabulary for minority subjects, not only templates.
+  const retained = new Map(frequent.slice(0, 64));
+  for (const [term, count] of frequent.slice().reverse()) {
+    if (retained.size >= 128) break;
+    retained.set(term, count);
+  }
+  data.terms = Object.fromEntries(retained);
   const processed = (saved?.processed ?? 0) + batch.length;
   const value: Profile = {
     projectId: project.id,
@@ -245,7 +246,7 @@ export async function advanceNotebookProfile(
         .orderBy("n.projectId")
         .select("n.*")
         .limit(20);
-  const ranked = [
+  const pool = [
     ...(data.candidates ?? []),
     ...others
       .map((p) => ({
@@ -256,21 +257,43 @@ export async function advanceNotebookProfile(
             p.data.representatives.map((b) => similarity(a.vector, b.vector)),
           ),
         ),
-        shared: Object.keys(data.terms).filter((t) =>
-          Object.hasOwn(p.data.terms, t),
-        ).length,
+        shared: sharedTerms(value, p).length,
+        lexical: sharedTerms(value, p).reduce(
+          (sum, term) => sum + term.score,
+          0,
+        ),
       }))
-      .filter((p) => p.score > 0.35 || p.shared >= 2),
-  ]
+      .filter((p) => p.score > 0.35 || p.shared >= 1),
+  ];
+  const lexical = pool
+    .filter((candidate) => candidate.shared > 0)
     .sort(
       (a, b) =>
+        b.lexical - a.lexical ||
         b.score - a.score ||
-        b.shared - a.shared ||
         a.projectId.localeCompare(b.projectId),
     )
     .slice(0, 5);
+  const vectors = pool
+    .filter((candidate) => candidate.score > 0.35)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.lexical - a.lexical ||
+        a.projectId.localeCompare(b.projectId),
+    )
+    .slice(0, 5);
+  // Retain both channel shortlists across pages (at most ten hints), then fuse
+  // rankings into the unchanged five-assessment cap. Neither channel is evidence.
+  data.candidates = [
+    ...new Map([...lexical, ...vectors].map((p) => [p.projectId, p])).values(),
+  ];
+  const fused = new Map<string, Candidate>();
+  for (let i = 0; i < 5; i++)
+    for (const candidate of [lexical[i], vectors[i]])
+      if (candidate) fused.set(candidate.projectId, candidate);
+  const ranked = [...fused.values()].slice(0, 5);
   data.candidateAfter = others.at(-1)?.projectId ?? data.candidateAfter;
-  data.candidates = ranked;
   data.discoveryComplete = others.length < 20;
   await trx("notebook_profiles")
     .where({ projectId: project.id, profile: job.profile })
@@ -330,9 +353,9 @@ export async function notebookPairInput(
       .slice(0, 4)
       .map((r) => r.id);
     add(await query().whereIn("id", refs).orderBy("id"));
-    const shared = Object.keys(own.data.terms)
-      .filter((t) => Object.hasOwn(other.data.terms, t))
-      .slice(0, 12)
+    const shared = sharedTerms(own, other)
+      .slice(0, 2)
+      .map((hint) => hint.term)
       .join(" OR ");
     if (shared)
       add(
