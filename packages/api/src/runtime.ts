@@ -27,6 +27,9 @@ export async function createRuntime() {
       "SELECT transcription_enabled,read_aloud_enabled,read_aloud_voice_id FROM accounts LIMIT 0",
     );
     await db.raw("SELECT synthesis_profiles FROM speech_configuration LIMIT 0");
+    await db.raw(
+      "SELECT speech_cache_key,speech_text_hash FROM export_objects LIMIT 0",
+    );
     if (env.MEDIA_STORAGE !== "disabled") {
       await db.raw(
         "SELECT status,lease_id,object_key,duration_ms FROM media_objects LIMIT 0",

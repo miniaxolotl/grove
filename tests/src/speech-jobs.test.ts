@@ -613,7 +613,7 @@ test("voice defaults are account-owned, partial and independent of consent gener
   await service.settings(principal, { readAloudVoiceId: "reed" });
 });
 
-test("voice requests route exactly, replay omitted defaults and reuse A→B→A audio with its original expiry", async () => {
+test("voice requests route exactly, replay omitted defaults and reuse A→B→A audio with a fresh receipt", async () => {
   const n = await service.remember(
     other,
     rememberSchema.parse({
@@ -660,7 +660,16 @@ test("voice requests route exactly, replay omitted defaults and reuse A→B→A 
   const receipt = await tenant(db, other.accountId, (trx) =>
     trx("background_tasks").where({ id: cached.id }).first(),
   );
-  assert.deepEqual(receipt.expiresAt, original.expiresAt);
+  assert(receipt.expiresAt > original.expiresAt);
+  assert.deepEqual(
+    (
+      await tenant(db, other.accountId, (trx) =>
+        trx("background_tasks").where({ id: first.id }).first(),
+      )
+    ).expiresAt,
+    original.expiresAt,
+    "reuse must not extend the original request's authorization window",
+  );
   assert.equal(receipt.result.key, original.result.key);
   await assert.rejects(jobs.audio(principal, cached.id));
   await service.settings(other, { readAloudVoiceId: "reed" });
@@ -742,7 +751,7 @@ test("per-voice cutovers fence mismatched and legacy workers while leaving Reed 
   assert.equal(calls, before);
   assert.equal((await jobs.get(other, legacy.id)).error, "speech_changed");
   const configuration = await db("speech_configuration").first();
-  assert.equal(configuration.synthesis, "speech-voices-v1");
+  assert.equal(configuration.synthesis, "speech-content-cache-v1");
   assert.notEqual(
     configuration.synthesis,
     providers.synthesis!.reed!.profile,

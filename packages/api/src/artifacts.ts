@@ -19,7 +19,7 @@ const validateKey = (key: string) => {
     "[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}";
   if (
     !/^exports\/[a-f0-9-]+\/[a-f0-9-]+\/[a-f0-9-]+\.ndjson$/.test(key) &&
-    !new RegExp(`^speech/${uuid}/${uuid}/${uuid}\\.mp3$`).test(key)
+    !new RegExp(`^(speech|narration)/${uuid}/${uuid}/${uuid}\\.mp3$`).test(key)
   )
     throw new Error("invalid_artifact_key");
   return key;
@@ -79,7 +79,7 @@ export function s3Artifacts(client: S3Client, bucket: string): ArtifactStore {
         Bucket: bucket,
         Key: validateKey(key),
         Body: data,
-        ContentType: key.startsWith("speech/")
+        ContentType: key.endsWith(".mp3")
           ? "audio/mpeg"
           : "application/x-ndjson",
         CacheControl: "private, no-store",
