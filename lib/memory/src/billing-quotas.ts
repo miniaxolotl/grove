@@ -198,6 +198,7 @@ export async function reserveAction(
   accountId: string,
   metric: ActionMetric,
   operation: string,
+  units: 1 | 5 = 5,
 ): Promise<ActionReservation | null> {
   const policy = await resourcePolicy(db, trx, accountId);
   if (!policy || policy.plan === "unlimited") return null;
@@ -231,9 +232,9 @@ export async function reserveAction(
             .where("leaseUntil", ">", trx.fn.now()),
         ),
     )
-    .count("id AS total")
+    .sum("units AS total")
     .first();
-  if (Number(count?.total ?? 0) >= policy.limits[metric])
+  if (Number(count?.total ?? 0) + units > policy.limits[metric] * 5)
     throw new UsageLimitError(metric, new Date(clock.reset).toISOString());
   const leaseId = randomUUID();
   const values = {
@@ -242,6 +243,7 @@ export async function reserveAction(
     operation,
     period: clock.period,
     status: "reserved",
+    units,
     leaseId,
     leaseUntil: trx.raw("now()+interval '15 minutes'"),
   };
@@ -283,6 +285,84 @@ export async function settleAction(
         409,
       );
   }
+}
+/** Promote a discounted provisional reservation before any paid work is sent.
+ * Limits remain independent per metric; no shared/pooled credit balance exists. */
+export async function ensureActionUnits(
+  db: Knex,
+  trx: Knex.Transaction,
+  reservation: ActionReservation | null,
+  units: 1 | 5,
+) {
+  if (!reservation) return;
+  const row = await trx("action_usage")
+    .where({ id: reservation.id, leaseId: reservation.leaseId })
+    .first();
+  if (
+    !row ||
+    row.status === "released" ||
+    (row.status === "completed" && units <= row.units)
+  )
+    return;
+  await lockUsage(trx, row.accountId);
+  const current = await trx("action_usage")
+    .where({ id: reservation.id, leaseId: reservation.leaseId })
+    .where((q) =>
+      q
+        .where({ status: "completed" })
+        .orWhere((q) =>
+          q
+            .where({ status: "reserved" })
+            .where("leaseUntil", ">", trx.fn.now()),
+        ),
+    )
+    .first();
+  if (!current)
+    throw new GroveError(
+      "usage_changed",
+      "This operation expired. Try again.",
+      409,
+    );
+  const policy = await resourcePolicy(db, trx, row.accountId);
+  if (units > current.units && policy && policy.plan !== "unlimited") {
+    const count = await trx("action_usage")
+      .where({
+        accountId: row.accountId,
+        metric: row.metric,
+        period: row.period,
+      })
+      .whereNot({ id: row.id })
+      .where((q) =>
+        q
+          .where({ status: "completed" })
+          .orWhere((q) =>
+            q
+              .where({ status: "reserved" })
+              .where("leaseUntil", ">", trx.fn.now()),
+          ),
+      )
+      .sum("units AS total")
+      .first();
+    if (
+      Number(count?.total ?? 0) + units >
+      policy.limits[row.metric as ActionMetric] * 5
+    ) {
+      const {
+        rows: [clock],
+      } = await trx.raw(
+        "SELECT (?::date+interval '1 month') AT TIME ZONE 'UTC' AS reset",
+        [row.period],
+      );
+      throw new UsageLimitError(
+        row.metric,
+        new Date(clock.reset).toISOString(),
+      );
+    }
+  }
+  await trx("action_usage")
+    .where({ id: row.id, leaseId: reservation.leaseId })
+    .whereIn("status", ["reserved", "completed"])
+    .update({ units });
 }
 export async function settleNamedAction(
   trx: Knex.Transaction,
@@ -329,7 +409,7 @@ export async function resourceUsage(
     .select(
       "metric",
       trx.raw(
-        "count(*) FILTER(WHERE status='completed') AS used, count(*) FILTER(WHERE status='reserved' AND lease_until>now()) AS reserved",
+        "COALESCE(sum(units) FILTER(WHERE status='completed'),0) AS used, COALESCE(sum(units) FILTER(WHERE status='reserved' AND lease_until>now()),0) AS reserved, count(*) FILTER(WHERE status='completed' AND units=1) AS cached, count(*) FILTER(WHERE status='completed' AND units=5) AS fresh",
       ),
     );
   const metrics = {} as ResourceUsage["metrics"];
@@ -341,8 +421,12 @@ export async function resourceUsage(
   ] as const) {
     const row = rows.find((r) => r.metric === metric);
     metrics[metric] = {
-      used: Number(row?.used ?? 0),
-      reserved: Number(row?.reserved ?? 0),
+      used: Number(row?.used ?? 0) / 5,
+      reserved: Number(row?.reserved ?? 0) / 5,
+      cache: {
+        cached: Number(row?.cached ?? 0),
+        fresh: Number(row?.fresh ?? 0),
+      },
       limit: policy.plan === "unlimited" ? null : policy.limits[metric],
     };
   }

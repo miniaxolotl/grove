@@ -197,6 +197,110 @@ async function fixture(
   return { principal, providers, service, worker, drain };
 }
 
+test("metadata-only revisions reuse document embeddings and title/tag work", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, {
+    classificationEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+    personalSummaryEnabled: false,
+    notebookSummariesEnabled: false,
+  });
+  let embeddings = 0,
+    titles = 0;
+  const embed = f.providers.embedding!.embed,
+    generate = f.providers.generation!.generate;
+  f.providers.embedding!.embed = async (...args) => {
+    embeddings++;
+    return embed(...args);
+  };
+  f.providers.generation!.generate = async (...args) => {
+    titles++;
+    return generate(...args);
+  };
+  const note = await f.service.remember(
+    f.principal,
+    input("Garden irrigation settings"),
+  );
+  await f.drain();
+  assert.equal(embeddings, 1);
+  assert.equal(titles, 1);
+  const notebook = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  const moved = await f.service.remember(
+    f.principal,
+    input(note.content, {
+      id: note.id,
+      expectedVersion: note.version,
+      projectId: notebook.id,
+    }),
+  );
+  await f.drain();
+  assert.equal(
+    embeddings,
+    1,
+    "metadata-only moves must not send text for embedding again",
+  );
+  assert.equal(titles, 1, "unchanged content must not regenerate title/tags");
+  const vectors = await admin("memory_embeddings").where({
+    memoryId: note.id,
+    version: moved.version,
+  });
+  assert.equal(
+    vectors.length,
+    1,
+    "reused vectors belong to the current revision",
+  );
+  await f.service.remember(
+    f.principal,
+    input("Updated irrigation settings", {
+      id: note.id,
+      expectedVersion: moved.version,
+      projectId: notebook.id,
+    }),
+  );
+  await f.drain();
+  assert.equal(embeddings, 2);
+  assert.equal(titles, 2);
+});
+
+test("exact read-only answers reuse generation but source revisions immediately require fresh work", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, {
+    classificationEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+    personalSummaryEnabled: false,
+    notebookSummariesEnabled: false,
+  });
+  const note = await f.service.remember(
+    f.principal,
+    input("Garden irrigation uses rainwater."),
+  );
+  await f.drain();
+  let answers = 0;
+  const generate = f.providers.generation!.generate;
+  f.providers.generation!.generate = async (...args) => {
+    if (Object.is(args[0], answerSchema)) answers++;
+    return generate(...args);
+  };
+  const question = askSchema.parse({ query: "garden irrigation" });
+  await f.service.ask(f.principal, question);
+  await f.service.ask(f.principal, question);
+  assert.equal(answers, 1);
+  await f.service.remember(
+    f.principal,
+    input("Garden irrigation now uses tap water.", {
+      id: note.id,
+      expectedVersion: note.version,
+    }),
+  );
+  await f.service.ask(f.principal, question);
+  assert.equal(answers, 2);
+});
+
 test("settings HTTP updates are partial, legacy-compatible and restricted to the owning session", async () => {
   const f = await fixture();
   const other = await fixture();

@@ -2,6 +2,11 @@ export const billingFlagKey = "billing-enabled";
 export const billingPriceFlagKey = "billing-pro-monthly-usd";
 /** User-facing actions are independent of provider-attempt safety budgets. */
 export type ActionMetric = "recall" | "ask" | "organization" | "assistance";
+export type ActionUsageReceipt = {
+  feature: ActionMetric;
+  status: "fresh" | "cached" | "mixed";
+  actions: 0 | 0.2 | 1 | null;
+};
 export type ResourceLimits = Record<
   ActionMetric | "notes" | "notebooks" | "concurrency",
   number
@@ -31,7 +36,12 @@ export type ResourceUsage = {
   resetAt: string;
   metrics: Record<
     ActionMetric | "notes" | "notebooks",
-    { used: number; reserved: number; limit: number | null }
+    {
+      used: number;
+      reserved: number;
+      limit: number | null;
+      cache?: { cached: number; fresh: number };
+    }
   >;
 };
 export type BillingMetric =

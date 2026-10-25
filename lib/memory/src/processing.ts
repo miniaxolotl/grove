@@ -10,6 +10,8 @@ import { createHash } from "node:crypto";
 import { currentTelemetry } from "@lib/telemetry/context";
 import { processingLease } from "./job-lease.ts";
 import { retryDelay } from "./task-runner.ts";
+import { cachedWork } from "./ai-cache.ts";
+import { beforePaidWork, withActionCacheWork } from "./action-context.ts";
 import type { QueueLane } from "@lib/shared/jobs";
 import { resourceLimits } from "@lib/shared/billing";
 import {
@@ -27,6 +29,7 @@ import {
 import {
   briefContentSchema,
   organizationSchema,
+  annotationSchema,
   type Brief,
   type BriefRequest,
   type SourceRef,
@@ -64,6 +67,7 @@ import {
   settleNamedAction,
   UsageLimitError,
   withGenerationSlot,
+  ensureActionUnits,
   type ActionReservation,
 } from "./billing-quotas.ts";
 
@@ -425,21 +429,45 @@ export async function queryEmbedding(
   const covered = await tenant(db, accountId, (trx) =>
     billingPlan(db, trx, accountId),
   );
-  return budgetedInference(
+  const result = await cachedWork(
     db,
     accountId,
-    covered ? "retrieval" : "embedding",
-    limit,
-    (options) =>
-      embedder.embed(text, "query", {
-        ...options,
-        signal: AbortSignal.any([
-          AbortSignal.timeout(850),
-          ...(options.signal ? [options.signal] : []),
-          ...(signal ? [signal] : []),
-        ]),
-      }),
+    "query_embedding",
+    [embedder.profile, embedder.model, embedder.dimensions, "query", text],
+    {
+      ttlMs: 24 * 60 * 60_000,
+      providerProfile: embedder.profile,
+      signal,
+      validate: (value) => {
+        if (
+          !Array.isArray(value) ||
+          value.length !== embedder.dimensions ||
+          value.some((n) => typeof n !== "number" || !Number.isFinite(n)) ||
+          !value.some((n) => n !== 0)
+        )
+          throw new InferenceError("embedding_profile_mismatch", false);
+        return value as number[];
+      },
+      run: (cacheSignal) =>
+        budgetedInference(
+          db,
+          accountId,
+          covered ? "retrieval" : "embedding",
+          limit,
+          (options) =>
+            embedder.embed(text, "query", {
+              ...options,
+              signal: AbortSignal.any([
+                AbortSignal.timeout(850),
+                ...(options.signal ? [options.signal] : []),
+                ...(signal ? [signal] : []),
+                cacheSignal,
+              ]),
+            }),
+        ),
+    },
   );
+  return result.value;
 }
 export async function budgetedInference<T>(
   db: Knex,
@@ -449,6 +477,7 @@ export async function budgetedInference<T>(
   run: (options: InferenceOptions) => Promise<T>,
 ) {
   const invoke = async () => {
+    await beforePaidWork();
     const allowed = await tenant(db, accountId, (trx) =>
       reserve(db, trx, accountId, role, limit),
     );
@@ -563,6 +592,7 @@ export async function runProcessingJob(
   let action: ActionReservation | null = null;
   const started = performance.now();
   let completed = false;
+  let cachedOnly = false;
   let failed = false;
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
   const role =
@@ -652,6 +682,7 @@ export async function runProcessingJob(
           job.accountId,
           "organization",
           job.scope.action,
+          1,
         );
       if (job.kind === "brief" && job.scope?.usageOperation)
         action = await reserveAction(
@@ -661,7 +692,10 @@ export async function runProcessingJob(
           "assistance",
           job.scope.usageOperation,
         );
-      if (!(await reserve(db, trx, job.accountId, role, dailyLimit))) {
+      if (
+        job.kind === "brief" &&
+        !(await reserve(db, trx, job.accountId, role, dailyLimit))
+      ) {
         await settleAction(trx, action, "released");
         await trx("jobs")
           .where({ id: job.id, leaseId: job.leaseId })
@@ -691,16 +725,62 @@ export async function runProcessingJob(
       },
     };
     const sources = input.rows.map(source);
+    const noteWork = async <T>(
+      feature: "document_embedding" | "classification" | "organization",
+      key: unknown,
+      validate: (value: unknown) => T,
+      run: (options: InferenceOptions) => Promise<T>,
+    ) => {
+      const work = await withActionCacheWork(
+        () =>
+          tenant(db, job.accountId, (trx) =>
+            ensureActionUnits(db, trx, action, 5),
+          ),
+        () =>
+          cachedWork(db, job.accountId, feature, key, {
+            ttlMs: 7 * 24 * 60 * 60_000,
+            providerProfile: job.profile,
+            signal: lease.signal,
+            validate,
+            run: (signal) =>
+              budgetedInference(
+                db,
+                job.accountId,
+                role,
+                dailyLimit,
+                (options) => run({ ...options, signal }),
+              ),
+          }),
+      );
+      cachedOnly = work.cached;
+      return work.value.value;
+    };
     let embedding: number[] | undefined;
     let annotation: Annotation | undefined;
     let organization: Organization | undefined;
     let brief: Brief["content"];
     if (job.kind === "embedding") {
       await registerEmbedding(db, providers.embedding!);
-      embedding = await providers.embedding!.embed(
-        sources[0].content,
-        "document",
-        options,
+      embedding = await noteWork(
+        "document_embedding",
+        [
+          job.profile,
+          providers.embedding!.model,
+          providers.embedding!.dimensions,
+          sources[0].content,
+        ],
+        (value) => {
+          if (
+            !Array.isArray(value) ||
+            value.length !== providers.embedding!.dimensions ||
+            value.some((n) => typeof n !== "number" || !Number.isFinite(n)) ||
+            !value.some((n) => n !== 0)
+          )
+            throw new InferenceError("embedding_profile_mismatch", false);
+          return value as number[];
+        },
+        (options) =>
+          providers.embedding!.embed(sources[0].content, "document", options),
       );
       if (
         embedding.length !== providers.embedding!.dimensions ||
@@ -708,25 +788,52 @@ export async function runProcessingJob(
       )
         throw new InferenceError("embedding_profile_mismatch", false);
     } else if (job.kind === "decision")
-      annotation = await providers.decision!.classify(
-        sources[0],
-        input.candidates.map(source),
-        options,
+      annotation = await noteWork(
+        "classification",
+        [
+          job.profile,
+          "classification-v1",
+          input.rows[0].projectId,
+          {
+            id: sources[0].id,
+            content: sources[0].content,
+            kind: sources[0].kind,
+            verification: sources[0].verification,
+          },
+          input.candidates.map(source),
+        ],
+        (value) => annotationSchema.parse(value),
+        (options) =>
+          providers.decision!.classify(
+            sources[0],
+            input.candidates.map(source),
+            options,
+          ),
       );
-    else if (job.kind === "organization")
-      organization = await withGenerationSlot(
-        db,
-        job.accountId,
-        (signal) =>
+    else if (job.kind === "organization") {
+      const instructions =
+        "Write a short factual title and up to six concise lowercase topic tags for this memory. Preserve its meaning.";
+      organization = await noteWork(
+        "organization",
+        [
+          job.profile,
+          instructions,
+          {
+            content: sources[0].content,
+            kind: sources[0].kind,
+            verification: sources[0].verification,
+          },
+        ],
+        (value) => organizationSchema.parse(value),
+        (options) =>
           providers.generation!.generate(
             organizationSchema,
-            "Write a short factual title and up to six concise lowercase topic tags for this memory. Preserve its meaning.",
+            instructions,
             sources,
-            { ...options, signal },
+            options,
           ),
-        lease.signal,
       );
-    else {
+    } else {
       brief = sources.length
         ? await withGenerationSlot(
             db,
@@ -783,6 +890,33 @@ export async function runProcessingJob(
       if (!processingEnabled(account, job.kind, job.scope)) {
         await trx("jobs").where({ id: job.id }).delete();
         return;
+      }
+      if (job.kind === "decision" && input.candidates.length) {
+        const candidates = await eligible(trx).whereIn(
+          "id",
+          input.candidates.map((candidate) => candidate.id),
+        );
+        if (
+          input.candidates.some(
+            (candidate) =>
+              !candidates.some(
+                (current) =>
+                  current.id === candidate.id &&
+                  current.version === candidate.version &&
+                  current.projectId === candidate.projectId,
+              ),
+          )
+        ) {
+          await trx("jobs")
+            .where({ id: job.id, leaseId: job.leaseId })
+            .update({
+              leaseId: null,
+              leaseUntil: null,
+              attempts: 0,
+              dueAt: trx.raw("now()+interval '5 seconds'"),
+            });
+          return;
+        }
       }
       if (
         job.kind === "brief" &&
@@ -886,13 +1020,18 @@ export async function runProcessingJob(
           "completed",
           true,
         );
-      else await settleAction(trx, action, "completed");
+      else {
+        await ensureActionUnits(db, trx, action, cachedOnly ? 1 : 5);
+        await settleAction(trx, action, "completed");
+      }
       await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
       completed = true;
     });
   } catch (error) {
     failed = true;
     const quota = error instanceof UsageLimitError;
+    const budget =
+      error instanceof InferenceError && error.code === "inference_budget";
     const code =
       error instanceof InferenceError ? error.code : "processing_unavailable";
     await tenant(db, job.accountId, async (trx) => {
@@ -901,9 +1040,11 @@ export async function runProcessingJob(
         .update({
           leaseId: null,
           leaseUntil: null,
-          attempts: quota ? Math.max(0, job.attempts - 1) : job.attempts,
-          dueAt:
-            quota && error.resetAt
+          attempts:
+            quota || budget ? Math.max(0, job.attempts - 1) : job.attempts,
+          dueAt: budget
+            ? trx.raw("date_trunc('day',now())+interval '1 day'")
+            : quota && error.resetAt
               ? new Date(error.resetAt)
               : trx.raw("now() + (? * interval '1 second')", [
                   quota ? 1 : retryDelay(job.attempts),
@@ -911,6 +1052,7 @@ export async function runProcessingJob(
           errorCode: quota ? error.code : code,
           failedAt:
             !quota &&
+            !budget &&
             (job.attempts >= 5 ||
               (error instanceof InferenceError && !error.retryable))
               ? trx.fn.now()
@@ -930,7 +1072,7 @@ export async function runProcessingJob(
       started,
       failed ? "unavailable" : completed ? "success" : "cancelled",
     );
-    await recordUsage(db, job.accountId, role, usage);
+    if (job.kind === "brief") await recordUsage(db, job.accountId, role, usage);
   }
   return true;
 }

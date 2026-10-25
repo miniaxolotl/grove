@@ -394,8 +394,12 @@ export function AskGrove({
       if (!historySignal && !signal.aborted) setLoading(false);
     }
   }
-  async function ask(format: "plain" | "markdown", retry?: ConversationTurn) {
-    const question = retry?.question ?? draft.trim();
+  async function ask(
+    format: "plain" | "markdown",
+    retry?: ConversationTurn,
+    refresh?: ConversationTurn,
+  ) {
+    const question = refresh?.question ?? retry?.question ?? draft.trim();
     if (
       !question ||
       running.current ||
@@ -417,6 +421,7 @@ export function AskGrove({
       query: question,
       format: retry?.format ?? format,
       expectedVersion: retry?.expectedVersion ?? conversation?.version ?? 0,
+      ...(refresh || retry?.refreshSources ? { refreshSources: true } : {}),
     };
     try {
       let chat = conversation;
@@ -444,6 +449,7 @@ export function AskGrove({
         result: null,
         error: null,
         createdAt: new Date().toISOString(),
+        ...(input.refreshSources ? { refreshSources: true } : {}),
       };
       setUnconfirmed(turn);
       setConversation({
@@ -453,7 +459,7 @@ export function AskGrove({
           ? chat.turns.map((t) => (t.id === retry.id ? turn : t))
           : [...chat.turns, turn],
       });
-      if (!retry) setDraft("");
+      if (!retry && !refresh) setDraft("");
       const result = await api<Conversation>(
         `/conversations/${id}/turns`,
         input,
@@ -755,6 +761,36 @@ export function AskGrove({
                           onUndo={() => void apply(turn, true)}
                         />
                       )}
+                      {turn.result?.usage ? (
+                        <p className="ask-answer-note">
+                          {turn.result.usage.status === "cached"
+                            ? "Cached"
+                            : turn.result.usage.status === "mixed"
+                              ? "Partly cached"
+                              : "Fresh"}
+                          {turn.result.usage.actions !== null
+                            ? ` · ${turn.result.usage.actions} ${turn.result.usage.actions === 1 ? "action" : "actions"}`
+                            : ""}
+                        </p>
+                      ) : null}
+                      {turn.status === "ready" &&
+                      turn.result &&
+                      !turn.result.proposal &&
+                      !turn.result.organization &&
+                      !turn.result.lifecycle &&
+                      index === conversation.turns.length - 1 ? (
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={
+                            pending || loading || !!actionBusy || toolsBusy
+                          }
+                          title="Read current notes and refresh web sources. Fresh work uses one Ask action."
+                          onClick={() => void ask(turn.format, undefined, turn)}
+                        >
+                          Refresh sources
+                        </button>
+                      ) : null}
                       {turn.toolRuns?.some(
                         (run) => run.status === "limited",
                       ) && (
@@ -879,6 +915,18 @@ export function AskGrove({
                       ? "Search couldn’t finish"
                       : `${visibleSearch.result!.sources.length} ${visibleSearch.result!.sources.length === 1 ? "note" : "notes"} found`}
               </p>
+              {visibleSearch?.result?.usage ? (
+                <p className="ask-answer-note">
+                  {visibleSearch.result.usage.status === "cached"
+                    ? "Cached"
+                    : visibleSearch.result.usage.status === "mixed"
+                      ? "Partly cached"
+                      : "Fresh"}
+                  {visibleSearch.result.usage.actions !== null
+                    ? ` · ${visibleSearch.result.usage.actions} ${visibleSearch.result.usage.actions === 1 ? "action" : "actions"}`
+                    : ""}
+                </p>
+              ) : null}
             </div>
             <div
               className="ask-search-results"

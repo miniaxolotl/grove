@@ -587,11 +587,21 @@ export class WorkspaceCache {
       }
       if (query.queryKey[2] === "/ask") {
         const data = query.state.data as AskResult | undefined;
+        const stale = data?.sources.some((old) => {
+          const note = notes.has(old.id) ? notes.get(old.id) : old;
+          return (
+            !note ||
+            note.version !== old.version ||
+            note.projectId !== old.projectId ||
+            !belongs(note, noteFilters())
+          );
+        });
         if (data)
           this.client.setQueryData(
             query.queryKey,
             {
               ...data,
+              ...(stale ? { answer: null, status: "no_evidence" } : {}),
               sources: data.sources.flatMap((old) => {
                 const note = notes.has(old.id) ? notes.get(old.id) : old;
                 return note && belongs(note, noteFilters()) ? [note] : [];
@@ -599,6 +609,59 @@ export class WorkspaceCache {
             },
             { updatedAt: query.state.dataUpdatedAt },
           );
+      }
+      if (
+        typeof query.queryKey[2] === "string" &&
+        query.queryKey[2].startsWith("/conversations/")
+      ) {
+        const data = query.state.data as Conversation | undefined;
+        if (data?.turns) {
+          let changed = false;
+          const turns = data.turns.map((turn) => {
+            const result = turn.result;
+            if (
+              !result ||
+              result.stale ||
+              result.proposal ||
+              result.organization ||
+              result.lifecycle
+            )
+              return turn;
+            const stale =
+              (result.webExpiresAt &&
+                Date.parse(result.webExpiresAt) <= Date.now()) ||
+              result.sources.some((old) => {
+                const note = notes.has(old.id) ? notes.get(old.id) : old;
+                return (
+                  !note ||
+                  note.version !== old.version ||
+                  note.projectId !== old.projectId ||
+                  !belongs(note, noteFilters())
+                );
+              });
+            if (!stale) return turn;
+            changed = true;
+            return {
+              ...turn,
+              result: {
+                ...result,
+                stale: true,
+                message:
+                  "These sources changed or expired. Refresh sources for an updated answer.",
+                statements: [],
+                webStatements: [],
+                webSources: [],
+                sources: [],
+              },
+            };
+          });
+          if (changed)
+            this.client.setQueryData(
+              query.queryKey,
+              { ...data, turns },
+              { updatedAt: query.state.dataUpdatedAt },
+            );
+        }
       }
       if (
         query.queryKey[2] === "/briefs" &&
@@ -628,6 +691,28 @@ export class WorkspaceCache {
       .getAll()
       .flatMap((query) => {
         const kind = query.queryKey[1];
+        if (
+          kind === "resource" &&
+          typeof query.queryKey[2] === "string" &&
+          query.queryKey[2].startsWith("/conversations/")
+        ) {
+          const data = query.state.data as Conversation | undefined;
+          return (
+            data?.turns?.flatMap((turn) =>
+              turn.result && !turn.result.stale
+                ? [
+                    turn.result.webExpiresAt,
+                    ...turn.result.sources.flatMap((note) => [
+                      note.expiresAt,
+                      note.purgeAt,
+                    ]),
+                  ].flatMap((value) =>
+                    value && Date.parse(value) > now ? [Date.parse(value)] : [],
+                  )
+                : [],
+            ) ?? []
+          );
+        }
         const notes =
           kind === "note"
             ? [query.state.data as Memory | null]

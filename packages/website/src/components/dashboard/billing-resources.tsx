@@ -66,6 +66,17 @@ export function BillingResources({ usage }: { usage: ResourceUsage }) {
                     />
                   </dd>
                 ) : null}
+                {!storage &&
+                value.cache &&
+                value.cache.fresh + value.cache.cached > 0 ? (
+                  <dd className="billing-metric-note">
+                    <span>
+                      {count(value.cache.fresh)} fresh ·{" "}
+                      {count(value.cache.cached)} cached requests
+                      {value.cache.cached > 0 ? ` · ${count(value.cache.cached * 4 / 5)} actions saved` : ""}
+                    </span>
+                  </dd>
+                ) : null}
                 {value.reserved > 0 || ratio >= 0.8 ? (
                   <dd className="billing-metric-note">
                     {value.reserved > 0 ? (
@@ -95,6 +106,13 @@ export function BillingResources({ usage }: { usage: ResourceUsage }) {
       <p className="billing-caption billing-resource-help">
         Editing, keyword search and export stay available. Autosaves and
         internal retries don’t use extra actions.
+        {Object.values(usage.metrics).some((metric) => metric.cache) ? (
+          <>
+            {" "}
+            Each allowance stays separate. Fresh requests use 1 action; fully
+            cached requests use 0.2.
+          </>
+        ) : null}
       </p>
     </section>
   );

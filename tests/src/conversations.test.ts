@@ -176,6 +176,139 @@ async function fixture() {
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
 
+test("unchanged failed-turn retries reuse the validated plan", async () => {
+  const f = await fixture();
+  await f.save("Garden watering schedule");
+  const chat = await f.create(),
+    input = turn("Find garden notes");
+  f.behavior.fail = true;
+  await assert.rejects(
+    f.service.conversations.turn(f.principal, chat.id, input),
+  );
+  f.behavior.fail = false;
+  await f.service.conversations.turn(f.principal, chat.id, input);
+  assert.equal(
+    f.behavior.schemas.filter((s) => s === conversationPlanSchema).length,
+    1,
+  );
+});
+
+test("recent exact research is reused across questions in the same account", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost guide", urls: [] }];
+  for (const question of ["Find compost guidance", "Research garden compost"]) {
+    const chat = await f.create();
+    await f.service.conversations.turn(f.principal, chat.id, turn(question));
+  }
+  assert.equal(calls, 1);
+});
+
+test("read-only conversation generation reuses exact evidence but not changed notes", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden needs morning water");
+  const ask = async () => {
+    const chat = await f.create();
+    return f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Find garden notes"),
+    );
+  };
+  await ask();
+  const reused = await ask();
+  assert.equal(reused.turns[0].result?.usage?.status, "cached", "identical question, context and evidence need no paid planning or answering");
+  assert.equal(
+    f.behavior.schemas.filter((s) => s !== conversationPlanSchema).length,
+    1,
+  );
+  await f.save("Garden needs evening water", {
+    id: note.id,
+    expectedVersion: note.version,
+  });
+  await ask();
+  assert.equal(
+    f.behavior.schemas.filter((s) => s !== conversationPlanSchema).length,
+    2,
+  );
+});
+
+test("explicit source refresh replaces cached research without repeating paid work on ready-turn replay", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost guide", urls: [] }];
+  const first = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    first.id,
+    turn("Research garden compost"),
+  );
+  const second = await f.create();
+  const refresh = conversationTurnSchema.parse({
+    ...turn("Research garden compost"),
+    refreshSources: true,
+  });
+  await f.service.conversations.turn(f.principal, second.id, refresh);
+  await f.service.conversations.turn(f.principal, second.id, refresh);
+  assert.equal(calls, 2);
+  const third = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    third.id,
+    turn("Research garden compost"),
+  );
+  assert.equal(
+    calls,
+    2,
+    "ordinary requests use the explicitly refreshed evidence",
+  );
+});
+
+test("changed notes immediately stop supporting a stored read-only answer without deleting conversation history", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden needs morning water");
+  const chat = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Find garden notes"),
+  );
+  await f.save("Garden needs evening water", {
+    id: note.id,
+    expectedVersion: note.version,
+  });
+  const read = await f.service.conversations.get(f.principal, chat.id);
+  assert.equal(read.turns.length, 1);
+  assert.deepEqual(read.turns[0].result!.statements, []);
+  assert.match(read.turns[0].result!.message, /changed|expired/i);
+  const stored = await admin("conversation_turns")
+    .where({ conversationId: chat.id })
+    .first();
+  assert.equal(
+    stored.result.statements.length,
+    1,
+    "retained history is not physically deleted",
+  );
+});
+
 test("Ask moves existing notebooks with atomic version checks and exact hierarchy Undo", async () => {
   const f = await fixture();
   const root = await f.service.project(f.principal, {

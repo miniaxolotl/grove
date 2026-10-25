@@ -213,6 +213,7 @@ export type Principal = {
   capabilities: Capability[];
 };
 export type Page<T> = {
+  usage?: import("./billing.ts").ActionUsageReceipt;
   visit?: {
     projectId: string;
     token: string;
@@ -224,6 +225,7 @@ export type Page<T> = {
   searchMode?: "hybrid" | "lexical";
 };
 export type RecallResult = {
+  usage?: import("./billing.ts").ActionUsageReceipt;
   items: Memory[];
   mode: "hybrid" | "lexical" | "profile";
   contentVersion: number;
