@@ -17,6 +17,12 @@ save replies, default-off opt-in, cancellation and exact-pin recovery without lo
 the agenda. The broader assistance tests retain offline expiry and existing flows.
 
 Reviewed at 1440/390/320px with WCAG A/AA, horizontal-overflow and page-error checks.
+The refreshed captures use source `56b675dcc1fdceeed6f354be678e13645e5d6b45`
+and production CSS/build `TbNm5ggTLWqDzmLQS5OoP`. The first three are Chromium
+real-service captures; the partial-source capture is supported Noble WebKit with a
+synthetic API response. Five focused WebKit cases pass, including lost replies,
+consent, cancellation, exact-pin recovery and offline expiry.
+
 Screenshots verify layout and browser behavior, not semantic model accuracy, paid
-provider latency or physical-device keyboards. Source/build and final test counts
-are recorded in [delivery](../../../delivery.md) after final verification.
+provider latency or physical-device keyboards. Verification counts and remaining
+qualification limits are recorded in [delivery](../../../delivery.md).

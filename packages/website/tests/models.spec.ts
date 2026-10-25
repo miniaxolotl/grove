@@ -176,7 +176,12 @@ test("categorized AI preferences persist independently with provider availabilit
     "Speech",
   ])
     await expect(page.getByRole("group", { name, exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox")).toHaveCount(16);
+  await expect(page.getByRole("checkbox")).toHaveCount(17);
+  const meeting = page.getByRole("checkbox", {
+    name: "Meeting preparation",
+    exact: true,
+  });
+  await expect(meeting).not.toBeChecked();
   const titles = page.getByRole("checkbox", {
     name: "Titles and tags",
     exact: true,
@@ -211,6 +216,11 @@ test("categorized AI preferences persist independently with provider availabilit
   await page.getByRole("button", { name: "Save preferences" }).click();
   await page.reload();
   await expect(titles).toBeChecked();
+  await expect(meeting).not.toBeChecked();
+  await meeting.check();
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await page.reload();
+  await expect(meeting).toBeChecked();
   await expect(
     page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
   ).not.toBeChecked();
@@ -766,60 +776,124 @@ test("source-linked personal context exposes current revision links and honest q
   ).toHaveCount(0);
 });
 
-test("notebook summary coverage, compact refresh and exact source revisions stay accessible", async ({ page }, info) => {
-  const project = { id: "00000000-0000-4000-8000-000000000041", name: "Japan trip", identity: "japan", version: 1, parentId: null };
+test("notebook summary coverage, compact refresh and exact source revisions stay accessible", async ({
+  page,
+}, info) => {
+  const project = {
+    id: "00000000-0000-4000-8000-000000000041",
+    name: "Japan trip",
+    identity: "japan",
+    version: 1,
+    parentId: null,
+  };
   const id = "00000000-0000-4000-8000-000000000042";
   let pending = false;
   let finish!: () => void;
-  const held = new Promise<void>((resolve) => { finish = resolve; });
+  const held = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
   await page.route("**/api/grove/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
-    else if (path.endsWith("/me")) data = { accountId: "summary-owner", ...preferencesFor({}) };
-    else if (path.endsWith("/memories/search")) data = { items: [], nextCursor: null, searchMode: "lexical" };
+    else if (path.endsWith("/me"))
+      data = { accountId: "summary-owner", ...preferencesFor({}) };
+    else if (path.endsWith("/memories/search"))
+      data = { items: [], nextCursor: null, searchMode: "lexical" };
     else if (path.includes("/briefs")) {
-      if (path.endsWith("/refresh")) { await held; pending = true; }
+      if (path.endsWith("/refresh")) {
+        await held;
+        pending = true;
+      }
       data = {
-        scope: { projectId: project.id }, status: pending ? "pending" : "ready", profile: "summary-fixture",
-        sourceCount: 86, coverage: { total: 86, examined: 86, cited: 3 }, truncated: false,
+        scope: { projectId: project.id },
+        status: pending ? "pending" : "ready",
+        profile: "summary-fixture",
+        sourceCount: 86,
+        coverage: { total: 86, examined: 86, cited: 3 },
+        truncated: false,
         updatedAt: "2026-10-22T10:00:00Z",
-        content: pending ? null : { title: "A week in Japan", sections: [{ heading: "Bookings", statements: [{
-          text: "Take the night train to Kyoto.", sources: [{ id, version: 3 }],
-        }] }] },
+        content: pending
+          ? null
+          : {
+              title: "A week in Japan",
+              sections: [
+                {
+                  heading: "Bookings",
+                  statements: [
+                    {
+                      text: "Take the night train to Kyoto.",
+                      sources: [{ id, version: 3 }],
+                    },
+                  ],
+                },
+              ],
+            },
       };
-    } else if (path.endsWith(`/memories/${id}/revisions/3`)) data = {
-      id, version: 3, currentVersion: 5, content: "# Kyoto\n\nReserve the night train.",
-      createdAt: "2026-10-20T10:00:00Z", expiresAt: null,
-    };
+    } else if (path.endsWith(`/memories/${id}/revisions/3`))
+      data = {
+        id,
+        version: 3,
+        currentVersion: 5,
+        content: "# Kyoto\n\nReserve the night train.",
+        createdAt: "2026-10-20T10:00:00Z",
+        expiresAt: null,
+      };
     await route.fulfill({ json: { success: true, data } });
   });
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
-  await page.getByRole("button", { name: "Summarize notebook", exact: true }).click();
-  await expect(page.getByText(/86 of 86 notes examined · 3 cited/)).toBeVisible();
-  const refresh = page.getByRole("button", { name: "Refresh summary", exact: true });
+  await page
+    .getByRole("button", { name: "Summarize notebook", exact: true })
+    .click();
+  await expect(
+    page.getByText(/86 of 86 notes examined · 3 cited/),
+  ).toBeVisible();
+  const refresh = page.getByRole("button", {
+    name: "Refresh summary",
+    exact: true,
+  });
   await expect(refresh).toHaveAttribute("title", "Refresh summary");
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(refresh).toBeInViewport();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
-    await page.screenshot({ path: info.outputPath(`notebook-summary-${width}.png`) });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`notebook-summary-${width}.png`),
+    });
   }
   const before = await refresh.boundingBox();
   await refresh.click();
   await expect(refresh).toBeDisabled();
   expect(await refresh.boundingBox()).toEqual(before);
   finish();
-  await expect(page.getByRole("button", { name: "Check status" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Check status" }),
+  ).toBeVisible();
   pending = false;
   await page.getByRole("button", { name: "Check status" }).click();
   await page.getByRole("link", { name: "Source 1 · revision 3" }).click();
-  await expect(page.getByRole("heading", { name: "Source · revision 3" })).toBeVisible();
-  await expect(page.getByText("Reserve the night train.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Source · revision 3" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Reserve the night train.", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Current note: revision 5")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open current note" })).toHaveAttribute("href", `/app/memories/${id}`);
+  await expect(
+    page.getByRole("link", { name: "Open current note" }),
+  ).toHaveAttribute("href", `/app/memories/${id}`);
   await expect(page.getByRole("textbox")).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("source-revision-320.png") });
 });

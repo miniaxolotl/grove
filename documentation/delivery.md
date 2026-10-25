@@ -1,5 +1,54 @@
 # Delivery evidence
 
+## Scoped meeting preparation — Phase A (25 October 2026)
+
+Meeting preparation is an independently opted-in, on-demand workflow from one
+notebook's direct notes or up to twelve selected saved revisions. Title, agenda and
+optional date lead to source-linked Decisions, Previous discussions and Open
+questions. Retrieval supplies at most twelve notes/24,000 characters from a bounded
+lexical candidate window, with one structured generation call and explicit partial
+coverage. No chat-history, descendant, calendar, attendee or web access is inferred.
+
+Exact citations, whole-scope/source/preference/profile publication fences, stable
+request/save retries, explicit cancellation and reviewed destination Save/Undo reuse
+the existing assistance infrastructure. Source notes remain unchanged; saved briefs
+retain coverage qualifications. Selected-source recovery preserves the agenda and
+never silently broadens scope. One completed generated brief uses one assistance
+action; actual provider-attempt evidence remains separate from user-action refunds.
+
+Forward migration **20261025_031_meeting_preparation** leaves authored data, provider
+usage and existing cleanup scheduling unchanged. The new worker-only cleanup
+scheduler handles thirty-day derived-preview expiry without replacing the retained
+scheduler. The preference defaults off and enables no background inference. The
+populated upgrade test verifies retained data, opt-outs, forced RLS and narrow grants.
+The existing admin migration test now asserts its named026→027 boundary before
+upgrading to the current schema; preservation assertions are retained.
+
+Implementation `daf189f` normally integrates subscription-badge development
+`06d8740` at verified source **56b675dcc1fdceeed6f354be678e13645e5d6b45**.
+Integrated verification: **446 backend passes, four optional S3/broker skips, zero
+failures**; root/site lint and types, root/production website builds, **nine artifact
+tests**, **50 CI/release/provider contracts**, workflow lint and bundle budgets pass.
+Production website build **TbNm5ggTLWqDzmLQS5OoP** keeps the Notes entry at **492,106
+gzip bytes** with deferred meeting UI. Five focused supported Noble WebKit cases
+pass. The initial full Chromium run passed241 cases and exposed an outdated
+sixteen-checkbox settings assertion after adding the seventeenth preference. The
+updated regression verifies default-off and explicit opt-in persistence independently
+of Ask, and passes in Chromium and WebKit; the full Chromium repeat is pending.
+
+The real UI→HTTP API→PostgreSQL/worker journey passes generation, source links,
+reviewed Save/Undo and unchanged originals, with no page errors, WCAG A/AA violations
+or horizontal overflow at1440/390/320px. All inference is deterministic synthetic
+test data, not a paid/live-model quality evaluation. [Four reviewed final-source
+captures](design/screenshots/meeting-preparation/README.md) include the real-service
+form/desktop/phone views and a WebKit partial-coverage/source disclosure.
+
+Weekly review/recurrence, study, knowledge gaps and similar past problems remain
+later phases, not implemented here. Large-scale retrieval performance, live-model
+grounding/cost/latency, physical-device behavior and production activation remain
+unqualified. No production migration, merge, provider/billing activation or deployment
+was performed; rollout is a separately authorized owner operation.
+
 ## Visible subscription and complimentary access (25 October 2026)
 
 The desktop/mobile workspace now keeps a small Free/Pro/Unlimited badge in its
