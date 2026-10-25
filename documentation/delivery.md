@@ -1,5 +1,40 @@
 # Delivery evidence
 
+## Human-readable agent notes and shared tool guidance (25 October 2026)
+
+Shared note-authoring instructions now request concise, focused, human-readable
+CommonMark/GFM, useful structure without forced templates, faithful full-body edits
+and permitted notebook/kind selection. MCP argument documentation explains content,
+scope, capture, current versions and retry identity. Claude/Codex skills are
+generated from the runtime guidance; OpenCode ships the same body. Current plugin
+and CLI docs no longer claim a four-tool catalog or dashboard-only history/archive.
+
+Ask create/edit/merge/organization and cleanup authoring requests reuse the prose
+policy while retaining existing grounding, structured evidence and reviewed Apply.
+Cleanup's profile includes the policy version, preventing old-policy draft reuse;
+other assistance profiles and authored originals are unchanged. No API default,
+validation bound, permission, automatic write/recall cadence, format rejection,
+renderer, schema migration or provider configuration is changed.
+
+Candidate application source `b920ba5` passes root lint/types/builds, all **ten packed
+artifact checks** and native Linux OpenCode 2.1.3, Claude Code 2.1.309 and Codex
+0.164.0 checks. The stable backend repeat passes **440 cases**, with four optional
+S3/broker skips; nine focused guidance/directory cases pass. Red/green cases cover
+MCP discovery/field docs, skill drift, packed delivery, actual authoring requests
+and cleanup cache identity. Thirty-four release/provider contracts and pinned
+actionlint pass. Website lint/types/production build and bundle budgets pass;
+Notes entry remains **491,632 gzip bytes**, build `7tETW8I6_t_YBuYMXMNbz`.
+
+Five focused Chromium and two supported iPhone/WebKit Markdown/task/preview/PDF
+regressions pass. Three synthetic actual-component examples per engine pass at
+1440/390/320px, including WCAG A/AA, heading anchors, table/code/tasks, short prose,
+no page overflow/errors and no writes. [Three reviewed captures](design/screenshots/agent-note-writing/README.md)
+show a structured decision and one-sentence preference. These are authored fixtures,
+not live-model output: the [review corpus](agent-note-writing.md#evaluation-cases)
+states quality expectations without claiming universal host/model compliance.
+No deployment, live hosted-chat test, directory rescan or paid-model evaluation was
+performed; source delivery follows the normal protected release path.
+
 ## Visible subscription and complimentary access (25 October 2026)
 
 The desktop/mobile workspace now keeps a small Free/Pro/Unlimited badge in its

@@ -164,6 +164,33 @@ opt-in, self-host fallback, missing credentials/storage and master speech disabl
 
 ## Hosted chat connections
 
+### Agent note-writing guidance
+
+Run `pnpm exec tsx --test tests/src/note-guidance.test.ts tests/src/directory.test.ts`.
+The official SDK checks initialization instructions and model-visible content,
+scope, capture, version and retry descriptions without executing note tools. Source
+skills must exactly match the runtime body, fit the existing automatic-context
+budget and retain the expanded catalog/lifecycle wording. Compatibility checks keep
+plain/literal content, defaults, strict unknown-field rejection and version guards.
+Cleanup cache identity includes the prose policy without changing other profiles.
+
+After `pnpm build`, run `pnpm test:artifacts` and `pnpm test:agents`. Packed source
+isolation checks inspect all three native skill artifacts and initialize all four
+packaged bridges to verify writing instructions and content argument documentation.
+Run `conversations.test.ts` and `notebook-assistance.test.ts` with the disposable
+non-owner database URLs below: model request fixtures verify authoring policy,
+unchanged planners/structured evidence and preview-before-Apply. Fixtures prove
+instruction wiring, not live model writing quality. The
+[labeled review corpus](../agent-note-writing.md#evaluation-cases) separates quality
+expectations from rendering and authorization. Do not send private notes or make
+paid-model calls without explicit authorization.
+
+Use existing workspace Markdown/task and media scenarios for renderer compatibility;
+do not add syntax support just to satisfy examples. Any captures must identify the
+synthetic input/source/build and must not be presented as actual model output.
+
+### Hosted connection verification
+
 `pnpm exec tsx --test tests/src/directory.test.ts` runs without a database listener.
 It verifies exact optional public proof, content type/cache/nosniff, HEAD and wrong
 method/path handling, zero identity/database calls, private MCP's unchanged 401,
