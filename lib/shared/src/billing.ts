@@ -1,5 +1,10 @@
 export const billingFlagKey = "billing-enabled";
 export const billingPriceFlagKey = "billing-pro-monthly-usd";
+/** Effective access, not a claim that an administrator grant cancels a purchase. */
+export type AccountPlan = {
+  tier: "free" | "pro" | "unlimited";
+  source: "free" | "paid" | "trial" | "complimentary";
+};
 /** User-facing actions are independent of provider-attempt safety budgets. */
 export type ActionMetric = "recall" | "ask" | "organization" | "assistance";
 export type ResourceLimits = Record<
@@ -78,6 +83,7 @@ export type BillingUsage = {
   >;
 };
 export type BillingStatus = {
+  plan?: AccountPlan | null;
   resources?: ResourceUsage | null;
   proResources?: ResourceLimits;
   units: typeof billingUnits;
@@ -91,4 +97,11 @@ export type BillingStatus = {
   } | null;
   usage: BillingUsage | null;
   prices: { interval: "month" | "year"; amount: number; currency: string }[];
+};
+/** Owner-only on-demand breakdown; never contacts the payment provider. */
+export type AccountPlanUsage = {
+  plan: AccountPlan | null;
+  resources: ResourceUsage | null;
+  usage: BillingUsage | null;
+  units: typeof billingUnits;
 };
