@@ -18,6 +18,7 @@ export const taskKinds = [
   "connector_sync",
   "document_prepare",
   "document_import",
+  "conversation_document",
   "speech_transcribe",
   "speech_synthesize",
 ] as const;

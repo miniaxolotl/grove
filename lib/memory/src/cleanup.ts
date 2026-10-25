@@ -1,6 +1,7 @@
 import { tenant, type Knex } from "@lib/database";
 import { TaskError, taskTransaction, type TaskHandler } from "./task-runner.ts";
 import { expireDocumentDrafts } from "./document-imports.ts";
+import { expireConversationDocuments } from "./conversation-documents.ts";
 
 const batchSize = 100;
 export async function scheduleCleanup(db: Knex) {
@@ -100,6 +101,7 @@ export function cleanupHandlers(
     await taskTransaction(db, task, async (trx) => {
       signal.throwIfAborted();
       await expireDocumentDrafts(trx);
+      await expireConversationDocuments(trx);
       const expired = await trx("memories")
         .where("purgeAt", "<=", trx.fn.now())
         .select("id")

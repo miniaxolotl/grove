@@ -12,6 +12,7 @@ import {
   exportHandlers,
   importHandlers,
   documentImportHandlers,
+  conversationDocumentHandlers,
   scheduleCleanup,
   runTask,
   providerProfiles,
@@ -75,6 +76,7 @@ const handlers: Partial<Record<TaskKind, TaskHandler>> = {
     : {}),
   ...importHandlers(runtime.memories),
   ...documentImportHandlers(runtime.memories, extractDocument, runtime.media),
+  ...conversationDocumentHandlers(runtime.memories, extractDocument),
   ...cleanupHandlers(
     runtime.db,
     async (subject) => {

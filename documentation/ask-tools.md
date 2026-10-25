@@ -1,7 +1,9 @@
 # Ask Grove tools
 
 Ask Grove combines automatically retrieved or explicitly selected saved notes with
-optional **Web search** and **Research**.
+private [document attachments](imports.md#ask-about-documents-first) and optional
+**Web search** and **Research**. Document turns do not dispatch external
+research; relevant passages go only to the configured generation provider.
 Grove cloud supplies provider access to all accounts; users do not need provider
 accounts or personal API keys. An installation must configure each provider before
 it becomes available. Existing saved conversations remain readable.

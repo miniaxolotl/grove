@@ -39,6 +39,7 @@ export type InferenceOptions = {
     coverage?: { shown: number; total: number };
     selectedContext?: import("@lib/shared/conversations").ConversationContext;
     contextCoverage?: import("@lib/shared/conversations").ContextCoverage;
+    documents?: import("@lib/shared/conversation-documents").DocumentEvidence;
   };
 };
 export type Embedder = {

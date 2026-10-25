@@ -19,6 +19,10 @@ show **Selected sources only**. Earlier answers, source bodies, proposals, summa
 and external research are not supplied to either planning or answering. Enabled web
 tools do not run for that question; their saved switches are not changed.
 
+Existing chat attachments are also excluded from strict selected-source evidence.
+Turn off **Use only these sources** to combine selected notes with accepted document
+attachments; document-grounded questions still never dispatch external research.
+
 The restriction controls evidence supplied by Grove. It does not guarantee that a
 language model has no pretrained knowledge or will never make an unsupported claim.
 Inspect the citations and ask for more evidence where necessary.

@@ -1,5 +1,11 @@
 import { z } from "zod";
 import {
+  documentStatementSchema,
+  type DocumentSource,
+  type DocumentEvidence,
+  type ConversationDocument,
+} from "@lib/shared/conversation-documents";
+import {
   answerSchema,
   sourceRefSchema,
   type SourceRef,
@@ -176,6 +182,7 @@ export const conversationTurnSchema = z
     format: z.enum(["plain", "markdown"]).default("plain"),
     expectedVersion: z.number().int().min(0),
     context: conversationContextSchema.optional(),
+    documentsVersion: z.number().int().nonnegative().optional(),
   })
   .strict();
 export const conversationPlanSchema = z
@@ -219,6 +226,7 @@ export const conversationReplySchema = z
 export const conversationGenerationSchema = conversationReplySchema
   .omit({ proposal: true })
   .extend({
+    documentStatements: z.array(documentStatementSchema).max(8).default([]),
     lifecycle: z.array(lifecycleProposalSchema).max(1).default([]),
     organization: z.array(organizationProposalSchema).max(1).default([]),
     proposals: z
@@ -293,6 +301,14 @@ export type ConversationReply = Omit<
   organization?: OrganizationProposal;
   lifecycle?: LifecycleProposal;
   contextCoverage?: ContextCoverage;
+  documentStatements?: z.infer<typeof documentStatementSchema>[];
+  documentSources?: DocumentSource[];
+  documentCoverage?: { shown: number; total: number; partial: boolean };
+  documentContext?: Pick<DocumentEvidence, "version" | "documents"> & {
+    generationProfile?: string;
+    askVersion?: number;
+    toolsVersion?: number;
+  };
 };
 export type ConversationTurn = {
   id: string;
@@ -305,6 +321,7 @@ export type ConversationTurn = {
   createdAt: string;
   toolRuns?: ToolRun[];
   context?: ConversationContext;
+  documentsVersion?: number;
 };
 export type ConversationSummary = {
   id: string;
@@ -314,8 +331,12 @@ export type ConversationSummary = {
   updatedAt: string;
   tools: AskTools;
   toolsVersion: number;
+  documentsVersion?: number;
 };
-export type Conversation = ConversationSummary & { turns: ConversationTurn[] };
+export type Conversation = ConversationSummary & {
+  turns: ConversationTurn[];
+  documents?: ConversationDocument[];
+};
 export type ConversationPage = {
   items: ConversationSummary[];
   nextCursor: string | null;

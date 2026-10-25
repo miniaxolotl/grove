@@ -1,5 +1,17 @@
 "use client";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
+import type {
+  DocumentList,
+  DocumentSource,
+} from "@lib/shared/conversation-documents";
+import { AskDocuments } from "./ask-documents";
+import { Dialog } from "./dialog";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -199,6 +211,17 @@ export function AskGrove({
     Memory,
     "id" | "version"
   > | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentSource>();
+  const [documentState, setDocumentState] = useState({
+    busy: false,
+    blocked: false,
+    count: 0,
+  });
+  const documentChanged = useCallback(
+    (state: { busy: boolean; blocked: boolean; count: number }) =>
+      setDocumentState(state),
+    [],
+  );
   const request = useRef<AbortController | null>(null);
   const running = useRef(false);
   const conversationElement = useRef<HTMLDivElement>(null);
@@ -427,7 +450,9 @@ export function AskGrove({
       loading ||
       actionBusy ||
       toolsError ||
-      toolsRunning.current
+      toolsRunning.current ||
+      documentState.busy ||
+      documentState.blocked
     )
       return;
     following.current = true;
@@ -444,6 +469,9 @@ export function AskGrove({
       expectedVersion: retry?.expectedVersion ?? conversation?.version ?? 0,
       ...((retry ? retry.context : sources?.context)
         ? { context: retry ? retry.context : sources?.context }
+        : {}),
+      ...(retry?.documentsVersion !== undefined
+        ? { documentsVersion: retry.documentsVersion }
         : {}),
     };
     const sentSources = retry ? selectionFor(retry) : sources;
@@ -464,6 +492,18 @@ export function AskGrove({
         delete conversationDrafts.current.new;
       }
       const id = chat.id;
+      if (documentState.count || chat.documents?.length) {
+        const docs = await api<DocumentList>(`/conversations/${id}/documents`);
+        if (docs.documents.length) {
+          await api(
+            `/conversations/${id}/documents/accept`,
+            { expectedVersion: docs.version },
+            undefined,
+            controller.signal,
+          );
+          input.documentsVersion = retry?.documentsVersion ?? docs.version;
+        }
+      }
       const turn: ConversationTurn = {
         id: input.id,
         question,
@@ -474,6 +514,7 @@ export function AskGrove({
         result: null,
         error: null,
         createdAt: new Date().toISOString(),
+        documentsVersion: input.documentsVersion,
       };
       setUnconfirmed(turn);
       setConversation({
@@ -859,6 +900,7 @@ export function AskGrove({
                         <Answer
                           result={turn.result}
                           onOpen={setSelected}
+                          onOpenDocument={setSelectedDocument}
                           busy={pending || !!actionBusy}
                           canApply={effectiveTools.organize}
                           onApply={() => void apply(turn)}
@@ -966,6 +1008,22 @@ export function AskGrove({
                 )}
               </div>
             )}
+            <AskDocuments
+              conversationId={conversationId}
+              ensureChat={async () => {
+                if (conversationId) return conversationId;
+                creation.current ??= crypto.randomUUID();
+                const chat = await api<Conversation>("/conversations", {
+                  id: creation.current,
+                  ...filter,
+                });
+                setConversation(chat);
+                setConversationId(chat.id);
+                return chat.id;
+              }}
+              disabled={pending || loading || !!actionBusy}
+              onState={documentChanged}
+            />
             <AskComposer
               value={draft}
               onChange={setDraft}
@@ -976,6 +1034,8 @@ export function AskGrove({
               sendDisabled={
                 toolsBusy ||
                 !!toolsError ||
+                documentState.busy ||
+                documentState.blocked ||
                 (!!sources &&
                   !sources.context.notes.length &&
                   !sources.context.notebooks.length)
@@ -1114,6 +1174,25 @@ export function AskGrove({
           }}
         />
       )}
+      {selectedDocument && (
+        <Dialog
+          title={selectedDocument.filename}
+          close={() => setSelectedDocument(undefined)}
+        >
+          <p>
+            {/\.pdf$/i.test(selectedDocument.filename)
+              ? `Pages ${selectedDocument.pageStart}–${selectedDocument.pageEnd}`
+              : `Part ${selectedDocument.ordinal + 1}`}
+          </p>
+          <div className="ask-document-excerpt">{selectedDocument.content}</div>
+          <a
+            className="text-button"
+            href={`/api/grove/conversations/${conversationId}/documents/${selectedDocument.documentId}/original`}
+          >
+            Download original
+          </a>
+        </Dialog>
+      )}
       {historyOpen && (
         <AskHistory
           onDismissed={() => {
@@ -1140,6 +1219,7 @@ export function AskGrove({
 function Answer({
   result,
   onOpen,
+  onOpenDocument,
   onApply,
   onUndo,
   busy,
@@ -1147,6 +1227,7 @@ function Answer({
 }: {
   result: ConversationReply;
   onOpen: (source: Pick<Memory, "id" | "version">) => void;
+  onOpenDocument: (source: DocumentSource) => void;
   onApply: () => void;
   onUndo: () => void;
   busy: boolean;
@@ -1157,6 +1238,45 @@ function Answer({
   return (
     <>
       {result.message && <p className="ask-statement">{result.message}</p>}
+      {result.documentStatements?.map((statement, index) => (
+        <p
+          className="ask-statement ask-document-evidence"
+          key={`document-${index}`}
+        >
+          {statement.text}
+          {statement.sources.map((ref) => {
+            const source = result.documentSources?.find(
+              (s) => s.id === ref.id && s.version === ref.version,
+            );
+            return source ? (
+              <button
+                className="ask-citation"
+                key={ref.id}
+                onClick={() => onOpenDocument(source)}
+              >
+                {source.filename}
+                {/\.pdf$/i.test(source.filename)
+                  ? ` · p. ${source.pageStart}`
+                  : ` · part ${source.ordinal + 1}`}
+              </button>
+            ) : null;
+          })}
+        </p>
+      ))}
+      {result.documentCoverage?.partial && (
+        <p className="ask-answer-note">
+          Based on {result.documentCoverage.shown} of{" "}
+          {result.documentCoverage.total} extracted passages. Ask about a
+          specific section for more detail.
+        </p>
+      )}
+      {result.documentContext && (result.proposal || result.organization) && (
+        <p className="ask-answer-note">
+          Generated from document passages, not a full-text import. Review
+          before saving. Saved text follows the notebook’s sharing settings;
+          original files stay private.
+        </p>
+      )}
       {result.statements.map((statement, index) => (
         <p className="ask-statement" key={index}>
           {statement.text}

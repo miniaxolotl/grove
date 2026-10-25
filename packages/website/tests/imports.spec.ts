@@ -183,12 +183,6 @@ for (const width of [1440, 390, 320])
       },
     ]);
     await expect(
-      dialog.getByRole("button", { name: "Prepare import", exact: true }),
-    ).toBeEnabled();
-    await dialog
-      .getByRole("button", { name: "Prepare import", exact: true })
-      .click();
-    await expect(
       dialog.getByRole("heading", { name: "2 proposed notes" }),
     ).toBeVisible();
     const placement = dialog.locator(".import-placement");

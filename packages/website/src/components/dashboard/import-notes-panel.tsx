@@ -2,6 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useWorkspaceSearch } from "./workspace-search";
+import type { Conversation } from "@lib/shared/conversations";
 import { FileText, Upload } from "lucide-react";
 import type {
   ImportBatch,
@@ -22,6 +25,8 @@ const active = (task?: Task) =>
   !task || task.status === "pending" || task.status === "running";
 const failures: Record<string, string> = {
   document_pdf: "PDF couldn’t be read. Try an unlocked, text-based PDF.",
+  document_docx:
+    "DOCX couldn’t be read. Try a standard Word document without macros.",
   document_empty: "No readable text. Scanned PDFs need OCR before import.",
   document_encoding: "Save this text file as UTF-8 and try again.",
   document_binary: "This isn’t a plain text file.",
@@ -212,10 +217,19 @@ function DraftReview({
   );
 }
 
-export function ImportNotesPanel({ projectId }: { projectId?: string }) {
+export function ImportNotesPanel({
+  projectId,
+  initialBatchId,
+}: {
+  projectId?: string;
+  initialBatchId?: string;
+}) {
   const cache = useWorkspaceCache(),
     { projects } = useNotebooks();
-  const [id, setId] = useState("");
+  const workspace = useWorkspaceSearch(),
+    router = useRouter();
+  const handoff = useRef<{ id: string; expectedVersion: number } | null>(null);
+  const [id, setId] = useState(initialBatchId ?? "");
   const [after, setAfter] = useState<string | undefined>();
   const [history, setHistory] = useState<(string | undefined)[]>([]);
   const [busy, setBusy] = useState(false),
@@ -321,11 +335,11 @@ export function ImportNotesPanel({ projectId }: { projectId?: string }) {
         (file) =>
           !file.size ||
           file.size > 3 * 1024 * 1024 ||
-          !/\.(md|markdown|txt|pdf)$/i.test(file.name),
+          !/\.(md|markdown|txt|pdf|docx)$/i.test(file.name),
       )
     ) {
       setError(
-        "Choose up to 25 Markdown, text or PDF files, each no larger than 3 MiB.",
+        "Choose up to 25 PDF, DOCX, Markdown or text files, each no larger than 3 MiB.",
       );
       return;
     }
@@ -381,7 +395,10 @@ export function ImportNotesPanel({ projectId }: { projectId?: string }) {
           );
       }
       upload.current = null;
-      setMessage("Files uploaded. Prepare a preview to continue.");
+      await cache.api(`/import-batches/${pending.id}/prepare`, {
+        id: prepareId.current,
+      });
+      setMessage("");
       await cache.client.invalidateQueries({
         queryKey: workspaceKeys.resource(`/import-batches/${pending.id}`),
       });
@@ -406,8 +423,8 @@ export function ImportNotesPanel({ projectId }: { projectId?: string }) {
         importing.
       </p>
       <p className="import-small">
-        Markdown, text and text-based PDFs. Up to 25 files, 3 MiB each. PDF
-        layouts may need correction; images and attachments aren’t imported.
+        Markdown, text, DOCX and text-based PDFs. Up to 25 files, 3 MiB each.
+        PDF layouts may need correction; images and attachments aren’t imported.
       </p>
       {(error || query.error || list.error) && (
         <div className="app-error" role="alert">
@@ -452,7 +469,7 @@ export function ImportNotesPanel({ projectId }: { projectId?: string }) {
               ref={chooser}
               type="file"
               multiple
-              accept=".md,.markdown,.txt,.pdf"
+              accept=".md,.markdown,.txt,.pdf,.docx"
               className="sr-only"
               aria-label="Upload notes and PDFs"
               disabled={busy}
@@ -493,6 +510,47 @@ export function ImportNotesPanel({ projectId }: { projectId?: string }) {
       )}
       {batch && (
         <>
+          {batch.status === "ready" &&
+            !initialBatchId &&
+            batch.files.length > 0 &&
+            batch.files.every(
+              (file) => file.status === "ready" && !file.originalReady,
+            ) && (
+              <div className="import-actions">
+                <Button
+                  variant="secondary"
+                  disabled={busy || dirty}
+                  onClick={() =>
+                    void run(async () => {
+                      if (handoff.current?.expectedVersion !== batch.version)
+                        handoff.current = {
+                          id: crypto.randomUUID(),
+                          expectedVersion: batch.version,
+                        };
+                      const chat = await cache.api<Conversation>(
+                        `/import-batches/${id}/conversation`,
+                        handoff.current,
+                      );
+                      workspace?.sessions.set("ask:global", {
+                        scope: "all",
+                        includePersonal: false,
+                        draft: "",
+                        conversationId: chat.id,
+                        query: "",
+                        mode: "answer",
+                      });
+                      router.push("/app/ask");
+                    })
+                  }
+                >
+                  Ask about these documents
+                </Button>
+                <p className="import-small">
+                  Continue in a private chat without saving notes or uploading
+                  again. This review stays available.
+                </p>
+              </div>
+            )}
           <ul className="import-files" aria-label="Uploaded files">
             {batch.files.map((file) => (
               <li key={file.id}>

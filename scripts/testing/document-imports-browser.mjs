@@ -201,9 +201,6 @@ try {
           { name: "Botany.pdf", mimeType: "application/pdf", buffer: original },
         ]);
         await dialog
-          .getByRole("button", { name: "Prepare import", exact: true })
-          .click();
-        await dialog
           .getByRole("heading", { name: "2 proposed notes" })
           .waitFor();
         const placement = dialog.locator(".import-placement");

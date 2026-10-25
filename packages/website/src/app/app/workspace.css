@@ -299,21 +299,24 @@ html:has(.grove-app) {
     visibility: visible;
   }
 }
-.linked-notes {
+.linked-notes,
+.note-document-sources {
   border-top: 1px solid var(--color-line);
   margin-top: 32px;
   padding: 14px 0;
   font-size: 12px;
   color: var(--color-muted);
 }
-.linked-notes summary {
+.linked-notes summary,
+.note-document-sources summary {
   cursor: pointer;
   padding: 6px 0;
 }
 .linked-notes summary > span {
   margin-left: 6px;
 }
-.linked-notes > p {
+.linked-notes > p,
+.note-document-sources > p {
   padding: 12px 0;
 }
 .note-dates {

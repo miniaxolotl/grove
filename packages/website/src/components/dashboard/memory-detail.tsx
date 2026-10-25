@@ -81,6 +81,13 @@ export function MemoryDetail({
     ? errorMessage(historyQuery.error)
     : "";
   const [relatedOpen, setRelatedOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const documentSources = useQuery({
+    ...cache.resource<
+      { id: string; filename: string; version: number; quote: string }[]
+    >(`/memories/${memory?.id}/document-sources`),
+    enabled: documentsOpen && !!memory,
+  });
   const operations = useRef(new Map<string, string>());
   const setDialogBusy = useDialogBusy();
   const locked = !memory || busy || actionBusy || editorLocked;
@@ -398,6 +405,47 @@ export function MemoryDetail({
           )
         }
       >
+        {memory && (
+          <details
+            className="note-document-sources"
+            onToggle={(event) => setDocumentsOpen(event.currentTarget.open)}
+          >
+            <summary>Private document sources</summary>
+            {documentsOpen && (
+              <>
+                {documentSources.isPending ? (
+                  <p role="status">Loading sources…</p>
+                ) : documentSources.error ? (
+                  <p role="alert">
+                    {errorMessage(documentSources.error)}{" "}
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => void documentSources.refetch()}
+                    >
+                      Retry
+                    </button>
+                  </p>
+                ) : documentSources.data?.length ? (
+                  <ul>
+                    {documentSources.data.map((source, index) => (
+                      <li key={`${source.id}:${source.version}:${index}`}>
+                        <a
+                          href={`/api/grove/memories/${memory.id}/document-sources/${source.id}/original`}
+                        >
+                          {source.filename} · note version {source.version}
+                        </a>
+                        <blockquote>{source.quote}</blockquote>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No Ask document sources linked to this note.</p>
+                )}
+              </>
+            )}
+          </details>
+        )}
         {memory && (
           <details
             className="linked-notes"

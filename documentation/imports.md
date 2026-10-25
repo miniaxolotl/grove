@@ -1,7 +1,7 @@
-# Import notes and PDFs
+# Import notes and documents
 
 Choose **Import notes** from Notes, **Notebook options**, or **Settings → Data**.
-Upload UTF-8 Markdown (`.md`, `.markdown`), plain text (`.txt`) or text-based PDF
+Upload UTF-8 Markdown (`.md`, `.markdown`), plain text (`.txt`), DOCX or text-based PDF
 files. Choose an existing notebook, create a named notebook (optionally nested),
 or leave notes Unfiled. **Use for all notes** sets a batch destination; individual
 previews can override it. Notebook entry points preselect that notebook in the
@@ -9,7 +9,7 @@ placement control; apply it explicitly before confirmation.
 
 ## Review before saving
 
-1. Upload files, then choose **Prepare import**. Preparation creates no library
+1. Upload files; preparation starts automatically. Preparation creates no library
    notes, notebooks or public links.
 2. Review proposed notes. Long documents split at paragraph boundaries when
    possible, with deterministic fallback splits within the 6,000-character note
@@ -47,8 +47,10 @@ attachments; remove/replace unsupported references in the preview if necessary.
 
 PDF extraction does not reproduce exact layout. Reading order and tables may need
 correction. Empty pages are called out; a mixed scanned/text PDF can produce only
-partial text. Entirely scanned or password-protected PDFs are refused. OCR, DOCX,
-ZIP/provider exports, recursive folders, embedded files and image extraction are
+partial text. Entirely scanned or password-protected PDFs are refused. DOCX extracts
+paragraph text, not exact Word layout, images or embedded objects. Macro-enabled or
+encrypted packages, malformed XML and excessive ZIP expansion are refused. OCR,
+legacy `.doc`, RTF/ODT, arbitrary ZIP/provider exports, recursive folders and image extraction are
 not supported in this release. One unreadable file does not discard usable files.
 
 PDF.js runs outside the API request process with a 15-second deadline, a 128 MiB
@@ -57,6 +59,56 @@ own package, not application files, writes, subprocesses or native addons. Input
 is bytes, never a user-supplied URL. No PDF actions/scripts/rendering or remote
 asset loading are requested. The V8 heap bound is **not a total RSS guarantee**;
 keep worker/container memory limits and bulk concurrency appropriate to deployment.
+
+DOCX uses pinned `fflate`/`saxes` in the same isolated process, limited to 256 ZIP
+entries, 8 MiB per expanded entry, 16 MiB total expansion and XML depth 128. DTDs
+and custom entities are rejected; external relationships are never fetched.
+
+## Ask about documents first
+
+In **Ask Grove**, attach up to five new files per selection (25 available files per
+chat). Reading starts automatically. Wait for Ready, retry a failed reading job,
+or explicitly remove an unreadable file; Send never silently omits selected files.
+Uploads create no library notes/notebooks and are not available to agent recall.
+
+**Send** retains exact private originals with the chat and sends bounded passages
+to the configured generation provider. Answers use separate document citations:
+filename plus PDF page or text/DOCX part. Open a citation to inspect its extracted
+passage or download the private original. Follow-ups reuse this chat's accepted
+sources; another chat does not inherit them. Document turns suppress external
+research server-side, even if Web search/Research are enabled.
+
+Retrieval is lexical and bounded to 12 passages/24,000 characters per question.
+Selected passages are not proof of reading every page. Partial coverage is labelled;
+ask a narrower question when more detail is needed. Quotations and chunk revisions
+must match the actual supplied evidence; unsupported model prose is not published
+as a document fact. Scans still require OCR elsewhere.
+
+Two save paths stay distinct:
+
+- **Save document text…** opens the normal reviewed deterministic import, using all
+  extracted chunks and the same originals, without browser re-upload or another
+  original-storage write. Review destinations, edits and sharing, then confirm.
+- Ask “Create study notes/a notebook from these documents” for an AI-generated
+  preview, not a complete transcription. Existing Manage notes, Apply and Undo
+  protections remain. Supporting document bindings commit with new notes. The
+  note's **Private document sources** disclosure can download originals even after
+  removal of the chat; public links never grant original access.
+
+Ready, readable, unconfirmed direct imports also offer **Ask about these documents**.
+This copies the staged original bytes server-side into an independent chat and
+re-extracts them; reviewed edits are not mistaken for source text. The import review
+stays available. Both copies share the account's 75 MiB unconfirmed staging ceiling;
+at capacity, finish/remove other pending uploads first. Completed imports and
+already chat-backed reviews do not use this handoff.
+
+Unaccepted uploads expire after 24 hours; removal clears staged bytes and excerpts.
+Accepted originals follow retained-source policy: Remove revokes chat use/access,
+not physical original deletion. Deleting the chat masks its evidence and unapplied
+previews. Saved notes and their separate private source links remain independent.
+Account deletion disables all access. Restore replays current document removals,
+clears unsent staging and invalidates old leases; it cannot resurrect revoked chat
+sources or silently approve a save.
 
 ## Progress, retries and originals
 
@@ -105,6 +157,7 @@ conflict. Responses use the ordinary private/no-store envelope.
 | `POST /import-batches/:id/suggest`               | `{id,expectedVersion}`; optional grounded grouping                                                           |
 | `POST /import-batches/:id/confirm`               | `{id,expectedVersion}`; freeze and enqueue approved drafts                                                   |
 | `POST /import-batches/:id/cancel`                | Stop work; keep already-imported records                                                                     |
+| `POST /import-batches/:id/conversation`          | `{id,expectedVersion}`; open/replay independent chat for ready unconfirmed originals                         |
 | `GET /import-batches/:id/files/:fileId/original` | Authorized private attachment; never an object key                                                           |
 
 `destination` is `null` (Unfiled), `{projectId,version}` (existing notebook), or
@@ -118,6 +171,31 @@ under the interactive actual-byte limit; ordinary JSON keeps its 128 KiB cap.
 `POST /imports` remains the compatible record-based import/connector endpoint and
 is not a file-upload or binary restore interface.
 
+### Chat document API
+
+All routes are owning-session-only and private/no-store, under `/v1`:
+
+| Method/route                                                    | Contract                                                                        |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /conversations/:id/documents`                              | `{version,documents}` with reading/readiness and retry status                   |
+| `PUT /conversations/:id/documents/:documentId`                  | Raw bytes with the same filename/length/SHA-256 headers as imports; stable UUID |
+| `POST /conversations/:id/documents/accept`                      | `{expectedVersion}`; retain ready originals before Send/save                    |
+| `DELETE /conversations/:id/documents/:documentId`               | Revoke chat access; retain accepted originals                                   |
+| `GET /conversations/:id/documents/:documentId/passages?after=0` | Up to ten ordered passages, ordinal cursor                                      |
+| `GET /conversations/:id/documents/:documentId/original`         | Authorized private download                                                     |
+| `POST /conversations/:id/documents/import`                      | `{id,expectedVersion}`; idempotent full-text review handle                      |
+| `GET /memories/:id/document-sources`                            | Private source bindings for generated note revisions                            |
+| `GET /memories/:id/document-sources/:documentId/original`       | Independent note-authorized original download                                   |
+
+`POST /conversations/:id/turns` accepts additive `documentsVersion`, required when
+documents are attached. Keep the same version and full request on uncertain retry;
+source changes require a new message, not rebinding an old turn ID. Replies expose
+`documentStatements` with exact `{id,version,quote}` chunk references,
+`documentSources`, `documentCoverage` and a source-revision snapshot. No storage
+keys/staging enter public envelopes or prompts. Reading uses the `conversation_document`
+bulk task; retry is available only for still-pending eligible files, never removed
+or expired uploads. Format errors require choosing a corrected file.
+
 ## Export and recovery
 
 Account/notebook exports include `document_binding` provenance for their exported
@@ -126,6 +204,12 @@ notes. With **Include original media**, v3 NDJSON additionally contains paged
 (at most 48 KiB decoded each). Reassembly must verify bytes/SHA-256. Export format
 transport is not note content; the legacy import endpoint does not restore binaries.
 Unconfirmed files/drafts and storage keys are not exported.
+
+Account exports additionally carry accepted accessible `chat_document` metadata and
+`chat_document_binding` provenance. Include original media adds
+`chat_document_source` metadata and offset-addressed `chat_document_chunk` binary
+pieces. Notebook exports include only sources linked to their notes, never unrelated
+private chats. These binary chunk records are not extracted text passages.
 
 Back up the original source bucket with PostgreSQL, as for images/recordings.
 Recovery invalidates unconfirmed review/Apply batches and old task leases rather
