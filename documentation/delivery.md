@@ -2,6 +2,12 @@
 
 ## Shared notebook organizer (25 October 2026)
 
+**Draft qualification:** the full500-row WebKit pointer/Undo stress journey is
+not consistently passing. Small filtered real-service moves/Undo and seven existing
+WebKit regressions pass, but they do not qualify the large-catalog notification
+interaction. Investigate event/focus/notification behavior before marking the UI
+ready; do not infer physical-phone repair from the Chromium evidence below.
+
 Stacked on foundation PR140, the website now combines every owner catalog page
 before presenting notebook trees or destinations. **Organize** offers Move up/down,
 Nest inside and Move out; the shared Move dialog searches full destination paths
@@ -34,6 +40,11 @@ organizer and standalone Move, reviewed conflicts, stale Undo refusal and unchan
 original note scope/version. Mouse before/after drops persist order without a source
 version bump. Cache probes reject partial/repeated scans, restart a changed scan
 atomically, retain complete snapshots after page failure and fence account teardown.
+Tree/path/destination rendering reuses lookup indexes rather than rebuilding a
+500-row map for every row. The tap/keyboard organizer renders plain rows without
+registering disabled drag/drop handlers. WebKit stress exposed a cancelled
+reconciliation read being reported as a failed refresh after a saved move;
+reconciliation joins/restarts that read once without repeating or rebasing the write.
 WCAG A/AA and overflow review at1440/390/320px uses representative filtered layouts,
 separately from full-catalog functional checks. Trusted Chromium touch checks cover
 native folder-handle scroll, tap Organize, inner-list scroll, short320px dismissal

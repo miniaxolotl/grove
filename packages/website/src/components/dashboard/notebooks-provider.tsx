@@ -22,7 +22,7 @@ import type {
   NotebookOrganization,
 } from "@lib/shared/notebook-organization";
 import { WorkspaceNotice } from "./toasts";
-import { useQuery } from "@tanstack/react-query";
+import { isCancelledError, useQuery } from "@tanstack/react-query";
 import { useWorkspaceCache } from "./workspace-cache";
 
 type NotebookLocation = { path: string; projectId: string | null | undefined };
@@ -80,6 +80,21 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
       queryKey: cache.notebookCatalog().queryKey,
     });
   }, [cache]);
+  async function freshCatalog() {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await cache.client.fetchQuery({
+          ...cache.notebookCatalog(),
+          staleTime: 0,
+        });
+      } catch (error) {
+        // A newer invalidation can replace this read while the move remains saved.
+        // Join/restart that read once; never repeat or rebase the write.
+        if (attempt === 0 && isCancelledError(error)) continue;
+        throw error;
+      }
+    }
+  }
   async function send(move: PendingMove): Promise<NotebookOrganization | null> {
     if (working.current) return null;
     working.current = true;
@@ -101,7 +116,7 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
       setChoosingDestination(false);
       // Never adopt replayed rows/state: an accepted replay may already be old.
       try {
-        await cache.client.fetchQuery(cache.notebookCatalog());
+        await freshCatalog();
       } catch {
         setOrganizationError(
           "The move saved, but the notebook list could not refresh. Retry notebooks before moving again.",
@@ -153,7 +168,7 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
     await cache.client.invalidateQueries({
       queryKey: cache.notebookCatalog().queryKey,
     });
-    const latest = await cache.client.fetchQuery(cache.notebookCatalog());
+    const latest = await freshCatalog();
     setOrganizationError("");
     setReviewRequired(false);
     setUndo(null);

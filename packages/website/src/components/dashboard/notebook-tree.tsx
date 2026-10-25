@@ -67,9 +67,12 @@ export function NotebookTree({
     else setLocalExpanded(next);
   };
   const sorted = [...projects].sort(notebookOrder);
-  const ids = new Set(projects.map((p) => p.id));
+  const byId = new Map(projects.map((p) => [p.id, p]));
+  const paths = new Map(
+    projects.map((p) => [p.id, notebookPath(projects, p.id, byId)]),
+  );
   const ancestors = new Set(
-    notebookPath(projects, selectedId).map((p) => p.id),
+    (paths.get(selectedId ?? "") ?? []).map((p) => p.id),
   );
   const matching = query.trim()
     ? new Set(
@@ -79,15 +82,18 @@ export function NotebookTree({
               .toLocaleLowerCase()
               .includes(query.trim().toLocaleLowerCase()),
           )
-          .flatMap((p) => notebookPath(projects, p.id).map((p) => p.id)),
+          .flatMap((p) => paths.get(p.id)!.map((p) => p.id)),
       )
     : null;
-  const children = (parent: string | null) =>
-    sorted.filter(
-      (p) =>
-        (p.parentId && ids.has(p.parentId) ? p.parentId : null) === parent &&
-        (!matching || matching.has(p.id)),
-    );
+  const groups = new Map<string | null, Project[]>();
+  for (const p of sorted) {
+    if (matching && !matching.has(p.id)) continue;
+    const parent = p.parentId && byId.has(p.parentId) ? p.parentId : null;
+    const group = groups.get(parent) ?? [];
+    group.push(p);
+    groups.set(parent, group);
+  }
+  const children = (parent: string | null) => groups.get(parent) ?? [];
   function branch(parent: string | null, depth = 0): ReactNode {
     if (depth > projects.length) return null;
     return (
@@ -108,7 +114,8 @@ export function NotebookTree({
               project={project}
               draggable={draggable}
               coarse={coarse}
-              name={notebookPath(projects, project.id)
+              name={paths
+                .get(project.id)!
                 .map((p) => p.name)
                 .join(" / ")}
               current={project.id === selectedId}
@@ -152,7 +159,8 @@ export function NotebookTree({
                       aria-current={
                         project.id === selectedId ? "page" : undefined
                       }
-                      title={notebookPath(projects, project.id)
+                      title={paths
+                        .get(project.id)!
                         .map((p) => p.name)
                         .join(" / ")}
                     >
@@ -184,20 +192,7 @@ export function NotebookTree({
   return <div className="notebook-tree">{branch(null)}</div>;
 }
 
-function NotebookBranch({
-  project,
-  draggable,
-  coarse,
-  name,
-  current,
-  open,
-  hasChildren,
-  expand,
-  disclosure,
-  icon,
-  row,
-  children,
-}: {
+type NotebookBranchProps = {
   project: Project;
   draggable: boolean;
   coarse: boolean;
@@ -210,7 +205,48 @@ function NotebookBranch({
   icon: ReactNode;
   row: ReactNode;
   children: ReactNode;
-}) {
+};
+
+function NotebookBranch(props: NotebookBranchProps) {
+  if (props.draggable) return <DraggableNotebookBranch {...props} />;
+  // The tap/keyboard organizer is a plain disclosure list, not 1,500 disabled
+  // drag/drop registrations for a 500-notebook catalog.
+  return (
+    <li className="notebook-branch">
+      <div
+        className="notebook-tree-row"
+        data-current={props.current || undefined}
+      >
+        {props.disclosure}
+        <span
+          className="drag-handle notebook-drag-handle"
+          data-touch-organize
+          aria-hidden="true"
+          style={{ cursor: "default", color: "var(--color-muted)" }}
+        >
+          <span className="notebook-folder-icon">{props.icon}</span>
+        </span>
+        {props.row}
+      </div>
+      {props.children}
+    </li>
+  );
+}
+
+function DraggableNotebookBranch({
+  project,
+  draggable,
+  coarse,
+  name,
+  current,
+  open,
+  hasChildren,
+  expand,
+  disclosure,
+  icon,
+  row,
+  children,
+}: NotebookBranchProps) {
   const id = useId();
   const notebooks = useNotebooks();
   const { busy, active, keyboard } = useWorkspaceDrag();

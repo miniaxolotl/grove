@@ -41,6 +41,10 @@ the open chooser before a new intent. Undo uses the saved response's exact state
 and inverse placement; a later layout change blocks it rather than silently rebasing.
 Retries/Undo live only in the authenticated workspace session, not persistent storage.
 
+If a newer invalidation cancels the read reconciling a successful move, the UI
+joins/restarts the catalog read once. This is a bounded read retry, not another
+organization operation or an Undo rebase. Other refresh errors remain visible.
+
 ## Complete owner catalog
 
 `GET /v1/projects/catalog` requires the owning website session. It accepts:

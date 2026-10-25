@@ -10,8 +10,13 @@ export function notebookOrder(a: Project, b: Project) {
 }
 
 /** Resolves only visible ancestors; missing parents never disclose another scope. */
-export function notebookPath(projects: readonly Project[], id?: string | null) {
-  const byId = new Map(projects.map((project) => [project.id, project]));
+export function notebookPath(
+  projects: readonly Project[],
+  id?: string | null,
+  byId: ReadonlyMap<string, Project> = new Map(
+    projects.map((project) => [project.id, project]),
+  ),
+) {
   const path: Project[] = [];
   const seen = new Set<string>();
   while (id && byId.has(id) && !seen.has(id)) {
@@ -27,8 +32,12 @@ export function notebookOptions(
   projects: readonly Project[],
   exclude?: string,
 ) {
+  const byId = new Map(projects.map((project) => [project.id, project]));
   return projects
-    .map((project) => ({ project, path: notebookPath(projects, project.id) }))
+    .map((project) => ({
+      project,
+      path: notebookPath(projects, project.id, byId),
+    }))
     .filter(
       ({ path }) => !exclude || !path.some((project) => project.id === exclude),
     )

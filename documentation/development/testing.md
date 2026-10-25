@@ -33,6 +33,12 @@ swipe failures remains required for a device-fix claim. The coarse-pointer noteb
 folder control intentionally opens Organize and permits native scroll; note drag/
 swipe handlers remain unchanged. Browser emulation is not physical acceptance.
 
+The stacked UI remains draft pending consistent500-row WebKit pointer/Undo results.
+Small filtered journeys are not a substitute. Use a task-owned TMPDIR when shared
+scratch storage is at quota, and restart the fixture after a production rebuild:
+its CSS manifest is captured at startup. Missing CSS and cancelled downloads from
+those harness failures must not be misclassified as application regressions.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner

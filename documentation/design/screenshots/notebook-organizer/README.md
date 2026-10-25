@@ -5,6 +5,11 @@
 500-notebook account use disposable PostgreSQL and the non-owner API role. All
 names, notes and identities are synthetic; no owner reference screenshot is stored.
 
+These captures precede the nonvisual lookup/reconciliation follow-up. The PR stays
+draft: the500-row WebKit pointer/Undo stress journey is inconsistent, even though
+small filtered real-service moves/Undo and seven existing WebKit cases pass.
+Capture review is not full WebKit interaction acceptance.
+
 | Desktop manager                                                | Phone manager                                      | Organize                                                  | Move                                                          |
 | -------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------- |
 | ![One menu per notebook and saved hierarchy](manager-1440.png) | ![Compact notebook list at 390px](manager-390.png) | ![Selected-notebook controls at 390px](organizer-390.png) | ![Searchable destination and position at 390px](move-390.png) |
