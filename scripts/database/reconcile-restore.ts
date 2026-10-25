@@ -19,6 +19,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "id",
       "clerkSubject",
       "status",
+      "adminSuspended",
       "deletedAt",
       "providerDeletedAt",
       ...preferenceKeys,
@@ -324,6 +325,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
           .where({ id: row.id })
           .update({
             status,
+            adminSuspended: current.adminSuspended,
             deletedAt: gone
               ? (current.deletedAt ?? target.fn.now())
               : current.deletedAt,

@@ -484,3 +484,55 @@ test("isolated restore replays current deletions and revocations without changin
     await admin.destroy();
   }
 });
+
+test("restore preserves current support suspension and notes instead of reviving backup access", async () => {
+  const url = process.env.TEST_MIGRATION_DATABASE_URL!;
+  assert(url && new URL(url).pathname.endsWith("_test"));
+  const authority = createDatabase(url),
+    names = [
+      `support_authority_${randomUUID().replaceAll("-", "")}_test`,
+      `support_restore_${randomUUID().replaceAll("-", "")}_test`,
+    ];
+  const databases = names.map((name) => {
+    const target = new URL(url);
+    target.pathname = "/" + name;
+    return createDatabase(target.href);
+  });
+  try {
+    for (const [index, name] of names.entries()) {
+      await authority.raw("CREATE DATABASE ??", [name]);
+      await databases[index].migrate.latest();
+    }
+    const [source, target] = databases;
+    const id = randomUUID();
+    for (const db of databases)
+      await db("accounts").insert({ id, clerkSubject: "support_restore_user" });
+    await source("accounts")
+      .where({ id })
+      .update({
+        status: "disabled",
+        adminSuspended: true,
+        captureEnabled: false,
+      });
+    await source("account_administration").insert({
+      accountId: id,
+      supportNote: "Review suspension before restoring access",
+      version: 2,
+    });
+    await reconcileRestore(source, target);
+    const restored = await target("accounts").where({ id }).first();
+    assert.equal(restored.adminSuspended, true);
+    assert.equal(restored.status, "disabled");
+    assert.equal(restored.captureEnabled, false);
+    assert.equal(
+      (await target("account_administration").where({ accountId: id }).first())
+        .supportNote,
+      "Review suspension before restoring access",
+    );
+  } finally {
+    await Promise.all(databases.map((db) => db.destroy()));
+    for (const name of names)
+      await authority.raw("DROP DATABASE IF EXISTS ??", [name]);
+    await authority.destroy();
+  }
+});
