@@ -9,7 +9,7 @@ cross-replica reuse/coalescing, exact keys, invalid vectors, cancellation and la
 owners, RLS, expiry/generation fences, retained account cleanup/reset, independent
 fifth-unit usage, final 0.2 admission, prevention of paid upgrades without quota,
 unchanged-content enrichment, validated planning, exact answers, account research
-reuse and explicit refresh/replay. A populated pre-029 upgrade preserves notes,
+reuse and explicit refresh/replay. A populated pre-033 upgrade preserves notes,
 provider counters and historical five-unit actions. Cancellation fixtures must
 force a cache miss and verify abort propagation, not signal-object identity.
 

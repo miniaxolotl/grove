@@ -4,7 +4,7 @@ Migration **014** adds `background_tasks` for exports, cleanup, model backfills,
 imports and connector sync. Inference keeps `jobs`; email keeps its outbox.
 PostgreSQL owns eligibility, checkpoints, retries and leases.
 
-Migration **029** adds [exact AI-work caching](ai-caching.md). Enrichment jobs can
+Migration **033** adds [exact AI-work caching](ai-caching.md). Enrichment jobs can
 reuse unchanged text/configuration artifacts without another provider reservation,
 but still publish only to the current note version under the current preference,
 profile, source and lease guards. Classification also fences candidate versions.

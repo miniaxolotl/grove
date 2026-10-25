@@ -86,7 +86,7 @@ version and explicit-review checks; cached data never automatically executes a w
 
 ## Storage, concurrency and outages
 
-Forward migration `20261025_029_ai_cache` adds tenant-isolated `ai_cache` and
+Forward migration `20261025_033_ai_cache` adds tenant-isolated `ai_cache` and
 `ai_provider_backoff`, plus weighted units on the existing action ledger and the
 conversation refresh marker. Both cache tables force RLS for API/worker roles.
 Only canonical input digests and validated outputs are stored; credentials are not.

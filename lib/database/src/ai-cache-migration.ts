@@ -1,7 +1,7 @@
 import type { Knex } from "knex";
 
 export const aiCache = {
-  name: "20261025_029_ai_cache",
+  name: "20261025_033_ai_cache",
   async up(db: Knex) {
     await db.raw(`
       ALTER TABLE action_usage ADD COLUMN units smallint NOT NULL DEFAULT 5 CHECK(units IN (1,5));

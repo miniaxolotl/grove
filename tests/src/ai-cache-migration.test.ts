@@ -18,7 +18,7 @@ test("AI cache upgrade preserves authored data and provider counts and gives old
   const admin = createDatabase(target(url));
   const db = createDatabase(target(process.env.TEST_DATABASE_URL!));
   try {
-    const old = migrations.filter((m) => m.name < "20261025_029");
+    const old = migrations.filter((m) => m.name < "20261025_033");
     const migrationSource: Knex.MigrationSource<(typeof migrations)[number]> = {
       getMigrations: async () => old,
       getMigrationName: (m) => m.name,
