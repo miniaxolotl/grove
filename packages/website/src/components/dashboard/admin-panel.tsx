@@ -69,7 +69,7 @@ export function AdminPanel() {
   });
   const lostAccess =
     denied(status.error) || denied(accounts.error) || denied(audit.error);
-  if (lostAccess || (status.data && !authorized))
+  if (lostAccess || status.data?.role === "user")
     return (
       <div className="admin-sheet">
         <h2 className="settings-section-heading">Administration</h2>
@@ -85,7 +85,7 @@ export function AdminPanel() {
             ? "Checking access…"
             : "Couldn’t check your access."}
         </p>
-        {status.error ? (
+        {!status.isPending ? (
           <button className="text-button" onClick={() => void status.refetch()}>
             Try again
           </button>
