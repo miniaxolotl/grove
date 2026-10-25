@@ -150,12 +150,17 @@ test("empty and invalid file filters offer a safe path back to all uploads", asy
   await expect(
     page.getByRole("link", { name: "Open Ask Grove", exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Filename", { exact: true }).fill("missing");
+  await page
+    .getByRole("searchbox", { name: "Search files", exact: true })
+    .fill("missing");
   await page.getByRole("button", { name: "Search files", exact: true }).click();
   await expect(
-    page.getByText("Try another filename or type, or view all uploads.", {
-      exact: true,
-    }),
+    page.getByText(
+      "Try another search or clear your filters to find more files.",
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
 });
 test("Ask Grove, imports and settings expose the shared files destination", async ({
@@ -190,4 +195,110 @@ test("Ask Grove, imports and settings expose the shared files destination", asyn
       .getByRole("dialog", { name: "Import notes", exact: true })
       .getByRole("link", { name: "View files & storage", exact: true }),
   ).toHaveAttribute("href", "/app/settings/files");
+});
+test("file filters, notebook picker and sorting reset pagination without losing a note context", async ({
+  page,
+}) => {
+  const projectId = "00000000-0000-4000-a000-000000000103";
+  let last: Record<string, unknown> = {};
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(
+      "/api/grove",
+      "",
+    );
+    let data: unknown = [];
+    if (path === "/me") data = { accountId: "polished-files" };
+    if (path === "/projects")
+      data = [
+        {
+          id: projectId,
+          name: "Seedling reference",
+          parentId: null,
+          status: "active",
+          version: 1,
+        },
+      ];
+    if (path === "/files/storage") data = storage;
+    if (path === "/files/search") {
+      last = route.request().postDataJSON();
+      data = { items: [file], nextCursor: "next" };
+    }
+    await route.fulfill({ json: { success: true, data } });
+  });
+  await page.goto(`${base}/app/settings/files?memoryId=${id}`);
+  await expect(page.locator(".files-storage")).not.toHaveAttribute("open", "");
+  await page.getByLabel("Sort by", { exact: true }).selectOption("size");
+  await expect.poll(() => last.sort).toBe("size");
+  await page.getByRole("button", { name: "Next files", exact: true }).click();
+  await expect.poll(() => last.after).toBe("next");
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await page.getByLabel("File type", { exact: true }).selectOption("image");
+  await expect.poll(() => last.after).toBeUndefined();
+  const picker = page.getByRole("combobox", {
+    name: "Filter by notebook",
+    exact: true,
+  });
+  await picker.focus();
+  await picker.press("Enter");
+  await page
+    .getByRole("option", { name: "Seedling reference", exact: true })
+    .click();
+  await expect.poll(() => last.projectId).toBe(projectId);
+  await expect(picker).toBeFocused();
+  await page
+    .getByRole("searchbox", { name: "Search files", exact: true })
+    .fill("Watering");
+  await page.getByRole("button", { name: "Search files", exact: true }).click();
+  await expect.poll(() => last.query).toBe("Watering");
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await expect.poll(() => last.query).toBe("");
+  expect(last.memoryId).toBe(id);
+  expect(last.projectId).toBeUndefined();
+  expect(last.kind).toBeUndefined();
+  expect(last.sort).toBe("newest");
+});
+test("an invalid page cursor can recover directly to the first file page", async ({
+  page,
+}) => {
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (
+      path.endsWith("/files/search") &&
+      route.request().postDataJSON().after
+    ) {
+      await route.fulfill({
+        status: 400,
+        json: {
+          success: false,
+          error: {
+            code: "invalid_cursor",
+            message: "Files changed. Start again to continue.",
+          },
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        success: true,
+        data: path.endsWith("/me")
+          ? { accountId: "cursor-files" }
+          : path.endsWith("/storage")
+            ? storage
+            : path.endsWith("/files/search")
+              ? { items: [file], nextCursor: "invalidated" }
+              : [],
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/files`);
+  await expect(page.getByText("Reference.txt", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Next files", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Files changed");
+  await page
+    .getByRole("button", { name: "Start from first page", exact: true })
+    .click();
+  await expect(page.getByText("Reference.txt", { exact: true })).toBeVisible();
 });

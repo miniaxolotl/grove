@@ -294,6 +294,28 @@ qualify production throughput, cold-cache performance or profitability; unchange
 research/audio exposure can exceed the introductory price. No retained database,
 production flag, paid provider, subscription, release or deployment was changed.
 
+## Files browsing refinement (25 October 2026; stacked on #142)
+
+The [Files & storage view](files-storage.md) now prioritizes the file ledger with
+a compact expandable storage band, global newest/name/size sorting, location-aware
+search, notebook/type/lifecycle filters and individually clearable filter chips.
+Readable note labels, notebook breadcrumbs, status badges, keyboard expansion and
+direct first-page recovery make locations and errors easier to navigate. Mobile
+Refresh shares the title row; storage details no longer push files below the fold.
+No deletion/cleanup mutations, quota/retention changes, schema or new dependencies.
+
+Local verification: **474 backend passes, four optional-service skips, zero failures**,
+including11 inventory cases; **251 Chromium cases pass**, including five file UI cases.
+Root/site lint/types/builds and budgets; nine artifacts;27 release/16 CI contracts
+and workflow lint; native OpenCode/Claude/Codex smoke checks pass. The final backend
+run uses isolated task-local temporary storage after shared tmpfs quota failures,
+without changing assertions or limits. Real API/PostgreSQL/parser/worker/private-source journeys pass
+both Chromium and supported-container WebKit at1440/390/320px, including sort/search/
+view controls, exact originals, keyboard/focus, source removal, untruncated notebook
+roots and WCAG A/AA/overflow/page-error checks, also with expanded filters.
+[Three reviewed captures](design/screenshots/files-experience/README.md)
+use synthetic documents/identities only. No paid providers or production changes.
+
 ## Files & storage (25 October 2026; stacked on #136)
 
 The shared [Files & storage view](files-storage.md) is available from Settings,

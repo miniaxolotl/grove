@@ -3,7 +3,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Image as ImageIcon, Mic, ChevronDown } from "lucide-react";
+import {
+  FileText,
+  Image as ImageIcon,
+  Mic,
+  ChevronDown,
+  SlidersHorizontal,
+  X,
+  Folder,
+  MessageSquare,
+  BookOpen,
+} from "lucide-react";
 import {
   fileSearchSchema,
   type FileSearch,
@@ -15,13 +25,29 @@ import {
 import { useWorkspaceCache } from "./workspace-cache";
 import { errorMessage } from "@/lib/dashboard-api";
 import { workspaceKeys } from "@/lib/workspace-cache";
+import {
+  FilesStorageSummary,
+  fileBytes as bytes,
+} from "./files-storage-summary";
+import { NotebookSelect } from "./notebook-select";
+import { useNotebooks } from "./notebooks-provider";
+import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
+import { memoryExcerpt } from "@/lib/memory-display";
 import "./files.css";
 
-function bytes(value: number) {
-  if (value < 1024) return `${value} B`;
-  const unit = value < 1024 ** 2 ? 1 : value < 1024 ** 3 ? 2 : 3;
-  return `${(value / 1024 ** unit).toLocaleString("en", { maximumFractionDigits: 1 })} ${["B", "KiB", "MiB", "GiB"][unit]}`;
-}
+const viewLabels: Record<FileSearch["view"], string> = {
+  all: "All files",
+  temporary: "Temporary uploads",
+  attention: "Needs attention",
+  chat_only: "Only in chats",
+  unfiled: "Unfiled notes",
+  history: "Earlier note versions",
+};
+const typeLabels = {
+  document: "Documents",
+  image: "Images",
+  recording: "Recordings",
+};
 function Failure({ error, retry }: { error: unknown; retry: () => void }) {
   return (
     <div className="app-error" role="alert">
@@ -33,6 +59,7 @@ function Failure({ error, retry }: { error: unknown; retry: () => void }) {
   );
 }
 function FilePlaces({ file }: { file: UploadedFile }) {
+  const { projects } = useNotebooks();
   const cache = useWorkspaceCache(),
     [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
   const query = useQuery({
@@ -45,37 +72,66 @@ function FilePlaces({ file }: { file: UploadedFile }) {
     refetchInterval: 30000,
   });
   if (query.error)
-    return <Failure error={query.error} retry={() => void query.refetch()} />;
+    return (
+      <>
+        <Failure error={query.error} retry={() => void query.refetch()} />
+        {cursors.length > 1 ? (
+          <button
+            className="text-button"
+            onClick={() => setCursors([undefined])}
+          >
+            Start from first location
+          </button>
+        ) : null}
+      </>
+    );
   if (!query.data) return <p role="status">Loading locations…</p>;
   return (
     <div className="file-places">
       <ul aria-label={`Locations for ${file.filename}`}>
         {query.data.items.map((location) => (
           <li key={location.key}>
+            {location.memoryId ? (
+              <BookOpen size={16} aria-hidden="true" />
+            ) : location.conversationId ? (
+              <MessageSquare size={16} aria-hidden="true" />
+            ) : (
+              <Folder size={16} aria-hidden="true" />
+            )}
             <div>
               {location.memoryId ? (
                 <>
                   <Link href={`/app/memories/${location.memoryId}`}>
-                    {location.title}
+                    {memoryExcerpt({ content: location.title }, 110) ||
+                      "Untitled note"}
                   </Link>
                   <p>
-                    {location.projectId ? (
-                      <Link href={`/app/projects/${location.projectId}`}>
-                        {location.projectName ?? "Notebook"}
-                      </Link>
-                    ) : (
-                      "Unfiled"
-                    )}
+                    {!location.projectId ? "Unfiled" : ""}
                     {location.archived ? " · Archived note" : ""}
                     {location.historical ? " · Earlier note version" : ""}
                   </p>
+                  {location.projectId ? (
+                    projects.some((p) => p.id === location.projectId) ? (
+                      <NotebookBreadcrumbs
+                        projects={projects}
+                        id={location.projectId}
+                      />
+                    ) : (
+                      <Link
+                        className="file-notebook-fallback"
+                        href={`/app/projects/${location.projectId}`}
+                      >
+                        {location.projectName ?? "Notebook"}
+                      </Link>
+                    )
+                  ) : null}
                 </>
               ) : location.conversationId ? (
                 <>
                   <Link href={`/app/ask?chat=${location.conversationId}`}>
                     {location.title}
                   </Link>
-                  <p>Ask Grove chat · No notebook unless saved as notes</p>
+                  <p>Ask Grove chat · Separate from your notebooks</p>
                 </>
               ) : (
                 <>
@@ -85,6 +141,12 @@ function FilePlaces({ file }: { file: UploadedFile }) {
                   </p>
                 </>
               )}
+              {!location.downloadPath && location.memoryId ? (
+                <p>
+                  The original isn’t available until the upload and note save
+                  finish.
+                </p>
+              ) : null}
             </div>
             {location.downloadPath ? (
               <a
@@ -141,24 +203,32 @@ function FileRow({ file }: { file: UploadedFile }) {
           <Icon size={19} aria-hidden="true" />
           <span className="file-name">
             <strong>{file.filename}</strong>
-            <span>
+            <span className="file-meta">
               {file.kind === "document"
                 ? "Document"
                 : file.kind === "image"
                   ? "Image"
                   : "Recording"}{" "}
-              ·{" "}
-              {file.state === "staged"
-                ? "Temporary upload"
-                : file.state === "reserved"
-                  ? "Storage reserved"
-                  : "Retained original"}
-              {file.status === "pending"
-                ? " · Processing"
-                : file.status === "failed"
-                  ? " · Upload needs attention"
-                  : ""}
+              · Uploaded{" "}
+              {new Date(file.createdAt).toLocaleDateString("en", {
+                month: "short",
+                day: "numeric",
+              })}
             </span>
+          </span>
+          <span
+            className="file-state"
+            data-state={file.status === "failed" ? "attention" : file.state}
+          >
+            {file.status === "failed"
+              ? "Needs attention"
+              : file.status === "pending"
+                ? "Processing"
+                : file.state === "staged"
+                  ? "Temporary"
+                  : file.state === "reserved"
+                    ? "Pending save"
+                    : "Saved original"}
           </span>
           <span className="file-size">{bytes(file.bytes)}</span>
           <span className="file-location-count">
@@ -179,6 +249,12 @@ function FileRow({ file }: { file: UploadedFile }) {
                 : ""}
             </p>
             <FilePlaces file={file} />
+            {file.source === "media" ? (
+              <p className="file-date">
+                This is a generated filename; the original filename wasn’t
+                stored.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </details>
@@ -189,6 +265,27 @@ function FilesView({ initial }: { initial: FileSearch }) {
   const cache = useWorkspaceCache(),
     [queryText, setQueryText] = useState(initial.query),
     [filters, setFilters] = useState(initial);
+  const notebooks = useNotebooks();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const change = (patch: Partial<FileSearch>) => {
+    setCursors([undefined]);
+    setFilters((old) => ({ ...old, ...patch }));
+  };
+  const clear = () => {
+    setQueryText("");
+    setCursors([undefined]);
+    setFilters({
+      query: "",
+      sort: "newest",
+      view: "all",
+      memoryId: initial.memoryId,
+      conversationId: initial.conversationId,
+    });
+  };
+  const activeCount =
+    Number(!!filters.kind) +
+    Number(filters.view !== "all") +
+    Number(!!filters.projectId);
   const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
   const storage = useQuery({
     ...cache.resource<FileStorage>("/files/storage"),
@@ -204,7 +301,10 @@ function FilesView({ initial }: { initial: FileSearch }) {
     refetchInterval: 30000,
   });
   const scoped =
-    initial.memoryId || initial.projectId || initial.conversationId;
+    filters.memoryId || filters.projectId || filters.conversationId;
+  const notebookName =
+    notebooks.projects.find((p) => p.id === filters.projectId)?.name ??
+    "Selected notebook";
   const usage = storage.error ? undefined : storage.data;
   return (
     <div className="settings-content files-panel">
@@ -231,70 +331,13 @@ function FilesView({ initial }: { initial: FileSearch }) {
           Refresh files
         </button>
       </div>
-      <section
-        className="files-storage"
-        aria-labelledby="files-storage-heading"
-      >
-        <h3 id="files-storage-heading">Upload storage</h3>
-        {storage.error ? (
-          <Failure error={storage.error} retry={() => void storage.refetch()} />
-        ) : !usage ? (
-          <p role="status">Loading storage…</p>
-        ) : (
-          <>
-            <dl>
-              <div>
-                <dt>Retained upload budget</dt>
-                <dd>
-                  {bytes(usage.budgetBytes)}{" "}
-                  <span>of {bytes(usage.byteLimit)}</span>
-                </dd>
-              </div>
-              <div>
-                <dt>Temporary staging</dt>
-                <dd>
-                  {bytes(usage.stagingBytes)}{" "}
-                  <span>of {bytes(usage.stagingLimit)}</span>
-                </dd>
-              </div>
-              <div>
-                <dt>Accessible uploads</dt>
-                <dd>
-                  {usage.fileCount} {usage.fileCount === 1 ? "file" : "files"}{" "}
-                  <span>
-                    {bytes(usage.visibleBytes)} in available originals
-                  </span>
-                </dd>
-              </div>
-            </dl>
-            <meter
-              aria-label="Retained upload budget"
-              value={usage.budgetBytes}
-              max={usage.byteLimit}
-            />
-            <p>
-              Includes retained and uncertain writes. Removing a file or
-              deleting a note doesn’t free retained storage.
-            </p>
-          </>
-        )}
-        <details className="files-retention">
-          <summary>What counts as storage?</summary>
-          <p>
-            {usage
-              ? `${usage.attempts.toLocaleString()} of ${usage.attemptLimit.toLocaleString()} upload attempts used. `
-              : ""}
-            The retained budget includes uncertain or repeated writes, not just
-            the files below. Accessible uploads also include temporary files.
-            Accepted documents, note images and original recordings are retained
-            privately. Unaccepted document uploads expire after 24 hours;
-            staging is released after cleanup. Read-aloud audio and export
-            archives are separate temporary data, not uploaded files. Images and
-            recordings use generated names because their original filenames
-            weren’t stored.
-          </p>
-        </details>
-      </section>
+      {storage.error ? (
+        <Failure error={storage.error} retry={() => void storage.refetch()} />
+      ) : usage ? (
+        <FilesStorageSummary usage={usage} />
+      ) : (
+        <p role="status">Loading storage…</p>
+      )}
       <section aria-labelledby="files-list-heading">
         <div className="files-list-heading">
           <h3 id="files-list-heading">Uploaded files</h3>
@@ -309,8 +352,8 @@ function FilesView({ initial }: { initial: FileSearch }) {
             Showing files used by{" "}
             {initial.memoryId
               ? "this note"
-              : initial.projectId
-                ? "notes directly in this notebook (not sub-notebooks)"
+              : filters.projectId
+                ? `notes directly in ${notebookName} (not sub-notebooks)`
                 : "this chat"}
             . Storage totals cover your whole account.
           </p>
@@ -324,40 +367,191 @@ function FilesView({ initial }: { initial: FileSearch }) {
           }}
         >
           <label>
-            Filename
+            Search files
             <input
               type="search"
-              placeholder="Search uploads…"
+              placeholder="Filename, note, notebook or chat…"
               maxLength={200}
               value={queryText}
               onChange={(event) => setQueryText(event.target.value)}
             />
           </label>
+          <button
+            type="submit"
+            aria-label="Search files"
+            className="app-button secondary"
+          >
+            Search
+          </button>
+        </form>
+        <div className="files-toolbar">
+          <button
+            type="button"
+            className="files-filter-toggle"
+            aria-expanded={filtersOpen}
+            aria-controls="files-filter-options"
+            onClick={() => setFiltersOpen((old) => !old)}
+          >
+            <SlidersHorizontal size={16} />
+            Filters{activeCount ? ` (${activeCount})` : ""}
+          </button>
+          <label className="files-sort">
+            Sort by
+            <select
+              aria-label="Sort by"
+              value={filters.sort}
+              onChange={(event) =>
+                change({ sort: event.target.value as FileSearch["sort"] })
+              }
+            >
+              <option value="newest">Newest first</option>
+              <option value="name">Filename A–Z</option>
+              <option value="size">Largest first</option>
+            </select>
+          </label>
+        </div>
+        <div
+          id="files-filter-options"
+          className="files-filter-grid"
+          hidden={!filtersOpen}
+        >
           <label>
             File type
             <select
               aria-label="File type"
               value={filters.kind ?? ""}
-              onChange={(event) => {
-                setCursors([undefined]);
-                setFilters((old) => ({
-                  ...old,
+              onChange={(event) =>
+                change({
                   kind: (event.target.value || undefined) as FileSearch["kind"],
-                }));
-              }}
+                })
+              }
             >
               <option value="">All types</option>
-              <option value="document">Documents</option>
-              <option value="image">Images</option>
-              <option value="recording">Recordings</option>
+              {Object.entries(typeLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </select>
           </label>
-          <button type="submit" className="app-button secondary">
-            Search files
-          </button>
-        </form>
+          <label>
+            Show
+            <select
+              aria-label="Show files"
+              value={filters.view}
+              onChange={(event) =>
+                change({
+                  view: event.target.value as FileSearch["view"],
+                  ...(event.target.value === "unfiled"
+                    ? { projectId: undefined }
+                    : {}),
+                })
+              }
+            >
+              {Object.entries(viewLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="files-notebook-filter">
+            <span>Notebook</span>
+            <NotebookSelect
+              aria-label="Filter by notebook"
+              projects={notebooks.projects}
+              leading={[
+                { value: "", label: "All notebooks" },
+                ...(filters.projectId &&
+                !notebooks.projects.some((p) => p.id === filters.projectId)
+                  ? [{ value: filters.projectId, label: notebookName }]
+                  : []),
+              ]}
+              value={filters.projectId ?? ""}
+              onValueChange={(projectId) =>
+                change({
+                  projectId: projectId || undefined,
+                  view: filters.view === "unfiled" ? "all" : filters.view,
+                })
+              }
+            />
+          </div>
+          {notebooks.error ? (
+            <div className="files-filter-error">
+              <p>
+                Notebook filters are unavailable. Your file list is still
+                available.
+              </p>
+              <button
+                type="button"
+                className="text-button"
+                onClick={notebooks.reload}
+              >
+                Retry notebooks
+              </button>
+            </div>
+          ) : null}
+        </div>
+        {activeCount > 0 || filters.query ? (
+          <div
+            className="files-active-filters"
+            aria-label="Active file filters"
+          >
+            {filters.query ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setQueryText("");
+                  change({ query: "" });
+                }}
+              >
+                <span>Search: {filters.query}</span>
+                <X size={13} />
+                <span className="sr-only">Clear search</span>
+              </button>
+            ) : null}
+            {filters.kind ? (
+              <button type="button" onClick={() => change({ kind: undefined })}>
+                {typeLabels[filters.kind]}
+                <X size={13} />
+                <span className="sr-only">Clear file type</span>
+              </button>
+            ) : null}
+            {filters.view !== "all" ? (
+              <button type="button" onClick={() => change({ view: "all" })}>
+                {viewLabels[filters.view]}
+                <X size={13} />
+                <span className="sr-only">Clear file view</span>
+              </button>
+            ) : null}
+            {filters.projectId ? (
+              <button
+                type="button"
+                onClick={() => change({ projectId: undefined })}
+              >
+                <span>{notebookName}</span>
+                <X size={13} />
+                <span className="sr-only">Clear notebook filter</span>
+              </button>
+            ) : null}
+            <button type="button" className="text-button" onClick={clear}>
+              Clear filters
+            </button>
+          </div>
+        ) : null}
         {files.error ? (
-          <Failure error={files.error} retry={() => void files.refetch()} />
+          <>
+            <Failure error={files.error} retry={() => void files.refetch()} />
+            {cursors.length > 1 ? (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setCursors([undefined])}
+              >
+                Start from first page
+              </button>
+            ) : null}
+          </>
         ) : !files.data ? (
           <p role="status">Loading files…</p>
         ) : (
@@ -376,8 +570,8 @@ function FilesView({ initial }: { initial: FileSearch }) {
             ) : (
               <div className="files-empty">
                 <p>
-                  {filters.query || filters.kind || scoped
-                    ? "Try another filename or type, or view all uploads."
+                  {filters.query || activeCount || scoped
+                    ? "Try another search or clear your filters to find more files."
                     : "Upload a document in Ask Grove or Import notes, or add an image or recording to a note. Your files will appear here."}
                 </p>
                 <Link className="text-button" href="/app/ask">
@@ -418,9 +612,15 @@ export function FilesPanel() {
   const params = useSearchParams();
   const parsed = fileSearchSchema.safeParse(
     Object.fromEntries(
-      ["query", "kind", "memoryId", "projectId", "conversationId"].flatMap(
-        (key) => (params.get(key) ? [[key, params.get(key)]] : []),
-      ),
+      [
+        "query",
+        "kind",
+        "sort",
+        "view",
+        "memoryId",
+        "projectId",
+        "conversationId",
+      ].flatMap((key) => (params.get(key) ? [[key, params.get(key)]] : [])),
     ),
   );
   if (!parsed.success)

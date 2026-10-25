@@ -3,6 +3,7 @@ import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
   fileSearchSchema,
   fileCursorSchema,
+  filePositionSchema,
   fileLocationsSchema,
   type FilePage,
   type FileLocations,
@@ -122,16 +123,64 @@ export class Files {
           .update(JSON.stringify(input))
           .digest("hex"),
         cursor = this.cursor(after, account.id, binding);
-      const filters = ["(f.source||':'||f.id::text)>?"],
-        values: (string | number)[] = [cursor];
+      const filters: string[] = [],
+        values: (string | number)[] = [];
+      const order =
+        input.sort === "name"
+          ? 'lower(f.filename) COLLATE "C"'
+          : input.sort === "size"
+            ? "f.bytes"
+            : "f.created_at";
+      const ascending = input.sort === "name";
+      const sortValue =
+        input.sort === "name"
+          ? "lower(f.filename)"
+          : input.sort === "size"
+            ? "f.bytes::text"
+            : `to_char(f.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+      if (cursor) {
+        const position = filePositionSchema.parse(JSON.parse(cursor));
+        const cast =
+          input.sort === "name"
+            ? '? COLLATE "C"'
+            : input.sort === "size"
+              ? "?::integer"
+              : "?::timestamptz";
+        filters.push(
+          `(${order}${ascending ? ">" : "<"}${cast} OR (${order}=${cast} AND (f.source,f.id)>(?,?::uuid)))`,
+        );
+        values.push(
+          position.value,
+          position.value,
+          position.source,
+          position.id,
+        );
+      }
       if (input.query) {
-        filters.push("f.filename ILIKE ?");
-        values.push(`%${input.query.replace(/[\\%_]/g, "\\$&")}%`);
+        filters.push(
+          "(f.filename ILIKE ? OR EXISTS(SELECT 1 FROM locations l WHERE l.source=f.source AND l.id=f.id AND (l.title ILIKE ? OR l.project_name ILIKE ?)))",
+        );
+        const literal = `%${input.query.replace(/[\\%_]/g, "\\$&")}%`;
+        values.push(literal, literal, literal);
       }
       if (input.kind) {
         filters.push("f.kind=?");
         values.push(input.kind);
       }
+      if (input.view === "temporary") filters.push("f.state='staged'");
+      if (input.view === "attention") filters.push("f.status='failed'");
+      if (input.view === "chat_only")
+        filters.push(
+          "EXISTS(SELECT 1 FROM locations l WHERE l.source=f.source AND l.id=f.id AND l.conversation_id IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM locations l WHERE l.source=f.source AND l.id=f.id AND l.memory_id IS NOT NULL)",
+        );
+      if (input.view === "unfiled")
+        filters.push(
+          "EXISTS(SELECT 1 FROM locations l WHERE l.source=f.source AND l.id=f.id AND l.memory_id IS NOT NULL AND l.project_id IS NULL)",
+        );
+      if (input.view === "history")
+        filters.push(
+          "EXISTS(SELECT 1 FROM locations l WHERE l.source=f.source AND l.id=f.id AND l.historical)",
+        );
       for (const [field, value] of [
         ["memory_id", input.memoryId],
         ["project_id", input.projectId],
@@ -145,25 +194,36 @@ export class Files {
         }
       }
       const { rows } = await trx.raw(
-        `${inventory} SELECT f.id,f.source,f.kind,f.filename,f.bytes,f.status,f.state,
+        `${inventory} SELECT f.id,f.source,f.kind,f.filename,f.bytes,f.status,f.state,${sortValue} AS "sortValue",
         f.created_at AS "createdAt",f.expires_at AS "expiresAt",(SELECT count(*)::integer FROM locations l WHERE l.source=f.source AND l.id=f.id) AS "locationCount"
-        FROM files f WHERE ${filters.join(" AND ")} ORDER BY f.source,f.id LIMIT 31`,
+        FROM files f WHERE ${filters.length ? filters.join(" AND ") : "true"} ORDER BY ${order} ${ascending ? "ASC" : "DESC"},f.source,f.id LIMIT 31`,
         values,
       );
       return {
-        items: rows.slice(0, 30).map((row: FilePage["items"][number]) => ({
-          ...row,
-          createdAt: new Date(row.createdAt).toISOString(),
-          expiresAt: row.expiresAt
-            ? new Date(row.expiresAt).toISOString()
-            : null,
-        })),
+        items: rows
+          .slice(0, 30)
+          .map(
+            ({
+              sortValue: _sort,
+              ...row
+            }: FilePage["items"][number] & { sortValue: string }) => ({
+              ...row,
+              createdAt: new Date(row.createdAt).toISOString(),
+              expiresAt: row.expiresAt
+                ? new Date(row.expiresAt).toISOString()
+                : null,
+            }),
+          ),
         nextCursor:
           rows.length > 30
             ? this.next(
                 account.id,
                 binding,
-                `${rows[29].source}:${rows[29].id}`,
+                JSON.stringify({
+                  value: rows[29].sortValue,
+                  source: rows[29].source,
+                  id: rows[29].id,
+                }),
               )
             : null,
       };

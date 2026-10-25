@@ -6,13 +6,26 @@ Import notes, note actions and notebook actions. Context links filter to that no
 chat or the notes directly in that notebook; **All uploads** clears the context.
 Sub-notebooks are not implicitly included.
 
-Search by filename or filter documents, images and recordings. Each row shows its
-size, upload state and number of accessible locations. Expand it for note and
+Search filenames, current note labels, notebook names or chat titles. Results
+default to **Newest first**; **Filename A–Z** and **Largest first** sort the entire
+inventory, not just the current page. **Filters** reveals file type, notebook and
+views for temporary uploads, files needing attention, chat-only files, Unfiled
+notes and earlier-version media. Active choices can be cleared individually;
+**Clear filters** keeps an explicit note/chat context, while **All uploads** exits it.
+Notebook filtering includes notes directly in the selected notebook, not children.
+
+Each row shows its size, upload date, state and number of accessible locations.
+Expand with a click or keyboard for readable note labels, notebook paths and
 notebook links, chat links and authorized original downloads. Locations and files
 page independently in batches of30. Earlier-version media is labelled explicitly;
 original filenames were not stored for images/recordings, so those have generated
 names. Unconfirmed imports have no saved notebook yet. Uploads in Ask create no
 notes unless you explicitly save them.
+
+Storage is a compact expandable band so the file list stays close to the top on
+mobile. Expand **Upload storage** for budget/staging/available-byte details and
+retention explanations. Invalidated page cursors offer **Start from first page**;
+failed reads remain distinct from empty results.
 
 ## Storage numbers
 
@@ -44,13 +57,15 @@ switches discard the private workspace cache; data is not persisted in the brows
 Owning website session only (agents, API keys and public-share visitors cannot use
 these routes):
 
-| Route                      | Result                                                                                                           |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/files/storage`    | Conservative account budget, actual staging bytes, accessible-original bytes and visible file count              |
-| `POST /v1/files/search`    | `{ query?, kind?, memoryId?, projectId?, conversationId?, after? }`; at most30 metadata rows and `nextCursor`    |
-| `POST /v1/files/locations` | `{ source: 'chat' \| 'import' \| 'media', id, after? }`; at most30 current authorized locations and `nextCursor` |
+| Route                      | Result                                                                                                                      |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/files/storage`    | Conservative account budget, actual staging bytes, accessible-original bytes and visible file count                         |
+| `POST /v1/files/search`    | `{ query?, kind?, sort?, view?, memoryId?, projectId?, conversationId?, after? }`; at most30 metadata rows and `nextCursor` |
+| `POST /v1/files/locations` | `{ source: 'chat' \| 'import' \| 'media', id, after? }`; at most30 current authorized locations and `nextCursor`            |
 
 Cursors bind the account, filters/source and keyset position with a signature.
+Date ordering preserves database microseconds; equal dates/names/sizes have stable
+source/ID tie-breakers. Sorting or changing a view invalidates an old page cursor.
 The read projection uses existing tenant RLS, source and note visibility; no schema
 or storage-policy migration is added. Object keys, hashes, raw staged bytes,
 document quotations, unrelated chat content and foreign metadata are not returned.

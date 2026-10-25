@@ -2,12 +2,23 @@ import { z } from "zod";
 
 export const fileSourceSchema = z.enum(["chat", "import", "media"]);
 export const fileCursorSchema = z
-  .object({ owner: z.uuid(), binding: z.string(), key: z.string().max(100) })
+  .object({ owner: z.uuid(), binding: z.string(), key: z.string().max(512) })
   .strict();
 export const fileSearchSchema = z
   .object({
     query: z.string().trim().max(200).default(""),
     kind: z.enum(["document", "image", "recording"]).optional(),
+    sort: z.enum(["newest", "name", "size"]).default("newest"),
+    view: z
+      .enum([
+        "all",
+        "temporary",
+        "attention",
+        "chat_only",
+        "unfiled",
+        "history",
+      ])
+      .default("all"),
     memoryId: z.uuid().optional(),
     projectId: z.uuid().optional(),
     conversationId: z.uuid().optional(),
@@ -19,6 +30,13 @@ export const fileLocationsSchema = z
     source: fileSourceSchema,
     id: z.uuid(),
     after: z.string().max(2048).optional(),
+  })
+  .strict();
+export const filePositionSchema = z
+  .object({
+    value: z.string().max(200),
+    source: fileSourceSchema,
+    id: z.uuid(),
   })
   .strict();
 export type FileSearch = z.infer<typeof fileSearchSchema>;
