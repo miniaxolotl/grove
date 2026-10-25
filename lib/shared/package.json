@@ -12,6 +12,7 @@
     "./billing": "./src/billing.ts",
     "./system-admin": "./src/system-admin.ts",
     "./memory-tools": "./src/memory-tools.ts",
+    "./note-writing": "./src/note-writing.ts",
     "./notebook-lifecycle": "./src/notebook-lifecycle.ts",
     "./models": "./src/models.ts",
     "./media": "./src/media.ts",

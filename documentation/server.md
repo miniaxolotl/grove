@@ -60,6 +60,12 @@ for directory discovery. Names, arguments and per-call permissions remain unchan
 
 ## Memory and notebook tools
 
+Tools carry shared [human-readable note-writing guidance](agent-note-writing.md)
+and model-visible content/scope/capture/version/retry descriptions. Note bodies use
+CommonMark/GFM; a supplied `content` replaces the complete body even on a partial
+field update. Guidance does not normalize content, change validation or authorize
+an action. Existing schemas, bounds, defaults and grants remain unchanged.
+
 | Tool                               | Purpose                                            | Main fields                                                                                  |
 | ---------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `remember`                         | Durable save or versioned correction               | `operationId`, `content`, `kind`, `projectId`, `source`; correction: `id`, `expectedVersion` |
