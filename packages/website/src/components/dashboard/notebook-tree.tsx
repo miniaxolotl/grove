@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Project } from "@/lib/dashboard-api";
-import { notebookPath } from "@/lib/notebooks";
+import { notebookOrder, notebookPath } from "@/lib/notebooks";
+import { useNotebooks } from "./notebooks-provider";
 import { IconButton } from "./ui/button";
 import {
   useNotebookDrop,
@@ -26,6 +33,7 @@ export function NotebookTree({
   showNotes = false,
   notesVisible = true,
   remember = false,
+  draggable = true,
 }: {
   projects: readonly Project[];
   selectedId?: string | null;
@@ -36,7 +44,13 @@ export function NotebookTree({
   showNotes?: boolean;
   notesVisible?: boolean;
   remember?: boolean;
+  draggable?: boolean;
 }) {
+  const coarse = useSyncExternalStore(
+    subscribeCoarse,
+    coarsePointer,
+    () => false,
+  );
   const navigation = useWorkspaceNavigationState();
   const [localExpanded, setLocalExpanded] = useState<Record<string, boolean>>(
     {},
@@ -52,7 +66,7 @@ export function NotebookTree({
     if (remember && navigation?.ready) navigation.update({ expanded: next });
     else setLocalExpanded(next);
   };
-  const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = [...projects].sort(notebookOrder);
   const ids = new Set(projects.map((p) => p.id));
   const ancestors = new Set(
     notebookPath(projects, selectedId).map((p) => p.id),
@@ -92,6 +106,8 @@ export function NotebookTree({
             <NotebookBranch
               key={project.id}
               project={project}
+              draggable={draggable}
+              coarse={coarse}
               name={notebookPath(projects, project.id)
                 .map((p) => p.name)
                 .join(" / ")}
@@ -170,6 +186,8 @@ export function NotebookTree({
 
 function NotebookBranch({
   project,
+  draggable,
+  coarse,
   name,
   current,
   open,
@@ -181,6 +199,8 @@ function NotebookBranch({
   children,
 }: {
   project: Project;
+  draggable: boolean;
+  coarse: boolean;
   name: string;
   current: boolean;
   open: boolean;
@@ -192,7 +212,28 @@ function NotebookBranch({
   children: ReactNode;
 }) {
   const id = useId();
-  const { busy } = useWorkspaceDrag();
+  const notebooks = useNotebooks();
+  const { busy, active, keyboard } = useWorkspaceDrag();
+  const {
+    setNodeRef: setBeforeRef,
+    isOver: beforeOver,
+    invalid: beforeInvalid,
+  } = useNotebookDrop(
+    project.parentId ?? null,
+    `Before ${project.name}`,
+    !project.parentId,
+    { beforeId: project.id },
+  );
+  const {
+    setNodeRef: setAfterRef,
+    isOver: afterOver,
+    invalid: afterInvalid,
+  } = useNotebookDrop(
+    project.parentId ?? null,
+    `After ${project.name}`,
+    !project.parentId,
+    { afterId: project.id },
+  );
   const {
     setNodeRef: setDropRef,
     isOver,
@@ -203,7 +244,7 @@ function NotebookBranch({
     useDraggable({
       id,
       data: { item: { kind: "notebook", project } satisfies WorkspaceDragItem },
-      disabled: busy,
+      disabled: busy || !draggable || coarse,
     });
   useEffect(() => {
     if (!isOver || open || !hasChildren) return;
@@ -211,7 +252,20 @@ function NotebookBranch({
     return () => clearTimeout(timer);
   }, [isOver, open, hasChildren, expand]);
   return (
-    <li ref={setNodeRef} data-dragging={isDragging || undefined}>
+    <li
+      ref={setNodeRef}
+      data-dragging={isDragging || undefined}
+      className="notebook-branch"
+    >
+      {draggable && !coarse && !keyboard && active?.kind === "notebook" && (
+        <div
+          ref={setBeforeRef}
+          className="notebook-insertion before"
+          data-drop-active={beforeOver || undefined}
+          data-drop-disabled={beforeInvalid || undefined}
+          aria-hidden="true"
+        />
+      )}
       <div
         ref={setDropRef}
         className="notebook-tree-row"
@@ -224,12 +278,25 @@ function NotebookBranch({
         <button
           type="button"
           ref={setActivatorNodeRef}
-          {...attributes}
-          {...listeners}
+          {...(draggable && !coarse ? attributes : {})}
+          {...(draggable && !coarse ? listeners : {})}
           className="drag-handle notebook-drag-handle"
-          disabled={busy}
-          aria-label={`Move notebook ${project.name} with drag or keyboard`}
-          title="Drag to nest, or press Space to move"
+          data-touch-organize={coarse || !draggable || undefined}
+          disabled={busy || !draggable}
+          aria-hidden={!draggable || undefined}
+          aria-label={
+            coarse || !draggable
+              ? `Organize ${project.name}`
+              : `Move notebook ${project.name} with drag or keyboard`
+          }
+          title={
+            coarse || !draggable
+              ? "Organize notebook"
+              : "Drag to nest, or press Space to move"
+          }
+          onClick={() => {
+            if (coarse && draggable) notebooks.openOrganizer(project.id);
+          }}
         >
           <span className="notebook-folder-icon" aria-hidden="true">
             {icon}
@@ -242,7 +309,23 @@ function NotebookBranch({
         </button>
         {row}
       </div>
+      {draggable && !coarse && !keyboard && active?.kind === "notebook" && (
+        <div
+          ref={setAfterRef}
+          className="notebook-insertion after"
+          data-drop-active={afterOver || undefined}
+          data-drop-disabled={afterInvalid || undefined}
+          aria-hidden="true"
+        />
+      )}
       {children}
     </li>
   );
+}
+
+const coarsePointer = () => window.matchMedia("(pointer: coarse)").matches;
+function subscribeCoarse(update: () => void) {
+  const media = window.matchMedia("(pointer: coarse)");
+  media.addEventListener("change", update);
+  return () => media.removeEventListener("change", update);
 }

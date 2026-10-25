@@ -1,5 +1,14 @@
 import type { Project } from "./dashboard-api";
 
+/** One stable sibling order across the manager, explorer and sub-notebooks. */
+export function notebookOrder(a: Project, b: Project) {
+  return (
+    (a.position ?? 0) - (b.position ?? 0) ||
+    a.name.localeCompare(b.name) ||
+    a.id.localeCompare(b.id)
+  );
+}
+
 /** Resolves only visible ancestors; missing parents never disclose another scope. */
 export function notebookPath(projects: readonly Project[], id?: string | null) {
   const byId = new Map(projects.map((project) => [project.id, project]));

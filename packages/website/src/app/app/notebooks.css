@@ -210,3 +210,276 @@
     transition: none;
   }
 }
+
+/* Browse first; organization controls belong to one selected notebook. */
+.notebook-branch {
+  position: relative;
+}
+.notebook-insertion {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 12px;
+  z-index: 2;
+}
+.notebook-insertion.before {
+  top: -6px;
+}
+.notebook-insertion.after {
+  bottom: -6px;
+}
+.notebook-insertion[data-drop-active]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  border-top: 2px solid var(--color-leaf);
+}
+.notebook-insertion[data-drop-disabled] {
+  pointer-events: none;
+}
+.app-content:has(> .notebook-manager) > .app-page-heading {
+  margin-bottom: 16px;
+}
+.project-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.project-toolbar .project-search {
+  flex: 1 1 100%;
+  width: 100%;
+}
+.project-toolbar > span {
+  font-size: 14px;
+}
+.notebook-manager {
+  padding: 0;
+  overflow: clip;
+}
+.notebook-manager .notebook-tree-row {
+  flex-wrap: nowrap;
+  min-height: 64px;
+  padding: 6px 8px;
+  border-radius: 0;
+}
+.notebook-manager .notebook-tree-list > li + li {
+  border-top: 1px solid var(--color-line);
+}
+.notebook-manager .notebook-tree-link {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.notebook-manager .notebook-tree-link > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.notebook-manager .notebook-tree-actions {
+  flex-basis: auto;
+  flex-wrap: nowrap;
+  padding: 0;
+}
+.notebook-manager .notebook-tree-actions .app-icon {
+  width: 44px;
+  min-height: 44px;
+}
+.notebook-drag-handle[data-touch-organize] {
+  touch-action: pan-y pinch-zoom;
+  cursor: pointer;
+}
+.notebook-drag-handle[data-touch-organize] .notebook-grip-icon {
+  display: none;
+}
+.notebook-drag-handle[data-touch-organize] .notebook-folder-icon {
+  display: block;
+}
+.notebook-organize-entry {
+  font-size: 12px;
+  margin-left: auto;
+  min-height: 44px;
+  padding-inline: 8px;
+}
+.notebook-organizer {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app-dialog.inspector-dialog:has(> .notebook-organizer) {
+  --inspector-width: min(
+    520px,
+    calc(var(--overlay-viewport-width, 100vw) - var(--inspector-inset) * 2)
+  );
+  height: min(780px, calc(var(--overlay-viewport-height, 100dvh) - 24px));
+}
+.notebook-organizer-intro {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.notebook-organizer .app-search input,
+.notebook-move .app-search input {
+  font-size: 16px;
+  min-height: 44px;
+}
+.notebook-organizer-list {
+  flex-shrink: 0;
+  max-height: min(36dvh, 340px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.notebook-organizer-choice {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 10px 6px;
+  min-height: 48px;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.notebook-organizer-choice[aria-pressed="true"] {
+  font-weight: 600;
+}
+.notebook-organizer .notebook-tree-row[data-current] {
+  background: var(--color-sage);
+}
+.notebook-organizer .notebook-drag-handle:disabled {
+  color: var(--color-muted);
+  opacity: 1;
+}
+.notebook-organization-controls {
+  border-top: 1px solid var(--color-line);
+  padding-top: 16px;
+}
+.notebook-organization-controls h3 {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.notebook-organization-controls p,
+.notebook-location {
+  color: var(--color-muted);
+  font-size: 13px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.notebook-position-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.notebook-position-controls .app-button {
+  min-height: 44px;
+  white-space: normal;
+  padding: 8px;
+}
+.notebook-organizer-done {
+  display: flex;
+  justify-content: flex-end;
+  position: sticky;
+  bottom: -18px;
+  background: var(--color-paper);
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom, 0px));
+}
+.notebook-destinations {
+  min-width: 0;
+}
+.notebook-destinations legend {
+  font-size: 14px;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.notebook-destination-list {
+  max-height: min(32dvh, 280px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+}
+.notebook-destination-list label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  min-height: 48px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.notebook-destination-list label + label {
+  border-top: 1px solid var(--color-line);
+}
+.notebook-destination-list label[data-selected] {
+  background: var(--color-sage);
+}
+.notebook-destination-list input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: 0 0 18px;
+  accent-color: var(--color-leaf);
+}
+.notebook-destination-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.notebook-destination-list > p {
+  padding: 16px;
+  font-size: 14px;
+}
+.notebook-move-review {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.notebook-move-buttons {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.notebook-move-buttons .app-button {
+  min-height: 44px;
+}
+.notebook-move-error {
+  font-size: 14px;
+}
+@media (max-width: 600px) {
+  .app-content:has(> .notebook-manager) {
+    padding-inline: 16px;
+  }
+  .app-content:has(> .notebook-manager) .app-page-heading h1 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+  .app-content:has(> .notebook-manager) .heading-actions {
+    flex-wrap: wrap;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+    max-width: none;
+  }
+  .notebook-manager .notebook-tree-row {
+    padding-inline: 4px;
+  }
+  .notebook-manager .notebook-tree-link {
+    font-size: 16px;
+  }
+  .notebook-organizer-list {
+    max-height: 30dvh;
+  }
+}
+@media (max-width: 360px) {
+  .app-content:has(> .notebook-manager) .app-page-heading {
+    display: grid;
+  }
+  .app-content:has(> .notebook-manager) .heading-actions {
+    margin-top: 12px;
+  }
+}

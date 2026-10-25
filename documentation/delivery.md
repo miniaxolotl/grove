@@ -1,5 +1,52 @@
 # Delivery evidence
 
+## Shared notebook organizer (25 October 2026)
+
+Stacked on foundation PR140, the website now combines every owner catalog page
+before presenting notebook trees or destinations. **Organize** offers Move up/down,
+Nest inside and Move out; the shared Move dialog searches full destination paths
+and supports explicit sibling placement. Manager rows use one menu and one count;
+explorer and sub-notebook controls share the same saved order and mutation path.
+Touch-primary folder controls open Organize and permit native vertical scrolling;
+mouse before/after/inside and keyboard nesting remain optional enhancements.
+
+Unknown organization outcomes retain the exact request and operation ID. Explicit
+conflict review resets open chooser bases; accepted retries reconcile from a fresh
+complete catalog rather than installing stale replay snapshots. Undo retains its
+original state fence and refuses intervening layout changes. Archive/delete prune
+the new catalog caches as well as note sources. Existing browser fixtures now model
+catalog envelopes and same-operation note receipts, matching the actual API instead
+of returning a false version conflict for an identical concurrent save replay.
+
+Root/site lint, types and builds, **nine artifacts**, **448 backend passes** (four
+optional-service skips), **43 CI/release contracts** and workflow lint pass. Website
+regressions pass **all239 Chromium cases** and **seven focused supported WebKit
+cases**. Existing assertions remain intact; fixtures follow the new catalog/menu
+contract and replay behavior rather than skipping affected coverage. Website
+build `tipF56b61ayjRXkmtRKT1` keeps Notes at **495,071 gzip bytes** within its513,351
+budget, with the editor deferred. [Four reviewed captures](design/screenshots/notebook-organizer/README.md)
+use real components, production CSS and synthetic data; no private reference image
+or production account is included.
+
+Actual API/non-owner PostgreSQL journeys cover500 notebooks, complete cross-page
+parentage, tap moves/nesting/unnesting/Undo, exact accepted-lost retries from both
+organizer and standalone Move, reviewed conflicts, stale Undo refusal and unchanged
+original note scope/version. Mouse before/after drops persist order without a source
+version bump. Cache probes reject partial/repeated scans, restart a changed scan
+atomically, retain complete snapshots after page failure and fence account teardown.
+WCAG A/AA and overflow review at1440/390/320px uses representative filtered layouts,
+separately from full-catalog functional checks. Trusted Chromium touch checks cover
+native folder-handle scroll, tap Organize, inner-list scroll, short320px dismissal
+and note-body swipe reveal/Escape without writes.
+
+Note swipe/drag handlers are unchanged. Physical iOS/Android reproduction of the
+owner-reported notebook drag/scroll/swipe failures remains outstanding; emulation
+does not prove those device failures repaired. No additional schema migration,
+retained-data reset, paid provider call, merge, feature activation or deployment
+is part of this child UI slice. [Behavior/API](notebook-organization.md) and
+[verification guidance](development/testing.md#notebook-organization-foundation)
+record those boundaries.
+
 ## Notebook organization foundation (25 October 2026)
 
 The first implementation slice adds owner-session catalog paging and atomic
