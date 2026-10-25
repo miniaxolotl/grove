@@ -1,5 +1,35 @@
 # Delivery evidence
 
+## Title-first, prefix and typo-tolerant note search (25 October 2026)
+
+Library searches and recall/source search share visible-title tiers, additive
+final-term prefixes and scoped `pg_trgm` recovery. A full-scope 40-match lexical
+shortfall controls fuzzy expansion, independently of semantic matches. Explicit
+date sorts, strict quotes/OR/exclusions and the existing body vector/relationship
+queries are preserved. Current revision/profile/preferences guard generated titles.
+
+Signed relevance cursors bind a one-statement matched-set fingerprint and search
+mode; keyword fallback survives allowance/provider recovery. The workspace can
+restart a stale traversal. Query/version-bound title/snippet ranges render as
+escaped text, not headline HTML; typo/semantic-only excerpts remain unmarked.
+Recall counts metadata against its existing budget. Migration029 installs the
+extension and invoker-only title resolver without rewriting retained data/indexes.
+See [behavior](search.md) and [owner rollout](deploy.md#search-quality-rollout).
+
+Local verification passes **449 backend cases** (four optional S3/broker skips),
+including **18 focused search/migration/REST cases**, all **nine artifacts**, root/site
+lint/types/builds, bundle budgets and **34 release/deployment contracts**. The
+telemetry-enabled Notes entry is **489,065 gzip bytes**, with the editor deferred.
+All **244 Chromium** cases pass, followed by **eight focused cases in each of
+Chromium and touch/mobile WebKit**. [Four reviewed synthetic captures](design/screenshots/search-quality/README.md)
+cover1440/390/320px, accessible marks and honest typo excerpts. No production
+migration, provider change, release or deployment is performed by source delivery.
+
+[Scale observations](development/search-quality-results.md) record common-query
+maxima around185ms at10k eligible +10k other-tenant notes, but typo/no-match
+scans remain~527–779ms in the final local run. Five warm samples are regression
+observations, not production p95/capacity or a50k/larger-note qualification.
+
 ## Admin interface polish (25 October 2026)
 
 People & access separates grants, system roles and availability in a compact

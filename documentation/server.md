@@ -130,6 +130,10 @@ No server content cache can outlive deletion or revocation.
 
 ## REST routes
 
+Note list/recall/source search, relevance sorting, signed search cursors and
+optional query/version-bound `matches` evidence are described in
+[note search](search.md). Explicit date sorts keep their existing ordering.
+
 Responses use `{success: true, data}` or
 `{success: false, error: {code, message, requestId}}`. Export is NDJSON.
 

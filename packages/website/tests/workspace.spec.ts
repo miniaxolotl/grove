@@ -93,6 +93,188 @@ const handoff: Memory = {
   },
 };
 
+for (const width of [1440, 390, 320]) {
+  test(`search quality shows server-backed prefix passages and title marks at ${width}px`, async ({
+    page,
+  }, info) => {
+    const garden = {
+      ...note,
+      content:
+        "# Garden design\n" +
+        "Background writing. ".repeat(30) +
+        "Plan garden design with native plants.",
+    };
+    await fixture(page, [garden]);
+    let staleEvidence = false;
+    await page.route("**/api/grove/ask", async (route) => {
+      const query = route.request().postDataJSON().query;
+      await route.fulfill({
+        json: {
+          success: true,
+          data: {
+            status: "search",
+            sources: [garden],
+            searchMode: "lexical",
+            answer: null,
+            matches: {
+              [garden.id]: {
+                query,
+                version: staleEvidence ? garden.version + 1 : garden.version,
+                kind: query === "gardn design" ? "fuzzy" : "prefix",
+                title: {
+                  text: "Garden design",
+                  ranges:
+                    query === "gardn design"
+                      ? []
+                      : [
+                          [0, 6],
+                          [7, 13],
+                        ],
+                },
+                snippet: {
+                  text: staleEvidence
+                    ? "Old private preview"
+                    : query === "gardn design"
+                      ? "Background writing. ".repeat(5).trim()
+                      : "Plan garden design with native plants.",
+                  ranges:
+                    query === "gardn design"
+                      ? []
+                      : [
+                          [5, 11],
+                          [12, 18],
+                        ],
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+    await page.setViewportSize({ width, height: 850 });
+    await page.goto(`${base}/app`);
+    await page.getByRole("button", { name: /Search anything/ }).click();
+    const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+    const input = dialog.getByRole("textbox", { name: "Search your Grove" });
+    await input.fill("garden des");
+    await expect(
+      dialog.locator(".quick-search-result strong mark"),
+    ).toHaveCount(2);
+    await expect(dialog.locator(".quick-search-result p")).toContainText(
+      "native plants",
+    );
+    expect(
+      await dialog.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth + 1,
+      ),
+    ).toBe(true);
+    const accessibility = await new AxeBuilder({ page })
+      .include(".quick-search")
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .analyze();
+    expect(accessibility.violations).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`search-prefix-${width}.png`),
+    });
+    await input.fill("gardn design");
+    await expect(dialog.locator(".quick-search-result mark")).toHaveCount(0);
+    await expect(dialog.locator(".quick-search-result p")).toContainText(
+      "Background writing",
+    );
+    await page.screenshot({
+      path: info.outputPath(`search-typo-${width}.png`),
+    });
+    staleEvidence = true;
+    await input.fill("garden design");
+    await expect(
+      dialog.locator(".quick-search-result strong mark"),
+    ).toHaveCount(0);
+    await expect(dialog.locator(".quick-search-result p")).not.toContainText(
+      "Old private preview",
+    );
+  });
+}
+
+test("search quality defaults to relevance and preserves an explicit date sort", async ({
+  page,
+}) => {
+  const state = await fixture(page, [
+    { ...note, content: "# Garden design\nA planting guide" },
+  ]);
+  await page.goto(`${base}/app`);
+  const search = page.getByLabel("Search notes", { exact: true });
+  await search.fill("garden");
+  await expect
+    .poll(
+      () =>
+        state.calls.filter((c) => c.path === "/memories/search").at(-1)?.body,
+    )
+    .toMatchObject({ query: "garden", sort: "relevance" });
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await chooseOption(
+    page.getByRole("combobox", { name: "Sort notes" }),
+    "updated_asc",
+  );
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await search.fill("design");
+  await expect
+    .poll(
+      () =>
+        state.calls.filter((c) => c.path === "/memories/search").at(-1)?.body,
+    )
+    .toMatchObject({ query: "design", sort: "updated_asc" });
+  await search.fill("");
+  await expect
+    .poll(
+      () =>
+        state.calls.filter((c) => c.path === "/memories/search").at(-1)?.body,
+    )
+    .toMatchObject({ sort: "updated_asc" });
+});
+
+test("search quality restarts a stale relevance cursor instead of retrying the old page", async ({
+  page,
+}) => {
+  await fixture(page, [note]);
+  let first = true;
+  let restarted = false;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    const input = route.request().postDataJSON();
+    if (input.query && input.cursor) {
+      first = false;
+      await route.fulfill({
+        status: 409,
+        json: {
+          success: false,
+          error: {
+            code: "stale_search",
+            message: "Search results changed. Start this search again.",
+          },
+        },
+      });
+    } else {
+      if (input.query && !first) restarted = true;
+      await route.fulfill({
+        json: {
+          success: true,
+          data: {
+            items: [note],
+            nextCursor: input.query && first ? "old-search-cursor" : null,
+          },
+        },
+      });
+    }
+  });
+  await page.goto(`${base}/app`);
+  await page.getByLabel("Search notes", { exact: true }).fill("review");
+  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  const refresh = page.getByRole("button", { name: "Refresh search results" });
+  await expect(refresh).toBeVisible();
+  await refresh.click();
+  await expect.poll(() => restarted).toBe(true);
+  await expect(page.locator(".memory-row")).toHaveCount(1);
+});
+
 async function notebookLifecycleFixture(page: Page) {
   const state = await fixture(page, [handoff]);
   const child = {
@@ -6538,7 +6720,7 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
       tag: "frontend",
       query: "keyboard access",
       status: "active",
-      sort: "updated_desc",
+      sort: "relevance",
     });
   expect(page.url()).toBe(`${base}/app`);
   await page.getByRole("button", { name: "Filters", exact: true }).click();

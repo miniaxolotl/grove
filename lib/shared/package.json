@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
+    "./search": "./src/search.ts",
     "./billing": "./src/billing.ts",
     "./system-admin": "./src/system-admin.ts",
     "./memory-tools": "./src/memory-tools.ts",

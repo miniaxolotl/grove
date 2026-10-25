@@ -1,5 +1,31 @@
 # Verification
 
+## Search quality
+
+`search-quality.test.ts` covers final title tiers, all-term prefix/typo matching,
+strict phrases/OR/exclusions, current visible generated titles, semantic/salience
+competition, scoped keys, relevance fingerprints, asynchronous title changes,
+global date sorting, global lexical-shortfall activation and response budgets.
+`search-migration.test.ts` upgrades populated source without changing retained
+rows/vectors and verifies the invoker-only title function and `pg_trgm`.
+Use the three disposable owner/API/worker URLs below; no paid inference is needed.
+
+The `search quality` browser cases in `workspace.spec.ts` exercise 1440/390/320px
+title marks/passages, honest typo excerpts, WCAG contrast/overflow, explicit sort
+retention and stale-cursor restart. Use `--grep 'search quality'` with Chromium
+and `playwright.search-webkit.config.ts`. They use synthetic response evidence with actual
+components/CSS; backend service tests independently qualify SQL matching.
+
+Run `pnpm exec tsx tests/src/performance/search-quality.ts` from the root with
+disposable owner/API URLs to create a task-owned temporary `_test` database and
+measure1k/10k eligible notes plus equal-sized cross-tenant noise. The runner
+removes only its newly created database and reports warm service samples, a
+clearly non-equivalent baseline SQL timing, and actual runtime-RLS plans.
+Set `SEARCH_EVIDENCE_DIR` to an existing private evidence directory. These
+observations are not production capacity or an HTTP p95 qualification.
+[Measured outcomes and limitations](search-quality-results.md) retain the slower
+typo/no-match scans as well as the optimized common-query results.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner
