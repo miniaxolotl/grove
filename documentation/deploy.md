@@ -32,12 +32,41 @@ documentation refresh.
 
 ## Topology
 
+### Search quality rollout
+
+1. Verify the frozen source and actual migration history; the feature currently
+   uses `20261025_029_search_quality` after 028. Resequence only an unapplied
+   feature migration if another feature merges first; never edit applied history.
+2. Back up/verify the retained database per the owner procedure below. Confirm
+   `pg_trgm` is available and the migration owner has the required extension
+   privileges. API/worker roles must remain non-owner, non-bypass and without
+   extension-install privileges.
+3. Apply the forward migration with the owner. It creates the extension and an
+   immutable **security-invoker** title resolver, leaving retained rows, the
+   existing body tsvector and indexes untouched. No provider, reindex job, table
+   rewrite or cross-account search vocabulary is required. Do not add a trigram
+   index or elevated helper merely to obtain an owner-like query plan under RLS.
+4. Roll out API/worker; readiness explicitly verifies search prerequisites. Then
+   roll out the website. Old clients can ignore optional `matches` metadata;
+   old API source can ignore the additive extension/function if rolled back.
+   Roll back the website before an older API: new `relevance` requests require
+   the matching API even though the extension/function are backward-compatible.
+   No reverse migration is needed. Restart pre-upgrade search traversals rather
+   than reinterpret their ordering; explicit date-sort cursors keep their path.
+5. Verify title/body order, prefix/typo lookup, archive/notebook isolation,
+   quote/exclusion behavior and stale-search refresh with synthetic notes. Check
+   actual non-owner plans/latency at representative account sizes. Semantic
+   provider failure and allowance recovery must preserve keyword traversals.
+
+See [matching contracts and limits](search.md). Source delivery does not
+authorize applying the production migration or deploying this feature.
+
 ### User-action allowances rollout (028)
 
 1. Verify the frozen source and actual migration history, take and verify the
    retained backup, then apply owner-only forward `20261025_028_action_usage` after
-    admin-support 027 and its existing prerequisites. Preserve the forward order
-    026 → 027 → 028; never reuse the independent admin-support migration slot.
+   admin-support 027 and its existing prerequisites. Preserve the forward order
+   026 → 027 → 028; never reuse the independent admin-support migration slot.
    028 adds empty action counters/leases only. Existing notes, revisions, billing
    subscriptions, provider attempts, research and audio usage are unchanged.
 2. Deploy matching API/worker code with the same

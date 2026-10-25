@@ -55,6 +55,41 @@ separate owner operations. No subscription-price/pooling/provider change or paid
 traffic was performed. [Caching guarantees and limits](ai-caching.md) document
 account-scoped cooldown, connector deferral, source refresh and rollout boundaries.
 
+## Title-first, prefix and typo-tolerant note search (25 October 2026)
+
+Library searches and recall/source search share visible-title tiers, additive
+final-term prefixes and scoped `pg_trgm` recovery. A full-scope 40-match lexical
+shortfall controls fuzzy expansion, independently of semantic matches. Explicit
+date sorts, strict quotes/OR/exclusions and the existing body vector/relationship
+queries are preserved. Current revision/profile/preferences guard generated titles.
+
+Signed relevance cursors bind a one-statement matched-set fingerprint and search
+mode; keyword fallback survives allowance/provider recovery. The workspace can
+restart a stale traversal. Query/version-bound title/snippet ranges render as
+escaped text, not headline HTML; typo/semantic-only excerpts remain unmarked.
+Recall counts metadata against its existing budget. Migration029 installs the
+extension and invoker-only title resolver without rewriting retained data/indexes.
+See [behavior](search.md) and [owner rollout](deploy.md#search-quality-rollout).
+
+Local verification after integrating development `54f7688` passes **458 backend cases** (four optional S3/broker skips),
+including **18 focused search/migration/REST cases**, all **ten artifacts**, root/site
+lint/types/builds, bundle budgets and **34 release/deployment contracts**. The
+telemetry-enabled Notes entry is **492,274 gzip bytes** (build `yDoWpWVutEy0vjDUXdefw`), with the editor deferred.
+Native OpenCode 2.1.3, Claude Code 2.1.309 and Codex 0.164.0 qualification passes.
+All **244 Chromium** cases and **eight focused touch/mobile WebKit** cases pass;
+an earlier focused repeat also passed eight Chromium cases. [Four reviewed synthetic captures](design/screenshots/search-quality/README.md)
+cover 1440/390/320px, accessible marks and honest typo excerpts. No production
+migration, provider change, release or deployment is performed by source delivery.
+
+The final backend repeat ran the unchanged suite with Node 24 in pinned Noble,
+using task-only home-backed temporary storage after the host `/tmp` user quota
+caused file-write failures. No assertion, timeout or database policy was relaxed.
+
+[Scale observations](development/search-quality-results.md) record common-query
+maxima around185ms at10k eligible +10k other-tenant notes, but typo/no-match
+scans remain~527–779ms in the final local run. Five warm samples are regression
+observations, not production p95/capacity or a50k/larger-note qualification.
+
 ## Human-readable agent notes and shared tool guidance (25 October 2026)
 
 Shared note-authoring instructions now request concise, focused, human-readable
