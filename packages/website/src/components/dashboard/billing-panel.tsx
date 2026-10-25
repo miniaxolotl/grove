@@ -13,10 +13,17 @@ const labels: Record<BillingMetric, string> = {
   transcription: "Transcription",
   synthesis: "Read aloud",
 };
-const units = (metric: BillingMetric, value: number) =>
+const units = (metric: BillingMetric, value: number, timedSpeech: boolean) =>
   new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: metric === "transcription" ? 1 : 0,
-  }).format(metric === "transcription" ? value / 60000 : value);
+    maximumFractionDigits:
+      metric === "transcription" || (metric === "synthesis" && timedSpeech)
+        ? 2
+        : 0,
+  }).format(
+    metric === "transcription" || (metric === "synthesis" && timedSpeech)
+      ? value / (timedSpeech ? 3600000 : 60000)
+      : value,
+  );
 const shortDate = (value: string) =>
   new Date(value).toLocaleDateString(undefined, {
     month: "short",
@@ -39,12 +46,16 @@ const money = (amount: number, currency: string) => {
     amount / 10 ** (format.resolvedOptions().maximumFractionDigits ?? 2),
   );
 };
-const suffix = (metric: BillingMetric) =>
-  metric === "transcription"
-    ? " min"
-    : metric === "synthesis"
-      ? " characters"
-      : "";
+const suffix = (metric: BillingMetric, timedSpeech: boolean, limit: number) =>
+  (metric === "transcription" || metric === "synthesis") && timedSpeech
+    ? limit === 3600000
+      ? " hour"
+      : " hours"
+    : metric === "transcription"
+      ? " min"
+      : metric === "synthesis"
+        ? " characters"
+        : "";
 const resetDate = (value: string) => (
   <time dateTime={value} title={date(value)}>
     {shortDate(value)}
@@ -96,6 +107,8 @@ export function BillingPanel() {
   }
   const state = query.data,
     usage = state?.usage;
+  // A retained response from an older API must never label characters as hours.
+  const timedSpeech = state?.units?.synthesis === "milliseconds";
   const subscription = state?.subscription;
   const ongoing =
     subscription &&
@@ -207,17 +220,17 @@ export function BillingPanel() {
                     <div key={metric} className="billing-metric">
                       <dt id={labelId}>{labels[metric]}</dt>
                       <dd className="billing-metric-count">
-                        <span>{units(metric, value.month)}</span>
+                        <span>{units(metric, value.month, timedSpeech)}</span>
                         <span className="billing-caption">
                           {" "}
-                          / {units(metric, value.monthlyLimit)}
-                          {suffix(metric)}
+                          / {units(metric, value.monthlyLimit, timedSpeech)}
+                          {suffix(metric, timedSpeech, value.monthlyLimit)}
                         </span>
                       </dd>
                       <dd className="billing-meter">
                         <meter
                           aria-labelledby={labelId}
-                          aria-valuetext={`${units(metric, value.month)} of ${units(metric, value.monthlyLimit)}${suffix(metric)} used`}
+                          aria-valuetext={`${units(metric, value.month, timedSpeech)} of ${units(metric, value.monthlyLimit, timedSpeech)}${suffix(metric, timedSpeech, value.monthlyLimit)} used`}
                           min={0}
                           max={Math.max(1, value.monthlyLimit)}
                           value={Math.min(
@@ -229,8 +242,8 @@ export function BillingPanel() {
                       {value.dailyLimit !== null ? (
                         <dd className="billing-metric-note">
                           <span>
-                            {units(metric, value.today)} /{" "}
-                            {units(metric, value.dailyLimit)} today
+                            {units(metric, value.today, timedSpeech)} /{" "}
+                            {units(metric, value.dailyLimit, timedSpeech)} today
                           </span>
                           {monthlyFull ? (
                             <span>Monthly limit reached</span>
@@ -291,8 +304,16 @@ export function BillingPanel() {
                   <div key={metric}>
                     <dt>{labels[metric]}</dt>
                     <dd>
-                      {units(metric, state.proLimits[metric].monthly)}
-                      {suffix(metric)}
+                      {units(
+                        metric,
+                        state.proLimits[metric].monthly,
+                        timedSpeech,
+                      )}
+                      {suffix(
+                        metric,
+                        timedSpeech,
+                        state.proLimits[metric].monthly,
+                      )}
                     </dd>
                   </div>
                 ))}
