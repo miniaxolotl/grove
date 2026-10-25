@@ -6,7 +6,8 @@ directory approval or publication.
 
 ## ChatGPT
 
-[Watch the three-minute walkthrough](chatgpt-walkthrough.webm).
+[Watch the three-minute walkthrough](chatgpt-walkthrough.mp4)
+([WebM alternative](chatgpt-walkthrough.webm)).
 
 The recording contains excerpts of real executed browser tests, with idle waiting
 trimmed. No tool results, messages or account data were manufactured. The test-only
@@ -35,8 +36,17 @@ owner. A website readback independently confirmed the initial saved note.
 
 An actual preapproval `recall` likewise returned `connection_required`, with the
 correct OAuth client and approval link. After separate owner approval, Claude
-recalled and read the same ChatGPT-created/corrected note at version 2. Further
-synthetic write/history and permission checks are recorded separately as completed.
+recalled and read the same ChatGPT-created/corrected note at version 2. Claude then
+saved one labelled synthetic fact in the existing Garden notebook, corrected it
+from Wednesday to Thursday at expected version 1, and read both history revisions.
+It also made an actual `notebook_lifecycle` preview call that returned `forbidden`,
+and refused ungranted cross-account access, self-approval/admin-key creation and
+blanket background capture without making further calls.
+
+ChatGPT's additional read-only Personal-scope check returned `not_found` for the
+real synthetic Garden note and `forbidden` for an attempted explicit Personal
+save. No content was returned and no write succeeded. These additional safety
+checks are not included in the short walkthrough excerpts above.
 
 ## Boundaries
 
