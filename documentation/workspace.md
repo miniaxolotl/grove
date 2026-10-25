@@ -301,6 +301,16 @@ The search field and status stay in place through pending, empty and result stat
 a failed search offers an inline retry. Clearing it returns focus to the field.
 Source links open the cited note and identify when it has since changed.
 
+Use **Sources** or `@note` / `@notebook` followed by Space, Tab or Enter to choose
+exact context for a question. Preview before selecting, check notebook paths for
+duplicate titles, and keep **Use only these sources** on to exclude automatic
+library retrieval, earlier answers and web research. Large notebooks use bounded
+direct-member retrieval with visible partial coverage. Selected scope, supplied
+evidence and citations remain distinct. **Add sources** and **Edit sources** preserve
+questions/choices without automatic sending or broadening. Explicit selected-note
+edits/merges still need review and Apply; other mutation types use an ordinary
+question. [Source selection](explicit-context.md) covers limits, recovery and scope.
+
 The message box's **Tools** menu controls **Web search**, **Research**, and
 **Manage notes** independently. Enabled research tools are used when
 outside context would help; saved-note searches and greetings do not need a web

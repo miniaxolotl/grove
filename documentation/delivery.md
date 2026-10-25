@@ -131,6 +131,75 @@ was relaxed. Fifteen actual-component tier/source/usage/accessibility journeys p
 Chromium and supported WebKit pass at1440/390/320px against integrated production
 CSS/build`HBGViTUdyNh-S2oqCXNSi`. No production data or runtime was changed.
 
+## Explicit note and notebook context (25 October 2026)
+
+Ask Grove adds Sources and `@note`/`@notebook` selection, read-only previews,
+per-question **Use only these sources**, durable retry metadata and recoverable
+unavailable-source drafts. Strict planning/answering excludes prior source prose,
+unrestricted recall and external research. Large notebooks use direct-member-only
+keyword retrieval with 12 supplied notes maximum, pinned-first ordering and visible
+partial/omitted coverage. Selected scope, supplied revisions and citations are
+distinct. Selected-note edit/merge previews retain Apply/Undo; broader mutations
+use ordinary questions. [Contract](explicit-context.md) records the limits.
+
+Source **`9e9600d`** adds forward migration (now **030 after search quality 029**), preserving old turn
+columns and RLS. Runtime readiness checks the nullable context column; API/worker
+must precede the website after an explicit owner migration. No retained schema,
+provider, billing flag or production deployment was changed.
+
+Local verification passes **446 backend cases**, four optional-service skips and
+zero failures, including 15 new context/upgrade cases. Regressions demonstrated red
+then green for exact selection, large notebooks, selected edits, export metadata,
+empty-notebook publication races and UUID normalization/deduplication. Root/site
+lint, types and production builds pass, as do **nine packaged artifacts**,
+**34 release/provider contracts** and bundle budgets. Notes entry is **488,429 gzip
+bytes**; website build **`fV5xIqpvfT0DFUOka_vng`**.
+
+The existing **239 Chromium** suite and **10 focused WebKit** cases pass. Actual
+component/API/PostgreSQL journeys pass in both engines at 1440/390/320px, including
+preview focus, strict evidence, last-chip recovery, partial coverage, new-ID source
+replacement, selected edits/Undo, WCAG/overflow and zero page errors. Both engines
+also verify 390px retained drafts, accepted-but-lost exact retries and empty-source
+Add sources. [Seven reviewed captures](design/screenshots/explicit-context/README.md)
+show final components and synthetic data.
+
+Initial checks exposed the narrow Sources/Send footer and an existing enlarged
+New note flex-label overflow; both were reproduced and corrected without weakening
+assertions. A shared Playwright output collision and occupied fixture/OAuth ports
+were isolated and rerun with separate/free resources. [Evaluation notes](development/explicit-context-results.md)
+distinguish deterministic boundary/canary tests from unperformed paid-model quality
+acceptance. Source delivery is not production activation.
+
+Integration **`63b4195`** preserves subscription-badge development **`06d8740`**;
+only this delivery record conflicted. The combined source passes **450 backend
+cases** (four optional skips), **239 Chromium**, **10 focused WebKit**, root/site
+static/build gates, nine artifacts, 34 contracts and bundle budgets. Both-engine
+source-selection/draft/replay/abstention journeys pass again. All seven captures
+were refreshed against build **`bUArWXbVxQehegDmHerVO`**; Notes entry is **491,638
+gzip bytes**. No deployment, schema activation or protected merge was performed.
+
+The merge follow-up also integrates note-writing guidance **`54f7688`** (#143),
+retaining both strict-source instructions and the shared readable-note policy,
+plus both regression sets. Fresh verification passes **455 backend cases** with
+four optional-service skips, **10 artifacts**, root/site lint/types/builds,
+34 release/provider contracts and bundle budgets. Website source is unchanged
+from `fe0b383`; the reviewed captures and earlier both-engine journeys still apply.
+Rebuild **`2K6m1-avTTpV_ecoc-Ufg`** records **491,637 gzip bytes** for Notes.
+The additional local native-host smoke stopped at npm extraction with a temporary
+storage write error (`-122`); hosted CI must qualify the unchanged native suite.
+
+The subsequent follow-up integrates search-quality development **`d8d78df`**
+(#144). Search retains migration 029; the unapplied context migration is now
+**`20261025_030_conversation_context`**. A new ordering regression demonstrated
+red/green, and a fresh disposable database verifies the full sequence without
+rewriting earlier fixture history. Ask preserves search title/passage evidence
+alongside selected/provided/cited distinctions. Fresh verification passes
+**474 backend cases/four optional skips**, **10 artifacts**, **244 Chromium** and **18 focused WebKit**
+cases (Ask/layout/search), root/site static/build gates, 34 contracts and bundle
+budgets. Both-engine source/draft/replay/abstention/IME/touch journeys pass; seven
+captures were refreshed/reviewed against build **`J4mEDYRWCDRlQZxNEuBUm`**. Notes
+entry is **492,277 gzip bytes**. No production migration or deployment occurred.
+
 ## Admin interface polish (25 October 2026)
 
 People & access separates grants, system roles and availability in a compact

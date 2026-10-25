@@ -15,6 +15,22 @@ documentation refresh.
 
 ## Topology
 
+### Explicit context rollout (030)
+
+1. Verify source/migration history and the retained backup before owner-only forward
+   `20261025_030_conversation_context`, after search quality 029. It adds nullable
+   `conversation_turns.context`; existing questions, results, counters and RLS remain.
+2. Roll out the matching API/worker image through the protected release path before
+   the website. Readiness checks the new column. Older requests omit the optional
+   field; existing turn fingerprints must not be reserialized or rewritten.
+3. On synthetic accounts verify exact note selection, direct notebook membership,
+   partial large-notebook coverage, selected edit/merge previews, unavailable-source
+   recovery, strict no-research behavior and cross-account denial. Verify exports
+   retain selectors and restore still invalidates in-flight work/deleted chats.
+4. Keep the additive column on code rollback. Do not reset conversations, retained
+   sources, usage, provider settings or billing flags. No new provider key/flag is
+   needed; paid-model evaluation and production rollout require separate approval.
+
 ### Search quality rollout
 
 1. Verify the frozen source and actual migration history; the feature currently
