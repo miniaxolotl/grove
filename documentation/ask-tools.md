@@ -1,6 +1,7 @@
 # Ask Grove tools
 
-Ask Grove combines selected saved notes with optional **Web search** and **Research**.
+Ask Grove combines automatically retrieved or explicitly selected saved notes with
+optional **Web search** and **Research**.
 Grove cloud supplies provider access to all accounts; users do not need provider
 accounts or personal API keys. An installation must configure each provider before
 it becomes available. Existing saved conversations remain readable.
@@ -32,6 +33,13 @@ for timely/external context and research-backed note creation. Ordinary note-onl
 retrieval and greetings should not trigger research. Both providers disabled means
 no external research, including retries. Changing tools during a reply stops that
 reply; server-side revisions reject late results even after disable/re-enable.
+
+**Use only these sources** overrides enabled web tools for that one question,
+without changing their saved settings. It also excludes earlier answers and
+unrestricted library retrieval. Explicit source questions retain reviewed note
+edit/merge previews but not creation, organization or lifecycle discovery; use an
+ordinary question without selectors for those. See [source selection](explicit-context.md)
+for previews, direct-member notebook retrieval, partial coverage and recovery.
 
 Web statements cite only returned URLs. **Web sources** records the tool, retrieval
 date and whether the evidence is a search result or page extract. Saved-note

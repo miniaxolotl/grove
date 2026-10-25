@@ -136,6 +136,10 @@ No server content cache can outlive deletion or revocation.
 
 ## REST routes
 
+Note list/recall/source search, relevance sorting, signed search cursors and
+optional query/version-bound `matches` evidence are described in
+[note search](search.md). Explicit date sorts keep their existing ordering.
+
 Responses use `{success: true, data}` or
 `{success: false, error: {code, message, requestId}}`. Export is NDJSON.
 
@@ -192,6 +196,14 @@ The website's **Ask** mode uses durable conversations. Create with a client UUID
 optional `projectId` and `includePersonal`. Submit turns with a client UUID, `query`
 (up to 6,000 characters), `format` (`plain`/`markdown`), and `expectedVersion` from
 the conversation. Retries reuse the same body/UUID; changed payloads conflict.
+Optional `context: { notes: UUID[], notebooks: UUID[], only: boolean }` selects
+per-turn evidence (12 individual notes/six direct-member notebooks, unique IDs,
+at least one selector). Strict mode excludes unselected retrieval/history/web
+evidence; large notebooks use bounded in-scope keyword retrieval, with at most12
+supplied notes and explicit `result.contextCoverage`. Selectors persist on turns
+and in exports. `context_unavailable` (409) rejects invalid/inaccessible selectors
+before provider dispatch or conversation advancement. [Source contract](explicit-context.md)
+details evidence/citation distinctions, selected edit/merge previews and recovery.
 `GET /v1/conversations?after=<last-id>` returns 30 recent conversations per page.
 The history browser uses `POST /v1/conversations/search` with optional `query`
 (up to 200 characters) and `after` (opaque signed cursor). It searches titles and
@@ -203,7 +215,7 @@ most-recent-first; deleted/foreign chats and assistant payloads are excluded.
 The cursor identifies an account-owned row; it contains no query text. History
 pagination reflects concurrent activity rather than a frozen snapshot.
 
-Reference resolution uses the latest eight completed turns, then retrieves current
+Without strict source selection, reference resolution uses the latest eight completed turns, then retrieves current
 scoped evidence. Replies cite exact revisions and can propose explicit note edits,
 creation/merge, notebook organization, or archive/restore/delete. Lifecycle previews
 name exact notes and count full notebook subtrees. `apply` and `undo` take `{}` and

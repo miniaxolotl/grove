@@ -12,6 +12,7 @@ import {
   Sprout,
   Undo2,
   Globe,
+  AtSign,
 } from "lucide-react";
 import type { AskResult } from "@lib/shared/models";
 import { askToolCatalog } from "@lib/shared/ask-tools";
@@ -30,7 +31,8 @@ import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
 import { memoryExcerpt, memoryTitle } from "@/lib/memory-display";
 import { notebookPath } from "@/lib/notebooks";
-import { SearchPassage } from "./search-passage";
+import { SearchPassage, SearchTitle } from "./search-passage";
+import type { SearchMatches } from "@lib/shared/search";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
@@ -39,6 +41,11 @@ import { SearchField } from "./ui/search-field";
 import { deferredFeature } from "./deferred-feature";
 import { useWorkspaceSearch } from "./workspace-search";
 import { AskComposer } from "./ask-composer";
+import {
+  AskSourcePicker,
+  SelectedSources,
+  type SourceSelection,
+} from "./ask-sources";
 import { Markdown } from "./markdown";
 import { RevisionCompare } from "./revision-compare";
 import { LoadError } from "./load-error";
@@ -110,6 +117,14 @@ export function AskGrove({
   const [draft, setDraft] = useState(
     workspace?.question || session?.draft || "",
   );
+  const [sources, setSources] = useState<SourceSelection | undefined>(
+    session?.sources,
+  );
+  const [rejected, setRejected] = useState(session?.rejected);
+  const [sourcePicker, setSourcePicker] = useState<"notes" | "notebooks">();
+  const mention = useRef<
+    { value: string; start: number; end: number } | undefined
+  >(undefined);
   const [handoff, setHandoff] = useState(workspace?.question);
   if (workspace?.question !== handoff) {
     setHandoff(workspace?.question);
@@ -204,6 +219,8 @@ export function AskGrove({
       includePersonal,
       mode,
       draft,
+      sources,
+      rejected,
       query,
       conversationId,
       unconfirmed,
@@ -216,6 +233,8 @@ export function AskGrove({
     includePersonal,
     mode,
     draft,
+    sources,
+    rejected,
     query,
     conversationId,
     unconfirmed,
@@ -299,6 +318,8 @@ export function AskGrove({
     if (clearDraft) {
       const scratch = conversationDrafts.current.new;
       setDraft(scratch?.draft ?? "");
+      setSources(scratch?.sources);
+      setRejected(scratch?.rejected);
       if (scratch?.scope) {
         setScope(scratch.scope);
         setPersonal(scratch.includePersonal ?? false);
@@ -306,12 +327,14 @@ export function AskGrove({
     }
   }
   function rememberDraft(id: string) {
-    if (draft || unconfirmed)
+    if (draft || unconfirmed || sources || rejected)
       conversationDrafts.current[id] = {
         draft,
         unconfirmed,
         scope,
         includePersonal,
+        sources,
+        rejected,
       };
     else delete conversationDrafts.current[id];
   }
@@ -367,6 +390,8 @@ export function AskGrove({
       if (id !== conversationId) {
         rememberDraft(conversationId ?? "new");
         setDraft(conversationDrafts.current[id]?.draft ?? "");
+        setSources(conversationDrafts.current[id]?.sources);
+        setRejected(conversationDrafts.current[id]?.rejected);
       }
       const retained =
         id === conversationId
@@ -417,7 +442,11 @@ export function AskGrove({
       query: question,
       format: retry?.format ?? format,
       expectedVersion: retry?.expectedVersion ?? conversation?.version ?? 0,
+      ...((retry ? retry.context : sources?.context)
+        ? { context: retry ? retry.context : sources?.context }
+        : {}),
     };
+    const sentSources = retry ? selectionFor(retry) : sources;
     try {
       let chat = conversation;
       if (!chat) {
@@ -440,6 +469,7 @@ export function AskGrove({
         question,
         format: input.format,
         expectedVersion: input.expectedVersion,
+        context: input.context,
         status: "pending",
         result: null,
         error: null,
@@ -453,7 +483,10 @@ export function AskGrove({
           ? chat.turns.map((t) => (t.id === retry.id ? turn : t))
           : [...chat.turns, turn],
       });
-      if (!retry) setDraft("");
+      if (!retry) {
+        setDraft("");
+        setSources(undefined);
+      }
       const result = await api<Conversation>(
         `/conversations/${id}/turns`,
         input,
@@ -468,6 +501,27 @@ export function AskGrove({
       if (!controller.signal.aborted) {
         const message = errorMessage(e);
         setError(message);
+        if (
+          e instanceof DashboardApiError &&
+          e.code === "context_unavailable" &&
+          sentSources
+        ) {
+          // This error happens before admission/provider dispatch. Keep the
+          // rejected input editable with a fresh operation ID; never broaden it.
+          setRejected({ question, sources: sentSources });
+          if (!retry) {
+            setUnconfirmed(undefined);
+            setConversation(
+              (chat) =>
+                chat && {
+                  ...chat,
+                  version: input.expectedVersion,
+                  turns: chat.turns.filter((turn) => turn.id !== input.id),
+                },
+            );
+          }
+          return;
+        }
         setConversation(
           (chat) =>
             chat && {
@@ -487,6 +541,20 @@ export function AskGrove({
         request.current = null;
       }
     }
+  }
+  function selectionFor(turn: ConversationTurn): SourceSelection | undefined {
+    if (!turn.context) return undefined;
+    const labels = Object.fromEntries([
+      ...turn.context.notes.map((id) => {
+        const note = turn.result?.sources.find((source) => source.id === id);
+        return [id, note ? memoryTitle(note) : "Selected note"];
+      }),
+      ...turn.context.notebooks.map((id) => [
+        id,
+        projects.find((book) => book.id === id)?.name ?? "Selected notebook",
+      ]),
+    ]);
+    return { context: turn.context, labels };
   }
   async function apply(turn: ConversationTurn, undo = false) {
     if (!conversation || running.current || actionBusy) return;
@@ -643,6 +711,8 @@ export function AskGrove({
                 disabled={!!actionBusy || toolsBusy}
                 onValueChange={(value) => {
                   reset(false);
+                  setSources(undefined);
+                  setRejected(undefined);
                   setScope(value);
                 }}
                 leading={[
@@ -663,6 +733,8 @@ export function AskGrove({
                   disabled={!!actionBusy || toolsBusy}
                   onChange={(e) => {
                     reset(false);
+                    setSources(undefined);
+                    setRejected(undefined);
                     setPersonal(e.target.checked);
                   }}
                 />
@@ -739,12 +811,50 @@ export function AskGrove({
                       ) : (
                         <p>{turn.question}</p>
                       )}
+                      {turn.context && (
+                        <p className="ask-context-summary">
+                          {turn.context.only
+                            ? "Selected sources only"
+                            : "Selected + automatic sources"}
+                        </p>
+                      )}
                     </div>
                     <div className="ask-answer">
                       <div className="ask-answer-label">
                         <Sprout size={17} />
                         Grove
                       </div>
+                      {turn.context && (
+                        <>
+                          <ContextDetails turn={turn} />
+                          <button
+                            type="button"
+                            className="text-button ask-add-sources"
+                            title={
+                              draft.trim() || sources
+                                ? "Send or clear the current draft before revising this question’s sources."
+                                : "Revise this question with more sources"
+                            }
+                            disabled={
+                              pending ||
+                              !!actionBusy ||
+                              !!draft.trim() ||
+                              !!sources
+                            }
+                            onClick={() => {
+                              setDraft(turn.question);
+                              setSources(selectionFor(turn));
+                              setSourcePicker("notes");
+                            }}
+                          >
+                            Add sources
+                            <span className="sr-only">
+                              {" "}
+                              for question {index + 1}
+                            </span>
+                          </button>
+                        </>
+                      )}
                       {turn.result && (
                         <Answer
                           result={turn.result}
@@ -830,6 +940,32 @@ export function AskGrove({
                 )}
               </p>
             )}
+            {rejected && (
+              <div className="ask-context-recovery" role="status">
+                <p>
+                  A selected source is unavailable. Your question and choices
+                  are kept.
+                </p>
+                <p>{rejected.question}</p>
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={pending || !!draft.trim() || !!sources}
+                  onClick={() => {
+                    setDraft(rejected.question);
+                    setSources(rejected.sources);
+                    setRejected(undefined);
+                    setError("");
+                    setSourcePicker("notes");
+                  }}
+                >
+                  Edit sources
+                </button>
+                {(draft.trim() || sources) && (
+                  <small>Send or clear your current draft first.</small>
+                )}
+              </div>
+            )}
             <AskComposer
               value={draft}
               onChange={setDraft}
@@ -837,27 +973,65 @@ export function AskGrove({
               onStop={stop}
               pending={pending}
               disabled={loading || !!actionBusy}
-              sendDisabled={toolsBusy || !!toolsError}
+              sendDisabled={
+                toolsBusy ||
+                !!toolsError ||
+                (!!sources &&
+                  !sources.context.notes.length &&
+                  !sources.context.notebooks.length)
+              }
+              onMention={(kind, value, start, end) => {
+                mention.current = { value, start, end };
+                setSourcePicker(kind);
+              }}
+              sources={
+                sources && (
+                  <SelectedSources
+                    selection={sources}
+                    onChange={setSources}
+                    disabled={loading || !!actionBusy}
+                    replace={() => {
+                      mention.current = undefined;
+                      setSourcePicker("notes");
+                    }}
+                  />
+                )
+              }
               tools={
-                <AskToolMenu
-                  tools={effectiveTools}
-                  available={capabilities.data?.available}
-                  busy={
-                    toolsBusy ||
-                    loading ||
-                    !!actionBusy ||
-                    capabilities.isPending
-                  }
-                  error={
-                    toolsError ||
-                    (capabilities.error
-                      ? "Tools could not load. Refresh to try again."
-                      : undefined)
-                  }
-                  onChange={(tools) => void configureTools(tools)}
-                  notice={toolsNotice}
-                  onRetry={() => void refreshTools()}
-                />
+                <>
+                  <button
+                    type="button"
+                    className="text-button ask-sources-button"
+                    aria-label="Sources"
+                    disabled={loading || !!actionBusy}
+                    onClick={() => {
+                      mention.current = undefined;
+                      setSourcePicker("notes");
+                    }}
+                    title="Choose sources (@note or @notebook)"
+                  >
+                    <AtSign size={16} /> <span>Sources</span>
+                  </button>
+                  <AskToolMenu
+                    tools={effectiveTools}
+                    available={capabilities.data?.available}
+                    busy={
+                      toolsBusy ||
+                      loading ||
+                      !!actionBusy ||
+                      capabilities.isPending
+                    }
+                    error={
+                      toolsError ||
+                      (capabilities.error
+                        ? "Tools could not load. Refresh to try again."
+                        : undefined)
+                    }
+                    onChange={(tools) => void configureTools(tools)}
+                    notice={toolsNotice}
+                    onRetry={() => void refreshTools()}
+                  />
+                </>
               }
             />
           </>
@@ -896,6 +1070,7 @@ export function AskGrove({
                   <SourceList
                     query={search}
                     sources={visibleSearch.result!.sources}
+                    matches={visibleSearch.result!.matches}
                     onOpen={setSelected}
                   />
                 ) : (
@@ -912,6 +1087,31 @@ export function AskGrove({
           id={selected.id}
           citedVersion={selected.version}
           close={() => setSelected(null)}
+        />
+      )}
+      {sourcePicker && (
+        <AskSourcePicker
+          initialKind={sourcePicker}
+          scope={scope}
+          includePersonal={includePersonal}
+          selection={sources}
+          close={() => {
+            setSourcePicker(undefined);
+            mention.current = undefined;
+          }}
+          onChange={(next) => {
+            setSources(next);
+            const token = mention.current;
+            // The modal prevents edits while choosing. Still fence against a
+            // different draft being restored before removing the mention trigger.
+            if (token)
+              setDraft((current) =>
+                current === token.value
+                  ? current.slice(0, token.start) + current.slice(token.end)
+                  : current,
+              );
+            mention.current = undefined;
+          }}
         />
       )}
       {historyOpen && (
@@ -1124,8 +1324,23 @@ function Answer({
             <BookOpen size={14} />
             {result.sources.length}{" "}
             {result.sources.length === 1 ? "note" : "notes"}
+            {result.contextCoverage && " provided as evidence"}
           </summary>
-          <SourceList sources={result.sources} onOpen={onOpen} />
+          <SourceList
+            sources={result.sources}
+            onOpen={onOpen}
+            cited={
+              result.contextCoverage
+                ? new Set(
+                    result.statements.flatMap((statement) =>
+                      statement.sources.map(
+                        (source) => `${source.id}:${source.version}`,
+                      ),
+                    ),
+                  )
+                : undefined
+            }
+          />
         </details>
       )}
       {!!result.webSources?.length && (
@@ -1163,10 +1378,14 @@ function SourceList({
   sources,
   onOpen,
   query,
+  cited,
+  matches,
 }: {
   sources: Memory[];
   onOpen: (source: Pick<Memory, "id" | "version">) => void;
   query?: string;
+  cited?: Set<string>;
+  matches?: SearchMatches;
 }) {
   const { projects } = useNotebooks();
   return (
@@ -1176,7 +1395,22 @@ function SourceList({
           <button onClick={() => onOpen(source)}>
             <span className="source-number">{index + 1}</span>
             <span>
-              <strong>{memoryTitle(source)}</strong>
+              <strong>
+                <SearchTitle
+                  title={memoryTitle(source)}
+                  query={query ?? ""}
+                  version={source.version}
+                  evidence={matches?.[source.id]}
+                />
+              </strong>
+              {cited && (
+                <small>
+                  Version {source.version} ·{" "}
+                  {cited.has(`${source.id}:${source.version}`)
+                    ? "Cited in answer"
+                    : "Provided, not cited"}
+                </small>
+              )}
               {query !== undefined && (
                 <small>
                   {notebookPath(projects, source.projectId)
@@ -1186,7 +1420,12 @@ function SourceList({
               )}
               <p>
                 {query !== undefined ? (
-                  <SearchPassage content={source.content} query={query} />
+                  <SearchPassage
+                    content={source.content}
+                    query={query}
+                    version={source.version}
+                    evidence={matches?.[source.id]}
+                  />
                 ) : (
                   memoryExcerpt(source)
                 )}
@@ -1197,5 +1436,66 @@ function SourceList({
         </li>
       ))}
     </ol>
+  );
+}
+
+function ContextDetails({ turn }: { turn: ConversationTurn }) {
+  const { projects } = useNotebooks();
+  const context = turn.context!;
+  const coverage = turn.result?.contextCoverage;
+  return (
+    <div className="ask-context-details">
+      <p className="ask-context-summary">
+        {context.only
+          ? "Selected sources only"
+          : "Selected + automatic sources"}
+      </p>
+      <details>
+        <summary>
+          Selected scope · {context.notes.length}{" "}
+          {context.notes.length === 1 ? "note" : "notes"},{" "}
+          {context.notebooks.length}{" "}
+          {context.notebooks.length === 1 ? "notebook" : "notebooks"}
+        </summary>
+        <ul>
+          {context.notes.map((id) => {
+            const source = turn.result?.sources.find((note) => note.id === id);
+            return (
+              <li key={id}>
+                Note:{" "}
+                {source
+                  ? memoryTitle(source)
+                  : "Unavailable or not yet provided"}
+              </li>
+            );
+          })}
+          {context.notebooks.map((id) => (
+            <li key={id}>
+              Notebook:{" "}
+              {notebookPath(projects, id)
+                .map((book) => book.name)
+                .join(" / ") || "Unavailable notebook"}{" "}
+              (direct notes only)
+            </li>
+          ))}
+        </ul>
+        <p className="ask-context-summary">
+          Citations identify supporting notes, not every note provided to the
+          model.
+        </p>
+      </details>
+      {coverage && (
+        <p className="ask-context-summary">
+          {coverage.provided} of {coverage.eligible} selected-scope notes
+          provided as evidence.
+          {coverage.partial
+            ? " Partial coverage; not a complete notebook review."
+            : ""}
+          {coverage.notebookEligible > 0 && coverage.notebookProvided === 0
+            ? " Pinned notes filled the budget; no additional notebook notes were provided."
+            : ""}
+        </p>
+      )}
+    </div>
   );
 }

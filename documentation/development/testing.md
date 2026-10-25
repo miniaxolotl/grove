@@ -1,5 +1,53 @@
 # Verification
 
+## Explicit context selection
+
+`conversations.test.ts` covers exact selected IDs, direct-member large notebooks,
+pinned ordering/deduplication, partial/omitted evidence, strict history/web exclusion,
+selected edit/merge Apply/Undo, unavailable/foreign/archived/expired selectors,
+source races/retry identities, invalid citations and HTTP/export compatibility.
+`conversation-context-migration.test.ts` upgrades populated pre030 chats and checks
+unchanged old columns, nullable defaults and non-owner tenant isolation. Use the
+disposable API/worker/migration URLs below; no paid providers are needed.
+
+After the production website build, exercise actual components with a disposable
+API/PostgreSQL and deterministic generation: source picker/search/pagination,
+duplicate titles/paths, read-only nested previews/focus return, @note/@notebook
+Space/Tab/Enter/IME/cancellation, strict chips and last-chip send guard, scope
+changes, draft/history ownership, exact uncertain retry, unavailable-source recovery,
+Add sources, explicit edit/merge previews and selected/provided/cited distinctions.
+Review 1440/390/320px in Chromium and supported WebKit with WCAG/overflow checks.
+Run the existing full Chromium and focused Ask WebKit suites as regressions.
+See [source behavior](../explicit-context.md),
+[evaluation limits](explicit-context-results.md) and
+[reviewed captures](../design/screenshots/explicit-context/README.md).
+
+## Search quality
+
+`search-quality.test.ts` covers final title tiers, all-term prefix/typo matching,
+strict phrases/OR/exclusions, current visible generated titles, semantic/salience
+competition, scoped keys, relevance fingerprints, asynchronous title changes,
+global date sorting, global lexical-shortfall activation and response budgets.
+`search-migration.test.ts` upgrades populated source without changing retained
+rows/vectors and verifies the invoker-only title function and `pg_trgm`.
+Use the three disposable owner/API/worker URLs below; no paid inference is needed.
+
+The `search quality` browser cases in `workspace.spec.ts` exercise 1440/390/320px
+title marks/passages, honest typo excerpts, WCAG contrast/overflow, explicit sort
+retention and stale-cursor restart. Use `--grep 'search quality'` with Chromium
+and `playwright.search-webkit.config.ts`. They use synthetic response evidence with actual
+components/CSS; backend service tests independently qualify SQL matching.
+
+Run `pnpm exec tsx tests/src/performance/search-quality.ts` from the root with
+disposable owner/API URLs to create a task-owned temporary `_test` database and
+measure1k/10k eligible notes plus equal-sized cross-tenant noise. The runner
+removes only its newly created database and reports warm service samples, a
+clearly non-equivalent baseline SQL timing, and actual runtime-RLS plans.
+Set `SEARCH_EVIDENCE_DIR` to an existing private evidence directory. These
+observations are not production capacity or an HTTP p95 qualification.
+[Measured outcomes and limitations](search-quality-results.md) retain the slower
+typo/no-match scans as well as the optimized common-query results.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner

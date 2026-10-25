@@ -484,6 +484,187 @@ html:has(.grove-app) {
 .ask-composer:focus-within {
   border-color: var(--color-muted);
 }
+.ask-selected-sources {
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--color-line);
+}
+.ask-source-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.ask-source-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 8px;
+  min-height: 36px;
+  border-radius: 5px;
+  background: var(--color-sage);
+  color: var(--color-forest);
+  font-size: 12px;
+}
+.ask-source-chips button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ask-source-chips svg {
+  flex-shrink: 0;
+}
+.ask-source-only {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  font-size: 12px;
+  color: var(--color-forest);
+}
+.ask-selected-sources > p,
+.ask-context-summary {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin: 0;
+}
+.ask-sources-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ask-source-results {
+  padding: 4px 12px 12px;
+}
+.ask-source-results > p {
+  padding: 12px 4px;
+  font-size: 13px;
+}
+.ask-source-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--color-line);
+  text-align: left;
+}
+.ask-source-result:hover,
+.ask-source-result[aria-pressed="true"] {
+  background: var(--color-sage);
+}
+.ask-source-result > span {
+  flex: 1;
+  min-width: 0;
+}
+.ask-source-result strong,
+.ask-source-result small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.ask-source-result strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.ask-source-result small {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.ask-source-result > svg {
+  flex-shrink: 0;
+}
+.ask-source-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--color-line);
+}
+.ask-source-row .ask-source-result {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 0;
+}
+.ask-source-row > .app-icon {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+}
+.ask-source-excerpt {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.ask-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-top: 4px;
+}
+.ask-source-actions .text-button,
+.ask-add-sources {
+  min-height: 32px;
+  font-size: 11px;
+}
+.ask-context-details {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0;
+}
+.ask-question .ask-context-summary {
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+.ask-context-details details {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.ask-context-details summary {
+  cursor: pointer;
+  min-height: 28px;
+}
+.ask-context-details li {
+  overflow-wrap: anywhere;
+  margin-block: 4px;
+}
+.ask-context-recovery {
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  font-size: 13px;
+}
+.ask-context-recovery p {
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ask-context-recovery small {
+  display: block;
+  color: var(--color-muted);
+}
+.ask-source-preview {
+  overflow-wrap: anywhere;
+}
+.ask-source-preview h2 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+@media (pointer: coarse) {
+  .ask-source-chips button,
+  .ask-source-only,
+  .ask-sources-button {
+    min-height: 44px;
+  }
+  .ask-source-actions .text-button,
+  .ask-add-sources {
+    min-height: 44px;
+  }
+}
 .ask-composer textarea {
   display: block;
   width: 100%;
@@ -652,9 +833,22 @@ html:has(.grove-app) {
   padding: 6px 0;
 }
 @media (max-width: 400px) {
+  .ask-composer-footer {
+    gap: 4px;
+  }
   .ask-composer-footer > span {
-    font-size: 9px;
-    line-height: 1.4;
+    display: none;
+  }
+  .ask-send {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .ask-sources-button {
+    justify-content: center;
+    min-width: 36px;
+  }
+  .ask-sources-button > span {
+    display: none;
   }
 }
 .ask-formatting {
@@ -1870,7 +2064,7 @@ html:has(.grove-app) {
 }
 .search-match {
   background: #e3ebd7;
-  color: inherit;
+  color: var(--color-forest);
   border-radius: 2px;
 }
 @media (forced-colors: active) {

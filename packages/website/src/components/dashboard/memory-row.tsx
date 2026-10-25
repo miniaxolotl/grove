@@ -14,7 +14,8 @@ import { useWorkspaceDrag, type WorkspaceDragItem } from "./memory-drag";
 import { NoteActions } from "./note-actions";
 import { useNoteExport } from "./note-export";
 import { useRowSwipe } from "./use-row-swipe";
-import { SearchPassage } from "./search-passage";
+import { SearchPassage, SearchTitle } from "./search-passage";
+import type { SearchMatch } from "@lib/shared/search";
 
 export function MemoryRow({
   memory,
@@ -30,6 +31,7 @@ export function MemoryRow({
   onTag,
   selectedItems,
   query = "",
+  evidence,
 }: {
   memory: Memory;
   projectName: string;
@@ -44,6 +46,7 @@ export function MemoryRow({
   onTag: (tag: string) => void;
   selectedItems: Memory[];
   query?: string;
+  evidence?: SearchMatch;
 }) {
   const workspace = useWorkspaceDrag();
   const noteExport = useNoteExport();
@@ -147,7 +150,14 @@ export function MemoryRow({
               }
             }}
           >
-            <span className="memory-title">{title}</span>
+            <span className="memory-title">
+              <SearchTitle
+                title={title}
+                query={query}
+                version={memory.version}
+                evidence={evidence}
+              />
+            </span>
             {(memory.enrichment?.title || query) && (
               <span className="memory-excerpt">
                 {query ? (
@@ -155,6 +165,8 @@ export function MemoryRow({
                     content={memory.content}
                     query={query}
                     length={220}
+                    version={memory.version}
+                    evidence={evidence}
                   />
                 ) : (
                   memoryExcerpt(memory, 220)

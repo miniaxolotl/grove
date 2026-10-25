@@ -63,9 +63,13 @@ finish saving before read aloud; shared readers never initiate inference.
   note type, topic, source, updated date, retention and sorting in one panel.
   Queries stay in POST bodies. Sorting and filtering apply to the entire
   matching library; the note count shows the active notebook when one is chosen.
-  Search excerpts show a passage near matching words, with literal word highlights.
+  Relevance ranks displayed-title matches before body matches. Plain queries
+  support final-word prefixes and conservative typo recovery; explicit date
+  sorts stay selected. [Search behavior and limits](search.md) explain English
+  stemming, operators and supported corrections.
+  Search excerpts show a passage near proven matches, with stem/prefix highlights.
   Global search and Ask Grove's Search tab show the notebook path. Semantic-only
-  matches show an ordinary excerpt rather than invented highlights.
+  and typo-only matches show an ordinary excerpt rather than invented highlights.
 - Create a notebook with the sidebar **+** and just a name. **Manage notebooks** opens all
   notebook settings. Each notebook's action menu includes **New sub-notebook**;
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
@@ -296,6 +300,16 @@ a notebook; optionally include unfiled notes. **Search** finds pages as you type
 The search field and status stay in place through pending, empty and result states;
 a failed search offers an inline retry. Clearing it returns focus to the field.
 Source links open the cited note and identify when it has since changed.
+
+Use **Sources** or `@note` / `@notebook` followed by Space, Tab or Enter to choose
+exact context for a question. Preview before selecting, check notebook paths for
+duplicate titles, and keep **Use only these sources** on to exclude automatic
+library retrieval, earlier answers and web research. Large notebooks use bounded
+direct-member retrieval with visible partial coverage. Selected scope, supplied
+evidence and citations remain distinct. **Add sources** and **Edit sources** preserve
+questions/choices without automatic sending or broadening. Explicit selected-note
+edits/merges still need review and Apply; other mutation types use an ordinary
+question. [Source selection](explicit-context.md) covers limits, recovery and scope.
 
 The message box's **Tools** menu controls **Web search**, **Research**, and
 **Manage notes** independently. Enabled research tools are used when

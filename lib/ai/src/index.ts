@@ -37,6 +37,8 @@ export type InferenceOptions = {
     tools?: Record<string, boolean>;
     notebooks?: unknown[];
     coverage?: { shown: number; total: number };
+    selectedContext?: import("@lib/shared/conversations").ConversationContext;
+    contextCoverage?: import("@lib/shared/conversations").ContextCoverage;
   };
 };
 export type Embedder = {

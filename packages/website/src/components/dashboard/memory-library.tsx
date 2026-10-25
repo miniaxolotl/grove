@@ -182,7 +182,15 @@ export function MemoryLibrary({
   const next = query.hasNextPage;
   const loading = query.isPending || query.isFetchingNextPage;
   const searchMode = query.data?.pages[0]?.searchMode;
+  const matches = Object.assign(
+    {},
+    ...(query.data?.pages.map((page) => page.matches ?? {}) ?? []),
+  );
   const readError = query.error ? errorMessage(query.error) : "";
+  const staleSearch =
+    query.error instanceof Error &&
+    "code" in query.error &&
+    ["stale_search", "invalid_cursor"].includes(String(query.error.code));
   const currentError = error || (!query.data ? readError : "");
   const refreshing =
     !!query.data && query.isFetching && !query.isFetchingNextPage;
@@ -422,24 +430,28 @@ export function MemoryLibrary({
                 {query.data && readError ? (
                   <>
                     <span className="sr-only">
-                      {query.isFetchNextPageError
-                        ? "Couldn’t load more. Showing loaded notes."
-                        : "Couldn’t refresh. Showing saved notes."}
+                      {staleSearch
+                        ? "Search changed. Refresh results."
+                        : query.isFetchNextPageError
+                          ? "Couldn’t load more. Showing loaded notes."
+                          : "Couldn’t refresh. Showing saved notes."}
                     </span>
                     <button
                       type="button"
                       className="library-refresh-retry"
                       aria-label={
-                        query.isFetchNextPageError
-                          ? "Retry loading more notes"
-                          : "Retry refreshing notes"
+                        staleSearch
+                          ? "Refresh search results"
+                          : query.isFetchNextPageError
+                            ? "Retry loading more notes"
+                            : "Retry refreshing notes"
                       }
                       aria-busy={query.isFetching}
                       disabled={query.isFetching}
                       title={`Showing loaded notes. ${readError}`}
                       onClick={() => {
                         summary.current?.focus({ preventScroll: true });
-                        if (query.isFetchNextPageError)
+                        if (query.isFetchNextPageError && !staleSearch)
                           void query.fetchNextPage();
                         else void query.refetch();
                       }}
@@ -656,6 +668,7 @@ export function MemoryLibrary({
                         )}
                       <MemoryRow
                         query={search}
+                        evidence={matches[memory.id]}
                         onIntent={() => {
                           void loadDetail().catch(() => {});
                         }}
@@ -705,7 +718,10 @@ export function MemoryLibrary({
               <button
                 className="app-button secondary"
                 disabled={loading}
-                onClick={() => void query.fetchNextPage()}
+                onClick={() => {
+                  if (staleSearch) void query.refetch();
+                  else void query.fetchNextPage();
+                }}
               >
                 {loading
                   ? "Loading…"

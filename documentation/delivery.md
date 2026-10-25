@@ -9,19 +9,66 @@ provider/crawler/telemetry settings are unchanged. The social-image metadata now
 matches the actual 1200×628 PNG. See [maintenance](website-discovery.md) and
 [three reviewed browser captures](design/screenshots/discovery/README.md).
 
-Root/site lint, types and builds, **248 browser cases**, **ten packed-artifact
-checks**, six mobile WCAG A/AA audits and eight internal document/fragment targets
-pass. New discovery/image cases were observed failing before implementation.
+Initial source on `54f7688` passed root/site lint, types and builds, **248 browser
+cases**, **ten packed-artifact checks**, six mobile WCAG A/AA audits and eight
+internal document/fragment targets. New discovery/image cases were observed failing
+before implementation.
 WebKit checks also pass hub/reference navigation, keyboard code/table focus and
 320/390/1440px overflow checks in the pinned Linux browser image; the host lacks
 WebKit's system dependencies. A packaged-artifact repeat used the same image with
 home-backed `/tmp/opencode` after the host's shared temporary quota was exhausted.
 No test source, CI identity or application behavior was changed for those runs.
-The isolated full backend serial run passes **440 cases with four optional skips**.
+That initial isolated backend serial run passed **440 cases with four optional skips**.
 A prior four-worker run hit the unchanged export workload's 180/minute read limit;
 the case passed in isolation and serially without assertion, limit or backend
 source changes. This records source evidence, not a repaired load-test behavior,
 production rollout, crawler approval or indexing/AI-citation result.
+
+After integrating development `27288e3`, both documentation insertion conflicts
+retain the discovery and merged search/context material. The integrated source
+passes root/site lint/types/build, **253 browser cases**, **ten packed artifacts**
+and the full serial backend suite: **474 pass, four optional skips, zero failures**.
+No backend, private-app or migration source differs from the integrated base.
+The first integrated runs encountered host temporary quota and memory/swap pressure
+(browser/SDK/axe waits; three backend timing cases). Failure logs/traces were kept;
+all affected cases passed in isolation and the full unchanged suites passed in the
+pinned Linux runtime with home-backed temporary storage. No deadline, assertion,
+rate limit or production setting was weakened to obtain the passing result.
+
+## Title-first, prefix and typo-tolerant note search (25 October 2026)
+
+Library searches and recall/source search share visible-title tiers, additive
+final-term prefixes and scoped `pg_trgm` recovery. A full-scope 40-match lexical
+shortfall controls fuzzy expansion, independently of semantic matches. Explicit
+date sorts, strict quotes/OR/exclusions and the existing body vector/relationship
+queries are preserved. Current revision/profile/preferences guard generated titles.
+
+Signed relevance cursors bind a one-statement matched-set fingerprint and search
+mode; keyword fallback survives allowance/provider recovery. The workspace can
+restart a stale traversal. Query/version-bound title/snippet ranges render as
+escaped text, not headline HTML; typo/semantic-only excerpts remain unmarked.
+Recall counts metadata against its existing budget. Migration029 installs the
+extension and invoker-only title resolver without rewriting retained data/indexes.
+See [behavior](search.md) and [owner rollout](deploy.md#search-quality-rollout).
+
+Local verification after integrating development `54f7688` passes **458 backend cases** (four optional S3/broker skips),
+including **18 focused search/migration/REST cases**, all **ten artifacts**, root/site
+lint/types/builds, bundle budgets and **34 release/deployment contracts**. The
+telemetry-enabled Notes entry is **492,274 gzip bytes** (build `yDoWpWVutEy0vjDUXdefw`), with the editor deferred.
+Native OpenCode 2.1.3, Claude Code 2.1.309 and Codex 0.164.0 qualification passes.
+All **244 Chromium** cases and **eight focused touch/mobile WebKit** cases pass;
+an earlier focused repeat also passed eight Chromium cases. [Four reviewed synthetic captures](design/screenshots/search-quality/README.md)
+cover 1440/390/320px, accessible marks and honest typo excerpts. No production
+migration, provider change, release or deployment is performed by source delivery.
+
+The final backend repeat ran the unchanged suite with Node 24 in pinned Noble,
+using task-only home-backed temporary storage after the host `/tmp` user quota
+caused file-write failures. No assertion, timeout or database policy was relaxed.
+
+[Scale observations](development/search-quality-results.md) record common-query
+maxima around185ms at10k eligible +10k other-tenant notes, but typo/no-match
+scans remain~527–779ms in the final local run. Five warm samples are regression
+observations, not production p95/capacity or a50k/larger-note qualification.
 
 ## Human-readable agent notes and shared tool guidance (25 October 2026)
 
@@ -118,6 +165,75 @@ and reboot interrupted earlier attempts; no timeout, assertion or database polic
 was relaxed. Fifteen actual-component tier/source/usage/accessibility journeys per
 Chromium and supported WebKit pass at1440/390/320px against integrated production
 CSS/build`HBGViTUdyNh-S2oqCXNSi`. No production data or runtime was changed.
+
+## Explicit note and notebook context (25 October 2026)
+
+Ask Grove adds Sources and `@note`/`@notebook` selection, read-only previews,
+per-question **Use only these sources**, durable retry metadata and recoverable
+unavailable-source drafts. Strict planning/answering excludes prior source prose,
+unrestricted recall and external research. Large notebooks use direct-member-only
+keyword retrieval with 12 supplied notes maximum, pinned-first ordering and visible
+partial/omitted coverage. Selected scope, supplied revisions and citations are
+distinct. Selected-note edit/merge previews retain Apply/Undo; broader mutations
+use ordinary questions. [Contract](explicit-context.md) records the limits.
+
+Source **`9e9600d`** adds forward migration (now **030 after search quality 029**), preserving old turn
+columns and RLS. Runtime readiness checks the nullable context column; API/worker
+must precede the website after an explicit owner migration. No retained schema,
+provider, billing flag or production deployment was changed.
+
+Local verification passes **446 backend cases**, four optional-service skips and
+zero failures, including 15 new context/upgrade cases. Regressions demonstrated red
+then green for exact selection, large notebooks, selected edits, export metadata,
+empty-notebook publication races and UUID normalization/deduplication. Root/site
+lint, types and production builds pass, as do **nine packaged artifacts**,
+**34 release/provider contracts** and bundle budgets. Notes entry is **488,429 gzip
+bytes**; website build **`fV5xIqpvfT0DFUOka_vng`**.
+
+The existing **239 Chromium** suite and **10 focused WebKit** cases pass. Actual
+component/API/PostgreSQL journeys pass in both engines at 1440/390/320px, including
+preview focus, strict evidence, last-chip recovery, partial coverage, new-ID source
+replacement, selected edits/Undo, WCAG/overflow and zero page errors. Both engines
+also verify 390px retained drafts, accepted-but-lost exact retries and empty-source
+Add sources. [Seven reviewed captures](design/screenshots/explicit-context/README.md)
+show final components and synthetic data.
+
+Initial checks exposed the narrow Sources/Send footer and an existing enlarged
+New note flex-label overflow; both were reproduced and corrected without weakening
+assertions. A shared Playwright output collision and occupied fixture/OAuth ports
+were isolated and rerun with separate/free resources. [Evaluation notes](development/explicit-context-results.md)
+distinguish deterministic boundary/canary tests from unperformed paid-model quality
+acceptance. Source delivery is not production activation.
+
+Integration **`63b4195`** preserves subscription-badge development **`06d8740`**;
+only this delivery record conflicted. The combined source passes **450 backend
+cases** (four optional skips), **239 Chromium**, **10 focused WebKit**, root/site
+static/build gates, nine artifacts, 34 contracts and bundle budgets. Both-engine
+source-selection/draft/replay/abstention journeys pass again. All seven captures
+were refreshed against build **`bUArWXbVxQehegDmHerVO`**; Notes entry is **491,638
+gzip bytes**. No deployment, schema activation or protected merge was performed.
+
+The merge follow-up also integrates note-writing guidance **`54f7688`** (#143),
+retaining both strict-source instructions and the shared readable-note policy,
+plus both regression sets. Fresh verification passes **455 backend cases** with
+four optional-service skips, **10 artifacts**, root/site lint/types/builds,
+34 release/provider contracts and bundle budgets. Website source is unchanged
+from `fe0b383`; the reviewed captures and earlier both-engine journeys still apply.
+Rebuild **`2K6m1-avTTpV_ecoc-Ufg`** records **491,637 gzip bytes** for Notes.
+The additional local native-host smoke stopped at npm extraction with a temporary
+storage write error (`-122`); hosted CI must qualify the unchanged native suite.
+
+The subsequent follow-up integrates search-quality development **`d8d78df`**
+(#144). Search retains migration 029; the unapplied context migration is now
+**`20261025_030_conversation_context`**. A new ordering regression demonstrated
+red/green, and a fresh disposable database verifies the full sequence without
+rewriting earlier fixture history. Ask preserves search title/passage evidence
+alongside selected/provided/cited distinctions. Fresh verification passes
+**474 backend cases/four optional skips**, **10 artifacts**, **244 Chromium** and **18 focused WebKit**
+cases (Ask/layout/search), root/site static/build gates, 34 contracts and bundle
+budgets. Both-engine source/draft/replay/abstention/IME/touch journeys pass; seven
+captures were refreshed/reviewed against build **`J4mEDYRWCDRlQZxNEuBUm`**. Notes
+entry is **492,277 gzip bytes**. No production migration or deployment occurred.
 
 ## Admin interface polish (25 October 2026)
 

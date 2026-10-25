@@ -143,12 +143,39 @@ export const conversationScopeSchema = z
 export const conversationCreateSchema = conversationScopeSchema.extend({
   id: z.uuid(),
 });
+export const conversationContextSchema = z
+  .object({
+    notes: z.array(z.uuid().transform((id) => id.toLowerCase())).max(12),
+    notebooks: z.array(z.uuid().transform((id) => id.toLowerCase())).max(6),
+    only: z.boolean(),
+  })
+  .strict()
+  .refine(
+    ({ notes, notebooks }) => notes.length + notebooks.length > 0,
+    "Choose a source",
+  )
+  .refine(
+    ({ notes, notebooks }) =>
+      new Set(notes).size === notes.length &&
+      new Set(notebooks).size === notebooks.length,
+    "Choose each source once",
+  );
+export type ConversationContext = z.infer<typeof conversationContextSchema>;
+export type ContextCoverage = {
+  eligible: number;
+  provided: number;
+  partial: boolean;
+  /** Direct notebook members not already individually pinned. */
+  notebookEligible: number;
+  notebookProvided: number;
+};
 export const conversationTurnSchema = z
   .object({
     id: z.uuid(),
     query: z.string().trim().min(1).max(6000),
     format: z.enum(["plain", "markdown"]).default("plain"),
     expectedVersion: z.number().int().min(0),
+    context: conversationContextSchema.optional(),
   })
   .strict();
 export const conversationPlanSchema = z
@@ -265,6 +292,7 @@ export type ConversationReply = Omit<
   researchIncomplete?: boolean;
   organization?: OrganizationProposal;
   lifecycle?: LifecycleProposal;
+  contextCoverage?: ContextCoverage;
 };
 export type ConversationTurn = {
   id: string;
@@ -276,6 +304,7 @@ export type ConversationTurn = {
   error: string | null;
   createdAt: string;
   toolRuns?: ToolRun[];
+  context?: ConversationContext;
 };
 export type ConversationSummary = {
   id: string;

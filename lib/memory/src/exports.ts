@@ -267,6 +267,7 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
       "position",
       "question",
       "format",
+      "context",
       "status",
       "result",
       "createdAt",
