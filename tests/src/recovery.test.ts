@@ -318,6 +318,13 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    const restoredOrder = await target("accounts").where({ id: a }).first();
+    const authorityOrder = await source("accounts").where({ id: a }).first();
+    assert(
+      BigInt(restoredOrder.notebookOrderVersion ?? 0) >
+        BigInt(authorityOrder.notebookOrderVersion ?? 0),
+      "recovery fences every pre-restore notebook layout token",
+    );
     assert.deepEqual(
       await target("account_administration").where({ accountId: a }).first(),
       await source("account_administration").where({ accountId: a }).first(),
@@ -507,13 +514,11 @@ test("restore preserves current support suspension and notes instead of reviving
     const id = randomUUID();
     for (const db of databases)
       await db("accounts").insert({ id, clerkSubject: "support_restore_user" });
-    await source("accounts")
-      .where({ id })
-      .update({
-        status: "disabled",
-        adminSuspended: true,
-        captureEnabled: false,
-      });
+    await source("accounts").where({ id }).update({
+      status: "disabled",
+      adminSuspended: true,
+      captureEnabled: false,
+    });
     await source("account_administration").insert({
       accountId: id,
       supportNote: "Review suspension before restoring access",

@@ -1,5 +1,20 @@
 # Verification
 
+## Notebook organization foundation
+
+Run `tests/src/notebook-organization.test.ts`, `notebook-order-migration.test.ts`
+and `recovery.test.ts` using the disposable non-owner PostgreSQL fixtures below.
+Cover complete paged catalogs beyond100, missing-on-another-page parents, strict
+HTTP input, same-account active parent/anchor checks, cycles, exact retry replay,
+concurrent reorders, no-op/source-version stability, stale Undo/ABA, export ranks
+and restore epoch fencing. The populated upgrade must preserve retained source
+columns and grants; only existing derived export counters may advance on backfill.
+
+This API/proxy slice adds no new UI or gestures. Existing browser suites remain
+regressions, not evidence that the reported physical-phone issue is fixed. The
+future Organize UI must still qualify tap/keyboard tasks and physical iOS/Android
+scroll/pickup/cancellation as specified in the approved planning PR138.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner

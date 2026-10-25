@@ -1,5 +1,37 @@
 # Delivery evidence
 
+## Notebook organization foundation (25 October 2026)
+
+The first implementation slice adds owner-session catalog paging and atomic
+parent/sibling-order writes. A complete 500-notebook fixture retains cross-page
+parents; the legacy 100-row array and scoped MCP contracts remain unchanged.
+State/version/anchor/cycle checks, exact retry receipts and inverse placements
+support safe future tap/keyboard/drag controls. An independent catalog epoch
+rejects stale Undo even after layout ABA or database restore.
+
+Forward 032 backfills sibling positions by name/ID and keeps existing writers
+compatible through append triggers. Reordering changes no note/source content,
+contentVersion or AI jobs/usage. Direct tenant writes cannot reorder archived
+notebooks. Private exports retain positions; source changes fence downloads and
+restore reconciliation invalidates pre-restore catalog tokens. Runtime readiness
+requires the additive columns. [API contract](notebook-organization.md) and
+[operator rollout](deploy.md#notebook-order-foundation-rollout-032) document boundaries.
+
+All **448 backend tests pass** (four optional broker/S3 skips), including 13 new
+organization/upgrade cases and the existing recovery/service regressions. The
+historical 026→027 preservation assertion now ends at 027, then migrates fully for
+current permission checks; no old-column assertion or tenant check was removed.
+Root/site lint, types and builds, **nine packaged artifacts**, **16 CI** and
+**34 release/provider contracts**, pinned workflow lint and bundle budgets pass.
+All **239 existing Chromium checks** pass against the production website build.
+These are compatibility regressions, not tests of a new Organize interface.
+
+No UI layout or gesture handler changes in this slice. Shared organizer/cache
+integration, visible destination search and physical mobile gesture qualification
+remain subsequent planned work. No fake after-screenshots are provided, and the
+owner's private reference capture is not committed. No retained database migration,
+provider/account change, merge, feature activation or deployment was performed.
+
 ## Visible subscription and complimentary access (25 October 2026)
 
 The desktop/mobile workspace now keeps a small Free/Pro/Unlimited badge in its

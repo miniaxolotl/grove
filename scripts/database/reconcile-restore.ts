@@ -30,6 +30,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "askTools",
       "contentVersion",
       "changeToken",
+      "notebookOrderVersion",
     );
     const subjects = await source("subject_authority").select("*");
     const researchBudget = await source("research_global_usage").select("*");
@@ -341,6 +342,10 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             changeToken: target.raw("greatest(change_token,?::bigint)+1", [
               current.changeToken,
             ]),
+            notebookOrderVersion: target.raw(
+              "greatest(notebook_order_version,?::bigint)+1",
+              [current.notebookOrderVersion],
+            ),
             organizationDueAt: target.fn.now(),
           });
         if (gone) {

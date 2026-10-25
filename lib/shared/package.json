@@ -12,6 +12,7 @@
     "./system-admin": "./src/system-admin.ts",
     "./memory-tools": "./src/memory-tools.ts",
     "./notebook-lifecycle": "./src/notebook-lifecycle.ts",
+    "./notebook-organization": "./src/notebook-organization.ts",
     "./models": "./src/models.ts",
     "./media": "./src/media.ts",
     "./speech": "./src/speech.ts",

@@ -130,6 +130,10 @@ No server content cache can outlive deletion or revocation.
 
 ## REST routes
 
+Owner-only notebook catalog and atomic parent/order endpoints are documented in
+[notebook organization](notebook-organization.md). This foundation does not change
+the legacy notebook-list or MCP contracts or yet add the Organize interface.
+
 Responses use `{success: true, data}` or
 `{success: false, error: {code, message, requestId}}`. Export is NDJSON.
 

@@ -90,7 +90,10 @@ export async function probeDatabase(db: Knex) {
     "SELECT content_version, ask_enabled, export_version, filing_enabled, change_token, admin_suspended FROM accounts LIMIT 0",
   );
   await db.raw("SELECT id, lane, lease_id FROM background_tasks LIMIT 0");
-  await db.raw("SELECT status, archive_operation_id FROM projects LIMIT 0");
+  await db.raw(
+    "SELECT status, archive_operation_id, position FROM projects LIMIT 0",
+  );
+  await db.raw("SELECT notebook_order_version FROM accounts LIMIT 0");
   await db.raw("SELECT duration_ms FROM speech_usage LIMIT 0");
   await db.raw("SELECT archive_operation_id FROM memories LIMIT 0");
   await db.raw("SELECT tools, tools_version FROM conversations LIMIT 0");

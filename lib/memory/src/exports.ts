@@ -244,6 +244,7 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
       "name",
       "identity",
       "parentId",
+      "position",
       "version",
       "status",
       "createdAt",

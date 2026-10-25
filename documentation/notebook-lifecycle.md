@@ -20,6 +20,11 @@ source text, task references and authored revisions stay intact. Archive/restore
 adds a revision for each note whose state changes; restored eligible notes reenter
 the existing processing lanes under current profiles/preferences.
 
+The [organization foundation](notebook-organization.md) additionally retains
+sibling positions through archive/restore, rejects arranging archived notebooks,
+and uses ID as the deterministic tie-breaker if restored ranks collide. It does
+not change the existing lifecycle controls or make deletion undoable.
+
 ## Soft deletion only
 
 Delete hides the entire subtree and its note history from normal owner, agent,
@@ -36,14 +41,14 @@ under that ancestor's existing permission. Sharing remains explicit and owner-on
 
 ## API and concurrency
 
-| Route | Contract |
-| --- | --- |
-| `GET /v1/projects` | Active notebooks within the existing grant scope |
-| `GET /v1/projects?status=archived` | Archived directory; website session only |
-| `GET /v1/projects/:id/lifecycle` | Owner-only preview: `project`, `projectIds`, `notebooks`, `notes`, `fingerprint`, `canRestore` |
-| `POST /v1/projects/:id/archive` | Archive the reviewed subtree |
-| `POST /v1/projects/:id/restore` | Restore only that archive operation's contents |
-| `POST /v1/projects/:id/delete` | Soft-delete the reviewed subtree |
+| Route                              | Contract                                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `GET /v1/projects`                 | Active notebooks within the existing grant scope                                               |
+| `GET /v1/projects?status=archived` | Archived directory; website session only                                                       |
+| `GET /v1/projects/:id/lifecycle`   | Owner-only preview: `project`, `projectIds`, `notebooks`, `notes`, `fingerprint`, `canRestore` |
+| `POST /v1/projects/:id/archive`    | Archive the reviewed subtree                                                                   |
+| `POST /v1/projects/:id/restore`    | Restore only that archive operation's contents                                                 |
+| `POST /v1/projects/:id/delete`     | Soft-delete the reviewed subtree                                                               |
 
 All mutations require `operationId` (UUID), `expectedVersion` (notebook version)
 and the preview's `fingerprint`. They return `{ action, projectIds }`. API keys and
