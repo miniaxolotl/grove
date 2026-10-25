@@ -100,6 +100,14 @@ were isolated and rerun with separate/free resources. [Evaluation notes](develop
 distinguish deterministic boundary/canary tests from unperformed paid-model quality
 acceptance. Source delivery is not production activation.
 
+Integration **`63b4195`** preserves subscription-badge development **`06d8740`**;
+only this delivery record conflicted. The combined source passes **450 backend
+cases** (four optional skips), **239 Chromium**, **10 focused WebKit**, root/site
+static/build gates, nine artifacts, 34 contracts and bundle budgets. Both-engine
+source-selection/draft/replay/abstention journeys pass again. All seven captures
+were refreshed against build **`bUArWXbVxQehegDmHerVO`**; Notes entry is **491,638
+gzip bytes**. No deployment, schema activation or protected merge was performed.
+
 ## Admin interface polish (25 October 2026)
 
 People & access separates grants, system roles and availability in a compact

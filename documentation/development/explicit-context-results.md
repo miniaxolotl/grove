@@ -54,10 +54,18 @@ from deterministic adapters. Production rollout is a separate operator action.
 
 ## Execution evidence
 
-Application source `9e9600d` passes 446 backend cases/four optional-service skips,
+Initial feature source `9e9600d` passes 446 backend cases/four optional-service skips,
 239 existing Chromium cases, 10 focused WebKit cases and three new review journeys
 per engine (with additional 390px draft/retry/abstention checks). Root/site static
 checks/builds, nine artifacts, 34 release/provider contracts and bundle budgets pass.
 No live-model/provider traffic was used. See [delivery](../delivery.md) and the
 [capture gallery](../design/screenshots/explicit-context/README.md) for provenance,
 initial failures and remaining qualification limits.
+
+Integration `63b4195` preserves merged subscription-badge development `06d8740`.
+The repeat passes **450 backend cases** (four optional-service skips), all 239
+Chromium and 10 focused WebKit cases, the same three source-selection journeys per
+engine plus 390px draft/replay/abstention, root/site static/build gates, nine
+artifacts, 34 contracts and bundle budgets. Seven captures were refreshed against
+build `bUArWXbVxQehegDmHerVO`; Notes entry is 491,638 gzip bytes. Only delivery prose
+conflicted, and both feature records are retained. No production operation occurred.

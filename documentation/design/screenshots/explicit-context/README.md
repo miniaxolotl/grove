@@ -1,9 +1,11 @@
 # Explicit context selection — reviewed captures
 
-Application source: **`9e9600d`**, based on development `05fe8fd`. Production website
-build: **`fV5xIqpvfT0DFUOka_vng`**, Node 24.21.0 / pnpm 10.33.0. The build was made
-from the then-uncommitted application files; the source commit includes those same
-components/styles. Final UUID normalization affects the API, not the captured CSS.
+Application source: **`63b4195`**, integrating subscription-badge development
+`06d8740` with feature source `9e9600d`. Production website build:
+**`bUArWXbVxQehegDmHerVO`**, Node 24.21.0 / pnpm 10.33.0. The build was made
+from the then-uncommitted merge files; the source commit includes those same
+components/styles. All seven captures and both-engine journeys were refreshed after
+integration; existing subscription controls and source selection are preserved.
 
 Real Ask components use production CSS through the isolated dashboard fixture,
 backed by actual API/MemoryService/non-owner PostgreSQL and a labelled deterministic
