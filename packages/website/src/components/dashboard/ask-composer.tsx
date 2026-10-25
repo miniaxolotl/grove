@@ -33,6 +33,8 @@ export function AskComposer({
   disabled = false,
   tools,
   sendDisabled = false,
+  sources,
+  onMention,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -42,6 +44,13 @@ export function AskComposer({
   disabled?: boolean;
   tools?: ReactNode;
   sendDisabled?: boolean;
+  sources?: ReactNode;
+  onMention?: (
+    kind: "notes" | "notebooks",
+    value: string,
+    start: number,
+    end: number,
+  ) => void;
 }) {
   const id = useId();
   const input = useRef<HTMLTextAreaElement>(null);
@@ -128,6 +137,7 @@ export function AskComposer({
         }
       }}
     >
+      {sources}
       {formatted && (
         <div
           className="ask-formatting"
@@ -186,7 +196,7 @@ export function AskComposer({
         maxLength={6000}
         disabled={disabled}
         hidden={preview}
-        placeholder="Ask, research, or organize…"
+        placeholder="Ask, or choose sources with @note…"
         aria-describedby={`${id}-hint`}
         onSelect={(event) => {
           selection.current = {
@@ -198,9 +208,42 @@ export function AskComposer({
         onChange={(event) => {
           setLimit(false);
           onChange(event.target.value);
+          if (!(event.nativeEvent as InputEvent).isComposing) {
+            const end = event.target.selectionStart;
+            const match = /(?:^|\s)@(note|notebook)\s$/.exec(
+              event.target.value.slice(0, end),
+            );
+            if (match)
+              onMention?.(
+                match[1] === "note" ? "notes" : "notebooks",
+                event.target.value,
+                end - match[1].length - 2,
+                end,
+              );
+          }
         }}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+          if (
+            ["Tab", "Enter"].includes(event.key) &&
+            !event.shiftKey &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            onMention
+          ) {
+            const end = event.currentTarget.selectionStart;
+            const match = /(?:^|\s)@(note|notebook)$/.exec(value.slice(0, end));
+            if (match) {
+              event.preventDefault();
+              onMention(
+                match[1] === "note" ? "notes" : "notebooks",
+                value,
+                end - match[1].length - 1,
+                end,
+              );
+              return;
+            }
+          }
           if (
             formatted &&
             (event.metaKey || event.ctrlKey) &&

@@ -11,6 +11,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Search, ArrowUpRight, FileText, MessageSquare } from "lucide-react";
 import type { AskResult } from "@lib/shared/models";
 import type { ConversationTurn } from "@lib/shared/conversations";
+import type { SourceSelection } from "./ask-sources";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { memoryTitle } from "@/lib/memory-display";
@@ -36,11 +37,15 @@ export type AskSession = {
       unconfirmed?: ConversationTurn;
       scope?: string;
       includePersonal?: boolean;
+      sources?: SourceSelection;
+      rejected?: { question: string; sources: SourceSelection };
     }
   >;
   scope: string;
   includePersonal: boolean;
   draft: string;
+  sources?: SourceSelection;
+  rejected?: { question: string; sources: SourceSelection };
   conversationId?: string;
   unconfirmed?: ConversationTurn;
   query: string;

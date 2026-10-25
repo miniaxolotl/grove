@@ -220,7 +220,7 @@ function NewNoteLink() {
       className="app-button sidebar-create"
       href={`/app/notes/new${notebook ? `?notebook=${encodeURIComponent(notebook)}` : ""}`}
     >
-      <Plus size={16} /> New note
+      <Plus size={16} /> <span>New note</span>
     </Link>
   );
 }
