@@ -318,7 +318,10 @@ function AccountWorkspace({
         accessDenied();
         return;
       }
-      if (failure instanceof DashboardApiError && failure.status < 500) {
+      if (failure instanceof DashboardApiError && failure.status === 429) {
+        setPhase("uncertain");
+        setError("Too many requests. Wait a moment, then retry the same change.");
+      } else if (failure instanceof DashboardApiError && failure.status < 500) {
         setPhase("conflict");
         setError(
           failure.code === "last_system_admin"
