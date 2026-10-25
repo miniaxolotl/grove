@@ -14,10 +14,16 @@ Open **Tools** in the message box:
 - **Manage notes** — edit notes and organize notebooks.
 
 New accounts start with Web search and Manage notes enabled, Research disabled.
-Choices persist per conversation. Switches update immediately, retain your draft
-while saving, and return to the saved state on failure. **Refresh tools** recovers
-stale or failed settings. **Use for new chats** saves account defaults with inline
-confirmation. Availability is separate from preference state. The main Ask Grove
+Changes save automatically to your account for new chats, across browser reloads,
+new sign-ins and service restarts. Changing tools before your first message does
+not create an empty conversation. In a saved chat, changing a switch updates that
+chat and remembers that switch for new chats; other old chats retain their choices.
+Simply reopening an old chat does not change your defaults.
+
+Switches show **Saving…**, then **Saved for new chats**. Your message draft is kept.
+Sending waits for an outstanding settings save. A failed or uncertain save is not
+reported as success; **Refresh tools** checks the saved choices before you send.
+Availability is separate from preference state. The main Ask Grove
 AI preference still applies. Internally, Web search uses Exa and Research uses Tavily;
 those provider identifiers remain unchanged in the API and operator configuration.
 
@@ -146,12 +152,22 @@ the batch transaction. Browser progress derives from one activity formatter.
 
 Migration `20261023_020_ask_tools` adds account defaults, conversation tool revisions,
 per-turn execution records and isolated account/global usage counters. Apply it
-with the owner procedure before rolling out API/worker, then website. Numbering
-leaves the concurrently reserved 017–019 media migrations available; reconcile the
-final release's migration list rather than assuming absent numbers must exist.
+with the owner procedure before rolling out API/worker, then website. The later
+automatic-saving change reuses this storage and needs no new migration; deploy
+the matching API before the website.
 
 - `GET /v1/ask-tools`: availability, account defaults and daily allowance.
-- `PATCH /v1/conversations/:id/tools`: `{ tools: { exa, tavily, organize }, expectedVersion, saveDefault? }`.
+- `PATCH /v1/ask-tools`: a nonempty partial `{ exa?, tavily?, organize? }` of boolean
+  choices; returns `{ defaults }` without creating or changing a conversation.
+- `PATCH /v1/conversations/:id/tools`:
+  `{ tools: { exa, tavily, organize }, expectedVersion, saveDefault?, defaultPatch? }`.
+  With `saveDefault`, returns the conversation and authoritative `defaults`.
+  `defaultPatch` limits the default update to the changed switches and must match
+  `tools`; omitting it preserves older clients' full-default-save behavior.
+- Both writes require the owning session. Conversation/default changes commit
+  atomically after checking `toolsVersion`. Account patches merge under the account
+  lock: unrelated switches survive concurrent tabs; the last committed write wins
+  when two tabs change the same switch. Other account preferences are untouched.
 - Conversation reads include tool settings/revision and redacted per-turn activity.
 - Replies add `webStatements`, `webSources`, `researchIncomplete` and optional
   `organization` and `lifecycle`; existing note `proposal` semantics remain intact.

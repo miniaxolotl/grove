@@ -17,7 +17,7 @@ scrollable navigation. No layout redesign is introduced.
   `99475284476acf2d4d7e98c5dcccb0edd1a046d7`.
 - Node 24.21.0, pnpm 10.33.0, Playwright 1.64.1. Production telemetry build uses
   synthetic public identifiers, never production credentials.
-- Full existing Chromium suite: **233 passed** on the final application. Backend:
+- Initial tier application Chromium suite: **233 passed**. Backend:
   **381 passed**, four optional RabbitMQ/S3 checks skipped. All nine packaged
   artifacts and required root/site lint, types, builds and bundle budget pass.
 - Additional actual-component journeys pass in Chromium and supported Noble
@@ -29,6 +29,11 @@ scrollable navigation. No layout redesign is introduced.
 - Native WebKit lacks system libraries on this host; the supported
   `mcr.microsoft.com/playwright:v1.64.1-noble` image supplies them. No system
   packages or personal browser profile settings were changed.
+- After integrating Ask tools/history #122 (`e958a15`), all **383 backend** cases
+  pass (four optional skips), **239 Chromium** cases and nine artifacts pass, with
+  required static/build gates and both-engine Billing journeys repeated. Integrated
+  build is `AKAKXMZ8IMVQSFV0JIKwX`, Notes entry **489,196 gzip bytes**. Recapturing
+  the four states produced byte-identical images, so no redundant gallery is added.
 
 The task-local browser verifier uses an owned loopback API/real-component fixture,
 not a fake production endpoint. These checks do not prove live Stripe payment,

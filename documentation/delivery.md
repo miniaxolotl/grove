@@ -36,6 +36,36 @@ full-use/course-use calculations, measured retained voice-sample sensitivity and
 missing actual-invoice/infrastructure inputs. No paid model calls, provider-state
 change, billing activation, production migration or deployment was performed.
 
+Integration of Ask tools/history **#122 (`e958a15`)** preserves both delivery and
+testing histories. The combined source passes **383 backend cases** (four optional
+skips), **239 Chromium cases**, nine artifacts, root/site lint/types/builds and
+bundle checks (Notes **489,196 gzip bytes**). Both-engine Billing journeys pass
+again; the four relevant captures remain byte-identical after the Ask-only styles
+and cache integration. No provider or rollout setting changed during integration.
+
+## Remembered Ask tools and clearer history (24 October 2026)
+
+Tools now saves each changed switch to account defaults automatically, across
+sessions and restarts. Before the first message it saves without creating an empty
+conversation. Saved-chat changes retain their version check and update the chat
+and changed defaults atomically; simply reopening an old chat leaves defaults
+alone. Ordered workspace writes survive navigation, cancel stale reads and refresh
+other tabs. Uncertain saves retain the message and require confirmation before send.
+
+History has labelled Delete actions, distinct previews, readable metadata and
+quiet current/focus treatments. Existing named confirmation, retained deletion,
+Cancel/retry and focus recovery keep saved notes intact. Current user/API/cache
+documentation replaces the separate default-save instructions.
+
+After integrating speech #119, root/site lint, types, builds, **nine artifacts**,
+**368 backend cases** (four optional service skips), **239 Chromium** and **seven
+focused iPhone/WebKit** scenarios pass. Fresh Node processes verify saved defaults
+after API/service reinitialization; synthetic proxy checks cover PATCH admission,
+private/no-store and origin/auth denial. Notes entry is **489,194 gzip bytes** and
+the bundle budget passes. [Six reviewed captures](design/screenshots/ask-settings-history/README.md)
+record desktop/390/320px, confirmation and tool save/recovery states. This feature
+needs no new migration and records local source verification, not production rollout.
+
 ## Text-addressed read-aloud cache (24 October 2026)
 
 Migration **024** stores exact saved-text SHA-256 and voice/profile-aware cache

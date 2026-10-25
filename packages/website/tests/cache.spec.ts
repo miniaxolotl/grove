@@ -31,6 +31,75 @@ function cacheWith(
 }
 test.afterEach(() => caches.splice(0).forEach((cache) => cache.dispose()));
 
+test("tool defaults reconcile authoritative choices and fence a held stale read", async () => {
+  const original = { exa: true, tavily: false, organize: true };
+  const held = Promise.withResolvers<unknown>();
+  let hold = false;
+  const cache = cacheWith(async (_path, _body, method) => {
+    if (method === "PATCH") return { defaults: { ...original, exa: false } };
+    return hold
+      ? held.promise
+      : { defaults: original, available: original, dailyCalls: 20 };
+  });
+  await cache.fetch("/ask-tools");
+  hold = true;
+  const stale = cache.client
+    .fetchQuery({ ...cache.resource("/ask-tools"), staleTime: 0 })
+    .catch(() => "cancelled");
+  await cache.api("/ask-tools", { exa: false }, "PATCH");
+  held.resolve({ defaults: original });
+  await stale;
+  expect(
+    cache.client.getQueryData(workspaceKeys.resource("/ask-tools")),
+  ).toEqual({
+    defaults: { ...original, exa: false },
+    available: original,
+    dailyCalls: 20,
+  });
+});
+
+test("chat creation waits for durable tool saves even after its original view unmounts", async () => {
+  const saved = Promise.withResolvers<unknown>();
+  const paths: string[] = [];
+  const cache = cacheWith(async (path) => {
+    paths.push(path);
+    return path === "/ask-tools" ? saved.promise : { id: "new", turns: [] };
+  });
+  const write = cache.api("/ask-tools", { exa: false }, "PATCH");
+  const create = cache.api("/conversations", { id: "new" });
+  await expect.poll(() => paths.length).toBe(1);
+  expect(paths).toEqual(["/ask-tools"]);
+  saved.resolve({ defaults: { exa: false, tavily: false, organize: true } });
+  await Promise.all([write, create]);
+  expect(paths).toEqual(["/ask-tools", "/conversations"]);
+});
+
+test("saved tool defaults refresh in another account-owned tab", async () => {
+  let defaults = { exa: true, tavily: false, organize: true };
+  const transport = async (_path: string, _body?: unknown, method?: string) => {
+    if (method === "PATCH") defaults = { ...defaults, exa: false };
+    return { defaults, available: { exa: true, tavily: true, organize: true } };
+  };
+  const first = cacheWith(transport),
+    second = cacheWith(transport);
+  const account = `tools-${crypto.randomUUID()}`;
+  first.start(account);
+  second.start(account);
+  await Promise.all([first.fetch("/ask-tools"), second.fetch("/ask-tools")]);
+  await first.api("/ask-tools", { exa: false }, "PATCH");
+  await expect
+    .poll(
+      () =>
+        second.client.getQueryState(workspaceKeys.resource("/ask-tools"))
+          ?.isInvalidated,
+    )
+    .toBe(true);
+  expect(
+    (await second.fetch<{ defaults: typeof defaults }>("/ask-tools")).defaults
+      .exa,
+  ).toBe(false);
+});
+
 test("history search is a read and deleting a conversation prunes all cached history pages", async () => {
   let reads = 0;
   const cache = cacheWith(async (path) => {

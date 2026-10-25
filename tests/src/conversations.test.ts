@@ -783,6 +783,178 @@ test("concurrent conversation creates share the final note slot and replay and U
   });
 });
 
+test("account tool choices persist through a fresh connection and session without creating chats", async () => {
+  const f = await fixture();
+  const makeApp = (database: Knex, service: MemoryService) =>
+    createApp({
+      memories: service,
+      auth: new Authentication(database, {
+        verify: async (token) => ({
+          subject:
+            token === "other"
+              ? `other_${f.principal.subject}`
+              : f.principal.subject,
+          type: "session",
+          sessionId: token,
+        }),
+      }),
+      origin: "http://localhost",
+      siteUrl: "http://localhost",
+      issuer: "https://clerk.example.test",
+      webhookSecret: "whsec_dGVzdA==",
+      ready: async () => {},
+    });
+  const app = makeApp(db, f.service);
+  const headers = {
+    authorization: "Bearer first-session",
+    "content-type": "application/json",
+  };
+  const patch = (input: unknown, authHeaders = headers) =>
+    app.request("/v1/ask-tools", {
+      method: "PATCH",
+      headers: authHeaders,
+      body: JSON.stringify(input),
+    });
+  assert.equal(
+    (await app.request("/v1/ask-tools", { method: "PATCH", body: "{}" }))
+      .status,
+    401,
+  );
+  for (const invalid of [
+    {},
+    { exa: "false" },
+    { accountId: randomUUID(), exa: false },
+  ])
+    assert.equal((await patch(invalid)).status, 400);
+  await f.service.settings(f.principal, { captureEnabled: false });
+  const saved = await patch({ exa: false });
+  assert.equal(saved.status, 200);
+  assert.deepEqual((await saved.json()).data.defaults, {
+    exa: false,
+    tavily: false,
+    organize: true,
+  });
+  // Unrelated switches from another tab are merged, not replaced by a stale full snapshot.
+  assert.equal((await patch({ tavily: true })).status, 200);
+  assert.equal(
+    (await patch({ exa: false })).status,
+    200,
+    "lost-response retry is safe",
+  );
+  assert.equal(
+    (await f.service.conversations.list(f.principal)).items.length,
+    0,
+  );
+  assert.equal((await f.service.me(f.principal)).captureEnabled, false);
+  const target = new URL(process.env.TEST_DATABASE_URL!);
+  target.pathname = `/${name}`;
+  const freshDb = createDatabase(target.href);
+  try {
+    const freshService = new MemoryService(freshDb, "conversation-tests");
+    const freshApp = makeApp(freshDb, freshService);
+    const read = await freshApp.request("/v1/ask-tools", {
+      headers: { authorization: "Bearer restarted-session" },
+    });
+    const expected = { exa: false, tavily: true, organize: true };
+    assert.deepEqual((await read.json()).data.defaults, expected);
+    const chat = await freshService.conversations.create(
+      f.principal,
+      conversationCreateSchema.parse({ id: randomUUID() }),
+    );
+    assert.deepEqual(chat.tools, expected);
+    const other = await freshApp.request("/v1/ask-tools", {
+      headers: { authorization: "Bearer other" },
+    });
+    assert.deepEqual((await other.json()).data.defaults, {
+      exa: true,
+      tavily: false,
+      organize: true,
+    });
+    const key = await f.service.grant(
+      f.principal,
+      {
+        name: "Agent",
+        capabilities: ["memory:read"],
+        personal: true,
+        allProjects: true,
+        projectIds: [],
+      },
+      { key: true },
+    );
+    assert.equal(
+      (
+        await patch(
+          { exa: true },
+          { ...headers, authorization: `Bearer ${key.secret}` },
+        )
+      ).status,
+      403,
+    );
+  } finally {
+    await freshDb.destroy();
+  }
+});
+
+test("conversation tool saves merge only the changed default and stale saves are atomic", async () => {
+  const f = await fixture();
+  const other = await fixture();
+  const old = await f.create();
+  const current = await f.create();
+  await f.service.conversations.configureTools(f.principal, old.id, {
+    expectedVersion: 0,
+    tools: { exa: false, tavily: true, organize: true },
+    saveDefault: true,
+  });
+  const input = {
+    expectedVersion: 0,
+    tools: { exa: true, tavily: false, organize: false },
+    saveDefault: true,
+    defaultPatch: { organize: false },
+  };
+  const saved = await f.service.conversations.configureTools(
+    f.principal,
+    current.id,
+    input,
+  );
+  assert.deepEqual(saved.tools, input.tools);
+  assert.deepEqual((await f.create()).tools, {
+    exa: false,
+    tavily: true,
+    organize: false,
+  });
+  assert.deepEqual(
+    (await f.service.conversations.get(f.principal, old.id)).tools,
+    { exa: false, tavily: true, organize: true },
+  );
+  await assert.rejects(
+    f.service.conversations.configureTools(f.principal, current.id, {
+      ...input,
+      tools: { ...input.tools, organize: true },
+      defaultPatch: { organize: true },
+    }),
+    { code: "conversation_changed" },
+  );
+  await assert.rejects(
+    f.service.conversations.configureTools(other.principal, current.id, {
+      ...input,
+      expectedVersion: 1,
+    }),
+    { code: "not_found" },
+  );
+  await assert.rejects(
+    f.service.conversations.configureTools(f.principal, current.id, {
+      ...input,
+      expectedVersion: 1,
+      defaultPatch: { exa: false },
+    }),
+  );
+  assert.deepEqual((await f.create()).tools, {
+    exa: false,
+    tavily: true,
+    organize: false,
+  });
+});
+
 test("conversation tools persist choices, enforce disabled providers and retain web citations", async () => {
   const { service, principal, behavior, create } = await fixture();
   assert.equal(typeof service.conversations.configureTools, "function");
