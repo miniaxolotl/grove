@@ -1,5 +1,56 @@
 # Delivery evidence
 
+## System roles and complimentary access (25 October 2026 UTC)
+
+Settings → Admin provides exact-email/user-ID account lookup, separate system roles
+and Standard/Pro/Unlimited access, required reasons and recent changes. Versioned,
+audited operations retain retry identities; a lost response cannot duplicate a
+grant. Role discovery reuses the session-owned cache, while protected reads/writes
+always check current authority. Temporary discovery failures retain an explicit
+retry rather than falsely reporting role denial.
+
+Forward migration **025**, after speech-cache 024, creates no default admins. Narrow
+owner-held functions expose only account metadata; ordinary users, keys, OAuth
+agents and workers cannot manage roles or grants. Existing private-content RLS and
+Stripe subscription records are unchanged. Complimentary Pro/unlimited access is
+independent of purchases; unlimited preserves shared safety limits. Restore
+reconciliation cannot revive revoked admin/grant state. See the
+[contract](system-administration.md) and [rollout](deploy.md#system-administration-rollout-025).
+
+Integrated source `43ef855` includes Ask defaults/history #122 and passes **380 backend
+cases** (four optional-service skips), **nine artifacts**, root/site lint/types/builds,
+all **239 Chromium** scenarios and bundle budgets (Notes: **488,425 gzip bytes**). Fifty
+CI/release/provider contracts and pinned workflow lint pass. Twelve targeted
+admin/migration cases cover non-superuser ownership, inherited privilege denial,
+concurrent edits, idempotency, last-admin protection and session revocation during
+the global-lock wait. The last case first reproduced stale authorization, then
+passed with a fresh post-wait revocation check.
+
+Real-component journeys against a disposable API/PostgreSQL pass in Chromium and
+supported WebKit at 1440/390/320px: all grants, role promotion/revocation, same-payload
+lost-response retry with one audit, keyboard dismissal, denied-access concealment,
+WCAG A/AA and overflow/page-error checks. Both engines also pass after the final
+role-discovery retry refinement. [Six reviewed captures](design/screenshots/system-admin/README.md)
+contain synthetic accounts only. Native OpenCode/Claude/Codex smoke checks pass.
+
+Production readiness is separately recorded in private operator custody. The verified
+owner account is active; live database remains at 023 before rollout. An encrypted
+backup passes full archive decode/validation. Owner-approved read-only Spaces
+inspection confirms lifecycle expiry covers only `exports/` and legacy `speech/`, not
+`narration/`; existing scoped runtime narration read/write/delete passes and its
+synthetic object is removed. The temporary inspection key was privately saved and
+revoked with provider/Doppler readback. No bucket rules, live roles, billing flags,
+production schema or deployed source changed during feature verification.
+
+Conflict-resolution integration preserves tier PR **#123 (`187f2ea`)**, including
+025 → 026 migration order and duration-based meters. New regression-first cases
+prove unlimited generation/research/duration do not treat null allowances as zero;
+independent non-generation budgets, speech attempts and global research spending
+remain bounded. The combined backend passes **397 cases** (four optional skips)
+and nine artifacts. Admin and Free/Pro/Unlimited Billing journeys pass in both
+Chromium and supported WebKit at 1440/390/320px, including legacy-character display,
+unlimited meter concealment and no paid upsell for complimentary grants.
+
 ## Self-contained directory tool metadata (25 October 2026)
 
 All 14 existing MCP tools publish the same human-readable top-level title and

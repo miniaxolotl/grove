@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
     "./billing": "./src/billing.ts",
+    "./system-admin": "./src/system-admin.ts",
     "./memory-tools": "./src/memory-tools.ts",
     "./notebook-lifecycle": "./src/notebook-lifecycle.ts",
     "./models": "./src/models.ts",

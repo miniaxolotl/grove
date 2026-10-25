@@ -33,6 +33,12 @@ AI/research limits allow 31 daily allowances without claiming reserved provider
 capacity. The [cost report](development/tier-costs.md) distinguishes published rates,
 calculated usage scenarios and actual invoices; the intro price is not a margin claim.
 
+System admins can grant complimentary Pro or unlimited access independently of a
+subscription. Unlimited removes these plan quotas, not installation-wide safety
+limits. Explicit grants remain effective while purchases are hidden; the billing
+flag does not revoke them. Grants never alter or cancel a subscription. See
+[system administration](system-administration.md).
+
 Counters reserve **attempts**, including retries, before dispatch. Uncertain,
 failed or cancelled provider calls do not promise refunds. Reusing a valid cached
 result does not reserve another attempt. Research has both per-account allowances
@@ -124,7 +130,8 @@ cannot override API/worker authorization or entitlements.
 
 `BILLING_CONFIGURED=false` leaves billing unconfigured and self-hosting unchanged.
 When configured, the flag controls subscriptions, all billing information and
-plan quota enforcement. **Off hides Settings navigation, returns 404 for the billing
+ordinary subscription-based plan quota enforcement. Explicit admin grants remain
+effective as described above. **Off hides Settings navigation, returns 404 for the billing
 page/API/portal, and removes previously loaded billing details on refresh.**
 The open Billing page refreshes every minute. Turning it off resumes pre-existing
 safety limits; it does not cancel subscriptions or stop Stripe renewals. Webhooks

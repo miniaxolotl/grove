@@ -361,7 +361,7 @@ async function reserve(
     const usage = billing.metrics.generation;
     if (
       (usage.dailyLimit !== null && usage.today >= usage.dailyLimit) ||
-      usage.month >= usage.monthlyLimit
+      (usage.monthlyLimit !== null && usage.month >= usage.monthlyLimit)
     )
       return false;
   } else if (Number(result?.count ?? 0) >= limit) return false;

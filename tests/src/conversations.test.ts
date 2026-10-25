@@ -1406,6 +1406,51 @@ test("monthly Free research usage stops paid research without stopping an ordina
     configureBillingQuotas(db, { enabled: async () => false, priceIds: [] });
   }
 });
+
+test("unlimited research bypasses per-plan and legacy account caps but retains installation spending", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  await admin("account_administration").insert({
+    accountId: f.principal.accountId,
+    access: "unlimited",
+  });
+  await admin("research_account_usage").insert({
+    accountId: f.principal.accountId,
+    day: admin.raw("(now() AT TIME ZONE 'UTC')::date"),
+    calls: billingLimits.pro.research.monthly,
+  });
+  const current = await admin("research_global_usage")
+    .whereRaw("month=date_trunc('month',now() AT TIME ZONE 'UTC')::date")
+    .first();
+  f.service.researchLimits = {
+    dailyCalls: 1,
+    monthlyMicrodollars: Number(current?.microdollars ?? 0) + 4000,
+  };
+  configureBillingQuotas(db, { enabled: async () => false, priceIds: [] });
+  for (let index = 0; index < 2; index++) {
+    const chat = await f.create();
+    await f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Research compost"),
+    );
+  }
+  assert.equal(
+    calls,
+    1,
+    "unlimited grants keep the independent global provider-spend bound",
+  );
+});
 test("research reservations serialize across accounts and successful tools are reused after a failed reply", async () => {
   const a = await fixture(),
     b = await fixture();

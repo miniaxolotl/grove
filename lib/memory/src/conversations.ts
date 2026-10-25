@@ -997,7 +997,8 @@ export class Conversations {
           if (
             usage &&
             ((usage.dailyLimit !== null && usage.today >= usage.dailyLimit) ||
-              usage.month >= usage.monthlyLimit)
+              (usage.monthlyLimit !== null &&
+                usage.month >= usage.monthlyLimit))
           )
             return { limited: true };
           const { rows } = await trx.raw(
@@ -1005,7 +1006,7 @@ export class Conversations {
             [
               request.provider,
               operation,
-              usage?.dailyLimit ?? this.service.researchLimits.dailyCalls,
+              usage ? usage.dailyLimit : this.service.researchLimits.dailyCalls,
               this.service.researchLimits.monthlyMicrodollars,
             ],
           );
