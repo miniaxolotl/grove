@@ -6,6 +6,7 @@ import { billingUsage, type MemoryService } from "@lib/memory";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
   billingLimits,
+  billingUnits,
   type BillingStatus,
   type PlanLimits,
 } from "@lib/shared/billing";
@@ -269,6 +270,7 @@ export class Billing {
         : [];
     return {
       enabled,
+      units: billingUnits,
       ...state,
       prices,
       proLimits: this.options.proLimits ?? billingLimits.pro,

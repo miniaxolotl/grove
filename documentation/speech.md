@@ -120,12 +120,25 @@ provider slots default to two across replicas (`SPEECH_PROVIDER_CONCURRENCY`, 1â
 90-second slots outlast the 45-second provider deadline, including crash recovery.
 The complete handler also has a 60-second cooperative deadline.
 
-Each account/role reserves at most 20 attempts/day. Transcription additionally caps
-total original duration at 600 seconds/day; synthesis caps narration at 60,000 text
-units/day (JavaScript UTF-16 length). Existing `AI_DAILY_REQUEST_LIMIT` also applies
-across roles. Retries and uncertain calls retain their reservations; cancellation
-does not promise a refund. These are inference bounds, not a guaranteed dollar bill
-or an installation-wide spending limit.
+Each account/role reserves at most 20 attempts/day. Unconfigured/flag-off and
+self-hosted installations additionally cap original duration at 600 seconds/day
+and synthesis at 60,000 text units/day, with the original total-AI guard.
+Flagged Cloud instead uses **2 hours Free / 8 hours Pro per month independently
+for transcription and read aloud**, with separate non-generation daily AI admission.
+Input recording, text, byte and deadline bounds above still apply; these quotas do
+not add long-recording ingestion or full-lecture narration.
+
+Migration **026 `20261025_026_speech_duration`** adds duration accounting alongside
+retained character counters. Workers reserve conservative MP3 duration before send,
+then settle to measured decoded frame duration only with successful, fresh output.
+MPEG headers are parsed across all frames; claimed Xing duration and character-rate
+estimates do not decide quota. Invalid/truncated/unsupported output fails closed.
+Retries, uncertain calls and failed publication retain their duration reservations;
+cancellation does not promise a refund. Historical/old-writer attempts whose
+duration is unknown are conservatively bounded rather than reset. Cached/replayed
+audio costs no new allowance. See [billing](billing.md) for exact reservation,
+upgrade and reset semantics. These are inference bounds, not a guaranteed dollar
+bill or an installation-wide spending limit.
 
 All four voices share the same synthesis allowance and provider slots. Selecting
 another voice does not create a separate quota.
@@ -189,7 +202,8 @@ current value while expiring derived speech from every voice.
 
 ## Installation and API
 
-Apply forward migration **024 `20261024_024_speech_cache`** after 023, using the owner
+Apply the forward migrations through **026 `20261025_026_speech_duration`**, including
+024 `20261024_024_speech_cache` after 023, using the owner
 procedure in [deploy](deploy.md). Configure API and worker identically:
 
 ```sh

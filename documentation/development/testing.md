@@ -1,5 +1,36 @@
 # Verification
 
+## Tier limits and audio-duration metering
+
+`billing-limits.test.ts` pins all defaults explicitly and compares environment,
+example and Compose values, including zero overrides and rejected legacy TTS units.
+`speech-duration.test.ts` counts MPEG-1/2/2.5 Layer III samples across real-shaped
+frames, ignores claimed Xing duration and rejects invalid/truncated/free-bitrate
+streams. Tests use synthetic frames, not personal/provider audio.
+
+With the disposable non-owner URLs below, run:
+
+```sh
+pnpm exec tsx --test tests/src/billing-limits.test.ts tests/src/billing.test.ts tests/src/tier-quotas.test.ts tests/src/speech-duration.test.ts tests/src/speech-duration-migration.test.ts tests/src/speech-jobs.test.ts tests/src/speech-cache.test.ts tests/src/conversations.test.ts
+```
+
+Coverage separates daily/monthly guards, tests Free/Pro API/worker final-slot
+admission, preserves embedding capacity after generation exhaustion and keeps
+flag-off installation limits. Pro research must dispatch above the old daily guard
+but stop at the advertised tier cap without raising the global spend budget.
+TTS tests hold concurrent providers, settle exact decoded duration, retain failed/
+invalid/overrun reservations, reuse audio without another charge and preserve
+character counters. The populated 024→026 upgrade checks non-owner API/worker RLS
+and conservative handling of old writers. Never reset retained databases for this.
+
+Use the actual Billing fixture with the API's explicit `units` metadata. Check
+Free/Pro independent 2/8-hour meters, 1,000/5,000 daily AI, 20/100 daily research,
+upgrade disclosure, zero/custom/exhausted allowances, refresh, old character-based
+responses, errors and flag-off hiding. Review 1440/390/320px, keyboard/focus, WCAG
+A/AA and overflow in Chromium and supported iPhone/WebKit. Save only relevant
+reviewed captures. The [cost report](tier-costs.md) is rate arithmetic, not paid-call
+or production-invoice evidence; no paid provider calls are needed by these tests.
+
 ## Remembered Ask Grove tools and history
 
 `tests/src/conversations.test.ts` covers nonempty partial account tool writes,

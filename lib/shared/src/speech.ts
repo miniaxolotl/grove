@@ -30,6 +30,9 @@ export const speechLimits = {
   dailyRequests: 20,
   dailyAudioMs: 600000,
   dailyCharacters: 60000,
+  // MPEG Layer III's minimum supported bitrate is 8 kbps (one byte/ms).
+  // Include one maximum-length frame for conservative pre-dispatch reservations.
+  maximumAudioMs: 3 * 1024 * 1024 + 72,
 } as const;
 
 /** A bounded narration, not a network/Markdown renderer. Code and media are silent. */
