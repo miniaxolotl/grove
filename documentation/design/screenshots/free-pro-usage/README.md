@@ -11,6 +11,11 @@ the approved larger action/storage limits without changing audio/research budget
 
 ## Verification scope
 
+Source: `d012ddbe9d1a7c3a92dd09dda2dcbdf89553615e`, including merged admin
+support #129 and forward migration order 027 → 028. Production website build:
+`VMRgAIPjlRxwzZ26D8Ns9`. The companion evidence commit records these captures;
+Billing source/CSS are unchanged from the verified source.
+
 Chromium and supported Noble iPhone/WebKit actual-component journeys pass at
 1440/390/320px for both tiers, including normal/warning/exhausted storage and action
 states, usage refresh, unlimited meter/upsell concealment, older API responses,
