@@ -24,10 +24,11 @@ paper/forest/sage tokens are retained; the inspector is 600px wide where space a
 
 ## Verification context
 
-Application source: `8e083b1` (admin components/styles). The reviewed production
-CSS build is `_ZlW94i0NFZnYpdDIJHAc`, generated on 25 October 2026 with Node
-24.21.0 and pnpm 10.33.0. The source checkpoint was made after that build; no
-application input changed between the final build/journeys and the checkpoint.
+Application source: `8e083b1` (admin components/styles), integrated with development
+`3041590` (Free/Pro action allowances). The refreshed production CSS build is
+`Cf1S8gKaMlcFrViMdH4n3`, generated on 25 October 2026 with Node
+24.21.0 and pnpm 10.33.0. Captures were refreshed after the integrated build;
+the admin components/styles remain byte-identical to `8e083b1`.
 
 Actual API/database journeys pass in Chromium and mobile/touch-enabled WebKit
 at 1440/390/320px, with WCAG A/AA, no horizontal overflow and no page errors.
@@ -45,6 +46,10 @@ The request-limit path has separate wait/retry wording and retains the entire
 original operation. Final engine runs use separate newly created disposable
 preview databases/accounts so repeated verification does not accidentally exhaust
 one synthetic operator's real minute allowance; no rate limit was raised.
+
+The upstream integration preserves action/storage policy and leaves admin reporting
+as provider-attempt counters, not user-action allowances. Unlimited wording follows
+the integrated plan storage/action exemptions without removing shared safety limits.
 
 See [delivery](../../../delivery.md), [behavior and safety contract](../../../system-administration.md)
 and [verification guidance](../../../development/testing.md#admin-interface-polish)

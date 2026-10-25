@@ -72,7 +72,8 @@ notebooks that acquired additional notes or children. Created items are archived
 not physically deleted; existing notes return to their original locations/content.
 Disabling Manage notes prevents Apply but still permits Undo.
 
-New notes share the account's 10,000-note limit with ordinary saves and assistance
+New notes share the account's note limit (10,000 Free / 50,000 Pro in configured
+Cloud; 10,000 with legacy/self-hosted safeguards) with ordinary saves and assistance
 action lists. Apply checks capacity for the complete batch; an over-limit batch
 leaves its preview available and commits no changes. Edits, moves and Undo remain
 available at capacity. Archived notes still count toward the limit.

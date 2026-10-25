@@ -77,6 +77,7 @@ export const listSchema = z
     lifetime: z.enum(["permanent", "ephemeral"]).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
+    searchMode: z.enum(["hybrid", "lexical"]).optional(),
     cursor: z.string().max(2048).optional(),
     limit: z.number().int().min(1).max(100).default(30),
   })
@@ -232,7 +233,13 @@ export type ApiEnvelope<T> =
   | { success: true; data: T }
   | {
       success: false;
-      error: { code: string; message: string; requestId?: string };
+      error: {
+        code: string;
+        message: string;
+        requestId?: string;
+        resource?: string;
+        resetAt?: string | null;
+      };
     };
 
 export class GroveError extends Error {

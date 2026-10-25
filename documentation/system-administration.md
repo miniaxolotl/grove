@@ -102,11 +102,13 @@ The **Access** section keeps separate access and system-role controls:
 | --------- | --------------------------------------------------------------- |
 | Standard  | Uses the current Stripe subscription or Free plan; no override. |
 | Pro       | Complimentary existing Pro allowances; no payment is required.  |
-| Unlimited | Removes per-plan generation, research and speech quotas.        |
+| Unlimited | Removes plan storage/action and provider-usage quotas.          |
 
 Unlimited preserves API rate limits, independent non-generation inference budgets,
 speech attempt limits, shared provider concurrency and installation-wide research-spend limits. It does
-not promise unbounded provider capacity, storage or note-count limits. API and
+not promise unbounded physical storage or provider capacity. Under the integrated
+action policy, plan note/notebook/action ceilings are removed too, while the
+two-generation-call concurrency safeguard remains. API and
 worker resolve the same current grant before quota admission.
 
 Explicit Pro/unlimited grants apply when billing is configured, even while

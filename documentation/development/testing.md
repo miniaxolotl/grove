@@ -32,6 +32,20 @@ verification context in [admin polish](../design/screenshots/admin-polish/README
 Host WebKit-library gaps should use the pinned Playwright container described below,
 not global OS changes. Emulation is not physical-keyboard or native-mail acceptance.
 
+## Free/Pro action allowances
+
+Free/Pro action quotas add `action-quotas.test.ts` and
+`action-usage-migration.test.ts`: non-owner API/worker final-slot races, stable
+operation reservations, expiry/release, original-month settlement, tenant/flag
+isolation, nested storage checks and retained soft deletion, plan/grant changes,
+multi-provider-call replies, cached results, assistance fragments, organization
+coalescing/deferral, preference-toggle bypass denial and keyword fallback. The
+populated pre-028 upgrade preserves authored notes and provider-attempt counters.
+The existing provider-budget concurrency fixture isolates its attempt boundary;
+separate action coverage pins the production two-call ceiling across replicas.
+Use only the disposable databases described below. [Usage captures](../design/screenshots/free-pro-usage/README.md)
+record actual-component desktop/mobile warnings and legacy/unlimited compatibility.
+
 ## Admin support and usage
 
 `system-admin.test.ts`, `system-admin-migration.test.ts` and `recovery.test.ts`

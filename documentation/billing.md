@@ -15,6 +15,71 @@ flag does not reprice existing subscriptions; product-based entitlement preserve
 their Pro access. Reusing an open checkout retains its original agreed price;
 review the new amount after that checkout expires before starting another.
 
+## Library and user actions
+
+| Resource                                  |         Free |           Pro |
+| ----------------------------------------- | -----------: | ------------: |
+| Stored notes                              |       10,000 |        50,000 |
+| Notebooks/projects                        |          100 |           500 |
+| Agent recalls / semantic library searches | 30,000/month | 150,000/month |
+| Ask Grove replies                         |    300/month |   1,500/month |
+| Note organization runs                    |  1,000/month |   5,000/month |
+| On-demand summaries and assistance        |     50/month |     250/month |
+
+Both tiers retain **180 API operations/minute/account** and allow **two concurrent
+generation calls/account**, shared by foreground requests and all worker replicas.
+The latter is independent of the existing lane/provider capacity controls. An
+unlimited grant removes plan action/storage limits, not the two-call safety ceiling.
+
+These counters describe user actions, not provider requests. A complete conversation
+turn counts one reply, including its planner and internal retrieval. Reopening or
+retrying its same ready turn does not charge again. Failed/cancelled replies release
+the action reservation; their provider-attempt evidence remains retained. Stateless
+Ask calls and external recall/search calls are independent operations; transport
+retries without a durable result identity may count again. Automatic agent hooks
+share the same account-wide recall allowance as explicit calls.
+
+Organization coalesces content changes for five seconds in configured Cloud. A note
+ID/content digest shares one action across classification, titles and connection
+discovery; unchanged-content retries and already processed content do not charge
+again. Re-enabling a preference cannot bypass the allowance for unprocessed content.
+Owner-initiated model/profile backfills remain provider-budgeted system maintenance,
+not new authored-note actions. Relationship fan-out retains its existing bounded
+candidate windows. Automatic briefs/notebook relationships retain their independent
+provider-attempt budget; the assistance allowance applies to on-demand work.
+
+An on-demand preview or summary reserves one result, not each worker fragment.
+Cached reads, polling, Apply and Undo do not create another action. A completed
+preview consumes its action even if the user chooses not to apply it. Cached-only
+summary processing releases its reservation. Pending actions occupy capacity for
+15 minutes and refresh on worker progress; abandoned reservations expire. Publication
+checks the reservation token, and completion stays in its original UTC month even
+if inference finishes after reset. Existing provider counts are never converted into
+actions or reset during migration.
+
+Active, archived and expired non-deleted notes count toward storage. Soft-deleted
+notes and notebooks do not count, but their authored content/history remains retained.
+Imports, agent writes, Apply and nested notebook creation use the same account-locked
+capacity checks. A downgrade preserves content and current-period usage: existing
+notes remain editable/readable/exportable, while new counted items/actions require
+remaining capacity. Library search explicitly falls back to keywords when semantic
+allowance is exhausted; agent recall instead returns an allowance error.
+
+Settings → Billing shows used/pending actions, storage, reset dates and warnings at
+80%/95%. `GET /v1/billing` adds optional `resources` and `proResources`; older API
+responses still render the existing meters. Account-wide totals are owner-session
+only. Scoped agents receive only the relevant operation error, never other usage
+totals. `usage_limit` includes `resource` and `resetAt`; monthly errors use the actual
+reset for `Retry-After`. Storage exhaustion has no timed retry, and `ai_busy` suggests
+a one-second retry. Basic reads, edits, keyword search and export remain available.
+
+The new policy uses the existing configured billing/entitlement gate: flag-off and
+self-hosted installations keep their prior safeguards. No new billing activation,
+subscription, price or provider configuration is implied. See the
+[028 rollout](deploy.md#user-action-allowances-rollout-028).
+
+## Provider-attempt and audio safeguards
+
 | Usage                       | Free                    | Pro                      |
 | --------------------------- | ----------------------- | ------------------------ |
 | AI generation requests      | 1,000/day; 31,000/month | 5,000/day; 155,000/month |
@@ -22,7 +87,9 @@ review the new amount after that checkout expires before starting another.
 | Transcription               | 2 hours/month           | 8 hours/month            |
 | Read aloud                  | 2 hours/month           | 8 hours/month            |
 
-These are configurable launch defaults, not measured cost guarantees. Generation
+These are separate configurable safety budgets, not additional user-action credits
+or measured cost guarantees. Both action and provider budgets must have room; a
+large multi-call action can hit a provider budget first. Generation
 includes background titles, organization, relationships, summaries and Ask Grove.
 One visible action may reserve several provider requests. Embeddings and basic
 classification do not consume the generation allowance. Transcription measures
@@ -68,7 +135,14 @@ already recorded in the current month counts when a rollout or upgrade starts.
 Daily protections still apply: 180 API operations/minute/account and 20 speech
 attempts/day/type. In flagged Cloud, tier generation/research allowances replace
 the old per-account generation/research guard; non-generation AI work retains a
-separate 2,000-attempt/day guard by default. Speech uses its monthly tier budget
+separate 2,000-attempt/day guard for background indexing/classification and model
+diagnostics by default. Action-covered query embeddings record a distinct
+`retrieval` role, not that smaller background budget: their monthly safety ceiling
+is recall plus Ask allowances (30,300 Free / 151,500 Pro), retaining failed/empty
+query attempts too. Unlimited access retains the default Pro retrieval safety
+ceiling independently of custom plan quotas. This admits every advertised action
+without a hidden 2,000-query/day limit; keyword-only search needs no embedding.
+When Ask generation is unavailable, its free fallback is keyword-only. Speech uses its monthly tier budget
 instead of the legacy daily duration/character guard. Shared provider capacity,
 installation-wide research spend, bounded per-item input and response limits remain.
 In self-hosted/unconfigured/flag-off mode, the original total AI/day, research/day,
@@ -184,6 +258,13 @@ Old `SYNTHESIS_MONTHLY_CHARACTERS` settings are rejected with a configuration er
 remove them and choose duration values explicitly, never rename a numeric value
 without changing its unit. API and worker settings must match. A source-default
 change does not overwrite deployed environment values or activate billing.
+
+Storage/action settings are `BILLING_{FREE,PRO}_NOTES`,
+`BILLING_{FREE,PRO}_NOTEBOOKS` and
+`BILLING_{FREE,PRO}_{RECALL,ASK,ORGANIZATION,ASSISTANCE}_MONTHLY`.
+Their defaults come from the shared resource catalog; explicit zero/custom overrides
+are preserved. API and worker must use matching values. These settings do not change
+the generation/research/audio configuration or installation-wide spending controls.
 
 ## API
 

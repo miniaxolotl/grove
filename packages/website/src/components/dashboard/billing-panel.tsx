@@ -6,6 +6,7 @@ import type { BillingStatus, BillingMetric } from "@lib/shared/billing";
 import { DashboardApiError } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import "./billing-panel.css";
+import { BillingResources, resourceLabels } from "./billing-resources";
 
 const labels: Record<BillingMetric, string> = {
   generation: "AI requests",
@@ -190,13 +191,18 @@ export function BillingPanel() {
               </button>
             ) : null}
           </section>
+          {state.resources ? (
+            <BillingResources usage={state.resources} />
+          ) : null}
           {usage ? (
             <section
               className="billing-usage"
               aria-labelledby="billing-usage-heading"
             >
               <div className="billing-usage-heading">
-                <h3 id="billing-usage-heading">This month</h3>
+                <h3 id="billing-usage-heading">
+                  {state.resources ? "AI, research & audio" : "This month"}
+                </h3>
                 <span className="billing-caption">
                   Resets {resetDate(usage.monthlyResetAt)}
                 </span>
@@ -316,6 +322,25 @@ export function BillingPanel() {
                 </div>
               ))}
               <dl className="billing-included">
+                {state.proResources
+                  ? (
+                      Object.keys(
+                        resourceLabels,
+                      ) as (keyof typeof resourceLabels)[]
+                    ).map((resource) => (
+                      <div key={resource}>
+                        <dt>{resourceLabels[resource]}</dt>
+                        <dd>
+                          {new Intl.NumberFormat().format(
+                            state.proResources![resource],
+                          )}
+                          {resource === "notes" || resource === "notebooks"
+                            ? " stored"
+                            : " / month"}
+                        </dd>
+                      </div>
+                    ))
+                  : null}
                 {(Object.keys(labels) as BillingMetric[]).map((metric) => (
                   <div key={metric}>
                     <dt>{labels[metric]}</dt>
