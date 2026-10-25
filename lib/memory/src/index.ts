@@ -57,12 +57,19 @@ import { Conversations } from "./conversations.ts";
 import { assertNoteCapacity } from "./note-changes.ts";
 import {
   assertCapacity,
+  billingEntitlement,
+  billingUsage,
+  resourceUsage,
   inheritBillingQuotas,
   reserveAction,
   settleAction,
   UsageLimitError,
 } from "./billing-quotas.ts";
-import type { ActionMetric } from "@lib/shared/billing";
+import {
+  billingUnits,
+  type ActionMetric,
+  type AccountPlanUsage,
+} from "@lib/shared/billing";
 import { recallIsInternal, withoutRecallCharge } from "./action-context.ts";
 import { Relationships } from "./relationships.ts";
 import { presentMemories } from "./presentation.ts";
@@ -174,6 +181,7 @@ export const digest = (value: string) =>
 
 export {
   configureBillingQuotas,
+  billingEntitlement,
   billingUsage,
   resourceUsage,
   UsageLimitError,
@@ -492,7 +500,7 @@ export class MemoryService {
   }
 
   async me(principal: Principal) {
-    return this.access(principal, null, async ({ account, grant }) => ({
+    return this.access(principal, null, async ({ account, grant, trx }) => ({
       accountId: account.id,
       type: principal.type,
       connectionId: grant?.id ?? null,
@@ -500,6 +508,9 @@ export class MemoryService {
         (c) => !grant || grant.capabilities.includes(c),
       ),
       contentVersion: account.contentVersion,
+      ...(principal.type === "session"
+        ? { plan: await billingEntitlement(this.db, trx, account.id) }
+        : {}),
       ...settingsFor(account),
       ...legacyPreferences(account),
       aiAvailability: {
@@ -2261,6 +2272,12 @@ export class MemoryService {
 
   async usage(principal: Principal) {
     return this.access(principal, "admin", async ({ trx }) => ({
+      planUsage: {
+        plan: await billingEntitlement(this.db, trx, principal.accountId),
+        resources: await resourceUsage(this.db, trx, principal.accountId),
+        usage: await billingUsage(this.db, trx, principal.accountId),
+        units: billingUnits,
+      } satisfies AccountPlanUsage,
       dailyRequestLimit: this.dailyRequestLimit,
       today: await trx("inference_usage")
         .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")

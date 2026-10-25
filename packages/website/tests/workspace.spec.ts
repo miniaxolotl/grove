@@ -4440,7 +4440,8 @@ async function fixture(page: Page, initial = [note, handoff]) {
           },
         },
       });
-    if (path === "/relationships/search") {
+    if (path === "/me") data = { plan: null };
+    else if (path === "/relationships/search") {
       const input = connectionQuerySchema.parse(body);
       const items = [...pairs.values()].filter(
         (p) =>

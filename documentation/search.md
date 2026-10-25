@@ -24,7 +24,8 @@ limit without splitting emoji; generated titles retain their existing limit.
 `Untitled note` is not indexed as authored evidence.
 
 For plain positive queries, the **last term** can be a prefix: `garden des`
-finds `garden design`. Earlier terms keep ordinary English full-text semantics.
+finds `garden design`. The trailing prefix must contain at least two characters.
+Earlier terms keep ordinary English full-text semantics.
 Exact/stemmed matches outrank prefixes within the same field.
 
 When fewer than **40 lexical/prefix matches** exist in the full authorized
@@ -75,7 +76,7 @@ in **one SQL statement**. Notes created after the first-page ceiling are exclude
 from that traversal; changes to eligible existing notes or visible asynchronous
 titles require a restart (`stale_search`, HTTP 409).
 
-Keyword fallback remains keyword-only across allowance upgrades/provider recovery.
+Relevance traversal pins keyword fallback across allowance upgrades/provider recovery.
 A changed hybrid query vector cannot silently change ordering. The workspace
 offers Refresh search results instead of repeatedly fetching a stale page.
 Queries stay in POST bodies and query-scoped evidence stays in private memory;
@@ -85,6 +86,8 @@ Every branch uses the same non-owner RLS, grant, notebook and lifecycle filters.
 Recall is active-only; the library honors archive/expiry filters. Relationship
 discovery/public sharing retain their existing body vector and behavior. No
 cross-account vocabulary, elevated search role or retained deletion is added.
+Existing semantic-only neighbors are not new lexical matches and need not satisfy
+the lexical phrase/operator predicate; those lexical semantics are unchanged.
 
 The forward migration installs `pg_trgm` and an invoker-only immutable title
 resolver; it leaves the existing vector/index unchanged. Readiness fails on

@@ -16,19 +16,80 @@ Recall counts metadata against its existing budget. Migration029 installs the
 extension and invoker-only title resolver without rewriting retained data/indexes.
 See [behavior](search.md) and [owner rollout](deploy.md#search-quality-rollout).
 
-Local verification passes **449 backend cases** (four optional S3/broker skips),
+Local verification after integrating development `06d8740` passes **453 backend cases** (four optional S3/broker skips),
 including **18 focused search/migration/REST cases**, all **nine artifacts**, root/site
 lint/types/builds, bundle budgets and **34 release/deployment contracts**. The
-telemetry-enabled Notes entry is **489,065 gzip bytes**, with the editor deferred.
-All **244 Chromium** cases pass, followed by **eight focused cases in each of
-Chromium and touch/mobile WebKit**. [Four reviewed synthetic captures](design/screenshots/search-quality/README.md)
-cover1440/390/320px, accessible marks and honest typo excerpts. No production
+telemetry-enabled Notes entry is **492,275 gzip bytes** (build `HArZBbGDgVxsAh2HMACkD`), with the editor deferred.
+All **244 Chromium** cases and **eight focused touch/mobile WebKit** cases pass;
+an earlier focused repeat also passed eight Chromium cases. [Four reviewed synthetic captures](design/screenshots/search-quality/README.md)
+cover 1440/390/320px, accessible marks and honest typo excerpts. No production
 migration, provider change, release or deployment is performed by source delivery.
 
 [Scale observations](development/search-quality-results.md) record common-query
 maxima around185ms at10k eligible +10k other-tenant notes, but typo/no-match
 scans remain~527–779ms in the final local run. Five warm samples are regression
 observations, not production p95/capacity or a50k/larger-note qualification.
+
+## Visible subscription and complimentary access (25 October 2026)
+
+The desktop/mobile workspace now keeps a small Free/Pro/Unlimited badge in its
+existing controls, with no extra mobile navigation row. Hover/focus opens source
+details and concise used/limit rows; click/tap pins the same panel. Library and
+monthly action limits come first, with pending counts, reset dates and additional
+AI/audio budgets behind a disclosure. Account details remain reachable while
+purchases are hidden. Billing retains separate renewal/payment/end status and
+**Manage subscription**, warning that a grant does not cancel a separate purchase.
+
+Optional session-only `plan` metadata reuses canonical price/product/expiry and
+admin-grant precedence. Scoped agents receive no new billing metadata. Workspace
+reads use local state and the shared account/session cache, without Stripe calls
+or another polling timer. The existing owner-only `/account/usage` adds `planUsage`
+with canonical plan, resource/provider counters and explicit units; detailed reads
+stay idle until intent. Billing reconciliation refreshes the badge snapshot so
+checkout does not leave an old Free label. Missing/legacy data never guesses an
+access source; failed reads offer retry. No migration, billing activation, price,
+quota, retained-data, provider or deployed-runtime change is required or performed.
+
+Backend red/green regressions cover Free/paid/trial eligibility, cancellation at
+period end, non-entitled/expired/unsupported subscriptions, tenant/key boundaries,
+complimentary Pro/Unlimited while billing is hidden, grant removal, subscription
+preservation and no-config behavior. Two further red/green regressions verify actual
+used/pending/configured limits, tenant/agent isolation, hidden-purchase Unlimited
+and unconfigured usage snapshots. Full **435 backend cases pass**, with four
+optional-service skips; **65 focused billing/action/admin** checks also pass.
+Root/site lint, type checks and builds pass, with all **nine packaged artifacts**.
+Production build `vb8B5nPqgh71PSfuIVlul` passes the Notes entry budget at **491,632
+gzip bytes**, keeping the editor deferred.
+
+[Four reviewed captures](design/screenshots/subscription-badge/README.md) use
+actual components and production CSS with synthetic accounts/responses. **24
+targeted journeys in each of Chromium and supported Noble WebKit** pass across
+1440/390/320px, including keyboard access, WCAG A/AA,44px targets, overflow/page-error
+checks, on-demand reads, exact/pending/zero/unlimited limits, audio hours, short
+viewports, touch dismissal, retry, session replacement and checkout reconciliation.
+A reproduced hover-dismiss→keyboard-focus failure now passes after replacing the
+sticky dismissal flag with actual focus provenance. Simultaneous failures share
+one recovery action. The shared workspace browser fixture
+now accepts the badge's new `/me` read; its reproduced failing notebook case passes
+after that fixture-only adjustment. The prior implementation passes the full
+**239-case Chromium suite** and seven existing iPhone/WebKit settings/sidebar cases.
+
+The final UI-only simplification removes six repeated meters, duplicate
+complimentary prose and the separate footer action. Used/limit rows retain pending
+and exhaustion labels; the linked plan heading/source opens Account. The collapsed
+panel is at most365px high across all five plans at1440/390/320px. Both engines
+pass all24 targeted journeys again, with **17 affected Chromium** navigation/settings
+checks, nine artifacts, root/site lint/types/builds and the bundle gate passing.
+Backend/API policy is unchanged by this final visual pass.
+
+The merge follow-up integrates admin polish #133 (`05fe8fd`), retaining both delivery
+records; no code conflicted. Integrated root/site lint/types/builds, nine artifacts,
+the same491,632-byte Notes budget and435 backend cases (four optional skips) pass.
+The backend repeat uses four test-file processes after a saturated-host timeout
+and reboot interrupted earlier attempts; no timeout, assertion or database policy
+was relaxed. Fifteen actual-component tier/source/usage/accessibility journeys per
+Chromium and supported WebKit pass at1440/390/320px against integrated production
+CSS/build`HBGViTUdyNh-S2oqCXNSi`. No production data or runtime was changed.
 
 ## Admin interface polish (25 October 2026)
 
