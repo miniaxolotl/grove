@@ -1,10 +1,31 @@
 # Notebook workflows — implementation proposal
 
-**Status: Phase A implemented; remaining phases planned.**
-[Meeting preparation](../meeting-preparation.md) delivers the first vertical slice;
-weekly review/recurrence, study, knowledge gaps and similar past problems remain
-future work. This proposal records the original planning baseline, not production
-activation or live-model qualification.
+**Status: generalized implementation in progress, not ready for acceptance.**
+The delivery scope is all five workflows below, not a meeting-only feature.
+[Meeting preparation](../meeting-preparation.md) is the first working vertical slice.
+The shared catalog and strict request/output contracts now distinguish weekly
+review, meeting preparation, study, knowledge gaps and similar past problems;
+retrieval accepts task-specific search text rather than requiring meeting fields.
+The other four worker/UI paths are not yet implemented or exposed as working controls.
+This proposal records the original planning baseline, not production activation or
+live-model qualification.
+
+## Generalized implementation contract
+
+- One shared note/notebook scope, evidence budget, citation inspector, coverage,
+  cancellation, retry identity and reviewed Save/Undo lifecycle.
+- Five distinct jobs, not meeting templates: weekly calendar/history and unfinished
+  actions; meeting agenda/context; study quiz/flashcard/explanation with supported
+  answers and Reveal; notebook-local gap searches; issue-driven prior solutions.
+- Each job has its own strict inputs, typed results and independent opt-in. Only
+  meeting preparation accepts an agenda/date. Weekly review is separate from visits
+  and needs before/after decision evidence; it does not silently schedule recurrence.
+- A gap means evidence not found in the reviewed scope, not universal absence. Search
+  the notebook for answers before publishing a candidate gap. Prior-problem matches
+  need a substantive similarity, actual solution evidence and qualified outcomes.
+- Do not mark the expanded implementation complete based on the meeting slice or
+  contract tests. The four remaining end-to-end paths, generalized chooser, workflow
+  preferences, adversarial tests and refreshed visual/quality evidence are still required.
 
 Architecture baseline: development `3041590`,
 refreshed against `05fe8fd` on 25 October 2026. This proposal covers weekly review,

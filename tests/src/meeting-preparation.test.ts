@@ -14,6 +14,7 @@ import {
 import { runTask } from "../../lib/memory/src/task-runner.ts";
 import { createApp } from "../../packages/api/src/app.ts";
 import { Authentication } from "../../packages/api/src/auth.ts";
+import { workflowEvidence } from "../../lib/memory/src/workflow-evidence.ts";
 
 const url = process.env.TEST_MIGRATION_DATABASE_URL!;
 assert(url && new URL(url).pathname.endsWith("_test"));
@@ -186,6 +187,28 @@ test("meeting requests bind exactly one bounded source scope and reject ambiguou
     { sources: [ref], projectId: null, unknown: true },
   ])
     assert(!assistanceRequestSchema.safeParse({ ...common, ...extra }).success);
+});
+
+test("shared workflow evidence accepts a study topic without meeting fields and remains notebook-local", async () => {
+  const f = await fixture();
+  for (let index = 0; index < 15; index++)
+    await f.save(`Unrelated launch checklist ${index}`);
+  const target = await f.save(
+    "Photosynthesis converts light into chemical energy.",
+  );
+  const foreign = await fixture();
+  const hidden = await foreign.save("Photosynthesis FOREIGN_CANARY");
+  const result = await tenant(db, f.principal.accountId, (trx) =>
+    workflowEvidence(trx, {
+      projectId: f.project.id,
+      query: "Photosynthesis",
+    }),
+  );
+  assert.equal(result.sources.length, 12);
+  assert(result.sources.some((source) => source.id === target.id));
+  assert(!result.sources.some((source) => source.id === hidden.id));
+  assert.equal(result.coverage.total, 16);
+  assert.equal(result.coverage.partial, true);
 });
 
 test("meeting preparation is separately opted in and cannot be enabled by legacy settings", async () => {

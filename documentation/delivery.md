@@ -1,5 +1,22 @@
 # Delivery evidence
 
+## Generalized notebook workflows — in progress (25 October 2026)
+
+The owner clarified that the delivery must cover **Weekly review, Meeting
+preparation, Study mode, Knowledge gaps and Similar past problems**, not stop at a
+meeting-specific product. PR #139 remains stacked on #135; the verified meeting
+slice below is a starting point, not completion of that expanded scope.
+
+Shared contracts now represent all five jobs with distinct inputs/results and a
+common scope/retrieval boundary. Study requires supported answers/explanations;
+weekly decision changes require before/after evidence; gap findings qualify the
+reviewed scope; claimed past outcomes require evidence. Meeting preparation reuses
+the same scope contract, and shared retrieval accepts a task query instead of
+meeting title/agenda. Nine test-first contract cases and a real PostgreSQL scoped
+topic-retrieval regression cover the new foundation. Four additional worker/UI
+paths and the generalized chooser remain unfinished; no inert options are presented
+as available features. This checkpoint adds no preferences, migration or activation.
+
 ## Scoped meeting preparation — Phase A (25 October 2026)
 
 Meeting preparation is an independently opted-in, on-demand workflow from one

@@ -25,6 +25,7 @@ import {
 import { redactDigest } from "./notebook-digests.ts";
 import { workflowEvidence } from "./workflow-evidence.ts";
 import { meetingHeadings, meetingItems } from "./assistance-meeting.ts";
+import { workflowQuery } from "@lib/shared/notebook-workflows";
 
 const missing = () => new GroveError("not_found", "Preview unavailable", 404);
 const conflict = () =>
@@ -59,7 +60,12 @@ export class NotebookAssistance {
         throw conflict();
       const refs = "sources" in input ? (input.sources ?? []) : [];
       const workflow =
-        input.kind === "meeting" ? await workflowEvidence(trx, input) : null;
+        input.kind === "meeting"
+          ? await workflowEvidence(trx, {
+              ...input,
+              query: workflowQuery(input),
+            })
+          : null;
       const sources =
         workflow?.sources ??
         (await activeNotes(trx).whereIn(

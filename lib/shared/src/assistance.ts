@@ -2,6 +2,7 @@ import { z } from "zod";
 import { sourceRefSchema, type SourceRef } from "@lib/shared/models";
 import { summaryEvidenceSchema } from "@lib/shared/summaries";
 import { relationshipSupportSchema } from "@lib/shared/relationships";
+import { meetingWorkflowRequestSchema } from "@lib/shared/notebook-workflows";
 
 export const assistancePreferences = {
   filing: "filingEnabled",
@@ -20,30 +21,7 @@ const selected = z
     "Select distinct notes",
   );
 export const assistanceRequestSchema = z.discriminatedUnion("kind", [
-  z
-    .object({
-      id: z.uuid(),
-      kind: z.literal("meeting"),
-      title: z.string().trim().min(1).max(120),
-      agenda: z.string().trim().min(1).max(1000),
-      meetingDate: z.iso.date().optional(),
-      projectId: z.uuid().nullable(),
-      sources: z
-        .array(sourceRefSchema)
-        .min(1)
-        .max(12)
-        .refine(
-          (refs) => new Set(refs.map((r) => r.id)).size === refs.length,
-          "Select distinct notes",
-        )
-        .optional(),
-    })
-    .strict()
-    .refine(
-      (input) =>
-        input.sources ? input.projectId === null : input.projectId !== null,
-      "Choose selected notes or one notebook",
-    ),
+  meetingWorkflowRequestSchema,
   z
     .object({
       id: z.uuid(),

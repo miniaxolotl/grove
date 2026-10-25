@@ -1,8 +1,6 @@
 import type { Knex } from "@lib/database";
-import type {
-  AssistanceRequest,
-  AssistanceResult,
-} from "@lib/shared/assistance";
+import type { AssistanceResult } from "@lib/shared/assistance";
+import type { WorkflowEvidenceInput } from "@lib/shared/notebook-workflows";
 import { GroveError } from "@lib/shared/contracts";
 import { activeNotes } from "./relationship-data.ts";
 import { changedSources } from "./note-changes.ts";
@@ -12,7 +10,7 @@ export const workflowEvidenceLimits = { notes: 12, characters: 24000 } as const;
 /** Scope before ranking, load bodies only for selected evidence, never drop pins. */
 export async function workflowEvidence(
   trx: Knex.Transaction,
-  input: Extract<AssistanceRequest, { kind: "meeting" }>,
+  input: WorkflowEvidenceInput,
 ) {
   const eligible = () =>
     activeNotes(trx).modify((query) => {
@@ -28,9 +26,7 @@ export async function workflowEvidence(
   // PostgreSQL ranks only permitted direct members. A missing lexical match is not
   // grounds to widen the source scope or treat a notebook summary as evidence.
   const terms = [
-    ...new Set(
-      `${input.title} ${input.agenda}`.match(/[\p{L}\p{N}]{3,}/gu) ?? [],
-    ),
+    ...new Set(input.query.match(/[\p{L}\p{N}]{3,}/gu) ?? []),
   ].slice(0, 32);
   const query = eligible()
     .select("id", "version", "projectId", "expiresAt")
@@ -64,7 +60,7 @@ export async function workflowEvidence(
   if (input.sources && selected.length !== input.sources.length)
     throw new GroveError(
       "evidence_too_large",
-      "Select fewer or shorter notes (24,000 source characters per brief).",
+      "Select fewer or shorter notes (24,000 source characters per result).",
       400,
     );
   const sources = await eligible()
@@ -82,7 +78,7 @@ export async function workflowEvidence(
     ...(sources.length < total
       ? {
           reason:
-            "Only the supplied notes were reviewed. Narrow the agenda or select exact notes to review other evidence.",
+            "Only the supplied notes were reviewed. Narrow the topic or select exact notes to review other evidence.",
         }
       : {}),
   };
