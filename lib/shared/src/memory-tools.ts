@@ -103,7 +103,7 @@ export const memoryTools = {
     title: "Save a memory",
     schema: rememberSchema,
     description:
-      "Save a concise memory or replace it by id/expectedVersion. Corrections replace metadata too: prefer update_memory for partial edits. Reuse operationId on retries. Handoffs default to 30 days; expired records are hidden and later soft-deleted.",
+      "Save a concise memory or replace it by id/expectedVersion. Replacement writes replace metadata too. Reuse operationId on retries. Handoffs default to 30 days; expired records are hidden and later soft-deleted.",
   },
   recall: {
     title: "Recall saved context",
@@ -143,7 +143,7 @@ export const memoryTools = {
     schema: z.object({ id: uuidSchema }).strict(),
     readOnly: true,
     description:
-      "Read up to 100 most recent revisions of an accessible note. Use get_memory with revision for historical content.",
+      "Read up to 100 most recent revisions of an accessible note, including revision numbers and authored content.",
   },
   update_memory: {
     title: "Update a memory",
@@ -167,7 +167,7 @@ export const memoryTools = {
       })
       .strict(),
     description:
-      "Archive an exact note at expectedVersion, removing it from recall. Content/history remain available; restore_memory reverses archive. Reuse operationId.",
+      "Archive an exact note at expectedVersion, removing it from recall. Content/history remain available; archiving is reversible. Reuse operationId.",
   },
   restore_memory: {
     title: "Restore a memory",

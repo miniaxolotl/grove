@@ -139,6 +139,11 @@ test("every MCP tool publishes a human-readable title and explicit safety annota
     for (const tool of tools) {
       assert.equal(typeof tool.title, "string", `${tool.name} needs a title`);
       assert(tool.title!.trim().length > 0 && tool.title!.length <= 80);
+      assert.equal(
+        tool.annotations?.title,
+        tool.title,
+        `${tool.name} needs the same human-readable annotation title`,
+      );
       assert.equal(typeof tool.annotations?.readOnlyHint, "boolean");
       assert.equal(typeof tool.annotations?.destructiveHint, "boolean");
     }
@@ -146,4 +151,21 @@ test("every MCP tool publishes a human-readable title and explicit safety annota
   } finally {
     await Promise.all([client.close(), server.close()]);
   }
+});
+
+test("tool descriptions describe their own operation without cross-tool instructions", () => {
+  const names = Object.keys(memoryTools);
+  for (const [name, tool] of Object.entries(memoryTools)) {
+    for (const other of names.filter(
+      (candidate) => candidate !== name && candidate.includes("_"),
+    )) {
+      assert(
+        !tool.description.includes(other),
+        `${name} must describe its own behavior rather than referring to ${other}`,
+      );
+    }
+  }
+  assert.match(memoryTools.remember.description, /replace metadata/i);
+  assert.match(memoryTools.memory_history.description, /100.*revisions/i);
+  assert.match(memoryTools.archive_memory.description, /revers/i);
 });
