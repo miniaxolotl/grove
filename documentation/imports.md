@@ -1,5 +1,9 @@
 # Import notes and documents
 
+Browse uploaded originals, their saved-note/notebook/chat locations and account
+storage in **[Files & storage](files-storage.md)**, linked from Settings, imports
+and Ask Grove. Viewing files never saves or shares them.
+
 Choose **Import notes** from Notes, **Notebook options**, or **Settings → Data**.
 Upload UTF-8 Markdown (`.md`, `.markdown`), plain text (`.txt`), DOCX or text-based PDF
 files. Choose an existing notebook, create a named notebook (optionally nested),

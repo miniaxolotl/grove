@@ -1,5 +1,8 @@
 # Images and durable media
 
+**[Files & storage](files-storage.md)** lists private document uploads, images and
+original recordings with their note/notebook/chat locations and storage budgets.
+
 Reviewed [document imports and Ask attachments](imports.md) retain accepted PDF,
 DOCX, Markdown and text originals through
 the same immutable source store, with a separate document-only validation method.

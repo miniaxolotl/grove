@@ -94,6 +94,32 @@ separate action coverage pins the production two-call ceiling across replicas.
 Use only the disposable databases described below. [Usage captures](../design/screenshots/free-pro-usage/README.md)
 record actual-component desktop/mobile warnings and legacy/unlimited compatibility.
 
+## Files & storage
+
+`tests/src/files.test.ts` covers the real read projection under non-owner RLS:
+mixed import/chat/media metadata, conservative budget versus available bytes,
+expiry/removal/deleted-source denial, foreign accounts/agent denial, filename
+literal matching, signed filter/account-bound pagination, current notebook moves,
+historical image bindings, shared-original deduplication and many-note location
+pagination. No new migration, original deletion or quota refund is introduced.
+
+After a production website build, run the normal Chromium suite including
+`tests/files.spec.ts` for errors/retry, denied location refresh, page controls,
+empty/invalid filters and multiple entry points. For disposable real API/parser/
+worker/source-store verification:
+
+```sh
+node --import tsx scripts/testing/files-browser.mjs
+```
+
+Set the three disposable test database URLs as documented below. It creates and
+drops its own `_test` database; checks notebook associations, storage/filtering,
+byte-identical originals and removed-source refresh at1440/390/320px, WCAG A/AA,
+overflow and page errors. `FILES_BROWSER=webkit` chooses supported WebKit;
+`FILES_API_PORT`/`DASHBOARD_TEST_PORT` override loopback26656/26657. Use the existing
+supported Playwright container if native host dependencies are missing. This
+uses synthetic documents/identities, no paid providers or production data.
+
 ## Documents in Ask Grove
 
 Run `conversation-documents.test.ts`, `conversation-document-migration.test.ts`,

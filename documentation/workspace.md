@@ -16,6 +16,11 @@ finish saving before read aloud; shared readers never initiate inference.
 
 ## Write, find, and organize
 
+**[Files & storage](files-storage.md)** under Settings brings together uploaded
+documents, images and original recordings. Expand a file to see its current notes,
+notebooks or chats. Shortcuts in Ask, imports, note actions and notebook actions
+open the same view with context filters; uploading alone never files a note.
+
 - **New note**, **Today’s note**, and existing notes share one reading/writing
   workspace. **Edit note** and **Preview** switch modes in place, keeping your cursor,
   undo history and scroll position. **Write** styles Markdown as you work;

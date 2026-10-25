@@ -53,6 +53,7 @@ import {
   ConnectionSetup,
   Sharing,
   MediaAttachments,
+  Files,
   mediaDescriptor,
   Tasks,
   SpeechJobs,
@@ -537,6 +538,22 @@ export function createApp(deps: AppDependencies) {
     siteUrl: deps.siteUrl,
   });
   const attachments = new MediaAttachments(service);
+  const files = new Files(service);
+  app.get("/v1/files/storage", async (c) =>
+    c.json({ success: true, data: await files.storage(c.get("principal")) }),
+  );
+  app.post("/v1/files/search", async (c) =>
+    c.json({
+      success: true,
+      data: await files.search(c.get("principal"), await c.req.json()),
+    }),
+  );
+  app.post("/v1/files/locations", async (c) =>
+    c.json({
+      success: true,
+      data: await files.locations(c.get("principal"), await c.req.json()),
+    }),
+  );
   const documentImports = new DocumentImports(service);
   const conversationDocuments = new ConversationDocuments(service);
   app.post("/v1/import-batches/:id/conversation", async (c) =>

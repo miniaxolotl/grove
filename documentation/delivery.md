@@ -294,6 +294,28 @@ qualify production throughput, cold-cache performance or profitability; unchange
 research/audio exposure can exceed the introductory price. No retained database,
 production flag, paid provider, subscription, release or deployment was changed.
 
+## Files & storage (25 October 2026; stacked on #136)
+
+The shared [Files & storage view](files-storage.md) is available from Settings,
+Ask attachments, import review and note/notebook actions. It lists private document
+uploads, note images and original recordings, with size/state, searchable filenames,
+type/context filters and independently paged note/notebook/chat locations. Existing
+original readers authorize downloads; shared chat-to-import originals appear once.
+Storage distinguishes conservative retained-byte/write-attempt safety budgets,
+actual temporary staging and accessible-original bytes. Removal never claims to
+delete retained originals or free retained budget. No new migration or permissions.
+
+Local verification: **471 backend passes, four optional-service skips, zero failures**,
+including eight inventory regressions; nine artifacts; root/site lint/types/builds,
+bundle budgets;27 release contracts,16 CI contracts/workflow lint and native
+OpenCode/Claude/Codex smoke checks. **249 Chromium tests pass** after the final UI
+review. Real disposable API/PostgreSQL/parser/worker/source-store journeys
+pass Chromium and supported-container WebKit at1440/390/320px, with byte-identical
+originals, current notebook associations, source removal/refresh, filters and WCAG
+A/AA/overflow/page-error checks. [Three reviewed captures](design/screenshots/files-storage/README.md)
+use synthetic documents and identities; mobile captures use normal page scrolling.
+No paid providers, production schema/configuration, original deletion or deployment.
+
 ## Documents in Ask Grove (25 October 2026; stacked on #132)
 
 Ask Grove accepts PDF, DOCX, Markdown and text as private chat-local sources, without
