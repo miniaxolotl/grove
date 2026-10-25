@@ -8,6 +8,7 @@ export const assistancePreferences = {
   actions: "actionListsEnabled",
   digest: "digestsEnabled",
   cleanup: "cleanupEnabled",
+  meeting: "meetingPreparationEnabled",
 } as const;
 export type AssistanceKind = keyof typeof assistancePreferences;
 const selected = z
@@ -19,6 +20,30 @@ const selected = z
     "Select distinct notes",
   );
 export const assistanceRequestSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      id: z.uuid(),
+      kind: z.literal("meeting"),
+      title: z.string().trim().min(1).max(120),
+      agenda: z.string().trim().min(1).max(1000),
+      meetingDate: z.iso.date().optional(),
+      projectId: z.uuid().nullable(),
+      sources: z
+        .array(sourceRefSchema)
+        .min(1)
+        .max(12)
+        .refine(
+          (refs) => new Set(refs.map((r) => r.id)).size === refs.length,
+          "Select distinct notes",
+        )
+        .optional(),
+    })
+    .strict()
+    .refine(
+      (input) =>
+        input.sources ? input.projectId === null : input.projectId !== null,
+      "Choose selected notes or one notebook",
+    ),
   z
     .object({
       id: z.uuid(),
@@ -69,6 +94,14 @@ export const filingSchema = z
   })
   .strict();
 export type ActionItem = z.infer<typeof actionListSchema>["items"][number];
+export const meetingBriefSchema = z
+  .object({
+    decisions: actionListSchema.shape.items.max(4),
+    discussions: actionListSchema.shape.items.max(4),
+    questions: actionListSchema.shape.items.max(4),
+  })
+  .strict();
+export type MeetingBrief = z.infer<typeof meetingBriefSchema>;
 export const digestSummarySchema = z
   .object({
     items: z
@@ -112,7 +145,15 @@ export type DigestChange = {
   afterContent: string | null;
 };
 export type AssistanceResult = {
-  coverage: { total: number; examined: number };
+  coverage: {
+    total: number;
+    examined: number;
+    supplied?: number;
+    cited?: number;
+    partial?: boolean;
+    reason?: string;
+  };
+  meeting?: MeetingBrief;
   filing?: FilingResult;
   items?: ActionItem[];
   candidates?: CleanupCandidate[];
@@ -123,7 +164,14 @@ export type AssistanceResult = {
 export type Assistance = {
   id: string;
   kind: AssistanceKind;
-  status: "pending" | "ready" | "failed" | "stale" | "applied" | "undone";
+  status:
+    | "pending"
+    | "ready"
+    | "failed"
+    | "stale"
+    | "applied"
+    | "undone"
+    | "cancelled";
   version: number;
   result: AssistanceResult | null;
   error: string | null;
@@ -134,6 +182,7 @@ export type Assistance = {
 export const assistanceApplySchema = z
   .object({
     expectedVersion: z.number().int().positive(),
+    destinationProjectId: z.uuid().nullable().optional(),
     candidate: z.string().max(128).optional(),
     action: z.enum(["combine", "update"]).optional(),
     edits: z
@@ -150,6 +199,9 @@ export const assistanceApplySchema = z
   })
   .strict();
 export type AssistanceApply = z.infer<typeof assistanceApplySchema>;
+export const assistanceCancelSchema = z
+  .object({ expectedVersion: z.number().int().positive() })
+  .strict();
 export const assistanceReviewSchema = z
   .object({
     candidate: z.string().max(128),

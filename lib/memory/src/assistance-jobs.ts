@@ -12,6 +12,7 @@ import { actionStep } from "./assistance-actions.ts";
 import { filingStep } from "./assistance-filing.ts";
 import { cleanupStep } from "./assistance-cleanup.ts";
 import { digestStep, redactDigest } from "./notebook-digests.ts";
+import { meetingStep } from "./assistance-meeting.ts";
 import type { ActionItem, DigestChange } from "@lib/shared/assistance";
 import { budgetedInference } from "./processing.ts";
 import {
@@ -138,7 +139,9 @@ export async function runAssistanceJob(
             ? await filingStep(trx, row, providers, job.id)
             : row.kind === "cleanup"
               ? await cleanupStep(trx, row, providers)
-              : await digestStep(trx, row);
+              : row.kind === "meeting"
+                ? await meetingStep(trx, row)
+                : await digestStep(trx, row);
       if (!prepared) await resume(trx, row);
       else
         await markActionWork(

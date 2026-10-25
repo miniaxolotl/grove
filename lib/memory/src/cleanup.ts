@@ -3,8 +3,12 @@ import { TaskError, taskTransaction, type TaskHandler } from "./task-runner.ts";
 
 const batchSize = 100;
 export async function scheduleCleanup(db: Knex) {
-  return (await db.raw("SELECT grove_schedule_cleanup() AS scheduled")).rows[0]
-    .scheduled as number;
+  const {
+    rows: [row],
+  } = await db.raw(
+    "SELECT grove_schedule_cleanup()+grove_schedule_meeting_cleanup() AS scheduled",
+  );
+  return row.scheduled as number;
 }
 export function cleanupHandlers(
   db: Knex,
@@ -122,9 +126,37 @@ export function cleanupHandlers(
         .pluck("minute");
       if (buckets.length)
         await trx("rate_buckets").whereIn("minute", buckets).delete();
+      const previews = await trx("assistance_requests")
+        .where({ kind: "meeting" })
+        .where("expiresAt", "<=", trx.fn.now())
+        .whereRaw("jsonb_exists(input,'agenda')")
+        .orderBy("expiresAt")
+        .limit(batchSize)
+        .pluck("id");
+      if (previews.length) {
+        await trx("jobs")
+          .where({ kind: "assistance" })
+          .whereIn("target", previews)
+          .delete();
+        await trx("assistance_requests")
+          .whereIn("id", previews)
+          .update({
+            input: "{}",
+            result: null,
+            state: "{}",
+            undo: null,
+            status: trx.raw(
+              "CASE WHEN status IN ('applied','undone') THEN status ELSE 'stale' END",
+            ),
+            error: "This brief expired. Create a new brief.",
+          });
+      }
       return {
-        processed: Number(task.processed) + expired.length,
-        complete: expired.length < batchSize && buckets.length < batchSize,
+        processed: Number(task.processed) + expired.length + previews.length,
+        complete:
+          expired.length < batchSize &&
+          buckets.length < batchSize &&
+          previews.length < batchSize,
       };
     });
   };

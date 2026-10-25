@@ -107,6 +107,13 @@ const groups: {
         description: "Find action items in selected notes when you ask.",
         provider: "generation",
       },
+      {
+        key: "meetingPreparationEnabled",
+        label: "Meeting preparation",
+        description:
+          "Prepare a source-linked brief from selected notes or a notebook, only when you ask.",
+        provider: "generation",
+      },
     ],
   },
   {

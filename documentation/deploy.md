@@ -15,12 +15,38 @@ documentation refresh.
 
 ## Topology
 
+### Meeting preparation rollout (031)
+
+1. Verify exact admitted source, current migration inventory and a tested retained
+   backup before any owner operation. Apply forward `20261025_031_meeting_preparation`
+   after merged028 and any intervening admitted migrations.031 deliberately avoids
+   parallel source proposals029 (context/cache) and030 (documents); those features
+   are not prerequisites. Reconcile identifiers against the final frozen source;
+   never rename a migration already applied to a retained environment.
+2. Deploy matching API/worker before the website; drain old workers so they cannot
+   claim a new assistance kind without its current schema/profile implementation.
+   Runtime readiness probes the new preference. Existing accounts and new accounts
+   start with Meeting preparation **off**, with no queued model work or provider,
+   billing, subscription or connection activation.
+3. After the matching site is deployed, explicitly enable the feature for a synthetic
+   internal account only. Verify notebook-local and selected-note sources, source
+   versions, partial coverage, cancellation, no-evidence abstention and reviewed
+   Save/Undo. Check actual provider-attempt usage and assistance accounting separately.
+   No email/calendar/attendee access or automatic source mutations are introduced.
+4. Confirm expiry hides evidence immediately and bounded maintenance redacts expired
+   preview/request/Undo bodies without deleting authored notes/history. Restore
+   invalidates generated previews through the existing reconciliation procedure.
+5. Broader availability needs grounding/latency/cost acceptance with the selected live
+   provider. Synthetic adapters and local browser passes do not establish model
+   accuracy. Roll back by disabling the preference/admission and draining jobs;
+   preserve additive schema, usage, saved briefs and source data.
+
 ### User-action allowances rollout (028)
 
 1. Verify the frozen source and actual migration history, take and verify the
    retained backup, then apply owner-only forward `20261025_028_action_usage` after
-    admin-support 027 and its existing prerequisites. Preserve the forward order
-    026 → 027 → 028; never reuse the independent admin-support migration slot.
+   admin-support 027 and its existing prerequisites. Preserve the forward order
+   026 → 027 → 028; never reuse the independent admin-support migration slot.
    028 adds empty action counters/leases only. Existing notes, revisions, billing
    subscriptions, provider attempts, research and audio usage are unchanged.
 2. Deploy matching API/worker code with the same

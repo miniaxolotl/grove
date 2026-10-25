@@ -25,13 +25,21 @@ export const assistanceProfile = (
   embedding?: string,
   kind?: AssistanceKind,
 ) =>
-  kind === "cleanup"
-    ? profileId("assistance-cleanup-v3", {
+  kind === "meeting"
+    ? profileId("assistance-meeting-v1", {
         generation,
         embedding: embedding ?? null,
-        policy: relationshipPolicyVersion,
       })
-    : profileId("assistance-v2", { generation, embedding: embedding ?? null });
+    : kind === "cleanup"
+      ? profileId("assistance-cleanup-v3", {
+          generation,
+          embedding: embedding ?? null,
+          policy: relationshipPolicyVersion,
+        })
+      : profileId("assistance-v2", {
+          generation,
+          embedding: embedding ?? null,
+        });
 export type ScopeDependency = {
   id: string;
   version?: number;
@@ -81,8 +89,9 @@ export async function validAssistance(
   row: AssistanceRow,
 ) {
   if (
-    row.state.expiresAt &&
-    new Date(row.state.expiresAt as string) <= new Date()
+    (row.expiresAt && new Date(row.expiresAt) <= new Date()) ||
+    (row.state.expiresAt &&
+      new Date(row.state.expiresAt as string) <= new Date())
   )
     throw changedSources();
   const notes = await activeNotes(trx).whereIn(

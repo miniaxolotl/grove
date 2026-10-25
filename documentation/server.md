@@ -4,6 +4,11 @@ The Node 24 Hono service exposes `/v1` REST and stateless Streamable HTTP `/mcp`
 Both call the same transactional memory service and Zod contracts. The published
 CLI is an API-only stdio bridge; it has no database credentials or local database.
 
+Meeting briefs reuse owner-session-only `/v1/assistance` requests with `kind: "meeting"`.
+Pending meeting work supports strict versioned `POST /v1/assistance/:id/cancel`;
+reviewed Save accepts an explicit `destinationProjectId`. This does not add an MCP
+tool or expand agent capabilities. See the [meeting contract](meeting-preparation.md).
+
 ## Authentication
 
 Private `/v1` data endpoints and `/mcp` require `Authorization: Bearer …`:

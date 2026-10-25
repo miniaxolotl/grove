@@ -1,5 +1,36 @@
 # Verification
 
+## Meeting preparation
+
+`meeting-preparation.test.ts` and `meeting-migration.test.ts` use fresh disposable
+databases/non-owner API and worker roles. They cover strict scope/input validation,
+default-off independent opt-in, source/tenant/version exclusion before inference,
+bounded lexical evidence in large notebooks, exact citations, source/preference
+publication races, action/replay settlement, reviewed Save/Undo, cancellation,
+private HTTP routes and expiry redaction. The populated pre031 upgrade preserves
+old notes/usage/disabled settings and forced RLS. The historical admin027 fixture
+asserts its exact named boundary before upgrading fully for current checks.
+
+With the disposable URLs below, run:
+
+```sh
+pnpm exec tsx --test tests/src/meeting-preparation.test.ts tests/src/meeting-migration.test.ts
+pnpm --filter website exec playwright test tests/meeting-preparation.spec.ts tests/assistance.spec.ts
+pnpm --filter website exec playwright test --config playwright.meeting-webkit.config.ts
+```
+
+Browser tests use actual components/production CSS with synthetic responses, checking
+deferred admission, consent, retained form inputs, lost enqueue/save replay, Cancel,
+source links, partial coverage,1440/390/320px WCAG/overflow and existing assistance
+expiry. Use isolated fixture ports as needed. For a real loopback API/PostgreSQL/
+worker journey, run `pnpm exec tsx tests/src/fixtures/meeting-api.ts` with the owned
+disposable API/worker URLs. It creates only synthetic notes, never paid inference;
+`MEETING_API_PORT`, `MEETING_SITE_URL` and `MEETING_FIXTURE_FILE` configure its
+loopback listener and ID receipt. Start the existing dashboard fixture with matching
+`DASHBOARD_TEST_PORT` and `DASHBOARD_API_FIXTURE_PORT`. No production authentication
+bypass is added. Screenshots use synthetic data; live-model quality is a separate
+explicitly authorized, bounded evaluation, not implied by these tests.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner

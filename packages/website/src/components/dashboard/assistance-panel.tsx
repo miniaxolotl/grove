@@ -11,56 +11,45 @@ import type {
   AssistanceRequest,
   CleanupCandidate,
 } from "@lib/shared/assistance";
-import type { SummaryEvidence } from "@lib/shared/summaries";
-import { errorMessage } from "@/lib/dashboard-api";
+import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { Button, IconButton } from "./ui/button";
 import { RevisionCompare } from "./revision-compare";
+import { SourceEvidence } from "./source-evidence";
+import { MeetingBriefContent } from "./meeting-brief-content";
+import { useNotebooks } from "./notebooks-provider";
+import { NotebookSelect } from "./notebook-select";
 
 const titles = {
   filing: "Suggested notebook",
   actions: "Action list",
   cleanup: "Review notebook",
   digest: "Since your last visit",
+  meeting: "Meeting preparation",
 };
-export function SourceEvidence({ sources }: { sources: SummaryEvidence[] }) {
-  return (
-    <details className="connection-support">
-      <summary>Sources</summary>
-      <div className="connection-evidence">
-        <section className="col-span-full">
-          {sources.map((source, index) => (
-            <figure key={`${source.id}:${source.version}:${index}`}>
-              <figcaption>
-                <Link
-                  href={`/app/memories/${source.id}?revision=${source.version}`}
-                >
-                  Revision {source.version}
-                </Link>
-              </figcaption>
-              <blockquote>{source.quote}</blockquote>
-            </figure>
-          ))}
-        </section>
-      </div>
-    </details>
-  );
-}
 
 export function AssistancePanel({
   initial,
   close,
+  back,
 }: {
   initial: AssistanceRequest;
   close: () => void;
+  back?: () => void;
 }) {
   const cache = useWorkspaceCache();
+  const { projects } = useNotebooks();
+  const [destination, setDestination] = useState(
+    initial.kind === "meeting" ? (initial.projectId ?? "") : "",
+  );
   const [request, setRequest] = useState(initial);
   const [started, setStarted] = useState(false);
+  const [enqueueUncertain, setEnqueueUncertain] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saveUncertain, setSaveUncertain] = useState(false);
   const [edits, setEdits] = useState<Record<number, string>>({});
   const [showKept, setShowKept] = useState(false);
   const operation = useRef<{
@@ -68,6 +57,7 @@ export function AssistancePanel({
     input: AssistanceApply;
     undo: boolean;
   } | null>(null);
+  const cancelVersion = useRef<number | null>(null);
   const path = `/assistance/${request.id}`;
   const query = useQuery({
     ...cache.resource<Assistance | null>(path),
@@ -77,6 +67,7 @@ export function AssistancePanel({
   });
   const result = query.data,
     ready = result?.status === "ready";
+  const unresolvedSave = saveUncertain && ready;
   const setResult = (value: Assistance) =>
     cache.client.setQueryData(cache.resource(path).queryKey, value);
   useEffect(() => {
@@ -108,11 +99,17 @@ export function AssistancePanel({
         if (!controller.signal.aborted) {
           cache.client.setQueryData(cache.resource(path).queryKey, value);
           setStarted(true);
+          setEnqueueUncertain(false);
           setError("");
         }
       })
       .catch((reason) => {
-        if (!controller.signal.aborted) setError(errorMessage(reason));
+        if (!controller.signal.aborted) {
+          setEnqueueUncertain(
+            !(reason instanceof DashboardApiError && reason.status < 500),
+          );
+          setError(errorMessage(reason));
+        }
       });
     return () => controller.abort();
   }, [cache, request, path]);
@@ -121,7 +118,7 @@ export function AssistancePanel({
     setError("");
     try {
       let next = { ...request, id: crypto.randomUUID() };
-      if ("sources" in next)
+      if ("sources" in next && next.sources)
         next = {
           ...next,
           sources: await Promise.all(
@@ -133,8 +130,11 @@ export function AssistancePanel({
         };
       if (next.kind === "digest" && after) next = { ...next, after };
       setStarted(false);
+      setEnqueueUncertain(true);
       setEdits({});
       operation.current = null;
+      setSaveUncertain(false);
+      cancelVersion.current = null;
       setRequest(next);
     } catch (reason) {
       setError(errorMessage(reason));
@@ -157,6 +157,9 @@ export function AssistancePanel({
         : {
             expectedVersion: result.version,
             ...(candidate ? { candidate: candidate.key, action } : {}),
+            ...(request.kind === "meeting" && !undo
+              ? { destinationProjectId: destination || null }
+              : {}),
             ...(request.kind === "actions" && !undo
               ? {
                   edits: Object.entries(edits).map(([index, text]) => ({
@@ -167,6 +170,7 @@ export function AssistancePanel({
               : {}),
           };
     operation.current = { id: result.id, input, undo };
+    setSaveUncertain(true);
     try {
       setResult(
         await cache.api<Assistance>(
@@ -175,7 +179,12 @@ export function AssistancePanel({
         ),
       );
       operation.current = null;
+      setSaveUncertain(false);
     } catch (reason) {
+      if (reason instanceof DashboardApiError && reason.status < 500) {
+        operation.current = null;
+        setSaveUncertain(false);
+      }
       setError(errorMessage(reason));
     } finally {
       setBusy(false);
@@ -198,8 +207,34 @@ export function AssistancePanel({
       setBusy(false);
     }
   }
+  async function cancel() {
+    if (!result) return;
+    setBusy(true);
+    setError("");
+    cancelVersion.current ??= result.version;
+    try {
+      setResult(
+        await cache.api<Assistance>(`${path}/cancel`, {
+          expectedVersion: cancelVersion.current,
+        }),
+      );
+      cancelVersion.current = null;
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <Dialog title={titles[request.kind]} close={close} busy={busy}>
+    <Dialog
+      title={titles[request.kind]}
+      close={close}
+      busy={
+        busy ||
+        (request.kind === "meeting" &&
+          (unresolvedSave || (!started && enqueueUncertain)))
+      }
+    >
       <div className="assistance-panel app-form">
         <div className="flex items-center justify-between gap-3">
           <p role="status" className="text-sm text-muted">
@@ -215,7 +250,9 @@ export function AssistancePanel({
           </p>
           <IconButton
             label="Refresh preview"
-            disabled={busy || result?.status === "pending"}
+            disabled={
+              !started || busy || unresolvedSave || result?.status === "pending"
+            }
             onClick={() => void refresh()}
           >
             <RefreshCw size={16} />
@@ -229,6 +266,79 @@ export function AssistancePanel({
               else void query.refetch();
             }}
           />
+        )}
+        {request.kind === "meeting" && (
+          <>
+            <p className="text-xs text-muted">
+              {request.sources
+                ? "Selected notes only"
+                : "This notebook’s direct notes only"}
+              . {result?.result?.coverage.supplied ?? 0} supplied;{" "}
+              {result?.result?.coverage.cited ?? 0} cited.
+            </p>
+            {result?.status === "pending" && (
+              <>
+                <p className="text-xs text-muted">
+                  Closing the preview does not cancel generation.
+                </p>
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void cancel()}
+                >
+                  Cancel generation
+                </Button>
+              </>
+            )}
+            {result?.result?.coverage.partial && (
+              <p role="status" className="text-sm text-muted">
+                Partial coverage. {result.result.coverage.reason}
+              </p>
+            )}
+            {back && (
+              <button
+                className="text-button"
+                disabled={
+                  busy ||
+                  unresolvedSave ||
+                  (!started && enqueueUncertain) ||
+                  result?.status === "pending"
+                }
+                onClick={back}
+              >
+                Edit meeting details
+              </button>
+            )}
+          </>
+        )}
+        {ready && request.kind === "meeting" && result.result?.meeting && (
+          <>
+            <MeetingBriefContent
+              brief={result.result.meeting}
+              title={request.title}
+              agenda={request.agenda}
+              meetingDate={request.meetingDate}
+            />
+            {Object.values(result.result.meeting).some(
+              (items) => items.length,
+            ) && (
+              <>
+                <NotebookSelect
+                  label="Save brief to"
+                  projects={projects}
+                  value={destination}
+                  disabled={busy || unresolvedSave}
+                  onValueChange={(value) => {
+                    operation.current = null;
+                    setDestination(value);
+                  }}
+                />
+                <Button disabled={busy} onClick={() => void apply()}>
+                  Save brief
+                </Button>
+              </>
+            )}
+          </>
         )}
         {result?.status === "applied" && (
           <div className="app-actions">

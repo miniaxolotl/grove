@@ -764,7 +764,7 @@ export class WorkspaceCache {
         if (/\/(apply|undo)$/.test(path)) {
           this.invalidate({});
           this.publish?.({});
-        } else if (path.endsWith("/review")) {
+        } else if (path.endsWith("/review") || path.endsWith("/cancel")) {
           this.invalidate({ resource: "/assistance" });
           this.publish?.({ resource: "/assistance" });
         }

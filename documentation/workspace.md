@@ -137,6 +137,12 @@ notes can **Extract action list**; edit the preview before saving a checklist.
 Review source excerpts and changes, then apply or keep both; Undo checks later edits.
 These features have independent AI preferences. See [notebook assistance](notebook-assistance.md).
 
+**Prepare for a meeting** opens a title/agenda/date form from Notebook options or
+up to twelve selected saved notes. Enable its separate preference first. The brief
+groups recorded decisions, discussions and open questions with exact sources and
+partial-coverage labels. Review **Save brief to** before saving; Undo affects only
+the created note. See [meeting preparation](meeting-preparation.md).
+
 ## Share with a link
 
 ### Private section links

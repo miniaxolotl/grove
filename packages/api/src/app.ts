@@ -81,6 +81,7 @@ import { settingsUpdateSchema } from "@lib/shared/settings";
 import {
   assistanceRequestSchema,
   assistanceApplySchema,
+  assistanceCancelSchema,
   assistanceReviewSchema,
   notebookVisitSchema,
 } from "@lib/shared/assistance";
@@ -1157,6 +1158,16 @@ export function createApp(deps: AppDependencies) {
       data: await service.assistance.get(
         c.get("principal"),
         uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.post("/v1/assistance/:id/cancel", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.cancel(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        (await body(c, assistanceCancelSchema)).expectedVersion,
       ),
     }),
   );

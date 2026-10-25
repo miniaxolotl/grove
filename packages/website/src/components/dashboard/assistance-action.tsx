@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { FolderSearch, ListTodo, History, ScanSearch } from "lucide-react";
+import {
+  FolderSearch,
+  ListTodo,
+  History,
+  ScanSearch,
+  CalendarCheck,
+} from "lucide-react";
 import type { AssistanceRequest } from "@lib/shared/assistance";
 import { deferredFeature } from "./deferred-feature";
 
@@ -22,12 +28,14 @@ const icons = {
   actions: ListTodo,
   digest: History,
   cleanup: ScanSearch,
+  meeting: CalendarCheck,
 };
 const labels = {
   filing: "Suggest a notebook",
   actions: "Extract action list",
   digest: "Since your last visit",
   cleanup: "Review notebook",
+  meeting: "Prepare for a meeting",
 };
 export function AssistanceAction({
   input,

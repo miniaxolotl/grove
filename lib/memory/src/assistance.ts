@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { reserveAction } from "./billing-quotas.ts";
+import { reserveAction, settleNamedAction } from "./billing-quotas.ts";
 import type { Knex } from "@lib/database";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
@@ -23,6 +23,8 @@ import {
   type ScopeDependency,
 } from "./assistance-data.ts";
 import { redactDigest } from "./notebook-digests.ts";
+import { workflowEvidence } from "./workflow-evidence.ts";
+import { meetingHeadings, meetingItems } from "./assistance-meeting.ts";
 
 const missing = () => new GroveError("not_found", "Preview unavailable", 404);
 const conflict = () =>
@@ -55,11 +57,15 @@ export class NotebookAssistance {
             (this.service.providers.embedding?.profile ?? null))
       )
         throw conflict();
-      const refs = "sources" in input ? input.sources : [];
-      const sources = await activeNotes(trx).whereIn(
-        "id",
-        refs.map((r) => r.id),
-      );
+      const refs = "sources" in input ? (input.sources ?? []) : [];
+      const workflow =
+        input.kind === "meeting" ? await workflowEvidence(trx, input) : null;
+      const sources =
+        workflow?.sources ??
+        (await activeNotes(trx).whereIn(
+          "id",
+          refs.map((r) => r.id),
+        ));
       if (
         refs.some(
           (r) => !sources.some((n) => n.id === r.id && n.version === r.version),
@@ -81,7 +87,7 @@ export class NotebookAssistance {
         scopes.push({
           id: project.id,
           version: project.version,
-          ...(input.kind === "cleanup"
+          ...(input.kind === "cleanup" || input.kind === "meeting"
             ? { contentVersion: project.contentVersion }
             : {}),
         });
@@ -116,6 +122,7 @@ export class NotebookAssistance {
                   )[0] ?? null,
             };
       const state = {
+        ...(workflow ? { coverage: workflow.coverage } : {}),
         ...(input.kind === "filing"
           ? {
               accountVersion: account.contentVersion,
@@ -126,6 +133,19 @@ export class NotebookAssistance {
           : {}),
         ...(expiry?.expiresAt ? { expiresAt: expiry.expiresAt } : {}),
       };
+      let expiresAt: Date | undefined;
+      if (input.kind === "meeting") {
+        const {
+          rows: [clock],
+        } = await trx.raw("SELECT now()+interval '30 days' AS deadline");
+        expiresAt = new Date(
+          Math.min(
+            new Date(clock.deadline).getTime(),
+            expiry?.expiresAt ? new Date(expiry.expiresAt).getTime() : Infinity,
+          ),
+        );
+        state.expiresAt = expiresAt;
+      }
       const profile = assistanceProfile(
         generation.profile,
         this.service.providers.embedding?.profile,
@@ -148,6 +168,7 @@ export class NotebookAssistance {
         dependencies: JSON.stringify(dependencies),
         scopes: JSON.stringify(scopes),
         state: JSON.stringify(state),
+        ...(expiresAt ? { expiresAt } : {}),
       });
       await trx("jobs").insert({
         id: randomUUID(),
@@ -172,6 +193,39 @@ export class NotebookAssistance {
         .where({ id })
         .first();
       if (!row) throw missing();
+      return this.read(trx, row);
+    });
+  }
+  async cancel(principal: Principal, id: string, expectedVersion: number) {
+    return this.service.access(principal, "admin", async ({ trx }) => {
+      const row = await trx<AssistanceRow>("assistance_requests")
+        .where({ id })
+        .first();
+      if (!row || row.kind !== "meeting") throw missing();
+      if (row.status === "cancelled" && row.version === expectedVersion + 1)
+        return this.read(trx, row);
+      if (row.status !== "pending" || row.version !== expectedVersion)
+        throw conflict();
+      await trx("jobs").where({ kind: "assistance", target: id }).delete();
+      await settleNamedAction(
+        trx,
+        principal.accountId,
+        "assistance",
+        `assistance:${id}`,
+        "released",
+      );
+      row.status = "cancelled";
+      row.version++;
+      row.result = null;
+      row.state = {};
+      row.error = "Brief cancelled. Start a new brief to try again.";
+      await trx("assistance_requests").where({ id }).update({
+        status: row.status,
+        version: row.version,
+        result: null,
+        state: "{}",
+        error: row.error,
+      });
       return this.read(trx, row);
     });
   }
@@ -280,7 +334,60 @@ export class NotebookAssistance {
       } else {
         await this.checkProfile(trx, row);
         await validAssistance(trx, row);
-        if (row.input.kind === "actions") {
+        if (
+          row.input.kind !== "meeting" &&
+          input.destinationProjectId !== undefined
+        )
+          throw conflict();
+        if (row.input.kind === "meeting") {
+          const brief = row.result?.meeting;
+          if (
+            !brief ||
+            !meetingItems(brief).length ||
+            input.action ||
+            input.candidate ||
+            input.edits
+          )
+            throw conflict();
+          const content =
+            `# ${row.input.title.replaceAll("\n", " ")}\n\n` +
+            (row.input.meetingDate
+              ? `Meeting date: ${row.input.meetingDate}\n\n`
+              : "") +
+            `Based on ${row.result!.coverage.examined} of ${row.result!.coverage.total} notes supplied as evidence. ` +
+            (row.result!.coverage.partial
+              ? "Partial coverage; other notes may contain relevant evidence.\n\n"
+              : "\n\n") +
+            (Object.keys(meetingHeadings) as (keyof typeof meetingHeadings)[])
+              .map(
+                (key) =>
+                  `## ${meetingHeadings[key]}\n\n` +
+                  (brief[key].length
+                    ? brief[key]
+                        .map(
+                          (item) =>
+                            `- ${item.text.replaceAll("\n", " ")} — ${item.sources.map((ref) => `[source](/app/memories/${ref.id}?revision=${ref.version})`).join(" · ")}`,
+                        )
+                        .join("\n")
+                    : "No relevant recorded evidence found."),
+              )
+              .join("\n\n");
+          if (content.length > 6000)
+            throw new GroveError(
+              "preview_too_long",
+              "This brief is too long to save as one note.",
+              400,
+            );
+          writes = [
+            {
+              content,
+              projectId:
+                input.destinationProjectId === undefined
+                  ? row.input.projectId
+                  : input.destinationProjectId,
+            },
+          ];
+        } else if (row.input.kind === "actions") {
           const items = row.result!.items!;
           if (
             !items.length ||

@@ -4,6 +4,11 @@ Notebook summaries adapt to the notes' subject. Filing, action lists, visit dige
 and cleanup run only when requested. Each has an independent AI preference;
 automatic note/notebook connections can stay off.
 
+[Meeting preparation](meeting-preparation.md) is a separate, off-by-default,
+on-demand assistance workflow: an agenda-driven brief from selected notes or one
+notebook, with exact sources, honest coverage and reviewed Save/Undo. It does not
+replace the visit digest or introduce weekly scheduling.
+
 ## In the workspace
 
 - **Summary** shows a compact overview, source revisions and examined/cited counts.

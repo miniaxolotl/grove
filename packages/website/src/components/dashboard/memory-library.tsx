@@ -40,6 +40,7 @@ import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
 import { NoteDeleteDialog } from "./note-delete-dialog";
 import { AssistanceAction } from "./assistance-action";
+import { MeetingPreparationAction } from "./meeting-preparation-action";
 import { useNotebookVisit } from "./use-notebook-visit";
 import type { NotebookVisit } from "@lib/shared/assistance";
 const loadDetail = () =>
@@ -609,18 +610,31 @@ export function MemoryLibrary({
                 <LibrarySelection
                   assistance={
                     !archive && (
-                      <AssistanceAction
-                        compact
-                        disabled={busy || selectedItems.length > 6}
-                        input={{
-                          kind: "actions",
-                          sources: selectedItems.map(({ id, version }) => ({
-                            id,
-                            version,
-                          })),
-                          projectId: scopedProject ?? null,
-                        }}
-                      />
+                      <>
+                        <MeetingPreparationAction
+                          compact
+                          disabled={busy || selectedItems.length > 12}
+                          scope={{
+                            projectId: null,
+                            sources: selectedItems.map(({ id, version }) => ({
+                              id,
+                              version,
+                            })),
+                          }}
+                        />
+                        <AssistanceAction
+                          compact
+                          disabled={busy || selectedItems.length > 6}
+                          input={{
+                            kind: "actions",
+                            sources: selectedItems.map(({ id, version }) => ({
+                              id,
+                              version,
+                            })),
+                            projectId: scopedProject ?? null,
+                          }}
+                        />
+                      </>
                     )
                   }
                   count={selectedItems.length}
