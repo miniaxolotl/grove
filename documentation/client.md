@@ -131,7 +131,7 @@ Bun runtime mode for compiled hosts), so desktop/background launches do not need
 already configured. No V1 hook or handwritten MCP transport remains. Plugin option
 `private: true` or session metadata `private: true` also disables automatic recall.
 OpenCode reloads watched configuration automatically; check its MCP tools and
-restart if Grove has not appeared. `grove uninstall --client opencode` removes
+use `/reload` if Grove has not appeared. `grove uninstall --client opencode` removes
 only the matching plugin entry; it does not delete memories or credentials.
 
 ## Claude Code
@@ -192,6 +192,13 @@ First run `grove login --client cli`. `grove --help` prints help. The bridge
 uses the official MCP SDK and the authenticated HTTP API. Stdout is protocol-only.
 
 ## Scope and capture
+
+All integrations share the [note-writing policy](agent-note-writing.md): concise,
+human-readable CommonMark/GFM, useful structure without forced templates, correct
+notebook/kind and faithful edits. MCP content documentation explicitly requires the
+complete intended body when editing, not just a changed passage. Packaged skills
+are generated from the runtime guidance; hosts can cache metadata until refreshed.
+This adds no automatic writes, format rejection or changes to privacy/permissions.
 
 Connected agents can search/read exact notes, partially edit them, inspect history,
 move notes, archive/restore, delete and list/create/rename/move notebooks. Ask for an

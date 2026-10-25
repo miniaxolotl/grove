@@ -94,6 +94,11 @@ labels are not authenticated host identities.
 
 ## Permissions and limitations
 
+- Server instructions and argument docs share the [note-writing policy](agent-note-writing.md):
+  concise, focused Markdown and information-preserving complete-body edits. The
+  host still chooses when to expose/call tools; this is not guaranteed automatic
+  capture or a server-side readability validator. Refresh cached metadata after
+  the matching API is deployed; no new connection/grant is needed for wording alone.
 - The same [14-tool contract](server.md#memory-and-notebook-tools) powers remote
   MCP and packaged integrations. Tools still enforce grants on every request.
   Tool annotations and host confirmation dialogs are not permission checks.

@@ -12,7 +12,7 @@ import {
   configureBillingQuotas,
   type ArtifactStore,
 } from "@lib/memory";
-import { rememberSchema } from "@lib/shared/contracts";
+import { rememberSchema, listSchema } from "@lib/shared/contracts";
 import { billingLimits } from "@lib/shared/billing";
 import {
   conversationCreateSchema,
@@ -74,7 +74,11 @@ async function fixture() {
       | "restore"
       | "delete",
     references: [] as string[],
-    calls: [] as { sources: Source[]; context: unknown }[],
+    calls: [] as {
+      sources: Source[];
+      context: unknown;
+      instructions: string;
+    }[],
     schemas: [] as { safeParse: (value: unknown) => { success: boolean } }[],
     wait: undefined as (() => Promise<void>) | undefined,
     invalid: false,
@@ -92,8 +96,12 @@ async function fixture() {
   const providers: Providers = {
     generation: {
       profile: "chat-fixture",
-      generate: async (schema, _instructions, sources, options) => {
-        behavior.calls.push({ sources, context: options?.context });
+      generate: async (schema, instructions, sources, options) => {
+        behavior.calls.push({
+          sources,
+          context: options?.context,
+          instructions,
+        });
         behavior.schemas.push(schema);
         if (Object.is(schema, conversationPlanSchema))
           return schema.parse({
@@ -438,6 +446,34 @@ test("strict selected note edits and merges retain reviewed Apply and Undo", asy
     assert.equal(
       (await f.service.get(f.principal, first.id)).content,
       before.content,
+    );
+  }
+});
+
+test("Ask authoring requests carry readable-note policy without changing planner or Apply", async () => {
+  for (const intent of ["create", "edit", "merge", "organize"] as const) {
+    const f = await fixture();
+    await f.save("Garden watering decision");
+    await f.save("Garden pruning decision");
+    f.behavior.intent = intent;
+    const chat = await f.create();
+    const result = await f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn(`${intent} garden notes`),
+    );
+    const planner = f.behavior.calls[0].instructions;
+    const author = f.behavior.calls.at(-1)!.instructions;
+    assert.doesNotMatch(planner, /human-readable/);
+    assert.match(author, /human-readable/);
+    assert.match(author, /GitHub-flavored Markdown/);
+    assert.match(author, /preserve.*(?:unrequested|unrelated)/i);
+    assert.match(author, /note bodies only/);
+    assert(result.turns[0]);
+    assert.equal(
+      (await f.service.list(f.principal, listSchema.parse({}))).items.length,
+      2,
+      "Generation must still be a preview, not a save",
     );
   }
 });
