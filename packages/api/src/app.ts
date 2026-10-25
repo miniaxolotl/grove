@@ -43,6 +43,7 @@ import {
   mediaDescriptor,
   Tasks,
   SpeechJobs,
+  UsageLimitError,
   type ArtifactStore,
   withMemoryOperation,
   executeMemoryTool,
@@ -212,7 +213,23 @@ export function createApp(deps: AppDependencies) {
         "WWW-Authenticate",
         `Bearer resource_metadata="${deps.origin}/.well-known/oauth-protected-resource/mcp"`,
       );
-    if (detail.status === 429) c.header("Retry-After", "60");
+    if (detail instanceof UsageLimitError) {
+      if (detail.resetAt)
+        c.header(
+          "Retry-After",
+          String(
+            Math.max(
+              1,
+              Math.ceil((Date.parse(detail.resetAt) - Date.now()) / 1000),
+            ),
+          ),
+        );
+      else if (detail.code === "ai_busy") c.header("Retry-After", "1");
+    } else if (
+      detail.status === 429 &&
+      !["storage_limit", "project_limit"].includes(detail.code)
+    )
+      c.header("Retry-After", "60");
     if (detail.status === 503) c.header("Retry-After", "1");
     // Content-free diagnostics only. Driver/provider exceptions may contain SQL, parameters or credentials.
     if (detail.status >= 500)
@@ -226,6 +243,9 @@ export function createApp(deps: AppDependencies) {
           code: detail.code,
           message: detail.message,
           requestId: c.get("requestId"),
+          ...(detail instanceof UsageLimitError
+            ? { resource: detail.resource, resetAt: detail.resetAt }
+            : {}),
         },
       },
       detail.status as 400,

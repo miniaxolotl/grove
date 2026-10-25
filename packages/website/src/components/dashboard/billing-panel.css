@@ -68,6 +68,10 @@
   display: grid;
   gap: 20px;
 }
+.billing-resource-help {
+  margin-top: 16px;
+  max-width: 62ch;
+}
 .billing-metric {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -15,6 +15,36 @@ documentation refresh.
 
 ## Topology
 
+### User-action allowances rollout (028)
+
+1. Verify the frozen source and actual migration history, take and verify the
+   retained backup, then apply owner-only forward `20261025_028_action_usage` after
+    admin-support 027 and its existing prerequisites. Preserve the forward order
+    026 → 027 → 028; never reuse the independent admin-support migration slot.
+   028 adds empty action counters/leases only. Existing notes, revisions, billing
+   subscriptions, provider attempts, research and audio usage are unchanged.
+2. Deploy matching API/worker code with the same
+   `BILLING_{FREE,PRO}_{NOTES,NOTEBOOKS}` and
+   `BILLING_{FREE,PRO}_{RECALL,ASK,ORGANIZATION,ASSISTANCE}_MONTHLY` settings.
+   Explicit existing environment values win over source defaults. Configured
+   billing startup probes the new tables; stop/drain old workers before cutover so
+   they cannot bypass action accounting. Do not activate purchases or change prices.
+3. Verify a flagged internal cohort before broader enforcement. New counters start
+   prospectively, without resetting or converting retained provider usage. Check
+   action totals against real requests, retries and worker fragments, actual provider
+   costs and deferred backlogs; the intro price is not a margin guarantee. The
+   existing billing flag controls ordinary plan enforcement and visibility; it is
+   not a new independent shadow-only switch. Complimentary grants remain effective.
+4. Deploy the website after the API, then verify both tiers, pending/exhausted states,
+   upgrade/downgrade, complimentary/unlimited grants, agent quota errors, keyword
+   fallback, and read/edit/export availability. Existing over-limit data remains
+   retained. Check per-account generation slots across both components, not only a
+   single process. Monthly errors must report the actual reset, not a 60-second loop.
+5. Roll back code/ordinary enforcement only through the established operator and
+   protected release process. Keep the additive schema and all usage/provider data;
+   never roll back by dropping counters or rewriting past usage. The existing flag
+   does not cancel subscriptions, waive explicit grants or replace incident handling.
+
 ### Admin support rollout (027)
 
 1. Back up and verify the retained database using the normal owner procedure.

@@ -1,5 +1,39 @@
 export const billingFlagKey = "billing-enabled";
 export const billingPriceFlagKey = "billing-pro-monthly-usd";
+/** User-facing actions are independent of provider-attempt safety budgets. */
+export type ActionMetric = "recall" | "ask" | "organization" | "assistance";
+export type ResourceLimits = Record<
+  ActionMetric | "notes" | "notebooks" | "concurrency",
+  number
+>;
+export const resourceLimits: Record<"free" | "pro", ResourceLimits> = {
+  free: {
+    notes: 10000,
+    notebooks: 100,
+    recall: 30000,
+    ask: 300,
+    organization: 1000,
+    assistance: 50,
+    concurrency: 2,
+  },
+  pro: {
+    notes: 50000,
+    notebooks: 500,
+    recall: 150000,
+    ask: 1500,
+    organization: 5000,
+    assistance: 250,
+    concurrency: 2,
+  },
+};
+export type ResourceUsage = {
+  plan: "free" | "pro" | "unlimited";
+  resetAt: string;
+  metrics: Record<
+    ActionMetric | "notes" | "notebooks",
+    { used: number; reserved: number; limit: number | null }
+  >;
+};
 export type BillingMetric =
   | "generation"
   | "research"
@@ -44,6 +78,8 @@ export type BillingUsage = {
   >;
 };
 export type BillingStatus = {
+  resources?: ResourceUsage | null;
+  proResources?: ResourceLimits;
   units: typeof billingUnits;
   proLimits: PlanLimits;
   enabled: boolean;

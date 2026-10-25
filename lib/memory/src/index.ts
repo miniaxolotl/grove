@@ -5,7 +5,12 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import { MemoryModel, tenant, type Knex } from "@lib/database";
+import {
+  MemoryModel,
+  tenant,
+  withDatabaseSignal,
+  type Knex,
+} from "@lib/database";
 import { policy } from "@lib/config";
 import { InferenceError, type Embedder, type Providers } from "@lib/ai";
 import {
@@ -50,6 +55,15 @@ import {
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { assertNoteCapacity } from "./note-changes.ts";
+import {
+  assertCapacity,
+  inheritBillingQuotas,
+  reserveAction,
+  settleAction,
+  UsageLimitError,
+} from "./billing-quotas.ts";
+import type { ActionMetric } from "@lib/shared/billing";
+import { recallIsInternal, withoutRecallCharge } from "./action-context.ts";
 import { Relationships } from "./relationships.ts";
 import { presentMemories } from "./presentation.ts";
 import { semanticMatches } from "./search.ts";
@@ -149,7 +163,12 @@ const stable = (value: unknown): string =>
 export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
-export { configureBillingQuotas, billingUsage } from "./billing-quotas.ts";
+export {
+  configureBillingQuotas,
+  billingUsage,
+  resourceUsage,
+  UsageLimitError,
+} from "./billing-quotas.ts";
 export { SystemAdministration } from "./system-admin.ts";
 
 export class MemoryService {
@@ -232,6 +251,7 @@ export class MemoryService {
         capability,
         capability !== null && capability !== "memory:read",
       );
+      inheritBillingQuotas(this.db, trx);
       return run(access);
     }).catch((error: unknown) => {
       const databaseError = error as {
@@ -362,6 +382,7 @@ export class MemoryService {
     );
     service.jobProfiles = this.jobProfiles;
     service.internalWork = true;
+    inheritBillingQuotas(this.db, trx);
     return service;
   }
 
@@ -884,10 +905,65 @@ export class MemoryService {
     }
   }
 
+  async meteredAction<T>(
+    principal: Principal,
+    metric: ActionMetric,
+    run: () => Promise<T>,
+    charge: (result: T) => boolean = () => true,
+  ): Promise<T> {
+    const reservation = await this.access(principal, "memory:read", ({ trx }) =>
+      reserveAction(this.db, trx, principal.accountId, metric, randomUUID()),
+    );
+    try {
+      const result = await run();
+      await withDatabaseSignal(undefined, () =>
+        tenant(this.db, principal.accountId, (trx) =>
+          settleAction(
+            trx,
+            reservation,
+            charge(result) ? "completed" : "released",
+          ),
+        ),
+      );
+      return result;
+    } catch (error) {
+      await withDatabaseSignal(undefined, () =>
+        tenant(this.db, principal.accountId, (trx) =>
+          settleAction(trx, reservation, "released"),
+        ),
+      );
+      throw error;
+    }
+  }
+
   async list(principal: Principal, input: MemoryList): Promise<Page<Memory>> {
-    const embedder = this.embedder;
+    if (
+      input.query &&
+      this.embedder &&
+      input.searchMode !== "lexical" &&
+      !recallIsInternal()
+    ) {
+      try {
+        return await this.meteredAction(principal, "recall", () =>
+          this.listResult(principal, input),
+        );
+      } catch (error) {
+        if (!(error instanceof UsageLimitError) || error.resource !== "recall")
+          throw error;
+        return this.listResult(principal, input, true);
+      }
+    }
+    return this.listResult(principal, input);
+  }
+
+  private async listResult(
+    principal: Principal,
+    input: MemoryList,
+    lexicalOnly = false,
+  ): Promise<Page<Memory>> {
+    const embedder = lexicalOnly ? undefined : this.embedder;
     let vector: number[] | undefined;
-    if (input.query && embedder) {
+    if (input.query && embedder && input.searchMode !== "lexical") {
       await this.access(principal, "memory:read", async ({ grant }) => {
         if (input.projectId !== undefined) this.scope(grant, input.projectId);
       });
@@ -1063,8 +1139,22 @@ export class MemoryService {
     signal?: AbortSignal,
     allProjects = false,
   ): Promise<RecallResult> {
+    return recallIsInternal()
+      ? this.recallResult(principal, input, signal, allProjects)
+      : this.meteredAction(principal, "recall", () =>
+          this.recallResult(principal, input, signal, allProjects),
+        );
+  }
+
+  private async recallResult(
+    principal: Principal,
+    input: Recall,
+    signal?: AbortSignal,
+    allProjects = false,
+    lexicalOnly = false,
+  ): Promise<RecallResult> {
     const started = performance.now();
-    const embedder = this.embedder;
+    const embedder = lexicalOnly ? undefined : this.embedder;
     // Authorize before sending text to inference. Reauthorize after asynchronous work.
     await this.access(principal, "memory:read", async ({ grant }) => {
       if (input.projectId) this.scope(grant, input.projectId);
@@ -1223,26 +1313,65 @@ export class MemoryService {
     input: AskRequest,
     signal?: AbortSignal,
   ): Promise<AskResult> {
+    if (input.mode === "search")
+      return this.askResult(principal, input, signal);
+    const enabled =
+      this.providers.generation &&
+      (await this.access(
+        principal,
+        "memory:read",
+        async ({ account }) => account.askEnabled,
+      ));
+    if (!enabled)
+      return withoutRecallCharge(() =>
+        this.askResult(principal, input, signal, false),
+      );
+    return withoutRecallCharge(() =>
+      this.meteredAction(
+        principal,
+        "ask",
+        () => this.askResult(principal, input, signal),
+        (result) => result.answer !== null,
+      ),
+    );
+  }
+
+  private async askResult(
+    principal: Principal,
+    input: AskRequest,
+    signal?: AbortSignal,
+    generationAllowed = true,
+  ): Promise<AskResult> {
     const started = performance.now();
-    const generation = this.providers.generation;
+    const generation = generationAllowed
+      ? this.providers.generation
+      : undefined;
     const previous = input.previousQuestions.at(-1);
     const query =
       previous && /\b(it|that|those|they|them|this|more)\b/i.test(input.query)
         ? `${previous.slice(0, 300)}\n${input.query}`.slice(-1000)
         : input.query;
-    const recalled = await this.recall(
-      principal,
-      {
-        query,
-        projectId: input.projectId ?? null,
-        includePersonal:
-          input.projectId === null ? true : input.includePersonal,
-        limit: 12,
-        maxCharacters: 6000,
-      },
-      signal,
-      input.projectId === undefined,
-    );
+    const recallInput: Recall = {
+      query,
+      projectId: input.projectId ?? null,
+      includePersonal: input.projectId === null ? true : input.includePersonal,
+      limit: 12,
+      maxCharacters: 6000,
+    };
+    const recalled = generationAllowed
+      ? await this.recall(
+          principal,
+          recallInput,
+          signal,
+          input.projectId === undefined,
+        )
+      : await this.recallResult(
+          principal,
+          recallInput,
+          signal,
+          input.projectId === undefined,
+          true,
+        );
     const base = {
       sources: recalled.items,
       searchMode: recalled.mode,
@@ -1651,9 +1780,7 @@ export class MemoryService {
           !(await trx("projects").where({ id: input.parentId }).first())
         )
           throw new GroveError("not_found", "Parent notebook not found", 404);
-        const total = await trx("projects").count("id as count").first();
-        if (Number(total?.count) >= policy.maxProjects)
-          throw new GroveError("project_limit", "Project limit reached", 429);
+        await assertCapacity(trx, "notebooks", 1);
         const [row] = await trx("projects")
           .insert({
             name: input.name,
@@ -1926,11 +2053,19 @@ export class MemoryService {
           account[briefPreference(scope)]
         ) {
           const target = briefTarget(scope);
+          const usageOperation = `brief:${randomUUID()}`;
+          await reserveAction(
+            this.db,
+            trx,
+            account.id,
+            "assistance",
+            usageOperation,
+          );
           await trx("memory_briefs").where({ target }).delete();
           await queueBrief(
             trx,
             account.id,
-            scope,
+            { ...scope, usageOperation },
             this.providers.generation.profile,
             0,
           );

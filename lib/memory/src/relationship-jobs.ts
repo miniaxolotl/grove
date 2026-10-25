@@ -22,6 +22,12 @@ import {
 } from "@lib/shared/relationships";
 import { budgetedInference } from "./processing.ts";
 import {
+  inheritBillingQuotas,
+  reserveAction,
+  settleAction,
+  UsageLimitError,
+} from "./billing-quotas.ts";
+import {
   activeNotes,
   connectionSource,
   currentRelationshipProfile,
@@ -50,7 +56,7 @@ export type RelationshipJob = {
   profile: string;
   leaseId: string;
   attempts: number;
-  scope: { leftId?: string; rightId?: string };
+  scope: { leftId?: string; rightId?: string; action?: string };
 };
 export type PairInput = {
   level: ConnectionLevel;
@@ -86,6 +92,7 @@ export async function queuePair(
   a: string,
   b: string,
   profile: string,
+  action?: string,
 ) {
   if (a === b) return;
   const [leftId, rightId] = [a, b].sort();
@@ -131,6 +138,7 @@ export async function queuePair(
         earliestExpiry(
           endpoints.map((endpoint) => endpoint.expiresAt),
         )?.getTime() ?? null,
+      ...(action ? { action } : {}),
     },
   );
 }
@@ -144,9 +152,26 @@ async function scanNote(
     .findById(job.memoryId!)
     .where({ version: job.version! });
   if (!note) return;
+  const action = job.scope.action
+    ? await reserveAction(
+        trx,
+        trx,
+        job.accountId,
+        "organization",
+        job.scope.action,
+      )
+    : null;
   const candidates = await noteCandidates(trx, note, providers);
   for (const other of candidates)
-    await queuePair(trx, job.accountId, "note", note.id, other.id, job.profile);
+    await queuePair(
+      trx,
+      job.accountId,
+      "note",
+      note.id,
+      other.id,
+      job.profile,
+      job.scope.action,
+    );
   const previous = await trx("memory_relationships")
     .where((b) => b.where("leftId", note.id).orWhere("rightId", note.id))
     .orderBy("updatedAt", "desc")
@@ -159,6 +184,7 @@ async function scanNote(
       pair.leftId,
       pair.rightId,
       job.profile,
+      job.scope.action,
     );
   const scopeVersion = note.projectId
     ? (await trx("projects").where({ id: note.projectId }).first())
@@ -176,6 +202,7 @@ async function scanNote(
     })
     .onConflict(["accountId", "memoryId", "version", "kind", "profile"])
     .merge({ data: JSON.stringify({ scopeVersion }), createdAt: trx.fn.now() });
+  await settleAction(trx, action, "completed");
 }
 
 export async function noteCandidates(
@@ -431,6 +458,7 @@ export async function runRelationshipJob(
         .where({ id: job.accountId, status: "active" })
         .forUpdate()
         .first();
+      inheritBillingQuotas(db, trx);
       const lease = await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
         .whereRaw(
@@ -595,7 +623,8 @@ export async function runRelationshipJob(
   } catch (error) {
     outcome = "unavailable";
     const budget =
-      error instanceof InferenceError && error.code === "inference_budget";
+      (error instanceof InferenceError && error.code === "inference_budget") ||
+      error instanceof UsageLimitError;
     await tenant(db, job.accountId, async (trx) => {
       await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
@@ -604,11 +633,16 @@ export async function runRelationshipJob(
           leaseUntil: null,
           dispatchedAt: null,
           attempts: budget ? Math.max(0, job.attempts - 1) : job.attempts,
-          dueAt: budget
-            ? trx.raw("date_trunc('day', now()) + interval '1 day'")
-            : trx.raw("now() + (? * interval '1 second')", [
-                retryDelay(job.attempts),
-              ]),
+          dueAt:
+            error instanceof UsageLimitError
+              ? error.resetAt
+                ? new Date(error.resetAt)
+                : trx.raw("now()+interval '1 second'")
+              : budget
+                ? trx.raw("date_trunc('day', now()) + interval '1 day'")
+                : trx.raw("now() + (? * interval '1 second')", [
+                    retryDelay(job.attempts),
+                  ]),
           failedAt:
             !budget &&
             (job.attempts >= 5 ||
@@ -616,7 +650,7 @@ export async function runRelationshipJob(
               ? trx.fn.now()
               : null,
           errorCode:
-            error instanceof InferenceError
+            error instanceof InferenceError || error instanceof UsageLimitError
               ? error.code
               : "processing_unavailable",
         });

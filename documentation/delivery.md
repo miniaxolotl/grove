@@ -1,5 +1,55 @@
 # Delivery evidence
 
+## Free/Pro storage and action allowances (25 October 2026)
+
+Configured Cloud now separates user actions from retained provider-attempt budgets:
+Free/Pro support 10,000/50,000 notes, 100/500 notebooks and monthly recall/search
+30,000/150,000, Ask replies 300/1,500, organization 1,000/5,000 and on-demand
+assistance 50/250. Two account-wide generation slots share durable leases across
+foreground/API/worker replicas. Ordinary admission remains 180 operations/minute.
+Reading, editing, keyword search and export remain available at AI exhaustion;
+downgrades never delete existing content. Speech/research, subscriptions, grants,
+provider-attempt counters and the introductory $5 price remain unchanged.
+
+Source `a72cb5c` integrates merged admin-support #129 as
+`d012ddbe9d1a7c3a92dd09dda2dcbdf89553615e`. Forward migration **028 follows 027**
+and creates empty tenant-isolated action/lease tables, without reinterpreting old
+usage. [Counting semantics](billing.md#library-and-user-actions) distinguish cached
+reads, durable replays, fragmented work, source changes, background maintenance and
+retrieval safety; [rollout](deploy.md#user-action-allowances-rollout-028) requires
+explicit owner migration and matching API/worker configuration.
+
+At the integrated source, **431 backend cases pass**, with four optional-service
+skips and zero failures. Twenty-four action regressions plus a populated pre-028
+upgrade cover final-slot races across non-owner API/worker roles, expired/released
+reservations, retry IDs, original-month settlement, plan/grant changes, source
+retention, nested storage checks, multi-call replies, asynchronous assistance,
+organization coalescing, preference-toggle bypass denial and keyword fallback
+pagination. Failed replies release action capacity but retain provider evidence;
+action-covered retrieval does not inherit the smaller background embedding guard.
+The integrated repeat initially found the local base fixture still at 026; applying
+forward 027/028 to that task-owned disposable database resolved it without resets.
+
+Root/site lint, type checks and production builds pass, as do all **nine packaged
+artifacts**, **34 release/provider contracts**, pinned workflow lint, bundle budgets
+and OpenCode/Claude/Codex native-host smoke checks. API and worker Compose expansion
+matches all 12 action/storage defaults using synthetic required-field placeholders
+only. Website build **`VMRgAIPjlRxwzZ26D8Ns9`**; Notes **488,425 gzip bytes**.
+
+[Four reviewed captures](design/screenshots/free-pro-usage/README.md) show actual
+Billing components and production CSS with synthetic responses. Both tiers pass
+Chromium and supported WebKit journeys at 1440/390/320px: warnings, exhaustion,
+refresh, unlimited/legacy compatibility, flag-off hiding, WCAG A/AA, no horizontal
+overflow and no page errors. The full **239-case Chromium suite** passes again at
+the integrated source, with zero failures.
+
+A separate [50,000-note/full4096-vector local check](development/backend-capacity-results.md#50000-note-action-policy-scale-check-25-october-2026)
+observed 608 ms median and 614 ms maximum/p95 over ten warm sequential recalls, with
+866,091,008 bytes of embedding storage and zero paid provider calls. This does not
+qualify production throughput, cold-cache performance or profitability; unchanged
+research/audio exposure can exceed the introductory price. No retained database,
+production flag, paid provider, subscription, release or deployment was changed.
+
 ## Solo-owner account support (25 October 2026)
 
 Settings → Admin now offers a paginated **People & access** directory and one

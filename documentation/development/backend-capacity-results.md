@@ -1,5 +1,37 @@
 # Backend capacity measurements — 22 October 2026
 
+## 50,000-note action-policy scale check (25 October 2026)
+
+An isolated local PostgreSQL 17 / pgvector 0.8.2 database held **50,000 synthetic
+notes with full 4,096-dimensional vectors**. The normal service recall path ran
+under the non-owner API role and a synthetic Pro grant with action enforcement;
+query vectors were generated locally, with **zero paid provider calls**. Another
+tenant saw no notes. One warm-up preceded ten sequential measured recalls:
+
+| Observation | Result |
+| --- | ---: |
+| Minimum | 599 ms |
+| Median | 608 ms |
+| Observed p95 / maximum of ten | 614 ms |
+| Embedding relation including indexes/TOAST | 866,091,008 bytes (~826 MiB) |
+| Synthetic seeding | 116 seconds |
+
+Vectors used varying deterministic sine coordinates, not repeated zero vectors;
+notes, revisions and vectors were seeded in 500-record SQL batches, then analyzed.
+Each recall used eight results and a 6,000-character budget, with no lexical match
+and the existing exact semantic search. The uniquely named `_test` database was
+removed after measurement; no retained database or runtime setting changed.
+
+This is a **single-account, warm local regression check**, not production capacity,
+cold-cache, realistic embedding-distribution, multi-tenant throughput or provider-
+latency qualification. The container had no production-like CPU/memory sizing.
+50,000 full vectors have a material storage/backup cost even when note text is
+small; do not infer that $5 covers sustained full utilization. Repeat representative
+sizing and invoice checks before broad activation. Existing production capacity
+qualification limits below remain unchanged.
+
+## Earlier capacity qualification
+
 **The deterministic query reduction is verified. The 50 sustained / 100 burst
 requests-per-second targets are not qualified.** The final 20/s, two-minute read
 run returned 2,398/2,400 successful responses, with 209 ms p95 and no generator drops
