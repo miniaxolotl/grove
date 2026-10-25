@@ -15,6 +15,30 @@ documentation refresh.
 
 ## Topology
 
+### System administration rollout (025)
+
+1. Verify the frozen candidate and production migration history. Back up and verify
+   the retained database, then apply forward `20261025_025_system_administration`
+   using the migration owner **after 024**. If speech-cache024 is pending, follow its
+   rollout below first; do not skip or repeat applied migrations. The new schema
+   creates no admins and changes no retained notes, accounts, subscriptions or usage.
+   This integrated source also requires the duration rollout 026 described below;
+   complete its retained-counter and matching runtime-configuration checks before
+   starting the new API/worker. The full forward order is 024 → 025 → 026.
+2. Deploy matching admitted API/worker images and website through the protected
+   release path. Preserve runtime configuration, billing flags and provider records.
+   No new credential or environment allowlist is required for system roles.
+3. Verify the owner's exact production Clerk identity and existing active account.
+   Invoke the owner-only, parameterized bootstrap described in
+   [system administration](system-administration.md#first-administrator-and-recovery).
+   Grant only the requested role; system-admin does not imply unlimited access.
+4. Verify the owner's Admin navigation/search, ordinary-user and agent denial,
+   private/no-store responses and an owned synthetic grant/revoke/audit round trip.
+   Confirm API/worker grants do not widen private-note access or activate billing.
+5. Retain the forward schema on rollback. Keep restored databases offline until
+   current-authority role/grant reconciliation and credential invalidation complete.
+   Never rebootstrap an unverified identity or revive a revoked snapshot role.
+
 ### Tier allowances and speech-duration rollout (026)
 
 This source change does not activate billing, reprice the introductory $5 plan or
@@ -24,9 +48,8 @@ the price as introductory rather than a full-utilization margin guarantee.
 
 1. Back up retained tables and verify restore/isolation with the normal owner
    procedure. Pause/drain dispatch; apply forward `20261025_026_speech_duration`
-   after this source's earlier migrations, including 024. The 026 suffix leaves
-   room for the independent administration workstream; do not invent/apply a
-   missing 025 migration or renumber published migrations.
+   after this source's earlier migrations, including speech-cache 024 and system
+   administration 025. Preserve that order; do not skip or renumber migrations.
 2. Verify retained `speech_usage.requests/units` are unchanged, the new duration
    column exists and actual non-owner API/worker tenant isolation still holds.
    Unknown historical synthesis attempts get a conservative MP3-duration bound;

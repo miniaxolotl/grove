@@ -315,6 +315,65 @@ test("TTS settles measured duration, preserves legacy characters and reuses audi
   );
 });
 
+test("unlimited grants bypass exhausted duration allowances but retain speech attempt protection", async () => {
+  let calls = 0;
+  const audio = mp3Fixture();
+  const f = await narration(async () => {
+    calls++;
+    return audio;
+  });
+  await tenant(db, f.a.accountId, (trx) =>
+    trx("speech_usage").insert({
+      accountId: f.a.accountId,
+      kind: "speech_synthesize",
+      requests: 1,
+      units: 100,
+      durationMs: 1000,
+    }),
+  );
+  const exhausted = await f.enqueue();
+  await f.run(exhausted.id);
+  assert.equal((await f.jobs.get(f.a, exhausted.id)).error, "speech_budget");
+  await admin("account_administration").insert({
+    accountId: f.a.accountId,
+    access: "unlimited",
+  });
+  const allowed = await f.enqueue();
+  await f.run(allowed.id);
+  assert.equal((await f.jobs.get(f.a, allowed.id)).status, "succeeded");
+  assert.equal(calls, 1);
+  assert.equal(
+    (await f.usage())!.metrics.synthesis.month,
+    1000 + mp3DurationMs(audio),
+  );
+  assert.equal((await f.usage())!.metrics.synthesis.monthlyLimit, null);
+  const service = new memory.MemoryService(
+    db,
+    "tier-test-cursor-secret-32-characters",
+  );
+  const changed = await service.remember(
+    f.a,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      id: f.note.id,
+      expectedVersion: f.note.version,
+      content: "Changed synthetic lecture summary.",
+    }),
+  );
+  await tenant(db, f.a.accountId, (trx) =>
+    trx("speech_usage")
+      .where({ kind: "speech_synthesize" })
+      .update({ requests: 20 }),
+  );
+  const bounded = await f.jobs.enqueue(f.a, changed.id, {
+    id: randomUUID(),
+    version: changed.version,
+  });
+  await f.run(bounded.id);
+  assert.equal((await f.jobs.get(f.a, bounded.id)).error, "speech_budget");
+  assert.equal(calls, 1);
+});
+
 test("concurrent TTS final-slot admission cannot overspend while a provider is held", async () => {
   const audio = mp3Fixture(),
     duration = mp3DurationMs(audio);

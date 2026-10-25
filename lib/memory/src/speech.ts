@@ -542,7 +542,9 @@ export function speechHandlers(
                 ? Math.max(
                     0,
                     Math.min(
-                      metric.monthlyLimit - metric.month,
+                      metric.monthlyLimit === null
+                        ? Infinity
+                        : metric.monthlyLimit - metric.month,
                       metric.dailyLimit === null
                         ? Infinity
                         : metric.dailyLimit - metric.today,
@@ -556,7 +558,8 @@ export function speechHandlers(
           (!billing && (usage?.units ?? 0) + current.units > limit) ||
           reservation <= 0 ||
           (metric &&
-            (metric.month + reservation > metric.monthlyLimit ||
+            ((metric.monthlyLimit !== null &&
+              metric.month + reservation > metric.monthlyLimit) ||
               (metric.dailyLimit !== null &&
                 metric.today + reservation > metric.dailyLimit)))
         )

@@ -30,7 +30,7 @@ export const billingUnits = {
   synthesis: "milliseconds",
 } as const;
 export type BillingUsage = {
-  plan: "free" | "pro";
+  plan: "free" | "pro" | "unlimited";
   dailyResetAt: string;
   monthlyResetAt: string;
   metrics: Record<
@@ -39,7 +39,7 @@ export type BillingUsage = {
       today: number;
       month: number;
       dailyLimit: number | null;
-      monthlyLimit: number;
+      monthlyLimit: number | null;
     }
   >;
 };

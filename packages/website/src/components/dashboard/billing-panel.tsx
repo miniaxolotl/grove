@@ -146,7 +146,13 @@ export function BillingPanel() {
           <section className="billing-plan" aria-label="Current plan">
             <div>
               <div className="billing-plan-name">
-                <h3>{usage?.plan === "pro" ? "Pro" : "Free"}</h3>
+                <h3>
+                  {usage?.plan === "unlimited"
+                    ? "Unlimited"
+                    : usage?.plan === "pro"
+                      ? "Pro"
+                      : "Free"}
+                </h3>
                 <span className="billing-current">Current plan</span>
               </div>
               {subscription ? (
@@ -211,7 +217,9 @@ export function BillingPanel() {
               <dl className="billing-metrics">
                 {(Object.keys(labels) as BillingMetric[]).map((metric) => {
                   const value = usage.metrics[metric];
-                  const monthlyFull = value.month >= value.monthlyLimit;
+                  const monthlyFull =
+                    value.monthlyLimit !== null &&
+                    value.month >= value.monthlyLimit;
                   const dailyFull =
                     value.dailyLimit !== null &&
                     value.today >= value.dailyLimit;
@@ -223,22 +231,27 @@ export function BillingPanel() {
                         <span>{units(metric, value.month, timedSpeech)}</span>
                         <span className="billing-caption">
                           {" "}
-                          / {units(metric, value.monthlyLimit, timedSpeech)}
-                          {suffix(metric, timedSpeech, value.monthlyLimit)}
+                          /{" "}
+                          {value.monthlyLimit === null
+                            ? "Unlimited"
+                            : units(metric, value.monthlyLimit, timedSpeech)}
+                          {suffix(metric, timedSpeech, value.monthlyLimit ?? 0)}
                         </span>
                       </dd>
-                      <dd className="billing-meter">
-                        <meter
-                          aria-labelledby={labelId}
-                          aria-valuetext={`${units(metric, value.month, timedSpeech)} of ${units(metric, value.monthlyLimit, timedSpeech)}${suffix(metric, timedSpeech, value.monthlyLimit)} used`}
-                          min={0}
-                          max={Math.max(1, value.monthlyLimit)}
-                          value={Math.min(
-                            value.month,
-                            Math.max(1, value.monthlyLimit),
-                          )}
-                        />
-                      </dd>
+                      {value.monthlyLimit !== null ? (
+                        <dd className="billing-meter">
+                          <meter
+                            aria-labelledby={labelId}
+                            aria-valuetext={`${units(metric, value.month, timedSpeech)} of ${units(metric, value.monthlyLimit, timedSpeech)}${suffix(metric, timedSpeech, value.monthlyLimit)} used`}
+                            min={0}
+                            max={Math.max(1, value.monthlyLimit)}
+                            value={Math.min(
+                              value.month,
+                              Math.max(1, value.monthlyLimit),
+                            )}
+                          />
+                        </dd>
+                      ) : null}
                       {value.dailyLimit !== null ? (
                         <dd className="billing-metric-note">
                           <span>
@@ -262,7 +275,10 @@ export function BillingPanel() {
               </dl>
             </section>
           ) : null}
-          {state.enabled && !ongoing && state.prices.length ? (
+          {state.enabled &&
+          usage?.plan === "free" &&
+          !ongoing &&
+          state.prices.length ? (
             <section
               className="billing-upgrade"
               aria-labelledby="billing-pro-heading"
