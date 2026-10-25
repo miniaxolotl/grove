@@ -3,6 +3,7 @@ import { setTimeout } from "node:timers/promises";
 import { tenant, type Knex } from "@lib/database";
 import {
   InferenceError,
+  mp3DurationMs,
   type SpeechProviders,
   type SpeechSynthesis,
 } from "@lib/ai";
@@ -23,7 +24,7 @@ import {
 import type { ArtifactStore } from "./exports.ts";
 import { fingerprint } from "./tasks.ts";
 import { budgetedInference } from "./processing.ts";
-import { billingAllows } from "./billing-quotas.ts";
+import { billingUsage } from "./billing-quotas.ts";
 import {
   TaskError,
   taskTransaction,
@@ -496,6 +497,7 @@ export function speechHandlers(
         return validate(trx, row, providers);
       });
     let slot = false;
+    let durationReservation: { day: string; units: number } | undefined;
     const watcher = (async () => {
       try {
         while (!monitoring.signal.aborted) {
@@ -530,23 +532,48 @@ export function speechHandlers(
           row.kind === "speech_transcribe"
             ? speechLimits.dailyAudioMs
             : speechLimits.dailyCharacters;
+        const billing = await billingUsage(db, trx, row.accountId!);
+        const metric = billing?.metrics[key.provider];
+        const timed = row.kind === "speech_synthesize";
+        const reservation = timed
+          ? Math.min(
+              speechLimits.maximumAudioMs,
+              metric
+                ? Math.max(
+                    0,
+                    Math.min(
+                      metric.monthlyLimit === null
+                        ? Infinity
+                        : metric.monthlyLimit - metric.month,
+                      metric.dailyLimit === null
+                        ? Infinity
+                        : metric.dailyLimit - metric.today,
+                    ),
+                  )
+                : Infinity,
+            )
+          : current.units;
         if (
           (usage?.requests ?? 0) >= speechLimits.dailyRequests ||
-          (usage?.units ?? 0) + current.units > limit ||
-          !(await billingAllows(
-            db,
-            trx,
-            row.accountId!,
-            key.provider,
-            current.units,
-          ))
+          (!billing && (usage?.units ?? 0) + current.units > limit) ||
+          reservation <= 0 ||
+          (metric &&
+            ((metric.monthlyLimit !== null &&
+              metric.month + reservation > metric.monthlyLimit) ||
+              (metric.dailyLimit !== null &&
+                metric.today + reservation > metric.dailyLimit)))
         )
           throw new TaskError("speech_budget", false);
-        await trx.raw(
-          `INSERT INTO speech_usage(account_id,kind,day,requests,units) VALUES(?,?,(now() AT TIME ZONE 'UTC')::date,1,?)
-          ON CONFLICT(account_id,day,kind) DO UPDATE SET requests=speech_usage.requests+1,units=speech_usage.units+excluded.units`,
-          [row.accountId, row.kind, current.units],
+        const {
+          rows: [counter],
+        } = await trx.raw(
+          `INSERT INTO speech_usage(account_id,kind,day,requests,units,duration_ms) VALUES(?,?,(now() AT TIME ZONE 'UTC')::date,1,?,?)
+          ON CONFLICT(account_id,day,kind) DO UPDATE SET requests=speech_usage.requests+1,units=speech_usage.units+excluded.units,duration_ms=speech_usage.duration_ms+excluded.duration_ms
+          RETURNING day::text`,
+          [row.accountId, row.kind, current.units, timed ? reservation : 0],
         );
+        if (timed)
+          durationReservation = { day: counter.day, units: reservation };
       });
       const result = await budgetedInference(
         db,
@@ -583,6 +610,9 @@ export function speechHandlers(
           const bytes = await provider.synthesize(current.text, signal);
           if (!bytes.length || bytes.length > speechLimits.audioBytes)
             throw new TaskError("speech_audio_limit", false);
+          const durationMs = mp3DurationMs(bytes);
+          if (!durationReservation || durationMs > durationReservation.units)
+            throw new TaskError("speech_budget", false);
           await check();
           signal.throwIfAborted();
           const objectKey = `narration/${row.accountId}/${row.id}/${randomUUID()}.mp3`;
@@ -603,6 +633,7 @@ export function speechHandlers(
           return {
             key: objectKey,
             bytes: bytes.length,
+            durationMs,
             sha256: createHash("sha256").update(bytes).digest("hex"),
           };
         },
@@ -611,6 +642,20 @@ export function speechHandlers(
       await taskTransaction(db, row, async (trx) => {
         const source = await validate(trx, row, providers);
         if (row.kind === "speech_synthesize" && "key" in result) {
+          // Settle only with a valid source/lease and successful publication. Lost,
+          // failed or cancelled attempts keep their conservative reservation.
+          if (!durationReservation || typeof result.durationMs !== "number")
+            throw new TaskError("speech_budget", false);
+          await trx("speech_usage")
+            .where({
+              accountId: row.accountId,
+              kind: row.kind,
+              day: durationReservation.day,
+            })
+            .decrement(
+              "durationMs",
+              durationReservation.units - result.durationMs,
+            );
           // Publish retention and the receipt atomically, only after the write and
           // lease/source fences pass. Failed attempts retain their one-day expiry.
           await trx("export_objects")

@@ -1,5 +1,61 @@
 # Verification
 
+## System administration
+
+Run `tests/src/system-admin.test.ts` and `system-admin-migration.test.ts` with the
+disposable non-owner API/worker URLs below, plus `recovery.test.ts`. They cover
+website-only roles, current account/subject/session checks, exact-email/user-ID
+lookup after authorization, agent/ordinary-user denial, role/grant revocation,
+last-admin protection, version conflicts/concurrent edits and audit/idempotent
+retries. Runtime/worker direct writes, audit access and bootstrap are denied;
+non-superuser-owner functions expose only account metadata, not private notes.
+The populated024→025 upgrade fingerprints every existing table and rejects inherited
+table/function privileges. Restore replays current role/grant authority rather
+than resurrecting the backup's admin/unlimited privileges. Actual generation
+dispatch exceeds a plan allowance with unlimited but still obeys independent
+non-generation budgets. Integrated duration/research regressions verify unlimited
+does not treat a null allowance as zero, while speech attempts and global research
+spend still stop dispatch.
+
+For browser verification use the actual AdminPanel and production CSS through the
+isolated dashboard fixture. Use synthetic Clerk identities and a disposable real
+API/database, not owner notes. Check exact-email search, all three access options,
+separate system roles, reason validation, keyboard dismissal/focus, lost-response
+same-operation retries and audit-once behavior, revoke/refresh concealment and
+1440/390/320px accessibility/overflow. Do not add production authentication bypasses.
+See [reviewed captures](../design/screenshots/system-admin/README.md).
+
+## Tier limits and audio-duration metering
+
+`billing-limits.test.ts` pins all defaults explicitly and compares environment,
+example and Compose values, including zero overrides and rejected legacy TTS units.
+`speech-duration.test.ts` counts MPEG-1/2/2.5 Layer III samples across real-shaped
+frames, ignores claimed Xing duration and rejects invalid/truncated/free-bitrate
+streams. Tests use synthetic frames, not personal/provider audio.
+
+With the disposable non-owner URLs below, run:
+
+```sh
+pnpm exec tsx --test tests/src/billing-limits.test.ts tests/src/billing.test.ts tests/src/tier-quotas.test.ts tests/src/speech-duration.test.ts tests/src/speech-duration-migration.test.ts tests/src/speech-jobs.test.ts tests/src/speech-cache.test.ts tests/src/conversations.test.ts
+```
+
+Coverage separates daily/monthly guards, tests Free/Pro API/worker final-slot
+admission, preserves embedding capacity after generation exhaustion and keeps
+flag-off installation limits. Pro research must dispatch above the old daily guard
+but stop at the advertised tier cap without raising the global spend budget.
+TTS tests hold concurrent providers, settle exact decoded duration, retain failed/
+invalid/overrun reservations, reuse audio without another charge and preserve
+character counters. The populated 024→026 upgrade checks non-owner API/worker RLS
+and conservative handling of old writers. Never reset retained databases for this.
+
+Use the actual Billing fixture with the API's explicit `units` metadata. Check
+Free/Pro independent 2/8-hour meters, 1,000/5,000 daily AI, 20/100 daily research,
+upgrade disclosure, zero/custom/exhausted allowances, refresh, old character-based
+responses, errors and flag-off hiding. Review 1440/390/320px, keyboard/focus, WCAG
+A/AA and overflow in Chromium and supported iPhone/WebKit. Save only relevant
+reviewed captures. The [cost report](tier-costs.md) is rate arithmetic, not paid-call
+or production-invoice evidence; no paid provider calls are needed by these tests.
+
 ## Remembered Ask Grove tools and history
 
 `tests/src/conversations.test.ts` covers nonempty partial account tool writes,
@@ -47,7 +103,10 @@ opt-in, self-host fallback, missing credentials/storage and master speech disabl
 It verifies exact optional public proof, content type/cache/nosniff, HEAD and wrong
 method/path handling, zero identity/database calls, private MCP's unchanged 401,
 bounded unchanged token validation, and titles/annotations through the actual MCP
-SDK. Public verification must never become an account-approval shortcut.
+SDK. Both the top-level title and `annotations.title` must match for every tool.
+A self-contained-description regression rejects cross-tool recommendations while
+retaining metadata-replacement, history and reversible-archive behavior wording.
+Public verification must never become an account-approval shortcut.
 
 With the disposable database/non-owner roles below, run
 `pnpm exec tsx --test tests/src/hosted-chat.test.ts tests/src/connect.test.ts tests/src/memory-tools.test.ts`.

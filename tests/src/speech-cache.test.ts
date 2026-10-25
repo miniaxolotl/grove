@@ -14,6 +14,7 @@ import {
 import { rememberSchema, type Principal } from "@lib/shared/contracts";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { localArtifacts } from "../../packages/api/src/artifacts.ts";
+import { mp3Fixture } from "./fixtures/speech-audio.ts";
 
 const databaseName = `grove_speech_cache_${randomUUID().replaceAll("-", "")}_test`;
 const target = (input: string) => {
@@ -30,7 +31,7 @@ const service = new MemoryService(
   db,
   "speech-cache-test-cursor-secret-32-characters",
 );
-const bytes = Buffer.concat([Buffer.from("ID3"), Buffer.alloc(200)]);
+const bytes = mp3Fixture();
 let calls = 0;
 let alternateEnabled = true;
 const providers = {

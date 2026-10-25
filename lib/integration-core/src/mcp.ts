@@ -27,6 +27,7 @@ export function createMemoryMcp(execute: ToolExecutor) {
         description: tool.description,
         inputSchema: tool.schema.shape,
         annotations: {
+          title: tool.title,
           readOnlyHint: "readOnly" in tool && tool.readOnly,
           destructiveHint: "destructive" in tool && tool.destructive,
           idempotentHint: true,

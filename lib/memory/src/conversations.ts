@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { billingAllows } from "./billing-quotas.ts";
+import { billingUsage } from "./billing-quotas.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import { MemoryModel, withDatabaseSignal, type Knex } from "@lib/database";
 import { InferenceError } from "@lib/ai";
@@ -988,13 +988,17 @@ export class Conversations {
           );
           if (previous) return { cached: previous.sources };
           if (runs.length >= 6) return { limited: true };
+          const billing = await billingUsage(
+            this.service.db,
+            trx,
+            principal.accountId,
+          );
+          const usage = billing?.metrics.research;
           if (
-            !(await billingAllows(
-              this.service.db,
-              trx,
-              principal.accountId,
-              "research",
-            ))
+            usage &&
+            ((usage.dailyLimit !== null && usage.today >= usage.dailyLimit) ||
+              (usage.monthlyLimit !== null &&
+                usage.month >= usage.monthlyLimit))
           )
             return { limited: true };
           const { rows } = await trx.raw(
@@ -1002,7 +1006,7 @@ export class Conversations {
             [
               request.provider,
               operation,
-              this.service.researchLimits.dailyCalls,
+              usage ? usage.dailyLimit : this.service.researchLimits.dailyCalls,
               this.service.researchLimits.monthlyMicrodollars,
             ],
           );

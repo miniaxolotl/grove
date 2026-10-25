@@ -1,7 +1,8 @@
 # Billing and usage
 
 Grove Cloud starts on **Free**. **Pro** increases AI allowances through a Stripe
-subscription; it does not sell a prepaid credit balance. Pro starts at **$5 USD/month**.
+subscription; it does not sell a prepaid credit balance. Pro starts at an
+**introductory $5 USD/month**. A future price change is a separate owner decision.
 The Vercel number flag `billing-pro-monthly-usd` controls the displayed amount and
 the amount charged for new monthly subscriptions. No yearly price is offered in
 the configured Cloud launch.
@@ -16,31 +17,65 @@ review the new amount after that checkout expires before starting another.
 
 | Usage                       | Free                    | Pro                      |
 | --------------------------- | ----------------------- | ------------------------ |
-| AI generation requests      | 10/day; 100/month       | 200/day; 2,000/month     |
-| Web research provider calls | 3/day; 10/month         | 20/day; 200/month        |
-| Transcription               | 10 minutes/month        | 120 minutes/month        |
-| Read-aloud text             | 10,000 characters/month | 200,000 characters/month |
+| AI generation requests      | 1,000/day; 31,000/month | 5,000/day; 155,000/month |
+| Web research provider calls | 20/day; 620/month       | 100/day; 3,100/month     |
+| Transcription               | 2 hours/month           | 8 hours/month            |
+| Read aloud                  | 2 hours/month           | 8 hours/month            |
 
 These are configurable launch defaults, not measured cost guarantees. Generation
 includes background titles, organization, relationships, summaries and Ask Grove.
 One visible action may reserve several provider requests. Embeddings and basic
 classification do not consume the generation allowance. Transcription measures
-original duration in milliseconds; read aloud measures JavaScript UTF-16 units.
-All voices share one synthesis allowance.
+original duration in milliseconds; read aloud counts the decoded MPEG frame duration
+of newly generated audio, not text length or time spent replaying it. Its budget
+is independent of transcription. All voices share one synthesis allowance. Monthly
+AI/research limits allow 31 daily allowances without claiming reserved provider
+capacity. The [cost report](development/tier-costs.md) distinguishes published rates,
+calculated usage scenarios and actual invoices; the intro price is not a margin claim.
+
+System admins can grant complimentary Pro or unlimited access independently of a
+subscription. Unlimited removes these plan quotas, not installation-wide safety
+limits. Explicit grants remain effective while purchases are hidden; the billing
+flag does not revoke them. Grants never alter or cancel a subscription. See
+[system administration](system-administration.md).
 
 Counters reserve **attempts**, including retries, before dispatch. Uncertain,
 failed or cancelled provider calls do not promise refunds. Reusing a valid cached
 result does not reserve another attempt. Research has both per-account allowances
 and an independent installation-wide estimated monthly provider-spend cap.
 
+TTS reserves a conservative duration before dispatch, bounded by the remaining
+allowance and the maximum 3 MiB MP3 response at the supported minimum bitrate
+(52 minutes 25.8 seconds). Successful, source/lease-valid publication settles to
+decoded frame duration rounded up to the next millisecond. Encoded frame padding
+is included; duration tags cannot reduce the frame count. Invalid audio or audio
+longer than the reservation cannot publish. Failed, cancelled, stale, crashed or
+uncertain attempts retain their reservation; an overrun can incur provider costs
+without usable output. Cache hits/replaying audio do not generate or charge again.
+An in-flight reservation can temporarily consume the available balance.
+
+Migration 026 adds a duration counter **without changing retained character or
+attempt counters**. Historical attempts with unknown duration are conservatively
+charged the same maximum per attempt; old character-only writers also accrue this
+bound rather than bypassing the new quota. Historical usage can therefore exhaust
+the new time budget until the normal calendar reset. This is not a fabricated exact
+conversion from characters and does not delete or reset retained usage.
+
 Allowances reset at **UTC midnight** and the **first of each UTC calendar month**,
 not the subscription renewal date. They do not roll over. The Billing page shows
 monthly usage meters, daily counts and short local reset dates. Usage
 already recorded in the current month counts when a rollout or upgrade starts.
-Daily protections still apply: 180 API operations/minute/account, 2,000 total AI
-attempts/day/account, and 20 speech attempts/day/type with 10 transcription minutes
-or 60,000 synthesis units/day. A larger monthly allowance does not remove these
-caps. Shared provider limits may also stop dispatch earlier.
+Daily protections still apply: 180 API operations/minute/account and 20 speech
+attempts/day/type. In flagged Cloud, tier generation/research allowances replace
+the old per-account generation/research guard; non-generation AI work retains a
+separate 2,000-attempt/day guard by default. Speech uses its monthly tier budget
+instead of the legacy daily duration/character guard. Shared provider capacity,
+installation-wide research spend, bounded per-item input and response limits remain.
+In self-hosted/unconfigured/flag-off mode, the original total AI/day, research/day,
+10 transcription minutes/day and 60,000 synthesis units/day protections remain.
+The existing recording path still accepts up to 60 seconds per item, and read aloud
+up to 3,000 text units per request: these are cumulative monthly allowances, **not
+support for uploading/transcribing a complete 90-minute lecture in one request**.
 
 Writing, reading, editing, basic search and exporting remain available at the AI
 allowance. Generation workers defer at their existing daily retry boundary rather
@@ -95,7 +130,8 @@ cannot override API/worker authorization or entitlements.
 
 `BILLING_CONFIGURED=false` leaves billing unconfigured and self-hosting unchanged.
 When configured, the flag controls subscriptions, all billing information and
-plan quota enforcement. **Off hides Settings navigation, returns 404 for the billing
+ordinary subscription-based plan quota enforcement. Explicit admin grants remain
+effective as described above. **Off hides Settings navigation, returns 404 for the billing
 page/API/portal, and removes previously loaded billing details on refresh.**
 The open Billing page refreshes every minute. Turning it off resumes pre-existing
 safety limits; it does not cancel subscriptions or stop Stripe renewals. Webhooks
@@ -140,12 +176,21 @@ Vercel, the website can also use the matching `FLAGS` SDK key.
 Allowances are configured by `BILLING_{FREE,PRO}_GENERATION_{DAILY,MONTHLY}`,
 `BILLING_{FREE,PRO}_RESEARCH_{DAILY,MONTHLY}`,
 `BILLING_{FREE,PRO}_TRANSCRIPTION_MONTHLY_MS` and
-`BILLING_{FREE,PRO}_SYNTHESIS_MONTHLY_CHARACTERS`. Zero stops that metric. Defaults
-and Compose forwarding are in `.env.example` and `docker-compose.yml`.
+`BILLING_{FREE,PRO}_SYNTHESIS_MONTHLY_MS`. Speech defaults are 7,200,000 ms Free
+and 28,800,000 ms Pro **for each metric**. Zero stops that metric. Defaults and
+Compose forwarding are in `.env.example` and `docker-compose.yml`. Shared and
+parsed defaults come from the same catalog; explicit overrides remain authoritative.
+Old `SYNTHESIS_MONTHLY_CHARACTERS` settings are rejected with a configuration error;
+remove them and choose duration values explicitly, never rename a numeric value
+without changing its unit. API and worker settings must match. A source-default
+change does not overwrite deployed environment values or activate billing.
 
 ## API
 
 - `GET /v1/billing`: subscription status, Stripe prices, plan usage and reset dates.
+  `units` explicitly identifies requests, calls and milliseconds; both speech meters
+  display hours. Old responses without duration metadata retain character display
+  for read aloud rather than being mislabelled as hours. Deploy API before website.
 - `POST /v1/billing/checkout`: `{ "interval": "month", "expectedAmount": 500 }`;
   returns a Stripe-hosted URL. Flag-disabled requests are rejected. The legacy
   fixed-price path additionally supports a configured yearly interval.
@@ -159,6 +204,8 @@ and Compose forwarding are in `.env.example` and `docker-compose.yml`.
 Authenticated responses are private/no-store. The website proxy allowlists only
 these billing operations and checks request origin for writes.
 
-See [rollout](deploy.md#billing-rollout-023) and [verification](development/testing.md).
+See [tier rollout](deploy.md#tier-allowances-and-speech-duration-rollout-026),
+[initial billing setup](deploy.md#billing-rollout-023) and
+[verification](development/testing.md).
 The [post-merge review](development/billing-review.md) records recovered Checkout
 edge cases and distinguishes synthetic lifecycle coverage from paid acceptance.

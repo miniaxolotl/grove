@@ -36,7 +36,7 @@ export function createBilling(env: ServerEnvironment, service: MemoryService) {
     },
     synthesis: {
       daily: null,
-      monthly: env[`BILLING_${tier}_SYNTHESIS_MONTHLY_CHARACTERS`],
+      monthly: env[`BILLING_${tier}_SYNTHESIS_MONTHLY_MS`],
     },
   });
   const prices = {

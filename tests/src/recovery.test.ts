@@ -241,6 +241,18 @@ test("isolated restore replays current deletions and revocations without changin
         prefix: "fixture",
       });
     }
+    await source("account_administration").insert({
+      accountId: a,
+      role: "user",
+      access: "default",
+      version: 3,
+    });
+    await target("account_administration").insert({
+      accountId: a,
+      role: "system_admin",
+      access: "unlimited",
+      version: 1,
+    });
     await source("deleted_memories").insert({ accountId: a, id: forgotten });
     await source("assistance_requests")
       .where({ id: assistanceId })
@@ -306,6 +318,11 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    assert.deepEqual(
+      await target("account_administration").where({ accountId: a }).first(),
+      await source("account_administration").where({ accountId: a }).first(),
+      "restores must not resurrect revoked system roles or access grants",
+    );
     assert.equal(
       (await target("accounts").where({ id: a }).first()).readAloudVoiceId,
       "cedar",

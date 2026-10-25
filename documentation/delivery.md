@@ -13,6 +13,112 @@ these hosted results from the earlier direct-MCP tests and from directory approv
 Credentials stay in private portal fields. This is evidence only, with no runtime,
 schema, feature-switch or production deployment change.
 
+## System roles and complimentary access (25 October 2026 UTC)
+
+Settings → Admin provides exact-email/user-ID account lookup, separate system roles
+and Standard/Pro/Unlimited access, required reasons and recent changes. Versioned,
+audited operations retain retry identities; a lost response cannot duplicate a
+grant. Role discovery reuses the session-owned cache, while protected reads/writes
+always check current authority. Temporary discovery failures retain an explicit
+retry rather than falsely reporting role denial.
+
+Forward migration **025**, after speech-cache 024, creates no default admins. Narrow
+owner-held functions expose only account metadata; ordinary users, keys, OAuth
+agents and workers cannot manage roles or grants. Existing private-content RLS and
+Stripe subscription records are unchanged. Complimentary Pro/unlimited access is
+independent of purchases; unlimited preserves shared safety limits. Restore
+reconciliation cannot revive revoked admin/grant state. See the
+[contract](system-administration.md) and [rollout](deploy.md#system-administration-rollout-025).
+
+Integrated source `43ef855` includes Ask defaults/history #122 and passes **380 backend
+cases** (four optional-service skips), **nine artifacts**, root/site lint/types/builds,
+all **239 Chromium** scenarios and bundle budgets (Notes: **488,425 gzip bytes**). Fifty
+CI/release/provider contracts and pinned workflow lint pass. Twelve targeted
+admin/migration cases cover non-superuser ownership, inherited privilege denial,
+concurrent edits, idempotency, last-admin protection and session revocation during
+the global-lock wait. The last case first reproduced stale authorization, then
+passed with a fresh post-wait revocation check.
+
+Real-component journeys against a disposable API/PostgreSQL pass in Chromium and
+supported WebKit at 1440/390/320px: all grants, role promotion/revocation, same-payload
+lost-response retry with one audit, keyboard dismissal, denied-access concealment,
+WCAG A/AA and overflow/page-error checks. Both engines also pass after the final
+role-discovery retry refinement. [Six reviewed captures](design/screenshots/system-admin/README.md)
+contain synthetic accounts only. Native OpenCode/Claude/Codex smoke checks pass.
+
+Production readiness is separately recorded in private operator custody. The verified
+owner account is active; live database remains at 023 before rollout. An encrypted
+backup passes full archive decode/validation. Owner-approved read-only Spaces
+inspection confirms lifecycle expiry covers only `exports/` and legacy `speech/`, not
+`narration/`; existing scoped runtime narration read/write/delete passes and its
+synthetic object is removed. The temporary inspection key was privately saved and
+revoked with provider/Doppler readback. No bucket rules, live roles, billing flags,
+production schema or deployed source changed during feature verification.
+
+Conflict-resolution integration preserves tier PR **#123 (`187f2ea`)**, including
+025 → 026 migration order and duration-based meters. New regression-first cases
+prove unlimited generation/research/duration do not treat null allowances as zero;
+independent non-generation budgets, speech attempts and global research spending
+remain bounded. The combined backend passes **397 cases** (four optional skips)
+and nine artifacts. Admin and Free/Pro/Unlimited Billing journeys pass in both
+Chromium and supported WebKit at 1440/390/320px, including legacy-character display,
+unlimited meter concealment and no paid upsell for complimentary grants.
+
+## Self-contained directory tool metadata (25 October 2026)
+
+All 14 existing MCP tools publish the same human-readable top-level title and
+`annotations.title`. Three descriptions now describe only their own operation,
+retaining full-replacement metadata, authored history and reversible-archive
+semantics without cross-tool recommendations. No tool, schema, grant, owner-only
+check, source label or migration changes. Two regressions fail before the fix and
+all **10 directory/client-boundary cases** pass afterward through the real MCP SDK.
+Root lint, types, build and all **nine packed artifacts** pass. This is source verification, not a claim that
+production scanners have observed the new metadata or that Claude policy eligibility
+has been resolved. [Current hosted status and limits](hosted-chat.md#official-directory-submissions).
+
+## More generous Free/Pro allowances (24 October 2026)
+
+Free allows **1,000 generation requests and 20 research calls/day**; Pro allows
+**5,000 and 100/day**. Monthly defaults are 31 daily allowances. Transcription and
+read aloud independently receive **2 hours Free / 8 hours Pro per month**. Shared
+defaults, validated configuration and Compose agree, including explicit zero
+overrides. Cloud tier admission replaces blocking legacy account guards while
+self-hosted/flag-off limits and installation-wide research spend remain intact.
+
+Forward migration **026** adds synthesis duration beside retained character/attempt
+counters. Pre-dispatch reservations serialize across API/workers; valid publication
+settles to measured MPEG frame time. Failed/uncertain attempts retain reservations,
+cache hits/replays do not charge again, and unknown historical/old-writer attempts
+receive a conservative bound without deleting or resetting usage. Explicit API
+units support honest hour labels and legacy-response compatibility. The
+[rollout](deploy.md#tier-allowances-and-speech-duration-rollout-026) requires owner
+migration, renamed duration configuration and coordinated API/worker/site delivery;
+existing per-item recording limits do not become long-lecture ingestion support.
+
+Regression-first cases reproduced old defaults, blocking Pro guards, character
+accounting, concurrent TTS overspend and missing migration accounting before fixes.
+Final local verification passes **381 backend/service tests** (four optional
+RabbitMQ/S3 skips), **233 Chromium cases**, all **nine packaged artifacts**,
+root/site lint, types and builds, matching rendered API/worker Compose defaults and
+bundle budgets (Notes **489,087 gzip bytes**). Both-engine actual-component Billing
+journeys pass at 1440/390/320px, including WCAG A/AA, hour/legacy/custom units,
+exhaustion, checkout recovery, keyboard refresh, plan changes and flag-off hiding.
+[Four reviewed captures](design/screenshots/billing-tier-limits/README.md) show only
+the relevant desktop/phone states.
+
+The **$5 price is introductory**, not a margin guarantee. The
+[cost report](development/tier-costs.md) provides verified public rates, transparent
+full-use/course-use calculations, measured retained voice-sample sensitivity and
+missing actual-invoice/infrastructure inputs. No paid model calls, provider-state
+change, billing activation, production migration or deployment was performed.
+
+Integration of Ask tools/history **#122 (`e958a15`)** preserves both delivery and
+testing histories. The combined source passes **383 backend cases** (four optional
+skips), **239 Chromium cases**, nine artifacts, root/site lint/types/builds and
+bundle checks (Notes **489,196 gzip bytes**). Both-engine Billing journeys pass
+again; the four relevant captures remain byte-identical after the Ask-only styles
+and cache integration. No provider or rollout setting changed during integration.
+
 ## Remembered Ask tools and clearer history (24 October 2026)
 
 Tools now saves each changed switch to account defaults automatically, across
