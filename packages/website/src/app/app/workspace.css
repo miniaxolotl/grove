@@ -1870,7 +1870,7 @@ html:has(.grove-app) {
 }
 .search-match {
   background: #e3ebd7;
-  color: inherit;
+  color: var(--color-forest);
   border-radius: 2px;
 }
 @media (forced-colors: active) {

@@ -8,12 +8,16 @@ task handoffs. Browse, correct, archive, export, or delete them in your memory l
 **Memory and notebook tools:** recall, search, exact reads, partial edits, history,
 filing, archive/restore and deletion. [Tool reference](documentation/server.md#memory-and-notebook-tools).
 **One boundary:** every website and agent request goes through the authenticated API.
-**One database:** PostgreSQL, full-text search, and pgvector, with account-owned rows
+**One database:** PostgreSQL full-text search, pg_trgm and pgvector, with account-owned rows
 and non-owner runtime roles enforcing row-level security.
 
 [Website](https://usegrove.cloud) · [Tools/API](documentation/server.md) ·
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Delivery evidence](documentation/delivery.md)
+
+[Note search](documentation/search.md) prioritizes visible titles, supports
+final-word prefixes and conservative typo recovery, and shows source-backed
+passages without requiring an AI provider.
 
 Configurable [embedding, decision and generation providers](documentation/models.md)
 add semantic search, generated titles/tags, related memories, and source-linked

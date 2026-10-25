@@ -551,6 +551,15 @@ export class WorkspaceCache {
           ...data,
           pages: data.pages.map((page) => ({
             ...page,
+            ...(page.matches
+              ? {
+                  matches: Object.fromEntries(
+                    Object.entries(page.matches).filter(
+                      ([id]) => !notes.has(id),
+                    ),
+                  ),
+                }
+              : {}),
             items: page.items.flatMap((old) => {
               const note = notes.has(old.id) ? notes.get(old.id) : old;
               return note && belongs(note, filters) ? [note] : [];
@@ -592,6 +601,15 @@ export class WorkspaceCache {
             query.queryKey,
             {
               ...data,
+              ...(data.matches
+                ? {
+                    matches: Object.fromEntries(
+                      Object.entries(data.matches).filter(
+                        ([id]) => !notes.has(id),
+                      ),
+                    ),
+                  }
+                : {}),
               sources: data.sources.flatMap((old) => {
                 const note = notes.has(old.id) ? notes.get(old.id) : old;
                 return note && belongs(note, noteFilters()) ? [note] : [];
