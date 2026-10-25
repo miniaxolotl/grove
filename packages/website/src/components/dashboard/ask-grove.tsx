@@ -31,7 +31,8 @@ import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
 import { memoryExcerpt, memoryTitle } from "@/lib/memory-display";
 import { notebookPath } from "@/lib/notebooks";
-import { SearchPassage } from "./search-passage";
+import { SearchPassage, SearchTitle } from "./search-passage";
+import type { SearchMatches } from "@lib/shared/search";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
@@ -1069,6 +1070,7 @@ export function AskGrove({
                   <SourceList
                     query={search}
                     sources={visibleSearch.result!.sources}
+                    matches={visibleSearch.result!.matches}
                     onOpen={setSelected}
                   />
                 ) : (
@@ -1377,11 +1379,13 @@ function SourceList({
   onOpen,
   query,
   cited,
+  matches,
 }: {
   sources: Memory[];
   onOpen: (source: Pick<Memory, "id" | "version">) => void;
   query?: string;
   cited?: Set<string>;
+  matches?: SearchMatches;
 }) {
   const { projects } = useNotebooks();
   return (
@@ -1391,7 +1395,14 @@ function SourceList({
           <button onClick={() => onOpen(source)}>
             <span className="source-number">{index + 1}</span>
             <span>
-              <strong>{memoryTitle(source)}</strong>
+              <strong>
+                <SearchTitle
+                  title={memoryTitle(source)}
+                  query={query ?? ""}
+                  version={source.version}
+                  evidence={matches?.[source.id]}
+                />
+              </strong>
               {cited && (
                 <small>
                   Version {source.version} ·{" "}
@@ -1409,7 +1420,12 @@ function SourceList({
               )}
               <p>
                 {query !== undefined ? (
-                  <SearchPassage content={source.content} query={query} />
+                  <SearchPassage
+                    content={source.content}
+                    query={query}
+                    version={source.version}
+                    evidence={matches?.[source.id]}
+                  />
                 ) : (
                   memoryExcerpt(source)
                 )}

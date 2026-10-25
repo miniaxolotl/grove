@@ -15,7 +15,7 @@ import type { SourceSelection } from "./ask-sources";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { memoryTitle } from "@/lib/memory-display";
-import { SearchPassage } from "./search-passage";
+import { SearchPassage, SearchTitle } from "./search-passage";
 import { notebookPath } from "@/lib/notebooks";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useNotebooks } from "./notebooks-provider";
@@ -199,7 +199,14 @@ function SearchDialog({ close }: { close: () => void }) {
                 >
                   <FileText size={17} />
                   <span>
-                    <strong>{memoryTitle(note)}</strong>
+                    <strong>
+                      <SearchTitle
+                        title={memoryTitle(note)}
+                        query={search}
+                        version={note.version}
+                        evidence={searchQuery.data?.matches?.[note.id]}
+                      />
+                    </strong>
                     <small>
                       {notebookPath(projects, note.projectId)
                         .map((p) => p.name)
@@ -210,6 +217,8 @@ function SearchDialog({ close }: { close: () => void }) {
                         content={note.content}
                         query={search}
                         length={140}
+                        version={note.version}
+                        evidence={searchQuery.data?.matches?.[note.id]}
                       />
                     </p>
                   </span>

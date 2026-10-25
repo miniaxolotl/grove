@@ -104,7 +104,9 @@ export const listSchema = z
     tag: z.string().trim().min(1).max(40).optional(),
     sourceAgent: sourceSchema.shape.agent.removeDefault().optional(),
     updatedAfter: z.iso.datetime().optional(),
-    sort: z.enum(["updated_desc", "updated_asc", "created_desc"]).optional(),
+    sort: z
+      .enum(["updated_desc", "updated_asc", "created_desc", "relevance"])
+      .optional(),
     lifetime: z.enum(["permanent", "ephemeral"]).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
@@ -249,6 +251,7 @@ export type Principal = {
   capabilities: Capability[];
 };
 export type Page<T> = {
+  matches?: import("./search.ts").SearchMatches;
   visit?: {
     projectId: string;
     token: string;
@@ -260,6 +263,7 @@ export type Page<T> = {
   searchMode?: "hybrid" | "lexical";
 };
 export type RecallResult = {
+  matches?: import("./search.ts").SearchMatches;
   items: Memory[];
   mode: "hybrid" | "lexical" | "profile";
   contentVersion: number;

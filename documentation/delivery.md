@@ -1,5 +1,40 @@
 # Delivery evidence
 
+## Title-first, prefix and typo-tolerant note search (25 October 2026)
+
+Library searches and recall/source search share visible-title tiers, additive
+final-term prefixes and scoped `pg_trgm` recovery. A full-scope 40-match lexical
+shortfall controls fuzzy expansion, independently of semantic matches. Explicit
+date sorts, strict quotes/OR/exclusions and the existing body vector/relationship
+queries are preserved. Current revision/profile/preferences guard generated titles.
+
+Signed relevance cursors bind a one-statement matched-set fingerprint and search
+mode; keyword fallback survives allowance/provider recovery. The workspace can
+restart a stale traversal. Query/version-bound title/snippet ranges render as
+escaped text, not headline HTML; typo/semantic-only excerpts remain unmarked.
+Recall counts metadata against its existing budget. Migration029 installs the
+extension and invoker-only title resolver without rewriting retained data/indexes.
+See [behavior](search.md) and [owner rollout](deploy.md#search-quality-rollout).
+
+Local verification after integrating development `54f7688` passes **458 backend cases** (four optional S3/broker skips),
+including **18 focused search/migration/REST cases**, all **ten artifacts**, root/site
+lint/types/builds, bundle budgets and **34 release/deployment contracts**. The
+telemetry-enabled Notes entry is **492,274 gzip bytes** (build `yDoWpWVutEy0vjDUXdefw`), with the editor deferred.
+Native OpenCode 2.1.3, Claude Code 2.1.309 and Codex 0.164.0 qualification passes.
+All **244 Chromium** cases and **eight focused touch/mobile WebKit** cases pass;
+an earlier focused repeat also passed eight Chromium cases. [Four reviewed synthetic captures](design/screenshots/search-quality/README.md)
+cover 1440/390/320px, accessible marks and honest typo excerpts. No production
+migration, provider change, release or deployment is performed by source delivery.
+
+The final backend repeat ran the unchanged suite with Node 24 in pinned Noble,
+using task-only home-backed temporary storage after the host `/tmp` user quota
+caused file-write failures. No assertion, timeout or database policy was relaxed.
+
+[Scale observations](development/search-quality-results.md) record common-query
+maxima around185ms at10k eligible +10k other-tenant notes, but typo/no-match
+scans remain~527–779ms in the final local run. Five warm samples are regression
+observations, not production p95/capacity or a50k/larger-note qualification.
+
 ## Human-readable agent notes and shared tool guidance (25 October 2026)
 
 Shared note-authoring instructions now request concise, focused, human-readable
@@ -107,7 +142,7 @@ partial/omitted coverage. Selected scope, supplied revisions and citations are
 distinct. Selected-note edit/merge previews retain Apply/Undo; broader mutations
 use ordinary questions. [Contract](explicit-context.md) records the limits.
 
-Source **`9e9600d`** adds forward migration **029 after 028**, preserving old turn
+Source **`9e9600d`** adds forward migration (now **030 after search quality 029**), preserving old turn
 columns and RLS. Runtime readiness checks the nullable context column; API/worker
 must precede the website after an explicit owner migration. No retained schema,
 provider, billing flag or production deployment was changed.
@@ -152,6 +187,18 @@ from `fe0b383`; the reviewed captures and earlier both-engine journeys still app
 Rebuild **`2K6m1-avTTpV_ecoc-Ufg`** records **491,637 gzip bytes** for Notes.
 The additional local native-host smoke stopped at npm extraction with a temporary
 storage write error (`-122`); hosted CI must qualify the unchanged native suite.
+
+The subsequent follow-up integrates search-quality development **`d8d78df`**
+(#144). Search retains migration 029; the unapplied context migration is now
+**`20261025_030_conversation_context`**. A new ordering regression demonstrated
+red/green, and a fresh disposable database verifies the full sequence without
+rewriting earlier fixture history. Ask preserves search title/passage evidence
+alongside selected/provided/cited distinctions. Fresh verification passes
+**474 backend cases/four optional skips**, **10 artifacts**, **244 Chromium** and **18 focused WebKit**
+cases (Ask/layout/search), root/site static/build gates, 34 contracts and bundle
+budgets. Both-engine source/draft/replay/abstention/IME/touch journeys pass; seven
+captures were refreshed/reviewed against build **`J4mEDYRWCDRlQZxNEuBUm`**. Notes
+entry is **492,277 gzip bytes**. No production migration or deployment occurred.
 
 ## Admin interface polish (25 October 2026)
 

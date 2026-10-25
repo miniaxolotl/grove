@@ -69,3 +69,15 @@ engine plus 390px draft/replay/abstention, root/site static/build gates, nine
 artifacts, 34 contracts and bundle budgets. Seven captures were refreshed against
 build `bUArWXbVxQehegDmHerVO`; Notes entry is 491,638 gzip bytes. Only delivery prose
 conflicted, and both feature records are retained. No production operation occurred.
+
+The follow-up integrates note-writing #143 and search-quality #144. Both strict
+context instructions and shared prose policy remain; search-result title/passage
+evidence and selected-source citation status coexist. Context is resequenced to
+**030 after search 029** with a demonstrated red/green order regression. A newly
+created disposable database verifies the combined history without resetting the
+earlier fixture. Fresh backend passes 474/four optional skips; all 10 artifacts,
+244 Chromium, 18 focused WebKit cases (Ask/layout/search), both-engine source-selection and
+draft/replay/abstention/IME/touch journeys pass. Seven captures were reviewed
+against build `J4mEDYRWCDRlQZxNEuBUm`; Notes entry is 492,277 gzip bytes. Local
+native extraction hit tmp storage error -122 on the previous integration, while
+its hosted native suite passed; exact-head hosted gates must qualify this source.

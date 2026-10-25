@@ -63,9 +63,13 @@ finish saving before read aloud; shared readers never initiate inference.
   note type, topic, source, updated date, retention and sorting in one panel.
   Queries stay in POST bodies. Sorting and filtering apply to the entire
   matching library; the note count shows the active notebook when one is chosen.
-  Search excerpts show a passage near matching words, with literal word highlights.
+  Relevance ranks displayed-title matches before body matches. Plain queries
+  support final-word prefixes and conservative typo recovery; explicit date
+  sorts stay selected. [Search behavior and limits](search.md) explain English
+  stemming, operators and supported corrections.
+  Search excerpts show a passage near proven matches, with stem/prefix highlights.
   Global search and Ask Grove's Search tab show the notebook path. Semantic-only
-  matches show an ordinary excerpt rather than invented highlights.
+  and typo-only matches show an ordinary excerpt rather than invented highlights.
 - Create a notebook with the sidebar **+** and just a name. **Manage notebooks** opens all
   notebook settings. Each notebook's action menu includes **New sub-notebook**;
   expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains

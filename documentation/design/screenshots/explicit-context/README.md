@@ -1,11 +1,12 @@
 # Explicit context selection — reviewed captures
 
-Application source: **`63b4195`**, integrating subscription-badge development
-`06d8740` with feature source `9e9600d`. Production website build:
-**`bUArWXbVxQehegDmHerVO`**, Node 24.21.0 / pnpm 10.33.0. The build was made
-from the then-uncommitted merge files; the source commit includes those same
-components/styles. All seven captures and both-engine journeys were refreshed after
-integration; existing subscription controls and source selection are preserved.
+Application source: search-quality integration of **`d8d78df`** with **`dbe27d0`**,
+retaining subscription visibility, note-writing guidance and explicit context.
+Production website build: **`J4mEDYRWCDRlQZxNEuBUm`**, Node 24.21.0 / pnpm 10.33.0.
+The build uses the combined files before the merge commit. All seven captures and
+both-engine journeys were refreshed after integration; source citation status and
+search title/passage evidence are both preserved. Context migration is now 030,
+after merged search 029; old disposable migration history was not rewritten.
 
 Real Ask components use production CSS through the isolated dashboard fixture,
 backed by actual API/MemoryService/non-owner PostgreSQL and a labelled deterministic
@@ -33,8 +34,8 @@ Each engine additionally verifies 390px unsent selection retention across Notes/
 accepted-but-lost HTTP replies replaying exact body/context/ID, newer-draft safety,
 empty-evidence guidance and Add sources without automatic sending/broadening.
 
-Existing regressions pass **239 Chromium** and **10 focused WebKit** cases: seven
-Ask tools/history plus three reading/composer/sidebar scenarios. Distinct result
+Integrated regressions pass **244 Chromium** and **18 focused WebKit** cases: seven
+Ask tools/history, three reading/composer/sidebar and eight search scenarios. Distinct result
 directories prevent a previously observed trace-file ENOENT collision. An occupied
 fixture port and fixed OAuth callback were retried with free/separate resources.
 No assertions were weakened. The initial narrow-footer and enlarged New note

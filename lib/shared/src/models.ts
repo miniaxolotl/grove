@@ -145,6 +145,7 @@ export const answerSchema = z
   .strict();
 export type AskRequest = z.infer<typeof askSchema>;
 export type AskResult = {
+  matches?: import("./search.ts").SearchMatches;
   status: "ready" | "no_evidence" | "search" | "generation_disabled";
   answer: z.infer<typeof answerSchema> | null;
   sources: import("./contracts.ts").Memory[];

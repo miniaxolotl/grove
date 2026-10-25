@@ -102,7 +102,7 @@ the last two fields exclude individually pinned notes. Source validation returns
 `context_unavailable` (409), without revealing foreign source details or advancing
 the conversation. Existing source/version conflicts remain distinct.
 
-Migration `20261025_029_conversation_context` adds nullable turn metadata without
+Migration `20261025_030_conversation_context`, after search quality 029, adds nullable turn metadata without
 changing existing rows or RLS. See [rollout](deploy.md#explicit-context-rollout-029),
 [verification](development/testing.md#explicit-context-selection) and
 [evaluation scope](development/explicit-context-results.md). Paid-model quality

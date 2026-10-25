@@ -4,6 +4,17 @@ import { randomUUID } from "node:crypto";
 import { createDatabase, tenant, type Knex } from "@lib/database";
 import { migrations } from "../../lib/database/src/migrations.ts";
 
+test("context migration follows the merged search migration without reusing its slot", () => {
+  assert.deepEqual(
+    migrations.slice(-3).map((migration) => migration.name),
+    [
+      "20261025_028_action_usage",
+      "20261025_029_search_quality",
+      "20261025_030_conversation_context",
+    ],
+  );
+});
+
 test("context upgrade preserves old conversation rows and tenant isolation", async () => {
   const url = process.env.TEST_MIGRATION_DATABASE_URL!;
   assert(url && new URL(url).pathname.endsWith("_test"));
@@ -18,7 +29,7 @@ test("context upgrade preserves old conversation rows and tenant isolation", asy
   const admin = createDatabase(target(url));
   const db = createDatabase(target(process.env.TEST_DATABASE_URL!));
   try {
-    const before = migrations.filter((m) => m.name < "20261025_029");
+    const before = migrations.filter((m) => m.name < "20261025_030");
     const migrationSource: Knex.MigrationSource<(typeof migrations)[number]> = {
       getMigrations: async () => before,
       getMigrationName: (m) => m.name,
