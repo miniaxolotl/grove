@@ -1,5 +1,28 @@
 # Delivery evidence
 
+## Public reference discovery (25 October 2026)
+
+The website now builds `/docs` and five selected product references directly from
+committed Markdown, with own-domain links, heading anchors, metadata and sitemap
+entries. Unknown documents remain 404; private app/auth/API/share routes and all
+provider/crawler/telemetry settings are unchanged. The social-image metadata now
+matches the actual 1200×628 PNG. See [maintenance](website-discovery.md) and
+[three reviewed browser captures](design/screenshots/discovery/README.md).
+
+Root/site lint, types and builds, **248 browser cases**, **ten packed-artifact
+checks**, six mobile WCAG A/AA audits and eight internal document/fragment targets
+pass. New discovery/image cases were observed failing before implementation.
+WebKit checks also pass hub/reference navigation, keyboard code/table focus and
+320/390/1440px overflow checks in the pinned Linux browser image; the host lacks
+WebKit's system dependencies. A packaged-artifact repeat used the same image with
+home-backed `/tmp/opencode` after the host's shared temporary quota was exhausted.
+No test source, CI identity or application behavior was changed for those runs.
+The isolated full backend serial run passes **440 cases with four optional skips**.
+A prior four-worker run hit the unchanged export workload's 180/minute read limit;
+the case passed in isolation and serially without assertion, limit or backend
+source changes. This records source evidence, not a repaired load-test behavior,
+production rollout, crawler approval or indexing/AI-citation result.
+
 ## Human-readable agent notes and shared tool guidance (25 October 2026)
 
 Shared note-authoring instructions now request concise, focused, human-readable

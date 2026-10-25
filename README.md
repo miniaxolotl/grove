@@ -15,6 +15,11 @@ and non-owner runtime roles enforcing row-level security.
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Delivery evidence](documentation/delivery.md)
 
+The website's `/docs` reference hub builds directly from selected committed docs.
+See [public reference maintenance](documentation/website-discovery.md) for the
+allowlist, link handling and privacy boundaries. Source delivery does not imply
+that the new routes are already deployed.
+
 Configurable [embedding, decision and generation providers](documentation/models.md)
 add semantic search, generated titles/tags, related memories, and source-linked
 personal profiles, project briefs and task handoffs. Cloud uses full 4,096-dimensional
