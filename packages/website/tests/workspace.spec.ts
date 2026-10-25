@@ -22,6 +22,8 @@ import {
 import {
   conversationCreateSchema,
   conversationTurnSchema,
+  askToolsPatchSchema,
+  toolSettingsSchema,
   type Conversation,
 } from "@lib/shared/conversations";
 import {
@@ -4173,6 +4175,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
   );
   const calls: { path: string; body: Record<string, unknown> }[] = [];
   const chats = new Map<string, Conversation>();
+  let toolDefaults = { exa: true, tavily: false, organize: true };
   const pairs = new Map<string, NoteConnection>();
   for (const memory of initial)
     for (const ref of memory.enrichment?.relationships ?? []) {
@@ -4291,8 +4294,10 @@ async function fixture(page: Page, initial = [note, handoff]) {
       pair.reviewVersion++;
       data = { reviewVersion: pair.reviewVersion, dismissed: pair.dismissed };
     } else if (path === "/ask-tools") {
+      if (request.method() === "PATCH")
+        toolDefaults = { ...toolDefaults, ...askToolsPatchSchema.parse(body) };
       data = {
-        defaults: { exa: true, tavily: false, organize: true },
+        defaults: toolDefaults,
         available: { exa: true, tavily: true, organize: true },
         dailyCalls: 20,
       };
@@ -4329,7 +4334,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
             id,
             scope,
             title: "New conversation",
-            tools: { exa: true, tavily: false, organize: true },
+            tools: { ...toolDefaults },
             toolsVersion: 0,
             version: 0,
             updatedAt: new Date().toISOString(),
@@ -4340,14 +4345,16 @@ async function fixture(page: Page, initial = [note, handoff]) {
     } else if (path.startsWith("/conversations/")) {
       const chat = chats.get(path.split("/")[2])!;
       if (path.endsWith("/tools")) {
-        const input = body as {
-          tools: Conversation["tools"];
-          expectedVersion: number;
-        };
+        const input = toolSettingsSchema.parse(body);
         if (chat.toolsVersion !== input.expectedVersion) return conflict();
         chat.tools = input.tools;
         chat.toolsVersion++;
-        data = chat;
+        if (input.saveDefault)
+          toolDefaults = {
+            ...toolDefaults,
+            ...(input.defaultPatch ?? input.tools),
+          };
+        data = { ...chat, defaults: toolDefaults };
       } else if (request.method() === "DELETE") {
         chats.delete(chat.id);
         data = { deleted: true };
@@ -4609,6 +4616,163 @@ function savedHistory(
   };
 }
 
+test("Ask tools remember changes without creating empty chats across reload and fresh sessions", async ({
+  page,
+}) => {
+  const state = await fixture(page, []);
+  await page.goto(`${base}/app/ask`);
+  const menu = page.getByRole("button", {
+    name: "Ask Grove tools",
+    exact: true,
+  });
+  await menu.click();
+  await page.getByRole("switch", { name: /Web search/ }).click();
+  await expect(
+    page.getByRole("switch", { name: /Web search/ }),
+  ).not.toBeChecked();
+  await expect
+    .poll(
+      () =>
+        state.calls.filter((call) => call.path === "/ask-tools" && call.body)
+          .length,
+    )
+    .toBe(1);
+  expect(state.chats.size).toBe(0);
+  await page.reload();
+  await menu.click();
+  await expect(
+    page.getByRole("switch", { name: /Web search/ }),
+  ).not.toBeChecked();
+  await page.keyboard.press("Escape");
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        switchWorkspaceAccount: (user: string, session: string) => void;
+      }
+    ).switchWorkspaceAccount("fixture-user", "new-session"),
+  );
+  await menu.click();
+  await expect(
+    page.getByRole("switch", { name: /Web search/ }),
+  ).not.toBeChecked();
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("textbox", { name: "Ask about your notes" })
+    .fill("Find my garden notes");
+  await page
+    .getByRole("button", { name: "Send question", exact: true })
+    .click();
+  await expect.poll(() => state.chats.size).toBe(1);
+  expect([...state.chats.values()][0].tools.exa).toBe(false);
+});
+
+test("Ask tools preserve drafts through held and uncertain saves and keep old chats independent", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, []);
+  const old = savedHistory(
+    "A saved garden conversation",
+    "Which plants need shade?",
+  );
+  state.chats.set(old.id, old);
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let hold = true;
+  let fail = false;
+  await page.route("**/api/grove/ask-tools", async (route) => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    if (hold) {
+      entered.resolve();
+      await release.promise;
+    }
+    if (fail)
+      return route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: { code: "unavailable", message: "Tools could not be saved." },
+        },
+      });
+    return route.fallback();
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${base}/app/ask`);
+  const composer = page.getByRole("textbox", { name: "Ask about your notes" });
+  await composer.fill("Keep this unsent question");
+  const tools = page.getByRole("button", {
+    name: "Ask Grove tools",
+    exact: true,
+  });
+  await tools.click();
+  const web = page.getByRole("switch", { name: /Web search/ });
+  await web.click();
+  await entered.promise;
+  await expect(
+    page.getByRole("button", { name: "Send question", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "New conversation", exact: true }),
+  ).toBeDisabled();
+  await expect(web).toBeDisabled();
+  await expect(composer).toHaveValue("Keep this unsent question");
+  release.resolve();
+  hold = false;
+  await expect(page.locator(".ask-tools-status")).toHaveText(
+    "Saved for new chats.",
+  );
+  expect(state.chats.size).toBe(1);
+  await page.screenshot({
+    path: info.outputPath("tools-saved-phone.png"),
+    fullPage: true,
+  });
+  fail = true;
+  await web.click();
+  await expect(page.locator(".ask-tools-control [role=alert]")).toContainText(
+    "Refresh to confirm",
+  );
+  await expect(web).not.toBeChecked();
+  await expect(composer).toHaveValue("Keep this unsent question");
+  await expect(
+    page.getByRole("button", { name: "Send question", exact: true }),
+  ).toBeDisabled();
+  await page.screenshot({
+    path: info.outputPath("tools-failure-phone.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Refresh tools", exact: true })
+    .click();
+  await expect(page.locator(".ask-tools-control [role=alert]")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await page.locator(".ask-history-open").click();
+  await tools.click();
+  await expect(web).toBeChecked();
+  await page.getByRole("switch", { name: /Research/ }).click();
+  await expect(page.locator(".ask-tools-status")).toHaveText(
+    "Saved for new chats.",
+  );
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await tools.click();
+  await expect(web).not.toBeChecked();
+  await expect(page.getByRole("switch", { name: /Research/ })).toBeChecked();
+  expect(state.chats.get(old.id)?.tools).toEqual({
+    exa: true,
+    tavily: true,
+    organize: true,
+  });
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+});
+
 for (const width of [1440, 390, 320]) {
   test.describe(`conversation history at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
@@ -4627,7 +4791,7 @@ for (const width of [1440, 390, 320]) {
       );
       const work = savedHistory(
         "Website launch checklist and the remaining accessibility improvements",
-        "Review keyboard navigation and the smaller screens",
+        "Website launch checklist and the remaining accessibility improvements",
       );
       state.chats.set(recipes.id, recipes);
       state.chats.set(trip.id, trip);
@@ -4648,6 +4812,7 @@ for (const width of [1440, 390, 320]) {
         history.getByRole("heading", { name: "Today", exact: true }),
       ).toBeVisible();
       await expect(history).toContainText("Which garden should we visit");
+      await expect(history.locator(".ask-history-preview")).toHaveCount(2);
       expect(
         (
           await new AxeBuilder({ page })
@@ -4753,6 +4918,63 @@ for (const width of [1440, 390, 320]) {
     });
   });
 }
+
+test("conversation history keeps failed deletions retryable and removes old empty chats without losing notes", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const empty = { ...savedHistory("New conversation", "unused"), turns: [] };
+  state.chats.set(empty.id, empty);
+  let fail = true;
+  await page.route(`**/api/grove/conversations/${empty.id}`, async (route) => {
+    if (route.request().method() !== "DELETE" || !fail) return route.fallback();
+    return route.fulfill({
+      status: 503,
+      json: {
+        success: false,
+        error: {
+          code: "unavailable",
+          message: "Could not delete this conversation.",
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app/ask`);
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  const history = page.getByRole("dialog", {
+    name: "Conversations",
+    exact: true,
+  });
+  await expect(history).toContainText("No messages yet");
+  await history
+    .getByRole("button", {
+      name: "Delete conversation New conversation",
+      exact: true,
+    })
+    .click();
+  const confirm = page.getByRole("dialog", {
+    name: "Delete conversation",
+    exact: true,
+  });
+  await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(confirm.getByRole("alert")).toHaveText(
+    "Could not delete this conversation.",
+  );
+  expect(state.chats.has(empty.id)).toBe(true);
+  fail = false;
+  await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(
+    history.getByRole("heading", {
+      name: "Your conversations will appear here.",
+    }),
+  ).toBeVisible();
+  expect(state.records.size).toBe(2);
+  await page.reload();
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await expect(history.locator(".ask-history-open")).toHaveCount(0);
+  expect(state.records.size).toBe(2);
+});
 
 test("conversation history retries the failed next page and keeps open failures inside the dialog", async ({
   page,

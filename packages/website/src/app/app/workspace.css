@@ -534,6 +534,7 @@ html:has(.grove-app) {
   background: var(--color-sage);
 }
 .ask-composer .ask-tools-control > .app-icon {
+  color: var(--color-forest);
   width: auto;
   min-height: 36px;
   height: auto;
@@ -592,16 +593,27 @@ html:has(.grove-app) {
 }
 .ask-tools-control .ask-tools-status {
   min-height: 28px;
-  color: var(--color-muted);
-}
-.ask-tools-control .ask-tools-default {
   border-top: 1px solid var(--color-line);
-  border-radius: 0;
+  margin-top: 6px;
+  color: var(--color-muted);
 }
 .ask-tools-control .action-menu > p {
   max-width: 260px;
   padding: 6px 10px;
   font-size: 11px;
+}
+.ask-tools-control .ask-tools-error {
+  margin: 4px 6px;
+  padding: 8px 10px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ask-tools-error p {
+  margin: 0;
+}
+.ask-tools-error .text-button {
+  display: flex;
+  min-height: 44px;
 }
 .ask-web-sources li > a {
   display: flex;
@@ -693,10 +705,14 @@ html:has(.grove-app) {
   border-bottom: 1px solid var(--color-line);
 }
 .ask-history-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
   min-height: 18px;
   margin: 8px 0 0;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .ask-history-results {
   overflow-y: auto;
@@ -719,11 +735,8 @@ html:has(.grove-app) {
   display: flex;
   align-items: center;
   min-width: 0;
+  gap: 6px;
   border-bottom: 1px solid var(--color-line);
-}
-.ask-history-row[data-current] {
-  background: var(--color-sage);
-  border-radius: 5px;
 }
 .ask-history-open {
   flex: 1;
@@ -733,7 +746,11 @@ html:has(.grove-app) {
   border-radius: 5px;
 }
 .ask-history-open:hover {
-  background: var(--color-sage);
+  background: color-mix(in srgb, var(--color-forest) 4%, transparent);
+}
+.ask-history-open:focus-visible,
+.ask-history-delete:focus-visible {
+  outline-offset: -3px;
 }
 .ask-history-title {
   display: flex;
@@ -747,12 +764,12 @@ html:has(.grove-app) {
   flex: 1;
 }
 .ask-history-title small {
-  font-size: 10px;
-  color: var(--color-muted);
-}
-.ask-history-title svg {
   flex-shrink: 0;
-  color: var(--color-muted);
+  font-size: 11px;
+  color: var(--color-forest);
+  padding: 1px 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
 }
 .ask-history-preview {
   display: -webkit-box;
@@ -770,18 +787,27 @@ html:has(.grove-app) {
   flex-wrap: wrap;
   gap: 4px 10px;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 6px;
 }
 .ask-history-meta > span:first-child {
   max-width: 100%;
   overflow-wrap: anywhere;
 }
-.ask-history-row > .app-icon {
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
+.ask-history-row > .ask-history-delete {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  gap: 5px;
+  font-size: 11px;
   color: var(--color-muted);
+  border-color: transparent;
+  background: transparent;
+}
+.ask-history-row > .ask-history-delete:hover {
+  color: var(--color-forest);
+  background: color-mix(in srgb, var(--color-forest) 4%, transparent);
 }
 .ask-history-empty {
   padding: 40px 12px;

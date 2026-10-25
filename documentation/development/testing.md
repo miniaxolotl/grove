@@ -22,6 +22,32 @@ same-operation retries and audit-once behavior, revoke/refresh concealment and
 1440/390/320px accessibility/overflow. Do not add production authentication bypasses.
 See [reviewed captures](../design/screenshots/system-admin/README.md).
 
+## Remembered Ask Grove tools and history
+
+`tests/src/conversations.test.ts` covers nonempty partial account tool writes,
+unchanged chat count, fresh connection/service/session readback, inherited defaults,
+unrelated preference preservation, key/foreign-account denial, replay, version
+conflicts and atomic partial-default updates. Existing in-flight research cases
+continue to fence disable/re-enable results. No new migration is required.
+
+After the website production build, run the focused component/cache cases:
+
+```sh
+pnpm --filter website exec playwright test tests/workspace.spec.ts tests/cache.spec.ts --grep 'Ask tools|conversation history|tool defaults|chat creation waits'
+pnpm --filter website exec playwright test --config playwright.ask-webkit.config.ts
+```
+
+These cover reload/new sessions, retained drafts, held/failed settings saves,
+independent old-chat choices, queued creation, held-read fencing and cross-tab
+defaults. History cases cover distinct previews, 1440/390/320px accessibility,
+pagination, Cancel/failure/retry, active-chat deletion, old empty chats and preserved
+notes. Screenshots and measured results are linked from [delivery](../delivery.md).
+When running the full backend suite on a many-core workstation, bound test-file
+concurrency to local database capacity (for example, `tsx --test
+--test-concurrency=2 src/*.test.ts` from `tests/`) rather than increasing timeouts.
+
+## Speech cache
+
 Speech-cache regressions in `speech-cache.test.ts` use a separate disposable
 database and real non-owner API/worker roles. They cover exact text-hash A→B→A
 reuse, receipt-independent lifetime, seven-day stale retention without extension,

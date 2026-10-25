@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import type { Memory, MemoryList, Notebook, Page } from "@lib/shared/contracts";
 import type { Conversation } from "@lib/shared/conversations";
+import type { AskTools } from "@lib/shared/ask-tools";
 import type { AskResult } from "@lib/shared/models";
 import type {
   ConnectionPage,
@@ -694,9 +695,15 @@ export class WorkspaceCache {
         this.assertActive(generation, signal);
         return this.transport<T>(path, body, method, signal);
       };
+      const settingsWrite =
+        path === "/account/settings" ||
+        path === "/ask-tools" ||
+        path.endsWith("/tools");
       const request =
-        path === "/account/settings" ? this.settingsWrites.then(send) : send();
-      if (path === "/account/settings")
+        settingsWrite || path.startsWith("/conversations")
+          ? this.settingsWrites.then(send)
+          : send();
+      if (settingsWrite)
         this.settingsWrites = request.then(
           () => {},
           () => {},
@@ -796,6 +803,8 @@ export class WorkspaceCache {
       } else if (path.startsWith("/relationships/")) {
         this.invalidate({ resource: "/relationships/search" });
         this.publish?.({ resource: "/relationships/search" });
+      } else if (path === "/ask-tools") {
+        this.adoptToolDefaults(result);
       } else if (path.startsWith("/conversations")) {
         const change = { resource: "/conversations" };
         void this.client.cancelQueries({
@@ -882,8 +891,7 @@ export class WorkspaceCache {
           }
         }
         if (path.endsWith("/tools")) {
-          this.invalidate({ resource: "/ask-tools" });
-          this.publish?.({ resource: "/ask-tools" });
+          this.adoptToolDefaults(result);
         }
         this.publish?.(change);
       } else if (
@@ -943,6 +951,14 @@ export class WorkspaceCache {
           // The server may have committed despite a lost response. Retain the caller's operation identity.
           this.invalidate({});
           this.publish?.({});
+        } else if (path === "/ask-tools" || path.endsWith("/tools")) {
+          for (const resource of ["/ask-tools", "/conversations"]) {
+            void this.client.cancelQueries({
+              predicate: (query) => this.affected(query, { resource }),
+            });
+            this.invalidate({ resource });
+            this.publish?.({ resource });
+          }
         } else if (path.startsWith("/projects")) {
           if (/\/(archive|restore|delete)$/.test(path)) {
             this.invalidate({});
@@ -959,4 +975,19 @@ export class WorkspaceCache {
       throw error;
     }
   };
+
+  private adoptToolDefaults(result: unknown) {
+    const change = { resource: "/ask-tools" };
+    const key = workspaceKeys.resource(change.resource);
+    void this.client.cancelQueries({ queryKey: key });
+    const defaults = (result as { defaults?: AskTools }).defaults;
+    if (defaults)
+      this.client.setQueryData(
+        key,
+        (old: Record<string, unknown> | undefined) =>
+          old ? { ...old, defaults } : undefined,
+      );
+    this.invalidate(change);
+    this.publish?.(change);
+  }
 }
