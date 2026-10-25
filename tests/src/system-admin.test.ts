@@ -532,3 +532,34 @@ test("narrow admin functions work under a non-superuser owner without opening pr
     await authority.raw("DROP ROLE ??", [role]);
   }
 });
+
+test("a session revoked while waiting for the admin serialization lock cannot read account metadata", async () => {
+  const api = administration(),
+    admin = await adminAccount();
+  const blocker = await owner.transaction();
+  await blocker.raw("SELECT pg_advisory_xact_lock(68142025)");
+  const pending = api.accounts(admin);
+  // Observe the actual lock wait instead of guessing how long authorization takes.
+  try {
+    const deadline = Date.now() + 5000;
+    while (true) {
+      const {
+        rows: [row],
+      } = await owner.raw(
+        "SELECT count(*)::integer AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event='advisory'",
+      );
+      if (row.count > 0) break;
+      assert(
+        Date.now() < deadline,
+        "admin operation must reach its serialization lock",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    await owner("session_revocations").insert({ id: admin.sessionId });
+    await blocker.commit();
+    await assert.rejects(pending, { status: 401 });
+  } finally {
+    if (!blocker.isCompleted()) await blocker.rollback();
+    await pending.catch(() => {});
+  }
+});

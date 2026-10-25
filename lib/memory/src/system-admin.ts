@@ -20,12 +20,27 @@ export class SystemAdministration {
   private access<T>(
     principal: Principal,
     run: (trx: Knex.Transaction) => Promise<T>,
+    serialize = true,
   ) {
-    if (principal.type !== "session" || !principal.sessionId)
+    const sessionId = principal.sessionId;
+    if (principal.type !== "session" || !sessionId)
       return Promise.reject(denied());
     return this.service
       .access(principal, "admin", async ({ trx, account }) => {
         if (account.clerkSubject !== principal.subject) throw denied();
+        // Session revocation can arrive while another admin holds the global lock.
+        // Recheck after that wait; the SQL functions then recheck the current role.
+        if (serialize) {
+          await trx.raw("SELECT pg_advisory_xact_lock(68142025)");
+          if (
+            (
+              await trx.raw("SELECT grove_session_revoked(?) AS revoked", [
+                sessionId,
+              ])
+            ).rows[0].revoked
+          )
+            throw new GroveError("unauthorized", "Session revoked", 401);
+        }
         return run(trx);
       })
       .catch((error: unknown) => {
@@ -59,14 +74,18 @@ export class SystemAdministration {
       });
   }
   status(principal: Principal): Promise<{ role: SystemRole }> {
-    return this.access(principal, async (trx) => ({
-      role:
-        (
-          await trx("account_administration")
-            .where({ accountId: principal.accountId })
-            .first("role")
-        )?.role ?? "user",
-    }));
+    return this.access(
+      principal,
+      async (trx) => ({
+        role:
+          (
+            await trx("account_administration")
+              .where({ accountId: principal.accountId })
+              .first("role")
+          )?.role ?? "user",
+      }),
+      false,
+    );
   }
   accounts(principal: Principal, subjects?: string[]): Promise<AdminAccount[]> {
     return this.access(
