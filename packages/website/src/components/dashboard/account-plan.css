@@ -1,0 +1,227 @@
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--color-leaf);
+  border-radius: 5px;
+  background: var(--color-sage);
+  color: var(--color-forest);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.plan-badge-free {
+  border-color: var(--color-line);
+  background: transparent;
+}
+.workspace-plan-control {
+  flex-shrink: 0;
+}
+.workspace-utilities:has(.workspace-plan-control) .shortcut-keys {
+  display: none;
+}
+.workspace-plan {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-forest);
+  text-align: left;
+}
+.workspace-plan:hover,
+.workspace-plan[aria-expanded="true"] {
+  background: var(--color-sage);
+}
+.workspace-plan:focus-visible,
+.account-plan-details button:focus-visible,
+.plan-popover :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -2px;
+}
+.account-plan-details {
+  padding-block: 4px 16px;
+  border-bottom: 1px solid var(--color-line);
+  scroll-margin-top: 24px;
+}
+.account-plan-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.account-plan-heading h3 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.account-plan-source {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.account-plan-description {
+  max-width: 62ch;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.plan-popover {
+  position: fixed;
+  inset: auto;
+  width: 300px;
+  margin: 0;
+  padding: 12px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border: 1px solid var(--color-line);
+  border-radius: 9px;
+  background: var(--color-paper);
+  color: var(--color-forest);
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px #253e3114;
+}
+.plan-popover::backdrop {
+  background: transparent;
+}
+.plan-popover-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plan-popover-heading h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.plan-popover-account {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+}
+.plan-popover-account p {
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.plan-popover-heading p,
+.plan-popover-note,
+.plan-usage-count > span {
+  color: var(--color-muted);
+}
+.plan-popover .app-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
+.plan-popover-note {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.plan-usage-breakdown {
+  margin-top: 10px;
+}
+.plan-usage-breakdown > section + section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-line);
+}
+.plan-usage-section-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.plan-usage-breakdown h4 {
+  font-size: 11px;
+  font-weight: 600;
+}
+.plan-usage-section-heading > span {
+  color: var(--color-muted);
+  font-size: 10px;
+}
+.plan-usage-rows {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+.plan-usage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 1px 8px;
+  min-height: 20px;
+}
+.plan-usage-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.plan-usage-pending {
+  grid-column: 2;
+  text-align: right;
+  color: var(--color-muted);
+  font-size: 10px;
+}
+.plan-usage-row[data-full] .plan-usage-pending {
+  color: var(--color-forest);
+  font-weight: 600;
+}
+.plan-extra-limits {
+  margin-top: 10px;
+  border-top: 1px solid var(--color-line);
+}
+.plan-extra-limits summary {
+  display: list-item;
+  padding-block: 10px;
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.plan-popover-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 12px;
+}
+.plan-popover-error button {
+  min-height: 36px;
+}
+@media (max-width: 1023px) {
+  .app-sidebar .notebook-browser {
+    display: contents;
+  }
+  .app-sidebar .notebook-browser-toggle {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .app-sidebar .notebook-explorer[data-mobile-open] {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+  .plan-popover .app-icon,
+  .plan-popover-account,
+  .plan-extra-limits summary,
+  .plan-popover-error button {
+    min-height: 44px;
+  }
+  .plan-popover .app-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (forced-colors: active) {
+  .plan-badge {
+    border-color: CanvasText;
+  }
+}

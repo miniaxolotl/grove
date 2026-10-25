@@ -17,6 +17,7 @@ import {
   type BillingMetric,
   type BillingUsage,
   type PlanLimits,
+  type AccountPlan,
 } from "@lib/shared/billing";
 
 type Configuration = {
@@ -36,11 +37,11 @@ export function inheritBillingQuotas(db: Knex, target: Knex) {
   const config = configurations.get(db);
   if (config) configurations.set(target, config);
 }
-export async function billingPlan(
+export async function billingEntitlement(
   db: Knex,
   trx: Knex.Transaction,
   accountId: string,
-): Promise<"free" | "pro" | "unlimited" | null> {
+): Promise<AccountPlan | null> {
   const config = configurations.get(db);
   if (!config) return null;
   const account = await trx("accounts")
@@ -55,6 +56,7 @@ export async function billingPlan(
       ? (grant.access as "pro" | "unlimited")
       : null;
   if (!override && !(await config.enabled(account.clerkSubject))) return null;
+  if (override) return { tier: override, source: "complimentary" };
   const paid = await trx("billing_subscriptions")
     .where({ accountId })
     .whereIn("status", ["active", "trialing"])
@@ -63,8 +65,18 @@ export async function billingPlan(
       if (config.productId) query.orWhere({ productId: config.productId });
     })
     .where("periodEnd", ">", trx.fn.now())
-    .first("id");
-  return override ?? (paid ? "pro" : "free");
+    .orderBy("status", "asc")
+    .first("status");
+  return paid
+    ? { tier: "pro", source: paid.status === "trialing" ? "trial" : "paid" }
+    : { tier: "free", source: "free" };
+}
+export async function billingPlan(
+  db: Knex,
+  trx: Knex.Transaction,
+  accountId: string,
+): Promise<AccountPlan["tier"] | null> {
+  return (await billingEntitlement(db, trx, accountId))?.tier ?? null;
 }
 export async function billingUsage(
   db: Knex,
