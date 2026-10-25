@@ -52,6 +52,59 @@ pass all24 targeted journeys again, with **17 affected Chromium** navigation/set
 checks, nine artifacts, root/site lint/types/builds and the bundle gate passing.
 Backend/API policy is unchanged by this final visual pass.
 
+The merge follow-up integrates admin polish #133 (`05fe8fd`), retaining both delivery
+records; no code conflicted. Integrated root/site lint/types/builds, nine artifacts,
+the same491,632-byte Notes budget and435 backend cases (four optional skips) pass.
+The backend repeat uses four test-file processes after a saturated-host timeout
+and reboot interrupted earlier attempts; no timeout, assertion or database policy
+was relaxed. Fifteen actual-component tier/source/usage/accessibility journeys per
+Chromium and supported WebKit pass at1440/390/320px against integrated production
+CSS/build`HBGViTUdyNh-S2oqCXNSi`. No production data or runtime was changed.
+
+## Admin interface polish (25 October 2026)
+
+People & access separates grants, system roles and availability in a compact
+directory, with exact-match recovery and loaded rows retained during refresh
+failures. A wider inspector keeps identity/navigation and editing actions stable
+while the task content scrolls. Usage retains full values and explicit units,
+including large counters at 320px; history describes individual field changes
+without copying staff-note text into the feed.
+
+One coordinated draft protects section changes, closing, Escape and backdrop
+dismissal. Confirmed saves retain context and refresh the shared version; uncertain
+saves retain the exact request for audit-once retry. Conflicts compare latest and
+attempted values before a deliberate new save. Availability and privileged role
+changes have separate review/confirmation. Periodic refreshes preserve dirty
+forms, clean forms can adopt fresh snapshots, and disabled/removed action controls
+recover keyboard focus in Safari without stealing a new field's focus.
+
+Root/site lint, types and production builds, **406 backend cases** (four optional
+S3/broker skips), **nine artifacts**, all **239 existing Chromium cases** and
+bundle budgets pass. Notes entry remains **488,426 gzip bytes**, with the editor
+deferred. Actual-component/API/PostgreSQL journeys in Chromium and mobile/touch
+WebKit cover 1440/390/320px, held saves, exact uncertain retries/audit-once,
+version review, suspension/restore, revocation concealment, minute-refresh draft
+retention, clean refresh, explicit request-limit retries and keyboard focus. Narrow/short windows, enlarged text,
+forced colors, clipboard denial, long identity/draft values, WCAG A/AA and overflow
+are checked. [Ten reviewed synthetic captures](design/screenshots/admin-polish/README.md)
+record the layout and application source.
+
+No new migration, API permission, dependency, subscription/provider configuration
+or production account change is introduced. Source delivery does not activate the
+underlying support schema; [027 rollout](deploy.md#admin-support-rollout-027)
+remains an explicit separate operation. Physical mobile keyboards and native
+mail/clipboard prompts remain unqualified.
+
+The follow-up integrates Free/Pro action allowances #131 (`3041590`) without
+changing admin components or weakening quota policy. Admin reporting remains
+provider-attempt counters; it is not presented as the separate user-action usage
+report. Unlimited documentation now includes plan storage/action exemptions while
+retaining the shared generation-concurrency safeguard.
+Integrated verification passes **431 backend cases** (four optional-service skips),
+all **239 Chromium cases**, nine artifacts, root/site lint/types/builds and bundle budgets. Real API/admin
+journeys pass again in Chromium and mobile WebKit on the integrated source; the
+reviewed captures use build **`Cf1S8gKaMlcFrViMdH4n3`**.
+
 ## Free/Pro storage and action allowances (25 October 2026)
 
 Configured Cloud now separates user actions from retained provider-attempt budgets:
