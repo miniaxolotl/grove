@@ -98,3 +98,10 @@ export type BillingStatus = {
   usage: BillingUsage | null;
   prices: { interval: "month" | "year"; amount: number; currency: string }[];
 };
+/** Owner-only on-demand breakdown; never contacts the payment provider. */
+export type AccountPlanUsage = {
+  plan: AccountPlan | null;
+  resources: ResourceUsage | null;
+  usage: BillingUsage | null;
+  units: typeof billingUnits;
+};

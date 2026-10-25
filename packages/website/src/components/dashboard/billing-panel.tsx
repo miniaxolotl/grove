@@ -172,11 +172,14 @@ export function BillingPanel() {
                   <span className="billing-current">Current plan</span>
                 )}
               </div>
-              {state.plan ? <PlanDescription plan={state.plan} /> : null}
+              {state.plan?.source === "complimentary" ||
+              state.plan?.source === "free" ? (
+                <PlanDescription plan={state.plan} />
+              ) : null}
               {state.plan?.source === "complimentary" && ongoing ? (
                 <p className="billing-caption">
-                  Your separate subscription is still on file. Complimentary
-                  access does not cancel it.
+                  A separate subscription is still active. Complimentary access
+                  does not cancel it.
                 </p>
               ) : null}
               {subscription ? (

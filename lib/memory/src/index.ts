@@ -58,12 +58,18 @@ import { assertNoteCapacity } from "./note-changes.ts";
 import {
   assertCapacity,
   billingEntitlement,
+  billingUsage,
+  resourceUsage,
   inheritBillingQuotas,
   reserveAction,
   settleAction,
   UsageLimitError,
 } from "./billing-quotas.ts";
-import type { ActionMetric } from "@lib/shared/billing";
+import {
+  billingUnits,
+  type ActionMetric,
+  type AccountPlanUsage,
+} from "@lib/shared/billing";
 import { recallIsInternal, withoutRecallCharge } from "./action-context.ts";
 import { Relationships } from "./relationships.ts";
 import { presentMemories } from "./presentation.ts";
@@ -2101,6 +2107,12 @@ export class MemoryService {
 
   async usage(principal: Principal) {
     return this.access(principal, "admin", async ({ trx }) => ({
+      planUsage: {
+        plan: await billingEntitlement(this.db, trx, principal.accountId),
+        resources: await resourceUsage(this.db, trx, principal.accountId),
+        usage: await billingUsage(this.db, trx, principal.accountId),
+        units: billingUnits,
+      } satisfies AccountPlanUsage,
       dailyRequestLimit: this.dailyRequestLimit,
       today: await trx("inference_usage")
         .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")

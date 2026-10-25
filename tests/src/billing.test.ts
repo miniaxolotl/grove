@@ -5,14 +5,22 @@ import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import Stripe from "stripe";
 import { InferenceError } from "@lib/ai";
-import { billingLimits, resourceLimits } from "@lib/shared/billing";
+import {
+  billingLimits,
+  billingUnits,
+  resourceLimits,
+} from "@lib/shared/billing";
 import { rememberSchema } from "@lib/shared/contracts";
 import * as application from "../../packages/api/src/app.ts";
 import { readServerEnvironment } from "@lib/environment";
 import { createDatabase, tenant, type Knex } from "@lib/database";
 import * as memory from "@lib/memory";
 import { budgetedInference } from "../../lib/memory/src/processing.ts";
-import { billingAllows } from "../../lib/memory/src/billing-quotas.ts";
+import {
+  billingAllows,
+  reserveAction,
+  settleAction,
+} from "../../lib/memory/src/billing-quotas.ts";
 
 const authorityUrl = process.env.TEST_MIGRATION_DATABASE_URL!;
 if (!authorityUrl || !new URL(authorityUrl).pathname.endsWith("_test"))
@@ -469,6 +477,102 @@ test("complimentary plan is visible with billing off and takes precedence withou
   assert.equal(
     ((await unconfigured.me(f.principal)) as { plan?: unknown }).plan,
     null,
+  );
+});
+
+test("account usage exposes an owner-only local plan breakdown with actual used, pending and configured limits", async () => {
+  memory.configureBillingQuotas(db, {
+    enabled: async () => true,
+    priceIds: ["price_pro"],
+    resourceLimits: {
+      free: { ...resourceLimits.free, ask: 7 },
+      pro: resourceLimits.pro,
+    },
+  });
+  const principal = await account();
+  const service = new memory.MemoryService(
+    db,
+    "usage-fixture-cursor-secret-32-characters",
+  );
+  await service.remember(
+    principal,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      content: "Usage snapshot fixture",
+    }),
+  );
+  await tenant(db, principal.accountId, async (trx) => {
+    const completed = await reserveAction(
+      db,
+      trx,
+      principal.accountId,
+      "ask",
+      randomUUID(),
+    );
+    await settleAction(trx, completed, "completed");
+    await reserveAction(db, trx, principal.accountId, "ask", randomUUID());
+    await trx("inference_usage").insert({
+      accountId: principal.accountId,
+      role: "generation",
+      requests: 3,
+      day: trx.raw("(now() AT TIME ZONE 'UTC')::date"),
+    });
+  });
+  const result = await service.usage(principal);
+  const snapshot = Reflect.get(result, "planUsage");
+  assert.deepEqual(snapshot?.plan, { tier: "free", source: "free" });
+  assert(snapshot.resources && snapshot.usage);
+  assert.deepEqual(snapshot.resources.metrics.ask, {
+    used: 1,
+    reserved: 1,
+    limit: 7,
+  });
+  assert.equal(snapshot.resources.metrics.notes.used, 1);
+  assert.equal(snapshot.usage.metrics.generation.today, 3);
+  assert.deepEqual(snapshot.units, billingUnits);
+  assert.equal(typeof snapshot.resources.resetAt, "string");
+  assert.equal(typeof snapshot.usage.monthlyResetAt, "string");
+  const other = await account();
+  const otherUsage = Reflect.get(await service.usage(other), "planUsage");
+  assert(otherUsage.resources);
+  assert.equal(otherUsage.resources.metrics.ask.used, 0);
+  await assert.rejects(service.usage({ ...principal, type: "key" }), {
+    status: 403,
+  });
+  await assert.rejects(service.usage({ ...principal, type: "oauth" }), {
+    status: 403,
+  });
+});
+
+test("usage breakdown preserves complimentary unlimited with purchases hidden and explicitly reports unconfigured policy", async () => {
+  memory.configureBillingQuotas(db, {
+    enabled: async () => false,
+    priceIds: ["price_pro"],
+  });
+  const principal = await account();
+  await admin("account_administration").insert({
+    accountId: principal.accountId,
+    access: "unlimited",
+  });
+  const service = new memory.MemoryService(
+    db,
+    "usage-fixture-cursor-secret-32-characters",
+  );
+  const snapshot = Reflect.get(await service.usage(principal), "planUsage");
+  assert.deepEqual(snapshot?.plan, {
+    tier: "unlimited",
+    source: "complimentary",
+  });
+  assert(snapshot.resources && snapshot.usage);
+  assert.equal(snapshot.resources.metrics.ask.limit, null);
+  assert.equal(snapshot.usage.metrics.synthesis.monthlyLimit, null);
+  const unconfigured = new memory.MemoryService(
+    worker,
+    "usage-fixture-cursor-secret-32-characters",
+  );
+  assert.deepEqual(
+    Reflect.get(await unconfigured.usage(principal), "planUsage"),
+    { plan: null, resources: null, usage: null, units: billingUnits },
   );
 });
 

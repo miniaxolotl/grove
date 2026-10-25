@@ -130,9 +130,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <UserButton />
                           </div>
                         </div>
-                        <WorkspacePlan />
                         <div className="workspace-utilities">
                           <CommandMenuButton />
+                          <WorkspacePlan />
                           <ShortcutHelpButton compact />
                         </div>
                         <nav

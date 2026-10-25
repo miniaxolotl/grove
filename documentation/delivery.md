@@ -2,16 +2,20 @@
 
 ## Visible subscription and complimentary access (25 October 2026)
 
-The desktop/mobile workspace now shows an outlined Free/Pro/Unlimited badge with
-explicit paid, trial or complimentary source text. It opens **Account → Your plan**;
-admin-granted access remains discoverable while purchases are hidden. Billing
-retains separate renewal/payment/end status and **Manage subscription** controls,
-and warns that a complimentary grant does not cancel an existing purchase.
+The desktop/mobile workspace now keeps a small Free/Pro/Unlimited badge in its
+existing controls, with no extra mobile navigation row. Hover/focus opens source
+details and concise used/limit rows; click/tap pins the same panel. Library and
+monthly action limits come first, with pending counts, reset dates and additional
+AI/audio budgets behind a disclosure. Account details remain reachable while
+purchases are hidden. Billing retains separate renewal/payment/end status and
+**Manage subscription**, warning that a grant does not cancel a separate purchase.
 
 Optional session-only `plan` metadata reuses canonical price/product/expiry and
 admin-grant precedence. Scoped agents receive no new billing metadata. Workspace
 reads use local state and the shared account/session cache, without Stripe calls
-or another polling timer. Billing reconciliation refreshes the badge snapshot so
+or another polling timer. The existing owner-only `/account/usage` adds `planUsage`
+with canonical plan, resource/provider counters and explicit units; detailed reads
+stay idle until intent. Billing reconciliation refreshes the badge snapshot so
 checkout does not leave an old Free label. Missing/legacy data never guesses an
 access source; failed reads offer retry. No migration, billing activation, price,
 quota, retained-data, provider or deployed-runtime change is required or performed.
@@ -19,21 +23,26 @@ quota, retained-data, provider or deployed-runtime change is required or perform
 Backend red/green regressions cover Free/paid/trial eligibility, cancellation at
 period end, non-entitled/expired/unsupported subscriptions, tenant/key boundaries,
 complimentary Pro/Unlimited while billing is hidden, grant removal, subscription
-preservation and no-config behavior. Final full **433 backend cases pass**, with
-four optional-service skips; **63 focused billing/action/admin** checks also pass.
+preservation and no-config behavior. Two further red/green regressions verify actual
+used/pending/configured limits, tenant/agent isolation, hidden-purchase Unlimited
+and unconfigured usage snapshots. Full **435 backend cases pass**, with four
+optional-service skips; **65 focused billing/action/admin** checks also pass.
 Root/site lint, type checks and builds pass, with all **nine packaged artifacts**.
-Production build `NwuRGXE9X_80NnOqDHT60` passes the Notes entry budget at **489,060
+Production build `ExmR7RFBWjDQiTzhI3ehM` passes the Notes entry budget at **491,712
 gzip bytes**, keeping the editor deferred.
 
 [Four reviewed captures](design/screenshots/subscription-badge/README.md) use
-actual components and production CSS with synthetic accounts/responses. **21
+actual components and production CSS with synthetic accounts/responses. **24
 targeted journeys in each of Chromium and supported Noble WebKit** pass across
 1440/390/320px, including keyboard access, WCAG A/AA,44px targets, overflow/page-error
-checks, Billing lifecycle separation, retry, grant refresh, session replacement,
-legacy hiding and checkout reconciliation. The shared workspace browser fixture
+checks, on-demand reads, exact/pending/zero/unlimited limits, audio hours, short
+viewports, touch dismissal, retry, session replacement and checkout reconciliation.
+A reproduced hover-dismiss→keyboard-focus failure now passes after replacing the
+sticky dismissal flag with actual focus provenance. Simultaneous failures share
+one recovery action. The shared workspace browser fixture
 now accepts the badge's new `/me` read; its reproduced failing notebook case passes
 after that fixture-only adjustment. The final full **239-case Chromium suite** and
-four existing iPhone/WebKit settings/preference regressions pass with zero failures.
+seven existing iPhone/WebKit settings/sidebar regressions pass with zero failures.
 
 ## Free/Pro storage and action allowances (25 October 2026)
 
