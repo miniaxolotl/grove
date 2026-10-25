@@ -26,6 +26,8 @@ upgrading to the current schema; preservation assertions are retained.
 
 Implementation `daf189f` normally integrates subscription-badge development
 `06d8740` at verified source **56b675dcc1fdceeed6f354be678e13645e5d6b45**.
+Implementation PR #139 is stacked on planning PR #135; the plan integration changes
+only documentation and retains the runtime and test source verified below.
 Integrated verification: **446 backend passes, four optional S3/broker skips, zero
 failures**; root/site lint and types, root/production website builds, **nine artifact
 tests**, **50 CI/release/provider contracts**, workflow lint and bundle budgets pass.

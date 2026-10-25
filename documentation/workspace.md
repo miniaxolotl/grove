@@ -143,6 +143,10 @@ groups recorded decisions, discussions and open questions with exact sources and
 partial-coverage labels. Review **Save brief to** before saving; Undo affects only
 the created note. See [meeting preparation](meeting-preparation.md).
 
+Weekly review, study mode, knowledge gaps and similar past
+problems are [planned workflows](development/notebook-workflows.md), not current
+workspace controls.
+
 ## Share with a link
 
 ### Private section links

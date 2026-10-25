@@ -9,6 +9,11 @@ on-demand assistance workflow: an agenda-driven brief from selected notes or one
 notebook, with exact sources, honest coverage and reviewed Save/Undo. It does not
 replace the visit digest or introduce weekly scheduling.
 
+The [notebook workflow proposal](development/notebook-workflows.md) describes
+the phased roadmap. Weekly reviews, study sets, knowledge-gap reviews and
+similar-problem retrieval remain planned; the visit digest below remains separate
+from a calendar-based weekly review.
+
 ## In the workspace
 
 - **Summary** shows a compact overview, source revisions and examined/cited counts.
