@@ -442,3 +442,190 @@ test("explicit model reset clears derived caches and fences old cache generation
   await queryEmbedding(worker, f.accountId, f.embedder, "garden", 20);
   assert.equal(f.calls(), 2);
 });
+
+test("byte-pressure eviction can remove older values of the same feature without evicting the live owner", async () => {
+  const f = await fixture();
+  const { epoch } = await admin("processing_control").first("epoch");
+  let calls = 0;
+  const options = {
+    ttlMs: 60_000,
+    validate: (value: unknown) => String(value),
+  };
+  const first = await cachedWork(db, f.accountId, "answer", "byte-pressure", {
+    ...options,
+    run: async () => {
+      calls++;
+      const rows = Array.from({ length: 137 }, (_, i) => ({
+        accountId: f.accountId,
+        feature: "answer",
+        key: i.toString(16).padStart(64, "0"),
+        epoch,
+        leaseId: randomUUID(),
+        leaseUntil: new Date(0),
+        expiresAt: new Date(Date.now() + 60_000),
+        value: JSON.stringify("x".repeat(i === 136 ? 131070 : 245758)),
+      }));
+      await admin.batchInsert("ai_cache", rows, 40);
+      return "validated result";
+    },
+  });
+  assert.equal(first.value, "validated result");
+  const second = await cachedWork(
+    worker,
+    f.accountId,
+    "answer",
+    "byte-pressure",
+    {
+      ...options,
+      run: async () => {
+        calls++;
+        return "recomputed";
+      },
+    },
+  );
+  assert.equal(second.status, "cached");
+  assert.equal(second.value, "validated result");
+  assert.equal(calls, 1);
+  const [{ bytes }] = await admin("ai_cache")
+    .where({ accountId: f.accountId })
+    .select(admin.raw("sum(octet_length(value::text)) AS bytes"));
+  assert(Number(bytes) <= 32 * 1024 * 1024);
+});
+
+test("API and worker cannot both spend the final cached fifth-action", async () => {
+  const f = await fixture();
+  for (const database of [db, worker])
+    configureBillingQuotas(database, {
+      enabled: async () => true,
+      priceIds: [],
+      resourceLimits: {
+        free: { ...resourceLimits.free, recall: 2 },
+        pro: resourceLimits.pro,
+      },
+    });
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const principal = sessionPrincipal(f.accountId, account.clerkSubject);
+  const service = new MemoryService(db, "cache-tests", f.embedder),
+    second = new MemoryService(worker, "cache-tests", f.embedder);
+  const input = recallSchema.parse({ query: "garden" });
+  for (let i = 0; i < 5; i++) await service.recall(principal, input);
+  const results = await Promise.allSettled([
+    service.recall(principal, input),
+    second.recall(principal, input),
+  ]);
+  assert.equal(
+    results.filter((result) => result.status === "fulfilled").length,
+    1,
+  );
+  assert.equal(f.calls(), 1);
+  assert.equal(
+    (await tenant(db, f.accountId, (trx) =>
+      resourceUsage(db, trx, f.accountId),
+    ))!.metrics.recall.used,
+    2,
+  );
+});
+
+test("provider recovery admits one half-open probe across replicas", async () => {
+  const f = await fixture();
+  f.embedder.embed = async () => {
+    throw new InferenceError("provider_unavailable");
+  };
+  await assert.rejects(
+    queryEmbedding(db, f.accountId, f.embedder, "failed", 20),
+  );
+  await admin("ai_provider_backoff")
+    .where({ accountId: f.accountId })
+    .update({ retryAt: new Date(0) });
+  let entered!: () => void,
+    release!: () => void,
+    calls = 0;
+  const started = new Promise<void>((done) => {
+      entered = done;
+    }),
+    gate = new Promise<void>((done) => {
+      release = done;
+    });
+  f.embedder.embed = async () => {
+    calls++;
+    entered();
+    await gate;
+    return [1, 0, 0];
+  };
+  const first = queryEmbedding(db, f.accountId, f.embedder, "probe", 20);
+  await started;
+  await assert.rejects(
+    queryEmbedding(worker, f.accountId, f.embedder, "different probe", 20),
+    { code: "provider_cooling_down" },
+  );
+  release();
+  await first;
+  assert.equal(calls, 1);
+  assert.deepEqual(
+    await admin("ai_provider_backoff").where({ accountId: f.accountId }),
+    [],
+  );
+});
+
+test("grant revocation while waiting for a cache claim prevents paid provider dispatch", async () => {
+  const f = await fixture();
+  configureBillingQuotas(db, { enabled: async () => true, priceIds: [] });
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const owner = sessionPrincipal(f.accountId, account.clerkSubject);
+  const service = new MemoryService(db, "cache-tests", f.embedder);
+  const grant = await service.grant(
+    owner,
+    {
+      name: "Scoped cache read",
+      capabilities: ["memory:read"],
+      personal: true,
+      allProjects: false,
+      projectIds: [],
+    },
+    { key: true },
+  );
+  const key = {
+    ...owner,
+    type: "key" as const,
+    connectionId: grant.connection.id,
+    capabilities: ["memory:read" as const],
+  };
+  const blocker = await admin.transaction();
+  await blocker.raw("SELECT pg_advisory_xact_lock(hashtextextended(?,39))", [
+    f.accountId,
+  ]);
+  const pending = service.recall(
+    key,
+    recallSchema.parse({ query: "guarded query" }),
+  );
+  const rejected = assert.rejects(pending, { code: "forbidden" });
+  try {
+    let reserved = false;
+    for (let i = 0; i < 100; i++) {
+      if (
+        await admin("action_usage")
+          .where({ accountId: f.accountId, status: "reserved" })
+          .first()
+      ) {
+        reserved = true;
+        break;
+      }
+      await new Promise((done) => setTimeout(done, 10));
+    }
+    assert(
+      reserved,
+      "request reached admission before waiting on the cache claim",
+    );
+    await service.revoke(owner, grant.connection.id);
+    await blocker.commit();
+    await rejected;
+    assert.equal(
+      f.calls(),
+      0,
+      "a revoked principal must not send text to a paid provider",
+    );
+  } finally {
+    if (!blocker.isCompleted()) await blocker.rollback();
+    await rejected;
+  }
+});

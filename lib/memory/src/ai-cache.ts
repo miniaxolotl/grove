@@ -72,7 +72,7 @@ async function makeRoom(
   const candidates = await trx("ai_cache")
     .whereNotNull("value")
     .modify((q) => {
-      if (except) q.whereNot(except);
+      if (except) q.whereNot((q) => q.where(except));
     })
     .select("feature", "key", trx.raw("octet_length(value::text) AS bytes"))
     .orderBy("createdAt")
@@ -102,6 +102,7 @@ export async function cachedWork<T>(
     providerProfile?: string;
     signal?: AbortSignal;
     validate: (value: unknown) => T;
+    beforePublish?: (trx: Knex.Transaction) => Promise<void>;
     run: (signal: AbortSignal) => Promise<T>;
   },
 ): Promise<CacheResult<T>> {
@@ -253,9 +254,17 @@ export async function cachedWork<T>(
           );
         if (!(await owned.clone().first("key")))
           throw new InferenceError("cache_lease_lost");
+        await options.beforePublish?.(trx);
+        const {
+          rows: [serialized],
+        } = await trx.raw("SELECT octet_length(?::jsonb::text) AS bytes", [
+          encoded,
+        ]);
+        const storedBytes = Number(serialized.bytes);
         if (
           Buffer.byteLength(encoded) > maxValueBytes ||
-          !(await makeRoom(trx, Buffer.byteLength(encoded), 0, {
+          storedBytes > 262144 ||
+          !(await makeRoom(trx, storedBytes, 0, {
             feature,
             key,
           }))

@@ -731,17 +731,44 @@ export async function runProcessingJob(
       validate: (value: unknown) => T,
       run: (options: InferenceOptions) => Promise<T>,
     ) => {
+      const guard = async (trx: Knex.Transaction) => {
+        const account = await trx("accounts")
+          .where({ id: job.accountId, status: "active" })
+          .forShare()
+          .first();
+        const owned = await trx("jobs")
+          .where({ id: job.id, leaseId: job.leaseId })
+          .where("leaseUntil", ">", trx.fn.now())
+          .whereRaw(
+            "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+          )
+          .forShare()
+          .first("id");
+        const memory = await eligible(trx)
+          .findById(job.memoryId!)
+          .where({ version: job.version! })
+          .forShare();
+        if (
+          !account ||
+          !owned ||
+          !memory ||
+          !processingEnabled(account, job.kind, job.scope)
+        )
+          throw new InferenceError("processing_stale");
+      };
       const work = await withActionCacheWork(
         () =>
-          tenant(db, job.accountId, (trx) =>
-            ensureActionUnits(db, trx, action, 5),
-          ),
+          tenant(db, job.accountId, async (trx) => {
+            await guard(trx);
+            await ensureActionUnits(db, trx, action, 5);
+          }),
         () =>
           cachedWork(db, job.accountId, feature, key, {
             ttlMs: 7 * 24 * 60 * 60_000,
             providerProfile: job.profile,
             signal: lease.signal,
             validate,
+            beforePublish: guard,
             run: (signal) =>
               budgetedInference(
                 db,

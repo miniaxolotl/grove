@@ -925,15 +925,40 @@ export class MemoryService {
     run: () => Promise<T>,
     charge: (result: T) => boolean = () => true,
   ): Promise<T> {
-    const reservation = await this.access(principal, "memory:read", ({ trx }) =>
-      reserveAction(this.db, trx, principal.accountId, metric, randomUUID(), 1),
+    let askVersion: number | undefined;
+    const generationProfile = this.providers.generation?.profile;
+    const reservation = await this.access(
+      principal,
+      "memory:read",
+      ({ trx, account }) => {
+        askVersion = account.askVersion;
+        return reserveAction(
+          this.db,
+          trx,
+          principal.accountId,
+          metric,
+          randomUUID(),
+          1,
+        );
+      },
     );
     try {
       const work = await withActionCacheWork(
         () =>
-          tenant(this.db, principal.accountId, (trx) =>
-            ensureActionUnits(this.db, trx, reservation, 5),
-          ),
+          this.access(principal, "memory:read", ({ trx, account }) => {
+            if (
+              metric === "ask" &&
+              (!account.askEnabled ||
+                account.askVersion !== askVersion ||
+                this.providers.generation?.profile !== generationProfile)
+            )
+              throw new GroveError(
+                "sources_changed",
+                "AI preferences or models changed. Ask again when ready.",
+                409,
+              );
+            return ensureActionUnits(this.db, trx, reservation, 5);
+          }),
         run,
       );
       const result = work.value;

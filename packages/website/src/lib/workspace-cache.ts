@@ -149,7 +149,7 @@ export class WorkspaceCache {
       if (!document.hidden)
         void this.client.invalidateQueries({ type: "active" });
     }, 60_000);
-    this.unsubscribe = this.client.getQueryCache().subscribe(() => {
+    this.unsubscribe = this.client.getQueryCache().subscribe((event) => {
       // Protect active observers/pagination. Cap inactive snapshots as well as their TTL.
       const inactive = this.client
         .getQueryCache()
@@ -161,6 +161,14 @@ export class WorkspaceCache {
         .sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt);
       for (const query of inactive.slice(200))
         this.client.removeQueries({ queryKey: query.queryKey, exact: true });
+      if (
+        event.type === "updated" &&
+        event.query.queryKey[1] === "resource" &&
+        typeof event.query.queryKey[2] === "string" &&
+        (event.query.queryKey[2] === "/ask" ||
+          event.query.queryKey[2].startsWith("/conversations/"))
+      )
+        this.scheduleExpiry();
     });
   }
   dispose() {
@@ -691,6 +699,16 @@ export class WorkspaceCache {
       .getAll()
       .flatMap((query) => {
         const kind = query.queryKey[1];
+        if (kind === "resource" && query.queryKey[2] === "/ask") {
+          const data = query.state.data as AskResult | undefined;
+          return (
+            data?.sources?.flatMap((note) =>
+              [note.expiresAt, note.purgeAt].flatMap((value) =>
+                value && Date.parse(value) > now ? [Date.parse(value)] : [],
+              ),
+            ) ?? []
+          );
+        }
         if (
           kind === "resource" &&
           typeof query.queryKey[2] === "string" &&
