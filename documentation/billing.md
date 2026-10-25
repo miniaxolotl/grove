@@ -15,6 +15,43 @@ flag does not reprice existing subscriptions; product-based entitlement preserve
 their Pro access. Reusing an open checkout retains its original agreed price;
 review the new amount after that checkout expires before starting another.
 
+## Your plan at a glance
+
+The workspace shows a small Free/Pro/Unlimited badge in the existing controls,
+without adding a navigation row. Hover or keyboard-focus it to see **used / limit**
+counts for notes, notebooks, recall/search, Ask replies, organization and assistance.
+Pending actions and monthly reset dates are explicit; additional AI/research/audio
+budgets sit behind a disclosure. Click or tap to keep the panel open. Escape,
+outside press or leaving the panel dismisses it. **Account details** opens
+**Settings → Account → Your plan**.
+
+The breakdown uses compact text rows rather than repeating a meter for every
+allowance. The linked plan heading/source opens Account details, without a separate
+footer action. Used and pending amounts remain distinct; exhausted limits stay
+explicit rather than relying on color.
+
+The panel distinguishes **Paid subscription**, **Trial subscription**, and
+**Complimentary** access provided by the Grove team at no charge. Complimentary
+access remains visible when purchases are hidden; it never cancels a separate
+subscription. Billing keeps subscription status, renewal/end dates and **Manage
+subscription** independent of the effective access label.
+
+The optional `plan` object on owner-session `GET /v1/me` and `GET /v1/billing`
+contains `tier` (`free`, `pro`, `unlimited`) and `source` (`free`, `paid`, `trial`,
+`complimentary`). Both use the existing entitlement resolver and grant precedence;
+expired, unsupported and non-entitled subscriptions never create a Pro badge.
+The lightweight workspace read uses local records, not a Stripe request. Opening
+the panel fetches the existing owner-only `GET /v1/account/usage`, whose additive
+`planUsage` object contains `plan`, `resources`, provider `usage`, and explicit
+`units`. It reuses the same quota accounting and configured limits as Billing,
+including complimentary/Unlimited grants with purchases hidden. No detailed usage
+read occurs before intent. Billing still reconciles Stripe and then refreshes the
+workspace snapshot. Account/session cache isolation and existing visible refresh
+rules apply. Scoped agents receive neither plan metadata nor account usage. A null
+plan (unconfigured/disabled policy without a grant) or older API response never
+invents a Free/paid status or usage limit. Failures offer one concise retry. No
+billing flag or schema change is required.
+
 ## Library and user actions
 
 | Resource                                  |         Free |           Pro |
