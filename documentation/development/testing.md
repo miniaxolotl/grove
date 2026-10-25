@@ -103,7 +103,10 @@ opt-in, self-host fallback, missing credentials/storage and master speech disabl
 It verifies exact optional public proof, content type/cache/nosniff, HEAD and wrong
 method/path handling, zero identity/database calls, private MCP's unchanged 401,
 bounded unchanged token validation, and titles/annotations through the actual MCP
-SDK. Public verification must never become an account-approval shortcut.
+SDK. Both the top-level title and `annotations.title` must match for every tool.
+A self-contained-description regression rejects cross-tool recommendations while
+retaining metadata-replacement, history and reversible-archive behavior wording.
+Public verification must never become an account-approval shortcut.
 
 With the disposable database/non-owner roles below, run
 `pnpm exec tsx --test tests/src/hosted-chat.test.ts tests/src/connect.test.ts tests/src/memory-tools.test.ts`.

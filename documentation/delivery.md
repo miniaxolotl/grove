@@ -51,6 +51,18 @@ and nine artifacts. Admin and Free/Pro/Unlimited Billing journeys pass in both
 Chromium and supported WebKit at 1440/390/320px, including legacy-character display,
 unlimited meter concealment and no paid upsell for complimentary grants.
 
+## Self-contained directory tool metadata (25 October 2026)
+
+All 14 existing MCP tools publish the same human-readable top-level title and
+`annotations.title`. Three descriptions now describe only their own operation,
+retaining full-replacement metadata, authored history and reversible-archive
+semantics without cross-tool recommendations. No tool, schema, grant, owner-only
+check, source label or migration changes. Two regressions fail before the fix and
+all **10 directory/client-boundary cases** pass afterward through the real MCP SDK.
+Root lint, types, build and all **nine packed artifacts** pass. This is source verification, not a claim that
+production scanners have observed the new metadata or that Claude policy eligibility
+has been resolved. [Current hosted status and limits](hosted-chat.md#official-directory-submissions).
+
 ## More generous Free/Pro allowances (24 October 2026)
 
 Free allows **1,000 generation requests and 20 research calls/day**; Pro allows
