@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { billingUsage } from "./billing-quotas.ts";
+import { reserveAction, settleAction } from "./billing-quotas.ts";
+import { withoutRecallCharge } from "./action-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import { MemoryModel, withDatabaseSignal, type Knex } from "@lib/database";
 import { InferenceError } from "@lib/ai";
@@ -436,6 +438,16 @@ export class Conversations {
             updatedAt: trx.fn.now(),
           });
         }
+        const action =
+          account.askEnabled && this.service.providers.generation
+            ? await reserveAction(
+                this.service.db,
+                trx,
+                account.id,
+                "ask",
+                `turn:${input.id}`,
+              )
+            : null;
         const values = {
           status: "pending",
           toolRuns: JSON.stringify(
@@ -470,6 +482,7 @@ export class Conversations {
           conversation,
           history: history.reverse(),
           enabled: account.askEnabled,
+          action,
         };
       },
     );
@@ -570,19 +583,21 @@ export class Conversations {
         plan.research,
         signal,
       );
-      const recalled = await this.service.recall(
-        principal,
-        {
-          query: plan.query,
-          projectId: conversation.scope.projectId ?? null,
-          includePersonal:
-            conversation.scope.projectId == null ||
-            conversation.scope.includePersonal,
-          limit: 12,
-          maxCharacters: 6000,
-        },
-        signal,
-        conversation.scope.projectId === undefined,
+      const recalled = await withoutRecallCharge(() =>
+        this.service.recall(
+          principal,
+          {
+            query: plan.query,
+            projectId: conversation.scope.projectId ?? null,
+            includePersonal:
+              conversation.scope.projectId == null ||
+              conversation.scope.includePersonal,
+            limit: 12,
+            maxCharacters: 6000,
+          },
+          signal,
+          conversation.scope.projectId === undefined,
+        ),
       );
       const lifecycle = ["archive", "restore", "delete"].includes(plan.intent);
       // Recall is active-only. Lifecycle discovery also needs archived/expired notes.
@@ -895,6 +910,7 @@ export class Conversations {
               : {}),
             proposal: proposal ? { ...proposal, status: "proposed" } : null,
           };
+          await settleAction(trx, reserved.action, "completed");
           await trx("conversation_turns")
             .where({ id: input.id, leaseId })
             .update({
@@ -912,6 +928,14 @@ export class Conversations {
       });
       return result;
     } catch (error) {
+      await withDatabaseSignal(undefined, () =>
+        this.service.db.transaction(async (trx) => {
+          await trx.raw("SELECT set_config('grove.account_id',?,true)", [
+            principal.accountId,
+          ]);
+          await settleAction(trx, reserved.action, "released");
+        }),
+      );
       const message =
         error instanceof GroveError
           ? error.message

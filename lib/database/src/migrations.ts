@@ -1,4 +1,5 @@
 import type { Knex } from "knex";
+import { actionUsage } from "./action-usage-migration.ts";
 import { billing } from "./billing-migration.ts";
 import { systemAdministration } from "./system-admin-migration.ts";
 import { speechCache } from "./speech-cache-migration.ts";
@@ -253,6 +254,7 @@ export const migrations = [
   speechCache,
   systemAdministration,
   speechDuration,
+  actionUsage,
 ];
 
 export const migrationSource: Knex.MigrationSource<

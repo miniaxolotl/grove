@@ -19,6 +19,10 @@ an optional lane. Broker and polling consumers share each replica's capacity gat
 `JOB_ACCOUNT_CONCURRENCY=2` caps inference per account/lane across replicas;
 `JOB_PROVIDER_CONCURRENCY=8` caps each inference lane across the installation.
 These reservations cover background inference; interactive admission is separate.
+Configured Cloud additionally shares **two generation-call slots/account** across
+interactive requests and every worker lane/replica. Slots use 120-second leases,
+renew every 30 seconds and release on completion/failure/cancellation; expired
+leases recover after a crash. This does not expand provider-wide capacity.
 Bulk/maintenance allow one task per account/lane; email allows one per account.
 Least-recently-claimed accounts and bounded dispatch batches spread work fairly.
 
@@ -29,6 +33,13 @@ Backfills scan at most 250 notes per checkpoint (worker default 100), exports/cl
 use 100 records, and imports 10. Five consecutive failures exhaust a task; successful
 checkpoints reset the budget. Exponential retries include jitter. Task attempts have
 a 15-minute ceiling to accommodate streaming artifact assembly.
+
+The [action allowances](billing.md#library-and-user-actions) are distinct from these
+provider attempts. Monthly-exhausted organization jobs defer to the actual UTC
+month boundary without consuming a failure attempt; temporary account generation
+saturation retries shortly. Indexed source notes remain saved. On-demand assistance
+and summary fragments share their request reservation; valid cached fragments do
+not each consume another action. API and worker require matching action policies.
 
 SIGTERM stops admission, drains work and requests cancellation after 25 seconds.
 Unresponsive providers cause an exit at 35 seconds; allow at least 40 seconds of

@@ -34,6 +34,19 @@ Research SQL reserves estimated microdollars, not provider-reconciled invoice da
 
 ## At the monthly allowances
 
+The [user-action policy](../billing.md#library-and-user-actions) now additionally
+limits replies (300/1,500), organization (1,000/5,000), on-demand assistance (50/250)
+and recall/search (30,000/150,000) for Free/Pro. Those are not generation-token or
+provider-call units. Background work, retries and multi-call actions can consume the
+independent provider budgets below; do not present 31,000/155,000 attempts as that
+many user-visible replies. These safety-budget scenarios are not predicted spending.
+
+For illustration only, 5,000 input plus 1,000 output tokens at the listed MiniMax
+rates cost $0.00135/call. At two calls/reply, using every reply costs $0.81 Free or
+$4.05 Pro, before organization, summaries, research, speech, retries, embeddings,
+hosting and payment fees. This is not a measured average or a profitability claim;
+the unchanged speech/research exposure can already exceed the introductory price.
+
 Explicit scenario assumptions:
 
 - All 31,000 Free / 155,000 Pro generation attempts complete with **1,000 uncached

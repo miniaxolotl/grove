@@ -5,7 +5,7 @@ import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import Stripe from "stripe";
 import { InferenceError } from "@lib/ai";
-import { billingLimits } from "@lib/shared/billing";
+import { billingLimits, resourceLimits } from "@lib/shared/billing";
 import { rememberSchema } from "@lib/shared/contracts";
 import * as application from "../../packages/api/src/app.ts";
 import { readServerEnvironment } from "@lib/environment";
@@ -462,6 +462,11 @@ test("flagged generation enforces a concurrent daily Free cap without blocking b
     limits: {
       free: { ...billingLimits.free, generation: { daily: 10, monthly: 100 } },
       pro: billingLimits.pro,
+    },
+    // Isolate attempt accounting from the separately tested two-call admission cap.
+    resourceLimits: {
+      free: { ...resourceLimits.free, concurrency: 14 },
+      pro: resourceLimits.pro,
     },
   });
   const a = await account();

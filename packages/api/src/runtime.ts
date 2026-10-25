@@ -54,6 +54,10 @@ export async function createRuntime() {
     const models = new ModelRegistry(db, env, memories);
     if (env.BILLING_CONFIGURED) {
       await db.raw(
+        "SELECT id,period,lease_id,worked FROM action_usage LIMIT 0",
+      );
+      await db.raw("SELECT id,lease_until FROM ai_operation_leases LIMIT 0");
+      await db.raw(
         "SELECT id,price_id,product_id,period_end FROM billing_subscriptions LIMIT 0",
       );
     }

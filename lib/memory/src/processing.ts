@@ -6,10 +6,12 @@ import {
   withDatabaseSignal,
   type Knex,
 } from "@lib/database";
+import { createHash } from "node:crypto";
 import { currentTelemetry } from "@lib/telemetry/context";
 import { processingLease } from "./job-lease.ts";
 import { retryDelay } from "./task-runner.ts";
 import type { QueueLane } from "@lib/shared/jobs";
+import { resourceLimits } from "@lib/shared/billing";
 import {
   briefPreference,
   processingEnabled,
@@ -52,7 +54,18 @@ import {
 } from "./notebook-summaries.ts";
 import { assistanceProfile } from "./assistance-data.ts";
 import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
-import { billingUsage } from "./billing-quotas.ts";
+import {
+  billingUsage,
+  billingPlan,
+  resourcePolicy,
+  markActionWork,
+  reserveAction,
+  settleAction,
+  settleNamedAction,
+  UsageLimitError,
+  withGenerationSlot,
+  type ActionReservation,
+} from "./billing-quotas.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -126,6 +139,9 @@ export async function queueBrief(
     })
     .onConflict(["accountId", "kind", "target", "profile"])
     .merge({
+      scope: trx.raw(
+        "CASE WHEN jsonb_exists(EXCLUDED.scope,'usageOperation') THEN EXCLUDED.scope ELSE jobs.scope END",
+      ),
       epoch: trx.raw("(SELECT epoch FROM processing_control WHERE singleton)"),
       attempts: 0,
       failedAt: null,
@@ -186,6 +202,9 @@ export async function queueMemory(
   )
     return;
   const account = await trx("accounts").where({ id: row.accountId }).first();
+  const action = (await resourcePolicy(trx, trx, row.accountId))
+    ? `note:${row.id}:${createHash("sha256").update(row.content).digest("hex")}`
+    : undefined;
   const enabled = (key: PreferenceKey) =>
     account[key] && (!only || only.includes(key));
   const connectionProfile = relationshipProfile(profiles);
@@ -196,7 +215,7 @@ export async function queueMemory(
       "relationship_scan",
       row.id,
       connectionProfile,
-      {},
+      { action },
       row,
     );
   for (const [kind, provider] of [
@@ -219,6 +238,12 @@ export async function queueMemory(
           target: row.id,
           kind,
           profile: provider,
+          ...(action && (kind === "organization" || kind === "decision")
+            ? {
+                scope: JSON.stringify({ action }),
+                dueAt: trx.raw("now()+interval '5 seconds'"),
+              }
+            : {}),
         })
         .onConflict(["accountId", "kind", "target", "profile"])
         .ignore();
@@ -332,7 +357,7 @@ type Job = {
   version: number | null;
   kind: "embedding" | "decision" | "organization" | "brief";
   target: string;
-  scope: BriefRequest | null;
+  scope: (BriefRequest & { action?: string }) | null;
   profile: string;
   leaseId: string;
   attempts: number;
@@ -351,7 +376,7 @@ async function reserve(
   const result = await trx("inference_usage")
     .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")
     .modify((query) => {
-      if (billing) query.whereNot({ role: "generation" });
+      if (billing) query.whereNotIn("role", ["generation", "retrieval"]);
     })
     .sum("requests as count")
     .first();
@@ -364,6 +389,20 @@ async function reserve(
       (usage.monthlyLimit !== null && usage.month >= usage.monthlyLimit)
     )
       return false;
+  } else if (billing && role === "retrieval") {
+    const policy = await resourcePolicy(db, trx, accountId);
+    const limits =
+      policy?.plan === "unlimited" ? resourceLimits.pro : policy!.limits;
+    const usage = await trx("inference_usage")
+      .where({ role: "retrieval" })
+      .whereRaw(
+        "day>=date_trunc('month',now() AT TIME ZONE 'UTC')::date AND day<=(now() AT TIME ZONE 'UTC')::date",
+      )
+      .sum("requests AS total")
+      .first();
+    // Room for every advertised recall plus one retrieval per Ask reply; failed
+    // or empty actions still cannot produce unbounded uncharged query inference.
+    if (Number(usage?.total ?? 0) >= limits.recall + limits.ask) return false;
   } else if (Number(result?.count ?? 0) >= limit) return false;
   await trx.raw(
     `INSERT INTO inference_usage(account_id, role, day, requests) VALUES (?, ?, (now() AT TIME ZONE 'UTC')::date, 1)
@@ -380,15 +419,26 @@ export async function queryEmbedding(
   limit: number,
   signal?: AbortSignal,
 ) {
-  return budgetedInference(db, accountId, "embedding", limit, (options) =>
-    embedder.embed(text, "query", {
-      ...options,
-      signal: AbortSignal.any([
-        AbortSignal.timeout(850),
-        ...(options.signal ? [options.signal] : []),
-        ...(signal ? [signal] : []),
-      ]),
-    }),
+  // This path is reached only after the enclosing recall/Ask action admission.
+  // Keep query embeddings out of the smaller background indexing/classification
+  // budget, without hiding their provider usage or changing flag-off safeguards.
+  const covered = await tenant(db, accountId, (trx) =>
+    billingPlan(db, trx, accountId),
+  );
+  return budgetedInference(
+    db,
+    accountId,
+    covered ? "retrieval" : "embedding",
+    limit,
+    (options) =>
+      embedder.embed(text, "query", {
+        ...options,
+        signal: AbortSignal.any([
+          AbortSignal.timeout(850),
+          ...(options.signal ? [options.signal] : []),
+          ...(signal ? [signal] : []),
+        ]),
+      }),
   );
 }
 export async function budgetedInference<T>(
@@ -398,23 +448,28 @@ export async function budgetedInference<T>(
   limit: number,
   run: (options: InferenceOptions) => Promise<T>,
 ) {
-  const allowed = await tenant(db, accountId, (trx) =>
-    reserve(db, trx, accountId, role, limit),
-  );
-  if (!allowed) throw new InferenceError("inference_budget");
-  let usage: Usage = { inputTokens: 0, outputTokens: 0 };
-  try {
-    return await run({
-      signal: databaseSignal(),
-      onUsage: (value) => {
-        usage = value;
-      },
-    });
-  } finally {
-    await withDatabaseSignal(undefined, () =>
-      recordUsage(db, accountId, role, usage),
+  const invoke = async () => {
+    const allowed = await tenant(db, accountId, (trx) =>
+      reserve(db, trx, accountId, role, limit),
     );
-  }
+    if (!allowed) throw new InferenceError("inference_budget");
+    let usage: Usage = { inputTokens: 0, outputTokens: 0 };
+    try {
+      return await run({
+        signal: databaseSignal(),
+        onUsage: (value) => {
+          usage = value;
+        },
+      });
+    } finally {
+      await withDatabaseSignal(undefined, () =>
+        recordUsage(db, accountId, role, usage),
+      );
+    }
+  };
+  return role === "generation"
+    ? withGenerationSlot(db, accountId, invoke)
+    : invoke();
 }
 async function recordUsage(
   db: Knex,
@@ -505,6 +560,7 @@ export async function runProcessingJob(
     }
   }
   const job = claimed as Job;
+  let action: ActionReservation | null = null;
   const started = performance.now();
   let completed = false;
   let failed = false;
@@ -586,7 +642,27 @@ export async function runProcessingJob(
         selected.push(row);
         remaining -= row.content.length;
       }
+      if (
+        job.scope?.action &&
+        (job.kind === "organization" || job.kind === "decision")
+      )
+        action = await reserveAction(
+          db,
+          trx,
+          job.accountId,
+          "organization",
+          job.scope.action,
+        );
+      if (job.kind === "brief" && job.scope?.usageOperation)
+        action = await reserveAction(
+          db,
+          trx,
+          job.accountId,
+          "assistance",
+          job.scope.usageOperation,
+        );
       if (!(await reserve(db, trx, job.accountId, role, dailyLimit))) {
+        await settleAction(trx, action, "released");
         await trx("jobs")
           .where({ id: job.id, leaseId: job.leaseId })
           .update({
@@ -606,6 +682,8 @@ export async function runProcessingJob(
       };
     });
     if (!input) return true;
+    if (job.kind === "brief" && input.rows.length)
+      await tenant(db, job.accountId, (trx) => markActionWork(trx, action));
     const options = {
       signal: lease.signal,
       onUsage: (value: Usage) => {
@@ -636,19 +714,31 @@ export async function runProcessingJob(
         options,
       );
     else if (job.kind === "organization")
-      organization = await providers.generation!.generate(
-        organizationSchema,
-        "Write a short factual title and up to six concise lowercase topic tags for this memory. Preserve its meaning.",
-        sources,
-        options,
+      organization = await withGenerationSlot(
+        db,
+        job.accountId,
+        (signal) =>
+          providers.generation!.generate(
+            organizationSchema,
+            "Write a short factual title and up to six concise lowercase topic tags for this memory. Preserve its meaning.",
+            sources,
+            { ...options, signal },
+          ),
+        lease.signal,
       );
     else {
       brief = sources.length
-        ? await providers.generation!.generate(
-            briefContentSchema,
-            `${job.scope!.taskId ? "Create a task handoff with Goal, Completed work, Verification, Blockers, Next steps." : job.scope!.projectId ? "Create a project brief covering purpose, architecture, decisions, conventions and recorded open work." : "Create a compact personal profile of explicitly stated preferences and stable facts."} Omit sections lacking evidence. Each statement must cite supplied source IDs and exact versions. Keep the entire brief under 3000 characters.`,
-            sources,
-            options,
+        ? await withGenerationSlot(
+            db,
+            job.accountId,
+            (signal) =>
+              providers.generation!.generate(
+                briefContentSchema,
+                `${job.scope!.taskId ? "Create a task handoff with Goal, Completed work, Verification, Blockers, Next steps." : job.scope!.projectId ? "Create a project brief covering purpose, architecture, decisions, conventions and recorded open work." : "Create a compact personal profile of explicitly stated preferences and stable facts."} Omit sections lacking evidence. Each statement must cite supplied source IDs and exact versions. Keep the entire brief under 3000 characters.`,
+                sources,
+                { ...options, signal },
+              ),
+            lease.signal,
           )
         : { title: "No active memories yet", sections: [] };
       const refs = brief.sections.flatMap((section) =>
@@ -787,11 +877,22 @@ export async function runProcessingJob(
             "truncated",
             "createdAt",
           ]);
+      if (job.kind === "brief" && job.scope?.usageOperation)
+        await settleNamedAction(
+          trx,
+          job.accountId,
+          "assistance",
+          job.scope.usageOperation,
+          "completed",
+          true,
+        );
+      else await settleAction(trx, action, "completed");
       await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
       completed = true;
     });
   } catch (error) {
     failed = true;
+    const quota = error instanceof UsageLimitError;
     const code =
       error instanceof InferenceError ? error.code : "processing_unavailable";
     await tenant(db, job.accountId, async (trx) => {
@@ -800,18 +901,29 @@ export async function runProcessingJob(
         .update({
           leaseId: null,
           leaseUntil: null,
-          dueAt: trx.raw("now() + (? * interval '1 second')", [
-            retryDelay(job.attempts),
-          ]),
-          errorCode: code,
+          attempts: quota ? Math.max(0, job.attempts - 1) : job.attempts,
+          dueAt:
+            quota && error.resetAt
+              ? new Date(error.resetAt)
+              : trx.raw("now() + (? * interval '1 second')", [
+                  quota ? 1 : retryDelay(job.attempts),
+                ]),
+          errorCode: quota ? error.code : code,
           failedAt:
-            job.attempts >= 5 ||
-            (error instanceof InferenceError && !error.retryable)
+            !quota &&
+            (job.attempts >= 5 ||
+              (error instanceof InferenceError && !error.retryable))
               ? trx.fn.now()
               : null,
         });
     });
   } finally {
+    if (!completed)
+      await withDatabaseSignal(undefined, () =>
+        tenant(db, job.accountId, (trx) =>
+          settleAction(trx, action, "released"),
+        ),
+      );
     await lease.close();
     currentTelemetry().operation(
       "job_run",
