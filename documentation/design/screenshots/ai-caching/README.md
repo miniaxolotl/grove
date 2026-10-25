@@ -3,8 +3,9 @@
 Actual Billing and Ask Grove components with production CSS and synthetic accounts,
 notes, web sources and API responses. No customer data or paid provider traffic.
 These captures demonstrate presentation, not observed production cost savings.
-The final application source is `bb5714c` (client changes unchanged from `ae3bf72`);
-production CSS build `BNe5n56AmlIhXPc7anaMU` has the same reviewed client layout.
+The integrated application source is `423d596`, preserving search-quality #144;
+captures and both-engine journeys were repeated with production CSS build
+`NWMHAZwGLqj1LyDa71iFV`.
 
 | Weighted usage, desktop | Weighted usage, 320px | Cached answer, desktop | Cached answer, 320px |
 | --- | --- | --- | --- |

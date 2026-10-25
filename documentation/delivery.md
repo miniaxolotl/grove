@@ -55,6 +55,24 @@ separate owner operations. No subscription-price/pooling/provider change or paid
 traffic was performed. [Caching guarantees and limits](ai-caching.md) document
 account-scoped cooldown, connector deferral, source refresh and rollout boundaries.
 
+The follow-up normally integrates search-quality #144 (`d8d78df`) in application
+source `423d596`. Shared result contracts retain **both** version-bound search
+matches and cache usage receipts; workspace invalidation drops stale highlight
+ranges as well as derived claims. Migration 029 search prerequisites precede 033
+caching. Both migration-upgrade cases and the 20-case cache suite pass together.
+Root/site lint/types/builds, ten artifacts, three native hosts, 43 CI/release contracts
+and bundle budgets pass again. Build `NWMHAZwGLqj1LyDa71iFV` keeps Notes at
+**492,609 gzip bytes**. The same Chromium/WebKit synthetic journeys and immediate
+source-change/offline-expiry check pass on the combined source; captures were
+refreshed and visually reviewed. No production changes are made by integration.
+All **244 Chromium cases pass** on the combined stable build, including the five
+new search-quality cases. The earlier 239-case result describes the pre-search
+candidate, not omitted coverage.
+The full combined backend repeat passes **489 cases**, with four optional-service
+skips and zero failures. It uses a newly bootstrapped task-owned disposable database:
+the first combined attempt exposed missing search prerequisites on the older shared
+fixture, which was retained unchanged rather than reset or migration-history edited.
+
 ## Title-first, prefix and typo-tolerant note search (25 October 2026)
 
 Library searches and recall/source search share visible-title tiers, additive
