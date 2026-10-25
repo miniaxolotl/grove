@@ -6,6 +6,11 @@ on a phone, tap **Notebooks** below the navigation to browse them. Search shares
 heading row with **New note**. Connected agents use the same notes and permissions; their references live in
 **Note properties → Agent details**. The sidebar logo always returns to Notes.
 
+Proposed follow-up: [simpler notebook organization across Grove](development/notebook-mobile-ux.md),
+including mobile gestures, moving/nesting and saved sibling order.
+This is an implementation plan, not a change to the current controls or a verified
+repair of the reported mobile gesture failure.
+
 Optional [speech](speech.md) belongs to a current note's Preview: review a suggested
 recording transcript before copying it into a draft and saving, or open **Read aloud**
 for user-started generated playback. Enable each feature independently in
