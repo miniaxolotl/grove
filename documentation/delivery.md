@@ -1,5 +1,32 @@
 # Delivery evidence
 
+## Upload/files stack integration (25 October 2026)
+
+The four feature layers (#132 → #136 → #142 → #145) are rebased onto development
+`27288e3`, retaining action allowances, human-readable note guidance, title-first
+search and explicit Ask source selection. Migration order is now actions028 →
+search029 → context030 → imports031 → documents032. Only unreleased feature
+migration names changed; no retained database was reset or migrated.
+
+Populated upgrades assert the committed order and unique sequence slots. Ask
+readiness requires both context and document prerequisites. A combined regression
+proves strict selected-note questions transmit no unrelated attachment payload to
+planning or answering; ordinary selections retain document citations. Replayed
+questions still charge one Ask action each when action accounting is enabled.
+
+The real 320px WebKit attachment journey exposed a composer resize-delivery loop:
+its width observer synchronously changed the observed parent's height. Width-driven
+growth now runs in a cancellable animation frame, following the existing overlay
+scheduling pattern. Page-error assertions remain unchanged; no warnings are filtered.
+
+Integrated root/site lint, types, builds and bundle budgets pass (Notes entry
+492,541 gzip bytes). All256 Chromium cases, ten packed-artifact checks,50 release/
+CI/provider contracts and native OpenCode/Claude/Codex smoke checks pass. Current
+synthetic captures reflect the combined source-selector and attachment controls.
+Full source CI is validated separately for each rewritten PR, not inherited from
+the previous heads. Production migrations, merge and deployment remain separate
+owner operations.
+
 ## Title-first, prefix and typo-tolerant note search (25 October 2026)
 
 Library searches and recall/source search share visible-title tiers, additive
