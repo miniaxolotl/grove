@@ -129,6 +129,7 @@ export function AskGrove({
   const reviewFromStart = useRef(false);
   const [actionBusy, setActionBusy] = useState<string>();
   const [toolsBusy, setToolsBusy] = useState(false);
+  const toolsRunning = useRef(false);
   const [toolsError, setToolsError] = useState("");
   const [toolsNotice, setToolsNotice] = useState("");
   const [pendingTools, setPendingTools] = useState<AskTools>();
@@ -361,6 +362,8 @@ export function AskGrove({
       reviewFromStart.current = !!historySignal;
       setShowLatest(false);
       setError("");
+      setToolsError("");
+      setToolsNotice("");
       if (id !== conversationId) {
         rememberDraft(conversationId ?? "new");
         setDraft(conversationDrafts.current[id]?.draft ?? "");
@@ -393,7 +396,14 @@ export function AskGrove({
   }
   async function ask(format: "plain" | "markdown", retry?: ConversationTurn) {
     const question = retry?.question ?? draft.trim();
-    if (!question || running.current || loading || actionBusy || toolsBusy)
+    if (
+      !question ||
+      running.current ||
+      loading ||
+      actionBusy ||
+      toolsError ||
+      toolsRunning.current
+    )
       return;
     following.current = true;
     setShowLatest(false);
@@ -495,50 +505,65 @@ export function AskGrove({
       setActionBusy(undefined);
     }
   }
-  async function configureTools(tools: AskTools, saveDefault = false) {
-    if (toolsBusy || loading || actionBusy) return;
+  async function configureTools(tools: AskTools) {
+    if (toolsRunning.current || loading || actionBusy) return;
+    toolsRunning.current = true;
     if (pending) stop();
     setToolsBusy(true);
     setToolsError("");
     setToolsNotice("");
     setPendingTools(tools);
-    const controller = new AbortController();
-    request.current = controller;
     try {
-      let chat = conversation;
-      if (!chat) {
-        creation.current ??= crypto.randomUUID();
-        chat = await api<Conversation>(
-          "/conversations",
-          { id: creation.current, ...filter },
-          undefined,
-          controller.signal,
-        );
-        if (controller.signal.aborted) return;
-        setConversationId(chat.id);
-        setConversation(chat);
-      }
-      const saved = await api<Conversation>(
-        `/conversations/${chat.id}/tools`,
-        { tools, expectedVersion: chat.toolsVersion ?? 0, saveDefault },
-        "PATCH",
-        controller.signal,
+      const defaultPatch = Object.fromEntries(
+        Object.entries(tools).filter(
+          ([key, value]) => effectiveTools[key as keyof AskTools] !== value,
+        ),
       );
-      if (!controller.signal.aborted) {
+      // The workspace owns durable writes, so leaving this view does not cancel
+      // a save or prevent cache/cross-tab reconciliation after it commits.
+      if (conversation) {
+        const saved = await api<Conversation>(
+          `/conversations/${conversation.id}/tools`,
+          {
+            tools,
+            expectedVersion: conversation.toolsVersion ?? 0,
+            saveDefault: true,
+            defaultPatch,
+          },
+          "PATCH",
+        );
         setConversation(saved);
-        if (saveDefault) {
-          await capabilities.refetch();
-          if (!controller.signal.aborted) setToolsNotice("Defaults saved.");
-        }
-      }
+      } else await api("/ask-tools", defaultPatch, "PATCH");
+      setToolsNotice("Saved for new chats.");
     } catch (e) {
-      if (!controller.signal.aborted) setToolsError(errorMessage(e));
+      setToolsError(
+        `${errorMessage(e)} Refresh to confirm your saved choices.`,
+      );
     } finally {
-      if (request.current === controller) {
-        request.current = null;
-        setToolsBusy(false);
-        setPendingTools(undefined);
-      }
+      toolsRunning.current = false;
+      setToolsBusy(false);
+      setPendingTools(undefined);
+    }
+  }
+  async function refreshTools() {
+    if (toolsRunning.current) return;
+    toolsRunning.current = true;
+    setToolsBusy(true);
+    setToolsError("");
+    setToolsNotice("");
+    try {
+      const [, chat] = await Promise.all([
+        capabilities.refetch({ throwOnError: true }),
+        conversationId
+          ? api<Conversation>(`/conversations/${conversationId}`)
+          : undefined,
+      ]);
+      if (chat) setConversation(chat);
+    } catch (e) {
+      setToolsError(errorMessage(e));
+    } finally {
+      toolsRunning.current = false;
+      setToolsBusy(false);
     }
   }
   const visibleSearch =
@@ -572,7 +597,7 @@ export function AskGrove({
               <Button
                 variant="secondary"
                 aria-label="New conversation"
-                disabled={!!actionBusy}
+                disabled={!!actionBusy || toolsBusy}
                 onClick={() => reset()}
               >
                 <Plus size={15} />
@@ -615,7 +640,7 @@ export function AskGrove({
                 projects={projects}
                 aria-label="Look in notebook"
                 value={scope}
-                disabled={!!actionBusy}
+                disabled={!!actionBusy || toolsBusy}
                 onValueChange={(value) => {
                   reset(false);
                   setScope(value);
@@ -635,7 +660,7 @@ export function AskGrove({
                 <input
                   type="checkbox"
                   checked={includePersonal}
-                  disabled={!!actionBusy}
+                  disabled={!!actionBusy || toolsBusy}
                   onChange={(e) => {
                     reset(false);
                     setPersonal(e.target.checked);
@@ -812,7 +837,7 @@ export function AskGrove({
               onStop={stop}
               pending={pending}
               disabled={loading || !!actionBusy}
-              sendDisabled={toolsBusy}
+              sendDisabled={toolsBusy || !!toolsError}
               tools={
                 <AskToolMenu
                   tools={effectiveTools}
@@ -826,17 +851,12 @@ export function AskGrove({
                   error={
                     toolsError ||
                     (capabilities.error
-                      ? "Tools could not load. Reopen Ask Grove to retry."
+                      ? "Tools could not load. Refresh to try again."
                       : undefined)
                   }
                   onChange={(tools) => void configureTools(tools)}
-                  onDefault={() => void configureTools(effectiveTools, true)}
                   notice={toolsNotice}
-                  onRetry={() => {
-                    setToolsError("");
-                    void capabilities.refetch();
-                    if (conversationId) void openChat(conversationId);
-                  }}
+                  onRetry={() => void refreshTools()}
                 />
               }
             />
