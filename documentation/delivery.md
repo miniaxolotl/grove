@@ -28,7 +28,7 @@ used/pending/configured limits, tenant/agent isolation, hidden-purchase Unlimite
 and unconfigured usage snapshots. Full **435 backend cases pass**, with four
 optional-service skips; **65 focused billing/action/admin** checks also pass.
 Root/site lint, type checks and builds pass, with all **nine packaged artifacts**.
-Production build `ExmR7RFBWjDQiTzhI3ehM` passes the Notes entry budget at **491,712
+Production build `vb8B5nPqgh71PSfuIVlul` passes the Notes entry budget at **491,632
 gzip bytes**, keeping the editor deferred.
 
 [Four reviewed captures](design/screenshots/subscription-badge/README.md) use
@@ -41,8 +41,16 @@ A reproduced hover-dismiss→keyboard-focus failure now passes after replacing t
 sticky dismissal flag with actual focus provenance. Simultaneous failures share
 one recovery action. The shared workspace browser fixture
 now accepts the badge's new `/me` read; its reproduced failing notebook case passes
-after that fixture-only adjustment. The final full **239-case Chromium suite** and
-seven existing iPhone/WebKit settings/sidebar regressions pass with zero failures.
+after that fixture-only adjustment. The prior implementation passes the full
+**239-case Chromium suite** and seven existing iPhone/WebKit settings/sidebar cases.
+
+The final UI-only simplification removes six repeated meters, duplicate
+complimentary prose and the separate footer action. Used/limit rows retain pending
+and exhaustion labels; the linked plan heading/source opens Account. The collapsed
+panel is at most365px high across all five plans at1440/390/320px. Both engines
+pass all24 targeted journeys again, with **17 affected Chromium** navigation/settings
+checks, nine artifacts, root/site lint/types/builds and the bundle gate passing.
+Backend/API policy is unchanged by this final visual pass.
 
 ## Free/Pro storage and action allowances (25 October 2026)
 

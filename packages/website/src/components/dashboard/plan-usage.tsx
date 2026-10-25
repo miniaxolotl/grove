@@ -44,17 +44,6 @@ function ResourceRows({
                 / {value.limit === null ? "Unlimited" : number(value.limit)}
               </span>
             </dd>
-            {value.limit !== null ? (
-              <dd className="plan-usage-meter">
-                <meter
-                  aria-label={`${labels[key]} usage`}
-                  aria-valuetext={`${number(value.used)} used, ${number(value.reserved)} pending, of ${number(value.limit)}`}
-                  value={Math.min(total, Math.max(1, value.limit))}
-                  min={0}
-                  max={Math.max(1, value.limit)}
-                />
-              </dd>
-            ) : null}
             {value.reserved > 0 || full ? (
               <dd className="plan-usage-pending">
                 {value.reserved > 0
@@ -88,7 +77,10 @@ export function PlanUsageBreakdown({
       {resources ? (
         <>
           <section aria-label="Library limits">
-            <h4>Library</h4>
+            <div className="plan-usage-section-heading">
+              <h4>Library</h4>
+              <span>Used / limit</span>
+            </div>
             <ResourceRows
               usage={resources}
               resources={["notes", "notebooks"]}
@@ -113,7 +105,7 @@ export function PlanUsageBreakdown({
       ) : null}
       {usage ? (
         <details className="plan-extra-limits">
-          <summary>Additional AI & audio limits</summary>
+          <summary>AI & audio limits</summary>
           <dl className="plan-usage-rows">
             {(
               ["generation", "research", "transcription", "synthesis"] as const

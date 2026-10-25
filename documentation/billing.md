@@ -25,6 +25,11 @@ budgets sit behind a disclosure. Click or tap to keep the panel open. Escape,
 outside press or leaving the panel dismisses it. **Account details** opens
 **Settings → Account → Your plan**.
 
+The breakdown uses compact text rows rather than repeating a meter for every
+allowance. The linked plan heading/source opens Account details, without a separate
+footer action. Used and pending amounts remain distinct; exhausted limits stay
+explicit rather than relying on color.
+
 The panel distinguishes **Paid subscription**, **Trial subscription**, and
 **Complimentary** access provided by the Grove team at no charge. Complimentary
 access remains visible when purchases are hidden; it never cancels a separate

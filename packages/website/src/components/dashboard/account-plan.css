@@ -73,9 +73,9 @@
 .plan-popover {
   position: fixed;
   inset: auto;
-  width: 320px;
+  width: 300px;
   margin: 0;
-  padding: 14px 16px;
+  padding: 12px 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -101,6 +101,18 @@
   font-size: 15px;
   font-weight: 600;
 }
+.plan-popover-account {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+}
+.plan-popover-account p {
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .plan-popover-heading p,
 .plan-popover-note,
 .plan-usage-count > span {
@@ -116,10 +128,12 @@
   font-size: 11px;
 }
 .plan-usage-breakdown {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 .plan-usage-breakdown > section + section {
-  margin-top: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-line);
 }
 .plan-usage-section-heading {
   display: flex;
@@ -138,23 +152,23 @@
 }
 .plan-usage-rows {
   display: grid;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
 }
 .plan-usage-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 3px 8px;
+  align-items: baseline;
+  gap: 1px 8px;
+  min-height: 20px;
 }
 .plan-usage-count {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.plan-usage-meter,
 .plan-usage-pending {
-  grid-column: 1 / -1;
-}
-.plan-usage-pending {
+  grid-column: 2;
+  text-align: right;
   color: var(--color-muted);
   font-size: 10px;
 }
@@ -162,29 +176,8 @@
   color: var(--color-forest);
   font-weight: 600;
 }
-.plan-usage-meter meter {
-  display: block;
-  width: 100%;
-  height: 3px;
-  appearance: none;
-  overflow: hidden;
-  border: 0;
-  border-radius: 2px;
-  background: var(--color-sage);
-}
-.plan-usage-meter meter::-webkit-meter-bar {
-  border: 0;
-  background: var(--color-sage);
-}
-.plan-usage-meter meter::-webkit-meter-optimum-value {
-  background: var(--color-leaf);
-}
-.plan-usage-meter meter::-moz-meter-bar {
-  background: var(--color-leaf);
-}
 .plan-extra-limits {
-  margin-top: 14px;
-  padding-top: 4px;
+  margin-top: 10px;
   border-top: 1px solid var(--color-line);
 }
 .plan-extra-limits summary {
@@ -193,14 +186,6 @@
   cursor: pointer;
   color: var(--color-muted);
   font-size: 11px;
-}
-.plan-popover-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  margin-top: 10px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 .plan-popover-error {
   display: flex;
@@ -225,7 +210,7 @@
     grid-row: 4;
   }
   .plan-popover .app-icon,
-  .plan-popover-link,
+  .plan-popover-account,
   .plan-extra-limits summary,
   .plan-popover-error button {
     min-height: 44px;

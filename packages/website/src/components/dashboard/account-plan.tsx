@@ -204,12 +204,23 @@ export function WorkspacePlan() {
         }}
       >
         <header className="plan-popover-heading">
-          <div>
+          <Link
+            className="plan-popover-account"
+            href="/app/settings/account#account-plan"
+            aria-label="Account details"
+            onClick={close}
+          >
             <h3 id={`${id}-heading`}>
               {plan ? `${planNames[plan.tier]} plan` : "Your plan"}
             </h3>
-            {plan ? <p>{planSources[plan.source]}</p> : null}
-          </div>
+            {plan ? (
+              <p>
+                {plan.source === "complimentary"
+                  ? "Complimentary from Grove"
+                  : planSources[plan.source]}
+              </p>
+            ) : null}
+          </Link>
           <button
             type="button"
             className="app-icon"
@@ -222,9 +233,6 @@ export function WorkspacePlan() {
             <X size={16} aria-hidden="true" />
           </button>
         </header>
-        {plan?.source === "complimentary" ? (
-          <p className="plan-popover-note">Provided by Grove at no charge.</p>
-        ) : null}
         {usage.isError ? (
           <div className="plan-popover-error" role="alert">
             <p>
@@ -251,13 +259,6 @@ export function WorkspacePlan() {
             Usage details aren’t available yet.
           </p>
         )}
-        <Link
-          className="plan-popover-link"
-          href="/app/settings/account#account-plan"
-          onClick={close}
-        >
-          Account details
-        </Link>
       </div>
     </div>
   );
