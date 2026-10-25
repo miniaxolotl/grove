@@ -15,6 +15,27 @@ flag does not reprice existing subscriptions; product-based entitlement preserve
 their Pro access. Reusing an open checkout retains its original agreed price;
 review the new amount after that checkout expires before starting another.
 
+## Your plan at a glance
+
+The workspace shows a plan badge on desktop and mobile. Select it to open
+**Settings → Account → Your plan**. The label distinguishes **Free**, **Paid
+subscription**, **Trial subscription**, and **Complimentary** Pro/Unlimited access
+provided by the Grove team at no charge. Complimentary access remains visible
+when purchases are hidden; it never cancels a separate subscription. Billing keeps
+subscription status, renewal/end dates and **Manage subscription** independent of
+the effective access label.
+
+The optional `plan` object on owner-session `GET /v1/me` and `GET /v1/billing`
+contains `tier` (`free`, `pro`, `unlimited`) and `source` (`free`, `paid`, `trial`,
+`complimentary`). Both use the existing entitlement resolver and grant precedence;
+expired, unsupported and non-entitled subscriptions never create a Pro badge.
+The lightweight workspace read uses local records, not a Stripe request. Billing
+still reconciles Stripe and then refreshes the workspace snapshot. Account/session
+cache isolation and existing visible refresh rules apply. Scoped agents do not
+receive this field. A null plan (unconfigured/disabled policy without a grant) or
+older API response hides the badge rather than inventing a Free or paid status;
+read failures offer an explicit retry. No billing flag or schema change is required.
+
 ## Library and user actions
 
 | Resource                                  |         Free |           Pro |

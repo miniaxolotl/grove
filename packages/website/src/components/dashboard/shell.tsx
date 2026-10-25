@@ -27,6 +27,7 @@ import { TelemetryChoice } from "@/components/website-telemetry";
 import { WorkspaceDrag } from "./memory-drag";
 import { WorkspaceSearch, WorkspaceSearchButton } from "./workspace-search";
 import { ToastProvider } from "./toasts";
+import { WorkspacePlan } from "./account-plan";
 import {
   WorkspaceCommands,
   CommandMenuButton,
@@ -129,6 +130,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <UserButton />
                           </div>
                         </div>
+                        <WorkspacePlan />
                         <div className="workspace-utilities">
                           <CommandMenuButton />
                           <ShortcutHelpButton compact />

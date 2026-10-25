@@ -1,5 +1,40 @@
 # Delivery evidence
 
+## Visible subscription and complimentary access (25 October 2026)
+
+The desktop/mobile workspace now shows an outlined Free/Pro/Unlimited badge with
+explicit paid, trial or complimentary source text. It opens **Account → Your plan**;
+admin-granted access remains discoverable while purchases are hidden. Billing
+retains separate renewal/payment/end status and **Manage subscription** controls,
+and warns that a complimentary grant does not cancel an existing purchase.
+
+Optional session-only `plan` metadata reuses canonical price/product/expiry and
+admin-grant precedence. Scoped agents receive no new billing metadata. Workspace
+reads use local state and the shared account/session cache, without Stripe calls
+or another polling timer. Billing reconciliation refreshes the badge snapshot so
+checkout does not leave an old Free label. Missing/legacy data never guesses an
+access source; failed reads offer retry. No migration, billing activation, price,
+quota, retained-data, provider or deployed-runtime change is required or performed.
+
+Backend red/green regressions cover Free/paid/trial eligibility, cancellation at
+period end, non-entitled/expired/unsupported subscriptions, tenant/key boundaries,
+complimentary Pro/Unlimited while billing is hidden, grant removal, subscription
+preservation and no-config behavior. Final full **433 backend cases pass**, with
+four optional-service skips; **63 focused billing/action/admin** checks also pass.
+Root/site lint, type checks and builds pass, with all **nine packaged artifacts**.
+Production build `NwuRGXE9X_80NnOqDHT60` passes the Notes entry budget at **489,060
+gzip bytes**, keeping the editor deferred.
+
+[Four reviewed captures](design/screenshots/subscription-badge/README.md) use
+actual components and production CSS with synthetic accounts/responses. **21
+targeted journeys in each of Chromium and supported Noble WebKit** pass across
+1440/390/320px, including keyboard access, WCAG A/AA,44px targets, overflow/page-error
+checks, Billing lifecycle separation, retry, grant refresh, session replacement,
+legacy hiding and checkout reconciliation. The shared workspace browser fixture
+now accepts the badge's new `/me` read; its reproduced failing notebook case passes
+after that fixture-only adjustment. The final full **239-case Chromium suite** and
+four existing iPhone/WebKit settings/preference regressions pass with zero failures.
+
 ## Free/Pro storage and action allowances (25 October 2026)
 
 Configured Cloud now separates user actions from retained provider-attempt budgets:

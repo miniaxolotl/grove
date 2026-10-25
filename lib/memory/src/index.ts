@@ -57,6 +57,7 @@ import { Conversations } from "./conversations.ts";
 import { assertNoteCapacity } from "./note-changes.ts";
 import {
   assertCapacity,
+  billingEntitlement,
   inheritBillingQuotas,
   reserveAction,
   settleAction,
@@ -165,6 +166,7 @@ export const digest = (value: string) =>
 
 export {
   configureBillingQuotas,
+  billingEntitlement,
   billingUsage,
   resourceUsage,
   UsageLimitError,
@@ -483,7 +485,7 @@ export class MemoryService {
   }
 
   async me(principal: Principal) {
-    return this.access(principal, null, async ({ account, grant }) => ({
+    return this.access(principal, null, async ({ account, grant, trx }) => ({
       accountId: account.id,
       type: principal.type,
       connectionId: grant?.id ?? null,
@@ -491,6 +493,9 @@ export class MemoryService {
         (c) => !grant || grant.capabilities.includes(c),
       ),
       contentVersion: account.contentVersion,
+      ...(principal.type === "session"
+        ? { plan: await billingEntitlement(this.db, trx, account.id) }
+        : {}),
       ...settingsFor(account),
       ...legacyPreferences(account),
       aiAvailability: {
