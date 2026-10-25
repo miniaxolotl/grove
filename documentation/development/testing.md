@@ -1,5 +1,30 @@
 # Verification
 
+## AI caching and separate discounted allowances
+
+Use `ai-cache.test.ts`, `ai-cache-migration.test.ts`, `action-quotas.test.ts`,
+`models.test.ts`, `conversations.test.ts`, `background.test.ts`, `capacity.test.ts`
+and `recovery.test.ts` with the disposable non-owner URLs below. Coverage includes
+cross-replica reuse/coalescing, exact keys, invalid vectors, cancellation and late
+owners, RLS, expiry/generation fences, retained account cleanup/reset, independent
+fifth-unit usage, final 0.2 admission, prevention of paid upgrades without quota,
+unchanged-content enrichment, validated planning, exact answers, account research
+reuse and explicit refresh/replay. A populated pre-029 upgrade preserves notes,
+provider counters and historical five-unit actions. Cancellation fixtures must
+force a cache miss and verify abort propagation, not signal-object identity.
+
+Browser review uses actual Billing/Ask components and production CSS with synthetic
+identities: fractional weighted usage, fresh/cached counts, receipts, source refresh
+while a draft exists, refresh retry identity, stale-source removal, narrow widths,
+keyboard/focus and WCAG A/AA. Run existing full Chromium and focused supported
+WebKit cases; no live provider/account or new frontend test files are necessary.
+When a prompt or response contract changes, bump its feature cache protocol/version
+as well as updating validation: parse compatibility alone does not establish that
+an older result answers the new instructions.
+Record inspected screenshots under `design/screenshots/ai-caching/`. A failed
+fixture script load (`ERR_NETWORK_CHANGED`) is environment evidence, not a reason
+to weaken a locator or assert an unrun browser journey passed.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner
