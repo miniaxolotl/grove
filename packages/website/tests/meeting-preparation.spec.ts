@@ -17,7 +17,7 @@ const note = {
   quote: "Use a staged launch after the migration rehearsal.",
 };
 
-test("meeting brief starts only on request, shows sources/coverage and keeps enqueue and save replay identities", async ({
+test("general brief starts only on request, shows sources/coverage and keeps enqueue and save replay identities", async ({
   page,
 }, info) => {
   const requests: AssistanceRequest[] = [],
@@ -33,7 +33,7 @@ test("meeting brief starts only on request, shows sources/coverage and keeps enq
     else if (path.endsWith("/me"))
       data = {
         accountId: "meeting-owner",
-        ...preferencesFor({ meetingPreparationEnabled: true }),
+        ...preferencesFor({ preparationEnabled: true }),
         aiAvailability: { generation: true },
       };
     else if (path.endsWith("/memories/search"))
@@ -42,7 +42,7 @@ test("meeting brief starts only on request, shows sources/coverage and keeps enq
       requests.push(body);
       current = {
         id: body.id,
-        kind: "meeting",
+        kind: "preparation",
         status: "ready",
         version: 2,
         error: null,
@@ -58,20 +58,18 @@ test("meeting brief starts only on request, shows sources/coverage and keeps enq
             reason:
               "Only supplied notes were reviewed. Select exact notes to review other evidence.",
           },
-          meeting: {
-            decisions: [
+          preparation: {
+            sections: [
               {
-                text: "Use a staged launch after the migration rehearsal.",
-                sources: [note],
+                heading: "Research context",
+                items: [
+                  {
+                    text: "Use a staged launch after the migration rehearsal.",
+                    sources: [note],
+                  },
+                ],
               },
             ],
-            discussions: [
-              {
-                text: "The rehearsal is planned before rollout.",
-                sources: [note],
-              },
-            ],
-            questions: [],
           },
         },
       };
@@ -105,41 +103,39 @@ test("meeting brief starts only on request, shows sources/coverage and keeps enq
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
   await page
-    .getByRole("button", { name: "Prepare for a meeting", exact: true })
+    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Open Create a brief", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Meeting preparation",
+    name: "Create a brief",
     exact: true,
   });
   expect(requests).toHaveLength(0);
   await dialog
-    .getByRole("textbox", { name: "Meeting title" })
-    .fill("Launch planning");
-  await dialog
-    .getByRole("textbox", { name: "Agenda or topic" })
+    .getByRole("textbox", { name: "What should this brief help you do?" })
     .fill("Review rollout risks and migration decisions.");
-  await dialog.getByLabel("Meeting date (optional)").fill("2026-10-30");
   await page.screenshot({ path: info.outputPath("meeting-form-desktop.png") });
   await dialog
-    .getByRole("button", { name: "Prepare brief", exact: true })
+    .getByRole("button", { name: "Create brief", exact: true })
     .click();
   await expect(dialog.getByRole("alert")).toBeVisible();
   await expect(
-    dialog.getByRole("button", { name: "Edit meeting details", exact: true }),
+    dialog.getByRole("button", { name: "Edit tool inputs", exact: true }),
   ).toBeDisabled();
   await dialog
     .getByRole("button", { name: "Try loading again", exact: true })
     .click();
   await expect(
-    dialog.getByRole("heading", { name: "Decisions", exact: true }),
+    dialog.getByRole("heading", { name: "Research context", exact: true }),
   ).toBeVisible();
   expect(requests).toHaveLength(2);
   expect(requests[0]).toEqual(requests[1]);
   expect(requests[0]).toMatchObject({
-    kind: "meeting",
-    projectId: project.id,
-    title: "Launch planning",
-    meetingDate: "2026-10-30",
+    kind: "preparation",
+    scope: { kind: "notebooks", ids: [project.id], includeDescendants: false },
+    goal: "Review rollout risks and migration decisions.",
   });
   await expect(dialog.getByText(/Partial coverage/)).toBeVisible();
   await dialog.getByText("Sources", { exact: true }).first().click();
@@ -164,9 +160,13 @@ test("meeting brief starts only on request, shows sources/coverage and keeps enq
       path: info.outputPath(`meeting-brief-${width}.png`),
     });
   }
-  await dialog.getByRole("button", { name: "Save brief", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Save result", exact: true })
+    .click();
   await expect(dialog.getByRole("alert")).toBeVisible();
-  await dialog.getByRole("button", { name: "Save brief", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Save result", exact: true })
+    .click();
   await expect(
     dialog.getByRole("button", { name: "Undo", exact: true }),
   ).toBeVisible();
@@ -179,7 +179,7 @@ test("meeting brief starts only on request, shows sources/coverage and keeps enq
   await expect(dialog.getByText("Undone", { exact: true })).toBeVisible();
 });
 
-test("meeting opt-in is never silently changed and cancelling preserves the meeting inputs", async ({
+test("tool opt-in is never silently changed and cancelling preserves the brief inputs", async ({
   page,
 }) => {
   let enabled = false,
@@ -193,7 +193,7 @@ test("meeting opt-in is never silently changed and cancelling preserves the meet
     else if (path.endsWith("/me"))
       data = {
         accountId: "meeting-owner",
-        ...preferencesFor({ meetingPreparationEnabled: enabled }),
+        ...preferencesFor({ preparationEnabled: enabled }),
       };
     else if (path.endsWith("/memories/search"))
       data = { items: [], nextCursor: null };
@@ -201,7 +201,7 @@ test("meeting opt-in is never silently changed and cancelling preserves the meet
       requests++;
       current = {
         id: body.id,
-        kind: "meeting",
+        kind: "preparation",
         status: "pending",
         version: 1,
         result: null,
@@ -217,7 +217,7 @@ test("meeting opt-in is never silently changed and cancelling preserves the meet
         version: 2,
         status: "cancelled",
         result: null,
-        error: "Brief cancelled. Start a new brief to try again.",
+        error: "Generation cancelled. Start a new result to try again.",
       };
       data = current;
     } else if (path.includes("/assistance/")) data = current;
@@ -226,55 +226,56 @@ test("meeting opt-in is never silently changed and cancelling preserves the meet
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
   await page
-    .getByRole("button", { name: "Prepare for a meeting", exact: true })
+    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Open Create a brief", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Meeting preparation",
+    name: "Create a brief",
     exact: true,
   });
   await dialog
-    .getByRole("textbox", { name: "Meeting title" })
-    .fill("Launch planning");
-  await dialog
-    .getByRole("textbox", { name: "Agenda or topic" })
+    .getByRole("textbox", { name: "What should this brief help you do?" })
     .fill("Rollout risks");
   await expect(
-    dialog.getByRole("button", { name: "Prepare brief", exact: true }),
+    dialog.getByRole("button", { name: "Create brief", exact: true }),
   ).toBeDisabled();
   expect(requests).toBe(0);
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Close dialog", exact: true })
+    .click();
   enabled = true;
   await page.reload();
   await page.getByRole("button", { name: "Notebook options" }).click();
   await page
-    .getByRole("button", { name: "Prepare for a meeting", exact: true })
+    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Open Create a brief", exact: true })
     .click();
   await dialog
-    .getByRole("textbox", { name: "Meeting title" })
-    .fill("Launch planning");
-  await dialog
-    .getByRole("textbox", { name: "Agenda or topic" })
+    .getByRole("textbox", { name: "What should this brief help you do?" })
     .fill("Rollout risks");
   await dialog
-    .getByRole("button", { name: "Prepare brief", exact: true })
+    .getByRole("button", { name: "Create brief", exact: true })
     .click();
   await dialog
     .getByRole("button", { name: "Cancel generation", exact: true })
     .click();
-  await expect(dialog.getByText(/Brief cancelled/)).toBeVisible();
+  await expect(dialog.getByText(/Generation cancelled/)).toBeVisible();
   await dialog
-    .getByRole("button", { name: "Edit meeting details", exact: true })
+    .getByRole("button", { name: "Edit tool inputs", exact: true })
     .click();
   await expect(
-    dialog.getByRole("textbox", { name: "Meeting title" }),
-  ).toHaveValue("Launch planning");
-  await expect(
-    dialog.getByRole("textbox", { name: "Agenda or topic" }),
+    dialog.getByRole("textbox", {
+      name: "What should this brief help you do?",
+    }),
   ).toHaveValue("Rollout risks");
   expect(requests).toBe(1);
 });
 
-test("meeting source recovery keeps the agenda, removes exact pins and never falls back to the notebook", async ({
+test("brief source recovery keeps the goal, removes exact pins and never falls back to the notebook", async ({
   page,
 }) => {
   const notes = [
@@ -303,7 +304,7 @@ test("meeting source recovery keeps the agenda, removes exact pins and never fal
     else if (path.endsWith("/me"))
       data = {
         accountId: "meeting-owner",
-        ...preferencesFor({ meetingPreparationEnabled: true }),
+        ...preferencesFor({ preparationEnabled: true }),
       };
     else if (path.endsWith("/memories/search"))
       data = { items: notes, nextCursor: null };
@@ -329,44 +330,46 @@ test("meeting source recovery keeps the agenda, removes exact pins and never fal
   await page.goto(`${base}/app`);
   await page.getByRole("checkbox", { name: "Select these notes" }).check();
   await page
-    .getByRole("button", { name: "Prepare for a meeting", exact: true })
+    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Open Create a brief", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Meeting preparation",
+    name: "Create a brief",
     exact: true,
   });
   await dialog
-    .getByRole("textbox", { name: "Meeting title" })
-    .fill("Launch review");
-  await dialog
-    .getByRole("textbox", { name: "Agenda or topic" })
+    .getByRole("textbox", { name: "What should this brief help you do?" })
     .fill("Keep this agenda while recovering");
   await dialog
-    .getByRole("button", { name: "Prepare brief", exact: true })
+    .getByRole("button", { name: "Create brief", exact: true })
     .click();
   await expect(dialog.getByRole("alert")).toBeVisible();
   expect(requests[0]).toMatchObject({
-    projectId: null,
-    sources: notes.map(({ id, version }) => ({ id, version })),
+    scope: {
+      kind: "notes",
+      sources: notes.map(({ id, version }) => ({ id, version })),
+    },
   });
   await dialog
-    .getByRole("button", { name: "Edit meeting details", exact: true })
+    .getByRole("button", { name: "Edit tool inputs", exact: true })
     .click();
   await expect(
-    dialog.getByRole("textbox", { name: "Agenda or topic" }),
+    dialog.getByRole("textbox", {
+      name: "What should this brief help you do?",
+    }),
   ).toHaveValue("Keep this agenda while recovering");
-  await dialog.getByText("Selected notes (2)", { exact: true }).click();
   await dialog.getByRole("button", { name: "Remove selected note 1" }).click();
   await expect(
     dialog.getByText("Selected notes (1)", { exact: true }),
   ).toBeFocused();
   await dialog
-    .getByRole("button", { name: "Prepare brief", exact: true })
+    .getByRole("button", { name: "Create brief", exact: true })
     .click();
   await expect(dialog.getByRole("alert")).toBeVisible();
   expect(requests[1]).toMatchObject({
-    projectId: null,
-    sources: [{ id: notes[1].id, version: 1 }],
+    scope: { kind: "notes", sources: [{ id: notes[1].id, version: 1 }] },
   });
   expect(requests[1].id).not.toBe(requests[0].id);
 });

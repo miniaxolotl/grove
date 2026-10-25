@@ -14,6 +14,7 @@ import type {
 import type { SummaryEvidence } from "@lib/shared/summaries";
 import { activeNotes } from "./relationship-data.ts";
 import { relationshipPolicyVersion } from "@lib/shared/relationships";
+import { isToolKind } from "@lib/shared/notebook-workflows";
 import {
   changedSources,
   type NoteUndo,
@@ -30,16 +31,22 @@ export const assistanceProfile = (
         generation,
         embedding: embedding ?? null,
       })
-    : kind === "cleanup"
-      ? profileId("assistance-cleanup-v3", {
+    : kind && isToolKind(kind)
+      ? profileId("notebook-tool-v1", {
+          kind,
           generation,
           embedding: embedding ?? null,
-          policy: relationshipPolicyVersion,
         })
-      : profileId("assistance-v2", {
-          generation,
-          embedding: embedding ?? null,
-        });
+      : kind === "cleanup"
+        ? profileId("assistance-cleanup-v3", {
+            generation,
+            embedding: embedding ?? null,
+            policy: relationshipPolicyVersion,
+          })
+        : profileId("assistance-v2", {
+            generation,
+            embedding: embedding ?? null,
+          });
 export type ScopeDependency = {
   id: string;
   version?: number;
@@ -132,6 +139,19 @@ export async function validAssistance(
     if (
       row.state.accountVersion !== account.contentVersion ||
       row.state.catalogVersion !== account.notebookCatalogVersion
+    )
+      throw changedSources();
+  }
+  if (
+    row.state.workflowAccountVersion !== undefined ||
+    row.state.workflowCatalogVersion !== undefined
+  ) {
+    const account = await trx("accounts").where({ id: row.accountId }).first();
+    if (
+      (row.state.workflowAccountVersion !== undefined &&
+        row.state.workflowAccountVersion !== account.contentVersion) ||
+      (row.state.workflowCatalogVersion !== undefined &&
+        row.state.workflowCatalogVersion !== account.notebookCatalogVersion)
     )
       throw changedSources();
   }

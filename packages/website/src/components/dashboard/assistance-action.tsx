@@ -20,7 +20,9 @@ const AssistancePanel = deferredFeature(
 );
 export type AssistanceInput = AssistanceRequest extends infer T
   ? T extends AssistanceRequest
-    ? Omit<T, "id">
+    ? "scope" extends keyof T
+      ? never
+      : Omit<T, "id">
     : never
   : never;
 const icons = {

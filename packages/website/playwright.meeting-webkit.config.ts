@@ -4,5 +4,5 @@ import base from "./playwright.webkit.config";
 export default defineConfig({
   ...base,
   testMatch: ["meeting-preparation.spec.ts", "assistance.spec.ts"],
-  grep: /meeting|action preview is lazy|assistance expiry/,
+  grep: /general brief|tool opt-in|brief source recovery|action preview is lazy|assistance expiry/,
 });

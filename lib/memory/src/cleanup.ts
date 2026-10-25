@@ -6,7 +6,7 @@ export async function scheduleCleanup(db: Knex) {
   const {
     rows: [row],
   } = await db.raw(
-    "SELECT grove_schedule_cleanup()+grove_schedule_meeting_cleanup() AS scheduled",
+    "SELECT grove_schedule_cleanup()+grove_schedule_meeting_cleanup()+grove_schedule_tool_cleanup() AS scheduled",
   );
   return row.scheduled as number;
 }
@@ -127,9 +127,16 @@ export function cleanupHandlers(
       if (buckets.length)
         await trx("rate_buckets").whereIn("minute", buckets).delete();
       const previews = await trx("assistance_requests")
-        .where({ kind: "meeting" })
+        .whereIn("kind", [
+          "meeting",
+          "preparation",
+          "weekly_review",
+          "study",
+          "knowledge_gaps",
+          "similar_problems",
+        ])
         .where("expiresAt", "<=", trx.fn.now())
-        .whereRaw("jsonb_exists(input,'agenda')")
+        .whereRaw("input <> '{}'::jsonb")
         .orderBy("expiresAt")
         .limit(batchSize)
         .pluck("id");

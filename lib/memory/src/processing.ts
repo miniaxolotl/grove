@@ -53,6 +53,7 @@ import {
   type SummaryJob,
 } from "./notebook-summaries.ts";
 import { assistanceProfile } from "./assistance-data.ts";
+import { toolKinds } from "@lib/shared/notebook-workflows";
 import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
 import {
   billingUsage,
@@ -90,6 +91,13 @@ export const providerProfiles = (providers: Providers) => [
           providers.generation.profile,
           providers.embedding?.profile,
           "meeting",
+        ),
+        ...toolKinds.map((kind) =>
+          assistanceProfile(
+            providers.generation!.profile,
+            providers.embedding?.profile,
+            kind,
+          ),
         ),
       ]
     : []),

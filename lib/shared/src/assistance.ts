@@ -3,6 +3,14 @@ import { sourceRefSchema, type SourceRef } from "@lib/shared/models";
 import { summaryEvidenceSchema } from "@lib/shared/summaries";
 import { relationshipSupportSchema } from "@lib/shared/relationships";
 import { meetingWorkflowRequestSchema } from "@lib/shared/notebook-workflows";
+import {
+  toolRequestSchema,
+  type PreparationResult,
+  type StudySet,
+  type WeeklyReview,
+  type KnowledgeGaps,
+  type PastProblems,
+} from "@lib/shared/notebook-workflows";
 
 export const assistancePreferences = {
   filing: "filingEnabled",
@@ -10,6 +18,11 @@ export const assistancePreferences = {
   digest: "digestsEnabled",
   cleanup: "cleanupEnabled",
   meeting: "meetingPreparationEnabled",
+  preparation: "preparationEnabled",
+  weekly_review: "weeklyReviewEnabled",
+  study: "studyModeEnabled",
+  knowledge_gaps: "knowledgeGapsEnabled",
+  similar_problems: "similarProblemsEnabled",
 } as const;
 export type AssistanceKind = keyof typeof assistancePreferences;
 const selected = z
@@ -21,6 +34,7 @@ const selected = z
     "Select distinct notes",
   );
 export const assistanceRequestSchema = z.discriminatedUnion("kind", [
+  ...toolRequestSchema.options,
   meetingWorkflowRequestSchema,
   z
     .object({
@@ -123,6 +137,18 @@ export type DigestChange = {
   afterContent: string | null;
 };
 export type AssistanceResult = {
+  preparation?: PreparationResult;
+  study?: StudySet;
+  weekly?: WeeklyReview;
+  gaps?: KnowledgeGaps;
+  problems?: PastProblems;
+  window?: {
+    start: string;
+    end: string;
+    timeZone: string;
+    inProgress: boolean;
+  };
+  answerSearch?: { supplied: number; partial: boolean };
   coverage: {
     total: number;
     examined: number;
@@ -130,6 +156,7 @@ export type AssistanceResult = {
     cited?: number;
     partial?: boolean;
     reason?: string;
+    historyOmitted?: boolean;
   };
   meeting?: MeetingBrief;
   filing?: FilingResult;

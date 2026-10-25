@@ -16,10 +16,10 @@ test("the workflow catalog represents all five distinct jobs, not meeting aliase
     Object.values(notebookWorkflows).map((workflow) => workflow.title),
     [
       "Weekly review",
-      "Meeting preparation",
-      "Study mode",
-      "Knowledge gaps",
-      "Similar past problems",
+      "Create a brief",
+      "Study notes",
+      "Find knowledge gaps",
+      "Find past solutions",
     ],
   );
   assert.equal(

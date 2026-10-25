@@ -40,7 +40,7 @@ import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
 import { NoteDeleteDialog } from "./note-delete-dialog";
 import { AssistanceAction } from "./assistance-action";
-import { MeetingPreparationAction } from "./meeting-preparation-action";
+import { ToolsAction } from "./tools-action";
 import { useNotebookVisit } from "./use-notebook-visit";
 import type { NotebookVisit } from "@lib/shared/assistance";
 const loadDetail = () =>
@@ -611,11 +611,11 @@ export function MemoryLibrary({
                   assistance={
                     !archive && (
                       <>
-                        <MeetingPreparationAction
+                        <ToolsAction
                           compact
-                          disabled={busy || selectedItems.length > 12}
+                          disabled={busy}
                           scope={{
-                            projectId: null,
+                            kind: "notes",
                             sources: selectedItems.map(({ id, version }) => ({
                               id,
                               version,

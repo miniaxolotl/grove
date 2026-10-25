@@ -32,7 +32,93 @@ const principal = sessionPrincipal(rows[0].id, subject);
 const providers: Providers = {
   generation: {
     profile: `meeting-browser-${randomUUID()}`,
-    async generate(schema, _prompt, sources) {
+    async generate(schema, _prompt, sources, options) {
+      const task = JSON.parse(options?.context?.question || "{}");
+      const cite = (term: string) =>
+        sources
+          .filter((source) => source.content.includes(term))
+          .slice(0, 1)
+          .map((source) => ({
+            id: source.id,
+            version: source.version,
+            quote: source.content,
+          }));
+      if (task.phase === "verify_gaps") return schema.parse(task.candidates);
+      if (task.phase === "verify_actions")
+        return schema.parse({ items: task.candidates });
+      if (task.kind === "preparation")
+        return schema.parse({
+          sections: [
+            {
+              heading: "Planning context",
+              items: [
+                {
+                  text: "Use a staged launch after the migration rehearsal.",
+                  sources: cite("staged launch"),
+                },
+              ],
+            },
+            {
+              heading: "Questions to resolve",
+              items: [
+                {
+                  text: "Who will review the rollback rehearsal?",
+                  sources: cite("Who will"),
+                },
+              ],
+            },
+          ],
+        });
+      if (task.kind === "study")
+        return schema.parse({
+          items: [
+            {
+              prompt: "What should happen before the staged launch?",
+              answer: "A migration rehearsal.",
+              explanation:
+                "The recorded decision puts the staged launch after the migration rehearsal.",
+              sources: cite("staged launch"),
+            },
+          ],
+        });
+      if (task.kind === "knowledge_gaps")
+        return schema.parse({
+          findings: [
+            {
+              kind: "unanswered_question",
+              text: "Who will review the rollback rehearsal?",
+              scope: "not_found_in_reviewed_evidence",
+              sources: cite("Who will"),
+            },
+          ],
+        });
+      if (task.kind === "weekly_review")
+        return schema.parse({
+          ideas: [],
+          decisions: [],
+          openActions: [
+            { text: "Review the rollback rehearsal.", sources: cite("[ ]") },
+          ],
+        });
+      if (task.kind === "similar_problems") {
+        const sources = cite("timeout");
+        return schema.parse({
+          matches: [
+            {
+              problem: {
+                text: "The migration timed out on a large table.",
+                sources,
+              },
+              solution: { text: "Use bounded batches.", sources },
+              outcome: { status: "tested", evidence: sources },
+              similarities: [
+                { text: "Both migrations time out on large tables.", sources },
+              ],
+              differences: [],
+            },
+          ],
+        });
+      }
       if (!Object.is(schema, meetingBriefSchema))
         throw new Error("Unexpected fixture generation");
       return schema.parse({
@@ -78,6 +164,11 @@ await service.settings(principal, {
   personalSummaryEnabled: false,
   progressSummariesEnabled: false,
   meetingPreparationEnabled: true,
+  preparationEnabled: true,
+  weeklyReviewEnabled: true,
+  studyModeEnabled: true,
+  knowledgeGapsEnabled: true,
+  similarProblemsEnabled: true,
 });
 const project = await service.project(principal, {
   name: "Launch planning",
@@ -87,6 +178,8 @@ const sources = [];
 for (const content of [
   "Decision: use a staged launch after the migration rehearsal.",
   "Open question: Who will review the rollback rehearsal?",
+  "- [ ] Review the rollback rehearsal.",
+  "The migration hit a timeout on a large table. Solution: use bounded batches. Tested on a restored copy; the migration passed.",
 ])
   sources.push(
     await service.remember(

@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import { actionUsage } from "./action-usage-migration.ts";
 import { meetingPreparation } from "./meeting-migration.ts";
+import { notebookWorkflows } from "./workflow-migration.ts";
 import { billing } from "./billing-migration.ts";
 import { systemAdministration } from "./system-admin-migration.ts";
 import { adminSupport } from "./admin-support-migration.ts";
@@ -259,6 +260,7 @@ export const migrations = [
   adminSupport,
   actionUsage,
   meetingPreparation,
+  notebookWorkflows,
 ];
 
 export const migrationSource: Knex.MigrationSource<

@@ -1161,6 +1161,16 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/assistance/:id/continue", async (c) =>
+    c.json({
+      success: true,
+      data: await service.assistance.continue(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        (await body(c, assistanceCancelSchema)).expectedVersion,
+      ),
+    }),
+  );
   app.post("/v1/assistance/:id/cancel", async (c) =>
     c.json({
       success: true,

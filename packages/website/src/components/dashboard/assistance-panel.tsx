@@ -21,8 +21,16 @@ import { SourceEvidence } from "./source-evidence";
 import { MeetingBriefContent } from "./meeting-brief-content";
 import { useNotebooks } from "./notebooks-provider";
 import { NotebookSelect } from "./notebook-select";
+import {
+  notebookWorkflows,
+  workflowScopeLabel,
+} from "@lib/shared/notebook-workflows";
+import { ToolResultContent } from "./tool-result-content";
 
 const titles = {
+  ...Object.fromEntries(
+    Object.entries(notebookWorkflows).map(([kind, tool]) => [kind, tool.title]),
+  ),
   filing: "Suggested notebook",
   actions: "Action list",
   cleanup: "Review notebook",
@@ -42,7 +50,13 @@ export function AssistancePanel({
   const cache = useWorkspaceCache();
   const { projects } = useNotebooks();
   const [destination, setDestination] = useState(
-    initial.kind === "meeting" ? (initial.projectId ?? "") : "",
+    "scope" in initial &&
+      initial.scope.kind === "notebooks" &&
+      initial.scope.ids.length === 1
+      ? initial.scope.ids[0]
+      : initial.kind === "meeting"
+        ? (initial.projectId ?? "")
+        : "",
   );
   const [request, setRequest] = useState(initial);
   const [started, setStarted] = useState(false);
@@ -58,6 +72,10 @@ export function AssistancePanel({
     undo: boolean;
   } | null>(null);
   const cancelVersion = useRef<number | null>(null);
+  const continueVersion = useRef<number | null>(null);
+  const [continueUncertain, setContinueUncertain] = useState<number | null>(
+    null,
+  );
   const path = `/assistance/${request.id}`;
   const query = useQuery({
     ...cache.resource<Assistance | null>(path),
@@ -68,6 +86,8 @@ export function AssistancePanel({
   const result = query.data,
     ready = result?.status === "ready";
   const unresolvedSave = saveUncertain && ready;
+  const unresolvedContinue =
+    continueUncertain !== null && ready && result.version === continueUncertain;
   const setResult = (value: Assistance) =>
     cache.client.setQueryData(cache.resource(path).queryKey, value);
   useEffect(() => {
@@ -118,6 +138,19 @@ export function AssistancePanel({
     setError("");
     try {
       let next = { ...request, id: crypto.randomUUID() };
+      if ("scope" in next && next.scope.kind === "notes")
+        next = {
+          ...next,
+          scope: {
+            kind: "notes",
+            sources: await Promise.all(
+              next.scope.sources.map(async (ref) => {
+                const note = await cache.api<Memory>(`/memories/${ref.id}`);
+                return { id: note.id, version: note.version };
+              }),
+            ),
+          },
+        };
       if ("sources" in next && next.sources)
         next = {
           ...next,
@@ -135,6 +168,8 @@ export function AssistancePanel({
       operation.current = null;
       setSaveUncertain(false);
       cancelVersion.current = null;
+      continueVersion.current = null;
+      setContinueUncertain(null);
       setRequest(next);
     } catch (reason) {
       setError(errorMessage(reason));
@@ -157,7 +192,7 @@ export function AssistancePanel({
         : {
             expectedVersion: result.version,
             ...(candidate ? { candidate: candidate.key, action } : {}),
-            ...(request.kind === "meeting" && !undo
+            ...((request.kind === "meeting" || "scope" in request) && !undo
               ? { destinationProjectId: destination || null }
               : {}),
             ...(request.kind === "actions" && !undo
@@ -225,14 +260,43 @@ export function AssistancePanel({
       setBusy(false);
     }
   }
+  async function continueReview() {
+    if (!result) return;
+    setBusy(true);
+    setError("");
+    if (!unresolvedContinue) continueVersion.current = result.version;
+    try {
+      setResult(
+        await cache.api<Assistance>(`${path}/continue`, {
+          expectedVersion: continueVersion.current,
+        }),
+      );
+      continueVersion.current = null;
+      setContinueUncertain(null);
+    } catch (reason) {
+      if (reason instanceof DashboardApiError && reason.status < 500) {
+        continueVersion.current = null;
+        setContinueUncertain(null);
+      } else setContinueUncertain(continueVersion.current);
+      setError(errorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Dialog
-      title={titles[request.kind]}
+      title={
+        "scope" in request
+          ? notebookWorkflows[request.kind].title
+          : titles[request.kind]
+      }
       close={close}
       busy={
         busy ||
-        (request.kind === "meeting" &&
-          (unresolvedSave || (!started && enqueueUncertain)))
+        ((request.kind === "meeting" || "scope" in request) &&
+          (unresolvedSave ||
+            unresolvedContinue ||
+            (!started && enqueueUncertain)))
       }
     >
       <div className="assistance-panel app-form">
@@ -251,7 +315,11 @@ export function AssistancePanel({
           <IconButton
             label="Refresh preview"
             disabled={
-              !started || busy || unresolvedSave || result?.status === "pending"
+              !started ||
+              busy ||
+              unresolvedSave ||
+              unresolvedContinue ||
+              result?.status === "pending"
             }
             onClick={() => void refresh()}
           >
@@ -267,12 +335,14 @@ export function AssistancePanel({
             }}
           />
         )}
-        {request.kind === "meeting" && (
+        {(request.kind === "meeting" || "scope" in request) && (
           <>
             <p className="text-xs text-muted">
-              {request.sources
-                ? "Selected notes only"
-                : "This notebook’s direct notes only"}
+              {"scope" in request
+                ? workflowScopeLabel(request.scope)
+                : request.sources
+                  ? "Selected notes only"
+                  : "This notebook’s direct notes only"}
               . {result?.result?.coverage.supplied ?? 0} supplied;{" "}
               {result?.result?.coverage.cited ?? 0} cited.
             </p>
@@ -301,14 +371,75 @@ export function AssistancePanel({
                 disabled={
                   busy ||
                   unresolvedSave ||
+                  unresolvedContinue ||
                   (!started && enqueueUncertain) ||
                   result?.status === "pending"
                 }
                 onClick={back}
               >
-                Edit meeting details
+                {"scope" in request
+                  ? "Edit tool inputs"
+                  : "Edit meeting details"}
               </button>
             )}
+          </>
+        )}
+        {ready && "scope" in request && result.result && (
+          <>
+            <ToolResultContent
+              key={`${result.id}:${result.version}`}
+              input={request}
+              result={result.result}
+            />
+            {result.result.nextCursor && (
+              <Button
+                variant="secondary"
+                disabled={busy || unresolvedSave}
+                onClick={() => void continueReview()}
+              >
+                {unresolvedContinue
+                  ? "Retry source review"
+                  : "Review more sources"}
+              </Button>
+            )}
+            {result.result.preparation?.sections.some(
+              (section) => section.items.length,
+            ) ||
+            result.result.study?.items.length ||
+            result.result.weekly?.ideas.length ||
+            result.result.weekly?.decisions.length ||
+            result.result.weekly?.openActions.length ||
+            result.result.gaps?.findings.length ||
+            result.result.problems?.matches.length ? (
+              <>
+                <NotebookSelect
+                  label="Save result to"
+                  projects={projects}
+                  value={destination}
+                  disabled={busy || unresolvedSave || unresolvedContinue}
+                  onValueChange={(value) => {
+                    operation.current = null;
+                    setDestination(value);
+                  }}
+                />
+                <p className="text-xs text-muted">
+                  Save creates ordinary editable notes with sources and
+                  coverage. Long results may create multiple notes; Undo
+                  archives only those notes.
+                </p>
+                {request.kind === "study" && (
+                  <p className="text-xs text-muted">
+                    Saved study sets include answer keys and explanations.
+                  </p>
+                )}
+                <Button
+                  disabled={busy || unresolvedContinue}
+                  onClick={() => void apply()}
+                >
+                  Save result
+                </Button>
+              </>
+            ) : null}
           </>
         )}
         {ready && request.kind === "meeting" && result.result?.meeting && (
@@ -350,13 +481,22 @@ export function AssistancePanel({
               <Undo2 size={16} />
               Undo
             </Button>
-            {result.applied[0] && (
+            {result.applied.map((note, index) => (
               <Link
+                key={note.id}
                 className="text-button"
-                href={`/app/memories/${result.applied[0].id}`}
+                href={`/app/memories/${note.id}`}
               >
-                Open note
+                {result.applied.length === 1
+                  ? "Open note"
+                  : `Open note ${index + 1}`}
               </Link>
+            ))}
+            {result.applied.length > 1 && (
+              <p className="text-sm text-muted">
+                {result.applied.length} notes saved. Undo affects all of these
+                created notes.
+              </p>
             )}
           </div>
         )}

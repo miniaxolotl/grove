@@ -15,6 +15,7 @@ import {
   Plus,
   LockKeyhole,
   MessageSquare,
+  Wrench,
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
@@ -37,6 +38,7 @@ import {
 const links = [
   { href: "/app", name: "Notes", icon: BookOpen },
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
+  { href: "/app/tools", name: "Tools", icon: Wrench },
   { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];
@@ -144,14 +146,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                               key={item.href}
                               item={item}
                               current={current}
-                              secondary={index > 1}
+                              secondary={index > 2}
                             />
                           ))}
                         </nav>
                         <NotebookExplorer />
                         <div className="app-sidebar-footer">
                           <nav aria-label="Workspace settings">
-                            {links.slice(2).map((item) => (
+                            {links.slice(3).map((item) => (
                               <WorkspaceNavLink
                                 key={item.href}
                                 item={item}

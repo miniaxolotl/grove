@@ -58,7 +58,7 @@ async function forward(
     !allowed.test(path) &&
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
     path !== "conversations/search" &&
-    !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review|cancel))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
+    !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review|cancel|continue))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,
     )
   )

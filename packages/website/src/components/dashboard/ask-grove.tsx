@@ -593,6 +593,9 @@ export function AskGrove({
           title="Ask Grove"
           actions={
             <div className="ask-page-actions">
+              <Link className="app-button secondary" href="/app/tools">
+                Tools
+              </Link>
               {historyButton}
               <Button
                 variant="secondary"

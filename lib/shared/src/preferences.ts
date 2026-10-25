@@ -21,6 +21,11 @@ export const preferenceKeys = [
   "digestsEnabled",
   "cleanupEnabled",
   "meetingPreparationEnabled",
+  "preparationEnabled",
+  "weeklyReviewEnabled",
+  "studyModeEnabled",
+  "knowledgeGapsEnabled",
+  "similarProblemsEnabled",
   "transcriptionEnabled",
   "readAloudEnabled",
 ] as const;
@@ -43,7 +48,15 @@ export type PreferencesUpdate = Partial<AccountPreferences> & LegacyPreferences;
 const defaults = Object.fromEntries(
   preferenceKeys.map((key) => [
     key,
-    !["transcriptionEnabled", "meetingPreparationEnabled"].includes(key),
+    ![
+      "transcriptionEnabled",
+      "meetingPreparationEnabled",
+      "preparationEnabled",
+      "weeklyReviewEnabled",
+      "studyModeEnabled",
+      "knowledgeGapsEnabled",
+      "similarProblemsEnabled",
+    ].includes(key),
   ]),
 ) as AccountPreferences;
 
