@@ -20,5 +20,7 @@ Standard access and verifies one audit event after a lost-response retry with th
 identical operation payload. It checks keyboard dismissal, revoked-access
 concealment, WCAG A/AA findings, horizontal overflow and page errors. Account state
 is real local PostgreSQL; Clerk identity names/session are explicit test fixtures.
+Both engines also verify a temporary role-discovery outage hides sensitive rows,
+keeps an honest retry and recovers without claiming the admin role was revoked.
 
 No charge, live grant or production rollout is represented by these captures.
