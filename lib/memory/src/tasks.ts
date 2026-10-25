@@ -115,7 +115,13 @@ export class Tasks {
       }
       const pending = await trx("background_tasks")
         .whereIn("status", ["pending", "running"])
-        .whereIn("kind", ["export", "import", "connector_sync"])
+        .whereIn("kind", [
+          "export",
+          "import",
+          "connector_sync",
+          "document_prepare",
+          "document_import",
+        ])
         .count("id as total")
         .first();
       if (Number(pending?.total) >= 20)
@@ -156,7 +162,13 @@ export class Tasks {
   async list(principal: Principal, projectId?: string) {
     return this.service.access(principal, "admin", async ({ trx, account }) => {
       const query = trx("background_tasks")
-        .whereIn("kind", ["export", "import", "connector_sync"])
+        .whereIn("kind", [
+          "export",
+          "import",
+          "connector_sync",
+          "document_prepare",
+          "document_import",
+        ])
         .orderBy("createdAt", "desc")
         .limit(10);
       if (projectId) query.whereRaw("payload->>'projectId'=?", [projectId]);
@@ -176,10 +188,37 @@ export class Tasks {
     return this.service.access(principal, "admin", async ({ trx, account }) => {
       const row = await trx("background_tasks")
         .where({ id })
-        .whereIn("kind", ["export", "import", "connector_sync"])
+        .whereIn("kind", [
+          "export",
+          "import",
+          "connector_sync",
+          "document_prepare",
+          "document_import",
+        ])
         .forUpdate()
         .first();
       if (!row) throw new GroveError("not_found", "Job not found", 404);
+      if (row.kind === "document_prepare" || row.kind === "document_import") {
+        const batch = await trx("document_import_batches")
+          .where({ id: row.payload.batchId, taskId: id })
+          .first();
+        if (
+          !batch ||
+          batch.status !==
+            (row.kind === "document_prepare" ? "preparing" : "applying") ||
+          (row.kind === "document_prepare" &&
+            new Date(batch.expiresAt) <= new Date())
+        )
+          throw new GroveError(
+            "import_changed",
+            "This import cannot be resumed. Open its current status.",
+            409,
+          );
+        if (action === "cancel")
+          await trx("document_import_batches")
+            .where({ id: batch.id })
+            .update({ status: "cancelled", version: batch.version + 1 });
+      }
       if (action === "cancel") {
         if (["pending", "running"].includes(row.status))
           await trx("background_tasks").where({ id }).update({

@@ -16,6 +16,8 @@ export const taskKinds = [
   "model_backfill",
   "import",
   "connector_sync",
+  "document_prepare",
+  "document_import",
   "speech_transcribe",
   "speech_synthesize",
 ] as const;

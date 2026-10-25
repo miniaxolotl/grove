@@ -113,6 +113,28 @@ authorize applying the production migration or deploying this feature.
 Restore targets must apply matching migrations and run `reconcile-restore.ts`
 against current authority before going online, including suspension/support state.
 
+### Note and PDF import rollout (031)
+
+1. Follow the frozen-source release procedure. Back up PostgreSQL **and the private
+   source bucket**, verify restore and apply forward `20261025_031_document_imports`
+   after030 using the migration owner. It adds isolated staging/provenance and job
+   kinds without changing existing notes or widening media grants.
+2. Deploy the matching admitted API/worker image by digest, then website. Retain
+   existing private `MEDIA_STORAGE` configuration and source lifecycle receipt; do
+   not point originals at expiring export/speech storage. No new bucket/credential
+   is required. Missing source storage leaves file imports unavailable, not lossy.
+3. Verify the packaged pinned PDF parser and permission-limited child process on
+   the actual Node24 image. Keep bulk concurrency and container memory bounded;
+   V8 old-space limits do not cap total process RSS. Verify hosted streaming uploads
+   up to3 MiB, actual-byte/checksum enforcement and admission/cancellation behavior.
+4. With owned synthetic documents, exercise Markdown/text/PDF preview → existing/new
+   notebook → explicit confirmation, worker restart/retry, original download,
+   second-account/agent/public denial, sharing warning and media-complete export.
+   Check malformed/scanned PDFs, preference-off manual import and expired staging.
+5. Keep the forward schema on rollback. Recovery cancels unconfirmed import previews
+   and old task leases, preserving committed notes/provenance and accepted originals.
+   Migration execution, storage changes and production rollout remain owner operations.
+
 ### System administration rollout (025)
 
 1. Verify the frozen candidate and production migration history. Back up and verify

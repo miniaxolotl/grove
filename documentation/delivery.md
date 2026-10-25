@@ -294,6 +294,31 @@ qualify production throughput, cold-cache performance or profitability; unchange
 research/audio exposure can exceed the introductory price. No retained database,
 production flag, paid provider, subscription, release or deployment was changed.
 
+## Reviewed note and PDF uploads (25 October 2026)
+
+Notes, notebook options and Settings → Data now offer reviewed Markdown/plain-text/
+text-based PDF imports into existing, new or Unfiled notebooks. Preparation creates
+no library content; explicit confirmation applies ordinary versioned note/notebook
+writes with checkpointed retry and no implicit overwrite. Optional grounded AI
+organization changes drafts only. Original files remain private and immutable;
+export provenance, draft expiry/cancellation and restore/account-deletion guards
+preserve the retained-source contract. Forward migration **031** follows context030,
+retaining committed action028 and search029. See the [contract](imports.md) and
+[owner rollout](deploy.md#note-and-pdf-import-rollout-031).
+
+Integrated local verification: **435 backend passes, four optional-service skips,
+zero failures**; nine packaged-consumer artifacts; root/site lint, types and builds;
+**242 Chromium cases** and three focused import repeats after label polish; bundle
+budgets (Notes **488,672 gzip bytes**); 27 release contracts. Real API/PostgreSQL
+journeys pass in Chromium and supported-container WebKit at1440/390/320px, including
+SHA-256-identical private original downloads. The production-dependency packaged
+worker separately passes all six journeys and clean SIGTERM draining.
+
+[Reviewed screenshots](design/screenshots/note-imports/README.md) use synthetic files
+only. AI behavior has synthetic-provider regression coverage, not live-model quality
+qualification. OCR, DOCX, ZIP and embedded attachments remain deferred. No production
+migration, provider configuration, publication, deployment or protected merge occurred.
+
 ## Solo-owner account support (25 October 2026)
 
 Settings → Admin now offers a paginated **People & access** directory and one

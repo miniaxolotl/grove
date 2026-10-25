@@ -1,4 +1,12 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
+import { DocumentImports } from "@lib/memory";
+import {
+  importBatchCreateSchema,
+  importDraftEditSchema,
+  importBatchConfirmSchema,
+  importPlacementSchema,
+} from "@lib/shared/document-imports";
+import { readMediaBytes } from "./media-input.ts";
 import { Billing } from "./billing.ts";
 import { AdminAccounts, type AdminDirectory } from "./system-admin.ts";
 export { Billing };
@@ -184,6 +192,7 @@ export function createApp(deps: AppDependencies) {
         "X-Grove-Telemetry",
         "X-Grove-Note-Version",
         "X-Grove-Content-Sha256",
+        "X-Grove-Filename",
         "Range",
       ],
       exposeHeaders: ["WWW-Authenticate", "X-Request-ID", "Retry-After"],
@@ -268,9 +277,16 @@ export function createApp(deps: AppDependencies) {
       return next();
     const mediaUpload =
       c.req.method === "PUT" &&
-      /^\/v1\/memories\/[0-9a-f-]+\/media\/[0-9a-f-]+$/.test(c.req.path);
+      (/^\/v1\/memories\/[0-9a-f-]+\/media\/[0-9a-f-]+$/.test(c.req.path) ||
+        /^\/v1\/import-batches\/[0-9a-f-]+\/files\/[0-9a-f-]+$/.test(
+          c.req.path,
+        ));
     const long =
       mediaUpload ||
+      /^\/v1\/import-batches\/[0-9a-f-]+\/suggest$/.test(c.req.path) ||
+      /^\/v1\/import-batches\/[0-9a-f-]+\/files\/[0-9a-f-]+\/original$/.test(
+        c.req.path,
+      ) ||
       /\/archive-file$/.test(c.req.path) ||
       /\/media\/[0-9a-f-]+$/.test(c.req.path) ||
       /^\/v1\/speech\/[0-9a-f-]+\/audio$/.test(c.req.path) ||
@@ -510,6 +526,167 @@ export function createApp(deps: AppDependencies) {
     siteUrl: deps.siteUrl,
   });
   const attachments = new MediaAttachments(service);
+  const documentImports = new DocumentImports(service);
+  const importStorage = () => {
+    if (!deps.media?.writeDocument)
+      throw new GroveError(
+        "imports_unavailable",
+        "Original document storage is not configured",
+        503,
+      );
+  };
+  app.get("/v1/import-batches", async (c) =>
+    c.json({
+      success: true,
+      data: await documentImports.list(c.get("principal")),
+    }),
+  );
+  app.post("/v1/import-batches", async (c) => {
+    importStorage();
+    return c.json(
+      {
+        success: true,
+        data: await documentImports.create(
+          c.get("principal"),
+          await body(c, importBatchCreateSchema),
+        ),
+      },
+      201,
+    );
+  });
+  app.get("/v1/import-batches/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await documentImports.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        z.uuid().optional().parse(c.req.query("after")),
+      ),
+    }),
+  );
+  app.put("/v1/import-batches/:batchId/files/:id", async (c) => {
+    importStorage();
+    const principal = c.get("principal"),
+      batchId = uuidSchema.parse(c.req.param("batchId")),
+      id = uuidSchema.parse(c.req.param("id"));
+    // Authorization precedes reading even a stalled or oversized body.
+    await documentImports.get(principal, batchId);
+    const length = z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(3 * 1024 * 1024)
+      .parse(c.req.header("content-length"));
+    const hash = z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .parse(c.req.header("x-grove-content-sha256"));
+    let filename: string;
+    try {
+      filename = decodeURIComponent(c.req.header("x-grove-filename") ?? "");
+    } catch {
+      throw new GroveError("document_filename", "Invalid filename", 400);
+    }
+    if (!c.req.raw.body)
+      throw new GroveError("document_empty", "File body required", 400);
+    const bytes = await readMediaBytes(
+      Readable.fromWeb(
+        c.req.raw.body as import("node:stream/web").ReadableStream,
+      ),
+      c.get("signal"),
+      3 * 1024 * 1024,
+    );
+    if (
+      bytes.length !== length ||
+      createHash("sha256").update(bytes).digest("hex") !== hash
+    )
+      throw new GroveError(
+        "document_integrity",
+        "File length or checksum does not match",
+        400,
+      );
+    return c.json(
+      {
+        success: true,
+        data: await documentImports.upload(
+          principal,
+          batchId,
+          id,
+          filename,
+          bytes,
+        ),
+      },
+      201,
+    );
+  });
+  app.post("/v1/import-batches/:id/prepare", async (c) =>
+    c.json(
+      {
+        success: true,
+        data: await documentImports.prepare(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          (await body(c, importBatchCreateSchema)).id,
+        ),
+      },
+      202,
+    ),
+  );
+  app.patch("/v1/import-batches/:batchId/notes/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await documentImports.edit(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("batchId")),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, importDraftEditSchema),
+      ),
+    }),
+  );
+  app.post("/v1/import-batches/:id/confirm", async (c) => {
+    importStorage();
+    return c.json(
+      {
+        success: true,
+        data: await documentImports.confirm(
+          c.get("principal"),
+          uuidSchema.parse(c.req.param("id")),
+          await body(c, importBatchConfirmSchema),
+        ),
+      },
+      202,
+    );
+  });
+  app.post("/v1/import-batches/:id/cancel", async (c) =>
+    c.json({
+      success: true,
+      data: await documentImports.cancel(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.post("/v1/import-batches/:id/suggest", async (c) =>
+    c.json({
+      success: true,
+      data: await documentImports.suggest(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, importBatchConfirmSchema),
+        c.get("signal"),
+      ),
+    }),
+  );
+  app.patch("/v1/import-batches/:id/placement", async (c) =>
+    c.json({
+      success: true,
+      data: await documentImports.place(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, importPlacementSchema),
+      ),
+    }),
+  );
   app.post("/v1/tools/:tool", async (c) =>
     c.json({
       success: true,
@@ -723,6 +900,19 @@ export function createApp(deps: AppDependencies) {
     return mediaResponse(c, () =>
       attachments.read(c.get("principal"), memoryId, id, version),
     );
+  });
+  app.get("/v1/import-batches/:batchId/files/:id/original", async (c) => {
+    const batchId = uuidSchema.parse(c.req.param("batchId")),
+      id = uuidSchema.parse(c.req.param("id"));
+    const response = await mediaResponse(c, () =>
+      documentImports.original(c.get("principal"), batchId, id),
+    );
+    c.header(
+      "Content-Disposition",
+      `attachment; filename="document-${id}${response.headers.get("Content-Type") === "application/pdf" ? ".pdf" : ".txt"}"`,
+    );
+    c.header("Content-Security-Policy", "sandbox; default-src 'none'");
+    return response;
   });
   app.post("/v1/memories/:memoryId/speech", async (c) =>
     c.json(

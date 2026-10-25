@@ -1,5 +1,12 @@
 # Images and durable media
 
+Reviewed [note/PDF imports](imports.md) retain confirmed original documents through
+the same immutable source store, with a separate document-only validation method.
+They do not widen image/WAV note attachment endpoints or public media readers.
+Imports share the account's retained-byte/attempt safety budget. Media-complete
+exports also include original-document records; unconfirmed database staging expires
+separately and never enters source-object deletion.
+
 Images attach to saved notes. Choose **Add media → Add image**, paste an image or drop a file
 into the editor after the note and its changes have saved. The website accepts
 static PNG, JPEG and WebP up to **3 MiB** (within the hosted proxy request budget).

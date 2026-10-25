@@ -46,12 +46,20 @@ async function forward(
     /^memories\/[0-9a-f-]+\/(?:media\/[0-9a-f-]+(?:\/transcript)?|archive-file)$/.test(
       path,
     ) || /^speech\/[0-9a-f-]+\/audio$/.test(path);
+  const importFile =
+    /^import-batches\/[0-9a-f-]+\/files\/[0-9a-f-]+(?:\/original)?$/.test(path);
+  const importRoute =
+    /^(?:import-batches|import-batches\/[0-9a-f-]+(?:\/(?:prepare|confirm|cancel|suggest|placement|notes\/[0-9a-f-]+))?)$/.test(
+      path,
+    );
   const speech =
     /^(?:memories\/[0-9a-f-]+\/speech|speech\/[0-9a-f-]+(?:\/cancel)?)$/.test(
       path,
     );
   if (
     !media &&
+    !importFile &&
+    !importRoute &&
     !billing &&
     !admin &&
     !speech &&
@@ -80,10 +88,10 @@ async function forward(
   )
     return fail(503, "Invalid API configuration");
   try {
-    const binary = media && request.method === "PUT";
+    const binary = (media || importFile) && request.method === "PUT";
     const maximum = 3 * 1024 * 1024;
     if (binary && Number(request.headers.get("content-length")) > maximum)
-      return fail(413, "Images must be 3 MiB or smaller");
+      return fail(413, "Files must be 3 MiB or smaller");
     let received = 0;
     const content = binary
       ? request.body?.pipeThrough(
@@ -114,6 +122,8 @@ async function forward(
     const after = request.nextUrl.searchParams.get("after");
     if (path === "conversations" && after)
       target.searchParams.set("after", after);
+    if (path.startsWith("import-batches/") && after)
+      target.searchParams.set("after", after);
     if (path === "tasks" && request.nextUrl.searchParams.has("projectId"))
       target.searchParams.set(
         "projectId",
@@ -136,6 +146,12 @@ async function forward(
                 request.headers.get("x-grove-note-version") ?? "0",
               "X-Grove-Content-Sha256":
                 request.headers.get("x-grove-content-sha256") ?? "",
+              ...(importFile
+                ? {
+                    "X-Grove-Filename":
+                      request.headers.get("x-grove-filename") ?? "",
+                  }
+                : {}),
             }
           : {}),
         ...([
@@ -153,6 +169,8 @@ async function forward(
         request.signal,
         AbortSignal.timeout(
           media ||
+            importFile ||
+            path.endsWith("/suggest") ||
             /^(conversations\/[0-9a-f-]+\/turns|tasks\/[0-9a-f-]+\/download)$/.test(
               path,
             )
@@ -167,6 +185,7 @@ async function forward(
     for (const name of [
       "content-type",
       "content-disposition",
+      "content-security-policy",
       "content-length",
       "content-range",
       "accept-ranges",

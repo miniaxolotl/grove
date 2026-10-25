@@ -174,6 +174,11 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("media_objects")
         .where({ status: "pending" })
         .update({ status: "failed", leaseUntil: target.fn.now() });
+      // Old draft/Apply previews are not authorization to recreate notebooks or notes.
+      // The cancellation trigger clears only unconfirmed bytes/content, never originals.
+      await target("document_import_batches")
+        .whereNotIn("status", ["complete", "cancelled"])
+        .update({ status: "cancelled", version: target.raw("version+1") });
       await target("memory_enrichments").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
