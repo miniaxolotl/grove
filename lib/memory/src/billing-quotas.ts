@@ -70,7 +70,9 @@ export async function billingUsage(
         ? "requests"
         : metric === "research"
           ? "calls"
-          : "units";
+          : metric === "synthesis"
+            ? "durationMs"
+            : "units";
     const query = trx(table)
       .where({ accountId })
       .whereBetween("day", [clock.month, clock.today]);

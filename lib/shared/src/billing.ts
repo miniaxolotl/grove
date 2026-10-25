@@ -11,18 +11,24 @@ export type PlanLimits = Record<
 >;
 export const billingLimits: Record<"free" | "pro", PlanLimits> = {
   free: {
-    generation: { daily: 10, monthly: 100 },
-    research: { daily: 3, monthly: 10 },
-    transcription: { daily: null, monthly: 600000 },
-    synthesis: { daily: null, monthly: 10000 },
+    generation: { daily: 1000, monthly: 31000 },
+    research: { daily: 20, monthly: 620 },
+    transcription: { daily: null, monthly: 7200000 },
+    synthesis: { daily: null, monthly: 7200000 },
   },
   pro: {
-    generation: { daily: 200, monthly: 2000 },
-    research: { daily: 20, monthly: 200 },
-    transcription: { daily: null, monthly: 7200000 },
-    synthesis: { daily: null, monthly: 200000 },
+    generation: { daily: 5000, monthly: 155000 },
+    research: { daily: 100, monthly: 3100 },
+    transcription: { daily: null, monthly: 28800000 },
+    synthesis: { daily: null, monthly: 28800000 },
   },
 };
+export const billingUnits = {
+  generation: "requests",
+  research: "calls",
+  transcription: "milliseconds",
+  synthesis: "milliseconds",
+} as const;
 export type BillingUsage = {
   plan: "free" | "pro" | "unlimited";
   dailyResetAt: string;
@@ -38,6 +44,7 @@ export type BillingUsage = {
   >;
 };
 export type BillingStatus = {
+  units: typeof billingUnits;
   proLimits: PlanLimits;
   enabled: boolean;
   customer: boolean;

@@ -23,6 +23,8 @@ import { localMedia } from "../../packages/api/src/media-store.ts";
 import { readMediaBytes } from "../../packages/api/src/media-input.ts";
 import type { SpeechProviders } from "../../lib/ai/src/speech.ts";
 import { InferenceError } from "@lib/ai";
+import { mp3Fixture } from "./fixtures/speech-audio.ts";
+import { billingLimits } from "@lib/shared/billing";
 
 const db = createDatabase(process.env.TEST_DATABASE_URL!);
 const worker = createDatabase(process.env.TEST_WORKER_DATABASE_URL!);
@@ -36,7 +38,7 @@ const auth = new Authentication(db, {
     return { subject, type: "session", sessionId: subject };
   },
 });
-const generated = Buffer.concat([Buffer.from("ID3"), Buffer.alloc(200)]);
+const generated = mp3Fixture();
 let calls = 0;
 const routed: SpeechVoiceId[] = [];
 let hold: (() => Promise<void>) | undefined;
@@ -525,9 +527,14 @@ test("monthly Free speech allowance stops worker provider dispatch", async () =>
           kind: "speech_synthesize",
           requests: 1,
           units: 10000,
+          durationMs: billingLimits.free.synthesis.monthly,
         })
         .onConflict(["accountId", "day", "kind"])
-        .merge({ requests: 1, units: 10000 });
+        .merge({
+          requests: 1,
+          units: 10000,
+          durationMs: billingLimits.free.synthesis.monthly,
+        });
     });
     const queued = await jobs.enqueue(principal, n.id, {
       id: randomUUID(),

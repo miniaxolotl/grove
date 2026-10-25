@@ -21,8 +21,8 @@ Manage opens separate **Access** and **System role** controls:
 | Pro       | Complimentary existing Pro allowances; no payment is required.  |
 | Unlimited | Removes per-plan generation, research and speech quotas.        |
 
-Unlimited preserves API rate limits, total daily inference/speech protections,
-shared provider concurrency and installation-wide research-spend limits. It does
+Unlimited preserves API rate limits, independent non-generation inference budgets,
+speech attempt limits, shared provider concurrency and installation-wide research-spend limits. It does
 not promise unbounded provider capacity, storage or note-count limits. API and
 worker resolve the same current grant before quota admission.
 
@@ -31,6 +31,11 @@ Explicit Pro/unlimited grants apply when billing is configured, even while
 restores normal flag/subscription behavior. The billing flag does not revoke
 complimentary access. An unconfigured self-hosted installation retains its existing
 quota behavior. This feature does not change the launch Free/Pro allowance values.
+
+The integrated tier policy uses plan quotas instead of the old generation/research
+account ceilings. Unlimited removes those plan quotas too; it does not reinstate a
+legacy cap below Pro. Speech still obeys per-item duration/size and daily attempt
+bounds, while narration is metered and settled using the same exact-duration path.
 
 The system role is independent of access. A system admin can manage access and
 other admins, but gets **no cross-account access to notes, notebooks, attachments,

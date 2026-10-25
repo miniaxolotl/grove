@@ -6,6 +6,7 @@ import * as memory from "@lib/memory";
 import { rememberSchema } from "@lib/shared/contracts";
 import { createApp } from "../../packages/api/src/app.ts";
 import { budgetedInference } from "../../lib/memory/src/processing.ts";
+import { billingLimits } from "@lib/shared/billing";
 import { billingAllows } from "../../lib/memory/src/billing-quotas.ts";
 
 const url = process.env.TEST_MIGRATION_DATABASE_URL!;
@@ -307,7 +308,7 @@ test("Pro and unlimited grants apply in API and worker without enabling billing 
         trx,
         target.accountId,
         "generation",
-        201,
+        billingLimits.pro.generation.daily! + 1,
       ),
     }));
   assert.equal((await check(db)).usage, null);
@@ -454,7 +455,7 @@ test("HTTP admin endpoints deny agents and ordinary users before identity lookup
   );
 });
 
-test("unlimited permits plan-exhausted dispatch but retains the installation daily safety cap", async () => {
+test("unlimited permits plan-exhausted generation while retaining the independent non-generation safety cap", async () => {
   const api = administration(),
     admin = await adminAccount(),
     target = await account();
@@ -466,7 +467,7 @@ test("unlimited permits plan-exhausted dispatch but retains the installation dai
     trx("inference_usage").insert({
       accountId: target.accountId,
       role: "generation",
-      requests: 100,
+      requests: billingLimits.free.generation.daily!,
     }),
   );
   let calls = 0;
@@ -483,8 +484,18 @@ test("unlimited permits plan-exhausted dispatch but retains the installation dai
   await dispatch();
   await dispatch();
   assert.equal(calls, 2);
-  await assert.rejects(dispatch());
-  assert.equal(calls, 2);
+  const embedding = () =>
+    budgetedInference(
+      db,
+      target.accountId,
+      "embedding",
+      2,
+      async () => ++calls,
+    );
+  await embedding();
+  await embedding();
+  await assert.rejects(embedding());
+  assert.equal(calls, 4);
 });
 
 test("narrow admin functions work under a non-superuser owner without opening private tenant tables", async () => {
