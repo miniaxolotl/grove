@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 import type { MonthlyPricing } from "./billing-pricing.ts";
 import { tenant, type Knex } from "@lib/database";
-import { billingUsage, resourceUsage, type MemoryService } from "@lib/memory";
+import {
+  billingEntitlement,
+  billingUsage,
+  resourceUsage,
+  type MemoryService,
+} from "@lib/memory";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
   billingLimits,
@@ -243,6 +248,11 @@ export class Billing {
           .orderBy("periodEnd", "desc")
           .first();
         return {
+          plan: await billingEntitlement(
+            this.service.db,
+            trx,
+            principal.accountId,
+          ),
           customer: !!customer?.customerId,
           subscription: subscription
             ? {

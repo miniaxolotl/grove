@@ -8,6 +8,7 @@ import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
 import { PreferencesPanel } from "./preferences-panel";
+import { AccountPlanDetails } from "./account-plan";
 export function SettingsPanel({
   section = "preferences",
 }: {
@@ -48,6 +49,7 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
         </div>
         {section === "account" && (
           <>
+            <AccountPlanDetails />
             <section className="app-panel">
               <h2 className="font-editorial text-2xl">About you</h2>
               <p className="mt-3 text-sm text-muted">
