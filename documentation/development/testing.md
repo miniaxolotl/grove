@@ -1,5 +1,27 @@
 # Verification
 
+## Explicit context selection
+
+`conversations.test.ts` covers exact selected IDs, direct-member large notebooks,
+pinned ordering/deduplication, partial/omitted evidence, strict history/web exclusion,
+selected edit/merge Apply/Undo, unavailable/foreign/archived/expired selectors,
+source races/retry identities, invalid citations and HTTP/export compatibility.
+`conversation-context-migration.test.ts` upgrades populated pre029 chats and checks
+unchanged old columns, nullable defaults and non-owner tenant isolation. Use the
+disposable API/worker/migration URLs below; no paid providers are needed.
+
+After the production website build, exercise actual components with a disposable
+API/PostgreSQL and deterministic generation: source picker/search/pagination,
+duplicate titles/paths, read-only nested previews/focus return, @note/@notebook
+Space/Tab/Enter/IME/cancellation, strict chips and last-chip send guard, scope
+changes, draft/history ownership, exact uncertain retry, unavailable-source recovery,
+Add sources, explicit edit/merge previews and selected/provided/cited distinctions.
+Review 1440/390/320px in Chromium and supported WebKit with WCAG/overflow checks.
+Run the existing full Chromium and focused Ask WebKit suites as regressions.
+See [source behavior](../explicit-context.md),
+[evaluation limits](explicit-context-results.md) and
+[reviewed captures](../design/screenshots/explicit-context/README.md).
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner

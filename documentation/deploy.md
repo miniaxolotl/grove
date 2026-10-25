@@ -15,12 +15,28 @@ documentation refresh.
 
 ## Topology
 
+### Explicit context rollout (029)
+
+1. Verify source/migration history and the retained backup before owner-only forward
+   `20261025_029_conversation_context`, after action usage028. It adds nullable
+   `conversation_turns.context`; existing questions, results, counters and RLS remain.
+2. Roll out the matching API/worker image through the protected release path before
+   the website. Readiness checks the new column. Older requests omit the optional
+   field; existing turn fingerprints must not be reserialized or rewritten.
+3. On synthetic accounts verify exact note selection, direct notebook membership,
+   partial large-notebook coverage, selected edit/merge previews, unavailable-source
+   recovery, strict no-research behavior and cross-account denial. Verify exports
+   retain selectors and restore still invalidates in-flight work/deleted chats.
+4. Keep the additive column on code rollback. Do not reset conversations, retained
+   sources, usage, provider settings or billing flags. No new provider key/flag is
+   needed; paid-model evaluation and production rollout require separate approval.
+
 ### User-action allowances rollout (028)
 
 1. Verify the frozen source and actual migration history, take and verify the
    retained backup, then apply owner-only forward `20261025_028_action_usage` after
-    admin-support 027 and its existing prerequisites. Preserve the forward order
-    026 → 027 → 028; never reuse the independent admin-support migration slot.
+   admin-support 027 and its existing prerequisites. Preserve the forward order
+   026 → 027 → 028; never reuse the independent admin-support migration slot.
    028 adds empty action counters/leases only. Existing notes, revisions, billing
    subscriptions, provider attempts, research and audio usage are unchanged.
 2. Deploy matching API/worker code with the same

@@ -1,5 +1,44 @@
 # Delivery evidence
 
+## Explicit note and notebook context (25 October 2026)
+
+Ask Grove adds Sources and `@note`/`@notebook` selection, read-only previews,
+per-question **Use only these sources**, durable retry metadata and recoverable
+unavailable-source drafts. Strict planning/answering excludes prior source prose,
+unrestricted recall and external research. Large notebooks use direct-member-only
+keyword retrieval with 12 supplied notes maximum, pinned-first ordering and visible
+partial/omitted coverage. Selected scope, supplied revisions and citations are
+distinct. Selected-note edit/merge previews retain Apply/Undo; broader mutations
+use ordinary questions. [Contract](explicit-context.md) records the limits.
+
+Source **`9e9600d`** adds forward migration **029 after 028**, preserving old turn
+columns and RLS. Runtime readiness checks the nullable context column; API/worker
+must precede the website after an explicit owner migration. No retained schema,
+provider, billing flag or production deployment was changed.
+
+Local verification passes **446 backend cases**, four optional-service skips and
+zero failures, including 15 new context/upgrade cases. Regressions demonstrated red
+then green for exact selection, large notebooks, selected edits, export metadata,
+empty-notebook publication races and UUID normalization/deduplication. Root/site
+lint, types and production builds pass, as do **nine packaged artifacts**,
+**34 release/provider contracts** and bundle budgets. Notes entry is **488,429 gzip
+bytes**; website build **`fV5xIqpvfT0DFUOka_vng`**.
+
+The existing **239 Chromium** suite and **10 focused WebKit** cases pass. Actual
+component/API/PostgreSQL journeys pass in both engines at 1440/390/320px, including
+preview focus, strict evidence, last-chip recovery, partial coverage, new-ID source
+replacement, selected edits/Undo, WCAG/overflow and zero page errors. Both engines
+also verify 390px retained drafts, accepted-but-lost exact retries and empty-source
+Add sources. [Seven reviewed captures](design/screenshots/explicit-context/README.md)
+show final components and synthetic data.
+
+Initial checks exposed the narrow Sources/Send footer and an existing enlarged
+New note flex-label overflow; both were reproduced and corrected without weakening
+assertions. A shared Playwright output collision and occupied fixture/OAuth ports
+were isolated and rerun with separate/free resources. [Evaluation notes](development/explicit-context-results.md)
+distinguish deterministic boundary/canary tests from unperformed paid-model quality
+acceptance. Source delivery is not production activation.
+
 ## Admin interface polish (25 October 2026)
 
 People & access separates grants, system roles and availability in a compact
