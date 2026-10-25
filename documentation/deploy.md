@@ -15,6 +15,27 @@ documentation refresh.
 
 ## Topology
 
+### Notebook tools rollout (033)
+
+1. Verify the admitted source, frozen migration inventory and retained backup.
+   Apply forward `20261025_033_notebook_tools` after031 and any admitted intervening
+   migrations. Provisional032 belongs to the independent organization workstream;
+   it is not a dependency. Never rename/reset already-applied retained migrations.
+2. Drain old workers and deploy matching API/worker before the website. Readiness
+   probes all five preferences; existing meeting031 data remains unchanged. All
+   five new preferences start off, with no queued inference or billing activation.
+3. Explicitly enable each tool for a synthetic internal account. Verify canonical
+   scopes, explicit descendants, large-selection continuation, historical weekly
+   pairs/completion search, gap answer search, study Reveal and past outcomes.
+   Check one assistance action across batches versus separate provider attempts.
+4. Verify stale/expired/redacted results, cancellation, reviewed multi-note Save/Undo
+   and source preservation. Restore invalidates previews; no recurrence is enabled.
+5. Live-model grounding, latency/cost and physical-device acceptance remain separate
+   gates. Roll back by disabling tool admission/preferences and draining jobs;
+   preserve additive schema, authored notes, legacy requests and provider evidence.
+
+This source work performs no production migration, activation or deployment.
+
 ### Meeting preparation rollout (031)
 
 1. Verify exact admitted source, current migration inventory and a tested retained

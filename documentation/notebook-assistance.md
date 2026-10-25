@@ -4,15 +4,16 @@ Notebook summaries adapt to the notes' subject. Filing, action lists, visit dige
 and cleanup run only when requested. Each has an independent AI preference;
 automatic note/notebook connections can stay off.
 
-[Meeting preparation](meeting-preparation.md) is a separate, off-by-default,
-on-demand assistance workflow: an agenda-driven brief from selected notes or one
-notebook, with exact sources, honest coverage and reviewed Save/Undo. It does not
-replace the visit digest or introduce weekly scheduling.
+The [Tools section](notebook-tools.md) groups five separately opted-in, on-demand
+workflows: Weekly review, Create a brief, Study notes, Find knowledge gaps and Find
+past solutions. They support broad explicit note/notebook/library scopes, exact
+sources, bounded continuation and reviewed Save/Undo. General briefs replace the
+meeting-specific launcher; legacy031 requests remain compatible. The visit digest
+below remains separate from calendar-week review, and recurrence is not enabled.
 
-The [notebook workflow proposal](development/notebook-workflows.md) describes
-the phased roadmap. Weekly reviews, study sets, knowledge-gap reviews and
-similar-problem retrieval remain planned; the visit digest below remains separate
-from a calendar-based weekly review.
+The [original proposal](development/notebook-workflows.md) retains the phased
+roadmap and future qualification work; the current Tools contract governs source
+behavior.
 
 ## In the workspace
 

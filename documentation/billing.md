@@ -94,8 +94,9 @@ checks the reservation token, and completion stays in its original UTC month eve
 if inference finishes after reset. Existing provider counts are never converted into
 actions or reset during migration.
 
-Meeting preparation follows this assistance allowance: one completed generated
-brief, not one charge per source. Empty notebooks invoke no model and release the
+All five notebook tools (and legacy meeting preparation) follow this assistance
+allowance: one completed frozen result, including staged verification and Review
+more sources, not one charge per source/batch. Empty scopes invoke no model and release the
 reservation. Cancel/failure releases action capacity while retaining provider-attempt
 evidence; reading, reviewed Save/Undo and durable replay do not add actions. The
 feature does not activate billing or the separately proposed weighted-credit wallet.

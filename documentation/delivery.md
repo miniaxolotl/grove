@@ -1,6 +1,57 @@
 # Delivery evidence
 
-## Generalized notebook workflows — in progress (25 October 2026)
+## Five notebook tools — source implementation (25 October 2026)
+
+Source **881d001** implements a shared **Tools** home with **Weekly review**,
+**Create a brief**, **Study notes**, **Find knowledge gaps** and **Find past solutions**.
+The same chooser is reachable from note/notebook/selection actions, Ask and commands.
+General briefs accept any goal and adapt cited sections; there are no required
+meeting fields. Explicit selected-note, multi-notebook, descendant and active-library
+scopes remain distinct from bounded evidence and resumable source batches.
+
+All five independently opted-in modes reuse private assistance, exact citations,
+version/profile/preference/expiry fences, cancellation and stable retries. Weekly
+uses frozen timezone/DST windows and historical before/after evidence; second scoped
+lookup checks task completion and gap answers, including prior candidates on Continue.
+Past solutions preserve recorded outcome distinctions; study Reveal/practice stays
+local, ungraded and unpersisted. Reviewed saves create ordinary source-linked notes,
+splitting long results at complete blocks with one atomic version-fenced Undo.
+
+Additive **033** preserves legacy031 meeting data/API and existing provider usage,
+adds five default-off preferences and a worker-only derived cleanup scheduler.
+One frozen result counts as one assistance action across staged calls/continuations;
+provider attempts remain separate. No automatic inference, recurrence, source edits,
+agent access expansion, migration application or production activation is introduced.
+[Current contract](notebook-tools.md), [rollout](deploy.md#notebook-tools-rollout-033)
+and [verification](development/testing.md#notebook-tools) describe the boundaries.
+
+Verification at the source checkpoint:20 generalized service/upgrade cases pass;
+the initial expanded full backend passes473/four optional-service skips. Later full
+local repeats hit host temporary-storage quota/resource stalls; those interrupted
+runs are not full-suite success evidence. Exact-head hosted results are recorded in
+PR#139 independently. Root/site lint/types/builds,9 artifacts,
+27 release contracts, workflow lint and bundle budgets pass. Notes492271gzip bytes,
+production CSS/build`uo_lbUVmQ-PwuUyVoqg4U`. Native OpenCode2.1.3, Claude2.1.309 and
+Codex0.164.0 checks pass in an isolated container with Node24/pnpm10.33. Host tmpfs
+quota failures required disk-backed artifact/Chromium temp paths and a clean container
+for hardcoded test temp paths; no assertions/timeouts/RLS or retained data were changed.
+
+17 focused Chromium and5 supported WebKit checks pass. All-five actual UI→HTTP
+API→PostgreSQL/worker journeys pass in both engines at1440/390/320px with source links,
+Reveal/practice, Save/Undo, unchanged originals, WCAG A/AA, no overflow/page errors.
+An additional synthetic actual-component check passes per-tool draft/scope retention
+and uncertain Continue→GET→new-version continuation without a new request. The
+narrow/enlarged-text sidebar regression is corrected without relaxing its220px normal
+height or overflow assertions. [Four reviewed captures](design/screenshots/notebook-tools/README.md)
+use synthetic notes, not paid/live-model outputs.
+
+Live-model grounding, latency/cost, large-scale relevance/performance, physical
+devices and recurrence remain unqualified/not enabled. PR#139 remains stacked on#135;
+exact-head hosted verification and review readiness are recorded in that PR separately
+from these local source results. No merge, production migration, paid inference or
+deployment performed.
+
+## Generalized contracts — historical foundation checkpoint (25 October 2026)
 
 The owner clarified that the delivery must cover **Weekly review, Meeting
 preparation, Study mode, Knowledge gaps and Similar past problems**, not stop at a

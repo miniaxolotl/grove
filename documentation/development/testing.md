@@ -1,5 +1,34 @@
 # Verification
 
+## Notebook tools
+
+`preparation-workflow.test.ts` covers all five canonical modes using disposable
+PostgreSQL and non-owner roles: broad explicit scopes/pins, descendants, bounded
+continuation/replay, flexible brief sections, supported study answers, scoped gap
+answer lookup, historical weekly pairs and cross-note action completion, qualified
+past outcomes, preference/source/cancel publication races, forged citations, expiry,
+one action across batches, long-result atomic Save/Undo and DST boundaries.
+`notebook-tools-migration.test.ts` verifies populated031→033 preservation, default-off
+preferences, retained legacy/provider data, forced RLS and worker-only scheduling.
+
+```sh
+pnpm exec tsx --test tests/src/preparation-workflow.test.ts tests/src/notebook-tools-migration.test.ts
+pnpm --filter website exec playwright test tests/meeting-preparation.spec.ts tests/models.spec.ts tests/assistance.spec.ts
+pnpm --filter website exec playwright test --config playwright.meeting-webkit.config.ts
+```
+
+The existing meeting-named browser file now exercises **Create a brief** and shared
+Tools entry, opt-in, exact-pin recovery, cancellation and uncertain enqueue/Save.
+Use the expanded synthetic `tests/src/fixtures/meeting-api.ts` for actual all-five
+UI→HTTP API→PostgreSQL/worker journeys. Its historical environment names/ports remain
+compatible. Check1440/390/320px, all workflow-specific result/practice states, source
+links, Save/Undo, unchanged originals, accessibility and overflow in both engines.
+No paid inference or production auth bypass is needed. Review relevant captures;
+deterministic provider output proves wiring, not live-model quality.
+
+On hosts with tmpfs quota exhaustion, artifact tests support the normal CI temp path:
+set `CI=true TMPDIR=<task-owned-on-disk-directory>`; do not delete shared temp data.
+
 ## Meeting preparation
 
 `meeting-preparation.test.ts` and `meeting-migration.test.ts` use fresh disposable
