@@ -122,6 +122,7 @@ function AccountWorkspace({
 }) {
   const cache = useWorkspaceCache();
   const [state, setState] = useState(initial);
+  const [lastRead, setLastRead] = useState(initial);
   const [draft, setDraft] = useState(() => draftFrom(initial));
   const [section, setSection] = useState<Section>("usage");
   const [reason, setReason] = useState("");
@@ -136,6 +137,7 @@ function AccountWorkspace({
     value: string;
   } | null>(null);
   const form = useRef<HTMLFormElement>(null);
+  const navigation = useRef<HTMLDivElement>(null);
   const comparison = useRef<HTMLDivElement>(null);
   const operation = useRef<Operation | null>(null);
   const pending = useRef(false);
@@ -162,6 +164,20 @@ function AccountWorkspace({
     (entry) => entry.accountId === state.account.accountId,
   );
 
+  // Adopt a background snapshot only while clean. A draft keeps its original
+  // conflict base; a delayed pre-save read must never roll a confirmed save back.
+  if (initial !== lastRead) {
+    setLastRead(initial);
+    if (
+      !dirty &&
+      phase === "idle" &&
+      initial.account.version >= state.account.version
+    ) {
+      setState(initial);
+      setDraft(draftFrom(initial));
+    }
+  }
+
   useEffect(() => {
     if (!dirty && phase !== "uncertain") return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -186,6 +202,17 @@ function AccountWorkspace({
       setCopyFallback(null);
     }
   };
+  const focusSection = () => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      // Do not steal focus if the operator already continued into another field
+      // or opened a new modal before this frame ran.
+      if (active?.closest("dialog") && !active.matches(":disabled")) return;
+      navigation.current
+        ?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+        ?.focus({ preventScroll: true });
+    });
+  };
   const requestExit = (destination: Destination) => {
     if (busy || destination === section) return;
     if (dirty || phase === "uncertain") setExit(destination);
@@ -205,6 +232,7 @@ function AccountWorkspace({
     const destination = exit;
     setExit(null);
     if (destination) go(destination);
+    if (destination !== "close") focusSection();
   };
   const readDetails = () =>
     cache.api<AdminDetails>(
@@ -279,6 +307,11 @@ function AccountWorkspace({
       const destination = afterSave.current;
       afterSave.current = null;
       if (destination) go(destination);
+      if (destination !== "close") {
+        // A successful save disables its submit button. Safari otherwise drops
+        // keyboard focus onto the page body instead of keeping it in the dialog.
+        focusSection();
+      }
     } catch (failure) {
       afterSave.current = null;
       if (adminDenied(failure)) {
@@ -353,6 +386,7 @@ function AccountWorkspace({
     setFeedback(
       "Latest account loaded. Review your changes and save again when ready.",
     );
+    focusSection();
   };
 
   const copy = async (label: string, value: string) => {
@@ -448,7 +482,12 @@ function AccountWorkspace({
             </button>
           </div>
         </header>
-        <div className="admin-tabs" role="group" aria-label="Account sections">
+        <div
+          className="admin-tabs"
+          ref={navigation}
+          role="group"
+          aria-label="Account sections"
+        >
           {(["usage", "account", "access"] as const).map((value) => (
             <button
               key={value}
@@ -782,7 +821,10 @@ function AccountWorkspace({
               <div className="admin-editor-actions">
                 <button
                   className="app-button secondary"
-                  onClick={() => reset(latest)}
+                  onClick={() => {
+                    reset(latest);
+                    focusSection();
+                  }}
                 >
                   Use saved values
                 </button>
