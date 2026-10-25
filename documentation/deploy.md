@@ -19,8 +19,8 @@ documentation refresh.
 
 1. Verify the frozen source and actual migration history, take and verify the
    retained backup, then apply owner-only forward `20261025_028_action_usage` after
-   the existing 026 prerequisites. Slot 027 belongs to the independent admin-support
-   workstream; include it in normal migration order when integrated, never reuse it.
+    admin-support 027 and its existing prerequisites. Preserve the forward order
+    026 → 027 → 028; never reuse the independent admin-support migration slot.
    028 adds empty action counters/leases only. Existing notes, revisions, billing
    subscriptions, provider attempts, research and audio usage are unchanged.
 2. Deploy matching API/worker code with the same
@@ -44,6 +44,29 @@ documentation refresh.
    protected release process. Keep the additive schema and all usage/provider data;
    never roll back by dropping counters or rewriting past usage. The existing flag
    does not cancel subscriptions, waive explicit grants or replace incident handling.
+
+### Admin support rollout (027)
+
+1. Back up and verify the retained database using the normal owner procedure.
+   Apply forward `20261025_027_admin_support` after 026 with the migration owner,
+   before deploying this API/worker/site. Runtime readiness checks the new column.
+2. Verify existing accounts, roles/grants, audit entries, notes and usage counters
+   are unchanged. All accounts start with `admin_suspended=false`; no current
+   provider ban or account status is cleared. Support notes default to empty.
+3. Deploy the admitted source image and matching site through the protected release
+   process. Confirm a current system-admin session can browse all pages, view one
+   selected user's aggregate usage and use audited support edits; confirm ordinary
+   sessions, agent keys/OAuth and worker roles are denied.
+4. Verify reversible suspension using synthetic accounts only: it blocks Grove and
+   ordinary worker dispatch, survives provider updates, and restoring it cannot
+   clear a provider ban. Confirm retry identities, concurrent-settings conflicts,
+   last-admin protection and private note isolation. Restore synthetic changes.
+5. Keep billing activation and identity-provider profile/password changes separate.
+   Vercel Flags paused/static mode serves `pausedOutcome`; `active=false` alone
+   does not prove billing is Off. Do not reset usage to resolve a support issue.
+
+Restore targets must apply matching migrations and run `reconcile-restore.ts`
+against current authority before going online, including suspension/support state.
 
 ### System administration rollout (025)
 

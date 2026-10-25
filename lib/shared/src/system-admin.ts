@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { uuidSchema } from "@lib/shared/contracts";
+import type { BillingMetric } from "@lib/shared/billing";
 
 export type SystemRole = "user" | "system_admin";
 export type AccessGrant = "default" | "pro" | "unlimited";
@@ -20,10 +21,10 @@ export type AdminAudit = {
   id: string;
   actorId: string | null;
   accountId: string;
-  kind: "change" | "bootstrap";
+  kind: "change" | "bootstrap" | "support";
   reason: string;
-  before: AdminAccount;
-  after: AdminAccount;
+  before: AdminAccount & { settings?: AdminSettings };
+  after: AdminAccount & { settings?: AdminSettings };
   createdAt: string;
 };
 export const adminChangeSchema = z
@@ -37,3 +38,45 @@ export const adminChangeSchema = z
   })
   .strict();
 export type AdminChange = z.infer<typeof adminChangeSchema>;
+
+export const adminSettingsSchema = z
+  .object({
+    captureEnabled: z.boolean(),
+    recallEnabled: z.boolean(),
+    suspended: z.boolean(),
+    supportNote: z.string().max(500),
+  })
+  .strict();
+export type AdminSettings = z.infer<typeof adminSettingsSchema>;
+export type AdminSupportState = {
+  account: AdminAccount;
+  settings: AdminSettings;
+};
+export type AdminDetails = AdminSupportState & {
+  usage: {
+    dailyResetAt: string;
+    monthlyResetAt: string;
+    metrics: Record<BillingMetric, { today: number; month: number }>;
+  };
+  counts: { notes: number; notebooks: number; connections: number };
+};
+export type AdminPage<T = AdminAccount> = {
+  accounts: T[];
+  total: number;
+  nextCursor: string | null;
+};
+export const adminSupportSchema = z
+  .object({
+    accountId: uuidSchema,
+    operationId: uuidSchema,
+    expectedVersion: z.number().int().min(0),
+    expectedSettings: adminSettingsSchema,
+    settings: adminSettingsSchema,
+    reason: z.string().trim().min(3).max(300),
+  })
+  .strict();
+export type AdminSupportChange = z.infer<typeof adminSupportSchema>;
+export const adminDetailsSchema = z.object({ accountId: uuidSchema }).strict();
+export const adminBrowseSchema = z
+  .object({ after: uuidSchema.optional() })
+  .strict();

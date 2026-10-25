@@ -1,5 +1,7 @@
 # Verification
 
+## Free/Pro action allowances
+
 Free/Pro action quotas add `action-quotas.test.ts` and
 `action-usage-migration.test.ts`: non-owner API/worker final-slot races, stable
 operation reservations, expiry/release, original-month settlement, tenant/flag
@@ -11,6 +13,25 @@ The existing provider-budget concurrency fixture isolates its attempt boundary;
 separate action coverage pins the production two-call ceiling across replicas.
 Use only the disposable databases described below. [Usage captures](../design/screenshots/free-pro-usage/README.md)
 record actual-component desktop/mobile warnings and legacy/unlimited compatibility.
+
+## Admin support and usage
+
+`system-admin.test.ts`, `system-admin-migration.test.ts` and `recovery.test.ts`
+cover paginated browsing, identity-read authorization, target-only UTC aggregates
+(including billing-hidden and prior-month cases), private-content canaries,
+non-superuser owners, runtime/worker/ordinary-user denial and actor-context
+restoration. Support edits cover exact-setting conflicts with user changes,
+audit/idempotent retries, cross-action operation-ID reuse denial, self/last-admin
+protection, suspension across provider updates, provider-ban preservation, worker
+claim/heartbeat denial and restored current support state. The populated 026→027
+upgrade fingerprints all old columns while checking inherited helper privileges.
+
+Use the existing isolated dashboard fixture with a disposable real API/database
+for browser review at 1440/390/320px. Review the People list, account usage table,
+capture/recall/support note edits, suspension/restoration, access grants, clipboard
+fallback, same-operation lost-response retry, errors/revocation concealment and
+keyboard/focus/overflow/accessibility. Screenshots must use synthetic identities.
+No production identity or support edit is necessary for source verification.
 
 ## System administration
 
