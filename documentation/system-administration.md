@@ -17,6 +17,47 @@ Manage opens one account inspector with **Usage**, **Account**, and **Access**
 sections. Existing system roles remain `user` and `system_admin`; there is no
 custom permission builder or support-ticket system.
 
+The directory separates access grants, system roles and account availability.
+**Standard** means no complimentary override, not necessarily a Free subscription.
+**Unavailable** does not identify the cause: open Account to check administrative
+suspension, and check the sign-in provider for independent restrictions. A search
+miss offers a return to all people; background refresh and pagination failures keep
+previously loaded rows available with a retry action.
+
+### Reviewing and saving changes
+
+The inspector keeps identity and section navigation in place while its content
+scrolls. Account and Access share one coordinated draft and saved version. Save
+and Discard remain reachable in the editing footer, including on narrow/short
+screens. Leaving an edited section, closing, Escape or backdrop dismissal asks you
+to save, discard or keep editing. A reason of at least three characters is required
+for a save; normal browser reload/close receives a dirty-form warning where supported.
+Drafts are not persisted to local browser storage.
+
+Confirmed saves keep the selected account and section open, update their saved
+version, and refresh the directory/history. An explicit Save from a leaving prompt
+continues to the requested destination only after confirmation. A transient failure
+to recheck the operator's role does not discard an open draft; server authorization
+is still checked on every protected read/write.
+The workspace's periodic account-detail refresh also keeps the editor mounted;
+background results do not replace a draft or its original conflict version.
+Clean forms can adopt fresh saved values. After a save or review removes/disables
+its action button, keyboard focus returns to the current section when needed.
+
+An uncertain network outcome freezes the exact submitted request. **Retry same
+change** checks that operation safely without a second audit; it cannot be replaced
+by a new edit or ordinary Discard. Request-limit failures explain that you must
+wait, then retry the same operation rather than claiming the account changed.
+Version conflicts offer **Review latest account**, comparing saved values with
+the attempted draft. **Use saved values**
+discards the draft; **Keep my changes for review** carries only explicitly edited
+fields onto the fresh snapshot. Neither review action writes anything; saving
+again is deliberate. Losing administrator access conceals the account view.
+
+Suspension/restoration lives under **Account availability**, separate from automatic
+capture/recall. Changes to availability or system role require an additional review
+with the target, changed values, audit reason and consequences before confirmation.
+
 ### Usage and support
 
 Usage shows current note/notebook/active-connection counts and **today / this month**
@@ -33,6 +74,10 @@ account ID / usage summary. Nothing sends automatically. An administrator-only
 support note (500 characters maximum) keeps a short follow-up reminder; do not
 store credentials or private note content in it. Account history displays matching
 entries from the latest fifty administration changes, not an exhaustive history.
+Clipboard denial exposes selectable text in the inspector. Recent changes identify
+the changed access, role, preference or suspension rather than showing only the final
+grant. Support-note events say that the note changed without copying its text into
+the history feed.
 
 Account edits can change automatic capture/recall, the support note, and reversible
 **suspension**. Suspension blocks Grove access, agent requests and new ordinary
@@ -159,4 +204,7 @@ preventing resurrected privileges. If every admin becomes unavailable, an explic
 owner-reviewed recovery is required; do not weaken account or session checks.
 
 See [rollout](deploy.md#system-administration-rollout-025),
-[verification](development/testing.md) and [reviewed captures](design/screenshots/system-admin/README.md).
+[verification](development/testing.md), the [original role captures](design/screenshots/system-admin/README.md)
+and [admin polish captures](design/screenshots/admin-polish/README.md). The UI polish
+adds no migration or new API permissions; support features retain the 027 rollout
+prerequisite above.

@@ -1,5 +1,37 @@
 # Verification
 
+## Admin interface polish
+
+Use the actual AdminPanel with production CSS and a disposable real API/non-owner
+PostgreSQL fixture. Synthetic accounts only; no production operator/account edits
+or authentication bypass in application code. Run existing browser regressions and
+targeted scripted/manual journeys without adding frontend test files for this pass.
+
+Review 1440/390/320px and a short phone window. Check distinct grant/role/status
+rows, exact-match miss/clear, preserved rows on refresh/pagination errors, no-name/
+long-identity cases, and honest Standard/Unavailable wording. Inspect all account
+sections with keyboard navigation, focus return, WCAG A/AA, enlarged text, reduced
+motion, forced colors and no horizontal overflow.
+
+Reproduce dirty exits via section changes, close, Escape and backdrop. Verify
+Keep editing retains values, Discard is explicit, and confirmed saves keep context
+and refresh the shared version before the next section edits. Hold saves to verify
+busy guards. Simulate an accepted-but-lost response, compare the entire retry body
+and operation ID, and assert one audit. Unknown outcomes must not offer Discard.
+Force a real version conflict; compare latest/attempted values and require explicit
+review before a new operation. Review suspension/restoration and system-role changes
+before writing; check subscriptions, private-content boundaries and provider bans
+remain protected by the existing backend suites below. Revoke the operator during
+an edit and verify private admin content disappears. Test failed role refresh and
+post-save detail refresh separately from actual authorization denial.
+
+Copy denial must expose the actual selectable ID/summary; success must not steal
+focus. Confirm role-only history names the role change and support-note text is not
+duplicated into the feed. Save reviewed synthetic screenshots and exact-source
+verification context in [admin polish](../design/screenshots/admin-polish/README.md).
+Host WebKit-library gaps should use the pinned Playwright container described below,
+not global OS changes. Emulation is not physical-keyboard or native-mail acceptance.
+
 ## Admin support and usage
 
 `system-admin.test.ts`, `system-admin-migration.test.ts` and `recovery.test.ts`
