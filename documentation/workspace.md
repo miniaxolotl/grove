@@ -300,8 +300,12 @@ Source links open the cited note and identify when it has since changed.
 The message box's **Tools** menu controls **Web search**, **Research**, and
 **Manage notes** independently. Enabled research tools are used when
 outside context would help; saved-note searches and greetings do not need a web
-search. Choices stay with the conversation; **Use for new chats** saves
-your defaults. Unconfigured providers show as unavailable. Web claims link to
+search. Changes save automatically for the current chat and remember that switch
+for new chats, including after signing in again or restarting. Old chats keep their
+own choices until you change them. Changing tools before sending a question does
+not add an empty chat to History. **Refresh tools** confirms saved choices after
+a failed or uncertain save; your unsent message is kept. Unconfigured providers
+show as unavailable. Web claims link to
 external sources separately from saved-note citations. See [Ask tools](ask-tools.md)
 for allowances, provider setup and incomplete-research behavior.
 
@@ -313,7 +317,7 @@ considers at most 50 current notes per batch and shows partial coverage. Existin
 date-based sorting remains a read-only library operation.
 
 Use **History** to browse saved conversations by date or search their titles and
-your questions. Each row shows a question preview, notebook scope, date and question
+your questions. Each row shows a distinct question preview, notebook scope, date and question
 count; **Current** marks the open conversation. Search covers all saved history,
 including conversations beyond the first page. **More conversations** loads older
 results; a failed page retries in place.
@@ -323,7 +327,10 @@ return to its end. Unsent messages stay with their conversation while switching;
 **New conversation** returns to an unfinished new-message draft. These drafts are
 account/session-owned memory, not durable storage across a browser reload.
 Opening failures stay in History, and closing it cancels an unfinished open.
-Delete names the conversation before confirmation and keeps saved notes.
+Each row has a labelled **Delete** action, including older empty conversations.
+Confirmation names the conversation, starts on **Cancel**, and keeps saved notes.
+A failed deletion stays open for retry. Successful deletion removes the chat from
+history and clears its reader if it was open; it stays deleted after reload.
 
 Changing the
 scope starts a new conversation. Stop cancels the current reply; interrupted replies

@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceCache } from "./workspace-cache";
 import { usePreferenceEditor } from "./preference-editor";
 
 const sections = [
@@ -12,6 +14,12 @@ const sections = [
   ["/app/settings/data", "Your data"],
 ];
 export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
+  const cache = useWorkspaceCache();
+  const admin = useQuery({
+    ...cache.resource<{ role: string }>("/admin"),
+    refetchInterval: 60000,
+  });
+  const systemAdmin = admin.data?.role === "system_admin" && !admin.error;
   const { dirty } = usePreferenceEditor();
   const path = usePathname();
   const navigation = useRef<HTMLElement>(null);
@@ -34,7 +42,7 @@ export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
     // Font loading can widen the links without resizing the navigation itself.
     nav.querySelectorAll("a").forEach((link) => observer.observe(link));
     return () => observer.disconnect();
-  }, [path, billing]);
+  }, [path, billing, systemAdmin]);
   return (
     <nav
       ref={navigation}
@@ -44,6 +52,7 @@ export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
       {[
         ...sections,
         ...(billing ? [["/app/settings/billing", "Billing"]] : []),
+        ...(systemAdmin ? [["/app/settings/admin", "Admin"]] : []),
       ].map(([href, label]) => (
         <Link
           key={href}

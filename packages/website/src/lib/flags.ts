@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { flag, dedupe } from "flags/next";
 import { vercelAdapter } from "@flags-sdk/vercel";
 import { billingFlagKey, billingPriceFlagKey } from "@lib/shared/billing";
+import { miniMaxTtsFlagKey } from "@lib/shared/speech-voices";
 
 const identify = dedupe(async () => {
   if (!process.env.CLERK_SECRET_KEY) return {};
@@ -29,3 +30,10 @@ export async function showBilling() {
   if (process.env.BILLING_CONFIGURED !== "true") return false;
   return billingEnabled();
 }
+
+export const miniMaxTtsEnabled = flag<boolean>({
+  key: miniMaxTtsFlagKey,
+  description: "Enable Willow, Cedar and Brook read-aloud voices",
+  defaultValue: false,
+  adapter: vercelAdapter,
+});

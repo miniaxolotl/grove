@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Billing } from "./billing.ts";
+import { AdminAccounts, type AdminDirectory } from "./system-admin.ts";
 export { Billing };
 export { MonthlyPricing } from "./billing-pricing.ts";
 import { PassThrough, Readable } from "node:stream";
@@ -92,10 +93,12 @@ import {
   conversationTurnSchema,
   toolSettingsSchema,
   askToolsSchema,
+  askToolsPatchSchema,
   defaultAskTools,
 } from "@lib/shared/conversations";
 
 export type AppDependencies = {
+  adminDirectory?: AdminDirectory;
   billing?: Billing;
   media?: MediaStore | null;
   artifacts?: ArtifactStore | null;
@@ -376,6 +379,34 @@ export function createApp(deps: AppDependencies) {
   });
   app.use("/mcp", authorize);
   const service = deps.memories;
+  const admin = new AdminAccounts(service, deps.adminDirectory);
+  app.get("/v1/admin", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.administration.status(c.get("principal")),
+    }),
+  );
+  app.post("/v1/admin/accounts/search", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.search(c.get("principal"), await c.req.json()),
+    }),
+  );
+  app.patch("/v1/admin/accounts", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.administration.change(
+        c.get("principal"),
+        await c.req.json(),
+      ),
+    }),
+  );
+  app.get("/v1/admin/audit", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.administration.audit(c.get("principal")),
+    }),
+  );
   app.post("/v1/webhooks/stripe", async (c) => {
     if (!deps.billing)
       throw new GroveError("billing_disabled", "Billing is unavailable", 503);
@@ -1202,6 +1233,15 @@ export function createApp(deps: AppDependencies) {
             dailyCalls: service.researchLimits.dailyCalls,
           };
         },
+      ),
+    }),
+  );
+  app.patch("/v1/ask-tools", async (c) =>
+    c.json({
+      success: true,
+      data: await service.conversations.configureDefaults(
+        c.get("principal"),
+        await body(c, askToolsPatchSchema),
       ),
     }),
   );

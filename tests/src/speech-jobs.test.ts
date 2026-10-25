@@ -23,6 +23,8 @@ import { localMedia } from "../../packages/api/src/media-store.ts";
 import { readMediaBytes } from "../../packages/api/src/media-input.ts";
 import type { SpeechProviders } from "../../lib/ai/src/speech.ts";
 import { InferenceError } from "@lib/ai";
+import { mp3Fixture } from "./fixtures/speech-audio.ts";
+import { billingLimits } from "@lib/shared/billing";
 
 const db = createDatabase(process.env.TEST_DATABASE_URL!);
 const worker = createDatabase(process.env.TEST_WORKER_DATABASE_URL!);
@@ -36,7 +38,7 @@ const auth = new Authentication(db, {
     return { subject, type: "session", sessionId: subject };
   },
 });
-const generated = Buffer.concat([Buffer.from("ID3"), Buffer.alloc(200)]);
+const generated = mp3Fixture();
 let calls = 0;
 const routed: SpeechVoiceId[] = [];
 let hold: (() => Promise<void>) | undefined;
@@ -525,9 +527,14 @@ test("monthly Free speech allowance stops worker provider dispatch", async () =>
           kind: "speech_synthesize",
           requests: 1,
           units: 10000,
+          durationMs: billingLimits.free.synthesis.monthly,
         })
         .onConflict(["accountId", "day", "kind"])
-        .merge({ requests: 1, units: 10000 });
+        .merge({
+          requests: 1,
+          units: 10000,
+          durationMs: billingLimits.free.synthesis.monthly,
+        });
     });
     const queued = await jobs.enqueue(principal, n.id, {
       id: randomUUID(),
@@ -613,7 +620,7 @@ test("voice defaults are account-owned, partial and independent of consent gener
   await service.settings(principal, { readAloudVoiceId: "reed" });
 });
 
-test("voice requests route exactly, replay omitted defaults and reuse A→B→A audio with its original expiry", async () => {
+test("voice requests route exactly, replay omitted defaults and reuse A→B→A audio with a fresh receipt", async () => {
   const n = await service.remember(
     other,
     rememberSchema.parse({
@@ -660,7 +667,16 @@ test("voice requests route exactly, replay omitted defaults and reuse A→B→A 
   const receipt = await tenant(db, other.accountId, (trx) =>
     trx("background_tasks").where({ id: cached.id }).first(),
   );
-  assert.deepEqual(receipt.expiresAt, original.expiresAt);
+  assert(receipt.expiresAt > original.expiresAt);
+  assert.deepEqual(
+    (
+      await tenant(db, other.accountId, (trx) =>
+        trx("background_tasks").where({ id: first.id }).first(),
+      )
+    ).expiresAt,
+    original.expiresAt,
+    "reuse must not extend the original request's authorization window",
+  );
   assert.equal(receipt.result.key, original.result.key);
   await assert.rejects(jobs.audio(principal, cached.id));
   await service.settings(other, { readAloudVoiceId: "reed" });
@@ -742,7 +758,7 @@ test("per-voice cutovers fence mismatched and legacy workers while leaving Reed 
   assert.equal(calls, before);
   assert.equal((await jobs.get(other, legacy.id)).error, "speech_changed");
   const configuration = await db("speech_configuration").first();
-  assert.equal(configuration.synthesis, "speech-voices-v1");
+  assert.equal(configuration.synthesis, "speech-content-cache-v1");
   assert.notEqual(
     configuration.synthesis,
     providers.synthesis!.reed!.profile,

@@ -13,6 +13,7 @@ import {
   type ArtifactStore,
 } from "@lib/memory";
 import { rememberSchema } from "@lib/shared/contracts";
+import { billingLimits } from "@lib/shared/billing";
 import {
   conversationCreateSchema,
   conversationPlanSchema,
@@ -782,6 +783,178 @@ test("concurrent conversation creates share the final note slot and replay and U
   });
 });
 
+test("account tool choices persist through a fresh connection and session without creating chats", async () => {
+  const f = await fixture();
+  const makeApp = (database: Knex, service: MemoryService) =>
+    createApp({
+      memories: service,
+      auth: new Authentication(database, {
+        verify: async (token) => ({
+          subject:
+            token === "other"
+              ? `other_${f.principal.subject}`
+              : f.principal.subject,
+          type: "session",
+          sessionId: token,
+        }),
+      }),
+      origin: "http://localhost",
+      siteUrl: "http://localhost",
+      issuer: "https://clerk.example.test",
+      webhookSecret: "whsec_dGVzdA==",
+      ready: async () => {},
+    });
+  const app = makeApp(db, f.service);
+  const headers = {
+    authorization: "Bearer first-session",
+    "content-type": "application/json",
+  };
+  const patch = (input: unknown, authHeaders = headers) =>
+    app.request("/v1/ask-tools", {
+      method: "PATCH",
+      headers: authHeaders,
+      body: JSON.stringify(input),
+    });
+  assert.equal(
+    (await app.request("/v1/ask-tools", { method: "PATCH", body: "{}" }))
+      .status,
+    401,
+  );
+  for (const invalid of [
+    {},
+    { exa: "false" },
+    { accountId: randomUUID(), exa: false },
+  ])
+    assert.equal((await patch(invalid)).status, 400);
+  await f.service.settings(f.principal, { captureEnabled: false });
+  const saved = await patch({ exa: false });
+  assert.equal(saved.status, 200);
+  assert.deepEqual((await saved.json()).data.defaults, {
+    exa: false,
+    tavily: false,
+    organize: true,
+  });
+  // Unrelated switches from another tab are merged, not replaced by a stale full snapshot.
+  assert.equal((await patch({ tavily: true })).status, 200);
+  assert.equal(
+    (await patch({ exa: false })).status,
+    200,
+    "lost-response retry is safe",
+  );
+  assert.equal(
+    (await f.service.conversations.list(f.principal)).items.length,
+    0,
+  );
+  assert.equal((await f.service.me(f.principal)).captureEnabled, false);
+  const target = new URL(process.env.TEST_DATABASE_URL!);
+  target.pathname = `/${name}`;
+  const freshDb = createDatabase(target.href);
+  try {
+    const freshService = new MemoryService(freshDb, "conversation-tests");
+    const freshApp = makeApp(freshDb, freshService);
+    const read = await freshApp.request("/v1/ask-tools", {
+      headers: { authorization: "Bearer restarted-session" },
+    });
+    const expected = { exa: false, tavily: true, organize: true };
+    assert.deepEqual((await read.json()).data.defaults, expected);
+    const chat = await freshService.conversations.create(
+      f.principal,
+      conversationCreateSchema.parse({ id: randomUUID() }),
+    );
+    assert.deepEqual(chat.tools, expected);
+    const other = await freshApp.request("/v1/ask-tools", {
+      headers: { authorization: "Bearer other" },
+    });
+    assert.deepEqual((await other.json()).data.defaults, {
+      exa: true,
+      tavily: false,
+      organize: true,
+    });
+    const key = await f.service.grant(
+      f.principal,
+      {
+        name: "Agent",
+        capabilities: ["memory:read"],
+        personal: true,
+        allProjects: true,
+        projectIds: [],
+      },
+      { key: true },
+    );
+    assert.equal(
+      (
+        await patch(
+          { exa: true },
+          { ...headers, authorization: `Bearer ${key.secret}` },
+        )
+      ).status,
+      403,
+    );
+  } finally {
+    await freshDb.destroy();
+  }
+});
+
+test("conversation tool saves merge only the changed default and stale saves are atomic", async () => {
+  const f = await fixture();
+  const other = await fixture();
+  const old = await f.create();
+  const current = await f.create();
+  await f.service.conversations.configureTools(f.principal, old.id, {
+    expectedVersion: 0,
+    tools: { exa: false, tavily: true, organize: true },
+    saveDefault: true,
+  });
+  const input = {
+    expectedVersion: 0,
+    tools: { exa: true, tavily: false, organize: false },
+    saveDefault: true,
+    defaultPatch: { organize: false },
+  };
+  const saved = await f.service.conversations.configureTools(
+    f.principal,
+    current.id,
+    input,
+  );
+  assert.deepEqual(saved.tools, input.tools);
+  assert.deepEqual((await f.create()).tools, {
+    exa: false,
+    tavily: true,
+    organize: false,
+  });
+  assert.deepEqual(
+    (await f.service.conversations.get(f.principal, old.id)).tools,
+    { exa: false, tavily: true, organize: true },
+  );
+  await assert.rejects(
+    f.service.conversations.configureTools(f.principal, current.id, {
+      ...input,
+      tools: { ...input.tools, organize: true },
+      defaultPatch: { organize: true },
+    }),
+    { code: "conversation_changed" },
+  );
+  await assert.rejects(
+    f.service.conversations.configureTools(other.principal, current.id, {
+      ...input,
+      expectedVersion: 1,
+    }),
+    { code: "not_found" },
+  );
+  await assert.rejects(
+    f.service.conversations.configureTools(f.principal, current.id, {
+      ...input,
+      expectedVersion: 1,
+      defaultPatch: { exa: false },
+    }),
+  );
+  assert.deepEqual((await f.create()).tools, {
+    exa: false,
+    tavily: true,
+    organize: false,
+  });
+});
+
 test("conversation tools persist choices, enforce disabled providers and retain web citations", async () => {
   const { service, principal, behavior, create } = await fixture();
   assert.equal(typeof service.conversations.configureTools, "function");
@@ -1150,6 +1323,57 @@ test("a stale organization move rolls back notebook creation and organization of
   assert.equal((await service.projects(principal)).length, 0);
 });
 
+test("Pro research passes the legacy daily ceiling but stops at its advertised allowance", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  await tenant(db, f.principal.accountId, async (trx) => {
+    await trx("billing_customers").insert({
+      accountId: f.principal.accountId,
+      customerId: `cus_${f.principal.accountId}`,
+    });
+    await trx("billing_subscriptions").insert({
+      accountId: f.principal.accountId,
+      customerId: `cus_${f.principal.accountId}`,
+      id: `sub_${f.principal.accountId}`,
+      priceId: "price_pro",
+      status: "active",
+      periodEnd: new Date(Date.now() + 86400000),
+    });
+  });
+  await admin("research_account_usage").insert({
+    accountId: f.principal.accountId,
+    day: admin.raw("(now() AT TIME ZONE 'UTC')::date"),
+    calls: 99,
+  });
+  configureBillingQuotas(db, {
+    enabled: async () => true,
+    priceIds: ["price_pro"],
+  });
+  try {
+    for (let index = 0; index < 2; index++) {
+      const chat = await f.create();
+      await f.service.conversations.turn(
+        f.principal,
+        chat.id,
+        turn("Research compost"),
+      );
+    }
+    assert.equal(calls, 1);
+  } finally {
+    configureBillingQuotas(db, { enabled: async () => false, priceIds: [] });
+  }
+});
+
 test("monthly Free research usage stops paid research without stopping an ordinary answer", async () => {
   const f = await fixture();
   let calls = 0;
@@ -1166,7 +1390,7 @@ test("monthly Free research usage stops paid research without stopping an ordina
   await admin("research_account_usage").insert({
     accountId: f.principal.accountId,
     day: admin.raw("(now() AT TIME ZONE 'UTC')::date"),
-    calls: 10,
+    calls: billingLimits.free.research.monthly,
   });
   configureBillingQuotas(db, { enabled: async () => true, priceIds: [] });
   try {
@@ -1181,6 +1405,51 @@ test("monthly Free research usage stops paid research without stopping an ordina
   } finally {
     configureBillingQuotas(db, { enabled: async () => false, priceIds: [] });
   }
+});
+
+test("unlimited research bypasses per-plan and legacy account caps but retains installation spending", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost", urls: [] }];
+  await admin("account_administration").insert({
+    accountId: f.principal.accountId,
+    access: "unlimited",
+  });
+  await admin("research_account_usage").insert({
+    accountId: f.principal.accountId,
+    day: admin.raw("(now() AT TIME ZONE 'UTC')::date"),
+    calls: billingLimits.pro.research.monthly,
+  });
+  const current = await admin("research_global_usage")
+    .whereRaw("month=date_trunc('month',now() AT TIME ZONE 'UTC')::date")
+    .first();
+  f.service.researchLimits = {
+    dailyCalls: 1,
+    monthlyMicrodollars: Number(current?.microdollars ?? 0) + 4000,
+  };
+  configureBillingQuotas(db, { enabled: async () => false, priceIds: [] });
+  for (let index = 0; index < 2; index++) {
+    const chat = await f.create();
+    await f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Research compost"),
+    );
+  }
+  assert.equal(
+    calls,
+    1,
+    "unlimited grants keep the independent global provider-spend bound",
+  );
 });
 test("research reservations serialize across accounts and successful tools are reused after a failed reply", async () => {
   const a = await fixture(),

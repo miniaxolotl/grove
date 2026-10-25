@@ -52,7 +52,7 @@ import {
 } from "./notebook-summaries.ts";
 import { assistanceProfile } from "./assistance-data.ts";
 import { runAssistanceJob, type AssistanceJob } from "./assistance-jobs.ts";
-import { billingAllows } from "./billing-quotas.ts";
+import { billingUsage } from "./billing-quotas.ts";
 
 export const briefTarget = (scope: BriefRequest) =>
   `${scope.projectId ?? "personal"}${scope.taskId ? `:task:${scope.taskId}` : ""}`;
@@ -347,16 +347,24 @@ async function reserve(
   await trx.raw("SELECT pg_advisory_xact_lock(hashtextextended(?, 6))", [
     accountId,
   ]);
+  const billing = await billingUsage(db, trx, accountId);
   const result = await trx("inference_usage")
     .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")
+    .modify((query) => {
+      if (billing) query.whereNot({ role: "generation" });
+    })
     .sum("requests as count")
     .first();
-  if (Number(result?.count ?? 0) >= limit) return false;
-  if (
-    role === "generation" &&
-    !(await billingAllows(db, trx, accountId, "generation"))
-  )
-    return false;
+  // Cloud generation has its own explicit account allowance. Keep the original
+  // independent guard for non-generation work; self-hosted/flag-off stays unchanged.
+  if (billing && role === "generation") {
+    const usage = billing.metrics.generation;
+    if (
+      (usage.dailyLimit !== null && usage.today >= usage.dailyLimit) ||
+      (usage.monthlyLimit !== null && usage.month >= usage.monthlyLimit)
+    )
+      return false;
+  } else if (Number(result?.count ?? 0) >= limit) return false;
   await trx.raw(
     `INSERT INTO inference_usage(account_id, role, day, requests) VALUES (?, ?, (now() AT TIME ZONE 'UTC')::date, 1)
     ON CONFLICT(account_id, day, role) DO UPDATE SET requests = inference_usage.requests + 1`,

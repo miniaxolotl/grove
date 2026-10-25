@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowUpRight, MessageSquare, Trash2 } from "lucide-react";
+import { MessageSquare, Trash2 } from "lucide-react";
 import type {
   ConversationHistoryItem,
   ConversationHistoryPage,
@@ -13,7 +13,7 @@ import { memoryExcerpt } from "@/lib/memory-display";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { Dialog } from "./dialog";
 import { useWorkspaceCache } from "./workspace-cache";
-import { Button, IconButton } from "./ui/button";
+import { Button } from "./ui/button";
 import { SearchField } from "./ui/search-field";
 
 function dateGroup(value: string) {
@@ -32,6 +32,12 @@ function scopeLabel(chat: ConversationHistoryItem, projects: Project[]) {
     : id === null
       ? "Unfiled"
       : (projects.find((p) => p.id === id)?.name ?? "Unavailable notebook");
+}
+function previewFor(chat: ConversationHistoryItem) {
+  const preview = memoryExcerpt({ content: chat.preview }, 180);
+  const normalize = (value: string) =>
+    value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  return normalize(preview) === normalize(chat.title) ? "" : preview;
 }
 
 export function AskHistory({
@@ -126,7 +132,10 @@ export function AskHistory({
               ? "Finding conversations…"
               : opening
                 ? "Opening conversation…"
-                : `${items.length}${history.hasNextPage ? "+" : ""} ${items.length === 1 ? "conversation" : "conversations"}${query ? " found" : " · most recent first"}`}
+                : `${items.length}${history.hasNextPage ? "+" : ""} ${items.length === 1 ? "conversation" : "conversations"}${query ? " found" : ""}`}
+            {!query && !searching && !history.isPending && !opening && (
+              <span>Most recent first</span>
+            )}
           </p>
         </div>
         {openError && (
@@ -143,61 +152,67 @@ export function AskHistory({
               <section key={label} aria-label={label}>
                 <h3 className="ask-history-group">{label}</h3>
                 <ul className="ask-history-list">
-                  {chats.map((chat) => (
-                    <li
-                      key={chat.id}
-                      className="ask-history-row"
-                      data-current={chat.id === currentId || undefined}
-                    >
-                      <button
-                        className="ask-history-open"
-                        aria-current={
-                          chat.id === currentId ? "true" : undefined
-                        }
-                        disabled={!!opening}
-                        data-conversation-id={chat.id}
-                        onClick={openConversation}
+                  {chats.map((chat) => {
+                    const preview = previewFor(chat);
+                    return (
+                      <li
+                        key={chat.id}
+                        className="ask-history-row"
+                        data-current={chat.id === currentId || undefined}
                       >
-                        <span className="ask-history-title">
-                          <strong>{chat.title}</strong>
-                          {chat.id === currentId && <small>Current</small>}
-                          <ArrowUpRight size={15} aria-hidden="true" />
-                        </span>
-                        {chat.preview && (
-                          <span className="ask-history-preview">
-                            {memoryExcerpt({ content: chat.preview }, 180)}
+                        <button
+                          className="ask-history-open"
+                          aria-current={
+                            chat.id === currentId ? "true" : undefined
+                          }
+                          disabled={!!opening}
+                          data-conversation-id={chat.id}
+                          onClick={openConversation}
+                        >
+                          <span className="ask-history-title">
+                            <strong>{chat.title}</strong>
+                            {chat.id === currentId && <small>Current</small>}
                           </span>
-                        )}
-                        <span className="ask-history-meta">
-                          <span>{scopeLabel(chat, projects)}</span>
-                          <time
-                            dateTime={chat.updatedAt}
-                            title={new Date(chat.updatedAt).toLocaleString()}
-                          >
-                            {new Date(chat.updatedAt).toLocaleDateString(
-                              undefined,
-                              { month: "short", day: "numeric" },
-                            )}
-                          </time>
-                          <span>
-                            {chat.turnCount
-                              ? `${chat.turnCount} ${chat.turnCount === 1 ? "question" : "questions"}`
-                              : "No messages yet"}
+                          {preview && (
+                            <span className="ask-history-preview">
+                              {preview}
+                            </span>
+                          )}
+                          <span className="ask-history-meta">
+                            <span>{scopeLabel(chat, projects)}</span>
+                            <time
+                              dateTime={chat.updatedAt}
+                              title={new Date(chat.updatedAt).toLocaleString()}
+                            >
+                              {new Date(chat.updatedAt).toLocaleDateString(
+                                undefined,
+                                { month: "short", day: "numeric" },
+                              )}
+                            </time>
+                            <span>
+                              {chat.turnCount
+                                ? `${chat.turnCount} ${chat.turnCount === 1 ? "question" : "questions"}`
+                                : "No messages yet"}
+                            </span>
                           </span>
-                        </span>
-                      </button>
-                      <IconButton
-                        label={`Delete conversation ${chat.title}`}
-                        disabled={!!opening}
-                        onClick={() => {
-                          setDeleting(chat);
-                          setDeleteError("");
-                        }}
-                      >
-                        <Trash2 size={15} />
-                      </IconButton>
-                    </li>
-                  ))}
+                        </button>
+                        <Button
+                          variant="secondary"
+                          className="ask-history-delete"
+                          aria-label={`Delete conversation ${chat.title}`}
+                          title={`Delete conversation ${chat.title}`}
+                          disabled={!!opening}
+                          onClick={() => {
+                            setDeleting(chat);
+                            setDeleteError("");
+                          }}
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                          <span>Delete</span>
+                        </Button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))}

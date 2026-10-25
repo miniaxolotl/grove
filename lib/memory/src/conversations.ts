@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { billingAllows } from "./billing-quotas.ts";
+import { billingUsage } from "./billing-quotas.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
 import { MemoryModel, withDatabaseSignal, type Knex } from "@lib/database";
 import { InferenceError } from "@lib/ai";
@@ -24,6 +24,8 @@ import {
   type ConversationTurn,
   type ConversationTurnRequest,
   askToolsSchema,
+  askToolsPatchSchema,
+  type AskToolsPatch,
   defaultAskTools,
   toolSettingsSchema,
   type ToolRun,
@@ -96,6 +98,21 @@ const summary = (row: ConversationRow): ConversationSummary => ({
   tools: row.tools ?? defaultAskTools,
   toolsVersion: row.toolsVersion ?? 0,
 });
+
+async function saveToolDefaults(
+  trx: Knex.Transaction,
+  account: { id: string; askTools?: unknown },
+  patch: AskToolsPatch,
+) {
+  const defaults = {
+    ...askToolsSchema.parse(account.askTools ?? defaultAskTools),
+    ...patch,
+  };
+  await trx("accounts")
+    .where({ id: account.id })
+    .update({ askTools: JSON.stringify(defaults) });
+  return defaults;
+}
 
 /** Session-only conversations. All database access runs inside the service's
  * account authorization/locking boundary; inference never holds a transaction. */
@@ -191,12 +208,25 @@ export class Conversations {
           tools: JSON.stringify(row.tools),
           toolsVersion: row.toolsVersion,
         });
-      if (input.saveDefault)
-        await trx("accounts")
-          .where({ id: account.id })
-          .update({ askTools: JSON.stringify(row.tools) });
-      return this.read(trx, row);
+      const defaults = input.saveDefault
+        ? await saveToolDefaults(trx, account, input.defaultPatch ?? row.tools)
+        : undefined;
+      return {
+        ...(await this.read(trx, row)),
+        ...(defaults ? { defaults } : {}),
+      };
     });
+  }
+
+  async configureDefaults(principal: Principal, input: AskToolsPatch) {
+    const patch = askToolsPatchSchema.parse(input);
+    return this.service.access(
+      principal,
+      "admin",
+      async ({ trx, account }) => ({
+        defaults: await saveToolDefaults(trx, account, patch),
+      }),
+    );
   }
 
   async get(principal: Principal, id: string): Promise<Conversation> {
@@ -958,13 +988,17 @@ export class Conversations {
           );
           if (previous) return { cached: previous.sources };
           if (runs.length >= 6) return { limited: true };
+          const billing = await billingUsage(
+            this.service.db,
+            trx,
+            principal.accountId,
+          );
+          const usage = billing?.metrics.research;
           if (
-            !(await billingAllows(
-              this.service.db,
-              trx,
-              principal.accountId,
-              "research",
-            ))
+            usage &&
+            ((usage.dailyLimit !== null && usage.today >= usage.dailyLimit) ||
+              (usage.monthlyLimit !== null &&
+                usage.month >= usage.monthlyLimit))
           )
             return { limited: true };
           const { rows } = await trx.raw(
@@ -972,7 +1006,7 @@ export class Conversations {
             [
               request.provider,
               operation,
-              this.service.researchLimits.dailyCalls,
+              usage ? usage.dailyLimit : this.service.researchLimits.dailyCalls,
               this.service.researchLimits.monthlyMicrodollars,
             ],
           );

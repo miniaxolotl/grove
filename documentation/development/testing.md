@@ -1,5 +1,102 @@
 # Verification
 
+## System administration
+
+Run `tests/src/system-admin.test.ts` and `system-admin-migration.test.ts` with the
+disposable non-owner API/worker URLs below, plus `recovery.test.ts`. They cover
+website-only roles, current account/subject/session checks, exact-email/user-ID
+lookup after authorization, agent/ordinary-user denial, role/grant revocation,
+last-admin protection, version conflicts/concurrent edits and audit/idempotent
+retries. Runtime/worker direct writes, audit access and bootstrap are denied;
+non-superuser-owner functions expose only account metadata, not private notes.
+The populated024→025 upgrade fingerprints every existing table and rejects inherited
+table/function privileges. Restore replays current role/grant authority rather
+than resurrecting the backup's admin/unlimited privileges. Actual generation
+dispatch exceeds a plan allowance with unlimited but still obeys independent
+non-generation budgets. Integrated duration/research regressions verify unlimited
+does not treat a null allowance as zero, while speech attempts and global research
+spend still stop dispatch.
+
+For browser verification use the actual AdminPanel and production CSS through the
+isolated dashboard fixture. Use synthetic Clerk identities and a disposable real
+API/database, not owner notes. Check exact-email search, all three access options,
+separate system roles, reason validation, keyboard dismissal/focus, lost-response
+same-operation retries and audit-once behavior, revoke/refresh concealment and
+1440/390/320px accessibility/overflow. Do not add production authentication bypasses.
+See [reviewed captures](../design/screenshots/system-admin/README.md).
+
+## Tier limits and audio-duration metering
+
+`billing-limits.test.ts` pins all defaults explicitly and compares environment,
+example and Compose values, including zero overrides and rejected legacy TTS units.
+`speech-duration.test.ts` counts MPEG-1/2/2.5 Layer III samples across real-shaped
+frames, ignores claimed Xing duration and rejects invalid/truncated/free-bitrate
+streams. Tests use synthetic frames, not personal/provider audio.
+
+With the disposable non-owner URLs below, run:
+
+```sh
+pnpm exec tsx --test tests/src/billing-limits.test.ts tests/src/billing.test.ts tests/src/tier-quotas.test.ts tests/src/speech-duration.test.ts tests/src/speech-duration-migration.test.ts tests/src/speech-jobs.test.ts tests/src/speech-cache.test.ts tests/src/conversations.test.ts
+```
+
+Coverage separates daily/monthly guards, tests Free/Pro API/worker final-slot
+admission, preserves embedding capacity after generation exhaustion and keeps
+flag-off installation limits. Pro research must dispatch above the old daily guard
+but stop at the advertised tier cap without raising the global spend budget.
+TTS tests hold concurrent providers, settle exact decoded duration, retain failed/
+invalid/overrun reservations, reuse audio without another charge and preserve
+character counters. The populated 024→026 upgrade checks non-owner API/worker RLS
+and conservative handling of old writers. Never reset retained databases for this.
+
+Use the actual Billing fixture with the API's explicit `units` metadata. Check
+Free/Pro independent 2/8-hour meters, 1,000/5,000 daily AI, 20/100 daily research,
+upgrade disclosure, zero/custom/exhausted allowances, refresh, old character-based
+responses, errors and flag-off hiding. Review 1440/390/320px, keyboard/focus, WCAG
+A/AA and overflow in Chromium and supported iPhone/WebKit. Save only relevant
+reviewed captures. The [cost report](tier-costs.md) is rate arithmetic, not paid-call
+or production-invoice evidence; no paid provider calls are needed by these tests.
+
+## Remembered Ask Grove tools and history
+
+`tests/src/conversations.test.ts` covers nonempty partial account tool writes,
+unchanged chat count, fresh connection/service/session readback, inherited defaults,
+unrelated preference preservation, key/foreign-account denial, replay, version
+conflicts and atomic partial-default updates. Existing in-flight research cases
+continue to fence disable/re-enable results. No new migration is required.
+
+After the website production build, run the focused component/cache cases:
+
+```sh
+pnpm --filter website exec playwright test tests/workspace.spec.ts tests/cache.spec.ts --grep 'Ask tools|conversation history|tool defaults|chat creation waits'
+pnpm --filter website exec playwright test --config playwright.ask-webkit.config.ts
+```
+
+These cover reload/new sessions, retained drafts, held/failed settings saves,
+independent old-chat choices, queued creation, held-read fencing and cross-tab
+defaults. History cases cover distinct previews, 1440/390/320px accessibility,
+pagination, Cancel/failure/retry, active-chat deletion, old empty chats and preserved
+notes. Screenshots and measured results are linked from [delivery](../delivery.md).
+When running the full backend suite on a many-core workstation, bound test-file
+concurrency to local database capacity (for example, `tsx --test
+--test-concurrency=2 src/*.test.ts` from `tests/`) rather than increasing timeouts.
+
+## Speech cache
+
+Speech-cache regressions in `speech-cache.test.ts` use a separate disposable
+database and real non-owner API/worker roles. They cover exact text-hash A→B→A
+reuse, receipt-independent lifetime, seven-day stale retention without extension,
+metadata-only revisions, note expiry/archive, consent/restore fences, tenant/note
+isolation, failed storage publication and cleanup racing an older transaction.
+`speech-cache-migration.test.ts` verifies populated 023→024 preservation.
+`speech-storage.test.ts` sends the S3 adapter to a loopback HTTP endpoint and checks
+the separate narration prefix, MP3 type and private/no-store metadata; it is not a
+live bucket lifecycle qualification.
+
+The cache suite also exercises dynamic alternate-voice flags: off/on discovery,
+cached playback, denial before dispatch/after inference, error fallback and Reed
+independence. `speech-runtime.test.ts` checks Vercel precedence over the legacy
+opt-in, self-host fallback, missing credentials/storage and master speech disable.
+
 ## Hosted chat connections
 
 `pnpm exec tsx --test tests/src/directory.test.ts` runs without a database listener.

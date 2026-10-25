@@ -12,13 +12,30 @@ export { defaultAskTools, type AskTools } from "@lib/shared/ask-tools";
 export const askToolsSchema = z
   .object({ exa: z.boolean(), tavily: z.boolean(), organize: z.boolean() })
   .strict();
+export const askToolsPatchSchema = askToolsSchema
+  .partial()
+  .refine(
+    (patch) => Object.keys(patch).length > 0,
+    "Choose at least one tool to update",
+  );
+export type AskToolsPatch = z.infer<typeof askToolsPatchSchema>;
 export const toolSettingsSchema = z
   .object({
     tools: askToolsSchema,
     expectedVersion: z.number().int().nonnegative(),
     saveDefault: z.boolean().optional(),
+    defaultPatch: askToolsPatchSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    ({ tools, saveDefault, defaultPatch }) =>
+      !defaultPatch ||
+      (saveDefault &&
+        Object.entries(defaultPatch).every(
+          ([key, value]) => tools[key as keyof AskTools] === value,
+        )),
+    "Saved defaults must match the changed conversation tools",
+  );
 export type ToolSettings = z.infer<typeof toolSettingsSchema>;
 export const researchRequestSchema = z
   .object({
