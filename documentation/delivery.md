@@ -1,5 +1,18 @@
 # Delivery evidence
 
+## Hosted directory review evidence (25 October 2026)
+
+Real production **1.11.3** browser tests use only a dedicated synthetic reviewer.
+ChatGPT executes explicit save, fresh-chat recall, exact inspection, metadata-
+preserving version-fenced correction and exact retained soft deletion, plus three
+separately answered negative scenarios. Both hosts deny note access before separate
+Grove approval; Claude subsequently reads the same ChatGPT-authored correction and
+executes its own synthetic notebook save/correction/history checks. The
+[reviewer walkthrough and boundaries](design/review/hosted-chat/README.md) distinguish
+these hosted results from the earlier direct-MCP tests and from directory approval.
+Credentials stay in private portal fields. This is evidence only, with no runtime,
+schema, feature-switch or production deployment change.
+
 ## System roles and complimentary access (25 October 2026 UTC)
 
 Settings → Admin provides exact-email/user-ID account lookup, separate system roles
