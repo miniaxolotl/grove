@@ -461,12 +461,25 @@ export function exportHandlers(
       });
   };
   const artifact_cleanup: TaskHandler = async (task, signal) => {
-    const objects = await tenant(db, task.accountId!, (trx) =>
-      trx("export_objects")
+    const objects = await tenant(db, task.accountId!, async (trx) => {
+      await trx("accounts").where({ id: task.accountId }).forUpdate().first();
+      const expired = await trx("export_objects")
         .where("expiresAt", "<=", trx.fn.now())
         .orderBy("objectKey")
-        .limit(100),
-    );
+        .limit(100)
+        .forUpdate();
+      if (expired.length)
+        await trx("export_objects")
+          .whereIn(
+            "objectKey",
+            expired.map((object) => object.objectKey),
+          )
+          .update({ expiresAt: trx.raw("'-infinity'::timestamptz") });
+      // Commit an irreversible expiry before external deletion. An older editing
+      // transaction must not revive these objects using its earlier now(). Failed
+      // deletions remain tracked and eligible for the next cleanup attempt.
+      return expired;
+    });
     for (const object of objects) {
       signal.throwIfAborted();
       await store.remove(object.objectKey, signal);

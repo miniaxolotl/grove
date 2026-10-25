@@ -15,6 +15,72 @@ documentation refresh.
 
 ## Topology
 
+### System administration rollout (025)
+
+1. Verify the frozen candidate and production migration history. Back up and verify
+   the retained database, then apply forward `20261025_025_system_administration`
+   using the migration owner **after 024**. If speech-cache024 is pending, follow its
+   rollout below first; do not skip or repeat applied migrations. The new schema
+   creates no admins and changes no retained notes, accounts, subscriptions or usage.
+   This integrated source also requires the duration rollout 026 described below;
+   complete its retained-counter and matching runtime-configuration checks before
+   starting the new API/worker. The full forward order is 024 → 025 → 026.
+2. Deploy matching admitted API/worker images and website through the protected
+   release path. Preserve runtime configuration, billing flags and provider records.
+   No new credential or environment allowlist is required for system roles.
+3. Verify the owner's exact production Clerk identity and existing active account.
+   Invoke the owner-only, parameterized bootstrap described in
+   [system administration](system-administration.md#first-administrator-and-recovery).
+   Grant only the requested role; system-admin does not imply unlimited access.
+4. Verify the owner's Admin navigation/search, ordinary-user and agent denial,
+   private/no-store responses and an owned synthetic grant/revoke/audit round trip.
+   Confirm API/worker grants do not widen private-note access or activate billing.
+5. Retain the forward schema on rollback. Keep restored databases offline until
+   current-authority role/grant reconciliation and credential invalidation complete.
+   Never rebootstrap an unverified identity or revive a revoked snapshot role.
+
+### Tier allowances and speech-duration rollout (026)
+
+This source change does not activate billing, reprice the introductory $5 plan or
+authorize a production migration. Review [allowances](billing.md) and the
+[per-tier cost scenarios](development/tier-costs.md); the owner explicitly treats
+the price as introductory rather than a full-utilization margin guarantee.
+
+1. Back up retained tables and verify restore/isolation with the normal owner
+   procedure. Pause/drain dispatch; apply forward `20261025_026_speech_duration`
+   after this source's earlier migrations, including speech-cache 024 and system
+   administration 025. Preserve that order; do not skip or renumber migrations.
+2. Verify retained `speech_usage.requests/units` are unchanged, the new duration
+   column exists and actual non-owner API/worker tenant isolation still holds.
+   Unknown historical synthesis attempts get a conservative MP3-duration bound;
+   neither character counts nor current-month usage are reset. Old writers accrue
+   that bound too, but mixed-version speech writers are not the rollout target.
+3. Keep billing cohorts unchanged. Configure **matching API and worker** allowances
+   explicitly: source defaults do not override existing DigitalOcean/Doppler values.
+   Replace both `BILLING_*_SYNTHESIS_MONTHLY_CHARACTERS` names with
+   `BILLING_*_SYNTHESIS_MONTHLY_MS`, choosing milliseconds, not copied character
+   numbers. Defaults are 7,200,000 Free / 28,800,000 Pro per speech metric. Old
+   character settings deliberately fail startup rather than silently changing units.
+4. Deploy the admitted matching API/worker source image by digest; startup probes
+   require the duration column. Then deploy the website. Billing responses carry
+   explicit units, and the new website preserves character display for old responses
+   without the duration marker. Never deploy a new API that reports milliseconds to
+   an older website still labelling synthesis as characters; keep billing hidden or
+   use the maintenance window through the coordinated API/website cutover.
+5. Verify Free/Pro usage and hour labels, quota boundaries across API/worker,
+   research above the old per-account ceiling without changing global spend,
+   held/failing TTS reservations, successful duration settlement, cached replay,
+   cancellation, UTC reset and retained historical usage. Original recordings,
+   notes and saved transcripts must remain available. The 60-second recording,
+   3,000-unit narration, 20 speech attempts/day and provider byte/deadline bounds
+   remain; this is not long-lecture ingestion support.
+
+Rollback hides plan enforcement/UI through the existing billing flag and stops
+new dispatch if needed; retain the forward schema, accounting and provider records.
+Do not drop the new counter, erase exhausted usage, raise shared spend caps or
+revert to mixed character/duration reporting to manufacture a successful rollout.
+Real paid-provider/Stripe acceptance and production release require separate scope.
+
 ### Billing rollout (023)
 
 Billing source does not authorize a production migration, Stripe live-mode change
@@ -34,10 +100,10 @@ or charging customers. Follow [billing configuration and limits](billing.md).
    first. Deploy the matching website with flag integration, not Stripe secrets.
 4. Verify Free usage, owned Checkout, completed payment → Pro, duplicate/lost
    responses, signed webhook retry/reordering, period-end cancellation, past-due
-    downgrade, resubscription after cancellation, reset dates, API/worker quotas and
-    account-deletion cancellation. Include a lost Checkout response followed by
-    expiry or completed payment; historical idempotent responses must not redirect
-    to expired Checkout or block deletion by trying to expire paid Checkout.
+   downgrade, resubscription after cancellation, reset dates, API/worker quotas and
+   account-deletion cancellation. Include a lost Checkout response followed by
+   expiry or completed payment; historical idempotent responses must not redirect
+   to expired Checkout or block deletion by trying to expire paid Checkout.
    Confirm a second account and agent credentials cannot manage another customer.
 5. Enable the intended cohort only after real Stripe test-mode/provider checks.
    Live price selection, enablement and charging need separate operator approval.
@@ -125,6 +191,7 @@ infer new variables or activate stored Doppler secrets.
 Verify original-media storage and temporary artifact storage separately. Cloud
 originals remain in the private durable bucket with no expiry; generated MP3 shares
 the private artifact bucket's one-day `speech/` lifecycle, never the source bucket.
+Migration [024](#content-addressed-speech-cache-024) supersedes this for new audio.
 Confirm bucket policy/lifecycle through an authorized operator, not a broader runtime
 key. Keep maintenance enabled for bounded candidate expiry and artifact removal.
 Migration 019 originally starts both speech preferences off. The forward default
@@ -153,6 +220,9 @@ the migration to a retained database or changing production preferences.
 
 ### Selectable speech voices (022)
 
+The historical environment-only activation below is superseded by migration 024's
+Vercel flag integration when `FLAGS` is configured; see the current rollout below.
+
 Apply `20261024_022_speech_voices` with the owner connection after 021. It backfills
 only the new Reed default, preserving consent flags/generations, and adds the
 per-voice installation profile map. Both runtime processes now require this schema.
@@ -174,6 +244,54 @@ saved choices remain visible as unavailable and Reed can be selected explicitly.
 Use the current restore reconciliation script to preserve the remembered choice
 without reviving generated audio. Production migration, provider activation and
 deployment remain separate operator operations.
+
+### Content-addressed speech cache (024)
+
+Apply forward `20261024_024_speech_cache` after 023 with the owner connection and
+the normal backup/migration procedure. It adds tenant-isolated cache metadata to
+the existing artifact registry and a note-write retention trigger. Existing authored
+notes, recordings, transcripts and legacy `speech/` objects retain their data and
+deadlines. Runtime startup checks the new columns.
+
+Before activation, inspect the private artifact bucket's lifecycle and runtime IAM
+prefix permissions. Allow MP3 reads/writes/deletes under `narration/`, and ensure
+**no bucket-wide or prefix age-expiration rule covers it**. Keep ordinary export
+and legacy `speech/` expiration scoped to their own prefixes. A seven-day bucket
+rule is unsuitable: matching audio is retained until its text becomes stale, not
+seven days after creation. Application maintenance owns stale-audio deletion.
+
+Drain older API/worker instances, then deploy the matching admitted image. API
+startup now publishes `speech-content-cache-v1`; older workers fail closed and
+pre-upgrade read-aloud receipts require starting again. Never restart an old API
+that would republish its older protocol. New failed writes still expire after one
+day; successful audio remains current, or expires seven days after its first text
+mismatch. Cleanup claims cannot be revived during object deletion. Restore still
+expires every derived artifact and advances the restore epoch.
+
+Verify with synthetic notes: prepare A, edit to B, revert to A and confirm the
+original object is reused; expire a request receipt and confirm a fresh receipt
+reuses its audio; verify stale-only cleanup and authenticated Range/HEAD playback.
+This source change does not apply production migrations or change bucket rules.
+
+**Alternate-voice investigation (24 October 2026):** read-only production spec
+inspection of active deployment `0ea705f1-ed0f-4b56-8b3d-637dcaaa3dd5` found
+`SPEECH_ENABLED=true` and both provider keys present on API/worker, but no
+`MINIMAX_TTS_ENABLED` on either. Its default is false, explaining the unavailable
+Willow/Cedar/Brook choices. Activation requires setting it true on both components
+and verifying the resulting voice availability; key presence is not a provider
+health/billing check. That initial investigation made no production changes.
+
+**Owner-authorized flag setup:** Vercel project `bramble-labs-inc/grove` now has
+`minimax-tts-enabled` (`flg_UFDbNBSQfL2MZSfLnMPbnGVZnuHI`), active boolean, serving
+**On in production**, **Off in preview/development**, verified by CLI readback.
+API and worker already have `FLAGS` configured. The new runtime uses this flag
+instead of the legacy environment opt-in when that SDK key is present. Use the
+same Vercel environment key on both replicas; retain `SPEECH_ENABLED`, provider
+credentials and artifact storage. The SDK falls back false and has no
+stale-on-error allowance. No billing flag was changed. Old deployed binaries do
+not read this new flag: voice activation still requires the protected source rollout
+after migration 024 and narration-storage verification. Rollback can turn this flag
+Off without changing credentials, saved voice choices or cached objects.
 
 ### Ask Grove tools rollout (020)
 

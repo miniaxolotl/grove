@@ -396,8 +396,8 @@ test("billing configuration is optional but activation requires cloud, flags and
     STRIPE_WEBHOOK_SECRET: "whsec_fixture",
     STRIPE_PRO_MONTHLY_PRICE_ID: "price_pro",
   });
-  assert.equal(configured.BILLING_FREE_GENERATION_MONTHLY, 100);
-  assert.equal(configured.BILLING_PRO_TRANSCRIPTION_MONTHLY_MS, 7200000);
+  assert.equal(configured.BILLING_FREE_GENERATION_MONTHLY, 31000);
+  assert.equal(configured.BILLING_PRO_TRANSCRIPTION_MONTHLY_MS, 28800000);
   assert.equal(
     readServerEnvironment({
       ...env,
@@ -459,6 +459,10 @@ test("flagged generation enforces a concurrent daily Free cap without blocking b
   memory.configureBillingQuotas(db, {
     enabled: async () => true,
     priceIds: ["price_pro"],
+    limits: {
+      free: { ...billingLimits.free, generation: { daily: 10, monthly: 100 } },
+      pro: billingLimits.pro,
+    },
   });
   const a = await account();
   let calls = 0;
@@ -489,6 +493,10 @@ test("monthly usage, subscription expiry, recognized prices and rollout pause de
   memory.configureBillingQuotas(db, {
     enabled: async () => true,
     priceIds: ["price_pro"],
+    limits: {
+      free: { ...billingLimits.free, generation: { daily: 10, monthly: 100 } },
+      pro: billingLimits.pro,
+    },
   });
   const a = await account();
   await tenant(db, a.accountId, async (trx) => {
@@ -559,11 +567,17 @@ for (const plan of ["free", "pro"] as const) {
       limits: {
         free: {
           ...billingLimits.free,
-          generation: { daily: 3000, monthly: 100 },
+          generation: {
+            daily: 300000,
+            monthly: billingLimits.free.generation.monthly,
+          },
         },
         pro: {
           ...billingLimits.pro,
-          generation: { daily: 3000, monthly: 2000 },
+          generation: {
+            daily: 300000,
+            monthly: billingLimits.pro.generation.monthly,
+          },
         },
       },
     };
@@ -673,7 +687,7 @@ test("UTC monthly boundaries and per-metric allowances do not mix tenants or cha
   await admin("research_account_usage").insert({
     accountId: a.accountId,
     day: admin.raw("(now() AT TIME ZONE 'UTC')::date"),
-    calls: 3,
+    calls: billingLimits.free.research.daily,
   });
   await tenant(db, a.accountId, async (trx) => {
     await trx("inference_usage").insert([
@@ -696,13 +710,14 @@ test("UTC monthly boundaries and per-metric allowances do not mix tenants or cha
       {
         accountId: a.accountId,
         kind: "speech_transcribe",
-        units: 599999,
+        units: billingLimits.free.transcription.monthly - 1,
         requests: 1,
       },
       {
         accountId: a.accountId,
         kind: "speech_synthesize",
         units: 9999,
+        durationMs: billingLimits.free.synthesis.monthly - 1,
         requests: 1,
       },
     ]);
@@ -744,6 +759,13 @@ test("generation reservations use the advertised UTC day even with a non-UTC dat
     memory.configureBillingQuotas(trx, {
       enabled: async () => true,
       priceIds: [],
+      limits: {
+        free: {
+          ...billingLimits.free,
+          generation: { daily: 10, monthly: 100 },
+        },
+        pro: billingLimits.pro,
+      },
     });
     let calls = 0;
     for (let index = 0; index < 12; index++) {

@@ -61,8 +61,18 @@ their own request lifecycles.
 
 ## Read ownership
 
-Ask Grove tool updates invalidate the conversation and `/ask-tools` defaults across
-tabs. Pending conversation reads poll actual progress every two seconds and retain
+Ask Grove saves scratch-chat tools directly to `/ask-tools`, without creating a
+conversation. Saved-chat changes use the versioned conversation endpoint and merge
+only the changed default switches. Successful responses cancel held defaults reads,
+adopt authoritative defaults while retaining provider availability, and invalidate
+`/ask-tools` across tabs using metadata-only broadcasts. Conversation updates also
+invalidate the conversation family. Preference writes share the account/session
+queue; conversation creation and mutations wait for earlier settings saves even
+after the original view unmounts. Session replacement fences queued writes. Failed
+or uncertain writes revalidate defaults and conversations; the UI requires refresh
+before sending after an unconfirmed save.
+
+Pending conversation reads poll actual progress every two seconds and retain
 the optimistic turn until the server acknowledges it. Organization Apply/Undo
 invalidates active/archived notebook directories as well as note dependencies;
 generic note invalidation alone does not refresh the sidebar's notebook list.

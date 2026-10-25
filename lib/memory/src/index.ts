@@ -150,6 +150,7 @@ export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 export { configureBillingQuotas, billingUsage } from "./billing-quotas.ts";
+export { SystemAdministration } from "./system-admin.ts";
 
 export class MemoryService {
   beforeAccountDeletion?: (

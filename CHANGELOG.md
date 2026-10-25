@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.11.4](https://github.com/miniaxolotl/grove/compare/v1.11.3...v1.11.4) (2026-10-25)
+
+
+### Features
+
+* **admin:** manage system roles and complimentary access ([#124](https://github.com/miniaxolotl/grove/issues/124)) ([c5867b1](https://github.com/miniaxolotl/grove/commit/c5867b1ec05d33558e4fbf1b5ad6aa427136676d))
+* **billing:** increase Free and Pro allowances ([#123](https://github.com/miniaxolotl/grove/issues/123)) ([187f2ea](https://github.com/miniaxolotl/grove/commit/187f2ea36c53e3e00e405fde08817822fa41e054))
+
+
+### Bug Fixes
+
+* **ask:** remember tools and tidy conversation history ([#122](https://github.com/miniaxolotl/grove/issues/122)) ([e958a15](https://github.com/miniaxolotl/grove/commit/e958a152613ade4657b84d5b93f473c721f502bc))
+* **speech:** retain audio by text hash ([#119](https://github.com/miniaxolotl/grove/issues/119)) ([8716378](https://github.com/miniaxolotl/grove/commit/871637857e6556af726beeb996edb41ed63f177a))
+
 ## [1.11.3](https://github.com/miniaxolotl/grove/compare/v1.11.2...v1.11.3) (2026-10-24)
 
 

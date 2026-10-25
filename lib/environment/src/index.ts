@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { billingLimits } from "@lib/shared/billing";
 
 const origin = z.url().transform((value, ctx) => {
   const url = new URL(value);
@@ -96,18 +97,35 @@ const serverSchema = z.object({
   STRIPE_PORTAL_CONFIGURATION_ID: z.string().startsWith("bpc_").optional(),
   STRIPE_PRO_MONTHLY_PRICE_ID: z.string().startsWith("price_").optional(),
   STRIPE_PRO_YEARLY_PRICE_ID: z.string().startsWith("price_").optional(),
-  BILLING_FREE_GENERATION_DAILY: allowance(10),
-  BILLING_FREE_GENERATION_MONTHLY: allowance(100),
-  BILLING_PRO_GENERATION_DAILY: allowance(200),
-  BILLING_PRO_GENERATION_MONTHLY: allowance(2000),
-  BILLING_FREE_RESEARCH_DAILY: allowance(3),
-  BILLING_FREE_RESEARCH_MONTHLY: allowance(10),
-  BILLING_PRO_RESEARCH_DAILY: allowance(20),
-  BILLING_PRO_RESEARCH_MONTHLY: allowance(200),
-  BILLING_FREE_TRANSCRIPTION_MONTHLY_MS: allowance(600000),
-  BILLING_PRO_TRANSCRIPTION_MONTHLY_MS: allowance(7200000),
-  BILLING_FREE_SYNTHESIS_MONTHLY_CHARACTERS: allowance(10000),
-  BILLING_PRO_SYNTHESIS_MONTHLY_CHARACTERS: allowance(200000),
+  BILLING_FREE_GENERATION_DAILY: allowance(
+    billingLimits.free.generation.daily!,
+  ),
+  BILLING_FREE_GENERATION_MONTHLY: allowance(
+    billingLimits.free.generation.monthly,
+  ),
+  BILLING_PRO_GENERATION_DAILY: allowance(billingLimits.pro.generation.daily!),
+  BILLING_PRO_GENERATION_MONTHLY: allowance(
+    billingLimits.pro.generation.monthly,
+  ),
+  BILLING_FREE_RESEARCH_DAILY: allowance(billingLimits.free.research.daily!),
+  BILLING_FREE_RESEARCH_MONTHLY: allowance(billingLimits.free.research.monthly),
+  BILLING_PRO_RESEARCH_DAILY: allowance(billingLimits.pro.research.daily!),
+  BILLING_PRO_RESEARCH_MONTHLY: allowance(billingLimits.pro.research.monthly),
+  BILLING_FREE_TRANSCRIPTION_MONTHLY_MS: allowance(
+    billingLimits.free.transcription.monthly,
+  ),
+  BILLING_PRO_TRANSCRIPTION_MONTHLY_MS: allowance(
+    billingLimits.pro.transcription.monthly,
+  ),
+  BILLING_FREE_SYNTHESIS_MONTHLY_MS: allowance(
+    billingLimits.free.synthesis.monthly,
+  ),
+  BILLING_PRO_SYNTHESIS_MONTHLY_MS: allowance(
+    billingLimits.pro.synthesis.monthly,
+  ),
+  // Reject old deployment settings instead of silently treating characters as time.
+  BILLING_FREE_SYNTHESIS_MONTHLY_CHARACTERS: z.string().optional(),
+  BILLING_PRO_SYNTHESIS_MONTHLY_CHARACTERS: z.string().optional(),
   EMBEDDING_MODE: z.enum(["local", "remote", "disabled"]).optional(),
   EMBEDDING_CACHE: z.string().default("./data/models"),
   EMBEDDING_URL: z.string().optional(),
@@ -257,6 +275,16 @@ const serverSchema = z.object({
     .optional(),
 });
 export const serverEnvironmentSchema = serverSchema.superRefine((env, ctx) => {
+  for (const tier of ["FREE", "PRO"] as const) {
+    const path = `BILLING_${tier}_SYNTHESIS_MONTHLY_CHARACTERS` as const;
+    if (env[path] !== undefined)
+      ctx.addIssue({
+        code: "custom",
+        path: [path],
+        message:
+          "Replace SYNTHESIS_MONTHLY_CHARACTERS with SYNTHESIS_MONTHLY_MS; characters are not audio duration",
+      });
+  }
   if (
     env.BILLING_CONFIGURED &&
     (env.GROVE_EDITION !== "cloud" ||

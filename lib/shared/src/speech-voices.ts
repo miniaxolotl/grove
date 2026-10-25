@@ -1,4 +1,5 @@
 /** Public voice identities. Provider IDs and credentials belong to the server. */
+export const miniMaxTtsFlagKey = "minimax-tts-enabled";
 export const speechVoiceIds = ["reed", "willow", "cedar", "brook"] as const;
 export type SpeechVoiceId = (typeof speechVoiceIds)[number];
 export const defaultSpeechVoice: SpeechVoiceId = "reed";

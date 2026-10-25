@@ -44,7 +44,6 @@ export function AskToolMenu({
   error,
   notice,
   onChange,
-  onDefault,
   onRetry,
 }: {
   tools: AskTools;
@@ -53,7 +52,6 @@ export function AskToolMenu({
   error?: string;
   notice?: string;
   onChange: (tools: AskTools) => void;
-  onDefault: () => void;
   onRetry: () => void;
 }) {
   const count = askToolIds.filter(
@@ -71,7 +69,7 @@ export function AskToolMenu({
           </>
         }
       >
-        <div className="ask-tools-heading">For this chat</div>
+        <div className="ask-tools-heading">Tools</div>
         {askToolIds.map((key) => {
           const { label, description } = askToolCatalog[key];
           const Icon = toolIcons[key];
@@ -101,19 +99,15 @@ export function AskToolMenu({
           );
         })}
         <p className="ask-tools-status" role="status">
-          {busy ? "Saving…" : notice || "Used only when helpful."}
+          {busy
+            ? "Saving…"
+            : error
+              ? "Changes not confirmed."
+              : notice || "Changes also apply to new chats."}
         </p>
-        <button
-          className="ask-tools-default"
-          type="button"
-          disabled={busy || !available}
-          onClick={onDefault}
-        >
-          Use for new chats
-        </button>
         {error && (
-          <p className="app-error" role="alert">
-            {error}
+          <div className="app-error ask-tools-error" role="alert">
+            <p>{error}</p>
             <button
               type="button"
               className="text-button"
@@ -122,7 +116,7 @@ export function AskToolMenu({
             >
               Refresh tools
             </button>
-          </p>
+          </div>
         )}
       </ActionMenu>
     </div>

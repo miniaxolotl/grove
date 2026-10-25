@@ -90,6 +90,11 @@ Configure the **same store** on API and workers:
   bucket lifecycle to expire this prefix and abort incomplete multipart uploads
   after one day. Storage provisioning is an explicit operator action.
 
+Read-aloud audio also uses this store, under `narration/` with get/put/delete
+permission and **no age-based bucket expiry**. Its matching-text lifetime and
+seven-day stale grace are managed by the application, independently of one-day
+exports and legacy `speech/` objects. See [speech retention](speech.md#temporary-output-and-recovery).
+
 Readiness validates configured storage. Downloads are session-owner-only,
 `private, no-store` streams through API/BFF, with authorization rechecked during
 long transfers. No public object URLs or credentials reach the browser.

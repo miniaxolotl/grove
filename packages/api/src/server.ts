@@ -5,6 +5,7 @@ import { probeDatabase } from "@lib/database";
 import { createApp } from "./app.ts";
 import { Authentication, clerkVerifier } from "./auth.ts";
 import { createRuntime } from "./runtime.ts";
+import { clerkAdminDirectory } from "./system-admin.ts";
 import { accountIdentity, closeTelemetry, telemetry } from "@lib/telemetry";
 import { requestCollectionAllowed } from "@lib/telemetry/context";
 import { configureSpeech } from "@lib/memory";
@@ -15,6 +16,7 @@ export async function startServer() {
   await configureSpeech(db, runtime.speech);
   const reporter = telemetry("api");
   const app = createApp({
+    adminDirectory: clerkAdminDirectory(env.CLERK_SECRET_KEY),
     memories,
     models: runtime.models,
     artifacts: runtime.artifacts,
