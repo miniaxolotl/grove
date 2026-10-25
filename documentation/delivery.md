@@ -34,7 +34,9 @@ gzip bytes** with deferred meeting UI. Five focused supported Noble WebKit cases
 pass. The initial full Chromium run passed241 cases and exposed an outdated
 sixteen-checkbox settings assertion after adding the seventeenth preference. The
 updated regression verifies default-off and explicit opt-in persistence independently
-of Ask, and passes in Chromium and WebKit; the full Chromium repeat is pending.
+of Ask, and passes in Chromium and WebKit. The full Chromium repeat passes **all242
+cases**, with no retries or weakened checks. The follow-up changes only test coverage,
+reviewed captures and delivery documentation; runtime source/build remains unchanged.
 
 The real UI→HTTP API→PostgreSQL/worker journey passes generation, source links,
 reviewed Save/Undo and unchanged originals, with no page errors, WCAG A/AA violations
