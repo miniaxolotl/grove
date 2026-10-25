@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.5](https://github.com/miniaxolotl/grove/compare/v1.11.4...v1.11.5) (2026-10-25)
+
+
+### Bug Fixes
+
+* **integrations:** publish self-contained directory tool metadata ([#126](https://github.com/miniaxolotl/grove/issues/126)) ([f9be6d7](https://github.com/miniaxolotl/grove/commit/f9be6d7ccc4ee825e77c869d6e37ab4d90c3ee40))
+
 ## [1.11.4](https://github.com/miniaxolotl/grove/compare/v1.11.3...v1.11.4) (2026-10-25)
 
 
