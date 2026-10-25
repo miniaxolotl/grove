@@ -401,6 +401,30 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/admin/accounts/browse", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.browse(c.get("principal"), await c.req.json()),
+    }),
+  );
+  app.post("/v1/admin/accounts/details", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.administration.details(
+        c.get("principal"),
+        await c.req.json(),
+      ),
+    }),
+  );
+  app.patch("/v1/admin/accounts/support", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.administration.support(
+        c.get("principal"),
+        await c.req.json(),
+      ),
+    }),
+  );
   app.get("/v1/admin/audit", async (c) =>
     c.json({
       success: true,

@@ -1,6 +1,6 @@
 # System administration
 
-**Settings → Admin** is available only to a current website session with the
+**Settings → Admin → People & access** is available only to a current website session with the
 `system_admin` role. Ordinary accounts use the `user` role. All role decisions
 come from the database, never browser state, email-domain rules, token metadata
 or connected-agent permissions. API keys and OAuth agents cannot use admin routes,
@@ -8,12 +8,50 @@ even when their account belongs to a system admin.
 
 ## People and access
 
-Search an **exact email address** or Clerk user ID, or use the thirty most recent
-Grove accounts. Identity-provider matches without an existing Grove account are
+Browse all Grove accounts in pages of thirty, or search an **exact email address**
+or Clerk user ID. Identity-provider matches without an existing Grove account are
 not created or granted anything. Names and primary emails are read from Clerk
 only after authorization; they are not copied into the administration tables.
 
-Manage opens separate **Access** and **System role** controls:
+Manage opens one account inspector with **Usage**, **Account**, and **Access**
+sections. Existing system roles remain `user` and `system_admin`; there is no
+custom permission builder or support-ticket system.
+
+### Usage and support
+
+Usage shows current note/notebook/active-connection counts and **today / this month**
+generation requests, web-research calls, transcription minutes and read-aloud
+minutes. Calendar periods are UTC; reset times are displayed in the browser's
+local time. These are operational usage counters, not invoices: reservations and
+failed attempts may be included, while cached audio reuse is not charged again.
+Usage remains available to administrators when billing purchases are hidden.
+Only aggregates are exposed—never note titles, text, notebook names, conversation
+prompts, connection credentials or payment details.
+
+Support shortcuts open an email draft in the operator's mail app or copy the
+account ID / usage summary. Nothing sends automatically. An administrator-only
+support note (500 characters maximum) keeps a short follow-up reminder; do not
+store credentials or private note content in it. Account history displays matching
+entries from the latest fifty administration changes, not an exhaustive history.
+
+Account edits can change automatic capture/recall, the support note, and reversible
+**suspension**. Suspension blocks Grove access, agent requests and new ordinary
+worker dispatch without deleting notes or canceling subscriptions. In-flight work
+is fenced by the existing account checks; already-sent provider work cannot be
+unsent. Provider updates cannot clear an administrative suspension; restoring it
+does not clear an independent provider ban, lock or deletion. The current operator
+cannot suspend themselves, and the last active administrator remains protected.
+Sign-in profile, email and password edits stay with the identity provider.
+
+Support edits require a reason, account version and expected setting snapshot.
+They do not silently overwrite a user's newer preference change. Retry-safe
+operations record one before/after audit, and operation IDs cannot be reused across
+support and access edits. Restores reconcile current suspension, settings, support
+notes and role/grant authority before returning online.
+
+### Access grants
+
+The **Access** section keeps separate access and system-role controls:
 
 | Access    | Effect                                                          |
 | --------- | --------------------------------------------------------------- |
@@ -61,6 +99,15 @@ The page shows the latest fifty changes, while the full audit remains retained.
 - `GET /v1/admin`: current website account's system role.
 - `POST /v1/admin/accounts/search`: `{ "query": "person@example.com" }`, empty
   for recent accounts, or exact Clerk user ID. No email addresses in URL queries.
+- `POST /v1/admin/accounts/browse`: `{ "after"?: "account UUID" }`, returning
+  `{ accounts, total, nextCursor }` in stable newest-first order, at most thirty
+  accounts per page. Identity enrichment rechecks authorization after remote reads.
+- `POST /v1/admin/accounts/details`: `{ "accountId": "UUID" }`, returning
+  `{ account, settings, counts, usage }`; usage includes UTC reset times and
+  per-metric `{ today, month }`. Speech units in the API remain milliseconds.
+- `PATCH /v1/admin/accounts/support`: `accountId`, `operationId`, `expectedVersion`,
+  `expectedSettings`, `settings`, `reason`. Both setting objects contain exactly
+  `captureEnabled`, `recallEnabled`, `suspended` and `supportNote`.
 - `PATCH /v1/admin/accounts`: `accountId`, `operationId`, `expectedVersion`,
   `role` (`user`/`system_admin`), `access` (`default`/`pro`/`unlimited`) and `reason`.
 - `GET /v1/admin/audit`: latest fifty changes.
@@ -77,6 +124,16 @@ functions expose account metadata and serialized, audited mutations to the API
 role only. They use explicit schemas, revoke inherited/public privileges and
 recheck the current admin role after the serialization lock. No private-content
 RLS policy is widened. A non-superuser migration owner is supported.
+
+Forward migration **027**, after speech-duration **026**, adds the support note,
+administrative suspension and narrow account-reporting/edit functions. Reporting
+temporarily scopes only fixed aggregate queries to the selected account, restoring
+the actor's tenant context on success or error; runtime/worker never receive a
+general-purpose cross-account query API or new private-content privileges.
+API keys, OAuth agents, ordinary users and workers cannot call support functions.
+Readiness requires the new account column, so rollout must apply 027 before the
+new API/worker/site are started. Existing roles, grants, counters and private
+content are retained. See [support rollout](deploy.md#admin-support-rollout-027).
 
 ## First administrator and recovery
 

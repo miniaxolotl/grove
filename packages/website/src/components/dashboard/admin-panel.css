@@ -105,10 +105,11 @@
 .admin-history {
   margin-top: 12px;
 }
-.admin-history h3 {
+.admin-history summary {
   font-size: 15px;
   font-weight: 500;
   margin-bottom: 12px;
+  cursor: pointer;
 }
 .admin-history ol {
   list-style: none;
@@ -138,9 +139,9 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.app-dialog.inspector-dialog:has(.admin-editor) {
+.app-dialog.inspector-dialog:has(.admin-inspector) {
   --inspector-width: min(
-    480px,
+    560px,
     calc(var(--overlay-viewport-width, 100vw) - var(--inspector-inset) * 2)
   );
   left: calc(
@@ -200,6 +201,140 @@
   border-radius: 6px;
 }
 .admin-sheet :is(input, textarea, select):focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: 3px;
+}
+.admin-inspector {
+  display: grid;
+  gap: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.admin-inspector > .admin-person strong {
+  font-size: 17px;
+}
+.admin-inspector h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.admin-support-actions,
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.admin-support-actions .text-button {
+  font-size: 12px;
+  min-height: 32px;
+}
+.admin-tabs {
+  border-bottom: 1px solid var(--color-line);
+  gap: 20px;
+}
+.admin-tabs button {
+  padding: 10px 0;
+  min-height: 44px;
+  border-bottom: 2px solid transparent;
+}
+.admin-tabs button[aria-pressed="true"] {
+  border-bottom-color: var(--color-forest);
+  color: var(--color-forest);
+}
+.admin-detail-section[hidden] {
+  display: none;
+}
+.admin-back,
+.admin-more {
+  justify-self: start;
+}
+.admin-counts {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 4px 20px;
+}
+.admin-counts dt {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.admin-counts dd {
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.admin-usage {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.admin-usage caption {
+  text-align: left;
+  font-weight: 500;
+  padding-bottom: 8px;
+}
+.admin-usage th,
+.admin-usage td {
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--color-line);
+  text-align: right;
+}
+.admin-usage th {
+  font-weight: 400;
+}
+.admin-usage th:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+.admin-usage thead th {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.admin-usage .admin-caption {
+  display: block;
+  font-size: 11px;
+}
+.admin-detail-section > .admin-caption {
+  margin-block: 10px;
+}
+.admin-setting-options {
+  display: grid;
+  gap: 14px;
+}
+.admin-setting-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.admin-setting-options input {
+  margin-top: 4px;
+  accent-color: var(--color-forest);
+}
+.admin-setting-options .admin-caption {
+  display: block;
+}
+.admin-identifiers {
+  margin-top: 20px;
+}
+.admin-identifiers summary {
+  cursor: pointer;
+}
+.admin-identifiers label {
+  display: grid;
+  gap: 6px;
+  margin-block: 12px;
+  font-size: 12px;
+}
+.admin-identifiers input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  font: inherit;
+}
+.admin-inspector :is(input, textarea, select, summary):focus-visible {
   outline: 2px solid var(--color-leaf);
   outline-offset: 3px;
 }

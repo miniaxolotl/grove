@@ -1,5 +1,35 @@
 # Delivery evidence
 
+## Solo-owner account support (25 October 2026)
+
+Settings → Admin now offers a paginated **People & access** directory and one
+account inspector for **Usage**, **Account**, and **Access**. Fixed aggregate
+reports show per-user UTC today/month generation, research and timed speech,
+plus note/notebook/active-connection counts even while billing is hidden.
+Support adds email-draft/copy-ID/usage-summary shortcuts, a short staff note,
+capture/recall edits, reversible suspension and account-filtered recent history.
+No new role hierarchy, ticketing system, private-content access or identity-email/
+password editor is introduced.
+
+Forward migration **027** retains existing data/counters and adds narrow guarded
+reporting/support operations. Backend regressions first fail for missing support
+features, cross-action operation-ID reuse, and restored suspension state, then
+pass with versioned/idempotent audited edits and recovery reconciliation. Provider
+updates cannot clear support suspension; restoring it cannot clear a provider ban.
+Self/last-admin guards remain. Non-superuser reporting and raw RLS isolation pass;
+no private-content policies are broadened. See the [contract](system-administration.md),
+[rollout](deploy.md#admin-support-rollout-027) and [verification](development/testing.md#admin-support-and-usage).
+
+Local source verification passes **406 backend cases** (four optional-service
+skips), all **nine artifacts**, root/site lint/types/builds and bundle budgets.
+The existing **239 Chromium** cases pass. Real-component, real-API/PostgreSQL
+support journeys pass in Chromium and supported WebKit at 1440/390/320px, including
+same-operation uncertain-save retry/audit-once, suspend/restore and revocation
+concealment, WCAG A/AA, focus return, overflow and page-error checks.
+[Six reviewed captures](design/screenshots/admin-support/README.md) use only
+synthetic identities. No production schema, account, provider or billing changes
+were performed for this work.
+
 ## Hosted directory review evidence (25 October 2026)
 
 Real production **1.11.3** browser tests use only a dedicated synthetic reviewer.
@@ -46,8 +76,8 @@ WCAG A/AA and overflow/page-error checks. Both engines also pass after the final
 role-discovery retry refinement. [Six reviewed captures](design/screenshots/system-admin/README.md)
 contain synthetic accounts only. Native OpenCode/Claude/Codex smoke checks pass.
 
-Production readiness is separately recorded in private operator custody. The verified
-owner account is active; live database remains at 023 before rollout. An encrypted
+The original pre-rollout readiness was separately recorded in private operator custody.
+At that checkpoint the verified owner was active and the database was at 023. An encrypted
 backup passes full archive decode/validation. Owner-approved read-only Spaces
 inspection confirms lifecycle expiry covers only `exports/` and legacy `speech/`, not
 `narration/`; existing scoped runtime narration read/write/delete passes and its

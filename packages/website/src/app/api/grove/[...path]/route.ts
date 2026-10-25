@@ -31,9 +31,14 @@ async function forward(
   const admin =
     path === "admin" || path === "admin/audit"
       ? request.method === "GET"
-      : path === "admin/accounts/search"
+      : [
+            "admin/accounts/search",
+            "admin/accounts/browse",
+            "admin/accounts/details",
+          ].includes(path)
         ? request.method === "POST"
-        : path === "admin/accounts" && request.method === "PATCH";
+        : ["admin/accounts", "admin/accounts/support"].includes(path) &&
+          request.method === "PATCH";
   if (billing && process.env.BILLING_CONFIGURED !== "true")
     return fail(404, "Route not found");
   if (billing && !(await showBilling())) return fail(404, "Route not found");
