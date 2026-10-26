@@ -113,6 +113,41 @@ fallback, same-operation lost-response retry, errors/revocation concealment and
 keyboard/focus/overflow/accessibility. Screenshots must use synthetic identities.
 No production identity or support edit is necessary for source verification.
 
+## Note and PDF imports
+
+Use `document-extraction.test.ts`, `document-imports.test.ts`,
+`document-import-migration.test.ts` and `recovery.test.ts`. They exercise real PDFs,
+strict UTF-8, lossless bounded segmentation, the 030→031 populated upgrade, non-owner
+RLS/session boundaries, upload integrity, versioned review, original attempt tracking,
+idempotent note/notebook creation, cancellation/expiry, private downloads, original
+immutability, preference guards and media-complete provenance exports.
+
+`packages/website/tests/imports.spec.ts` runs the actual workspace components with
+production CSS and synthetic API responses at1440/390/320px. It covers upload,
+review/edit, new/existing destinations, confirmation, keyboard-operable controls,
+WCAG A/AA, overflow and page errors. The synthetic PDF response is not extraction
+evidence; real parsing and authorization belong to the backend cases. Relevant
+[captures](../design/screenshots/note-imports/README.md) use synthetic notes only.
+
+Keep worker/container resource limits in addition to the parser's old-space/deadline
+guards. Never use customer documents or retained databases for malicious-PDF tests.
+
+For the complete real API/worker/PostgreSQL journey (not mocked import responses),
+build the website first, set the disposable test URLs below and run:
+
+```sh
+pnpm exec tsx scripts/testing/document-imports-browser.mjs
+```
+
+It creates/removes its own `_test` database, uses real binary Markdown/PDF uploads,
+reviews mixed existing/new destinations at1440/390/320px, confirms normal note writes
+and compares downloaded originals byte-for-byte. `IMPORT_BROWSER=webkit` selects
+WebKit; use the supported Playwright container below when host libraries are absent.
+`IMPORT_WORKER_DIRECTORY=/path/to/pnpm-deploy-output` runs that prebuilt production
+worker in a separate process instead of the source handler loop, covering parser
+packaging and clean SIGTERM draining. All identities/documents are synthetic; this
+runner adds no authentication bypass to production code and makes no model calls.
+
 ## System administration
 
 Run `tests/src/system-admin.test.ts` and `system-admin-migration.test.ts` with the

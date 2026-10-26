@@ -37,6 +37,8 @@ test("isolated restore replays current deletions and revocations without changin
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
     const pendingMedia = randomUUID();
+    const importBatch = randomUUID(),
+      importFile = randomUUID();
     const speechTranscript = randomUUID(),
       speechAudio = randomUUID();
     const speechKey = `speech/${a}/${speechAudio}/${randomUUID()}.mp3`;
@@ -50,6 +52,32 @@ test("isolated restore replays current deletions and revocations without changin
         { id: a, clerkSubject: "recovery_a" },
         { id: b, clerkSubject: "recovery_b" },
       ]);
+      await db("document_import_batches").insert({
+        accountId: a,
+        id: importBatch,
+        status: "ready",
+      });
+      await db("document_import_files").insert({
+        accountId: a,
+        batchId: importBatch,
+        id: importFile,
+        filename: "draft.txt",
+        bytes: 11,
+        sha256: "a".repeat(64),
+        staging: Buffer.from("Old preview"),
+      });
+      await db("document_import_notes").insert({
+        accountId: a,
+        batchId: importBatch,
+        fileId: importFile,
+        id: randomUUID(),
+        ordinal: 0,
+        content: "Old preview",
+        pageStart: 1,
+        pageEnd: 1,
+        sourceStart: 0,
+        sourceEnd: 11,
+      });
       await db("background_tasks").insert([
         {
           id: speechTranscript,
@@ -318,6 +346,27 @@ test("isolated restore replays current deletions and revocations without changin
     });
     const before = await source("accounts").orderBy("id");
     const result = await reconcileRestore(source, target);
+    assert.equal(
+      (
+        await target("document_import_batches")
+          .where({ id: importBatch })
+          .first()
+      ).status,
+      "cancelled",
+    );
+    assert.equal(
+      (await target("document_import_files").where({ id: importFile }).first())
+        .staging,
+      null,
+    );
+    assert.equal(
+      (
+        await source("document_import_batches")
+          .where({ id: importBatch })
+          .first()
+      ).status,
+      "ready",
+    );
     assert.deepEqual(
       await target("account_administration").where({ accountId: a }).first(),
       await source("account_administration").where({ accountId: a }).first(),
@@ -507,13 +556,11 @@ test("restore preserves current support suspension and notes instead of reviving
     const id = randomUUID();
     for (const db of databases)
       await db("accounts").insert({ id, clerkSubject: "support_restore_user" });
-    await source("accounts")
-      .where({ id })
-      .update({
-        status: "disabled",
-        adminSuspended: true,
-        captureEnabled: false,
-      });
+    await source("accounts").where({ id }).update({
+      status: "disabled",
+      adminSuspended: true,
+      captureEnabled: false,
+    });
     await source("account_administration").insert({
       accountId: id,
       supportNote: "Review suspension before restoring access",

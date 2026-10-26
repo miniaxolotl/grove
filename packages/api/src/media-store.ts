@@ -19,6 +19,12 @@ import {
   validateMediaKey,
 } from "@lib/shared/media";
 type VerifiedMedia = { bytes: Buffer; mime: MediaMime; sha256: string };
+type VerifiedDocument = {
+  bytes: Buffer;
+  mime: "application/pdf" | "text/plain";
+  sha256: string;
+};
+type VerifiedSource = VerifiedMedia | VerifiedDocument;
 
 /** Private storage, NOT an authorization layer. Use only after tenant/revision checks.
  * Deliberately no remove API: source bytes must never enter export/cache cleanup.
@@ -26,6 +32,11 @@ type VerifiedMedia = { bytes: Buffer; mime: MediaMime; sha256: string };
 export interface MediaStore {
   ready(): Promise<void>;
   write(key: string, image: VerifiedMedia, signal: AbortSignal): Promise<void>;
+  writeDocument?(
+    key: string,
+    document: VerifiedDocument,
+    signal: AbortSignal,
+  ): Promise<void>;
   read(key: string, signal: AbortSignal): Promise<Readable>;
   close?(): void;
 }
@@ -37,6 +48,15 @@ function validImage(image: VerifiedMedia) {
     !mediaMimeTypes.includes(image.mime)
   )
     throw new Error("invalid_media_object");
+}
+function validDocument(document: VerifiedDocument) {
+  if (
+    !Buffer.isBuffer(document.bytes) ||
+    !document.bytes.length ||
+    document.bytes.length > 3 * 1024 * 1024 ||
+    !["application/pdf", "text/plain"].includes(document.mime)
+  )
+    throw new Error("invalid_document_object");
 }
 const inside = (one: string, two: string) =>
   one === two || one.startsWith(two.endsWith(sep) ? two : two + sep);
@@ -81,7 +101,40 @@ export function localMedia(root: string): MediaStore {
     }
     return resolve(directory, key);
   }
+  const publish = async (
+    key: string,
+    image: VerifiedSource,
+    signal: AbortSignal,
+  ) => {
+    signal.throwIfAborted();
+    const target = await directories(key, true);
+    const temporary = `${target}.${randomUUID()}.partial`;
+    const file = await open(
+      temporary,
+      constants.O_CREAT |
+        constants.O_EXCL |
+        constants.O_WRONLY |
+        constants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      await file.writeFile(image.bytes, { signal });
+      await file.sync();
+      await file.close();
+      signal.throwIfAborted();
+      await link(temporary, target);
+    } finally {
+      await file.close();
+      await unlink(temporary).catch((error) => {
+        if (error.code !== "ENOENT") throw error;
+      });
+    }
+  };
   return {
+    async writeDocument(key, document, signal) {
+      validDocument(document);
+      await publish(key, document, signal);
+    },
     async ready() {
       await mkdir(directory, { recursive: true, mode: 0o700 });
       const info = await lstat(directory);
@@ -93,31 +146,8 @@ export function localMedia(root: string): MediaStore {
         throw new Error("media_directory_not_private");
     },
     async write(key, image, signal) {
-      signal.throwIfAborted();
       validImage(image);
-      const target = await directories(key, true);
-      const temporary = `${target}.${randomUUID()}.partial`;
-      const file = await open(
-        temporary,
-        constants.O_CREAT |
-          constants.O_EXCL |
-          constants.O_WRONLY |
-          constants.O_NOFOLLOW,
-        0o600,
-      );
-      try {
-        await file.writeFile(image.bytes, { signal });
-        await file.sync();
-        await file.close();
-        signal.throwIfAborted();
-        // rename overwrites! link publishes atomically and fails on any collision.
-        await link(temporary, target);
-      } finally {
-        await file.close();
-        await unlink(temporary).catch((error) => {
-          if (error.code !== "ENOENT") throw error;
-        });
-      }
+      await publish(key, image, signal);
     },
     async read(key, signal) {
       signal.throwIfAborted();
@@ -144,7 +174,31 @@ export function s3Media(
   bucket: string,
   spacesLifecycleVerified = false,
 ): MediaStore {
+  const publish = async (
+    key: string,
+    image: VerifiedSource,
+    signal: AbortSignal,
+  ) => {
+    signal.throwIfAborted();
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: validateMediaKey(key),
+        Body: image.bytes,
+        ContentLength: image.bytes.length,
+        ContentType: image.mime,
+        CacheControl: "private, no-store",
+        IfNoneMatch: "*",
+        Metadata: { sha256: image.sha256 },
+      }),
+      { abortSignal: signal },
+    );
+  };
   return {
+    async writeDocument(key, document, signal) {
+      validDocument(document);
+      await publish(key, document, signal);
+    },
     async ready() {
       const signal = AbortSignal.timeout(5000);
       await client.send(new HeadBucketCommand({ Bucket: bucket }), {
@@ -211,21 +265,8 @@ export function s3Media(
       }
     },
     async write(key, image, signal) {
-      signal.throwIfAborted();
       validImage(image);
-      await client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: validateMediaKey(key),
-          Body: image.bytes,
-          ContentLength: image.bytes.length,
-          ContentType: image.mime,
-          CacheControl: "private, no-store",
-          IfNoneMatch: "*",
-          Metadata: { sha256: image.sha256 },
-        }),
-        { abortSignal: signal },
-      );
+      await publish(key, image, signal);
     },
     async read(key, signal) {
       signal.throwIfAborted();

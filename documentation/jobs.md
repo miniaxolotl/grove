@@ -133,6 +133,12 @@ each account to 20 outstanding user jobs and one active export.
 
 ## Imports and connectors
 
+The workspace also supports reviewed [Markdown/text/PDF uploads](imports.md) through
+`/v1/import-batches`. `document_prepare` and `document_import` use the bulk lane,
+bounded source staging, server-side review plans and owner-only progress/retry.
+Preparation creates no notes; confirmed Apply uses ordinary note/notebook writes.
+The existing record API below remains compatible and separate.
+
 Session owners can `POST /v1/imports` with `{id,source,records}`. Each record has
 `sourceId`, `content` and optional `projectId`; send at most 100 records and 128 KiB per
 request. Split larger inputs into requests with distinct stable UUIDs. Each task

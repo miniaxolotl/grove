@@ -6,7 +6,7 @@ import { migrations } from "../../lib/database/src/migrations.ts";
 
 test("context migration follows the merged search migration without reusing its slot", () => {
   assert.deepEqual(
-    migrations.slice(-3).map((migration) => migration.name),
+    migrations.slice(27, 30).map((migration) => migration.name),
     [
       "20261025_028_action_usage",
       "20261025_029_search_quality",

@@ -35,6 +35,8 @@ const stages = [
   "media_object",
   "media_binding",
   "media_transcript_revision",
+  "document_binding",
+  "document_source",
 ] as const;
 const pageSize = 100;
 const assertVersion = async (trx: Knex.Transaction, task: ClaimedTask) => {
@@ -93,6 +95,58 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
       .modify((query) => {
         if (projects) query.whereIn("projectId", projects);
       });
+  if (kind === "document_binding") {
+    const q = trx("document_import_notes as n")
+      .join("document_import_files as f", function () {
+        this.on("f.accountId", "n.accountId")
+          .andOn("f.batchId", "n.batchId")
+          .andOn("f.id", "n.fileId");
+      })
+      .whereIn("n.memoryId", mediaNotes())
+      .where("f.originalReady", true)
+      .select(
+        "n.id",
+        "n.batchId",
+        "n.fileId",
+        "n.memoryId",
+        "n.pageStart",
+        "n.pageEnd",
+        "n.sourceStart",
+        "n.sourceEnd",
+        "f.filename",
+        "f.sha256",
+      )
+      .orderBy("n.id")
+      .limit(pageSize);
+    if (after) q.where("n.id", ">", after);
+    return q;
+  }
+  if (kind === "document_source") {
+    if (!task.payload.includeMedia) return [];
+    const q = trx("document_import_files as f")
+      .where("f.originalReady", true)
+      .whereExists(
+        trx("document_import_notes as n")
+          .select(trx.raw("1"))
+          .whereRaw(
+            "n.account_id=f.account_id AND n.batch_id=f.batch_id AND n.file_id=f.id",
+          )
+          .whereIn("n.memoryId", mediaNotes()),
+      )
+      .select(
+        "f.id",
+        "f.batchId",
+        "f.filename",
+        "f.mime",
+        "f.bytes",
+        "f.sha256",
+        "f.objectKey",
+      )
+      .orderBy("f.id")
+      .limit(1);
+    if (after) q.where("f.id", ">", after);
+    return q;
+  }
   if (kind === "media_binding") {
     if (!task.payload.includeMedia) return [];
     const q = trx("media_revision_bindings")
@@ -362,15 +416,21 @@ export function exportHandlers(
     });
     if (rows.length) {
       await prepare(db, task, key);
-      if (stages[stage] === "media_object") {
+      if (
+        stages[stage] === "media_object" ||
+        stages[stage] === "document_source"
+      ) {
         if (!media) throw new TaskError("media_storage_unavailable", false);
         const row = rows[0];
         let bytes = 0;
         const content = Readable.from(
           (async function* () {
             const metadata = {
-              type: "media_object",
+              type: stages[stage],
               id: row.id,
+              ...(stages[stage] === "document_source"
+                ? { batchId: row.batchId, filename: row.filename }
+                : {}),
               memoryId: row.memoryId,
               mime: row.mime,
               bytes: row.bytes,
@@ -396,8 +456,14 @@ export function exportHandlers(
                 const piece = chunk.subarray(from, from + 48 * 1024);
                 const record = Buffer.from(
                   JSON.stringify({
-                    type: "media_chunk",
+                    type:
+                      stages[stage] === "document_source"
+                        ? "document_chunk"
+                        : "media_chunk",
                     id: row.id,
+                    ...(stages[stage] === "document_source"
+                      ? { batchId: row.batchId }
+                      : {}),
                     offset,
                     data: piece.toString("base64"),
                   }) + "\n",

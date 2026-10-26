@@ -208,6 +208,9 @@ importers:
       objection:
         specifier: 3.1.5
         version: 3.1.5(knex@3.3.0(pg@8.16.3))
+      pdfjs-dist:
+        specifier: 6.4.299
+        version: 6.4.299
       pg:
         specifier: 8.16.3
         version: 8.16.3
