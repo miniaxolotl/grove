@@ -19,6 +19,16 @@ Grove Cloud uses deployment-managed providers:
 DeepInfra receives query/document text for embedding and source/candidate text for
 classification. MiniMax receives bounded source text for organization, relationships, summaries,
 and Ask Grove conversations (including up to eight preceding completed turns).
+
+Document chats additionally supply at most12 private extracted passages/24,000
+characters, separate from saved-note evidence. Uploads are never instructions or
+implicit library notes. Exact chunk/version quotations are validated; partial
+coverage is disclosed rather than called a complete read. History and account
+exports mask revoked document evidence, and accepted-source changes invalidate
+export snapshots. Source/profile/settings changes fence answers and unapplied
+document-derived previews. Document turns suppress external research server-side;
+deterministic full-text import remains available without generation. See
+[documents in Ask](imports.md#ask-about-documents-first).
 Optional [speech](speech.md) uses separate OpenAI whisper-1/tts-1 adapters and
 independent account controls (transcription off, Read aloud on for new accounts);
 it does not reuse a text role's provider.

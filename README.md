@@ -102,6 +102,8 @@ pnpm dev:website
 
 [Verification commands](documentation/development/testing.md) cover actual
 PostgreSQL/RLS, authenticated HTTP/MCP, packed stdio clients, and browser checks.
+[Reviewed file imports](documentation/imports.md) bring Markdown, plain text and
+text-based PDFs into existing or new notebooks without overwriting existing notes.
 [Legacy import](documentation/migration.md) is explicit, ownership-mapped, and
 source-read-only. Local execution plans are in
 `~/Development/bramble-labs/plans/grove/` (`plan.md`, `notes.md`, `status.md`);
@@ -109,7 +111,7 @@ recovered `sources/` are historical snapshots. The tracked
 [images, recordings and speech review](documentation/development/media-plan.md)
 records proposed scope and acceptance gates, not shipped functionality.
 Current implementation contracts are documented under [media](documentation/media.md),
-[recordings](documentation/recordings.md) and opt-in [speech](documentation/speech.md);
+[recordings](documentation/recordings.md) and [speech](documentation/speech.md);
 production activation follows the release and explicit migration procedure.
 
 ## Releases

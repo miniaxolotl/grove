@@ -35,6 +35,32 @@ all affected cases passed in isolation and the full unchanged suites passed in t
 pinned Linux runtime with home-backed temporary storage. No deadline, assertion,
 rate limit or production setting was weakened to obtain the passing result.
 
+## Upload/files stack integration (25 October 2026)
+
+The four feature layers (#132 → #136 → #142 → #145) are rebased onto development
+`27288e3`, retaining action allowances, human-readable note guidance, title-first
+search and explicit Ask source selection. Migration order is now actions028 →
+search029 → context030 → imports031 → documents032. Only unreleased feature
+migration names changed; no retained database was reset or migrated.
+
+Populated upgrades assert the committed order and unique sequence slots. Ask
+readiness requires both context and document prerequisites. A combined regression
+proves strict selected-note questions transmit no unrelated attachment payload to
+planning or answering; ordinary selections retain document citations. Replayed
+questions still charge one Ask action each when action accounting is enabled.
+
+The real 320px WebKit attachment journey exposed a composer resize-delivery loop:
+its width observer synchronously changed the observed parent's height. Width-driven
+growth now runs in a cancellable animation frame, following the existing overlay
+scheduling pattern. Page-error assertions remain unchanged; no warnings are filtered.
+
+Integrated root/site lint, types, builds and bundle budgets pass (Notes entry
+492,541 gzip bytes). All256 Chromium cases, ten packed-artifact checks,50 release/
+CI/provider contracts and native OpenCode/Claude/Codex smoke checks pass. Current
+synthetic captures reflect the combined source-selector and attachment controls.
+Full source CI is validated separately for each rewritten PR, not inherited from
+the previous heads. Production migrations, merge and deployment remain separate
+owner operations.
 ## Title-first, prefix and typo-tolerant note search (25 October 2026)
 
 Library searches and recall/source search share visible-title tiers, additive
@@ -328,6 +354,117 @@ observed 608 ms median and 614 ms maximum/p95 over ten warm sequential recalls, 
 qualify production throughput, cold-cache performance or profitability; unchanged
 research/audio exposure can exceed the introductory price. No retained database,
 production flag, paid provider, subscription, release or deployment was changed.
+
+## Files browsing refinement (25 October 2026; stacked on #142)
+
+The [Files & storage view](files-storage.md) now prioritizes the file ledger with
+a compact expandable storage band, global newest/name/size sorting, location-aware
+search, notebook/type/lifecycle filters and individually clearable filter chips.
+Readable note labels, notebook breadcrumbs, status badges, keyboard expansion and
+direct first-page recovery make locations and errors easier to navigate. Mobile
+Refresh shares the title row; storage details no longer push files below the fold.
+No deletion/cleanup mutations, quota/retention changes, schema or new dependencies.
+
+Local verification: **474 backend passes, four optional-service skips, zero failures**,
+including11 inventory cases; **251 Chromium cases pass**, including five file UI cases.
+Root/site lint/types/builds and budgets; nine artifacts;27 release/16 CI contracts
+and workflow lint; native OpenCode/Claude/Codex smoke checks pass. The final backend
+run uses isolated task-local temporary storage after shared tmpfs quota failures,
+without changing assertions or limits. Real API/PostgreSQL/parser/worker/private-source journeys pass
+both Chromium and supported-container WebKit at1440/390/320px, including sort/search/
+view controls, exact originals, keyboard/focus, source removal, untruncated notebook
+roots and WCAG A/AA/overflow/page-error checks, also with expanded filters.
+[Three reviewed captures](design/screenshots/files-experience/README.md)
+use synthetic documents/identities only. No paid providers or production changes.
+
+## Files & storage (25 October 2026; stacked on #136)
+
+The shared [Files & storage view](files-storage.md) is available from Settings,
+Ask attachments, import review and note/notebook actions. It lists private document
+uploads, note images and original recordings, with size/state, searchable filenames,
+type/context filters and independently paged note/notebook/chat locations. Existing
+original readers authorize downloads; shared chat-to-import originals appear once.
+Storage distinguishes conservative retained-byte/write-attempt safety budgets,
+actual temporary staging and accessible-original bytes. Removal never claims to
+delete retained originals or free retained budget. No new migration or permissions.
+
+Local verification: **471 backend passes, four optional-service skips, zero failures**,
+including eight inventory regressions; nine artifacts; root/site lint/types/builds,
+bundle budgets;27 release contracts,16 CI contracts/workflow lint and native
+OpenCode/Claude/Codex smoke checks. **249 Chromium tests pass** after the final UI
+review. Real disposable API/PostgreSQL/parser/worker/source-store journeys
+pass Chromium and supported-container WebKit at1440/390/320px, with byte-identical
+originals, current notebook associations, source removal/refresh, filters and WCAG
+A/AA/overflow/page-error checks. [Three reviewed captures](design/screenshots/files-storage/README.md)
+use synthetic documents and identities; mobile captures use normal page scrolling.
+No paid providers, production schema/configuration, original deletion or deployment.
+
+## Documents in Ask Grove (25 October 2026; stacked on #132)
+
+Ask Grove accepts PDF, DOCX, Markdown and text as private chat-local sources, without
+creating library notes. Reading starts automatically; cited answers/follow-ups open
+exact extracted passages and private originals. Explicit full-text conversion reuses
+the existing reviewed import; requested generated notes/notebooks retain ordinary
+Apply/Undo and durable private source bindings. Direct imports auto-prepare and can
+hand unconfirmed originals to Ask without another browser upload. See the
+[contract](imports.md#ask-about-documents-first), [captures](design/screenshots/ask-documents/README.md)
+and [owner rollout](deploy.md#ask-document-rollout-032-stacked-on-import-132).
+
+Forward migration **032** follows import031, preserving merged action028/search029/
+context030. Populated-upgrade/readiness tests preserve old content and require
+the new schema. Accepted originals/chunks remain immutable; expiry clears only
+unaccepted staging/excerpts. Removal, account/chat deletion, profile changes and
+restore fence inaccessible evidence and unapplied previews. Saved-note source
+access is independent of deleted chat access. Account/notebook exports include only
+authorized sources; notebook exports do not acquire unrelated private chats.
+
+Local backend verification: **463 passes, four optional-service skips, zero failures**,
+including25 document cases, real transport payload validation, exact citations,
+acceptance races, shared staging, pre-dispatch/Apply fencing, export and recovery.
+Root/site lint/types/builds, **nine artifacts**,27 release contracts,23CI/deployment
+contracts, workflow lint and native OpenCode/Claude/Codex smoke checks pass. Full
+Chromium suite: **246 passed**; **seven focused attachment/import checks passed**
+after the final narrow-screen refinement. Notes bundle:489,534 gzip bytes, within budget.
+
+Final export regressions verify that revoked document quotations cannot escape
+through raw turn-history JSON, using the same mask as hydrated history, and source
+acceptance invalidates earlier export snapshots without changing attachment identity.
+
+Packaged production-dependency Node24 workers pass real DOCX/Markdown upload,
+citations/follow-ups, byte-identical originals, reviewed save, removal and import→Ask
+handoff in Chromium and supported-container WebKit at1440/390/320px, with clean
+SIGTERM draining. Final package requalification after the export-mask fixes passes
+all six chat journeys (worker SHA-256
+`a9099e4937d5e05097a7a2d3e4504e41808139a27a414e189a0c4c565139ca92`).
+The ordinary packaged PDF/import journey also passes in both engines.
+Generation is deliberately synthetic: this is not live-model quality, device or
+production acceptance. OCR, legacy Word, arbitrary ZIP and embedded objects remain
+deferred. No paid provider calls, production migration/configuration or rollout.
+
+## Reviewed note and PDF uploads (25 October 2026)
+
+Notes, notebook options and Settings → Data now offer reviewed Markdown/plain-text/
+text-based PDF imports into existing, new or Unfiled notebooks. Preparation creates
+no library content; explicit confirmation applies ordinary versioned note/notebook
+writes with checkpointed retry and no implicit overwrite. Optional grounded AI
+organization changes drafts only. Original files remain private and immutable;
+export provenance, draft expiry/cancellation and restore/account-deletion guards
+preserve the retained-source contract. Forward migration **031** follows context030,
+retaining committed action028 and search029. See the [contract](imports.md) and
+[owner rollout](deploy.md#note-and-pdf-import-rollout-031).
+
+Integrated local verification: **435 backend passes, four optional-service skips,
+zero failures**; nine packaged-consumer artifacts; root/site lint, types and builds;
+**242 Chromium cases** and three focused import repeats after label polish; bundle
+budgets (Notes **488,672 gzip bytes**); 27 release contracts. Real API/PostgreSQL
+journeys pass in Chromium and supported-container WebKit at1440/390/320px, including
+SHA-256-identical private original downloads. The production-dependency packaged
+worker separately passes all six journeys and clean SIGTERM draining.
+
+[Reviewed screenshots](design/screenshots/note-imports/README.md) use synthetic files
+only. AI behavior has synthetic-provider regression coverage, not live-model quality
+qualification. OCR, DOCX, ZIP and embedded attachments remain deferred. No production
+migration, provider configuration, publication, deployment or protected merge occurred.
 
 ## Solo-owner account support (25 October 2026)
 

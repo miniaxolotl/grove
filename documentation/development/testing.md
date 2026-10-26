@@ -94,6 +94,67 @@ separate action coverage pins the production two-call ceiling across replicas.
 Use only the disposable databases described below. [Usage captures](../design/screenshots/free-pro-usage/README.md)
 record actual-component desktop/mobile warnings and legacy/unlimited compatibility.
 
+## Files & storage
+
+Refinement regressions also pin global newest/name/size ordering across pages,
+microsecond date positions, deterministic ties, sort-bound cursors and location-
+aware search/view filters. The file UI tests cover notebook picker keyboard/focus,
+context-preserving reset and first-page recovery. Real browser journeys check
+collapsed storage, visible mobile file heading, keyboard expansion, untruncated
+notebook-root labels, location search and whole-inventory sort controls.
+
+`tests/src/files.test.ts` covers the real read projection under non-owner RLS:
+mixed import/chat/media metadata, conservative budget versus available bytes,
+expiry/removal/deleted-source denial, foreign accounts/agent denial, filename
+literal matching, signed filter/account-bound pagination, current notebook moves,
+historical image bindings, shared-original deduplication and many-note location
+pagination. No new migration, original deletion or quota refund is introduced.
+
+After a production website build, run the normal Chromium suite including
+`tests/files.spec.ts` for errors/retry, denied location refresh, page controls,
+empty/invalid filters and multiple entry points. For disposable real API/parser/
+worker/source-store verification:
+
+```sh
+node --import tsx scripts/testing/files-browser.mjs
+```
+
+Set the three disposable test database URLs as documented below. It creates and
+drops its own `_test` database; checks notebook associations, storage/filtering,
+byte-identical originals and removed-source refresh at1440/390/320px, WCAG A/AA,
+overflow and page errors. `FILES_BROWSER=webkit` chooses supported WebKit;
+`FILES_API_PORT`/`DASHBOARD_TEST_PORT` override loopback26656/26657. Use the existing
+supported Playwright container if native host dependencies are missing. This
+uses synthetic documents/identities, no paid providers or production data.
+
+## Documents in Ask Grove
+
+Run `conversation-documents.test.ts`, `conversation-document-migration.test.ts`,
+`document-extraction.test.ts`, existing conversations/import tests and recovery
+against disposable non-owner API/worker URLs. Coverage includes upload integrity,
+no hidden library writes, exact quotations/revisions, actual serialized provider
+payloads, acceptance replay/races, pre-dispatch/removal fences, private note-linked
+originals, failed-task retry, shared staging admission, chat-only exports and restored
+revocations. DOCX adversarial cases run only against synthetic packages in the
+permission-limited process. The populated031→032 case preserves old notes/imports/chats.
+
+After a production website build, `tests/ask-documents.spec.ts` exercises actual
+components and production CSS at1440/390/320px with synthetic responses. For real
+API/PostgreSQL/parser/original-store journeys run:
+
+```sh
+pnpm exec tsx scripts/testing/ask-documents-browser.mjs
+```
+
+It creates/removes an isolated `_test` database, uploads real synthetic DOCX/Markdown,
+uses an explicitly synthetic generation provider, checks citations/follow-ups,
+byte-identical private originals, reviewed full-text save, removal masking and WCAG
+A/AA/overflow/page errors. `ASK_BROWSER=webkit` chooses supported WebKit;
+`ASK_WORKER_DIRECTORY=/path/to/pnpm-deploy-output` chooses the packaged production
+worker and asserts clean SIGTERM draining. Use the existing supported Playwright
+container when native host libraries are absent. Synthetic model responses do not
+qualify live-model answer quality. [Reviewed captures](../design/screenshots/ask-documents/README.md).
+
 ## Admin support and usage
 
 `system-admin.test.ts`, `system-admin-migration.test.ts` and `recovery.test.ts`
@@ -112,6 +173,41 @@ capture/recall/support note edits, suspension/restoration, access grants, clipbo
 fallback, same-operation lost-response retry, errors/revocation concealment and
 keyboard/focus/overflow/accessibility. Screenshots must use synthetic identities.
 No production identity or support edit is necessary for source verification.
+
+## Note and PDF imports
+
+Use `document-extraction.test.ts`, `document-imports.test.ts`,
+`document-import-migration.test.ts` and `recovery.test.ts`. They exercise real PDFs,
+strict UTF-8, lossless bounded segmentation, the 030→031 populated upgrade, non-owner
+RLS/session boundaries, upload integrity, versioned review, original attempt tracking,
+idempotent note/notebook creation, cancellation/expiry, private downloads, original
+immutability, preference guards and media-complete provenance exports.
+
+`packages/website/tests/imports.spec.ts` runs the actual workspace components with
+production CSS and synthetic API responses at1440/390/320px. It covers upload,
+review/edit, new/existing destinations, confirmation, keyboard-operable controls,
+WCAG A/AA, overflow and page errors. The synthetic PDF response is not extraction
+evidence; real parsing and authorization belong to the backend cases. Relevant
+[captures](../design/screenshots/note-imports/README.md) use synthetic notes only.
+
+Keep worker/container resource limits in addition to the parser's old-space/deadline
+guards. Never use customer documents or retained databases for malicious-PDF tests.
+
+For the complete real API/worker/PostgreSQL journey (not mocked import responses),
+build the website first, set the disposable test URLs below and run:
+
+```sh
+pnpm exec tsx scripts/testing/document-imports-browser.mjs
+```
+
+It creates/removes its own `_test` database, uses real binary Markdown/PDF uploads,
+reviews mixed existing/new destinations at1440/390/320px, confirms normal note writes
+and compares downloaded originals byte-for-byte. `IMPORT_BROWSER=webkit` selects
+WebKit; use the supported Playwright container below when host libraries are absent.
+`IMPORT_WORKER_DIRECTORY=/path/to/pnpm-deploy-output` runs that prebuilt production
+worker in a separate process instead of the source handler loop, covering parser
+packaging and clean SIGTERM draining. All identities/documents are synthetic; this
+runner adds no authentication bypass to production code and makes no model calls.
 
 ## System administration
 

@@ -66,15 +66,22 @@ export function AskComposer({
     };
     grow();
     // Observe the container's width, not the textarea's changing height.
-    let width = element.parentElement!.clientWidth;
+    let width: number | undefined;
+    let frame = 0;
     const resize = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width !== width) {
         width = entry.contentRect.width;
-        grow();
+        // Growing changes the observed parent's height. Defer that write out of
+        // observer delivery so WebKit can finish the current layout notification.
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(grow);
       }
     });
     resize.observe(element.parentElement!);
-    return () => resize.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      resize.disconnect();
+    };
   }, [value, formatted, preview]);
   useEffect(() => {
     if (!disabled) input.current?.focus();
