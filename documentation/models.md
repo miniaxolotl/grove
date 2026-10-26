@@ -1,5 +1,12 @@
 # Models and organized memory
 
+Configured Cloud also applies separate [Free/Pro user-action allowances](billing.md#library-and-user-actions).
+One Ask reply can make several generation calls but consumes one reply action;
+its internal retrieval does not additionally consume an agent recall action.
+Organization coalesces authored content changes and shares one reservation across
+enabled enrichment features. Monthly exhaustion pauses eligible enrichment rather
+than rejecting a saved note. Existing provider-attempt limits remain independent.
+
 Grove separates three text roles. Self-hosted installations can configure each role;
 Grove Cloud uses deployment-managed providers:
 
@@ -12,6 +19,16 @@ Grove Cloud uses deployment-managed providers:
 DeepInfra receives query/document text for embedding and source/candidate text for
 classification. MiniMax receives bounded source text for organization, relationships, summaries,
 and Ask Grove conversations (including up to eight preceding completed turns).
+
+Document chats additionally supply at most12 private extracted passages/24,000
+characters, separate from saved-note evidence. Uploads are never instructions or
+implicit library notes. Exact chunk/version quotations are validated; partial
+coverage is disclosed rather than called a complete read. History and account
+exports mask revoked document evidence, and accepted-source changes invalidate
+export snapshots. Source/profile/settings changes fence answers and unapplied
+document-derived previews. Document turns suppress external research server-side;
+deterministic full-text import remains available without generation. See
+[documents in Ask](imports.md#ask-about-documents-first).
 Optional [speech](speech.md) uses separate OpenAI whisper-1/tts-1 adapters and
 independent account controls (transcription off, Read aloud on for new accounts);
 it does not reuse a text role's provider.
@@ -61,20 +78,20 @@ GENERATION_PROVIDER=minimax
 MINIMAX_API_KEY=YOUR_SERVER_KEY
 ```
 
-| Variables                                                                       | Meaning                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EMBEDDING_URL`, `EMBEDDING_MODEL`, `EMBEDDING_API_KEY`, `EMBEDDING_DIMENSIONS` | OpenAI-compatible `/embeddings` endpoint; explicit role key overrides the DeepInfra fallback                                                                                                                            |
-| `EMBEDDING_QUERY_PREFIX`, `EMBEDDING_DOCUMENT_PREFIX`                           | Input formatting; Qwen defaults to `Instruct: Retrieve relevant personal or project memories that answer the query.\nQuery: ` for queries and an empty document prefix                                                  |
-| `EMBEDDING_DISTANCE_THRESHOLD`                                                  | Maximum cosine distance; default 0.65 remote / 0.45 local; tune against representative recall examples                                                                                                                  |
-| `DECISION_PROVIDER`                                                             | `disabled` or `system-one`                                                                                                                                                                                              |
-| `DECISION_URL`, `DECISION_MODEL`, `DECISION_API_KEY`, `DECISION_PATH`           | Defaults: `https://api.deepinfra.com/v1`, `Cloudflare/clef-flash`, DeepInfra fallback key, `/decisions`; `/systemone` is also supported                                                                                 |
-| `GENERATION_PROVIDER`                                                           | `disabled`, `minimax`, or `openai-compatible`                                                                                                                                                                           |
-| `GENERATION_URL`, `GENERATION_MODEL`, `GENERATION_API_KEY`                      | Defaults: `https://api.minimax.io/v1`, `MiniMax-M3.1-Flash`, MiniMax fallback key                                                                                                                                       |
-| `GENERATION_OUTPUT_FORMAT`                                                      | `tool` (one `record_result` call), `json-schema`, or `json`                                                                                                                                                             |
-| `GENERATION_REASONING_EFFORT`                                                   | `low`, `medium`, `high`, or `omit` for APIs without this parameter                                                                                                                                                      |
-| `GENERATION_MAX_OUTPUT_TOKENS`                                                  | Default 4096; includes reasoning when the provider counts it                                                                                                                                                            |
-| `AI_DAILY_REQUEST_LIMIT`                                                        | Per-account reservation cap across roles in self-hosted/flag-off mode; default 2000. Flagged Cloud generation has its own tier cap and this guard applies separately to non-generation work; see [billing](billing.md). |
-| `AI_CONCURRENCY`                                                                | Worker concurrency per process, default 4; replicas share leases and account quotas                                                                                                                                     |
+| Variables                                                                       | Meaning                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EMBEDDING_URL`, `EMBEDDING_MODEL`, `EMBEDDING_API_KEY`, `EMBEDDING_DIMENSIONS` | OpenAI-compatible `/embeddings` endpoint; explicit role key overrides the DeepInfra fallback                                                                                                                                                                                  |
+| `EMBEDDING_QUERY_PREFIX`, `EMBEDDING_DOCUMENT_PREFIX`                           | Input formatting; Qwen defaults to `Instruct: Retrieve relevant personal or project memories that answer the query.\nQuery: ` for queries and an empty document prefix                                                                                                        |
+| `EMBEDDING_DISTANCE_THRESHOLD`                                                  | Maximum cosine distance; default 0.65 remote / 0.45 local; tune against representative recall examples                                                                                                                                                                        |
+| `DECISION_PROVIDER`                                                             | `disabled` or `system-one`                                                                                                                                                                                                                                                    |
+| `DECISION_URL`, `DECISION_MODEL`, `DECISION_API_KEY`, `DECISION_PATH`           | Defaults: `https://api.deepinfra.com/v1`, `Cloudflare/clef-flash`, DeepInfra fallback key, `/decisions`; `/systemone` is also supported                                                                                                                                       |
+| `GENERATION_PROVIDER`                                                           | `disabled`, `minimax`, or `openai-compatible`                                                                                                                                                                                                                                 |
+| `GENERATION_URL`, `GENERATION_MODEL`, `GENERATION_API_KEY`                      | Defaults: `https://api.minimax.io/v1`, `MiniMax-M3.1-Flash`, MiniMax fallback key                                                                                                                                                                                             |
+| `GENERATION_OUTPUT_FORMAT`                                                      | `tool` (one `record_result` call), `json-schema`, or `json`                                                                                                                                                                                                                   |
+| `GENERATION_REASONING_EFFORT`                                                   | `low`, `medium`, `high`, or `omit` for APIs without this parameter                                                                                                                                                                                                            |
+| `GENERATION_MAX_OUTPUT_TOKENS`                                                  | Default 4096; includes reasoning when the provider counts it                                                                                                                                                                                                                  |
+| `AI_DAILY_REQUEST_LIMIT`                                                        | Per-account reservation cap across roles in self-hosted/flag-off mode; default 2000. Flagged Cloud uses tier generation budgets and action-covered retrieval budgets, retaining this guard for background indexing/classification and diagnostics; see [billing](billing.md). |
+| `AI_CONCURRENCY`                                                                | Worker concurrency per process, default 4; replicas share leases and account quotas                                                                                                                                                                                           |
 
 Compose forwards these options. Export query/document prefix variables before starting
 Compose, or configure prefixes through Model settings. API base URLs can point at

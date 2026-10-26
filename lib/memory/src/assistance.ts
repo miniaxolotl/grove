@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { reserveAction } from "./billing-quotas.ts";
 import type { Knex } from "@lib/database";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
@@ -129,6 +130,13 @@ export class NotebookAssistance {
         generation.profile,
         this.service.providers.embedding?.profile,
         input.kind,
+      );
+      await reserveAction(
+        this.service.db,
+        trx,
+        account.id,
+        "assistance",
+        `assistance:${input.id}`,
       );
       await trx("assistance_requests").insert({
         accountId: account.id,

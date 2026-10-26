@@ -2,11 +2,18 @@ import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 import type { MonthlyPricing } from "./billing-pricing.ts";
 import { tenant, type Knex } from "@lib/database";
-import { billingUsage, type MemoryService } from "@lib/memory";
+import {
+  billingEntitlement,
+  billingUsage,
+  resourceUsage,
+  type MemoryService,
+} from "@lib/memory";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
   billingLimits,
   billingUnits,
+  resourceLimits,
+  type ResourceLimits,
   type BillingStatus,
   type PlanLimits,
 } from "@lib/shared/billing";
@@ -20,6 +27,7 @@ type Options = {
   portalConfigurationId?: string;
   enabled: (subject: string) => Promise<boolean>;
   proLimits?: PlanLimits;
+  proResources?: ResourceLimits;
 };
 const ongoing = (status: string) =>
   !["canceled", "incomplete_expired"].includes(status);
@@ -240,6 +248,11 @@ export class Billing {
           .orderBy("periodEnd", "desc")
           .first();
         return {
+          plan: await billingEntitlement(
+            this.service.db,
+            trx,
+            principal.accountId,
+          ),
           customer: !!customer?.customerId,
           subscription: subscription
             ? {
@@ -249,6 +262,11 @@ export class Billing {
               }
             : null,
           usage: await billingUsage(this.service.db, trx, principal.accountId),
+          resources: await resourceUsage(
+            this.service.db,
+            trx,
+            principal.accountId,
+          ),
         };
       },
     );
@@ -274,6 +292,7 @@ export class Billing {
       ...state,
       prices,
       proLimits: this.options.proLimits ?? billingLimits.pro,
+      proResources: this.options.proResources ?? resourceLimits.pro,
     };
   }
 

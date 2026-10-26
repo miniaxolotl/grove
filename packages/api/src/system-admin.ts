@@ -1,6 +1,10 @@
 import { createClerkClient } from "@clerk/backend";
 import { GroveError, type Principal } from "@lib/shared/contracts";
-import type { AdminUser } from "@lib/shared/system-admin";
+import type {
+  AdminAccount,
+  AdminPage,
+  AdminUser,
+} from "@lib/shared/system-admin";
 import { SystemAdministration, type MemoryService } from "@lib/memory";
 import { z } from "zod";
 
@@ -71,6 +75,22 @@ export class AdminAccounts {
       subjects = await this.directory.find(query);
     }
     const accounts = await this.administration.accounts(principal, subjects);
+    return this.identities(principal, accounts);
+  }
+  async browse(
+    principal: Principal,
+    raw: unknown,
+  ): Promise<AdminPage<AdminUser>> {
+    const page = await this.administration.browse(principal, raw);
+    return {
+      ...page,
+      accounts: await this.identities(principal, page.accounts),
+    };
+  }
+  private async identities(
+    principal: Principal,
+    accounts: AdminAccount[],
+  ): Promise<AdminUser[]> {
     const identities = new Map(
       (
         (await this.directory?.users(

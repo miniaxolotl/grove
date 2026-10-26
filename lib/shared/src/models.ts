@@ -76,7 +76,9 @@ export const briefRequestSchema = z
     taskId: z.string().min(1).max(128).optional(),
   })
   .strict();
-export type BriefRequest = z.infer<typeof briefRequestSchema>;
+export type BriefRequest = z.infer<typeof briefRequestSchema> & {
+  usageOperation?: string;
+};
 export type BriefContent = z.infer<typeof briefContentSchema>;
 export type SourceRef = z.infer<typeof sourceRefSchema>;
 export type SourceRevision = SourceRef & {
@@ -143,6 +145,7 @@ export const answerSchema = z
   .strict();
 export type AskRequest = z.infer<typeof askSchema>;
 export type AskResult = {
+  matches?: import("./search.ts").SearchMatches;
   status: "ready" | "no_evidence" | "search" | "generation_disabled";
   answer: z.infer<typeof answerSchema> | null;
   sources: import("./contracts.ts").Memory[];

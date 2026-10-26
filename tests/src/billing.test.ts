@@ -5,14 +5,22 @@ import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import Stripe from "stripe";
 import { InferenceError } from "@lib/ai";
-import { billingLimits } from "@lib/shared/billing";
+import {
+  billingLimits,
+  billingUnits,
+  resourceLimits,
+} from "@lib/shared/billing";
 import { rememberSchema } from "@lib/shared/contracts";
 import * as application from "../../packages/api/src/app.ts";
 import { readServerEnvironment } from "@lib/environment";
 import { createDatabase, tenant, type Knex } from "@lib/database";
 import * as memory from "@lib/memory";
 import { budgetedInference } from "../../lib/memory/src/processing.ts";
-import { billingAllows } from "../../lib/memory/src/billing-quotas.ts";
+import {
+  billingAllows,
+  reserveAction,
+  settleAction,
+} from "../../lib/memory/src/billing-quotas.ts";
 
 const authorityUrl = process.env.TEST_MIGRATION_DATABASE_URL!;
 if (!authorityUrl || !new URL(authorityUrl).pathname.endsWith("_test"))
@@ -327,6 +335,247 @@ async function account() {
   return memory.sessionPrincipal(rows[0].id, subject);
 }
 
+test("session plan identifies Free, paid and trial access using only eligible subscriptions", async () => {
+  memory.configureBillingQuotas(db, {
+    enabled: async () => true,
+    priceIds: ["price_pro"],
+    productId: "prod_grove",
+  });
+  const principal = await account();
+  const service = new memory.MemoryService(
+    db,
+    "plan-fixture-cursor-secret-32-characters",
+  );
+  const plan = async () =>
+    ((await service.me(principal)) as { plan?: unknown }).plan;
+  assert.deepEqual(await plan(), { tier: "free", source: "free" });
+  const id = `sub_plan_${randomUUID()}`;
+  await tenant(db, principal.accountId, (trx) =>
+    trx("billing_customers").insert({
+      accountId: principal.accountId,
+      customerId: "cus_plan",
+    }),
+  );
+  await tenant(db, principal.accountId, (trx) =>
+    trx("billing_subscriptions").insert({
+      id,
+      accountId: principal.accountId,
+      customerId: "cus_plan",
+      priceId: "price_pro",
+      status: "active",
+      periodEnd: new Date(Date.now() + 86400000),
+      cancelAtPeriodEnd: true,
+    }),
+  );
+  assert.deepEqual(await plan(), { tier: "pro", source: "paid" });
+  await tenant(db, principal.accountId, (trx) =>
+    trx("billing_subscriptions").where({ id }).update({ status: "trialing" }),
+  );
+  assert.deepEqual(await plan(), { tier: "pro", source: "trial" });
+  for (const change of [
+    { status: "past_due" },
+    { status: "unpaid" },
+    { status: "canceled" },
+    { status: "active", periodEnd: new Date(Date.now() - 1000) },
+    { periodEnd: new Date(Date.now() + 86400000), priceId: "price_unrelated" },
+  ]) {
+    await tenant(db, principal.accountId, (trx) =>
+      trx("billing_subscriptions").where({ id }).update(change),
+    );
+    assert.deepEqual(await plan(), { tier: "free", source: "free" });
+  }
+  await tenant(db, principal.accountId, (trx) =>
+    trx("billing_subscriptions")
+      .where({ id })
+      .update({ productId: "prod_grove" }),
+  );
+  assert.deepEqual(await plan(), { tier: "pro", source: "paid" });
+  const other = await account();
+  assert.deepEqual(((await service.me(other)) as { plan?: unknown }).plan, {
+    tier: "free",
+    source: "free",
+  });
+  await assert.rejects(service.me({ ...principal, type: "key" }), {
+    status: 403,
+  });
+  await assert.rejects(service.me({ ...principal, type: "oauth" }), {
+    status: 403,
+  });
+  const issued = await service.grant(
+    principal,
+    {
+      name: "Plan fixture reader",
+      capabilities: ["memory:read"],
+      personal: true,
+      allProjects: false,
+      projectIds: [],
+    },
+    { key: true },
+  );
+  assert.equal(
+    (
+      (await service.me({
+        ...principal,
+        type: "key",
+        connectionId: issued.connection.id,
+      })) as { plan?: unknown }
+    ).plan,
+    undefined,
+  );
+});
+
+test("complimentary plan is visible with billing off and takes precedence without changing a paid subscription", async (t) => {
+  const f = await lifecycle(t);
+  let enabled = true;
+  memory.configureBillingQuotas(db, {
+    enabled: async () => enabled,
+    priceIds: ["price_pro"],
+  });
+  const service = new memory.MemoryService(
+    db,
+    "plan-fixture-cursor-secret-32-characters",
+  );
+  const plan = async () =>
+    ((await service.me(f.principal)) as { plan?: unknown }).plan;
+  await f.billing.checkout(f.principal, "month");
+  f.subscriptions.push(f.subscription("active"));
+  await f.webhook(`evt_plan_${randomUUID()}`);
+  for (const tier of ["pro", "unlimited"] as const) {
+    await admin("account_administration")
+      .insert({ accountId: f.principal.accountId, access: tier })
+      .onConflict("accountId")
+      .merge({ access: tier });
+    const expected = { tier, source: "complimentary" };
+    const providerReads = f.state.lists;
+    assert.deepEqual(await plan(), expected);
+    assert.equal(
+      f.state.lists,
+      providerReads,
+      "workspace reads do not contact Stripe",
+    );
+    assert.deepEqual(
+      ((await f.billing.status(f.principal)) as { plan?: unknown }).plan,
+      expected,
+    );
+    enabled = false;
+    assert.deepEqual(await plan(), expected);
+    enabled = true;
+  }
+  assert.equal(f.state.canceled, 0);
+  await admin("account_administration")
+    .where({ accountId: f.principal.accountId })
+    .update({ access: "default" });
+  assert.deepEqual(await plan(), { tier: "pro", source: "paid" });
+  enabled = false;
+  assert.equal(await plan(), null);
+  enabled = true;
+  assert.equal((await f.billing.status(f.principal)).usage?.plan, "pro");
+  const unconfigured = new memory.MemoryService(
+    worker,
+    "plan-fixture-cursor-secret-32-characters",
+  );
+  assert.equal(
+    ((await unconfigured.me(f.principal)) as { plan?: unknown }).plan,
+    null,
+  );
+});
+
+test("account usage exposes an owner-only local plan breakdown with actual used, pending and configured limits", async () => {
+  memory.configureBillingQuotas(db, {
+    enabled: async () => true,
+    priceIds: ["price_pro"],
+    resourceLimits: {
+      free: { ...resourceLimits.free, ask: 7 },
+      pro: resourceLimits.pro,
+    },
+  });
+  const principal = await account();
+  const service = new memory.MemoryService(
+    db,
+    "usage-fixture-cursor-secret-32-characters",
+  );
+  await service.remember(
+    principal,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      content: "Usage snapshot fixture",
+    }),
+  );
+  await tenant(db, principal.accountId, async (trx) => {
+    const completed = await reserveAction(
+      db,
+      trx,
+      principal.accountId,
+      "ask",
+      randomUUID(),
+    );
+    await settleAction(trx, completed, "completed");
+    await reserveAction(db, trx, principal.accountId, "ask", randomUUID());
+    await trx("inference_usage").insert({
+      accountId: principal.accountId,
+      role: "generation",
+      requests: 3,
+      day: trx.raw("(now() AT TIME ZONE 'UTC')::date"),
+    });
+  });
+  const result = await service.usage(principal);
+  const snapshot = Reflect.get(result, "planUsage");
+  assert.deepEqual(snapshot?.plan, { tier: "free", source: "free" });
+  assert(snapshot.resources && snapshot.usage);
+  assert.deepEqual(snapshot.resources.metrics.ask, {
+    used: 1,
+    reserved: 1,
+    limit: 7,
+  });
+  assert.equal(snapshot.resources.metrics.notes.used, 1);
+  assert.equal(snapshot.usage.metrics.generation.today, 3);
+  assert.deepEqual(snapshot.units, billingUnits);
+  assert.equal(typeof snapshot.resources.resetAt, "string");
+  assert.equal(typeof snapshot.usage.monthlyResetAt, "string");
+  const other = await account();
+  const otherUsage = Reflect.get(await service.usage(other), "planUsage");
+  assert(otherUsage.resources);
+  assert.equal(otherUsage.resources.metrics.ask.used, 0);
+  await assert.rejects(service.usage({ ...principal, type: "key" }), {
+    status: 403,
+  });
+  await assert.rejects(service.usage({ ...principal, type: "oauth" }), {
+    status: 403,
+  });
+});
+
+test("usage breakdown preserves complimentary unlimited with purchases hidden and explicitly reports unconfigured policy", async () => {
+  memory.configureBillingQuotas(db, {
+    enabled: async () => false,
+    priceIds: ["price_pro"],
+  });
+  const principal = await account();
+  await admin("account_administration").insert({
+    accountId: principal.accountId,
+    access: "unlimited",
+  });
+  const service = new memory.MemoryService(
+    db,
+    "usage-fixture-cursor-secret-32-characters",
+  );
+  const snapshot = Reflect.get(await service.usage(principal), "planUsage");
+  assert.deepEqual(snapshot?.plan, {
+    tier: "unlimited",
+    source: "complimentary",
+  });
+  assert(snapshot.resources && snapshot.usage);
+  assert.equal(snapshot.resources.metrics.ask.limit, null);
+  assert.equal(snapshot.usage.metrics.synthesis.monthlyLimit, null);
+  const unconfigured = new memory.MemoryService(
+    worker,
+    "usage-fixture-cursor-secret-32-characters",
+  );
+  assert.deepEqual(
+    Reflect.get(await unconfigured.usage(principal), "planUsage"),
+    { plan: null, resources: null, usage: null, units: billingUnits },
+  );
+});
+
 test("billing migration isolates customers and subscriptions from other tenants and worker writes", async () => {
   assert.equal(await admin.schema.hasTable("billing_customers"), true);
   const a = await account(),
@@ -462,6 +711,11 @@ test("flagged generation enforces a concurrent daily Free cap without blocking b
     limits: {
       free: { ...billingLimits.free, generation: { daily: 10, monthly: 100 } },
       pro: billingLimits.pro,
+    },
+    // Isolate attempt accounting from the separately tested two-call admission cap.
+    resourceLimits: {
+      free: { ...resourceLimits.free, concurrency: 14 },
+      pro: resourceLimits.pro,
     },
   });
   const a = await account();

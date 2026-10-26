@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Brief, Enrichment } from "./models.ts";
+import { noteContentDescription } from "@lib/shared/note-writing";
 
 export const capabilities = [
   "memory:read",
@@ -11,14 +12,29 @@ export type Capability = z.infer<typeof capabilitySchema>;
 // Clerk accepts OIDC identity scopes; Grove's database grant owns memory authorization.
 export const oauthScopes = ["openid", "offline_access"] as const;
 export const uuidSchema = z.uuid();
-export const operationSchema = z.uuid();
-export const kindSchema = z.enum([
-  "preference",
-  "fact",
-  "decision",
-  "solution",
-  "handoff",
-]);
+export const operationSchema = z
+  .uuid()
+  .describe(
+    "New UUID for this write. Reuse the same UUID and identical arguments when retrying; changed arguments require a new operation.",
+  );
+export const expectedVersionSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe(
+    "Current version returned by a fresh read of the exact target. On conflict, read again and review before making a new write; never guess a version.",
+  );
+export const captureSchema = z
+  .enum(["explicit", "automatic"])
+  .default("explicit")
+  .describe(
+    "Use explicit only for a user-requested save/update; use automatic for agent-initiated capture. Honor private/paused automatic-capture settings. This flag is not proof of user consent.",
+  );
+export const kindSchema = z
+  .enum(["preference", "fact", "decision", "solution", "handoff"])
+  .describe(
+    "Categorize by purpose: preference, fact, decision, solution or task handoff. This is not a notebook name or topic tag.",
+  );
 export const sourceSchema = z
   .object({
     agent: z
@@ -32,13 +48,23 @@ export const rememberSchema = z
   .object({
     operationId: operationSchema,
     id: uuidSchema.optional(),
-    expectedVersion: z.number().int().positive().optional(),
-    content: z.string().trim().min(1).max(6000),
-    capture: z.enum(["explicit", "automatic"]).default("explicit"),
+    expectedVersion: expectedVersionSchema.optional(),
+    content: z
+      .string()
+      .trim()
+      .min(1)
+      .max(6000)
+      .describe(noteContentDescription),
+    capture: captureSchema,
     archived: z.boolean().default(false),
     kind: kindSchema.default("fact"),
     autoKind: z.boolean().default(false),
-    projectId: uuidSchema.nullable().default(null),
+    projectId: uuidSchema
+      .nullable()
+      .default(null)
+      .describe(
+        "Destination notebook UUID, or null for Personal. Omission defaults to Personal; use the requested or established permitted scope.",
+      ),
     taskId: z.string().min(1).max(128).optional(),
     retentionDays: z.number().int().min(1).max(365).nullable().optional(),
     source: sourceSchema.default({ agent: "api" }),
@@ -68,15 +94,23 @@ export const rememberSchema = z
   });
 export const listSchema = z
   .object({
-    projectId: uuidSchema.nullable().optional(),
+    projectId: uuidSchema
+      .nullable()
+      .optional()
+      .describe(
+        "Filter by notebook UUID, or null for Personal. Omit to inspect all granted scopes; do not broaden automatic searches beyond the current scope.",
+      ),
     kind: kindSchema.optional(),
     tag: z.string().trim().min(1).max(40).optional(),
     sourceAgent: sourceSchema.shape.agent.removeDefault().optional(),
     updatedAfter: z.iso.datetime().optional(),
-    sort: z.enum(["updated_desc", "updated_asc", "created_desc"]).optional(),
+    sort: z
+      .enum(["updated_desc", "updated_asc", "created_desc", "relevance"])
+      .optional(),
     lifetime: z.enum(["permanent", "ephemeral"]).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
+    searchMode: z.enum(["hybrid", "lexical"]).optional(),
     cursor: z.string().max(2048).optional(),
     limit: z.number().int().min(1).max(100).default(30),
   })
@@ -84,7 +118,12 @@ export const listSchema = z
 export const recallSchema = z
   .object({
     query: z.string().trim().max(1000).default(""),
-    projectId: uuidSchema.nullable().default(null),
+    projectId: uuidSchema
+      .nullable()
+      .default(null)
+      .describe(
+        "Current notebook UUID, or null for Personal (the default). Other notebooks are not included; includePersonal controls additional Personal context.",
+      ),
     includePersonal: z.boolean().default(true),
     taskId: z.string().max(128).optional(),
     limit: z.number().int().min(1).max(12).default(8),
@@ -94,7 +133,7 @@ export const recallSchema = z
 export const versionSchema = z
   .object({
     operationId: operationSchema,
-    expectedVersion: z.number().int().positive(),
+    expectedVersion: expectedVersionSchema,
     revision: z.number().int().positive().optional(),
     durable: z.boolean().optional(),
   })
@@ -107,7 +146,7 @@ export const forgetSchema = z
         z
           .object({
             id: uuidSchema,
-            expectedVersion: z.number().int().positive(),
+            expectedVersion: expectedVersionSchema,
           })
           .strict(),
       )
@@ -212,6 +251,7 @@ export type Principal = {
   capabilities: Capability[];
 };
 export type Page<T> = {
+  matches?: import("./search.ts").SearchMatches;
   visit?: {
     projectId: string;
     token: string;
@@ -223,6 +263,7 @@ export type Page<T> = {
   searchMode?: "hybrid" | "lexical";
 };
 export type RecallResult = {
+  matches?: import("./search.ts").SearchMatches;
   items: Memory[];
   mode: "hybrid" | "lexical" | "profile";
   contentVersion: number;
@@ -232,7 +273,13 @@ export type ApiEnvelope<T> =
   | { success: true; data: T }
   | {
       success: false;
-      error: { code: string; message: string; requestId?: string };
+      error: {
+        code: string;
+        message: string;
+        requestId?: string;
+        resource?: string;
+        resetAt?: string | null;
+      };
     };
 
 export class GroveError extends Error {

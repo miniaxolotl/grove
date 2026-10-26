@@ -503,7 +503,18 @@ test("narrow admin functions work under a non-superuser owner without opening pr
     admin = await adminAccount(),
     target = await account();
   const role = `admin_owner_${randomUUID().replaceAll("-", "")}`;
-  const tables = ["accounts", "account_administration", "system_admin_audit"];
+  const tables = [
+    "accounts",
+    "account_administration",
+    "system_admin_audit",
+    "inference_usage",
+    "research_account_usage",
+    "speech_usage",
+    "memories",
+    "projects",
+    "connections",
+    "subject_authority",
+  ];
   const functions = [
     "grove_admin_guard()",
     "grove_admin_state(uuid)",
@@ -511,6 +522,10 @@ test("narrow admin functions work under a non-superuser owner without opening pr
     "grove_admin_change(uuid,uuid,integer,text,text,text)",
     "grove_admin_audit()",
     "grove_bootstrap_system_admin(text,text)",
+    "grove_admin_support_state(uuid)",
+    "grove_admin_browse(uuid)",
+    "grove_admin_details(uuid)",
+    "grove_admin_support_change(uuid,uuid,integer,jsonb,jsonb,text)",
   ];
   const original = (await owner.raw("SELECT current_user AS name")).rows[0]
     .name;
@@ -528,6 +543,25 @@ test("narrow admin functions work under a non-superuser owner without opening pr
     assert.equal(
       (await api.change(admin, change(target.accountId))).access,
       "pro",
+    );
+    const details = await api.details(admin, { accountId: target.accountId });
+    assert.equal(details.account.accountId, target.accountId);
+    assert.equal(details.usage.metrics.synthesis.month, 0);
+    assert.equal(
+      (
+        await api.support(admin, {
+          accountId: target.accountId,
+          operationId: randomUUID(),
+          expectedVersion: details.account.version,
+          expectedSettings: details.settings,
+          settings: {
+            ...details.settings,
+            supportNote: "Non-superuser owner support",
+          },
+          reason: "Verify narrow support owner",
+        })
+      ).settings.supportNote,
+      "Non-superuser owner support",
     );
     assert.equal(
       (await tenant(db, admin.accountId, (trx) => trx("accounts"))).length,
@@ -573,4 +607,441 @@ test("a session revoked while waiting for the admin serialization lock cannot re
     if (!blocker.isCompleted()) await blocker.rollback();
     await pending.catch(() => {});
   }
+});
+
+test("support reporting exposes only the selected account's UTC usage, even with billing hidden", async () => {
+  const api = administration(),
+    admin = await adminAccount(),
+    target = await account(),
+    foreign = await account();
+  assert.equal(
+    typeof api.details,
+    "function",
+    "account support details must be implemented",
+  );
+  const today = owner.raw("(now() AT TIME ZONE 'UTC')::date");
+  await owner("inference_usage").insert([
+    {
+      accountId: target.accountId,
+      role: "generation",
+      day: today,
+      requests: 7,
+    },
+    {
+      accountId: target.accountId,
+      role: "embedding",
+      day: today,
+      requests: 99,
+    },
+    {
+      accountId: foreign.accountId,
+      role: "generation",
+      day: today,
+      requests: 999,
+    },
+    {
+      accountId: target.accountId,
+      role: "generation",
+      day: owner.raw(
+        "(date_trunc('month',now() AT TIME ZONE 'UTC')-interval '1 day')::date",
+      ),
+      requests: 1000,
+    },
+  ]);
+  await owner("research_account_usage").insert({
+    accountId: target.accountId,
+    day: today,
+    calls: 3,
+  });
+  await owner("speech_usage").insert([
+    {
+      accountId: target.accountId,
+      day: today,
+      kind: "speech_transcribe",
+      requests: 1,
+      units: 60000,
+    },
+    {
+      accountId: target.accountId,
+      day: today,
+      kind: "speech_synthesize",
+      requests: 1,
+      units: 900,
+      durationMs: 120000,
+    },
+  ]);
+  const service = new memory.MemoryService(
+    db,
+    "system-admin-fixture-cursor-secret-32-characters",
+  );
+  const note = await service.remember(
+    target,
+    rememberSchema.parse({
+      operationId: randomUUID(),
+      kind: "fact",
+      content: "PRIVATE_SUPPORT_CANARY",
+      source: { agent: "website" },
+    }),
+  );
+  const result = await api.details(admin, { accountId: target.accountId });
+  assert.equal(result.account.accountId, target.accountId);
+  assert.deepEqual(result.usage.metrics, {
+    generation: { today: 7, month: 7 },
+    research: { today: 3, month: 3 },
+    transcription: { today: 60000, month: 60000 },
+    synthesis: { today: 120000, month: 120000 },
+  });
+  assert.equal(result.counts.notes, 1);
+  assert.equal(
+    JSON.stringify(result).includes("PRIVATE_SUPPORT_CANARY"),
+    false,
+  );
+  assert.equal(JSON.stringify(result).includes(note.id), false);
+  await assert.rejects(service.get(admin, note.id), { status: 404 });
+  for (const principal of [
+    target,
+    { ...admin, type: "key" as const },
+    { ...admin, type: "oauth" as const },
+  ])
+    await assert.rejects(
+      api.details(principal, { accountId: target.accountId }),
+      { status: 403 },
+    );
+  await assert.rejects(api.details(admin, { accountId: randomUUID() }), {
+    status: 404,
+  });
+});
+
+test("support edits are audited, idempotent and fence concurrent owner preference edits", async () => {
+  const api = administration(),
+    admin = await adminAccount(),
+    target = await account();
+  assert.equal(
+    typeof api.support,
+    "function",
+    "support account editing must be implemented",
+  );
+  const initial = await api.details(admin, { accountId: target.accountId });
+  const input = {
+    accountId: target.accountId,
+    operationId: randomUUID(),
+    expectedVersion: initial.account.version,
+    expectedSettings: initial.settings,
+    settings: {
+      ...initial.settings,
+      captureEnabled: false,
+      supportNote: "Follow up on onboarding",
+    },
+    reason: "Help with account setup",
+  };
+  const first = await api.support(admin, input);
+  assert.equal(first.settings.captureEnabled, false);
+  assert.equal(first.account.version, 1);
+  assert.deepEqual(await api.support(admin, input), first);
+  await assert.rejects(
+    api.change(
+      admin,
+      change(target.accountId, {
+        operationId: input.operationId,
+        reason: input.reason,
+        access: "default",
+      }),
+    ),
+    { status: 409 },
+  );
+  await assert.rejects(
+    api.support(admin, {
+      ...input,
+      settings: { ...input.settings, recallEnabled: false },
+    }),
+    { status: 409 },
+  );
+  const changes = (await api.audit(admin)).filter(
+    (x) => x.accountId === target.accountId,
+  );
+  assert.equal(changes.length, 1);
+  assert.equal(changes[0].kind, "support");
+  await owner("accounts")
+    .where({ id: target.accountId })
+    .update({ recallEnabled: false });
+  await assert.rejects(
+    api.support(admin, {
+      ...input,
+      operationId: randomUUID(),
+      expectedVersion: 1,
+      expectedSettings: first.settings,
+    }),
+    { status: 409 },
+  );
+  assert.equal(
+    (await owner("accounts").where({ id: target.accountId }).first())
+      .recallEnabled,
+    false,
+  );
+});
+
+test("support suspension blocks sessions and workers, survives provider updates and never clears provider bans", async () => {
+  const api = administration(),
+    admin = await adminAccount(),
+    target = await account();
+  assert.equal(
+    typeof api.support,
+    "function",
+    "reversible account suspension must be implemented",
+  );
+  const edit = async (suspended: boolean) => {
+    const current = await api.details(admin, { accountId: target.accountId });
+    return api.support(admin, {
+      accountId: target.accountId,
+      operationId: randomUUID(),
+      expectedVersion: current.account.version,
+      expectedSettings: current.settings,
+      settings: { ...current.settings, suspended },
+      reason: suspended
+        ? "Suspend abusive account"
+        : "Restore account after review",
+    });
+  };
+  const heldTask = randomUUID(),
+    pendingTask = randomUUID();
+  await owner("background_tasks").insert([
+    {
+      id: heldTask,
+      accountId: target.accountId,
+      kind: "export",
+      dedupeKey: heldTask,
+    },
+    {
+      id: pendingTask,
+      accountId: target.accountId,
+      kind: "export",
+      dedupeKey: pendingTask,
+    },
+  ]);
+  const claimed = (
+    await worker.raw("SELECT * FROM grove_claim_task(?,'bulk',1)", [heldTask])
+  ).rows[0];
+  assert(claimed);
+  await edit(true);
+  assert.equal(
+    (
+      await worker.raw("SELECT grove_task_heartbeat(?,?) AS allowed", [
+        heldTask,
+        claimed.lease_id,
+      ])
+    ).rows[0].allowed,
+    false,
+  );
+  assert.equal(
+    (
+      await worker.raw("SELECT * FROM grove_claim_task(?,'bulk',1)", [
+        pendingTask,
+      ])
+    ).rows.length,
+    0,
+  );
+  const service = new memory.MemoryService(
+    db,
+    "system-admin-fixture-cursor-secret-32-characters",
+  );
+  await assert.rejects(service.projects(target), { status: 403 });
+  assert.equal(
+    (await owner("accounts").where({ id: target.accountId }).first()).status,
+    "disabled",
+  );
+  await owner("subject_authority").insert({
+    subject: target.subject,
+    eventAt: 100,
+    disabled: false,
+  });
+  await db.raw("SELECT grove_user_state(?,?,?)", [target.subject, 100, false]);
+  assert.equal(
+    (await owner("accounts").where({ id: target.accountId }).first()).status,
+    "disabled",
+  );
+  await owner("subject_authority")
+    .where({ subject: target.subject })
+    .update({ disabled: true });
+  await edit(false);
+  assert.equal(
+    (await owner("accounts").where({ id: target.accountId }).first()).status,
+    "disabled",
+  );
+  await db.raw("SELECT grove_user_state(?,?,?)", [target.subject, 100, false]);
+  assert.equal(
+    (await owner("accounts").where({ id: target.accountId }).first()).status,
+    "active",
+  );
+  assert.deepEqual(await service.projects(target), []);
+  const self = await api.details(admin, { accountId: admin.accountId });
+  await assert.rejects(
+    api.support(admin, {
+      accountId: admin.accountId,
+      operationId: randomUUID(),
+      expectedVersion: self.account.version,
+      expectedSettings: self.settings,
+      settings: { ...self.settings, suspended: true },
+      reason: "Never lock out the current operator",
+    }),
+    { status: 409 },
+  );
+  await assert.rejects(
+    tenant(worker, admin.accountId, (trx) =>
+      trx.raw("SELECT grove_admin_details(?)", [target.accountId]),
+    ),
+    /permission denied/,
+  );
+});
+
+test("account browsing pages through every user without duplicate rows or identity leakage", async () => {
+  const api = administration(),
+    admin = await adminAccount(),
+    ordinary = await account();
+  assert.equal(
+    typeof api.browse,
+    "function",
+    "paginated user browsing must be implemented",
+  );
+  const targets = [];
+  for (let i = 0; i < 35; i++) targets.push(await account());
+  const seen = new Set<string>();
+  let after: string | null = null;
+  let total: number;
+  do {
+    const result = await api.browse(admin, { ...(after ? { after } : {}) });
+    assert(result.accounts.length <= 30);
+    total = result.total;
+    for (const row of result.accounts) {
+      assert(!seen.has(row.accountId));
+      seen.add(row.accountId);
+    }
+    after = result.nextCursor;
+  } while (after);
+  assert.equal(seen.size, total);
+  assert(targets.every((p) => seen.has(p.accountId)));
+  await assert.rejects(api.browse(ordinary, {}), { status: 403 });
+});
+
+test("support HTTP routes deny non-admins before parsing, return private reports and enrich paginated identities", async () => {
+  const admin = await adminAccount(),
+    ordinary = await account();
+  let identityReads = 0;
+  const app = createApp({
+    memories: new memory.MemoryService(
+      db,
+      "system-admin-fixture-cursor-secret-32-characters",
+    ),
+    auth: {
+      principal: async (request) =>
+        request.headers.get("authorization") === "Bearer owner"
+          ? admin
+          : ordinary,
+    },
+    adminDirectory: {
+      find: async () => [],
+      users: async (subjects) => {
+        identityReads++;
+        return subjects.map((subject) => ({
+          subject,
+          name: "Support Fixture",
+          email: "fixture@example.com",
+        }));
+      },
+    },
+    origin: "https://api.example",
+    siteUrl: "https://site.example",
+    issuer: "https://clerk.example",
+    webhookSecret: "fixture",
+    ready: async () => {},
+  });
+  const request = (
+    path: string,
+    body: unknown,
+    token = "owner",
+    method = "POST",
+  ) =>
+    app.request("/v1/admin/accounts/" + path, {
+      method,
+      headers: {
+        authorization: `Bearer ${token}`,
+        origin: "https://site.example",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  for (const [path, method] of [
+    ["browse", "POST"],
+    ["details", "POST"],
+    ["support", "PATCH"],
+  ])
+    assert.equal((await request(path, {}, "ordinary", method)).status, 403);
+  assert.equal(identityReads, 0);
+  const page = await request("browse", {});
+  assert.equal(page.status, 200);
+  assert.equal(page.headers.get("cache-control"), "private, no-store");
+  assert.equal((await page.json()).data.accounts[0].name, "Support Fixture");
+  const details = await request("details", { accountId: ordinary.accountId });
+  assert.equal(details.status, 200);
+  const current = (await details.json()).data;
+  const update = await request(
+    "support",
+    {
+      accountId: ordinary.accountId,
+      operationId: randomUUID(),
+      expectedVersion: current.account.version,
+      expectedSettings: current.settings,
+      settings: { ...current.settings, supportNote: "Account setup question" },
+      reason: "Support follow-up",
+    },
+    "owner",
+    "PATCH",
+  );
+  assert.equal(update.status, 200);
+  assert.equal(
+    (await update.json()).data.settings.supportNote,
+    "Account setup question",
+  );
+});
+
+test("aggregate support readers restore the actor tenant and do not grant raw cross-account reads", async () => {
+  const api = administration(),
+    admin = await adminAccount(),
+    target = await account();
+  assert.equal(typeof api.details, "function");
+  await tenant(db, admin.accountId, async (trx) => {
+    await trx.raw("SELECT grove_admin_details(?)", [target.accountId]);
+    assert.equal(
+      (await trx.raw("SELECT current_setting('grove.account_id') AS id"))
+        .rows[0].id,
+      admin.accountId,
+    );
+    assert.equal((await trx("accounts").select("id")).length, 1);
+    assert.equal(
+      (await trx("accounts").where({ id: target.accountId })).length,
+      0,
+    );
+  });
+  const current = await api.details(admin, { accountId: target.accountId });
+  for (const principal of [
+    target,
+    { ...admin, type: "key" as const },
+    { ...admin, type: "oauth" as const },
+  ])
+    await assert.rejects(api.support(principal, {}), { status: 403 });
+  await assert.rejects(
+    api.support(admin, {
+      accountId: target.accountId,
+      operationId: randomUUID(),
+      expectedVersion: 0,
+      expectedSettings: current.settings,
+      settings: { ...current.settings, role: "system_admin" },
+      reason: "Reject extra privileges",
+    }),
+  );
+  await owner("account_administration")
+    .where({ accountId: admin.accountId })
+    .update({ role: "user" });
+  await assert.rejects(api.details(admin, { accountId: target.accountId }), {
+    status: 403,
+  });
 });

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { billingLimits } from "@lib/shared/billing";
+import { billingLimits, resourceLimits } from "@lib/shared/billing";
 
 const origin = z.url().transform((value, ctx) => {
   const url = new URL(value);
@@ -123,6 +123,20 @@ const serverSchema = z.object({
   BILLING_PRO_SYNTHESIS_MONTHLY_MS: allowance(
     billingLimits.pro.synthesis.monthly,
   ),
+  BILLING_FREE_NOTES: allowance(resourceLimits.free.notes),
+  BILLING_FREE_NOTEBOOKS: allowance(resourceLimits.free.notebooks),
+  BILLING_FREE_RECALL_MONTHLY: allowance(resourceLimits.free.recall),
+  BILLING_FREE_ASK_MONTHLY: allowance(resourceLimits.free.ask),
+  BILLING_FREE_ORGANIZATION_MONTHLY: allowance(
+    resourceLimits.free.organization,
+  ),
+  BILLING_FREE_ASSISTANCE_MONTHLY: allowance(resourceLimits.free.assistance),
+  BILLING_PRO_NOTES: allowance(resourceLimits.pro.notes),
+  BILLING_PRO_NOTEBOOKS: allowance(resourceLimits.pro.notebooks),
+  BILLING_PRO_RECALL_MONTHLY: allowance(resourceLimits.pro.recall),
+  BILLING_PRO_ASK_MONTHLY: allowance(resourceLimits.pro.ask),
+  BILLING_PRO_ORGANIZATION_MONTHLY: allowance(resourceLimits.pro.organization),
+  BILLING_PRO_ASSISTANCE_MONTHLY: allowance(resourceLimits.pro.assistance),
   // Reject old deployment settings instead of silently treating characters as time.
   BILLING_FREE_SYNTHESIS_MONTHLY_CHARACTERS: z.string().optional(),
   BILLING_PRO_SYNTHESIS_MONTHLY_CHARACTERS: z.string().optional(),

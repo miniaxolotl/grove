@@ -5,7 +5,12 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import { MemoryModel, tenant, type Knex } from "@lib/database";
+import {
+  MemoryModel,
+  tenant,
+  withDatabaseSignal,
+  type Knex,
+} from "@lib/database";
 import { policy } from "@lib/config";
 import { InferenceError, type Embedder, type Providers } from "@lib/ai";
 import {
@@ -50,9 +55,34 @@ import {
 import { scheduleOrganization } from "./organization.ts";
 import { Conversations } from "./conversations.ts";
 import { assertNoteCapacity } from "./note-changes.ts";
+import {
+  assertCapacity,
+  billingEntitlement,
+  billingUsage,
+  resourceUsage,
+  inheritBillingQuotas,
+  reserveAction,
+  settleAction,
+  UsageLimitError,
+} from "./billing-quotas.ts";
+import {
+  billingUnits,
+  type ActionMetric,
+  type AccountPlanUsage,
+} from "@lib/shared/billing";
+import { recallIsInternal, withoutRecallCharge } from "./action-context.ts";
 import { Relationships } from "./relationships.ts";
 import { presentMemories } from "./presentation.ts";
 import { semanticMatches } from "./search.ts";
+import {
+  lexicalMatches,
+  lexicalQuery,
+  relevancePage,
+  searchVersion,
+  type SearchRow,
+  type SearchPosition,
+} from "./lexical.ts";
+import { searchEvidence } from "./search-evidence.ts";
 import { admitOperation } from "./operation-context.ts";
 export { withMemoryOperation } from "./operation-context.ts";
 import { currentTelemetry } from "@lib/telemetry/context";
@@ -64,6 +94,12 @@ import { runTask } from "./task-runner.ts";
 import type { QueueLane } from "@lib/shared/jobs";
 export { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
 export { Tasks } from "./tasks.ts";
+export { Files } from "./files.ts";
+export { DocumentImports, documentImportHandlers } from "./document-imports.ts";
+export {
+  ConversationDocuments,
+  conversationDocumentHandlers,
+} from "./conversation-documents.ts";
 export { SpeechJobs, speechHandlers, configureSpeech } from "./speech.ts";
 export { exportHandlers, type ArtifactStore } from "./exports.ts";
 export {
@@ -149,7 +185,13 @@ const stable = (value: unknown): string =>
 export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
-export { configureBillingQuotas, billingUsage } from "./billing-quotas.ts";
+export {
+  configureBillingQuotas,
+  billingEntitlement,
+  billingUsage,
+  resourceUsage,
+  UsageLimitError,
+} from "./billing-quotas.ts";
 export { SystemAdministration } from "./system-admin.ts";
 
 export class MemoryService {
@@ -232,6 +274,7 @@ export class MemoryService {
         capability,
         capability !== null && capability !== "memory:read",
       );
+      inheritBillingQuotas(this.db, trx);
       return run(access);
     }).catch((error: unknown) => {
       const databaseError = error as {
@@ -362,6 +405,7 @@ export class MemoryService {
     );
     service.jobProfiles = this.jobProfiles;
     service.internalWork = true;
+    inheritBillingQuotas(this.db, trx);
     return service;
   }
 
@@ -462,7 +506,7 @@ export class MemoryService {
   }
 
   async me(principal: Principal) {
-    return this.access(principal, null, async ({ account, grant }) => ({
+    return this.access(principal, null, async ({ account, grant, trx }) => ({
       accountId: account.id,
       type: principal.type,
       connectionId: grant?.id ?? null,
@@ -470,6 +514,9 @@ export class MemoryService {
         (c) => !grant || grant.capabilities.includes(c),
       ),
       contentVersion: account.contentVersion,
+      ...(principal.type === "session"
+        ? { plan: await billingEntitlement(this.db, trx, account.id) }
+        : {}),
       ...settingsFor(account),
       ...legacyPreferences(account),
       aiAvailability: {
@@ -852,8 +899,18 @@ export class MemoryService {
   }
   private decodeCursor(
     cursor: string,
-    binding: string,
-  ): { after: string; ceiling: string; updatedAt?: string } {
+    binding?: string,
+  ): {
+    after: string;
+    ceiling: string;
+    updatedAt?: string;
+    search?: {
+      fingerprint: string;
+      position: SearchPosition;
+      regime: "lexical" | "hybrid";
+      vectorHash: string | null;
+    };
+  } {
     try {
       const [payload, signature] = cursor.split(".");
       const expected = createHmac("sha256", this.cursorSecret)
@@ -867,11 +924,20 @@ export class MemoryService {
         throw new Error();
       const decoded = JSON.parse(Buffer.from(payload, "base64url").toString());
       if (
-        decoded.binding !== binding ||
+        (binding !== undefined && decoded.binding !== binding) ||
         typeof decoded.after !== "string" ||
         !Number.isFinite(Date.parse(decoded.ceiling)) ||
         (decoded.updatedAt !== undefined &&
           !Number.isFinite(Date.parse(decoded.updatedAt)))
+      )
+        throw new Error();
+      if (
+        decoded.search &&
+        (typeof decoded.search.fingerprint !== "string" ||
+          !["lexical", "hybrid"].includes(decoded.search.regime) ||
+          !Number.isInteger(decoded.search.position?.tier) ||
+          !Number.isFinite(decoded.search.position?.score) ||
+          decoded.search.position?.id !== decoded.after)
       )
         throw new Error();
       return decoded;
@@ -884,10 +950,74 @@ export class MemoryService {
     }
   }
 
+  async meteredAction<T>(
+    principal: Principal,
+    metric: ActionMetric,
+    run: () => Promise<T>,
+    charge: (result: T) => boolean = () => true,
+  ): Promise<T> {
+    const reservation = await this.access(principal, "memory:read", ({ trx }) =>
+      reserveAction(this.db, trx, principal.accountId, metric, randomUUID()),
+    );
+    try {
+      const result = await run();
+      await withDatabaseSignal(undefined, () =>
+        tenant(this.db, principal.accountId, (trx) =>
+          settleAction(
+            trx,
+            reservation,
+            charge(result) ? "completed" : "released",
+          ),
+        ),
+      );
+      return result;
+    } catch (error) {
+      await withDatabaseSignal(undefined, () =>
+        tenant(this.db, principal.accountId, (trx) =>
+          settleAction(trx, reservation, "released"),
+        ),
+      );
+      throw error;
+    }
+  }
+
   async list(principal: Principal, input: MemoryList): Promise<Page<Memory>> {
-    const embedder = this.embedder;
+    // Pin keyword fallback across quota upgrades/provider recovery. Verify the
+    // signature now; account/query/grant binding is still checked after access.
+    if (
+      input.query &&
+      (!input.sort || input.sort === "relevance") &&
+      input.cursor &&
+      this.decodeCursor(input.cursor).search?.regime === "lexical"
+    )
+      return this.listResult(principal, input, true);
+    if (
+      input.query &&
+      this.embedder &&
+      input.searchMode !== "lexical" &&
+      !recallIsInternal()
+    ) {
+      try {
+        return await this.meteredAction(principal, "recall", () =>
+          this.listResult(principal, input),
+        );
+      } catch (error) {
+        if (!(error instanceof UsageLimitError) || error.resource !== "recall")
+          throw error;
+        return this.listResult(principal, input, true);
+      }
+    }
+    return this.listResult(principal, input);
+  }
+
+  private async listResult(
+    principal: Principal,
+    input: MemoryList,
+    lexicalOnly = false,
+  ): Promise<Page<Memory>> {
+    const embedder = lexicalOnly ? undefined : this.embedder;
     let vector: number[] | undefined;
-    if (input.query && embedder) {
+    if (input.query && embedder && input.searchMode !== "lexical") {
       await this.access(principal, "memory:read", async ({ grant }) => {
         if (input.projectId !== undefined) this.scope(grant, input.projectId);
       });
@@ -935,18 +1065,51 @@ export class MemoryService {
           };
         }
         const { cursor, limit, ...filters } = input;
+        const relevance =
+          !!input.query && (!input.sort || input.sort === "relevance");
         const binding = digest(
           stable({
             account: principal.accountId,
             connection: principal.connectionId,
             filters,
+            ...(relevance
+              ? {
+                  searchVersion,
+                  grant: grant
+                    ? {
+                        personal: grant.personal,
+                        allProjects: grant.allProjects,
+                        projectIds: [...grant.projectIds].sort(),
+                        capabilities: [...grant.capabilities].sort(),
+                      }
+                    : null,
+                  generation: this.providers.generation?.profile,
+                  embedding: this.providers.embedding?.profile,
+                  titlesTagsEnabled: account.titlesTagsEnabled,
+                }
+              : {}),
           }),
         );
         const page = cursor
           ? this.decodeCursor(cursor, binding)
           : { after: "", ceiling: new Date().toISOString() };
+        const vectorHash = vector ? digest(JSON.stringify(vector)) : null;
+        if (relevance && page.search && page.search.vectorHash !== vectorHash)
+          throw new GroveError(
+            "stale_search",
+            "Search providers changed. Start this search again.",
+            409,
+          );
         const q = this.query(trx, grant).where("createdAt", "<=", page.ceiling);
-        if (input.sort) {
+        let datePosition:
+          | {
+              column: string;
+              direction: "asc" | "desc";
+              time: string;
+              id: string;
+            }
+          | undefined;
+        if (input.sort && !relevance) {
           const direction = input.sort === "updated_asc" ? "asc" : "desc";
           const column =
             input.sort === "created_desc" ? "created_at" : "updated_at";
@@ -964,12 +1127,20 @@ export class MemoryService {
                 "Cursor is missing its sort position",
                 400,
               );
-            q.whereRaw(
-              `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
-              [page.updatedAt, page.after],
-            );
+            if (input.query)
+              datePosition = {
+                column,
+                direction,
+                time: page.updatedAt,
+                id: page.after,
+              };
+            else
+              q.whereRaw(
+                `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
+                [page.updatedAt, page.after],
+              );
           }
-        } else {
+        } else if (!relevance) {
           q.orderBy("id");
           if (page.after) q.where("id", ">", page.after);
         }
@@ -1006,22 +1177,59 @@ export class MemoryService {
         if (input.status === "archived") q.where({ status: "archived" });
         if (input.status === "expired")
           q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
-        if (input.query)
-          q.where((b) => {
-            b.whereRaw("search @@ websearch_to_tsquery('english', ?)", [
-              input.query!,
-            ]);
-            if (vector)
-              b.orWhereRaw(
-                `EXISTS(SELECT 1 FROM memory_embeddings e WHERE e.account_id = memories.account_id AND e.memory_id = memories.id AND e.version = memories.version AND CASE WHEN e.profile = ? THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
-                [
-                  embedder!.profile,
-                  JSON.stringify(vector),
-                  embedder!.distanceThreshold ?? 0.45,
-                ],
+        let rows: MemoryModel[];
+        let fingerprint: string | undefined;
+        if (input.query) {
+          await trx.raw(
+            "SELECT set_config('pg_trgm.word_similarity_threshold',?,true)",
+            ["0.6"],
+          );
+          const ranked = lexicalQuery(
+            trx,
+            q,
+            input.query,
+            this.providers,
+            account,
+            vector ? { embedder: embedder!, vector } : undefined,
+          );
+          if (relevance) {
+            const pageResult = await relevancePage(
+              trx,
+              ranked,
+              limit,
+              page.search?.position,
+            );
+            if (
+              cursor &&
+              (!page.search ||
+                page.search.fingerprint !== pageResult.fingerprint)
+            )
+              throw new GroveError(
+                "stale_search",
+                "Search results changed. Start this search again.",
+                409,
               );
-          });
-        const rows = await q.limit(limit + 1);
+            rows = pageResult.rows;
+            fingerprint = pageResult.fingerprint;
+          } else {
+            if (datePosition)
+              ranked.whereRaw(
+                `(??,id) ${datePosition.direction === "desc" ? "<" : ">"} (?::timestamptz,?::uuid)`,
+                [datePosition.column, datePosition.time, datePosition.id],
+              );
+            if (input.sort)
+              ranked.orderBy(
+                input.sort === "created_desc" ? "created_at" : "updated_at",
+                input.sort === "updated_asc" ? "asc" : "desc",
+              );
+            rows = await ranked
+              .orderBy(
+                "id",
+                input.sort && input.sort !== "updated_asc" ? "desc" : "asc",
+              )
+              .limit(limit + 1);
+          }
+        } else rows = await q.limit(limit + 1);
         const items = await this.presentMany(
           trx,
           rows.slice(0, limit),
@@ -1029,6 +1237,16 @@ export class MemoryService {
         );
         return {
           items,
+          ...(input.query
+            ? {
+                matches: await searchEvidence(
+                  trx,
+                  items,
+                  input.query,
+                  rows as SearchRow[],
+                ),
+              }
+            : {}),
           ...(visit ? { visit } : {}),
           ...(input.query
             ? {
@@ -1041,7 +1259,23 @@ export class MemoryService {
                   binding,
                   ceiling: page.ceiling,
                   after: items.at(-1)!.id,
-                  ...(input.sort
+                  ...(relevance
+                    ? {
+                        search: {
+                          fingerprint,
+                          position: {
+                            tier: (rows[items.length - 1] as SearchRow)
+                              .searchTier,
+                            score: (rows[items.length - 1] as SearchRow)
+                              .searchScore,
+                            id: items.at(-1)!.id,
+                          },
+                          regime: vector ? "hybrid" : "lexical",
+                          vectorHash,
+                        },
+                      }
+                    : {}),
+                  ...(input.sort && !relevance
                     ? {
                         updatedAt: (
                           rows[items.length - 1] as MemoryModel & {
@@ -1063,8 +1297,22 @@ export class MemoryService {
     signal?: AbortSignal,
     allProjects = false,
   ): Promise<RecallResult> {
+    return recallIsInternal()
+      ? this.recallResult(principal, input, signal, allProjects)
+      : this.meteredAction(principal, "recall", () =>
+          this.recallResult(principal, input, signal, allProjects),
+        );
+  }
+
+  private async recallResult(
+    principal: Principal,
+    input: Recall,
+    signal?: AbortSignal,
+    allProjects = false,
+    lexicalOnly = false,
+  ): Promise<RecallResult> {
     const started = performance.now();
-    const embedder = this.embedder;
+    const embedder = lexicalOnly ? undefined : this.embedder;
     // Authorize before sending text to inference. Reauthorize after asynchronous work.
     await this.access(principal, "memory:read", async ({ grant }) => {
       if (input.projectId) this.scope(grant, input.projectId);
@@ -1115,15 +1363,14 @@ export class MemoryService {
             .orderBy("updatedAt", "desc")
             .limit(input.limit);
         } else {
-          const lexical = await base()
-            .whereRaw("search @@ websearch_to_tsquery('english', ?)", [
-              input.query,
-            ])
-            .orderByRaw(
-              "ts_rank_cd(search, websearch_to_tsquery('english', ?)) DESC",
-              [input.query],
-            )
-            .limit(40);
+          const lexical = await lexicalMatches(
+            trx,
+            base(),
+            input.query,
+            this.providers,
+            account,
+            40,
+          );
           const semantic = vector
             ? await semanticMatches(trx, base(), embedder!, vector, 40)
             : [];
@@ -1134,7 +1381,7 @@ export class MemoryService {
           for (const branch of [lexical, semantic])
             branch.forEach((row, i) => {
               candidates.set(row.id, {
-                row,
+                row: candidates.get(row.id)?.row ?? row,
                 score: (candidates.get(row.id)?.score ?? 0) + 1 / (60 + i),
               });
             });
@@ -1157,7 +1404,13 @@ export class MemoryService {
             }
           }
           rows = [...candidates.values()]
-            .sort((a, b) => b.score - a.score)
+            .sort(
+              (a, b) =>
+                ((a.row as SearchRow).searchTier ?? 6) -
+                  ((b.row as SearchRow).searchTier ?? 6) ||
+                b.score - a.score ||
+                a.row.id.localeCompare(b.row.id),
+            )
             .slice(0, input.limit)
             .map((c) => c.row);
         }
@@ -1195,9 +1448,20 @@ export class MemoryService {
             }
           }
         }
-        for (const item of await this.presentMany(trx, rows, account)) {
+        const presented = await this.presentMany(trx, rows, account);
+        const matches = input.query
+          ? await searchEvidence(
+              trx,
+              presented,
+              input.query,
+              rows as SearchRow[],
+            )
+          : undefined;
+        for (const item of presented) {
           const fingerprint = digest(item.content.trim().toLowerCase());
-          const cost = JSON.stringify(item).length;
+          const cost =
+            JSON.stringify(item).length +
+            (matches?.[item.id] ? JSON.stringify(matches[item.id]).length : 0);
           if (seen.has(fingerprint) || cost > remaining) continue;
           seen.add(fingerprint);
           remaining -= cost;
@@ -1206,6 +1470,13 @@ export class MemoryService {
         return {
           items,
           briefs,
+          ...(matches
+            ? {
+                matches: Object.fromEntries(
+                  items.map((item) => [item.id, matches[item.id]]),
+                ),
+              }
+            : {}),
           mode: !input.query ? "profile" : vector ? "hybrid" : "lexical",
           contentVersion: account.contentVersion,
         };
@@ -1223,28 +1494,68 @@ export class MemoryService {
     input: AskRequest,
     signal?: AbortSignal,
   ): Promise<AskResult> {
+    if (input.mode === "search")
+      return this.askResult(principal, input, signal);
+    const enabled =
+      this.providers.generation &&
+      (await this.access(
+        principal,
+        "memory:read",
+        async ({ account }) => account.askEnabled,
+      ));
+    if (!enabled)
+      return withoutRecallCharge(() =>
+        this.askResult(principal, input, signal, false),
+      );
+    return withoutRecallCharge(() =>
+      this.meteredAction(
+        principal,
+        "ask",
+        () => this.askResult(principal, input, signal),
+        (result) => result.answer !== null,
+      ),
+    );
+  }
+
+  private async askResult(
+    principal: Principal,
+    input: AskRequest,
+    signal?: AbortSignal,
+    generationAllowed = true,
+  ): Promise<AskResult> {
     const started = performance.now();
-    const generation = this.providers.generation;
+    const generation = generationAllowed
+      ? this.providers.generation
+      : undefined;
     const previous = input.previousQuestions.at(-1);
     const query =
       previous && /\b(it|that|those|they|them|this|more)\b/i.test(input.query)
         ? `${previous.slice(0, 300)}\n${input.query}`.slice(-1000)
         : input.query;
-    const recalled = await this.recall(
-      principal,
-      {
-        query,
-        projectId: input.projectId ?? null,
-        includePersonal:
-          input.projectId === null ? true : input.includePersonal,
-        limit: 12,
-        maxCharacters: 6000,
-      },
-      signal,
-      input.projectId === undefined,
-    );
+    const recallInput: Recall = {
+      query,
+      projectId: input.projectId ?? null,
+      includePersonal: input.projectId === null ? true : input.includePersonal,
+      limit: 12,
+      maxCharacters: 6000,
+    };
+    const recalled = generationAllowed
+      ? await this.recall(
+          principal,
+          recallInput,
+          signal,
+          input.projectId === undefined,
+        )
+      : await this.recallResult(
+          principal,
+          recallInput,
+          signal,
+          input.projectId === undefined,
+          true,
+        );
     const base = {
       sources: recalled.items,
+      ...(recalled.matches ? { matches: recalled.matches } : {}),
       searchMode: recalled.mode,
       answer: null,
     };
@@ -1651,9 +1962,7 @@ export class MemoryService {
           !(await trx("projects").where({ id: input.parentId }).first())
         )
           throw new GroveError("not_found", "Parent notebook not found", 404);
-        const total = await trx("projects").count("id as count").first();
-        if (Number(total?.count) >= policy.maxProjects)
-          throw new GroveError("project_limit", "Project limit reached", 429);
+        await assertCapacity(trx, "notebooks", 1);
         const [row] = await trx("projects")
           .insert({
             name: input.name,
@@ -1926,11 +2235,19 @@ export class MemoryService {
           account[briefPreference(scope)]
         ) {
           const target = briefTarget(scope);
+          const usageOperation = `brief:${randomUUID()}`;
+          await reserveAction(
+            this.db,
+            trx,
+            account.id,
+            "assistance",
+            usageOperation,
+          );
           await trx("memory_briefs").where({ target }).delete();
           await queueBrief(
             trx,
             account.id,
-            scope,
+            { ...scope, usageOperation },
             this.providers.generation.profile,
             0,
           );
@@ -1961,6 +2278,12 @@ export class MemoryService {
 
   async usage(principal: Principal) {
     return this.access(principal, "admin", async ({ trx }) => ({
+      planUsage: {
+        plan: await billingEntitlement(this.db, trx, principal.accountId),
+        resources: await resourceUsage(this.db, trx, principal.accountId),
+        usage: await billingUsage(this.db, trx, principal.accountId),
+        units: billingUnits,
+      } satisfies AccountPlanUsage,
       dailyRequestLimit: this.dailyRequestLimit,
       today: await trx("inference_usage")
         .whereRaw("day = (now() AT TIME ZONE 'UTC')::date")

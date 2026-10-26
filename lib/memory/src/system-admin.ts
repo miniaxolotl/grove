@@ -1,6 +1,12 @@
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
   adminChangeSchema,
+  adminDetailsSchema,
+  adminBrowseSchema,
+  adminSupportSchema,
+  type AdminDetails,
+  type AdminPage,
+  type AdminSupportState,
   type AdminAccount,
   type AdminAudit,
   type SystemRole,
@@ -124,5 +130,46 @@ export class SystemAdministration {
       async (trx) =>
         (await trx.raw("SELECT grove_admin_audit() AS result")).rows[0].result,
     );
+  }
+  browse(principal: Principal, raw: unknown): Promise<AdminPage> {
+    return this.access(principal, async (trx) => {
+      await trx.raw("SELECT grove_admin_accounts(ARRAY[]::text[])");
+      const input = adminBrowseSchema.parse(raw);
+      return (
+        await trx.raw("SELECT grove_admin_browse(?::uuid) AS result", [
+          input.after ?? null,
+        ])
+      ).rows[0].result;
+    });
+  }
+  details(principal: Principal, raw: unknown): Promise<AdminDetails> {
+    return this.access(principal, async (trx) => {
+      await trx.raw("SELECT grove_admin_accounts(ARRAY[]::text[])");
+      const input = adminDetailsSchema.parse(raw);
+      return (
+        await trx.raw("SELECT grove_admin_details(?::uuid) AS result", [
+          input.accountId,
+        ])
+      ).rows[0].result;
+    });
+  }
+  support(principal: Principal, raw: unknown): Promise<AdminSupportState> {
+    return this.access(principal, async (trx) => {
+      await trx.raw("SELECT grove_admin_accounts(ARRAY[]::text[])");
+      const input = adminSupportSchema.parse(raw);
+      return (
+        await trx.raw(
+          "SELECT grove_admin_support_change(?::uuid,?::uuid,?,?::jsonb,?::jsonb,?) AS result",
+          [
+            input.accountId,
+            input.operationId,
+            input.expectedVersion,
+            JSON.stringify(input.expectedSettings),
+            JSON.stringify(input.settings),
+            input.reason,
+          ],
+        )
+      ).rows[0].result;
+    });
   }
 }

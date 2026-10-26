@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { policy } from "@lib/config";
+import { assertCapacity } from "./billing-quotas.ts";
 import type { Knex } from "@lib/database";
 import {
   GroveError,
@@ -194,13 +194,7 @@ export class ConnectionSetup {
             .where({ identity: attempt.project.identity })
             .first();
           if (!project) {
-            const total = await trx("projects").count("id as count").first();
-            if (Number(total?.count) >= policy.maxProjects)
-              throw new GroveError(
-                "project_limit",
-                "Project limit reached",
-                429,
-              );
+            await assertCapacity(trx, "notebooks", 1);
             [project] = await trx("projects")
               .insert({ ...attempt.project, accountId: account.id })
               .returning("*");

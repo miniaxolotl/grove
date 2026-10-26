@@ -1,5 +1,5 @@
 import { MemoryModel, type Knex } from "@lib/database";
-import { policy } from "@lib/config";
+import { assertCapacity } from "./billing-quotas.ts";
 import { GroveError } from "@lib/shared/contracts";
 import type { SourceRef } from "@lib/shared/models";
 
@@ -30,10 +30,7 @@ export async function assertNoteCapacity(
   trx: Knex.Transaction,
   creates: number,
 ) {
-  if (!creates) return;
-  const total = await trx("memories").count("id as count").first();
-  if (Number(total?.count) + creates > policy.maxMemories)
-    throw new GroveError("storage_limit", "Memory limit reached", 429);
+  await assertCapacity(trx, "notes", creates);
 }
 
 /** Reads are fenced independently from writes: citing a note never grants a write. */

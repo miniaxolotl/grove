@@ -87,17 +87,28 @@ export async function probeDatabase(db: Knex) {
     );
   }
   await db.raw(
-    "SELECT content_version, ask_enabled, export_version, filing_enabled, change_token FROM accounts LIMIT 0",
+    "SELECT content_version, ask_enabled, export_version, filing_enabled, change_token, admin_suspended FROM accounts LIMIT 0",
   );
   await db.raw("SELECT id, lane, lease_id FROM background_tasks LIMIT 0");
   await db.raw("SELECT status, archive_operation_id FROM projects LIMIT 0");
   await db.raw("SELECT duration_ms FROM speech_usage LIMIT 0");
   await db.raw("SELECT archive_operation_id FROM memories LIMIT 0");
-  await db.raw("SELECT tools, tools_version FROM conversations LIMIT 0");
+  await db.raw("SELECT context FROM conversation_turns LIMIT 0");
+  await db.raw(
+    "SELECT tools, tools_version, documents_version FROM conversations LIMIT 0",
+  );
+  await db.raw(
+    "SELECT id, accepted, removed_at FROM conversation_documents LIMIT 0",
+  );
   const versions = await db.raw(
     "SELECT extversion FROM pg_extension WHERE extname = 'vector'",
   );
   if (!versions.rows[0]) throw new Error("The vector extension is required");
+  const search = await db.raw(
+    "SELECT 1 FROM pg_extension WHERE extname='pg_trgm' AND to_regprocedure('public.grove_search_title(text,text)') IS NOT NULL",
+  );
+  if (!search.rows.length)
+    throw new Error("The search-quality migration (pg_trgm) is required");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */

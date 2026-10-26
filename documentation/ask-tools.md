@@ -1,6 +1,9 @@
 # Ask Grove tools
 
-Ask Grove combines selected saved notes with optional **Web search** and **Research**.
+Ask Grove combines automatically retrieved or explicitly selected saved notes with
+private [document attachments](imports.md#ask-about-documents-first) and optional
+**Web search** and **Research**. Document turns do not dispatch external
+research; relevant passages go only to the configured generation provider.
 Grove cloud supplies provider access to all accounts; users do not need provider
 accounts or personal API keys. An installation must configure each provider before
 it becomes available. Existing saved conversations remain readable.
@@ -32,6 +35,13 @@ for timely/external context and research-backed note creation. Ordinary note-onl
 retrieval and greetings should not trigger research. Both providers disabled means
 no external research, including retries. Changing tools during a reply stops that
 reply; server-side revisions reject late results even after disable/re-enable.
+
+**Use only these sources** overrides enabled web tools for that one question,
+without changing their saved settings. It also excludes earlier answers and
+unrestricted library retrieval. Explicit source questions retain reviewed note
+edit/merge previews but not creation, organization or lifecycle discovery; use an
+ordinary question without selectors for those. See [source selection](explicit-context.md)
+for previews, direct-member notebook retrieval, partial coverage and recovery.
 
 Web statements cite only returned URLs. **Web sources** records the tool, retrieval
 date and whether the evidence is a search result or page extract. Saved-note
@@ -72,7 +82,8 @@ notebooks that acquired additional notes or children. Created items are archived
 not physically deleted; existing notes return to their original locations/content.
 Disabling Manage notes prevents Apply but still permits Undo.
 
-New notes share the account's 10,000-note limit with ordinary saves and assistance
+New notes share the account's note limit (10,000 Free / 50,000 Pro in configured
+Cloud; 10,000 with legacy/self-hosted safeguards) with ordinary saves and assistance
 action lists. Apply checks capacity for the complete batch; an over-limit batch
 leaves its preview available and commits no changes. Edits, moves and Undo remain
 available at capacity. Archived notes still count toward the limit.

@@ -1,5 +1,44 @@
 export const billingFlagKey = "billing-enabled";
 export const billingPriceFlagKey = "billing-pro-monthly-usd";
+/** Effective access, not a claim that an administrator grant cancels a purchase. */
+export type AccountPlan = {
+  tier: "free" | "pro" | "unlimited";
+  source: "free" | "paid" | "trial" | "complimentary";
+};
+/** User-facing actions are independent of provider-attempt safety budgets. */
+export type ActionMetric = "recall" | "ask" | "organization" | "assistance";
+export type ResourceLimits = Record<
+  ActionMetric | "notes" | "notebooks" | "concurrency",
+  number
+>;
+export const resourceLimits: Record<"free" | "pro", ResourceLimits> = {
+  free: {
+    notes: 10000,
+    notebooks: 100,
+    recall: 30000,
+    ask: 300,
+    organization: 1000,
+    assistance: 50,
+    concurrency: 2,
+  },
+  pro: {
+    notes: 50000,
+    notebooks: 500,
+    recall: 150000,
+    ask: 1500,
+    organization: 5000,
+    assistance: 250,
+    concurrency: 2,
+  },
+};
+export type ResourceUsage = {
+  plan: "free" | "pro" | "unlimited";
+  resetAt: string;
+  metrics: Record<
+    ActionMetric | "notes" | "notebooks",
+    { used: number; reserved: number; limit: number | null }
+  >;
+};
 export type BillingMetric =
   | "generation"
   | "research"
@@ -44,6 +83,9 @@ export type BillingUsage = {
   >;
 };
 export type BillingStatus = {
+  plan?: AccountPlan | null;
+  resources?: ResourceUsage | null;
+  proResources?: ResourceLimits;
   units: typeof billingUnits;
   proLimits: PlanLimits;
   enabled: boolean;
@@ -55,4 +97,11 @@ export type BillingStatus = {
   } | null;
   usage: BillingUsage | null;
   prices: { interval: "month" | "year"; amount: number; currency: string }[];
+};
+/** Owner-only on-demand breakdown; never contacts the payment provider. */
+export type AccountPlanUsage = {
+  plan: AccountPlan | null;
+  resources: ResourceUsage | null;
+  usage: BillingUsage | null;
+  units: typeof billingUnits;
 };

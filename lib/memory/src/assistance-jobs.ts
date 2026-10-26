@@ -14,6 +14,12 @@ import { cleanupStep } from "./assistance-cleanup.ts";
 import { digestStep, redactDigest } from "./notebook-digests.ts";
 import type { ActionItem, DigestChange } from "@lib/shared/assistance";
 import { budgetedInference } from "./processing.ts";
+import {
+  markActionWork,
+  reserveAction,
+  settleNamedAction,
+  UsageLimitError,
+} from "./billing-quotas.ts";
 
 export type AssistanceJob = {
   id: string;
@@ -71,6 +77,13 @@ export async function runAssistanceJob(
             row.kind,
           )
       ) {
+        await settleNamedAction(
+          trx,
+          job.accountId,
+          "assistance",
+          `assistance:${job.target}`,
+          "released",
+        );
         await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
         if (row?.status === "pending")
           await trx("assistance_requests").where({ id: row.id }).update({
@@ -82,15 +95,30 @@ export async function runAssistanceJob(
         return;
       }
       await validAssistance(trx, row);
+      await reserveAction(
+        db,
+        trx,
+        job.accountId,
+        "assistance",
+        `assistance:${row.id}`,
+      );
       return run(trx, row);
     });
   const resume = async (trx: Knex.Transaction, row: AssistanceRow) => {
     const current = await trx("assistance_requests")
       .where({ id: row.id })
       .first();
-    if (current.status !== "pending")
+    if (current.status !== "pending") {
+      await settleNamedAction(
+        trx,
+        job.accountId,
+        "assistance",
+        `assistance:${row.id}`,
+        current.status === "ready" ? "completed" : "released",
+        true,
+      );
       await trx("jobs").where({ id: job.id }).delete();
-    else
+    } else
       await trx("jobs").where({ id: job.id }).update({
         attempts: 0,
         leaseId: null,
@@ -112,6 +140,17 @@ export async function runAssistanceJob(
               ? await cleanupStep(trx, row, providers)
               : await digestStep(trx, row);
       if (!prepared) await resume(trx, row);
+      else
+        await markActionWork(
+          trx,
+          await reserveAction(
+            db,
+            trx,
+            job.accountId,
+            "assistance",
+            `assistance:${row.id}`,
+          ),
+        );
       return prepared;
     });
     if (!step) return true;
@@ -182,13 +221,22 @@ export async function runAssistanceJob(
       const stale =
         error instanceof GroveError && error.code === "sources_changed";
       const budget =
-        error instanceof InferenceError && error.code === "inference_budget";
+        (error instanceof InferenceError &&
+          error.code === "inference_budget") ||
+        error instanceof UsageLimitError;
       const failed =
         stale ||
         (!budget &&
           (job.attempts >= 5 ||
             (error instanceof InferenceError && !error.retryable)));
       if (failed) {
+        await settleNamedAction(
+          trx,
+          job.accountId,
+          "assistance",
+          `assistance:${job.target}`,
+          "released",
+        );
         await trx("assistance_requests")
           .where({ id: job.target, status: "pending" })
           .update({
@@ -211,14 +259,20 @@ export async function runAssistanceJob(
             dispatchedAt: null,
             attempts: budget ? Math.max(0, job.attempts - 1) : job.attempts,
             errorCode:
-              error instanceof InferenceError
+              error instanceof InferenceError ||
+              error instanceof UsageLimitError
                 ? error.code
                 : "assistance_unavailable",
-            dueAt: budget
-              ? trx.raw("date_trunc('day',now())+interval '1 day'")
-              : trx.raw("now()+(?*interval '1 second')", [
-                  Math.min(3600, 2 ** job.attempts * 10),
-                ]),
+            dueAt:
+              error instanceof UsageLimitError
+                ? error.resetAt
+                  ? new Date(error.resetAt)
+                  : trx.raw("now()+interval '1 second'")
+                : budget
+                  ? trx.raw("date_trunc('day',now())+interval '1 day'")
+                  : trx.raw("now()+(?*interval '1 second')", [
+                      Math.min(3600, 2 ** job.attempts * 10),
+                    ]),
           });
     });
   }

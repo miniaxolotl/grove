@@ -94,6 +94,11 @@ labels are not authenticated host identities.
 
 ## Permissions and limitations
 
+- Server instructions and argument docs share the [note-writing policy](agent-note-writing.md):
+  concise, focused Markdown and information-preserving complete-body edits. The
+  host still chooses when to expose/call tools; this is not guaranteed automatic
+  capture or a server-side readability validator. Refresh cached metadata after
+  the matching API is deployed; no new connection/grant is needed for wording alone.
 - The same [14-tool contract](server.md#memory-and-notebook-tools) powers remote
   MCP and packaged integrations. Tools still enforce grants on every request.
   Tool annotations and host confirmation dialogs are not permission checks.
@@ -143,13 +148,27 @@ release path; merging source does not deploy it. Public listings remain separate
 | Real Claude discovery, 24 Oct 2026       | Current public endpoint detected OAuth sign-in and automatic DCR registration. No new connector was added.                                                                                              |
 | Real hosts against this source candidate | **Not verified**: requires an explicitly authorized reachable HTTPS candidate and end-to-end sign-in/save/recall/refresh/revocation in both hosts. Discovery or fixture success is not this acceptance. |
 
+The discovery rows above describe the initial pre-authorization checks. Later
+production **1.11.3** tests completed actual hosted OAuth and synthetic note
+operations: both hosts denied note content before separate Grove approval;
+ChatGPT saved, recalled in a fresh chat, inspected, corrected and soft-deleted one
+synthetic note; Claude read that same correction and exercised its own synthetic
+save/update/history and owner-only denial. ChatGPT also verified read-only,
+notebook-scope and revoked-connection denials. These bounded results do not claim
+an exhaustive refresh/expiry matrix or directory approval.
+[Reviewer evidence and recording](https://github.com/miniaxolotl/grove/blob/92fc224d85ee6e93f540c1a0893abd239a0ec951/documentation/design/review/hosted-chat/README.md).
+
 Local browser evidence and actual gate results are recorded in
 [delivery](delivery.md) and the [reviewed gallery](design/screenshots/hosted-chat/README.md).
 
 ## Official directory submissions
 
-Official listings are being prepared; this does not claim review acceptance or
-publication. Until a listing is published, use the custom-connection paths above.
+OpenAI's **1.11.3** package is submitted and **In review**, not approved or
+published. Claude's tested draft is held for written clarification of current
+[Software Directory Policy §1.G](https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy)
+for explicitly requested external preference notes and cross-session recall.
+Do not claim a policy exception or submit a false compliance acknowledgement.
+Until a listing is published, use the custom-connection paths above.
 Review each directory's current eligibility and submission requirements. Prepare descriptions/icons, privacy and
 support URLs, representative prompts, a synthetic reviewer account and repeatable
 OAuth/permissions tests. Evaluate stable client registration for scale rather than
@@ -157,3 +176,10 @@ assuming the issuer supports CIMD. Submission, publication, provider changes,
 embedded UI and deep-research adapters remain distinct decisions. Operators can
 serve OpenAI's public domain proof with the [optional API configuration](server.md#directory-domain-verification);
 this does not authorize note access or satisfy the real-host/reviewer test gates.
+
+The metadata follow-up publishes each existing tool's human-readable title both
+at the top level and in `annotations.title`, and keeps each description focused
+on its own operation rather than recommending another tool. Names, schemas,
+execution, safety annotations and owner-only authorization do not change. Deploy
+the admitted source before reconnecting/rescanning the existing directory drafts;
+a metadata fix is not policy clearance or permission to create duplicate listings.
