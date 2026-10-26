@@ -1,5 +1,514 @@
 # Delivery evidence
 
+## Public reference discovery (25 October 2026)
+
+The website now builds `/docs` and five selected product references directly from
+committed Markdown, with own-domain links, heading anchors, metadata and sitemap
+entries. Unknown documents remain 404; private app/auth/API/share routes and all
+provider/crawler/telemetry settings are unchanged. The social-image metadata now
+matches the actual 1200×628 PNG. See [maintenance](website-discovery.md) and
+[three reviewed browser captures](design/screenshots/discovery/README.md).
+
+Initial source on `54f7688` passed root/site lint, types and builds, **248 browser
+cases**, **ten packed-artifact checks**, six mobile WCAG A/AA audits and eight
+internal document/fragment targets. New discovery/image cases were observed failing
+before implementation.
+WebKit checks also pass hub/reference navigation, keyboard code/table focus and
+320/390/1440px overflow checks in the pinned Linux browser image; the host lacks
+WebKit's system dependencies. A packaged-artifact repeat used the same image with
+home-backed `/tmp/opencode` after the host's shared temporary quota was exhausted.
+No test source, CI identity or application behavior was changed for those runs.
+That initial isolated backend serial run passed **440 cases with four optional skips**.
+A prior four-worker run hit the unchanged export workload's 180/minute read limit;
+the case passed in isolation and serially without assertion, limit or backend
+source changes. This records source evidence, not a repaired load-test behavior,
+production rollout, crawler approval or indexing/AI-citation result.
+
+After integrating development `27288e3`, both documentation insertion conflicts
+retain the discovery and merged search/context material. The integrated source
+passes root/site lint/types/build, **253 browser cases**, **ten packed artifacts**
+and the full serial backend suite: **474 pass, four optional skips, zero failures**.
+No backend, private-app or migration source differs from the integrated base.
+The first integrated runs encountered host temporary quota and memory/swap pressure
+(browser/SDK/axe waits; three backend timing cases). Failure logs/traces were kept;
+all affected cases passed in isolation and the full unchanged suites passed in the
+pinned Linux runtime with home-backed temporary storage. No deadline, assertion,
+rate limit or production setting was weakened to obtain the passing result.
+
+## Upload/files stack integration (25 October 2026)
+
+The four feature layers (#132 → #136 → #142 → #145) are rebased onto development
+`27288e3`, retaining action allowances, human-readable note guidance, title-first
+search and explicit Ask source selection. Migration order is now actions028 →
+search029 → context030 → imports031 → documents032. Only unreleased feature
+migration names changed; no retained database was reset or migrated.
+
+Populated upgrades assert the committed order and unique sequence slots. Ask
+readiness requires both context and document prerequisites. A combined regression
+proves strict selected-note questions transmit no unrelated attachment payload to
+planning or answering; ordinary selections retain document citations. Replayed
+questions still charge one Ask action each when action accounting is enabled.
+
+The real 320px WebKit attachment journey exposed a composer resize-delivery loop:
+its width observer synchronously changed the observed parent's height. Width-driven
+growth now runs in a cancellable animation frame, following the existing overlay
+scheduling pattern. Page-error assertions remain unchanged; no warnings are filtered.
+
+Integrated root/site lint, types, builds and bundle budgets pass (Notes entry
+492,541 gzip bytes). All256 Chromium cases, ten packed-artifact checks,50 release/
+CI/provider contracts and native OpenCode/Claude/Codex smoke checks pass. Current
+synthetic captures reflect the combined source-selector and attachment controls.
+Full source CI is validated separately for each rewritten PR, not inherited from
+the previous heads. Production migrations, merge and deployment remain separate
+owner operations.
+## Title-first, prefix and typo-tolerant note search (25 October 2026)
+
+Library searches and recall/source search share visible-title tiers, additive
+final-term prefixes and scoped `pg_trgm` recovery. A full-scope 40-match lexical
+shortfall controls fuzzy expansion, independently of semantic matches. Explicit
+date sorts, strict quotes/OR/exclusions and the existing body vector/relationship
+queries are preserved. Current revision/profile/preferences guard generated titles.
+
+Signed relevance cursors bind a one-statement matched-set fingerprint and search
+mode; keyword fallback survives allowance/provider recovery. The workspace can
+restart a stale traversal. Query/version-bound title/snippet ranges render as
+escaped text, not headline HTML; typo/semantic-only excerpts remain unmarked.
+Recall counts metadata against its existing budget. Migration029 installs the
+extension and invoker-only title resolver without rewriting retained data/indexes.
+See [behavior](search.md) and [owner rollout](deploy.md#search-quality-rollout).
+
+Local verification after integrating development `54f7688` passes **458 backend cases** (four optional S3/broker skips),
+including **18 focused search/migration/REST cases**, all **ten artifacts**, root/site
+lint/types/builds, bundle budgets and **34 release/deployment contracts**. The
+telemetry-enabled Notes entry is **492,274 gzip bytes** (build `yDoWpWVutEy0vjDUXdefw`), with the editor deferred.
+Native OpenCode 2.1.3, Claude Code 2.1.309 and Codex 0.164.0 qualification passes.
+All **244 Chromium** cases and **eight focused touch/mobile WebKit** cases pass;
+an earlier focused repeat also passed eight Chromium cases. [Four reviewed synthetic captures](design/screenshots/search-quality/README.md)
+cover 1440/390/320px, accessible marks and honest typo excerpts. No production
+migration, provider change, release or deployment is performed by source delivery.
+
+The final backend repeat ran the unchanged suite with Node 24 in pinned Noble,
+using task-only home-backed temporary storage after the host `/tmp` user quota
+caused file-write failures. No assertion, timeout or database policy was relaxed.
+
+[Scale observations](development/search-quality-results.md) record common-query
+maxima around185ms at10k eligible +10k other-tenant notes, but typo/no-match
+scans remain~527–779ms in the final local run. Five warm samples are regression
+observations, not production p95/capacity or a50k/larger-note qualification.
+
+## Human-readable agent notes and shared tool guidance (25 October 2026)
+
+Shared note-authoring instructions now request concise, focused, human-readable
+CommonMark/GFM, useful structure without forced templates, faithful full-body edits
+and permitted notebook/kind selection. MCP argument documentation explains content,
+scope, capture, current versions and retry identity. Claude/Codex skills are
+generated from the runtime guidance; OpenCode ships the same body. Current plugin
+and CLI docs no longer claim a four-tool catalog or dashboard-only history/archive.
+
+Ask create/edit/merge/organization and cleanup authoring requests reuse the prose
+policy while retaining existing grounding, structured evidence and reviewed Apply.
+Cleanup's profile includes the policy version, preventing old-policy draft reuse;
+other assistance profiles and authored originals are unchanged. No API default,
+validation bound, permission, automatic write/recall cadence, format rejection,
+renderer, schema migration or provider configuration is changed.
+
+Candidate application source `b920ba5` passes root lint/types/builds, all **ten packed
+artifact checks** and native Linux OpenCode 2.1.3, Claude Code 2.1.309 and Codex
+0.164.0 checks. The stable backend repeat passes **440 cases**, with four optional
+S3/broker skips; nine focused guidance/directory cases pass. Red/green cases cover
+MCP discovery/field docs, skill drift, packed delivery, actual authoring requests
+and cleanup cache identity. Thirty-four release/provider contracts and pinned
+actionlint pass. Website lint/types/production build and bundle budgets pass;
+Notes entry remains **491,632 gzip bytes**, build `7tETW8I6_t_YBuYMXMNbz`.
+
+Five focused Chromium and two supported iPhone/WebKit Markdown/task/preview/PDF
+regressions pass. Three synthetic actual-component examples per engine pass at
+1440/390/320px, including WCAG A/AA, heading anchors, table/code/tasks, short prose,
+no page overflow/errors and no writes. [Three reviewed captures](design/screenshots/agent-note-writing/README.md)
+show a structured decision and one-sentence preference. These are authored fixtures,
+not live-model output: the [review corpus](agent-note-writing.md#evaluation-cases)
+states quality expectations without claiming universal host/model compliance.
+No deployment, live hosted-chat test, directory rescan or paid-model evaluation was
+performed; source delivery follows the normal protected release path.
+
+## Visible subscription and complimentary access (25 October 2026)
+
+The desktop/mobile workspace now keeps a small Free/Pro/Unlimited badge in its
+existing controls, with no extra mobile navigation row. Hover/focus opens source
+details and concise used/limit rows; click/tap pins the same panel. Library and
+monthly action limits come first, with pending counts, reset dates and additional
+AI/audio budgets behind a disclosure. Account details remain reachable while
+purchases are hidden. Billing retains separate renewal/payment/end status and
+**Manage subscription**, warning that a grant does not cancel a separate purchase.
+
+Optional session-only `plan` metadata reuses canonical price/product/expiry and
+admin-grant precedence. Scoped agents receive no new billing metadata. Workspace
+reads use local state and the shared account/session cache, without Stripe calls
+or another polling timer. The existing owner-only `/account/usage` adds `planUsage`
+with canonical plan, resource/provider counters and explicit units; detailed reads
+stay idle until intent. Billing reconciliation refreshes the badge snapshot so
+checkout does not leave an old Free label. Missing/legacy data never guesses an
+access source; failed reads offer retry. No migration, billing activation, price,
+quota, retained-data, provider or deployed-runtime change is required or performed.
+
+Backend red/green regressions cover Free/paid/trial eligibility, cancellation at
+period end, non-entitled/expired/unsupported subscriptions, tenant/key boundaries,
+complimentary Pro/Unlimited while billing is hidden, grant removal, subscription
+preservation and no-config behavior. Two further red/green regressions verify actual
+used/pending/configured limits, tenant/agent isolation, hidden-purchase Unlimited
+and unconfigured usage snapshots. Full **435 backend cases pass**, with four
+optional-service skips; **65 focused billing/action/admin** checks also pass.
+Root/site lint, type checks and builds pass, with all **nine packaged artifacts**.
+Production build `vb8B5nPqgh71PSfuIVlul` passes the Notes entry budget at **491,632
+gzip bytes**, keeping the editor deferred.
+
+[Four reviewed captures](design/screenshots/subscription-badge/README.md) use
+actual components and production CSS with synthetic accounts/responses. **24
+targeted journeys in each of Chromium and supported Noble WebKit** pass across
+1440/390/320px, including keyboard access, WCAG A/AA,44px targets, overflow/page-error
+checks, on-demand reads, exact/pending/zero/unlimited limits, audio hours, short
+viewports, touch dismissal, retry, session replacement and checkout reconciliation.
+A reproduced hover-dismiss→keyboard-focus failure now passes after replacing the
+sticky dismissal flag with actual focus provenance. Simultaneous failures share
+one recovery action. The shared workspace browser fixture
+now accepts the badge's new `/me` read; its reproduced failing notebook case passes
+after that fixture-only adjustment. The prior implementation passes the full
+**239-case Chromium suite** and seven existing iPhone/WebKit settings/sidebar cases.
+
+The final UI-only simplification removes six repeated meters, duplicate
+complimentary prose and the separate footer action. Used/limit rows retain pending
+and exhaustion labels; the linked plan heading/source opens Account. The collapsed
+panel is at most365px high across all five plans at1440/390/320px. Both engines
+pass all24 targeted journeys again, with **17 affected Chromium** navigation/settings
+checks, nine artifacts, root/site lint/types/builds and the bundle gate passing.
+Backend/API policy is unchanged by this final visual pass.
+
+The merge follow-up integrates admin polish #133 (`05fe8fd`), retaining both delivery
+records; no code conflicted. Integrated root/site lint/types/builds, nine artifacts,
+the same491,632-byte Notes budget and435 backend cases (four optional skips) pass.
+The backend repeat uses four test-file processes after a saturated-host timeout
+and reboot interrupted earlier attempts; no timeout, assertion or database policy
+was relaxed. Fifteen actual-component tier/source/usage/accessibility journeys per
+Chromium and supported WebKit pass at1440/390/320px against integrated production
+CSS/build`HBGViTUdyNh-S2oqCXNSi`. No production data or runtime was changed.
+
+## Explicit note and notebook context (25 October 2026)
+
+Ask Grove adds Sources and `@note`/`@notebook` selection, read-only previews,
+per-question **Use only these sources**, durable retry metadata and recoverable
+unavailable-source drafts. Strict planning/answering excludes prior source prose,
+unrestricted recall and external research. Large notebooks use direct-member-only
+keyword retrieval with 12 supplied notes maximum, pinned-first ordering and visible
+partial/omitted coverage. Selected scope, supplied revisions and citations are
+distinct. Selected-note edit/merge previews retain Apply/Undo; broader mutations
+use ordinary questions. [Contract](explicit-context.md) records the limits.
+
+Source **`9e9600d`** adds forward migration (now **030 after search quality 029**), preserving old turn
+columns and RLS. Runtime readiness checks the nullable context column; API/worker
+must precede the website after an explicit owner migration. No retained schema,
+provider, billing flag or production deployment was changed.
+
+Local verification passes **446 backend cases**, four optional-service skips and
+zero failures, including 15 new context/upgrade cases. Regressions demonstrated red
+then green for exact selection, large notebooks, selected edits, export metadata,
+empty-notebook publication races and UUID normalization/deduplication. Root/site
+lint, types and production builds pass, as do **nine packaged artifacts**,
+**34 release/provider contracts** and bundle budgets. Notes entry is **488,429 gzip
+bytes**; website build **`fV5xIqpvfT0DFUOka_vng`**.
+
+The existing **239 Chromium** suite and **10 focused WebKit** cases pass. Actual
+component/API/PostgreSQL journeys pass in both engines at 1440/390/320px, including
+preview focus, strict evidence, last-chip recovery, partial coverage, new-ID source
+replacement, selected edits/Undo, WCAG/overflow and zero page errors. Both engines
+also verify 390px retained drafts, accepted-but-lost exact retries and empty-source
+Add sources. [Seven reviewed captures](design/screenshots/explicit-context/README.md)
+show final components and synthetic data.
+
+Initial checks exposed the narrow Sources/Send footer and an existing enlarged
+New note flex-label overflow; both were reproduced and corrected without weakening
+assertions. A shared Playwright output collision and occupied fixture/OAuth ports
+were isolated and rerun with separate/free resources. [Evaluation notes](development/explicit-context-results.md)
+distinguish deterministic boundary/canary tests from unperformed paid-model quality
+acceptance. Source delivery is not production activation.
+
+Integration **`63b4195`** preserves subscription-badge development **`06d8740`**;
+only this delivery record conflicted. The combined source passes **450 backend
+cases** (four optional skips), **239 Chromium**, **10 focused WebKit**, root/site
+static/build gates, nine artifacts, 34 contracts and bundle budgets. Both-engine
+source-selection/draft/replay/abstention journeys pass again. All seven captures
+were refreshed against build **`bUArWXbVxQehegDmHerVO`**; Notes entry is **491,638
+gzip bytes**. No deployment, schema activation or protected merge was performed.
+
+The merge follow-up also integrates note-writing guidance **`54f7688`** (#143),
+retaining both strict-source instructions and the shared readable-note policy,
+plus both regression sets. Fresh verification passes **455 backend cases** with
+four optional-service skips, **10 artifacts**, root/site lint/types/builds,
+34 release/provider contracts and bundle budgets. Website source is unchanged
+from `fe0b383`; the reviewed captures and earlier both-engine journeys still apply.
+Rebuild **`2K6m1-avTTpV_ecoc-Ufg`** records **491,637 gzip bytes** for Notes.
+The additional local native-host smoke stopped at npm extraction with a temporary
+storage write error (`-122`); hosted CI must qualify the unchanged native suite.
+
+The subsequent follow-up integrates search-quality development **`d8d78df`**
+(#144). Search retains migration 029; the unapplied context migration is now
+**`20261025_030_conversation_context`**. A new ordering regression demonstrated
+red/green, and a fresh disposable database verifies the full sequence without
+rewriting earlier fixture history. Ask preserves search title/passage evidence
+alongside selected/provided/cited distinctions. Fresh verification passes
+**474 backend cases/four optional skips**, **10 artifacts**, **244 Chromium** and **18 focused WebKit**
+cases (Ask/layout/search), root/site static/build gates, 34 contracts and bundle
+budgets. Both-engine source/draft/replay/abstention/IME/touch journeys pass; seven
+captures were refreshed/reviewed against build **`J4mEDYRWCDRlQZxNEuBUm`**. Notes
+entry is **492,277 gzip bytes**. No production migration or deployment occurred.
+
+## Admin interface polish (25 October 2026)
+
+People & access separates grants, system roles and availability in a compact
+directory, with exact-match recovery and loaded rows retained during refresh
+failures. A wider inspector keeps identity/navigation and editing actions stable
+while the task content scrolls. Usage retains full values and explicit units,
+including large counters at 320px; history describes individual field changes
+without copying staff-note text into the feed.
+
+One coordinated draft protects section changes, closing, Escape and backdrop
+dismissal. Confirmed saves retain context and refresh the shared version; uncertain
+saves retain the exact request for audit-once retry. Conflicts compare latest and
+attempted values before a deliberate new save. Availability and privileged role
+changes have separate review/confirmation. Periodic refreshes preserve dirty
+forms, clean forms can adopt fresh snapshots, and disabled/removed action controls
+recover keyboard focus in Safari without stealing a new field's focus.
+
+Root/site lint, types and production builds, **406 backend cases** (four optional
+S3/broker skips), **nine artifacts**, all **239 existing Chromium cases** and
+bundle budgets pass. Notes entry remains **488,426 gzip bytes**, with the editor
+deferred. Actual-component/API/PostgreSQL journeys in Chromium and mobile/touch
+WebKit cover 1440/390/320px, held saves, exact uncertain retries/audit-once,
+version review, suspension/restore, revocation concealment, minute-refresh draft
+retention, clean refresh, explicit request-limit retries and keyboard focus. Narrow/short windows, enlarged text,
+forced colors, clipboard denial, long identity/draft values, WCAG A/AA and overflow
+are checked. [Ten reviewed synthetic captures](design/screenshots/admin-polish/README.md)
+record the layout and application source.
+
+No new migration, API permission, dependency, subscription/provider configuration
+or production account change is introduced. Source delivery does not activate the
+underlying support schema; [027 rollout](deploy.md#admin-support-rollout-027)
+remains an explicit separate operation. Physical mobile keyboards and native
+mail/clipboard prompts remain unqualified.
+
+The follow-up integrates Free/Pro action allowances #131 (`3041590`) without
+changing admin components or weakening quota policy. Admin reporting remains
+provider-attempt counters; it is not presented as the separate user-action usage
+report. Unlimited documentation now includes plan storage/action exemptions while
+retaining the shared generation-concurrency safeguard.
+Integrated verification passes **431 backend cases** (four optional-service skips),
+all **239 Chromium cases**, nine artifacts, root/site lint/types/builds and bundle budgets. Real API/admin
+journeys pass again in Chromium and mobile WebKit on the integrated source; the
+reviewed captures use build **`Cf1S8gKaMlcFrViMdH4n3`**.
+
+## Free/Pro storage and action allowances (25 October 2026)
+
+Configured Cloud now separates user actions from retained provider-attempt budgets:
+Free/Pro support 10,000/50,000 notes, 100/500 notebooks and monthly recall/search
+30,000/150,000, Ask replies 300/1,500, organization 1,000/5,000 and on-demand
+assistance 50/250. Two account-wide generation slots share durable leases across
+foreground/API/worker replicas. Ordinary admission remains 180 operations/minute.
+Reading, editing, keyword search and export remain available at AI exhaustion;
+downgrades never delete existing content. Speech/research, subscriptions, grants,
+provider-attempt counters and the introductory $5 price remain unchanged.
+
+Source `a72cb5c` integrates merged admin-support #129 as
+`d012ddbe9d1a7c3a92dd09dda2dcbdf89553615e`. Forward migration **028 follows 027**
+and creates empty tenant-isolated action/lease tables, without reinterpreting old
+usage. [Counting semantics](billing.md#library-and-user-actions) distinguish cached
+reads, durable replays, fragmented work, source changes, background maintenance and
+retrieval safety; [rollout](deploy.md#user-action-allowances-rollout-028) requires
+explicit owner migration and matching API/worker configuration.
+
+At the integrated source, **431 backend cases pass**, with four optional-service
+skips and zero failures. Twenty-four action regressions plus a populated pre-028
+upgrade cover final-slot races across non-owner API/worker roles, expired/released
+reservations, retry IDs, original-month settlement, plan/grant changes, source
+retention, nested storage checks, multi-call replies, asynchronous assistance,
+organization coalescing, preference-toggle bypass denial and keyword fallback
+pagination. Failed replies release action capacity but retain provider evidence;
+action-covered retrieval does not inherit the smaller background embedding guard.
+The integrated repeat initially found the local base fixture still at 026; applying
+forward 027/028 to that task-owned disposable database resolved it without resets.
+
+Root/site lint, type checks and production builds pass, as do all **nine packaged
+artifacts**, **34 release/provider contracts**, pinned workflow lint, bundle budgets
+and OpenCode/Claude/Codex native-host smoke checks. API and worker Compose expansion
+matches all 12 action/storage defaults using synthetic required-field placeholders
+only. Website build **`VMRgAIPjlRxwzZ26D8Ns9`**; Notes **488,425 gzip bytes**.
+
+[Four reviewed captures](design/screenshots/free-pro-usage/README.md) show actual
+Billing components and production CSS with synthetic responses. Both tiers pass
+Chromium and supported WebKit journeys at 1440/390/320px: warnings, exhaustion,
+refresh, unlimited/legacy compatibility, flag-off hiding, WCAG A/AA, no horizontal
+overflow and no page errors. The full **239-case Chromium suite** passes again at
+the integrated source, with zero failures.
+
+A separate [50,000-note/full4096-vector local check](development/backend-capacity-results.md#50000-note-action-policy-scale-check-25-october-2026)
+observed 608 ms median and 614 ms maximum/p95 over ten warm sequential recalls, with
+866,091,008 bytes of embedding storage and zero paid provider calls. This does not
+qualify production throughput, cold-cache performance or profitability; unchanged
+research/audio exposure can exceed the introductory price. No retained database,
+production flag, paid provider, subscription, release or deployment was changed.
+
+## Files browsing refinement (25 October 2026; stacked on #142)
+
+The [Files & storage view](files-storage.md) now prioritizes the file ledger with
+a compact expandable storage band, global newest/name/size sorting, location-aware
+search, notebook/type/lifecycle filters and individually clearable filter chips.
+Readable note labels, notebook breadcrumbs, status badges, keyboard expansion and
+direct first-page recovery make locations and errors easier to navigate. Mobile
+Refresh shares the title row; storage details no longer push files below the fold.
+No deletion/cleanup mutations, quota/retention changes, schema or new dependencies.
+
+Local verification: **474 backend passes, four optional-service skips, zero failures**,
+including11 inventory cases; **251 Chromium cases pass**, including five file UI cases.
+Root/site lint/types/builds and budgets; nine artifacts;27 release/16 CI contracts
+and workflow lint; native OpenCode/Claude/Codex smoke checks pass. The final backend
+run uses isolated task-local temporary storage after shared tmpfs quota failures,
+without changing assertions or limits. Real API/PostgreSQL/parser/worker/private-source journeys pass
+both Chromium and supported-container WebKit at1440/390/320px, including sort/search/
+view controls, exact originals, keyboard/focus, source removal, untruncated notebook
+roots and WCAG A/AA/overflow/page-error checks, also with expanded filters.
+[Three reviewed captures](design/screenshots/files-experience/README.md)
+use synthetic documents/identities only. No paid providers or production changes.
+
+## Files & storage (25 October 2026; stacked on #136)
+
+The shared [Files & storage view](files-storage.md) is available from Settings,
+Ask attachments, import review and note/notebook actions. It lists private document
+uploads, note images and original recordings, with size/state, searchable filenames,
+type/context filters and independently paged note/notebook/chat locations. Existing
+original readers authorize downloads; shared chat-to-import originals appear once.
+Storage distinguishes conservative retained-byte/write-attempt safety budgets,
+actual temporary staging and accessible-original bytes. Removal never claims to
+delete retained originals or free retained budget. No new migration or permissions.
+
+Local verification: **471 backend passes, four optional-service skips, zero failures**,
+including eight inventory regressions; nine artifacts; root/site lint/types/builds,
+bundle budgets;27 release contracts,16 CI contracts/workflow lint and native
+OpenCode/Claude/Codex smoke checks. **249 Chromium tests pass** after the final UI
+review. Real disposable API/PostgreSQL/parser/worker/source-store journeys
+pass Chromium and supported-container WebKit at1440/390/320px, with byte-identical
+originals, current notebook associations, source removal/refresh, filters and WCAG
+A/AA/overflow/page-error checks. [Three reviewed captures](design/screenshots/files-storage/README.md)
+use synthetic documents and identities; mobile captures use normal page scrolling.
+No paid providers, production schema/configuration, original deletion or deployment.
+
+## Documents in Ask Grove (25 October 2026; stacked on #132)
+
+Ask Grove accepts PDF, DOCX, Markdown and text as private chat-local sources, without
+creating library notes. Reading starts automatically; cited answers/follow-ups open
+exact extracted passages and private originals. Explicit full-text conversion reuses
+the existing reviewed import; requested generated notes/notebooks retain ordinary
+Apply/Undo and durable private source bindings. Direct imports auto-prepare and can
+hand unconfirmed originals to Ask without another browser upload. See the
+[contract](imports.md#ask-about-documents-first), [captures](design/screenshots/ask-documents/README.md)
+and [owner rollout](deploy.md#ask-document-rollout-032-stacked-on-import-132).
+
+Forward migration **032** follows import031, preserving merged action028/search029/
+context030. Populated-upgrade/readiness tests preserve old content and require
+the new schema. Accepted originals/chunks remain immutable; expiry clears only
+unaccepted staging/excerpts. Removal, account/chat deletion, profile changes and
+restore fence inaccessible evidence and unapplied previews. Saved-note source
+access is independent of deleted chat access. Account/notebook exports include only
+authorized sources; notebook exports do not acquire unrelated private chats.
+
+Local backend verification: **463 passes, four optional-service skips, zero failures**,
+including25 document cases, real transport payload validation, exact citations,
+acceptance races, shared staging, pre-dispatch/Apply fencing, export and recovery.
+Root/site lint/types/builds, **nine artifacts**,27 release contracts,23CI/deployment
+contracts, workflow lint and native OpenCode/Claude/Codex smoke checks pass. Full
+Chromium suite: **246 passed**; **seven focused attachment/import checks passed**
+after the final narrow-screen refinement. Notes bundle:489,534 gzip bytes, within budget.
+
+Final export regressions verify that revoked document quotations cannot escape
+through raw turn-history JSON, using the same mask as hydrated history, and source
+acceptance invalidates earlier export snapshots without changing attachment identity.
+
+Packaged production-dependency Node24 workers pass real DOCX/Markdown upload,
+citations/follow-ups, byte-identical originals, reviewed save, removal and import→Ask
+handoff in Chromium and supported-container WebKit at1440/390/320px, with clean
+SIGTERM draining. Final package requalification after the export-mask fixes passes
+all six chat journeys (worker SHA-256
+`a9099e4937d5e05097a7a2d3e4504e41808139a27a414e189a0c4c565139ca92`).
+The ordinary packaged PDF/import journey also passes in both engines.
+Generation is deliberately synthetic: this is not live-model quality, device or
+production acceptance. OCR, legacy Word, arbitrary ZIP and embedded objects remain
+deferred. No paid provider calls, production migration/configuration or rollout.
+
+## Reviewed note and PDF uploads (25 October 2026)
+
+Notes, notebook options and Settings → Data now offer reviewed Markdown/plain-text/
+text-based PDF imports into existing, new or Unfiled notebooks. Preparation creates
+no library content; explicit confirmation applies ordinary versioned note/notebook
+writes with checkpointed retry and no implicit overwrite. Optional grounded AI
+organization changes drafts only. Original files remain private and immutable;
+export provenance, draft expiry/cancellation and restore/account-deletion guards
+preserve the retained-source contract. Forward migration **031** follows context030,
+retaining committed action028 and search029. See the [contract](imports.md) and
+[owner rollout](deploy.md#note-and-pdf-import-rollout-031).
+
+Integrated local verification: **435 backend passes, four optional-service skips,
+zero failures**; nine packaged-consumer artifacts; root/site lint, types and builds;
+**242 Chromium cases** and three focused import repeats after label polish; bundle
+budgets (Notes **488,672 gzip bytes**); 27 release contracts. Real API/PostgreSQL
+journeys pass in Chromium and supported-container WebKit at1440/390/320px, including
+SHA-256-identical private original downloads. The production-dependency packaged
+worker separately passes all six journeys and clean SIGTERM draining.
+
+[Reviewed screenshots](design/screenshots/note-imports/README.md) use synthetic files
+only. AI behavior has synthetic-provider regression coverage, not live-model quality
+qualification. OCR, DOCX, ZIP and embedded attachments remain deferred. No production
+migration, provider configuration, publication, deployment or protected merge occurred.
+
+## Solo-owner account support (25 October 2026)
+
+Settings → Admin now offers a paginated **People & access** directory and one
+account inspector for **Usage**, **Account**, and **Access**. Fixed aggregate
+reports show per-user UTC today/month generation, research and timed speech,
+plus note/notebook/active-connection counts even while billing is hidden.
+Support adds email-draft/copy-ID/usage-summary shortcuts, a short staff note,
+capture/recall edits, reversible suspension and account-filtered recent history.
+No new role hierarchy, ticketing system, private-content access or identity-email/
+password editor is introduced.
+
+Forward migration **027** retains existing data/counters and adds narrow guarded
+reporting/support operations. Backend regressions first fail for missing support
+features, cross-action operation-ID reuse, and restored suspension state, then
+pass with versioned/idempotent audited edits and recovery reconciliation. Provider
+updates cannot clear support suspension; restoring it cannot clear a provider ban.
+Self/last-admin guards remain. Non-superuser reporting and raw RLS isolation pass;
+no private-content policies are broadened. See the [contract](system-administration.md),
+[rollout](deploy.md#admin-support-rollout-027) and [verification](development/testing.md#admin-support-and-usage).
+
+Local source verification passes **406 backend cases** (four optional-service
+skips), all **nine artifacts**, root/site lint/types/builds and bundle budgets.
+The existing **239 Chromium** cases pass. Real-component, real-API/PostgreSQL
+support journeys pass in Chromium and supported WebKit at 1440/390/320px, including
+same-operation uncertain-save retry/audit-once, suspend/restore and revocation
+concealment, WCAG A/AA, focus return, overflow and page-error checks.
+[Six reviewed captures](design/screenshots/admin-support/README.md) use only
+synthetic identities. No production schema, account, provider or billing changes
+were performed for this work.
+
+## Hosted directory review evidence (25 October 2026)
+
+Real production **1.11.3** browser tests use only a dedicated synthetic reviewer.
+ChatGPT executes explicit save, fresh-chat recall, exact inspection, metadata-
+preserving version-fenced correction and exact retained soft deletion, plus three
+separately answered negative scenarios. Both hosts deny note access before separate
+Grove approval; Claude subsequently reads the same ChatGPT-authored correction and
+executes its own synthetic notebook save/correction/history checks. The
+[reviewer walkthrough and boundaries](design/review/hosted-chat/README.md) distinguish
+these hosted results from the earlier direct-MCP tests and from directory approval.
+Credentials stay in private portal fields. This is evidence only, with no runtime,
+schema, feature-switch or production deployment change.
+
 ## System roles and complimentary access (25 October 2026 UTC)
 
 Settings → Admin provides exact-email/user-ID account lookup, separate system roles
@@ -33,8 +542,8 @@ WCAG A/AA and overflow/page-error checks. Both engines also pass after the final
 role-discovery retry refinement. [Six reviewed captures](design/screenshots/system-admin/README.md)
 contain synthetic accounts only. Native OpenCode/Claude/Codex smoke checks pass.
 
-Production readiness is separately recorded in private operator custody. The verified
-owner account is active; live database remains at 023 before rollout. An encrypted
+The original pre-rollout readiness was separately recorded in private operator custody.
+At that checkpoint the verified owner was active and the database was at 023. An encrypted
 backup passes full archive decode/validation. Owner-approved read-only Spaces
 inspection confirms lifecycle expiry covers only `exports/` and legacy `speech/`, not
 `narration/`; existing scoped runtime narration read/write/delete passes and its
@@ -50,6 +559,18 @@ remain bounded. The combined backend passes **397 cases** (four optional skips)
 and nine artifacts. Admin and Free/Pro/Unlimited Billing journeys pass in both
 Chromium and supported WebKit at 1440/390/320px, including legacy-character display,
 unlimited meter concealment and no paid upsell for complimentary grants.
+
+## Self-contained directory tool metadata (25 October 2026)
+
+All 14 existing MCP tools publish the same human-readable top-level title and
+`annotations.title`. Three descriptions now describe only their own operation,
+retaining full-replacement metadata, authored history and reversible-archive
+semantics without cross-tool recommendations. No tool, schema, grant, owner-only
+check, source label or migration changes. Two regressions fail before the fix and
+all **10 directory/client-boundary cases** pass afterward through the real MCP SDK.
+Root lint, types, build and all **nine packed artifacts** pass. This is source verification, not a claim that
+production scanners have observed the new metadata or that Claude policy eligibility
+has been resolved. [Current hosted status and limits](hosted-chat.md#official-directory-submissions).
 
 ## More generous Free/Pro allowances (24 October 2026)
 

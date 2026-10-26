@@ -1,6 +1,12 @@
 import type { Knex } from "knex";
+import { actionUsage } from "./action-usage-migration.ts";
+import { conversationContext } from "./conversation-context-migration.ts";
+import { searchQuality } from "./search-quality-migration.ts";
+import { conversationDocuments } from "./conversation-document-migration.ts";
+import { documentImports } from "./document-import-migration.ts";
 import { billing } from "./billing-migration.ts";
 import { systemAdministration } from "./system-admin-migration.ts";
+import { adminSupport } from "./admin-support-migration.ts";
 import { speechCache } from "./speech-cache-migration.ts";
 import { speechDuration } from "./speech-duration-migration.ts";
 import { speechVoices } from "./speech-voices-migration.ts";
@@ -253,6 +259,12 @@ export const migrations = [
   speechCache,
   systemAdministration,
   speechDuration,
+  adminSupport,
+  actionUsage,
+  searchQuality,
+  conversationContext,
+  documentImports,
+  conversationDocuments,
 ];
 
 export const migrationSource: Knex.MigrationSource<

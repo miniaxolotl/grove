@@ -27,6 +27,7 @@ import { TelemetryChoice } from "@/components/website-telemetry";
 import { WorkspaceDrag } from "./memory-drag";
 import { WorkspaceSearch, WorkspaceSearchButton } from "./workspace-search";
 import { ToastProvider } from "./toasts";
+import { WorkspacePlan } from "./account-plan";
 import {
   WorkspaceCommands,
   CommandMenuButton,
@@ -131,6 +132,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         </div>
                         <div className="workspace-utilities">
                           <CommandMenuButton />
+                          <WorkspacePlan />
                           <ShortcutHelpButton compact />
                         </div>
                         <nav
@@ -220,7 +222,7 @@ function NewNoteLink() {
       className="app-button sidebar-create"
       href={`/app/notes/new${notebook ? `?notebook=${encodeURIComponent(notebook)}` : ""}`}
     >
-      <Plus size={16} /> New note
+      <Plus size={16} /> <span>New note</span>
     </Link>
   );
 }

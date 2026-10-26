@@ -3,11 +3,13 @@ import { useState } from "react";
 import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { ExportTasks } from "./export-tasks";
+import { ImportNotesButton } from "./import-notes-button";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
 import { PreferencesPanel } from "./preferences-panel";
+import { AccountPlanDetails } from "./account-plan";
 export function SettingsPanel({
   section = "preferences",
 }: {
@@ -48,6 +50,7 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
         </div>
         {section === "account" && (
           <>
+            <AccountPlanDetails />
             <section className="app-panel">
               <h2 className="font-editorial text-2xl">About you</h2>
               <p className="mt-3 text-sm text-muted">
@@ -62,6 +65,19 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
         )}
         {section === "data" && (
           <>
+            <section className="app-panel">
+              <h2 className="font-editorial text-2xl">
+                Bring your notes to Grove
+              </h2>
+              <p className="mt-3 mb-4 text-sm text-muted">
+                Upload Markdown, text, DOCX and PDFs, then review their
+                notebooks before importing.
+              </p>
+              <ImportNotesButton />
+              <Link className="text-button mt-4" href="/app/settings/files">
+                View files &amp; storage
+              </Link>
+            </section>
             <section className="app-panel">
               <ExportTasks />
             </section>

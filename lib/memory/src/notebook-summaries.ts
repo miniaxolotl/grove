@@ -14,6 +14,12 @@ import {
 } from "@lib/shared/summaries";
 import type { BriefRequest, ModelProfiles } from "@lib/shared/models";
 import { budgetedInference } from "./processing.ts";
+import {
+  markActionWork,
+  reserveAction,
+  settleNamedAction,
+  UsageLimitError,
+} from "./billing-quotas.ts";
 
 export const notebookSummaryProfile = (generation: string) =>
   profileId("notebook-summary-v2", { generation });
@@ -190,7 +196,26 @@ export async function runNotebookSummary(
     const input = await tenant(db, job.accountId, async (trx) => {
       signal?.throwIfAborted();
       const state = await owned(trx, job, providers, resolveProfiles);
-      if (!state) return;
+      if (!state) {
+        if (job.scope.usageOperation)
+          await settleNamedAction(
+            trx,
+            job.accountId,
+            "assistance",
+            job.scope.usageOperation,
+            "released",
+          );
+        return;
+      }
+      const action = job.scope.usageOperation
+        ? await reserveAction(
+            db,
+            trx,
+            job.accountId,
+            "assistance",
+            job.scope.usageOperation,
+          )
+        : null;
       let work = await trx<Work>("notebook_summary_work")
         .where(key(job))
         .first();
@@ -290,6 +315,7 @@ export async function runNotebookSummary(
             .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0] ??
           null;
       }
+      if (sources.length) await markActionWork(trx, action);
       return { work, frame, sources, examined, fingerprint, expiresAt, cached };
     });
     if (!input) return true;
@@ -383,12 +409,23 @@ export async function runNotebookSummary(
         .onConflict(["accountId", "target", "profile"])
         .merge(value);
       await trx("notebook_summary_work").where(key(job)).delete();
+      if (job.scope.usageOperation)
+        await settleNamedAction(
+          trx,
+          job.accountId,
+          "assistance",
+          job.scope.usageOperation,
+          "completed",
+          true,
+        );
       await trx("jobs").where({ id: job.id, leaseId: job.leaseId }).delete();
     });
   } catch (error) {
     await tenant(db, job.accountId, async (trx) => {
       const budget =
-        error instanceof InferenceError && error.code === "inference_budget";
+        (error instanceof InferenceError &&
+          error.code === "inference_budget") ||
+        error instanceof UsageLimitError;
       await trx("jobs")
         .where({ id: job.id, leaseId: job.leaseId })
         .update({
@@ -398,7 +435,7 @@ export async function runNotebookSummary(
           dispatchUntil: null,
           dispatchedAt: null,
           errorCode:
-            error instanceof InferenceError
+            error instanceof InferenceError || error instanceof UsageLimitError
               ? error.code
               : "summary_unavailable",
           attempts: budget ? Math.max(0, job.attempts - 1) : job.attempts,
@@ -408,11 +445,16 @@ export async function runNotebookSummary(
               (error instanceof InferenceError && !error.retryable))
               ? trx.fn.now()
               : null,
-          dueAt: budget
-            ? trx.raw("date_trunc('day',now())+interval '1 day'")
-            : trx.raw("now()+(?*interval '1 second')", [
-                Math.min(3600, 2 ** job.attempts * 10),
-              ]),
+          dueAt:
+            error instanceof UsageLimitError
+              ? error.resetAt
+                ? new Date(error.resetAt)
+                : trx.raw("now()+interval '1 second'")
+              : budget
+                ? trx.raw("date_trunc('day',now())+interval '1 day'")
+                : trx.raw("now()+(?*interval '1 second')", [
+                    Math.min(3600, 2 ** job.attempts * 10),
+                  ]),
         });
     });
   }

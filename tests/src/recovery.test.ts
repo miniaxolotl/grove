@@ -37,6 +37,10 @@ test("isolated restore replays current deletions and revocations without changin
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
     const pendingMedia = randomUUID();
+    const removedDocument = randomUUID(),
+      unsentDocument = randomUUID();
+    const importBatch = randomUUID(),
+      importFile = randomUUID();
     const speechTranscript = randomUUID(),
       speechAudio = randomUUID();
     const speechKey = `speech/${a}/${speechAudio}/${randomUUID()}.mp3`;
@@ -50,6 +54,32 @@ test("isolated restore replays current deletions and revocations without changin
         { id: a, clerkSubject: "recovery_a" },
         { id: b, clerkSubject: "recovery_b" },
       ]);
+      await db("document_import_batches").insert({
+        accountId: a,
+        id: importBatch,
+        status: "ready",
+      });
+      await db("document_import_files").insert({
+        accountId: a,
+        batchId: importBatch,
+        id: importFile,
+        filename: "draft.txt",
+        bytes: 11,
+        sha256: "a".repeat(64),
+        staging: Buffer.from("Old preview"),
+      });
+      await db("document_import_notes").insert({
+        accountId: a,
+        batchId: importBatch,
+        fileId: importFile,
+        id: randomUUID(),
+        ordinal: 0,
+        content: "Old preview",
+        pageStart: 1,
+        pageEnd: 1,
+        sourceStart: 0,
+        sourceEnd: 11,
+      });
       await db("background_tasks").insert([
         {
           id: speechTranscript,
@@ -317,7 +347,80 @@ test("isolated restore replays current deletions and revocations without changin
       tokenCiphertext: null,
     });
     const before = await source("accounts").orderBy("id");
+    for (const db of databases) {
+      const taskId = randomUUID();
+      await db("background_tasks").insert({
+        id: taskId,
+        accountId: a,
+        kind: "conversation_document",
+        dedupeKey: taskId,
+      });
+      await db("conversation_documents").insert([
+        {
+          id: removedDocument,
+          accountId: a,
+          conversationId: retainedChat,
+          taskId,
+          filename: "private.txt",
+          bytes: 4,
+          sha256: "a".repeat(64),
+          status: "ready",
+          accepted: true,
+          objectKey: `media/${a}/${removedDocument}/${taskId}`,
+        },
+        {
+          id: unsentDocument,
+          accountId: a,
+          conversationId: retainedChat,
+          taskId,
+          filename: "unsent.txt",
+          bytes: 4,
+          sha256: "b".repeat(64),
+          staging: Buffer.from("text"),
+        },
+      ]);
+    }
+    await source("conversation_documents")
+      .where({ id: removedDocument })
+      .update({ removedAt: source.fn.now() });
     const result = await reconcileRestore(source, target);
+    assert(
+      (
+        await target("conversation_documents")
+          .where({ id: removedDocument })
+          .first()
+      ).removedAt,
+      "restore must retain current document revocation",
+    );
+    assert.equal(
+      (
+        await target("conversation_documents")
+          .where({ id: unsentDocument })
+          .first()
+      ).staging,
+      null,
+    );
+    assert.equal(
+      (
+        await target("document_import_batches")
+          .where({ id: importBatch })
+          .first()
+      ).status,
+      "cancelled",
+    );
+    assert.equal(
+      (await target("document_import_files").where({ id: importFile }).first())
+        .staging,
+      null,
+    );
+    assert.equal(
+      (
+        await source("document_import_batches")
+          .where({ id: importBatch })
+          .first()
+      ).status,
+      "ready",
+    );
     assert.deepEqual(
       await target("account_administration").where({ accountId: a }).first(),
       await source("account_administration").where({ accountId: a }).first(),
@@ -482,5 +585,55 @@ test("isolated restore replays current deletions and revocations without changin
     await Promise.all(databases.map((db) => db.destroy()));
     for (const name of created) await admin.raw("DROP DATABASE ??", [name]);
     await admin.destroy();
+  }
+});
+
+test("restore preserves current support suspension and notes instead of reviving backup access", async () => {
+  const url = process.env.TEST_MIGRATION_DATABASE_URL!;
+  assert(url && new URL(url).pathname.endsWith("_test"));
+  const authority = createDatabase(url),
+    names = [
+      `support_authority_${randomUUID().replaceAll("-", "")}_test`,
+      `support_restore_${randomUUID().replaceAll("-", "")}_test`,
+    ];
+  const databases = names.map((name) => {
+    const target = new URL(url);
+    target.pathname = "/" + name;
+    return createDatabase(target.href);
+  });
+  try {
+    for (const [index, name] of names.entries()) {
+      await authority.raw("CREATE DATABASE ??", [name]);
+      await databases[index].migrate.latest();
+    }
+    const [source, target] = databases;
+    const id = randomUUID();
+    for (const db of databases)
+      await db("accounts").insert({ id, clerkSubject: "support_restore_user" });
+    await source("accounts").where({ id }).update({
+      status: "disabled",
+      adminSuspended: true,
+      captureEnabled: false,
+    });
+    await source("account_administration").insert({
+      accountId: id,
+      supportNote: "Review suspension before restoring access",
+      version: 2,
+    });
+    await reconcileRestore(source, target);
+    const restored = await target("accounts").where({ id }).first();
+    assert.equal(restored.adminSuspended, true);
+    assert.equal(restored.status, "disabled");
+    assert.equal(restored.captureEnabled, false);
+    assert.equal(
+      (await target("account_administration").where({ accountId: id }).first())
+        .supportNote,
+      "Review suspension before restoring access",
+    );
+  } finally {
+    await Promise.all(databases.map((db) => db.destroy()));
+    for (const name of names)
+      await authority.raw("DROP DATABASE IF EXISTS ??", [name]);
+    await authority.destroy();
   }
 });

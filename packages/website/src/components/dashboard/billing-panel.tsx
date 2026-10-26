@@ -1,11 +1,14 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RotateCw } from "lucide-react";
 import type { BillingStatus, BillingMetric } from "@lib/shared/billing";
 import { DashboardApiError } from "@/lib/dashboard-api";
+import { workspaceKeys } from "@/lib/workspace-cache";
 import { useWorkspaceCache } from "./workspace-cache";
 import "./billing-panel.css";
+import { BillingResources, resourceLabels } from "./billing-resources";
+import { PlanDescription, planNames, planSources } from "./account-plan";
 
 const labels: Record<BillingMetric, string> = {
   generation: "AI requests",
@@ -69,6 +72,14 @@ export function BillingPanel() {
     staleTime: 0,
     refetchInterval: 60000,
   });
+  // Billing reconciles Stripe before returning. Refresh the lightweight badge
+  // snapshot after that sync rather than leaving a checkout's old Free label.
+  useEffect(() => {
+    if (query.dataUpdatedAt)
+      void cache.client.invalidateQueries({
+        queryKey: workspaceKeys.resource("/me"),
+      });
+  }, [cache, query.dataUpdatedAt]);
   const [action, setAction] = useState<string | null>(null),
     [error, setError] = useState("");
   const busy = action !== null;
@@ -147,14 +158,30 @@ export function BillingPanel() {
             <div>
               <div className="billing-plan-name">
                 <h3>
-                  {usage?.plan === "unlimited"
-                    ? "Unlimited"
-                    : usage?.plan === "pro"
-                      ? "Pro"
-                      : "Free"}
+                  {state.plan
+                    ? planNames[state.plan.tier]
+                    : usage
+                      ? planNames[usage.plan]
+                      : "Your plan"}
                 </h3>
-                <span className="billing-current">Current plan</span>
+                {state.plan ? (
+                  <span className="account-plan-source">
+                    {planSources[state.plan.source]}
+                  </span>
+                ) : (
+                  <span className="billing-current">Current plan</span>
+                )}
               </div>
+              {state.plan?.source === "complimentary" ||
+              state.plan?.source === "free" ? (
+                <PlanDescription plan={state.plan} />
+              ) : null}
+              {state.plan?.source === "complimentary" && ongoing ? (
+                <p className="billing-caption">
+                  A separate subscription is still active. Complimentary access
+                  does not cancel it.
+                </p>
+              ) : null}
               {subscription ? (
                 <p className="billing-caption">
                   {paymentDue ? (
@@ -186,17 +213,22 @@ export function BillingPanel() {
                   ? "Opening…"
                   : paymentDue
                     ? "Update payment"
-                    : "Manage plan"}
+                    : "Manage subscription"}
               </button>
             ) : null}
           </section>
+          {state.resources ? (
+            <BillingResources usage={state.resources} />
+          ) : null}
           {usage ? (
             <section
               className="billing-usage"
               aria-labelledby="billing-usage-heading"
             >
               <div className="billing-usage-heading">
-                <h3 id="billing-usage-heading">This month</h3>
+                <h3 id="billing-usage-heading">
+                  {state.resources ? "AI, research & audio" : "This month"}
+                </h3>
                 <span className="billing-caption">
                   Resets {resetDate(usage.monthlyResetAt)}
                 </span>
@@ -316,6 +348,25 @@ export function BillingPanel() {
                 </div>
               ))}
               <dl className="billing-included">
+                {state.proResources
+                  ? (
+                      Object.keys(
+                        resourceLabels,
+                      ) as (keyof typeof resourceLabels)[]
+                    ).map((resource) => (
+                      <div key={resource}>
+                        <dt>{resourceLabels[resource]}</dt>
+                        <dd>
+                          {new Intl.NumberFormat().format(
+                            state.proResources![resource],
+                          )}
+                          {resource === "notes" || resource === "notebooks"
+                            ? " stored"
+                            : " / month"}
+                        </dd>
+                      </div>
+                    ))
+                  : null}
                 {(Object.keys(labels) as BillingMetric[]).map((metric) => (
                   <div key={metric}>
                     <dt>{labels[metric]}</dt>

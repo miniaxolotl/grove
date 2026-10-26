@@ -8,12 +8,21 @@ task handoffs. Browse, correct, archive, export, or delete them in your memory l
 **Memory and notebook tools:** recall, search, exact reads, partial edits, history,
 filing, archive/restore and deletion. [Tool reference](documentation/server.md#memory-and-notebook-tools).
 **One boundary:** every website and agent request goes through the authenticated API.
-**One database:** PostgreSQL, full-text search, and pgvector, with account-owned rows
+**One database:** PostgreSQL full-text search, pg_trgm and pgvector, with account-owned rows
 and non-owner runtime roles enforcing row-level security.
 
 [Website](https://usegrove.cloud) · [Tools/API](documentation/server.md) ·
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Delivery evidence](documentation/delivery.md)
+
+The website's `/docs` reference hub builds directly from selected committed docs.
+See [public reference maintenance](documentation/website-discovery.md) for the
+allowlist, link handling and privacy boundaries. Source delivery does not imply
+that the new routes are already deployed.
+
+[Note search](documentation/search.md) prioritizes visible titles, supports
+final-word prefixes and conservative typo recovery, and shows source-backed
+passages without requiring an AI provider.
 
 Configurable [embedding, decision and generation providers](documentation/models.md)
 add semantic search, generated titles/tags, related memories, and source-linked
@@ -93,6 +102,8 @@ pnpm dev:website
 
 [Verification commands](documentation/development/testing.md) cover actual
 PostgreSQL/RLS, authenticated HTTP/MCP, packed stdio clients, and browser checks.
+[Reviewed file imports](documentation/imports.md) bring Markdown, plain text and
+text-based PDFs into existing or new notebooks without overwriting existing notes.
 [Legacy import](documentation/migration.md) is explicit, ownership-mapped, and
 source-read-only. Local execution plans are in
 `~/Development/bramble-labs/plans/grove/` (`plan.md`, `notes.md`, `status.md`);
@@ -100,7 +111,7 @@ recovered `sources/` are historical snapshots. The tracked
 [images, recordings and speech review](documentation/development/media-plan.md)
 records proposed scope and acceptance gates, not shipped functionality.
 Current implementation contracts are documented under [media](documentation/media.md),
-[recordings](documentation/recordings.md) and opt-in [speech](documentation/speech.md);
+[recordings](documentation/recordings.md) and [speech](documentation/speech.md);
 production activation follows the release and explicit migration procedure.
 
 ## Releases
