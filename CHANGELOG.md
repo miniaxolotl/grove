@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.11.7](https://github.com/miniaxolotl/grove/compare/v1.11.6...v1.11.7) (2026-10-26)
+
+
+### Features
+
+* **admin:** add cross-account usage reports ([ff37777](https://github.com/miniaxolotl/grove/commit/ff37777395535bd666800e1a2ddef610889779d8))
+* **ai:** reuse exact work with separate cached usage discounts ([26b0778](https://github.com/miniaxolotl/grove/commit/26b0778a1c52bc3227726b9e2dab4b1839f5f1f1))
+
+
+### Bug Fixes
+
+* **ai:** validate document citations before caching answers ([1aebd71](https://github.com/miniaxolotl/grove/commit/1aebd71269125451659b80275d1308ecf6c61c6e))
+
 ## [1.11.6](https://github.com/miniaxolotl/grove/compare/v1.11.5...v1.11.6) (2026-10-26)
 
 
