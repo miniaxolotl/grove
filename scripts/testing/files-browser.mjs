@@ -242,7 +242,25 @@ try {
       await expect(
         page.getByRole("list", { name: "Uploaded files", exact: true }),
       ).toContainText("Garden field guide.md");
-      await page.getByText("Garden field guide.md", { exact: true }).click();
+      await expect(page.locator(".files-storage")).not.toHaveAttribute(
+        "open",
+        "",
+      );
+      if (width <= 390)
+        await expect(page.locator("#files-list-heading")).toBeInViewport();
+      await page.getByLabel("Sort by", { exact: true }).selectOption("name");
+      await expect(page.locator(".file-name strong").first()).toHaveText(
+        "Garden field guide.md",
+      );
+      await page.getByLabel("Sort by", { exact: true }).selectOption("size");
+      await expect(page.locator(".file-name strong").first()).toHaveText(
+        "Garden field guide.md",
+      );
+      const fileSummary = page
+        .locator(".file-row > details > summary")
+        .filter({ hasText: "Garden field guide.md" });
+      await fileSummary.focus();
+      await fileSummary.press("Enter");
       const locations = page.getByRole("list", {
         name: "Locations for Garden field guide.md",
         exact: true,
@@ -250,6 +268,13 @@ try {
       await expect(
         locations.getByRole("link", { name: "Garden notebook", exact: true }),
       ).toHaveCount(2);
+      assert(
+        await locations
+          .getByRole("link", { name: "Notes", exact: true })
+          .first()
+          .evaluate((element) => element.clientWidth >= element.scrollWidth),
+        "notebook root label is not clipped by file-row grid styles",
+      );
       const downloadPromise = page.waitForEvent("download");
       await locations
         .getByRole("link", { name: "Download original", exact: true })
@@ -259,11 +284,13 @@ try {
         await readFile(await (await downloadPromise).path()),
         original,
       );
+      await page.locator(".files-storage > summary").click();
       const accessibility = await new AxeBuilder({ page })
         .include("main")
         .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
         .analyze();
       assert.deepEqual(accessibility.violations, []);
+      await page.locator(".files-storage > summary").click();
       assert(
         await page.evaluate(
           () =>
@@ -275,10 +302,6 @@ try {
         await page.locator(".settings-page").evaluate((element) => {
           element.scrollTop = 0;
         });
-        if (width === 320)
-          await page
-            .locator("#files-list-heading")
-            .evaluate((element) => element.scrollIntoView({ block: "start" }));
         if (width === 390)
           await page
             .getByText("Garden field guide.md", { exact: true })
@@ -286,13 +309,36 @@ try {
               element.closest("details").scrollIntoView({ block: "start" }),
             );
         const screenshots = resolve(
-          "documentation/design/screenshots/files-storage",
+          "documentation/design/screenshots/files-experience",
         );
         await mkdir(screenshots, { recursive: true });
         await page.screenshot({
           path: resolve(screenshots, `files-${width}.png`),
           fullPage: true,
         });
+      }
+      await page
+        .getByRole("searchbox", { name: "Search files", exact: true })
+        .fill("Garden notebook");
+      await page
+        .getByRole("button", { name: "Search files", exact: true })
+        .click();
+      await expect(page.locator(".file-row")).toHaveCount(2);
+      await page
+        .getByRole("button", { name: "Clear filters", exact: true })
+        .click();
+      await page.getByRole("button", { name: /^Filters/ }).click();
+      if (width === 1440) {
+        await page
+          .getByLabel("Show files", { exact: true })
+          .selectOption("temporary");
+        await expect(page.locator(".file-row")).toHaveCount(1);
+        await expect(
+          page.getByRole("list", { name: "Uploaded files", exact: true }),
+        ).toContainText("Reading draft.txt");
+        await page
+          .getByLabel("Show files", { exact: true })
+          .selectOption("all");
       }
       await page.getByLabel("File type", { exact: true }).selectOption("image");
       await expect(
@@ -301,6 +347,23 @@ try {
       await expect(
         page.getByRole("list", { name: "Uploaded files", exact: true }),
       ).toContainText("Image ");
+      assert(
+        await page.evaluate(
+          () =>
+            globalThis.document.documentElement.scrollWidth <=
+            globalThis.innerWidth,
+        ),
+        "expanded filters stay within the viewport",
+      );
+      assert.deepEqual(
+        (
+          await new AxeBuilder({ page })
+            .include("main")
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+        [],
+      );
       await page.goto(
         `http://127.0.0.1:${port}/app/settings/files?projectId=${project.id}`,
       );
@@ -308,7 +371,7 @@ try {
         page.getByRole("list", { name: "Uploaded files", exact: true }),
       ).not.toContainText("Plant checklist.txt");
       await expect(
-        page.getByText(/notes directly in this notebook/),
+        page.getByText(/notes directly in Garden notebook/),
       ).toBeVisible();
       await page
         .getByRole("link", { name: "All uploads", exact: true })

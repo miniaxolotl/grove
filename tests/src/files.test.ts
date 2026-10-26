@@ -15,6 +15,7 @@ import {
 } from "@lib/memory";
 import { rememberSchema } from "@lib/shared/contracts";
 import { mediaReference } from "@lib/shared/media";
+import type { FilePage } from "@lib/shared/files";
 import { createApp } from "../../packages/api/src/app.ts";
 import { localMedia } from "../../packages/api/src/media-store.ts";
 import { extractDocument } from "../../packages/api/src/document-extraction.ts";
@@ -73,7 +74,7 @@ async function fixture() {
             headers: { "content-type": "application/json" },
           }),
     });
-  const search = async (body = {}) => {
+  const search = async (body = {}): Promise<FilePage> => {
     const r = await request("/files/search", body);
     assert.equal(r.status, 200, await r.clone().text());
     return (await r.json()).data;
@@ -142,11 +143,9 @@ test("files inventory exposes private chat uploads and honest storage counters w
     accepted = await f.chatUpload("Accepted.txt", true);
   const page = await f.search();
   assert.equal(page.items.length, 2);
-  assert.equal(
-    page.items.find((x: { id: string }) => x.id === staged.id).state,
-    "staged",
-  );
+  assert.equal(page.items.find((x) => x.id === staged.id)?.state, "staged");
   const entry = page.items.find((x: { id: string }) => x.id === accepted.id);
+  assert(entry);
   assert.equal(entry.state, "retained");
   const locations = await f.request("/files/locations", {
     source: entry.source,
@@ -317,6 +316,8 @@ test("file locations follow current notebooks, deduplicate multi-chunk notes and
     history.downloadPath,
     `/memories/${note.id}/media/${id}?version=${saved.version}`,
   );
+  assert.equal((await f.search({ view: "history" })).items.length, 1);
+  assert.equal((await f.search({ view: "unfiled" })).items.length, 1);
 });
 test("chat to full-text conversion lists one retained original with all saved-note associations", async () => {
   const f = await fixture(),
@@ -509,4 +510,151 @@ test("many imported-note locations paginate without duplicates and disappear wit
     ).status,
     404,
   );
+});
+test("inventory sorts globally across pages with microsecond-safe dates and stable name/size ties", async () => {
+  const f = await fixture(),
+    records: { id: string; index: number; filename: string; bytes: number }[] =
+      [];
+  for (let group = 0; group < 2; group++) {
+    const chat = await f.service.conversations.create(f.principal, {
+      id: randomUUID(),
+      includePersonal: false,
+    });
+    for (let j = 0; j < 18; j++) {
+      const index = group * 18 + j,
+        id = randomUUID(),
+        filename = `${index % 2 ? "a" : "Z"} ${index % 4}.txt`,
+        bytes = 10 + (index % 3);
+      await f.docs.upload(
+        f.principal,
+        chat.id,
+        id,
+        filename,
+        Buffer.alloc(bytes, 65),
+      );
+      await owner("conversation_documents")
+        .where({ id })
+        .update({
+          createdAt: `2026-10-25T12:00:00.${String(index).padStart(6, "0")}Z`,
+        });
+      records.push({ id, index, filename, bytes });
+    }
+  }
+  const newest = await f.search();
+  assert.deepEqual(
+    newest.items.map((x) => x.id),
+    [...records]
+      .reverse()
+      .slice(0, 30)
+      .map((x) => x.id),
+  );
+  for (const sort of ["newest", "name", "size"]) {
+    const first = await f.search({ sort }),
+      second = await f.search({ sort, after: first.nextCursor });
+    assert.equal(first.items.length, 30);
+    assert.equal(second.items.length, 6);
+    const compare = (
+      a: (typeof records)[number],
+      b: (typeof records)[number],
+    ) =>
+      sort === "newest"
+        ? b.index - a.index
+        : sort === "size"
+          ? b.bytes - a.bytes || a.id.localeCompare(b.id)
+          : a.filename
+              .toLowerCase()
+              .localeCompare(b.filename.toLowerCase(), "en") ||
+            a.id.localeCompare(b.id);
+    const expected = [...records].sort(compare).map((x) => x.id);
+    assert.deepEqual(
+      [...first.items, ...second.items].map((x) => x.id),
+      expected,
+    );
+    assert.equal(
+      (
+        await f.request("/files/search", {
+          sort: sort === "name" ? "size" : "name",
+          after: first.nextCursor,
+        })
+      ).status,
+      400,
+    );
+  }
+});
+test("file views distinguish temporary, failed and chat-only sources without widening authorization", async () => {
+  const f = await fixture(),
+    staged = await f.chatUpload("Temporary.txt"),
+    accepted = await f.chatUpload("Chat only.txt", true);
+  const failed = await f.chatUpload("Needs attention.txt");
+  await owner("conversation_documents")
+    .where({ id: failed.id })
+    .update({ status: "failed" });
+  const ids = async (view: string) =>
+    (await f.search({ view })).items.map((x) => x.id).sort();
+  assert.deepEqual(await ids("temporary"), [staged.id, failed.id].sort());
+  assert.deepEqual(await ids("attention"), [failed.id]);
+  assert.deepEqual(
+    await ids("chat_only"),
+    [staged.id, accepted.id, failed.id].sort(),
+  );
+  const converted = await f.docs.import(f.principal, accepted.chat.id, {
+    id: randomUUID(),
+    expectedVersion: (await f.docs.list(f.principal, accepted.chat.id)).version,
+  });
+  const review = await f.imports.get(f.principal, converted.id),
+    confirm = await f.imports.confirm(f.principal, converted.id, {
+      id: randomUUID(),
+      expectedVersion: review.version,
+    });
+  await f.drain(confirm.taskId);
+  assert.deepEqual(await ids("chat_only"), [staged.id, failed.id].sort());
+  const other = await fixture();
+  assert.equal((await other.search({ view: "chat_only" })).items.length, 0);
+  await f.docs.remove(f.principal, accepted.chat.id, accepted.id);
+  assert.equal(
+    (await f.search({ view: "unfiled" })).items.length,
+    1,
+    "separately saved source remains authorized through its note",
+  );
+});
+test("location-aware search matches current note/notebook/chat titles and hides removed locations", async () => {
+  const f = await fixture(),
+    doc = await f.chatUpload("Reference.txt", true);
+  await owner("conversations")
+    .where({ id: doc.chat.id })
+    .update({ title: "Seedling questions" });
+  assert.equal(
+    (await f.search({ query: "Seedling questions" })).items.length,
+    1,
+  );
+  const converted = await f.docs.import(f.principal, doc.chat.id, {
+    id: randomUUID(),
+    expectedVersion: (await f.docs.list(f.principal, doc.chat.id)).version,
+  });
+  const project = await f.service.project(f.principal, {
+    name: "Botany research",
+    identity: randomUUID(),
+  });
+  let review = await f.imports.get(f.principal, converted.id);
+  await f.imports.place(f.principal, converted.id, {
+    expectedVersion: review.version,
+    destination: { projectId: project.id, version: project.version },
+  });
+  review = await f.imports.get(f.principal, converted.id);
+  const confirm = await f.imports.confirm(f.principal, converted.id, {
+    id: randomUUID(),
+    expectedVersion: review.version,
+  });
+  await f.drain(confirm.taskId);
+  assert.equal((await f.search({ query: "Botany research" })).items.length, 1);
+  assert.equal(
+    (await f.search({ query: "Seedlings need damp mulch" })).items.length,
+    1,
+  );
+  await f.docs.remove(f.principal, doc.chat.id, doc.id);
+  assert.equal(
+    (await f.search({ query: "Seedling questions" })).items.length,
+    0,
+  );
+  assert.equal((await f.search({ query: "Botany research" })).items.length, 1);
 });

@@ -1,5 +1,5 @@
-.files-panel {
-  max-width: 64rem;
+.settings-content.files-panel {
+  max-width: 60rem;
 }
 .files-heading,
 .files-list-heading {
@@ -14,7 +14,51 @@
 }
 .files-storage {
   border-block: 1px solid var(--color-line);
-  padding-block: 1.25rem;
+  padding-block: 0.9rem;
+}
+.files-storage > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+.files-storage > summary::-webkit-details-marker {
+  display: none;
+}
+.files-storage > summary > span {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+.files-storage > summary strong {
+  font-weight: 500;
+}
+.files-storage > summary > span > span {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.files-storage > summary .files-storage-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  display: block;
+}
+.files-storage-value > span {
+  display: block;
+}
+.files-storage[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.files-storage-detail {
+  padding-top: 0.75rem;
+}
+.files-storage-detail > p {
+  max-width: 80ch;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--color-muted);
+  margin-top: 0.75rem;
 }
 .files-storage dl {
   display: grid;
@@ -65,7 +109,7 @@
   display: flex;
   gap: 0.75rem;
   align-items: end;
-  margin-block: 1.25rem 0.75rem;
+  margin-block: 1rem 0.75rem;
 }
 .files-filters label {
   display: grid;
@@ -76,8 +120,8 @@
 .files-filters label:first-child {
   flex: 1;
 }
-.files-filters input,
-.files-filters select {
+.files-panel input,
+.files-panel select {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--color-line);
@@ -86,6 +130,91 @@
   padding: 0.65rem 0.75rem;
   color: var(--color-forest);
   font-size: 0.875rem;
+}
+.files-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.files-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  min-height: 44px;
+}
+.files-filter-toggle[aria-expanded="true"] {
+  color: var(--color-leaf);
+  font-weight: 500;
+}
+.files-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  min-width: 0;
+}
+.files-sort select {
+  width: auto;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+}
+.files-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+}
+.files-filter-grid[hidden] {
+  display: none;
+}
+.files-filter-grid > label,
+.files-notebook-filter {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  min-width: 0;
+}
+.files-filter-error {
+  grid-column: 1/-1;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.files-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+.files-active-filters > button:not(.text-button) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.35rem;
+  background: var(--color-sage);
+  font-size: 0.75rem;
+}
+.files-active-filters > button > span:first-child {
+  overflow-wrap: anywhere;
+}
+.files-active-filters svg {
+  flex-shrink: 0;
+}
+.files-active-filters .text-button {
+  font-size: 0.75rem;
 }
 .files-filters button {
   min-height: 2.65rem;
@@ -111,7 +240,7 @@
 }
 .file-row > details > summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 1rem;
   padding: 1rem 0.25rem;
@@ -137,6 +266,23 @@
   font-size: 0.75rem;
   color: var(--color-muted);
 }
+.file-state {
+  font-size: 0.7rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.3rem;
+  padding: 0.2rem 0.4rem;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.file-state[data-state="staged"] {
+  background: var(--color-sage);
+  color: var(--color-forest);
+}
+.file-state[data-state="attention"] {
+  background: #fbf0e4;
+  color: #784116;
+  border-color: #d6b48e;
+}
 .file-location-count {
   display: flex;
   gap: 0.4rem;
@@ -152,14 +298,25 @@
 .file-expanded {
   padding: 0 1rem 1rem 2.4rem;
 }
-.file-places li {
-  display: flex;
-  justify-content: space-between;
+.file-places > ul > li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
   padding-top: 1rem;
 }
-.file-places li > div {
+.file-places > ul > li > svg {
+  align-self: start;
+  margin-top: 0.2rem;
+  color: var(--color-muted);
+}
+.file-places .notebook-breadcrumbs {
+  margin-top: 0.3rem;
+}
+.file-places .notebook-breadcrumbs ol {
+  flex-wrap: wrap;
+}
+.file-places > ul > li > div {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -174,7 +331,7 @@
   margin-top: 0.25rem;
   line-height: 1.6;
 }
-.file-places li > a {
+.file-places > ul > li > a {
   flex-shrink: 0;
 }
 .files-paging {
@@ -197,7 +354,18 @@
 }
 @media (max-width: 640px) {
   .files-heading {
-    flex-wrap: wrap;
+    display: block;
+    position: relative;
+  }
+  .files-heading h2 {
+    padding-right: 6.5rem;
+  }
+  .files-heading > .text-button {
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 0.75rem;
+    min-height: 24px;
   }
   .files-storage dl {
     grid-template-columns: 1fr;
@@ -222,6 +390,21 @@
   .files-filters label:nth-child(2) {
     flex: 1;
   }
+  .files-filters label:first-child {
+    flex-basis: 0;
+  }
+  .files-filter-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .files-notebook-filter {
+    grid-column: 1/-1;
+  }
+  .files-toolbar {
+    gap: 0.5rem;
+  }
+  .files-sort {
+    gap: 0.35rem;
+  }
   .file-row > details > summary {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 0.5rem;
@@ -229,19 +412,30 @@
   .file-name {
     grid-column: 2 / 4;
   }
-  .file-size {
+  .file-state {
     grid-column: 2;
+    justify-self: start;
+    grid-row: 2;
+  }
+  .file-size {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
   }
   .file-location-count {
     justify-self: end;
+    grid-column: 2/4;
   }
   .file-expanded {
     padding-left: 0;
     padding-right: 0;
   }
-  .file-places li {
+  .file-places > ul > li {
     align-items: start;
-    flex-direction: column;
+    grid-template-columns: 16px minmax(0, 1fr);
     gap: 0.5rem;
+  }
+  .file-places > ul > li > a {
+    grid-column: 2;
   }
 }

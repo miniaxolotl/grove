@@ -96,6 +96,13 @@ record actual-component desktop/mobile warnings and legacy/unlimited compatibili
 
 ## Files & storage
 
+Refinement regressions also pin global newest/name/size ordering across pages,
+microsecond date positions, deterministic ties, sort-bound cursors and location-
+aware search/view filters. The file UI tests cover notebook picker keyboard/focus,
+context-preserving reset and first-page recovery. Real browser journeys check
+collapsed storage, visible mobile file heading, keyboard expansion, untruncated
+notebook-root labels, location search and whole-inventory sort controls.
+
 `tests/src/files.test.ts` covers the real read projection under non-owner RLS:
 mixed import/chat/media metadata, conservative budget versus available bytes,
 expiry/removal/deleted-source denial, foreign accounts/agent denial, filename
