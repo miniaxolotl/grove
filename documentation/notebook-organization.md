@@ -9,11 +9,15 @@ that the owner's reported physical-phone gesture failures are repaired.
 
 - Open **Organize** from the notebook manager or explorer, or **Rearrange notebook**
   from a notebook's actions menu. Select a notebook to **Move up**, **Move down**,
-  **Nest inside…** or **Move out**. Move out places it after its former parent.
+  **Move to…** or **Move out**. Move to opens the destination/position chooser;
+  Move out places it after its former parent. The selection shows its current
+  location and sibling position. Changes save immediately; Done closes Organize.
 - **Move notebook** in any notebook menu opens the same searchable destination
   chooser. Select Top level or another notebook, then choose At the end or an
   explicit before/after sibling position. The source and its descendants are not
-  offered as destinations. Search shows full ancestor paths.
+  offered as destinations. Search matches full ancestor paths, displayed below
+  destination names. A preview retains the chosen destination and position even
+  when search hides its row. Cancel returns focus to Move to in Organize.
 - Filtered Organize lists disable adjacent Move up/down until the search is cleared;
   a filtered list is not the complete sibling group. Archived notebooks remain in
   their separate list with Restore/Delete, not ordering controls.
@@ -26,6 +30,11 @@ that the owner's reported physical-phone gesture failures are repaired.
   touch-primary device the notebook folder control opens Organize instead of
   activating long-press drag, and permits native vertical scrolling/pinch zoom.
   Note drag and swipe handlers are unchanged by this slice.
+
+The desktop organizer separates the notebook browser from the selected controls.
+Phones stack them, with Done outside the scrolling content. Move keeps its action
+footer reachable while destinations and supporting information scroll. Empty
+searches offer Clear search; reopening Organize starts with an unfiltered list.
 
 Every owner tree uses a complete catalog scan before presenting destinations.
 Partial scans never replace the last complete snapshot. A changed scan restarts

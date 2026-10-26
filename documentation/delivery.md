@@ -1,12 +1,50 @@
 # Delivery evidence
 
+## Notebook organizer polish (26 October 2026)
+
+The organizer separates browsing from selected-notebook controls on desktop and
+stacks them on phones. Done has its own footer, sibling position is explicit, and
+the selected row stays visible when the list resizes. One **Move to…** action
+replaces competing destination links; Cancel returns focus to that action, or the
+selected heading when recovery has locked movement. Reopening starts unfiltered.
+
+Move uses one search outline, separate notebook names/ancestor paths, clear empty
+search recovery and a destination/placement preview that remains visible in the
+form when filtering hides the chosen row. Its action footer stays outside scrolling
+content, including short windows. Grove's palette/type and all operation, retry,
+review and Undo state fences are unchanged. [Reviewed captures](design/screenshots/notebook-organizer/README.md)
+use actual components, production CSS and the disposable synthetic500-notebook API.
+
+All **239 Chromium regressions** pass with the CI telemetry build settings and
+isolated temporary directories. All **nine packaged artifact tests**, root/site
+lint, types, production builds and the
+bundle gate pass; Notes is **496,249 gzip bytes** under513,351, editor deferred.
+Both engines pass the500-notebook API/RLS journey for reorder/nest/unnest/Undo,
+accepted-lost exact replay from both entry points, reviewed conflicts, stale-Undo
+refusal and unchanged original note scope/version. Both also pass1440/390/320px,
+420px-height footer/body-scroll, empty-state, search, selected-row and focus checks,
+with representative filtered WCAG A/AA checks. Mobile WebKit's recovery submission
+uses native tap. Existing frontend assertions/timeouts remain unchanged; no new
+frontend test cases are added.
+
+Instrumented full500 mobile WebKit pointer Undo and the longer real-service journey
+passed before these visual edits. The trace confirms the notification's actual hit
+target and inverse write; it does not explain earlier intermittent failures. No
+notification/mutation repair or physical-phone acceptance is inferred.
+The later long touch/mobile WebKit sequence missed a mouse-click submission, though
+the native-tap repeat and separate full functional journey pass. An additional
+existing WebKit archive/draft case also could not reach Manage notebooks from the
+phone editor (seven of eight selected cases pass); its Chromium equivalent passes.
+These remain explicit qualification limits, not hidden skips or repaired-device
+claims. No migration, retained-data reset, merge or deployment is part of polish.
+
 ## Shared notebook organizer (25 October 2026)
 
-**Draft qualification:** the full500-row WebKit pointer/Undo stress journey is
+**Qualification limit:** the full500-row WebKit pointer/Undo stress journey was
 not consistently passing. Small filtered real-service moves/Undo and seven existing
 WebKit regressions pass, but they do not qualify the large-catalog notification
-interaction. Investigate event/focus/notification behavior before marking the UI
-ready; do not infer physical-phone repair from the Chromium evidence below.
+interaction. Isolated passing repeats in the polish pass do not establish its prior
+root cause; do not infer physical-phone repair from the Chromium evidence below.
 
 Stacked on foundation PR140, the website now combines every owner catalog page
 before presenting notebook trees or destinations. **Organize** offers Move up/down,

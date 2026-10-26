@@ -33,7 +33,20 @@ swipe failures remains required for a device-fix claim. The coarse-pointer noteb
 folder control intentionally opens Organize and permits native scroll; note drag/
 swipe handlers remain unchanged. Browser emulation is not physical acceptance.
 
-The stacked UI remains draft pending consistent500-row WebKit pointer/Undo results.
+The full500-row WebKit pointer/Undo qualification gap remains recorded independently
+of the PR's ready/draft setting; isolated passing repeats do not explain earlier
+intermittent results. Capture pointer/focus targets and actual organization requests
+before proposing any mutation/notification repair.
+For organizer polish, review the two-pane desktop and stacked phone layouts, selected
+row visibility after resize, sibling position, empty search recovery, destination/
+placement preview while filtering, and Cancel focus return. Check Done and Move/
+Cancel footers at320/390/1440px and420px height, with the body scrollable. Check that
+the Move search has only one border and all existing API/state fences remain intact.
+Use native `tap` for touch/mobile submissions, recording mouse-click journeys
+separately. The polish review has passing native-tap recovery and isolated full500
+functional runs, but an intermittent long mouse-click submission remains recorded.
+The selected existing WebKit archive/draft case could not reach Manage notebooks
+from the phone editor; do not describe its seven passing neighbors as eight passes.
 Small filtered journeys are not a substitute. Use a task-owned TMPDIR when shared
 scratch storage is at quota, and restart the fixture after a production rebuild:
 its CSS manifest is captured at startup. Missing CSS and cancelled downloads from

@@ -307,34 +307,72 @@
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
 }
 .app-dialog.inspector-dialog:has(> .notebook-organizer) {
   --inspector-width: min(
-    520px,
+    720px,
     calc(var(--overlay-viewport-width, 100vw) - var(--inspector-inset) * 2)
   );
   height: min(780px, calc(var(--overlay-viewport-height, 100dvh) - 24px));
 }
+.app-dialog.inspector-dialog:has(.notebook-move) {
+  --inspector-width: min(
+    520px,
+    calc(var(--overlay-viewport-width, 100vw) - var(--inspector-inset) * 2)
+  );
+}
+.notebook-organizer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+}
+.notebook-organizer-browser {
+  min-width: 0;
+}
+.notebook-organizer-browser > .app-search,
+.notebook-move-body > .app-search {
+  flex: 0 0 auto;
+}
+.notebook-organizer-caption {
+  color: var(--color-muted);
+  font-size: 12px;
+  margin: 10px 0;
+}
 .notebook-organizer-intro {
   color: var(--color-muted);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .notebook-organizer .app-search input,
-.notebook-move .app-search input {
+.notebook-move.app-form .app-search input {
   font-size: 16px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.notebook-organizer .app-search button {
+  min-width: 44px;
   min-height: 44px;
 }
 .notebook-organizer-list {
-  flex-shrink: 0;
-  max-height: min(36dvh, 340px);
+  max-height: min(24dvh, 220px);
   overflow: auto;
   overscroll-behavior: contain;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 4px;
+  background: #fff;
 }
 .notebook-organizer-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1;
   min-width: 0;
   text-align: left;
@@ -342,6 +380,19 @@
   min-height: 48px;
   font-size: 16px;
   overflow-wrap: anywhere;
+}
+.notebook-organizer-choice > span {
+  flex: 1;
+  min-width: 0;
+}
+.notebook-organizer-choice > svg {
+  flex-shrink: 0;
+  color: var(--color-leaf);
+}
+.notebook-organizer-choice:focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -3px;
+  border-radius: 5px;
 }
 .notebook-organizer-choice[aria-pressed="true"] {
   font-weight: 600;
@@ -354,7 +405,9 @@
   opacity: 1;
 }
 .notebook-organization-controls {
+  min-width: 0;
   border-top: 1px solid var(--color-line);
+  margin-top: 18px;
   padding-top: 16px;
 }
 .notebook-organization-controls h3 {
@@ -375,21 +428,110 @@
   gap: 8px;
   margin: 12px 0;
 }
-.notebook-position-controls .app-button {
+.notebook-position-controls .app-button,
+.notebook-location-controls .app-button {
   min-height: 44px;
   white-space: normal;
   padding: 8px;
 }
+.notebook-location-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.notebook-organization-controls .notebook-sibling-position {
+  font-size: 12px;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.notebook-reorder-help .text-button,
+.notebook-organizer-empty .text-button {
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.notebook-organizer-empty {
+  padding: 20px 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.notebook-organizer-prompt {
+  text-align: center;
+  align-self: center;
+}
+.notebook-organizer-prompt > svg {
+  margin: 0 auto 12px;
+  color: var(--color-leaf);
+}
+.notebook-organizer-prompt h3 {
+  color: var(--color-forest);
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
 .notebook-organizer-done {
   display: flex;
-  justify-content: flex-end;
-  position: sticky;
-  bottom: -18px;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
   background: var(--color-paper);
-  padding: 12px 0 max(12px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--color-line);
+  padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px));
+}
+.notebook-organizer-done p {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.notebook-organizer-done .app-button {
+  min-height: 44px;
+}
+.notebook-move.app-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.notebook-move-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.notebook-move-summary {
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 14px;
+}
+.notebook-move-help {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.notebook-move-summary .notebook-move-help {
+  margin-top: 4px;
+}
+.app-dialog:not(.inspector-dialog):has(.notebook-move) {
+  padding: 0;
+  overflow: hidden;
+}
+.app-dialog:not(.inspector-dialog):has(.notebook-move) > .dialog-heading {
+  margin: 0;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-line);
+}
+.app-dialog:not(.inspector-dialog) .notebook-move-body {
+  max-height: calc(var(--overlay-viewport-height, 100dvh) - 250px);
 }
 .notebook-destinations {
   min-width: 0;
+  flex-shrink: 0;
 }
 .notebook-destinations legend {
   font-size: 14px;
@@ -397,16 +539,16 @@
   font-weight: 500;
 }
 .notebook-destination-list {
-  max-height: min(32dvh, 280px);
+  max-height: min(24dvh, 220px);
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--color-line);
   border-radius: 6px;
 }
-.notebook-destination-list label {
+.notebook-move .notebook-destination-list label {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px 12px;
   min-height: 48px;
   font-weight: 400;
@@ -418,16 +560,38 @@
 .notebook-destination-list label[data-selected] {
   background: var(--color-sage);
 }
-.notebook-destination-list input {
+.notebook-destination-list label:focus-within {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -3px;
+}
+.notebook-destination-list label > svg {
+  flex-shrink: 0;
+  color: var(--color-muted);
+}
+.notebook-move .notebook-destination-list input {
   width: 18px;
   height: 18px;
   min-height: 0;
   flex: 0 0 18px;
   accent-color: var(--color-leaf);
+  padding: 0;
 }
 .notebook-destination-list span {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.notebook-destination-name {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.5;
+}
+.notebook-destination-name small,
+.notebook-destination-current {
+  font-size: 11px;
+  color: var(--color-muted);
+  font-weight: 400;
 }
 .notebook-destination-list > p {
   padding: 16px;
@@ -437,18 +601,52 @@
   font-size: 13px;
   line-height: 1.6;
   color: var(--color-muted);
+  padding: 10px 12px;
+  border-left: 2px solid var(--color-leaf);
+  background: var(--color-sage);
+  overflow-wrap: anywhere;
 }
 .notebook-move-buttons {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-line);
+  padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px));
 }
 .notebook-move-buttons .app-button {
   min-height: 44px;
 }
 .notebook-move-error {
   font-size: 14px;
+}
+@media (min-width: 700px) {
+  .notebook-organizer-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 260px);
+    gap: 20px;
+    overflow: hidden;
+  }
+  .notebook-organizer-browser {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .notebook-organizer-list {
+    flex: 1;
+    max-height: none;
+  }
+  .notebook-organization-controls {
+    margin-top: 0;
+    padding: 0 0 0 20px;
+    border-top: 0;
+    border-left: 1px solid var(--color-line);
+    overflow-y: auto;
+  }
+  .notebook-organizer-body > [role="alert"] {
+    grid-column: 1 / -1;
+  }
 }
 @media (max-width: 600px) {
   .app-content:has(> .notebook-manager) {
@@ -471,8 +669,8 @@
   .notebook-manager .notebook-tree-link {
     font-size: 16px;
   }
-  .notebook-organizer-list {
-    max-height: 30dvh;
+  .notebook-destination-current {
+    display: none;
   }
 }
 @media (max-width: 360px) {
