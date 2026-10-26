@@ -37,6 +37,8 @@ test("isolated restore replays current deletions and revocations without changin
       erasedAccountMemory = randomUUID();
     const connection = randomUUID();
     const pendingMedia = randomUUID();
+    const removedDocument = randomUUID(),
+      unsentDocument = randomUUID();
     const importBatch = randomUUID(),
       importFile = randomUUID();
     const speechTranscript = randomUUID(),
@@ -345,7 +347,59 @@ test("isolated restore replays current deletions and revocations without changin
       tokenCiphertext: null,
     });
     const before = await source("accounts").orderBy("id");
+    for (const db of databases) {
+      const taskId = randomUUID();
+      await db("background_tasks").insert({
+        id: taskId,
+        accountId: a,
+        kind: "conversation_document",
+        dedupeKey: taskId,
+      });
+      await db("conversation_documents").insert([
+        {
+          id: removedDocument,
+          accountId: a,
+          conversationId: retainedChat,
+          taskId,
+          filename: "private.txt",
+          bytes: 4,
+          sha256: "a".repeat(64),
+          status: "ready",
+          accepted: true,
+          objectKey: `media/${a}/${removedDocument}/${taskId}`,
+        },
+        {
+          id: unsentDocument,
+          accountId: a,
+          conversationId: retainedChat,
+          taskId,
+          filename: "unsent.txt",
+          bytes: 4,
+          sha256: "b".repeat(64),
+          staging: Buffer.from("text"),
+        },
+      ]);
+    }
+    await source("conversation_documents")
+      .where({ id: removedDocument })
+      .update({ removedAt: source.fn.now() });
     const result = await reconcileRestore(source, target);
+    assert(
+      (
+        await target("conversation_documents")
+          .where({ id: removedDocument })
+          .first()
+      ).removedAt,
+      "restore must retain current document revocation",
+    );
+    assert.equal(
+      (
+        await target("conversation_documents")
+          .where({ id: unsentDocument })
+          .first()
+      ).staging,
+      null,
+    );
     assert.equal(
       (
         await target("document_import_batches")

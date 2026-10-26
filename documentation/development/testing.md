@@ -94,6 +94,34 @@ separate action coverage pins the production two-call ceiling across replicas.
 Use only the disposable databases described below. [Usage captures](../design/screenshots/free-pro-usage/README.md)
 record actual-component desktop/mobile warnings and legacy/unlimited compatibility.
 
+## Documents in Ask Grove
+
+Run `conversation-documents.test.ts`, `conversation-document-migration.test.ts`,
+`document-extraction.test.ts`, existing conversations/import tests and recovery
+against disposable non-owner API/worker URLs. Coverage includes upload integrity,
+no hidden library writes, exact quotations/revisions, actual serialized provider
+payloads, acceptance replay/races, pre-dispatch/removal fences, private note-linked
+originals, failed-task retry, shared staging admission, chat-only exports and restored
+revocations. DOCX adversarial cases run only against synthetic packages in the
+permission-limited process. The populated031→032 case preserves old notes/imports/chats.
+
+After a production website build, `tests/ask-documents.spec.ts` exercises actual
+components and production CSS at1440/390/320px with synthetic responses. For real
+API/PostgreSQL/parser/original-store journeys run:
+
+```sh
+pnpm exec tsx scripts/testing/ask-documents-browser.mjs
+```
+
+It creates/removes an isolated `_test` database, uploads real synthetic DOCX/Markdown,
+uses an explicitly synthetic generation provider, checks citations/follow-ups,
+byte-identical private originals, reviewed full-text save, removal masking and WCAG
+A/AA/overflow/page errors. `ASK_BROWSER=webkit` chooses supported WebKit;
+`ASK_WORKER_DIRECTORY=/path/to/pnpm-deploy-output` chooses the packaged production
+worker and asserts clean SIGTERM draining. Use the existing supported Playwright
+container when native host libraries are absent. Synthetic model responses do not
+qualify live-model answer quality. [Reviewed captures](../design/screenshots/ask-documents/README.md).
+
 ## Admin support and usage
 
 `system-admin.test.ts`, `system-admin-migration.test.ts` and `recovery.test.ts`

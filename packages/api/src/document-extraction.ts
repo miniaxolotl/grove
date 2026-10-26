@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { realpath } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
 
 export type DocumentPage = { page: number; text: string };
 export type DocumentSegment = {
@@ -118,14 +119,71 @@ const parser = `
   }
 `;
 
+const docxParser = `
+  const {unzipSync,strFromU8}=await import(process.argv[1]);
+  const {SaxesParser}=await import(process.argv[2]);
+  const chunks=[];let input=0;
+  for await(const chunk of process.stdin){input+=chunk.length;if(input>3145728)process.exit(2);chunks.push(chunk);}
+  try{
+    let entries=0,expanded=0;const names=new Set();
+    const files=unzipSync(new Uint8Array(Buffer.concat(chunks)),{filter(file){
+      if(++entries>256 || names.has(file.name) || file.name.includes('..') || file.name.includes('\\\\') || file.name.startsWith('/') || /vba|encrypted|\\.bin$/i.test(file.name))throw Error('invalid_package');
+      names.add(file.name);expanded+=file.originalSize;
+      if(file.originalSize>8388608 || expanded>16777216)throw Error('expanded_limit');
+      return file.name==='word/document.xml' || file.name==='[Content_Types].xml';
+    }});
+    if(!files['word/document.xml'] || !files['[Content_Types].xml'])throw Error('invalid_docx');
+    const types=strFromU8(files['[Content_Types].xml']);
+    if(!types.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml') || /macroEnabled|vbaProject/i.test(types))throw Error('invalid_docx');
+    let text='',depth=0,inText=false;
+    const parser=new SaxesParser({xmlns:true});
+    const add=value=>{text+=value;if(Buffer.byteLength(text)>1048576)throw Error('text_limit');};
+    parser.on('doctype',()=>{throw Error('doctype_disabled');});
+    parser.on('opentag',tag=>{
+      if(++depth>128)throw Error('depth_limit');
+      if(tag.uri==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'){
+        if(tag.local==='t')inText=true;
+        if(tag.local==='tab')add('\\t');
+        if(tag.local==='br')add('\\n');
+      }
+    });
+    parser.on('text',value=>{if(inText)add(value);});
+    parser.on('closetag',tag=>{depth--;if(tag.uri==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'){
+      if(tag.local==='t')inText=false;
+      if(tag.local==='p')add('\\n\\n');
+    }});
+    parser.write(new TextDecoder('utf-8',{fatal:true}).decode(files['word/document.xml'])).close();
+    process.stdout.write(JSON.stringify([{page:1,text:text.trim()}]));
+  }catch{process.exit(6);}
+`;
+
 async function pdfPages(
   bytes: Buffer,
   signal: AbortSignal,
+  kind: "pdf" | "docx" = "pdf",
 ): Promise<DocumentPage[]> {
   signal.throwIfAborted();
   const module = await realpath(
-    fileURLToPath(import.meta.resolve("pdfjs-dist/legacy/build/pdf.mjs")),
+    fileURLToPath(
+      import.meta.resolve(
+        kind === "pdf" ? "pdfjs-dist/legacy/build/pdf.mjs" : "fflate/browser",
+      ),
+    ),
   );
+  const modules = [module],
+    roots = [resolve(dirname(module), kind === "pdf" ? "../.." : "..")];
+  if (kind === "docx") {
+    const saxes = await realpath(fileURLToPath(import.meta.resolve("saxes")));
+    const xmlchars = await realpath(
+      createRequire(saxes).resolve("xmlchars/xml/1.0/ed5"),
+    );
+    modules.push(saxes);
+    roots.push(
+      dirname(saxes),
+      resolve(dirname(saxes), "../xmlchars"),
+      resolve(dirname(xmlchars), "../.."),
+    );
+  }
   const controller = new AbortController();
   const deadline = AbortSignal.any([
     signal,
@@ -138,11 +196,11 @@ async function pdfPages(
       [
         "--max-old-space-size=128",
         "--permission",
-        `--allow-fs-read=${resolve(dirname(module), "../..")}`,
+        ...roots.map((root) => `--allow-fs-read=${root}`),
         "--input-type=module",
         "--eval",
-        parser,
-        pathToFileURL(module).href,
+        kind === "pdf" ? parser : docxParser,
+        ...modules.map((path) => pathToFileURL(path).href),
       ],
       { stdio: ["pipe", "pipe", "ignore"], env: {} },
     );
@@ -164,10 +222,10 @@ async function pdfPages(
       if (deadline.aborted || code !== 0)
         return fail(
           new GroveError(
-            "document_pdf",
+            kind === "pdf" ? "document_pdf" : "document_docx",
             code === 5
               ? "Password-protected PDFs are not supported"
-              : "PDF could not be read within the page, text or processing limits",
+              : "Document could not be read within the format, text or processing limits",
             422,
           ),
         );
@@ -194,22 +252,30 @@ export async function extractDocument(
       413,
     );
   const isPdf = /\.pdf$/i.test(filename);
+  const isDocx = /\.docx$/i.test(filename);
   const signature = bytes.subarray(0, 5).toString() === "%PDF-";
   if (
-    (!isPdf && !/\.(md|markdown|txt)$/i.test(filename)) ||
-    isPdf !== signature
+    (!isPdf && !isDocx && !/\.(md|markdown|txt)$/i.test(filename)) ||
+    isPdf !== signature ||
+    (isDocx && !bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 3, 4])))
   )
     throw new GroveError(
       "document_type",
-      "Choose Markdown, plain text or a valid PDF",
+      "Choose Markdown, plain text, DOCX or a valid PDF",
       422,
     );
   const pages = isPdf
     ? await pdfPages(bytes, signal)
-    : [{ page: 1, text: decodeDocumentText(bytes) }];
+    : isDocx
+      ? await pdfPages(bytes, signal, "docx")
+      : [{ page: 1, text: decodeDocumentText(bytes) }];
   const segments = segmentDocument(pages);
   return {
-    mime: isPdf ? ("application/pdf" as const) : ("text/plain" as const),
+    mime: isPdf
+      ? ("application/pdf" as const)
+      : isDocx
+        ? ("application/vnd.openxmlformats-officedocument.wordprocessingml.document" as const)
+        : ("text/plain" as const),
     sha256: createHash("sha256").update(bytes).digest("hex"),
     pages,
     segments,

@@ -43,7 +43,10 @@ type FileRow = ImportBatch["files"][number] & {
   batchId: string;
   staging: Buffer | null;
   sha256: string;
-  mime: "application/pdf" | "text/plain";
+  mime:
+    | "application/pdf"
+    | "text/plain"
+    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   objectKey: string | null;
 };
 type DraftRow = ImportBatch["notes"][number] & {
@@ -53,7 +56,10 @@ type DraftRow = ImportBatch["notes"][number] & {
   sourceEnd: number;
 };
 export type DocumentExtraction = {
-  mime: "application/pdf" | "text/plain";
+  mime:
+    | "application/pdf"
+    | "text/plain"
+    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   sha256: string;
   pages: { page: number; text: string }[];
   emptyPages: number[];
@@ -70,7 +76,10 @@ export interface DocumentSourceStore {
     key: string,
     document: {
       bytes: Buffer;
-      mime: "application/pdf" | "text/plain";
+      mime:
+        | "application/pdf"
+        | "text/plain"
+        | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       sha256: string;
     },
     signal: AbortSignal,
@@ -201,7 +210,7 @@ export class DocumentImports {
     // eslint-disable-next-line no-control-regex -- reject control characters in untrusted filenames
     const invalidFilename = /[\x00-\x1f/\\]/.test(filename);
     if (
-      !/\.(md|markdown|txt|pdf)$/i.test(filename) ||
+      !/\.(md|markdown|txt|pdf|docx)$/i.test(filename) ||
       invalidFilename ||
       filename.length > 200
     )
@@ -236,6 +245,15 @@ export class DocumentImports {
         return { id };
       }
       if (batch.status !== "uploading") throw changed();
+      const { rows: staging } = await trx.raw(
+        `SELECT COALESCE((SELECT sum(octet_length(staging)) FROM conversation_documents),0)+COALESCE((SELECT sum(octet_length(staging)) FROM document_import_files),0) AS bytes`,
+      );
+      if (Number(staging[0].bytes) + bytes.length > 75 * 1024 * 1024)
+        throw new GroveError(
+          "document_staging_limit",
+          "Finish or remove pending uploads before adding more",
+          429,
+        );
       if (
         Number(
           (

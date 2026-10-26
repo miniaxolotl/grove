@@ -21,7 +21,10 @@ import {
 type VerifiedMedia = { bytes: Buffer; mime: MediaMime; sha256: string };
 type VerifiedDocument = {
   bytes: Buffer;
-  mime: "application/pdf" | "text/plain";
+  mime:
+    | "application/pdf"
+    | "text/plain"
+    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   sha256: string;
 };
 type VerifiedSource = VerifiedMedia | VerifiedDocument;
@@ -54,7 +57,11 @@ function validDocument(document: VerifiedDocument) {
     !Buffer.isBuffer(document.bytes) ||
     !document.bytes.length ||
     document.bytes.length > 3 * 1024 * 1024 ||
-    !["application/pdf", "text/plain"].includes(document.mime)
+    ![
+      "application/pdf",
+      "text/plain",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ].includes(document.mime)
   )
     throw new Error("invalid_document_object");
 }

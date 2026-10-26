@@ -95,6 +95,10 @@ import type { QueueLane } from "@lib/shared/jobs";
 export { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
 export { Tasks } from "./tasks.ts";
 export { DocumentImports, documentImportHandlers } from "./document-imports.ts";
+export {
+  ConversationDocuments,
+  conversationDocumentHandlers,
+} from "./conversation-documents.ts";
 export { SpeechJobs, speechHandlers, configureSpeech } from "./speech.ts";
 export { exportHandlers, type ArtifactStore } from "./exports.ts";
 export {

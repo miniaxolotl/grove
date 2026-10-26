@@ -49,7 +49,19 @@ async function forward(
   const importFile =
     /^import-batches\/[0-9a-f-]+\/files\/[0-9a-f-]+(?:\/original)?$/.test(path);
   const importRoute =
-    /^(?:import-batches|import-batches\/[0-9a-f-]+(?:\/(?:prepare|confirm|cancel|suggest|placement|notes\/[0-9a-f-]+))?)$/.test(
+    /^(?:import-batches|import-batches\/[0-9a-f-]+(?:\/(?:prepare|confirm|cancel|suggest|placement|conversation|notes\/[0-9a-f-]+))?)$/.test(
+      path,
+    );
+  const chatDocumentFile =
+    /^conversations\/[0-9a-f-]+\/documents\/[0-9a-f-]+(?:\/original)?$/.test(
+      path,
+    );
+  const chatDocumentRoute =
+    /^conversations\/[0-9a-f-]+\/documents(?:\/(?:accept|import|[0-9a-f-]+\/passages))?$/.test(
+      path,
+    );
+  const noteDocumentRoute =
+    /^memories\/[0-9a-f-]+\/document-sources(?:\/[0-9a-f-]+\/original)?$/.test(
       path,
     );
   const speech =
@@ -59,6 +71,9 @@ async function forward(
   if (
     !media &&
     !importFile &&
+    !chatDocumentFile &&
+    !chatDocumentRoute &&
+    !noteDocumentRoute &&
     !importRoute &&
     !billing &&
     !admin &&
@@ -88,7 +103,8 @@ async function forward(
   )
     return fail(503, "Invalid API configuration");
   try {
-    const binary = (media || importFile) && request.method === "PUT";
+    const binary =
+      (media || importFile || chatDocumentFile) && request.method === "PUT";
     const maximum = 3 * 1024 * 1024;
     if (binary && Number(request.headers.get("content-length")) > maximum)
       return fail(413, "Files must be 3 MiB or smaller");
@@ -122,7 +138,7 @@ async function forward(
     const after = request.nextUrl.searchParams.get("after");
     if (path === "conversations" && after)
       target.searchParams.set("after", after);
-    if (path.startsWith("import-batches/") && after)
+    if ((path.startsWith("import-batches/") || chatDocumentRoute) && after)
       target.searchParams.set("after", after);
     if (path === "tasks" && request.nextUrl.searchParams.has("projectId"))
       target.searchParams.set(
@@ -146,7 +162,7 @@ async function forward(
                 request.headers.get("x-grove-note-version") ?? "0",
               "X-Grove-Content-Sha256":
                 request.headers.get("x-grove-content-sha256") ?? "",
-              ...(importFile
+              ...(importFile || chatDocumentFile
                 ? {
                     "X-Grove-Filename":
                       request.headers.get("x-grove-filename") ?? "",
@@ -170,6 +186,9 @@ async function forward(
         AbortSignal.timeout(
           media ||
             importFile ||
+            chatDocumentFile ||
+            noteDocumentRoute ||
+            path.endsWith("/documents/accept") ||
             path.endsWith("/suggest") ||
             /^(conversations\/[0-9a-f-]+\/turns|tasks\/[0-9a-f-]+\/download)$/.test(
               path,

@@ -294,6 +294,48 @@ qualify production throughput, cold-cache performance or profitability; unchange
 research/audio exposure can exceed the introductory price. No retained database,
 production flag, paid provider, subscription, release or deployment was changed.
 
+## Documents in Ask Grove (25 October 2026; stacked on #132)
+
+Ask Grove accepts PDF, DOCX, Markdown and text as private chat-local sources, without
+creating library notes. Reading starts automatically; cited answers/follow-ups open
+exact extracted passages and private originals. Explicit full-text conversion reuses
+the existing reviewed import; requested generated notes/notebooks retain ordinary
+Apply/Undo and durable private source bindings. Direct imports auto-prepare and can
+hand unconfirmed originals to Ask without another browser upload. See the
+[contract](imports.md#ask-about-documents-first), [captures](design/screenshots/ask-documents/README.md)
+and [owner rollout](deploy.md#ask-document-rollout-032-stacked-on-import-132).
+
+Forward migration **032** follows import031, preserving merged action028/search029/
+context030. Populated-upgrade/readiness tests preserve old content and require
+the new schema. Accepted originals/chunks remain immutable; expiry clears only
+unaccepted staging/excerpts. Removal, account/chat deletion, profile changes and
+restore fence inaccessible evidence and unapplied previews. Saved-note source
+access is independent of deleted chat access. Account/notebook exports include only
+authorized sources; notebook exports do not acquire unrelated private chats.
+
+Local backend verification: **463 passes, four optional-service skips, zero failures**,
+including25 document cases, real transport payload validation, exact citations,
+acceptance races, shared staging, pre-dispatch/Apply fencing, export and recovery.
+Root/site lint/types/builds, **nine artifacts**,27 release contracts,23CI/deployment
+contracts, workflow lint and native OpenCode/Claude/Codex smoke checks pass. Full
+Chromium suite: **246 passed**; **seven focused attachment/import checks passed**
+after the final narrow-screen refinement. Notes bundle:489,534 gzip bytes, within budget.
+
+Final export regressions verify that revoked document quotations cannot escape
+through raw turn-history JSON, using the same mask as hydrated history, and source
+acceptance invalidates earlier export snapshots without changing attachment identity.
+
+Packaged production-dependency Node24 workers pass real DOCX/Markdown upload,
+citations/follow-ups, byte-identical originals, reviewed save, removal and import→Ask
+handoff in Chromium and supported-container WebKit at1440/390/320px, with clean
+SIGTERM draining. Final package requalification after the export-mask fixes passes
+all six chat journeys (worker SHA-256
+`a9099e4937d5e05097a7a2d3e4504e41808139a27a414e189a0c4c565139ca92`).
+The ordinary packaged PDF/import journey also passes in both engines.
+Generation is deliberately synthetic: this is not live-model quality, device or
+production acceptance. OCR, legacy Word, arbitrary ZIP and embedded objects remain
+deferred. No paid provider calls, production migration/configuration or rollout.
+
 ## Reviewed note and PDF uploads (25 October 2026)
 
 Notes, notebook options and Settings → Data now offer reviewed Markdown/plain-text/

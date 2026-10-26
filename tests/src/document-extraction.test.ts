@@ -5,6 +5,71 @@ import * as extraction from "../../packages/api/src/document-extraction.ts";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 
+test("DOCX text extraction is isolated, retains paragraph order and ignores external relationships", async () => {
+  const require = createRequire(
+    new URL("../../packages/api/package.json", import.meta.url),
+  );
+  const { zipSync, strToU8 } = require("fflate");
+  const bytes = Buffer.from(
+    zipSync({
+      "[Content_Types].xml": strToU8(
+        '<Types><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+      ),
+      "word/document.xml": strToU8(
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Oak seedlings</w:t></w:r></w:p><w:p><w:r><w:t>Need damp mulch.</w:t></w:r></w:p></w:body></w:document>',
+      ),
+      "word/_rels/document.xml.rels": strToU8(
+        '<Relationships><Relationship TargetMode="External" Target="http://127.0.0.1:1/private"/></Relationships>',
+      ),
+    }),
+  );
+  const result = await extraction.extractDocument(
+    bytes,
+    "garden.docx",
+    new AbortController().signal,
+  );
+  assert.equal(
+    result.mime,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  assert.match(result.pages[0].text, /Oak seedlings\n\nNeed damp mulch/);
+  assert.equal(result.sha256, createHash("sha256").update(bytes).digest("hex"));
+});
+test("DOCX refuses arbitrary ZIP, macros, expanded-size bombs and XML entities", async () => {
+  const require = createRequire(
+      new URL("../../packages/api/package.json", import.meta.url),
+    ),
+    { zipSync, strToU8 } = require("fflate");
+  const types = strToU8(
+    '<Types><Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+  );
+  for (const entries of [
+    { "random.txt": strToU8("Not Word") },
+    {
+      "[Content_Types].xml": types,
+      "word/document.xml": strToU8("<document/>"),
+      "word/vbaProject.bin": strToU8("Macro"),
+    },
+    {
+      "[Content_Types].xml": types,
+      "word/document.xml": strToU8("x".repeat(9 * 1024 * 1024)),
+    },
+    {
+      "[Content_Types].xml": types,
+      "word/document.xml": strToU8(
+        '<!DOCTYPE a [<!ENTITY x "private">]><a>&x;</a>',
+      ),
+    },
+  ])
+    await assert.rejects(
+      extraction.extractDocument(
+        Buffer.from(zipSync(entries)),
+        "bad.docx",
+        new AbortController().signal,
+      ),
+    );
+});
+
 // Tiny real PDF; no generated or customer fixtures required.
 function pdf(pages = ["Gardening notes", "Water seedlings"]): Buffer {
   const objects = [

@@ -90,6 +90,27 @@ authorize applying the production migration or deploying this feature.
    never roll back by dropping counters or rewriting past usage. The existing flag
    does not cancel subscriptions, waive explicit grants or replace incident handling.
 
+### Ask document rollout (032; stacked on import #132)
+
+1. Apply `20261025_032_conversation_documents` after import031, retaining committed
+   action028, search029 and explicit context030. The old feature-only028/030 names
+   were never released. Never rename a migration applied to a retained database.
+2. Back up PostgreSQL and the private original bucket, verify restore, then apply
+   the final ordered forward migrations using the owner before incompatible rollout.
+   The new schema adds chat evidence, immutable accepted chunks, private note
+   provenance and expiry/revocation cleanup; existing authored content stays intact.
+3. Deploy matching admitted API/worker/site artifacts. Keep private source storage
+   independent of expiring exports, Node24 parser permissions and bounded container
+   memory/bulk concurrency. Packaged production dependencies must include PDF.js,
+   `fflate@0.8.2` and `saxes@6.0.0` plus its `xmlchars` dependency.
+4. With synthetic documents test PDF/DOCX/Markdown/text upload, cited follow-ups,
+   private originals, explicit generated-note Apply and full-text import confirmation,
+   removal/expiry, current session/account fences and media-complete account exports.
+   No paid generation quality or real customer files are needed for source acceptance.
+5. Restore must run current reconciliation before traffic, preserving removals and
+   retained originals while invalidating unsent uploads/old leases. Keep schema on
+   rollback; production migration, provider changes and rollout need separate approval.
+
 ### Admin support rollout (027)
 
 1. Back up and verify the retained database using the normal owner procedure.

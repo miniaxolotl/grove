@@ -1,5 +1,10 @@
 # Note and PDF import review
 
+The `review-*`, `real-*` and `confirm-*` captures are refreshed by the Ask-document
+stack for automatic preparation, DOCX labels and the optional unconfirmed-import
+handoff to Ask. The real-service captures retain the verification method described
+below; current chat captures are in [ask-documents](../ask-documents/README.md).
+
 Synthetic Garden.md/Botany.pdf notes in the real workspace components using
 production CSS. Chromium captures were visually reviewed at1440,390 and320px.
 The browser journey verifies file selection, reviewed content, mixed new/existing

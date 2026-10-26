@@ -1,6 +1,8 @@
 import { randomUUID, createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { tenant, type Knex } from "@lib/database";
+import { maskDocumentReply } from "./conversation-documents.ts";
+import type { ConversationReply } from "@lib/shared/conversations";
 import {
   TaskError,
   taskTransaction,
@@ -37,6 +39,9 @@ const stages = [
   "media_transcript_revision",
   "document_binding",
   "document_source",
+  "chat_document",
+  "chat_document_binding",
+  "chat_document_source",
 ] as const;
 const pageSize = 100;
 const assertVersion = async (trx: Knex.Transaction, task: ClaimedTask) => {
@@ -95,6 +100,73 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
       .modify((query) => {
         if (projects) query.whereIn("projectId", projects);
       });
+  const chatSources = () =>
+    trx("conversation_documents as d")
+      .where("d.accepted", true)
+      .where((q) => {
+        if (!projects)
+          q.where((sub) =>
+            sub
+              .whereNull("d.removedAt")
+              .whereExists(
+                trx("conversations as c")
+                  .select(trx.raw("1"))
+                  .whereRaw(
+                    "c.account_id=d.account_id AND c.id=d.conversation_id",
+                  )
+                  .whereNull("c.deletedAt"),
+              ),
+          );
+        q.orWhereExists(
+          trx("conversation_document_bindings as b")
+            .select(trx.raw("1"))
+            .whereRaw("b.account_id=d.account_id AND b.document_id=d.id")
+            .whereIn("b.memoryId", mediaNotes()),
+        );
+      });
+  if (kind === "chat_document" || kind === "chat_document_source") {
+    if (kind === "chat_document_source" && !task.payload.includeMedia)
+      return [];
+    const q = chatSources()
+      .select(
+        "d.id",
+        "d.filename",
+        "d.bytes",
+        "d.sha256",
+        "d.mime",
+        "d.version",
+        "d.pages",
+        "d.emptyPages",
+      )
+      .orderBy("d.id")
+      .limit(kind === "chat_document_source" ? 1 : pageSize);
+    if (kind === "chat_document_source") q.select("d.objectKey");
+    else if (!projects) q.select("d.conversationId");
+    if (after) q.where("d.id", ">", after);
+    return q;
+  }
+  if (kind === "chat_document_binding") {
+    const q = trx("conversation_document_bindings")
+      .whereIn("memoryId", mediaNotes())
+      .select(
+        trx.raw(
+          "memory_id::text||':'||version::text||':'||chunk_id::text AS id",
+        ),
+        "memoryId",
+        "version",
+        "documentId",
+        "chunkId",
+        "quote",
+      )
+      .orderBy("id")
+      .limit(pageSize);
+    if (after)
+      q.whereRaw(
+        "memory_id::text||':'||version::text||':'||chunk_id::text > ?",
+        [after],
+      );
+    return q;
+  }
   if (kind === "document_binding") {
     const q = trx("document_import_notes as n")
       .join("document_import_files as f", function () {
@@ -353,6 +425,26 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
       "reviewVersion",
     );
   }
+  if (kind === "turn") {
+    const rows = await q;
+    const ids = rows.flatMap(
+      (row) =>
+        (
+          row.result as ConversationReply | null
+        )?.documentContext?.documents.map((doc) => doc.id) ?? [],
+    );
+    const active = ids.length
+      ? await trx("conversation_documents")
+          .whereIn("id", ids)
+          .where({ accepted: true })
+          .whereNull("removedAt")
+          .select("id", "version")
+      : [];
+    return rows.map((row) => ({
+      ...row,
+      result: row.result ? maskDocumentReply(row.result, active) : row.result,
+    }));
+  }
   return q;
 }
 
@@ -418,6 +510,7 @@ export function exportHandlers(
       await prepare(db, task, key);
       if (
         stages[stage] === "media_object" ||
+        stages[stage] === "chat_document_source" ||
         stages[stage] === "document_source"
       ) {
         if (!media) throw new TaskError("media_storage_unavailable", false);
@@ -428,6 +521,9 @@ export function exportHandlers(
             const metadata = {
               type: stages[stage],
               id: row.id,
+              ...(stages[stage] === "chat_document_source"
+                ? { filename: row.filename }
+                : {}),
               ...(stages[stage] === "document_source"
                 ? { batchId: row.batchId, filename: row.filename }
                 : {}),
@@ -457,9 +553,11 @@ export function exportHandlers(
                 const record = Buffer.from(
                   JSON.stringify({
                     type:
-                      stages[stage] === "document_source"
-                        ? "document_chunk"
-                        : "media_chunk",
+                      stages[stage] === "chat_document_source"
+                        ? "chat_document_chunk"
+                        : stages[stage] === "document_source"
+                          ? "document_chunk"
+                          : "media_chunk",
                     id: row.id,
                     ...(stages[stage] === "document_source"
                       ? { batchId: row.batchId }

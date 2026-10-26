@@ -93,8 +93,13 @@ export async function probeDatabase(db: Knex) {
   await db.raw("SELECT status, archive_operation_id FROM projects LIMIT 0");
   await db.raw("SELECT duration_ms FROM speech_usage LIMIT 0");
   await db.raw("SELECT archive_operation_id FROM memories LIMIT 0");
-  await db.raw("SELECT tools, tools_version FROM conversations LIMIT 0");
   await db.raw("SELECT context FROM conversation_turns LIMIT 0");
+  await db.raw(
+    "SELECT tools, tools_version, documents_version FROM conversations LIMIT 0",
+  );
+  await db.raw(
+    "SELECT id, accepted, removed_at FROM conversation_documents LIMIT 0",
+  );
   const versions = await db.raw(
     "SELECT extversion FROM pg_extension WHERE extname = 'vector'",
   );
