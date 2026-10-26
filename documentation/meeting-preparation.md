@@ -1,7 +1,7 @@
 # Meeting preparation
 
 **Compatibility reference for the original031 API.** The current workspace uses
-[Tools → Create a brief](notebook-tools.md), with any goal, broad explicit sources
+[Workbench → Create a brief](notebook-tools.md), with any goal, broad explicit sources
 and flexible cited sections. The specialized meeting launcher/toggle described below
 is no longer exposed. Retained meeting requests/schema/data remain supported; the
 following describes that legacy contract, not the current five-tool experience.

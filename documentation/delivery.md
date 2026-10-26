@@ -1,5 +1,46 @@
 # Delivery evidence
 
+## Workbench UI and interaction refinement (25 October 2026)
+
+Source **ee98349** (refinement94630dd plus compact-navigation correction) renames the five-workflow section **Workbench**, preserving
+`/app/tools`, internal/API/preference identifiers, the five feature names and the
+unrelated Ask web/action **Tools** menu. The full-row directory previews each
+workflow's output and contextual scope. Forms group focus, sources and review;
+optional detail stays out of the main path. Notebook filtering retains hidden
+selections with an inspectable selected list. Selected note titles survive source
+pages, workflow drafts are retained, and Back restores launcher keyboard focus.
+
+Readiness guidance explains missing inputs/sources/consent. Creation uses outcome
+labels; invalid inputs show readable validation messages. Results separate source
+continuation and saving, explain unconfirmed Save/retry and confirm saved notes.
+Quiz drafts stay visible after Reveal/Hide, controls retain focus, and self-assessment
+uses pressed states and local counts. No grading or persisted progress is introduced.
+Existing independent opt-in, exact scopes/citations, cancellation, operation identity,
+publication fences, reviewed destination Save/Undo and unchanged originals remain.
+There is no backend, schema, usage-policy or provider change in this follow-up.
+
+Root/site lint, type checks, both builds, nine artifacts, twenty service/upgrade
+checks and website bundle budgets pass. Production CSS/build **SsA58UxOf8U3e2ncubtlS**
+was compiled from this source before the navigation commit; its manifest retains
+94630dd. Notes entry is **492,282 gzip bytes**, with no budget increase. All-five
+real UI→HTTP API→PostgreSQL/worker journeys pass in Chromium and supported Noble
+WebKit at1440/390/320px, including sources, practice, Save/Undo, unchanged originals,
+WCAG A/AA and no overflow/page errors. Additional both-engine checks pass keyboard
+launch/Back focus, retained drafts/detail/pins/titles, filtered hidden selections,
+explicit descendants, short viewports and200% text. Existing uncertain Continue recovery passes.
+Nineteen focused production consent/telemetry/sidebar checks pass, including the
+unchanged220px compact-navigation height and enlarged-text/overflow assertions.
+The first full repeat was not green:231 passed, ten failures followed an incorrectly
+configured development build and one exposed the Workbench label's320px navigation
+wrap. The corrected production build and content-aware flex sizing pass all nineteen
+focused cases without changing assertions or telemetry/provider implementation.
+Full current-head browser and hosted outcomes are recorded separately in PR#139.
+
+[Five reviewed captures](design/screenshots/notebook-tools/README.md) show synthetic
+data only. Current [contract](notebook-tools.md) and [testing guidance](development/testing.md#notebook-tools)
+describe the interactions. #139 remains stacked on unchanged#135; no merge, paid
+inference, production migration or deployment is authorized/performed.
+
 ## Five notebook tools — source implementation (25 October 2026)
 
 Source **881d001** implements a shared **Tools** home with **Weekly review**,

@@ -1,10 +1,16 @@
-# Tools
+# Workbench
 
-Open **Tools** in the workspace, Ask Grove, or the command palette. Note actions,
+Open **Workbench** in the workspace, Ask Grove, or the command palette. Note actions,
 the selected-note toolbar and Notebook options open the same chooser with those
 sources selected. Each tool has a separate, initially off preference under
-**Settings → AI preferences → Tools**; the form also offers explicit opt-in.
+**Settings → AI preferences → Workbench**; the form also offers explicit opt-in.
 Opening or editing a tool does not start generation.
+
+Choose a workflow from the full-row directory, set its focus, select sources, then
+review and create. Output detail is optional; the default is Standard. Switching
+back to Workbench retains each workflow's draft and returns keyboard focus to its
+launcher. Drafts remain local to the open Workbench, not a cross-session history.
+The unrelated **Tools** menu in Ask still controls web search and chat actions.
 
 | Tool                | Input                                                       | Review                                                                                                                   |
 | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -21,6 +27,11 @@ sub-notebooks, or **My active library** (including Unfiled). Archived, deleted,
 expired, inactive-notebook and other-account notes are excluded. Descendants are
 never inferred. Selected notes pin every chosen ID/version; a stale pin is an error,
 not permission to silently omit it or search elsewhere.
+
+Filter notebooks by name without changing selected notebooks, including selections
+outside the filter. Selection counts and the scope summary stay explicit. Selected
+note titles are retained when you search or move to another source page; revision
+links remain available. The create action explains missing focus, sources or opt-in.
 
 Scope size is distinct from the evidence budget. Each main batch supplies up to
 twelve note bodies/24,000 characters (gap candidates use six/10,000; weekly current
@@ -52,6 +63,11 @@ sources and coverage warnings; original notes are unchanged. Long results split 
 at complete blocks. All created-note links remain available, and one atomic **Undo**
 archives those notes, refusing to overwrite later edits. Study saves include answer
 keys/explanations; local answers/practice are neither grades nor persisted progress.
+Quiz answers remain visible beside revealed source-supported answers. Reveal/Hide
+keeps keyboard focus, and Again/Got it shows pressed state and local practice counts.
+Hiding an answer retains your draft and self-assessment; it does not grade or reset it.
+Confirmed saves show **Saved to your notes**, note links and **Undo**. An unconfirmed
+save offers **Retry save**, retaining the exact destination and operation identity.
 
 **Cancel generation** fences publication even if an already-dispatched provider
 finishes. Closing a pending preview alone does not cancel it. **Edit tool inputs**
@@ -104,6 +120,7 @@ authored source/history/provider evidence. Saved notes follow ordinary retention
 
 Migration **033** adds five default-off preferences, new assistance kinds/index and
 a worker-only cleanup scheduler. Legacy meeting031 requests/schema/data remain
-compatible; their specialized launcher is replaced by the general Tools UI.
+compatible; their specialized launcher is replaced by the general Workbench UI.
+The `/app/tools` route, internal identifiers and API/preference names are unchanged.
 See [rollout](deploy.md#notebook-tools-rollout-033), [testing](development/testing.md#notebook-tools)
 and [reviewed captures](design/screenshots/notebook-tools/README.md).

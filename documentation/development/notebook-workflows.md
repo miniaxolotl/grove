@@ -1,6 +1,6 @@
 # Notebook workflows — implementation proposal
 
-**Current source implementation: [Tools](../notebook-tools.md).**
+**Current source implementation: [Workbench](../notebook-tools.md).**
 All five worker/UI paths and broad explicit scopes are implemented: Weekly review,
 Create a brief, Study notes, Find knowledge gaps and Find past solutions. General
 briefs replace the meeting-specific launcher; retained031 APIs/data remain compatible.
@@ -28,7 +28,7 @@ and quality/performance work that is not implemented or production-qualified.
 
 The remainder preserves the original proposal and its future phases; it is not a
 current implementation status or a new authorization restriction. The current
-Tools contract above governs the delivered source behavior.
+Workbench contract above governs the delivered source behavior.
 
 Architecture baseline: development `3041590`,
 refreshed against `05fe8fd` on 25 October 2026. This proposal covers weekly review,

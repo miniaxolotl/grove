@@ -18,13 +18,21 @@ pnpm --filter website exec playwright test --config playwright.meeting-webkit.co
 ```
 
 The existing meeting-named browser file now exercises **Create a brief** and shared
-Tools entry, opt-in, exact-pin recovery, cancellation and uncertain enqueue/Save.
+Workbench entry, opt-in, exact-pin recovery, cancellation and uncertain enqueue/Save.
 Use the expanded synthetic `tests/src/fixtures/meeting-api.ts` for actual all-five
 UI→HTTP API→PostgreSQL/worker journeys. Its historical environment names/ports remain
 compatible. Check1440/390/320px, all workflow-specific result/practice states, source
 links, Save/Undo, unchanged originals, accessibility and overflow in both engines.
 No paid inference or production auth bypass is needed. Review relevant captures;
 deterministic provider output proves wiring, not live-model quality.
+
+For Workbench interaction changes, also verify full-row keyboard/touch launchers,
+Back focus and per-workflow drafts, notebook filtering with hidden selections,
+note title retention across search pages, missing-input guidance, optional detail,
+quiz-answer retention after Reveal/Hide, local pressed/practice counts and Retry save.
+Check short viewports and enlarged text as well as the normal three widths. Keep
+the Ask web/action Tools menu unchanged. Use existing suites and external manual
+scripts rather than adding frontend test files for the refinement.
 
 On hosts with tmpfs quota exhaustion, artifact tests support the normal CI temp path:
 set `CI=true TMPDIR=<task-owned-on-disk-directory>`; do not delete shared temp data.
