@@ -67,16 +67,18 @@ function downloadTotals(report: AdminUsageReport) {
     ],
     ...usageReportFeatures.map((feature) => {
       const metric = report.totals.metrics[feature];
+      const action = actions.includes(feature);
+      const model = ["embedding", "decision", "generation"].includes(feature);
       return [
         labels[feature],
         isAudio(feature) ? "milliseconds" : unit(feature),
         metric.used,
-        metric.reserved,
+        action ? metric.reserved : "",
         metric.requests,
-        metric.fresh,
-        metric.cached,
-        metric.inputTokens,
-        metric.outputTokens,
+        action ? metric.fresh : "",
+        action ? metric.cached : "",
+        model ? metric.inputTokens : "",
+        model ? metric.outputTokens : "",
       ];
     }),
   ];
