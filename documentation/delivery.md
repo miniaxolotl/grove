@@ -72,6 +72,42 @@ The full combined backend repeat passes **489 cases**, with four optional-servic
 skips and zero failures. It uses a newly bootstrapped task-owned disposable database:
 the first combined attempt exposed missing search prerequisites on the older shared
 fixture, which was retained unchanged rather than reset or migration-history edited.
+
+## Public reference discovery (25 October 2026)
+
+The website now builds `/docs` and five selected product references directly from
+committed Markdown, with own-domain links, heading anchors, metadata and sitemap
+entries. Unknown documents remain 404; private app/auth/API/share routes and all
+provider/crawler/telemetry settings are unchanged. The social-image metadata now
+matches the actual 1200×628 PNG. See [maintenance](website-discovery.md) and
+[three reviewed browser captures](design/screenshots/discovery/README.md).
+
+Initial source on `54f7688` passed root/site lint, types and builds, **248 browser
+cases**, **ten packed-artifact checks**, six mobile WCAG A/AA audits and eight
+internal document/fragment targets. New discovery/image cases were observed failing
+before implementation.
+WebKit checks also pass hub/reference navigation, keyboard code/table focus and
+320/390/1440px overflow checks in the pinned Linux browser image; the host lacks
+WebKit's system dependencies. A packaged-artifact repeat used the same image with
+home-backed `/tmp/opencode` after the host's shared temporary quota was exhausted.
+No test source, CI identity or application behavior was changed for those runs.
+That initial isolated backend serial run passed **440 cases with four optional skips**.
+A prior four-worker run hit the unchanged export workload's 180/minute read limit;
+the case passed in isolation and serially without assertion, limit or backend
+source changes. This records source evidence, not a repaired load-test behavior,
+production rollout, crawler approval or indexing/AI-citation result.
+
+After integrating development `27288e3`, both documentation insertion conflicts
+retain the discovery and merged search/context material. The integrated source
+passes root/site lint/types/build, **253 browser cases**, **ten packed artifacts**
+and the full serial backend suite: **474 pass, four optional skips, zero failures**.
+No backend, private-app or migration source differs from the integrated base.
+The first integrated runs encountered host temporary quota and memory/swap pressure
+(browser/SDK/axe waits; three backend timing cases). Failure logs/traces were kept;
+all affected cases passed in isolation and the full unchanged suites passed in the
+pinned Linux runtime with home-backed temporary storage. No deadline, assertion,
+rate limit or production setting was weakened to obtain the passing result.
+
 ## Upload/files stack integration (25 October 2026)
 
 The four feature layers (#132 → #136 → #142 → #145) are rebased onto development
@@ -98,7 +134,6 @@ synthetic captures reflect the combined source-selector and attachment controls.
 Full source CI is validated separately for each rewritten PR, not inherited from
 the previous heads. Production migrations, merge and deployment remain separate
 owner operations.
-
 ## Title-first, prefix and typo-tolerant note search (25 October 2026)
 
 Library searches and recall/source search share visible-title tiers, additive

@@ -15,6 +15,11 @@ and non-owner runtime roles enforcing row-level security.
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Delivery evidence](documentation/delivery.md)
 
+The website's `/docs` reference hub builds directly from selected committed docs.
+See [public reference maintenance](documentation/website-discovery.md) for the
+allowlist, link handling and privacy boundaries. Source delivery does not imply
+that the new routes are already deployed.
+
 [Note search](documentation/search.md) prioritizes visible titles, supports
 final-word prefixes and conservative typo recovery, and shows source-backed
 passages without requiring an AI provider.
