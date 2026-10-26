@@ -275,6 +275,11 @@ export function MemoryDetail({
                 }
                 details={
                   <>
+                    {memory ? (
+                      <Link href={`/app/settings/files?memoryId=${memory.id}`}>
+                        Files &amp; storage
+                      </Link>
+                    ) : null}
                     {memory && (
                       <AssistanceAction
                         disabled={writing || locked || isInactive(memory)}

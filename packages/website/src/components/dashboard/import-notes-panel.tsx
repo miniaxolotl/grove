@@ -426,6 +426,9 @@ export function ImportNotesPanel({
         Markdown, text, DOCX and text-based PDFs. Up to 25 files, 3 MiB each.
         PDF layouts may need correction; images and attachments aren’t imported.
       </p>
+      <Link className="text-button" href="/app/settings/files">
+        View files &amp; storage
+      </Link>
       {(error || query.error || list.error) && (
         <div className="app-error" role="alert">
           <p>{error || errorMessage(query.error ?? list.error)}</p>

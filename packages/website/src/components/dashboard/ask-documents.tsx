@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Paperclip, FileText, X } from "lucide-react";
 import type { DocumentList } from "@lib/shared/conversation-documents";
@@ -196,6 +197,16 @@ export function AskDocuments({
       }}
     >
       <div className="ask-document-actions">
+        <Link
+          className="text-button"
+          href={
+            conversationId
+              ? `/app/settings/files?conversationId=${conversationId}`
+              : "/app/settings/files"
+          }
+        >
+          Files &amp; storage
+        </Link>
         <button
           type="button"
           className="text-button"

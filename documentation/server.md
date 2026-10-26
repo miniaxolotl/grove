@@ -4,6 +4,10 @@ The Node 24 Hono service exposes `/v1` REST and stateless Streamable HTTP `/mcp`
 Both call the same transactional memory service and Zod contracts. The published
 CLI is an API-only stdio bridge; it has no database credentials or local database.
 
+The owner-only [Files & storage API](files-storage.md#api-and-privacy) projects
+upload metadata, authorized locations and conservative storage counters without
+exposing source keys or widening the existing original-download readers.
+
 ## Authentication
 
 Private `/v1` data endpoints and `/mcp` require `Authorization: Bearer …`:

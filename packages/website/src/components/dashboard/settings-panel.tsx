@@ -70,10 +70,13 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
                 Bring your notes to Grove
               </h2>
               <p className="mt-3 mb-4 text-sm text-muted">
-                Upload Markdown, text and PDFs, then review their notebooks
-                before importing.
+                Upload Markdown, text, DOCX and PDFs, then review their
+                notebooks before importing.
               </p>
               <ImportNotesButton />
+              <Link className="text-button mt-4" href="/app/settings/files">
+                View files &amp; storage
+              </Link>
             </section>
             <section className="app-panel">
               <ExportTasks />
