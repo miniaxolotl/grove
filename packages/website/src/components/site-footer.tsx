@@ -31,6 +31,9 @@ export function SiteFooter() {
             <Link href="/install" className="footer-link">
               Connect AI tools
             </Link>
+            <Link href="/docs" className="footer-link">
+              Documentation
+            </Link>
             <Link href="/self-host" className="footer-link">
               Self-host Grove
             </Link>
