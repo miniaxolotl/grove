@@ -1,5 +1,66 @@
 # Delivery evidence
 
+## Cross-account usage reports (26 October 2026)
+
+**Settings → Admin → Usage reports** adds all-account totals, separate feature
+units, inclusive UTC ranges, daily figures, thirty-user pagination, existing
+account inspection and global feature CSV exports. The four action allowances
+stay independent, including 0.2 fully cached actions. Provider attempts/tokens,
+research calls and audio duration are not pooled into an invented billing total.
+Current library footprint is explicitly a snapshot. Reports expose retained
+recorded usage, not reconstructed unmetered work or invoices.
+
+Application source `24beccb` is stacked on exact caching PR #147 at `8475ce9`.
+Migration **034** adds fixed guarded aggregate functions without altering tenant
+policies or retained data. Website-session/current-role checks deny ordinary users,
+keys, OAuth and workers; authority is rechecked after identity lookup, including
+directory-outage fallback. Eight new backend/migration cases cover aggregation,
+units/reservations, dates, pagination, revocation, retained upgrades, forced RLS,
+actor context and a non-superuser owner. The full backend passes **497 tests**
+with four optional-service skips, using disposable PostgreSQL and non-owner roles.
+The host quota-failed run is not counted: unchanged tests pass in pinned Noble
+with task-owned disk-backed temporary storage, without weakening assertions/RLS.
+
+Root/site lint/types/builds, ten packed artifacts, three pinned native hosts,
+43 CI/release contracts and workflow lint pass. Production build
+`Kgmg87U9am-CDeMXOAF6A` records application source `24beccb` and Notes
+**491,804 gzip bytes**, within the unchanged bundle budget. All **244 Chromium
+browser tests** pass on the reporting implementation. Final CSV handling leaves
+inapplicable fields blank rather than inventing completed/cache provider counts.
+
+[Four reviewed synthetic captures](design/screenshots/admin-usage/README.md)
+use actual components/production CSS, a real API and disposable PostgreSQL with
+43 synthetic identities. Chromium and pinned Noble WebKit pass at 1440/390/320px:
+on-demand reads, fractional/global totals, applicable CSV columns, feature filters,
+pagination/inspection, empty/invalid dates, transient retry preserving data,
+revocation concealment, WCAG A/AA and no page overflow/errors/private note text.
+The verifier's relative empty-day assumption crossed UTC midnight; selecting a
+known unseeded day fixes the fixture without a product/data change.
+
+[Report semantics and limits](admin-usage-reports.md) document incomplete historical
+metering, duration reservations, mutable pagination and account-linear aggregate
+cost. This is not production-scale qualification. Parent/child merges, production
+migration, billing activation and deployment remain separate owner operations.
+No production/provider configuration or paid traffic was changed.
+
+Merge preparation integrates caching head `94129a0`, including development through
+`208bb89` (explicit context, document uploads/files and discovery). Application
+source `06bb791` passes **582 backend tests / four optional skips**, the eight
+report cases and the populated document-upgrade check. Root/site lint/types/builds,
+ten artifacts, three native hosts, 43 CI/release contracts and workflow lint pass.
+Build `cJNCYK6C99c95W7wzK9ki` keeps Notes at **492,930 gzip bytes**. The real report
+journeys pass again in Chromium and WebKit at all three widths; the earlier captures
+remain identified with their original source/build rather than silently relabelled.
+
+The parent integration preserves strict selected-source and attached-document
+boundaries alongside cache receipts/refresh. Strict-mode planning rejects no turn
+merely for irrelevant model history references that strict mode discards. Updated
+planning/answer cache protocols prevent reuse of pre-context/document instructions.
+Schema readiness probes check document prerequisites before the later cache schema;
+both populated upgrade regressions pass without relaxing their expectations.
+Owner authorization now includes ordered parent/child merges after current-head
+checks, but still does not authorize deployment, billing activation or migration.
+
 ## Exact AI caching and independent usage discounts (25 October 2026)
 
 Grove now avoids repeated paid calls through tenant-isolated exact caching and

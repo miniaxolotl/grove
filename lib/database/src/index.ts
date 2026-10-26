@@ -111,6 +111,11 @@ export async function probeDatabase(db: Knex) {
   );
   if (!search.rows.length)
     throw new Error("The search-quality migration (pg_trgm) is required");
+  const reports = await db.raw(
+    "SELECT to_regprocedure('public.grove_admin_usage_report(date,date,uuid)') IS NOT NULL AS ready",
+  );
+  if (!reports.rows[0].ready)
+    throw new Error("The usage-report migration (034) is required");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */

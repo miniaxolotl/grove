@@ -35,6 +35,7 @@ async function forward(
             "admin/accounts/search",
             "admin/accounts/browse",
             "admin/accounts/details",
+            "admin/usage",
           ].includes(path)
         ? request.method === "POST"
         : ["admin/accounts", "admin/accounts/support"].includes(path) &&

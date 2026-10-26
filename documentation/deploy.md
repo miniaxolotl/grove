@@ -1,5 +1,20 @@
 # Hosting and releases
 
+## Admin usage reports rollout (034)
+
+This feature is stacked on the exact AI-cache release candidate (033). Apply
+forward migration `20261025_034_admin_usage_reports` using the owner procedure
+before deploying the matching API/worker/site; readiness checks its fixed report
+entry point. It adds guarded aggregate functions only: no retained content, usage,
+subscription, role or RLS policy is rewritten. Confirm current migration sequencing
+against merged history before applying; never rewrite an applied migration.
+
+Verify runtime/worker/ordinary-user denial, current admin/session revocation,
+independent action/provider/audio units, date bounds and global versus per-page
+totals. Check reports with purchases hidden. No production migration, activation,
+deployment or parent/child PR merge is authorized by source delivery. See
+[usage reports](admin-usage-reports.md) for coverage and scaling limits.
+
 ## AI-cache rollout (033)
 
 Apply forward migration `20261025_033_ai_cache` using the existing owner procedure

@@ -1,6 +1,6 @@
 # System administration
 
-**Settings → Admin → People & access** is available only to a current website session with the
+**Settings → Admin** has **People & access** and **Usage reports**, available only to a current website session with the
 `system_admin` role. Ordinary accounts use the `user` role. All role decisions
 come from the database, never browser state, email-domain rules, token metadata
 or connected-agent permissions. API keys and OAuth agents cannot use admin routes,
@@ -59,6 +59,12 @@ capture/recall. Changes to availability or system role require an additional rev
 with the target, changed values, audit reason and consequences before confirmation.
 
 ### Usage and support
+
+For global totals, feature/day breakdowns, paginated per-user usage and CSV feature
+exports, open **Usage reports**. It keeps cached/fresh action accounting separate
+from provider requests and audio duration; current library counts are snapshots.
+See [cross-account reports](admin-usage-reports.md) for units, UTC ranges, metering
+coverage, identity fallbacks, retained-history limits and the migration boundary.
 
 Usage shows current note/notebook/active-connection counts and **today / this month**
 generation requests, web-research calls, transcription minutes and read-aloud
@@ -158,6 +164,8 @@ The page shows the latest fifty changes, while the full audit remains retained.
 - `PATCH /v1/admin/accounts`: `accountId`, `operationId`, `expectedVersion`,
   `role` (`user`/`system_admin`), `access` (`default`/`pro`/`unlimited`) and `reason`.
 - `GET /v1/admin/audit`: latest fifty changes.
+- `POST /v1/admin/usage`: bounded UTC range and user cursor for all-account reports;
+  no private content or general-purpose cross-tenant reader is exposed.
 
 Responses are private/no-store. The website proxy admits only these exact methods
 and routes, authenticates its session and checks the origin for writes. Every API

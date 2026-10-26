@@ -440,6 +440,12 @@ export function createApp(deps: AppDependencies) {
       data: await admin.search(c.get("principal"), await c.req.json()),
     }),
   );
+  app.post("/v1/admin/usage", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.usageReport(c.get("principal"), await c.req.json()),
+    }),
+  );
   app.patch("/v1/admin/accounts", async (c) =>
     c.json({
       success: true,
