@@ -47,6 +47,22 @@ documentation refresh.
 
 ## Topology
 
+### Explicit context rollout (030)
+
+1. Verify source/migration history and the retained backup before owner-only forward
+   `20261025_030_conversation_context`, after search quality 029. It adds nullable
+   `conversation_turns.context`; existing questions, results, counters and RLS remain.
+2. Roll out the matching API/worker image through the protected release path before
+   the website. Readiness checks the new column. Older requests omit the optional
+   field; existing turn fingerprints must not be reserialized or rewritten.
+3. On synthetic accounts verify exact note selection, direct notebook membership,
+   partial large-notebook coverage, selected edit/merge previews, unavailable-source
+   recovery, strict no-research behavior and cross-account denial. Verify exports
+   retain selectors and restore still invalidates in-flight work/deleted chats.
+4. Keep the additive column on code rollback. Do not reset conversations, retained
+   sources, usage, provider settings or billing flags. No new provider key/flag is
+   needed; paid-model evaluation and production rollout require separate approval.
+
 ### Search quality rollout
 
 1. Verify the frozen source and actual migration history; the feature currently
@@ -106,6 +122,27 @@ authorize applying the production migration or deploying this feature.
    never roll back by dropping counters or rewriting past usage. The existing flag
    does not cancel subscriptions, waive explicit grants or replace incident handling.
 
+### Ask document rollout (032; stacked on import #132)
+
+1. Apply `20261025_032_conversation_documents` after import031, retaining committed
+   action028, search029 and explicit context030. The old feature-only028/030 names
+   were never released. Never rename a migration applied to a retained database.
+2. Back up PostgreSQL and the private original bucket, verify restore, then apply
+   the final ordered forward migrations using the owner before incompatible rollout.
+   The new schema adds chat evidence, immutable accepted chunks, private note
+   provenance and expiry/revocation cleanup; existing authored content stays intact.
+3. Deploy matching admitted API/worker/site artifacts. Keep private source storage
+   independent of expiring exports, Node24 parser permissions and bounded container
+   memory/bulk concurrency. Packaged production dependencies must include PDF.js,
+   `fflate@0.8.2` and `saxes@6.0.0` plus its `xmlchars` dependency.
+4. With synthetic documents test PDF/DOCX/Markdown/text upload, cited follow-ups,
+   private originals, explicit generated-note Apply and full-text import confirmation,
+   removal/expiry, current session/account fences and media-complete account exports.
+   No paid generation quality or real customer files are needed for source acceptance.
+5. Restore must run current reconciliation before traffic, preserving removals and
+   retained originals while invalidating unsent uploads/old leases. Keep schema on
+   rollback; production migration, provider changes and rollout need separate approval.
+
 ### Admin support rollout (027)
 
 1. Back up and verify the retained database using the normal owner procedure.
@@ -128,6 +165,28 @@ authorize applying the production migration or deploying this feature.
 
 Restore targets must apply matching migrations and run `reconcile-restore.ts`
 against current authority before going online, including suspension/support state.
+
+### Note and PDF import rollout (031)
+
+1. Follow the frozen-source release procedure. Back up PostgreSQL **and the private
+   source bucket**, verify restore and apply forward `20261025_031_document_imports`
+   after030 using the migration owner. It adds isolated staging/provenance and job
+   kinds without changing existing notes or widening media grants.
+2. Deploy the matching admitted API/worker image by digest, then website. Retain
+   existing private `MEDIA_STORAGE` configuration and source lifecycle receipt; do
+   not point originals at expiring export/speech storage. No new bucket/credential
+   is required. Missing source storage leaves file imports unavailable, not lossy.
+3. Verify the packaged pinned PDF parser and permission-limited child process on
+   the actual Node24 image. Keep bulk concurrency and container memory bounded;
+   V8 old-space limits do not cap total process RSS. Verify hosted streaming uploads
+   up to3 MiB, actual-byte/checksum enforcement and admission/cancellation behavior.
+4. With owned synthetic documents, exercise Markdown/text/PDF preview → existing/new
+   notebook → explicit confirmation, worker restart/retry, original download,
+   second-account/agent/public denial, sharing warning and media-complete export.
+   Check malformed/scanned PDFs, preference-off manual import and expired staging.
+5. Keep the forward schema on rollback. Recovery cancels unconfirmed import previews
+   and old task leases, preserving committed notes/provenance and accepted originals.
+   Migration execution, storage changes and production rollout remain owner operations.
 
 ### System administration rollout (025)
 

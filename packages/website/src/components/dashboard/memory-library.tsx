@@ -1,4 +1,5 @@
 "use client";
+import { ImportNotesButton } from "./import-notes-button";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -376,13 +377,16 @@ export function MemoryLibrary({
           title={title}
           actions={
             !archive && (
-              <Link
-                className="app-button secondary"
-                href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
-              >
-                <CalendarDays size={16} />
-                Today’s note
-              </Link>
+              <>
+                <ImportNotesButton projectId={scopedProject ?? undefined} />
+                <Link
+                  className="app-button secondary"
+                  href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+                >
+                  <CalendarDays size={16} />
+                  Today’s note
+                </Link>
+              </>
             )
           }
         />
