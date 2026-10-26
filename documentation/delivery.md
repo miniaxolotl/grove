@@ -43,6 +43,24 @@ cost. This is not production-scale qualification. Parent/child merges, productio
 migration, billing activation and deployment remain separate owner operations.
 No production/provider configuration or paid traffic was changed.
 
+Merge preparation integrates caching head `94129a0`, including development through
+`208bb89` (explicit context, document uploads/files and discovery). Application
+source `06bb791` passes **582 backend tests / four optional skips**, the eight
+report cases and the populated document-upgrade check. Root/site lint/types/builds,
+ten artifacts, three native hosts, 43 CI/release contracts and workflow lint pass.
+Build `cJNCYK6C99c95W7wzK9ki` keeps Notes at **492,930 gzip bytes**. The real report
+journeys pass again in Chromium and WebKit at all three widths; the earlier captures
+remain identified with their original source/build rather than silently relabelled.
+
+The parent integration preserves strict selected-source and attached-document
+boundaries alongside cache receipts/refresh. Strict-mode planning rejects no turn
+merely for irrelevant model history references that strict mode discards. Updated
+planning/answer cache protocols prevent reuse of pre-context/document instructions.
+Schema readiness probes check document prerequisites before the later cache schema;
+both populated upgrade regressions pass without relaxing their expectations.
+Owner authorization now includes ordered parent/child merges after current-head
+checks, but still does not authorize deployment, billing activation or migration.
+
 ## Exact AI caching and independent usage discounts (25 October 2026)
 
 Grove now avoids repeated paid calls through tenant-isolated exact caching and
