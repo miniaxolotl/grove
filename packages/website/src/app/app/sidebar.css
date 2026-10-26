@@ -357,7 +357,7 @@
     flex-wrap: wrap;
   }
   .app-navigation .app-nav {
-    flex: 1 0 calc(20% - 2px);
+    flex: 1 0 0;
     min-width: max-content;
     flex-direction: column;
     gap: 3px;
