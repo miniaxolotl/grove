@@ -134,6 +134,22 @@ synthetic captures reflect the combined source-selector and attachment controls.
 Full source CI is validated separately for each rewritten PR, not inherited from
 the previous heads. Production migrations, merge and deployment remain separate
 owner operations.
+Merge preparation integrates development through `208bb89`, including explicit
+source selection and document uploads/files. Strict context and document snapshot
+guards, reviewed writes, cache receipts and refresh draft/scope ownership are
+preserved. Planning/answer protocols change with the combined instructions. A
+strengthened document-citation regression reproduces invalid evidence poisoning
+the retry cache; validation now happens before publication, and retry succeeds
+after the provider repairs its output. Document readiness probes precede the
+later cache schema without relaxing populated migration expectations.
+
+The stable integration repeat passes **574 backend cases / four optional skips**
+and **265 Chromium cases**; the strengthened document retry case passes separately.
+Root/site gates, ten artifacts and the unchanged bundle budget pass. A concurrent
+backend run hit the existing export/read rate-limit fixture; its unchanged isolated
+case and the subsequent full isolated repeat pass. Source merge authorization does
+not authorize deployment, billing activation or owner schema operations.
+
 ## Title-first, prefix and typo-tolerant note search (25 October 2026)
 
 Library searches and recall/source search share visible-title tiers, additive

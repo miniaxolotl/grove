@@ -1086,7 +1086,7 @@ export class Conversations {
                         principal.accountId,
                         "answer",
                         [
-                          "conversation-answer-context-documents-v2",
+                          "conversation-answer-context-documents-v3",
                           generation.profile,
                           context,
                           plan.intent,
@@ -1110,6 +1110,10 @@ export class Conversations {
                               research.sources.length > 0,
                               conversation.tools.organize,
                             ).parse(value);
+                            validateDocumentStatements(
+                              reply.documentStatements,
+                              documents.sources,
+                            );
                             if (
                               reply.statements.some((statement) =>
                                 statement.sources.some(
