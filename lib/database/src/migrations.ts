@@ -1,7 +1,10 @@
 import type { Knex } from "knex";
 import { actionUsage } from "./action-usage-migration.ts";
 import { aiCache } from "./ai-cache-migration.ts";
+import { conversationContext } from "./conversation-context-migration.ts";
 import { searchQuality } from "./search-quality-migration.ts";
+import { conversationDocuments } from "./conversation-document-migration.ts";
+import { documentImports } from "./document-import-migration.ts";
 import { billing } from "./billing-migration.ts";
 import { systemAdministration } from "./system-admin-migration.ts";
 import { adminSupport } from "./admin-support-migration.ts";
@@ -260,6 +263,9 @@ export const migrations = [
   adminSupport,
   actionUsage,
   searchQuality,
+  conversationContext,
+  documentImports,
+  conversationDocuments,
   aiCache,
 ];
 
