@@ -1,5 +1,25 @@
 # Verification
 
+## Cross-account usage reports
+
+`admin-usage.test.ts` and `admin-usage-migration.test.ts` cover global per-feature
+totals, fifth-action discounts, request/token/duration separation, released/expired
+reservations, UTC ranges, thirty-user pagination, website-only current authority,
+identity-outage fallback and post-lookup revocation, forced-RLS isolation, actor
+context restoration, non-superuser function ownership and populated upgrade
+preservation of all rows and tenant policies. Include existing system-admin,
+search-migration, accounting and full backend suites after integration.
+
+Use actual Admin components, the real API and a disposable PostgreSQL fixture with
+synthetic identities at 1440/390/320px in Chromium and supported WebKit. Verify
+idle reporting before intent, feature/unit selection, global CSV amounts rather
+than only the loaded page, pagination, inspection, date bounds/empty ranges,
+transient retry retaining data, revocation concealment, accessibility and local
+table scrolling without page overflow.
+Store reviewed captures under `design/screenshots/admin-usage/`. A host temporary
+storage quota is not a product failure or permission to weaken assertions; use
+task-owned disk-backed temporary storage in the pinned Linux runner instead.
+
 ## AI caching and separate discounted allowances
 
 Use `ai-cache.test.ts`, `ai-cache-migration.test.ts`, `action-quotas.test.ts`,
