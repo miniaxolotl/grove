@@ -206,6 +206,8 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
         .whereNotIn("status", ["complete", "cancelled"])
         .update({ status: "cancelled", version: target.raw("version+1") });
       await target("memory_enrichments").delete();
+      await target("ai_cache").delete();
+      await target("ai_provider_backoff").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
       await target("notebook_summary_nodes").delete();

@@ -1,5 +1,78 @@
 # Delivery evidence
 
+## Exact AI caching and independent usage discounts (25 October 2026)
+
+Grove now avoids repeated paid calls through tenant-isolated exact caching and
+cross-replica coalescing for query/document embeddings, title/tag/classification
+work, validated planning, research and read-only answers. Note lists, authority
+and source validity are always checked afresh. Generated writes remain reviewed
+previews, never automatically replayed cached actions. Expired/changed supporting
+notes or web evidence remove displayed derived claims without deleting retained
+conversation history. Refresh sources preserves unrelated composer drafts.
+
+Existing independent feature allowances and Free/Pro limits are unchanged. Fully
+cached distinct requests use 0.2 of their own allowance; fresh/mixed work uses one
+action. Integer fifth-units, provisional admission and atomic paid-work upgrades
+prevent a low balance from dispatching unreserved inference. Completed-operation
+replay remains free; actual provider attempts and audio duration stay separate.
+Billing shows fresh/cached counts and allowance savings, not currency savings.
+
+Application source `bb5714c` integrates development through `54f7688` (note-writing
+guidance). Root and website lint/types/builds pass; **ten packed artifact tests**,
+all three pinned Linux native hosts, **27 release contracts**, pinned workflow lint
+and the bundle budget pass. Production build `BNe5n56AmlIhXPc7anaMU` keeps Notes at
+**491,967 gzip bytes**. Native hosts are OpenCode 2.1.3, Claude Code 2.1.309 and
+Codex 0.164.0; no live paid-model qualification is implied.
+The stable full backend run passes **471 cases**, with four optional-service skips
+and zero failures, using non-owner API/worker roles and disposable databases.
+
+Red/green coverage includes retained-data upgrades, RLS, cache expiry/corruption,
+lease takeover, byte-pressure eviction, API/worker final-fifth races, independent
+allowances, outage recovery, exact reuse, refresh/replay and source invalidation.
+Waiting-claim grant revocation and preference opt-out reproduced unauthorized paid
+dispatch; current authorization/preference guards now prevent it. A separate
+in-flight disable/re-enable/deleted-job regression reproduced stale enrichment
+cache publication; a transactional publication guard now rejects it while retaining
+the actual paid-attempt count. No assertions, tenant policies or timeouts were relaxed.
+
+[Four reviewed synthetic captures](design/screenshots/ai-caching/README.md) use
+actual Billing/Ask components and production CSS. Chromium and supported Noble
+WebKit pass targeted journeys at 1440/390/320px: fractional usage, fresh/cached
+receipts, source refresh, draft retention, WCAG A/AA, no overflow or page errors.
+The actual workspace-cache verifier passes immediate source-change and offline
+web-expiry scrubbing. These fixtures demonstrate behavior, not production invoices.
+All **239 existing Chromium browser tests pass** on the stable final production
+build. Earlier interrupted runs are not counted as passes: one lost fixture assets
+to network changes, one hit shared temporary-storage quota, and one overlapped a
+build and lost CSS. The unchanged isolated-build repeat passes without retries or
+weakened assertions. Native verification also passes using an external temporary
+directory after preserving this task's quota-failed installation.
+
+Migration **033** was selected after checking live parallel PR slots 029–032. The
+populated forward-upgrade tests retain authored data, historical full-action units
+and provider counters. Migration, billing activation, deployment and merge remain
+separate owner operations. No subscription-price/pooling/provider change or paid
+traffic was performed. [Caching guarantees and limits](ai-caching.md) document
+account-scoped cooldown, connector deferral, source refresh and rollout boundaries.
+
+The follow-up normally integrates search-quality #144 (`d8d78df`) in application
+source `423d596`. Shared result contracts retain **both** version-bound search
+matches and cache usage receipts; workspace invalidation drops stale highlight
+ranges as well as derived claims. Migration 029 search prerequisites precede 033
+caching. Both migration-upgrade cases and the 20-case cache suite pass together.
+Root/site lint/types/builds, ten artifacts, three native hosts, 43 CI/release contracts
+and bundle budgets pass again. Build `NWMHAZwGLqj1LyDa71iFV` keeps Notes at
+**492,609 gzip bytes**. The same Chromium/WebKit synthetic journeys and immediate
+source-change/offline-expiry check pass on the combined source; captures were
+refreshed and visually reviewed. No production changes are made by integration.
+All **244 Chromium cases pass** on the combined stable build, including the five
+new search-quality cases. The earlier 239-case result describes the pre-search
+candidate, not omitted coverage.
+The full combined backend repeat passes **489 cases**, with four optional-service
+skips and zero failures. It uses a newly bootstrapped task-owned disposable database:
+the first combined attempt exposed missing search prerequisites on the older shared
+fixture, which was retained unchanged rather than reset or migration-history edited.
+
 ## Public reference discovery (25 October 2026)
 
 The website now builds `/docs` and five selected product references directly from
@@ -61,6 +134,22 @@ synthetic captures reflect the combined source-selector and attachment controls.
 Full source CI is validated separately for each rewritten PR, not inherited from
 the previous heads. Production migrations, merge and deployment remain separate
 owner operations.
+Merge preparation integrates development through `208bb89`, including explicit
+source selection and document uploads/files. Strict context and document snapshot
+guards, reviewed writes, cache receipts and refresh draft/scope ownership are
+preserved. Planning/answer protocols change with the combined instructions. A
+strengthened document-citation regression reproduces invalid evidence poisoning
+the retry cache; validation now happens before publication, and retry succeeds
+after the provider repairs its output. Document readiness probes precede the
+later cache schema without relaxing populated migration expectations.
+
+The stable integration repeat passes **574 backend cases / four optional skips**
+and **265 Chromium cases**; the strengthened document retry case passes separately.
+Root/site gates, ten artifacts and the unchanged bundle budget pass. A concurrent
+backend run hit the existing export/read rate-limit fixture; its unchanged isolated
+case and the subsequent full isolated repeat pass. Source merge authorization does
+not authorize deployment, billing activation or owner schema operations.
+
 ## Title-first, prefix and typo-tolerant note search (25 October 2026)
 
 Library searches and recall/source search share visible-title tiers, additive

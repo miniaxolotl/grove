@@ -1,5 +1,22 @@
 # Hosting and releases
 
+## AI-cache rollout (033)
+
+Apply forward migration `20261025_033_ai_cache` using the existing owner procedure
+before rolling out the matching API/worker. Runtime readiness checks require the
+new cache table and action-unit column. The migration starts cache/backoff tables
+empty, keeps existing action rows at five integer units (one action), and retains
+all provider counters, subscription state and authored data. No pooled wallet or
+subscription repricing is introduced. See [AI caching](ai-caching.md).
+
+Roll out compatible API/worker together, then the website for fractional usage,
+cache provenance and Refresh sources. Older writers conservatively create full
+five-unit actions but their count-based readers do not understand cached discounts;
+do not promise the new accounting while a mixed fleet remains. Schema activation
+and production deployment remain separate explicit owner operations. Verify tenant
+denial, cold/warm provider-call counts, cache expiry, low-balance admission, source
+mutation/revocation fencing and source refresh before accepting production savings.
+
 Follow [shared release/naming conventions](release-conventions.md): patch-first
 automatic versions, explicit `Release-As` minor/major/breaking decisions, concise
 conventional commit/PR names and immutable promotion refs. Coordinated package and

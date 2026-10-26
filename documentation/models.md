@@ -1,8 +1,11 @@
 # Models and organized memory
 
 Configured Cloud also applies separate [Free/Pro user-action allowances](billing.md#library-and-user-actions).
-One Ask reply can make several generation calls but consumes one reply action;
+One fresh Ask reply can make several generation calls but consumes one reply action;
 its internal retrieval does not additionally consume an agent recall action.
+An exact fully cached new request uses 0.2 of its own feature allowance; same-result
+reopen/replay stays free. [AI caching](ai-caching.md) explains source guards,
+configuration identities, short-lived research, coalescing and request provenance.
 Organization coalesces authored content changes and shares one reservation across
 enabled enrichment features. Monthly exhaustion pauses eligible enrichment rather
 than rejecting a saved note. Existing provider-attempt limits remain independent.

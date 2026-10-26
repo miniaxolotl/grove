@@ -377,7 +377,7 @@ test("interactive saturation leaves foreground reads available and cancellation 
         authorization: "Bearer 0",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ query: "garden" }),
+      body: JSON.stringify({ query: "uncached cancellation probe" }),
     });
     await inference.promise;
     controller.abort();
