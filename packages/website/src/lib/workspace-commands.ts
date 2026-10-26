@@ -136,12 +136,12 @@ export const commandDefinitions = {
     keywords: "browse archived notes",
   },
   tools: {
-    label: "Open Tools",
+    label: "Open Workbench",
     group: "navigate",
     icon: "properties",
     order: 32,
     keywords:
-      "weekly review brief study flashcards quiz knowledge gaps past solutions prepare",
+      "workbench tools weekly review brief study flashcards quiz knowledge gaps past solutions prepare",
   },
   settings: {
     label: "Open Settings",

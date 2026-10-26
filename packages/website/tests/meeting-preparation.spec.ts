@@ -103,7 +103,7 @@ test("general brief starts only on request, shows sources/coverage and keeps enq
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
   await page
-    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .getByRole("button", { name: "Workbench for these notes", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Open Create a brief", exact: true })
@@ -165,7 +165,7 @@ test("general brief starts only on request, shows sources/coverage and keeps enq
     .click();
   await expect(dialog.getByRole("alert")).toBeVisible();
   await dialog
-    .getByRole("button", { name: "Save result", exact: true })
+    .getByRole("button", { name: "Retry save", exact: true })
     .click();
   await expect(
     dialog.getByRole("button", { name: "Undo", exact: true }),
@@ -226,7 +226,7 @@ test("tool opt-in is never silently changed and cancelling preserves the brief i
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
   await page
-    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .getByRole("button", { name: "Workbench for these notes", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Open Create a brief", exact: true })
@@ -249,7 +249,7 @@ test("tool opt-in is never silently changed and cancelling preserves the brief i
   await page.reload();
   await page.getByRole("button", { name: "Notebook options" }).click();
   await page
-    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .getByRole("button", { name: "Workbench for these notes", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Open Create a brief", exact: true })
@@ -330,7 +330,7 @@ test("brief source recovery keeps the goal, removes exact pins and never falls b
   await page.goto(`${base}/app`);
   await page.getByRole("checkbox", { name: "Select these notes" }).check();
   await page
-    .getByRole("button", { name: "Tools for these notes", exact: true })
+    .getByRole("button", { name: "Workbench for these notes", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Open Create a brief", exact: true })

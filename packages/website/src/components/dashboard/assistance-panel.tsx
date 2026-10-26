@@ -305,7 +305,9 @@ export function AssistancePanel({
             {!started || result?.status === "pending"
               ? `Checking notes${result?.progress ? ` · ${result.progress}` : ""}…`
               : result?.status === "applied"
-                ? "Applied"
+                ? "scope" in request
+                  ? "Saved to your notes"
+                  : "Applied"
                 : result?.status === "undone"
                   ? "Undone"
                   : result?.result
@@ -343,13 +345,21 @@ export function AssistancePanel({
                 : request.sources
                   ? "Selected notes only"
                   : "This notebook’s direct notes only"}
-              . {result?.result?.coverage.supplied ?? 0} supplied;{" "}
-              {result?.result?.coverage.cited ?? 0} cited.
+              {result?.result ? (
+                <>
+                  . {result.result.coverage.supplied} supplied;{" "}
+                  {result.result.coverage.cited} cited.
+                </>
+              ) : (
+                ". Only this scope will be used."
+              )}
             </p>
             {result?.status === "pending" && (
               <>
                 <p className="text-xs text-muted">
-                  Closing the preview does not cancel generation.
+                  Checking your selected sources and preparing a cited preview.
+                  Closing the preview does not cancel generation; use Cancel
+                  generation to stop.
                 </p>
                 <Button
                   variant="secondary"
@@ -392,15 +402,21 @@ export function AssistancePanel({
               result={result.result}
             />
             {result.result.nextCursor && (
-              <Button
-                variant="secondary"
-                disabled={busy || unresolvedSave}
-                onClick={() => void continueReview()}
-              >
-                {unresolvedContinue
-                  ? "Retry source review"
-                  : "Review more sources"}
-              </Button>
+              <div className="space-y-3 border-y border-line py-4">
+                <p className="text-sm text-muted">
+                  More sources remain in your chosen scope. Continue this result
+                  without using another assistance action.
+                </p>
+                <Button
+                  variant="secondary"
+                  disabled={busy || unresolvedSave}
+                  onClick={() => void continueReview()}
+                >
+                  {unresolvedContinue
+                    ? "Retry source review"
+                    : "Review more sources"}
+                </Button>
+              </div>
             )}
             {result.result.preparation?.sections.some(
               (section) => section.items.length,
@@ -412,32 +428,45 @@ export function AssistancePanel({
             result.result.gaps?.findings.length ||
             result.result.problems?.matches.length ? (
               <>
-                <NotebookSelect
-                  label="Save result to"
-                  projects={projects}
-                  value={destination}
-                  disabled={busy || unresolvedSave || unresolvedContinue}
-                  onValueChange={(value) => {
-                    operation.current = null;
-                    setDestination(value);
-                  }}
-                />
-                <p className="text-xs text-muted">
-                  Save creates ordinary editable notes with sources and
-                  coverage. Long results may create multiple notes; Undo
-                  archives only those notes.
-                </p>
-                {request.kind === "study" && (
+                <div className="space-y-4 rounded-lg border border-line p-4">
+                  <h3 className="font-semibold">Keep this result</h3>
+                  <NotebookSelect
+                    label="Save result to"
+                    projects={projects}
+                    value={destination}
+                    disabled={busy || unresolvedSave || unresolvedContinue}
+                    onValueChange={(value) => {
+                      operation.current = null;
+                      setDestination(value);
+                    }}
+                  />
                   <p className="text-xs text-muted">
-                    Saved study sets include answer keys and explanations.
+                    Save creates ordinary editable notes with sources and
+                    coverage. Long results may create multiple notes; Undo
+                    archives only those notes.
                   </p>
-                )}
-                <Button
-                  disabled={busy || unresolvedContinue}
-                  onClick={() => void apply()}
-                >
-                  Save result
-                </Button>
+                  {request.kind === "study" && (
+                    <p className="text-xs text-muted">
+                      Saved study sets include answer keys and explanations.
+                    </p>
+                  )}
+                  {unresolvedSave && (
+                    <p role="status" className="text-sm">
+                      Save is unconfirmed. Retry save checks the same operation
+                      and destination; it won’t create a second copy.
+                    </p>
+                  )}
+                  <Button
+                    disabled={busy || unresolvedContinue}
+                    onClick={() => void apply()}
+                  >
+                    {busy
+                      ? "Saving…"
+                      : unresolvedSave
+                        ? "Retry save"
+                        : "Save result"}
+                  </Button>
+                </div>
               </>
             ) : null}
           </>
@@ -472,32 +501,40 @@ export function AssistancePanel({
           </>
         )}
         {result?.status === "applied" && (
-          <div className="app-actions">
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => void apply(undefined, undefined, true)}
-            >
-              <Undo2 size={16} />
-              Undo
-            </Button>
-            {result.applied.map((note, index) => (
-              <Link
-                key={note.id}
-                className="text-button"
-                href={`/app/memories/${note.id}`}
-              >
-                {result.applied.length === 1
-                  ? "Open note"
-                  : `Open note ${index + 1}`}
-              </Link>
-            ))}
-            {result.applied.length > 1 && (
-              <p className="text-sm text-muted">
-                {result.applied.length} notes saved. Undo affects all of these
-                created notes.
+          <div className="space-y-3 rounded-lg bg-sage p-4">
+            {"scope" in request && (
+              <p className="text-sm">
+                Your original notes are unchanged. Open your saved result to
+                edit it, or Undo to archive only the notes created by this save.
               </p>
             )}
+            <div className="app-actions">
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={() => void apply(undefined, undefined, true)}
+              >
+                <Undo2 size={16} />
+                Undo
+              </Button>
+              {result.applied.map((note, index) => (
+                <Link
+                  key={note.id}
+                  className="text-button"
+                  href={`/app/memories/${note.id}`}
+                >
+                  {result.applied.length === 1
+                    ? "Open note"
+                    : `Open note ${index + 1}`}
+                </Link>
+              ))}
+              {result.applied.length > 1 && (
+                <p className="text-sm text-muted">
+                  {result.applied.length} notes saved. Undo affects all of these
+                  created notes.
+                </p>
+              )}
+            </div>
           </div>
         )}
         {ready && result.result?.filing && (

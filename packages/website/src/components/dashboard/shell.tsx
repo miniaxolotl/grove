@@ -38,7 +38,7 @@ import {
 const links = [
   { href: "/app", name: "Notes", icon: BookOpen },
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
-  { href: "/app/tools", name: "Tools", icon: Wrench },
+  { href: "/app/tools", name: "Workbench", icon: Wrench },
   { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];

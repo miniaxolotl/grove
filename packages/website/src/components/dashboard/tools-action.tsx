@@ -7,7 +7,7 @@ import { deferredFeature } from "./deferred-feature";
 
 const Tools = deferredFeature(
   async () => ({ default: (await import("./notebook-tools")).NotebookTools }),
-  "Opening tools…",
+  "Opening Workbench…",
 );
 export function ToolsAction({
   scope,
@@ -24,13 +24,13 @@ export function ToolsAction({
       <button
         type="button"
         className={compact ? "app-icon" : undefined}
-        aria-label="Tools for these notes"
-        title="Tools for these notes"
+        aria-label="Workbench for these notes"
+        title="Workbench for these notes"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
         <Wrench size={16} />
-        {!compact && "Tools for these notes"}
+        {!compact && "Workbench for these notes"}
       </button>
       {open &&
         createPortal(

@@ -172,7 +172,7 @@ test("categorized AI preferences persist independently with provider availabilit
     "Connections",
     "Summaries",
     "Ask Grove",
-    "Tools",
+    "Workbench",
     "Connected agents",
     "Speech",
   ])

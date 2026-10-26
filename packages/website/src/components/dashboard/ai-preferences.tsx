@@ -110,7 +110,7 @@ const groups: {
     ],
   },
   {
-    title: "Tools",
+    title: "Workbench",
     features: [
       {
         key: "weeklyReviewEnabled",
