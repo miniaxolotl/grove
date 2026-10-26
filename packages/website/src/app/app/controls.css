@@ -167,3 +167,23 @@
   outline-offset: 3px;
   scroll-margin-top: 2rem;
 }
+
+.workbench-form .workbench-source {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.workbench-form .workbench-source:has(input:checked) {
+  background: var(--color-sage);
+}
+.workbench-source input[type="checkbox"] {
+  flex-shrink: 0;
+}
+.workbench-practice .app-button {
+  min-height: 44px;
+}

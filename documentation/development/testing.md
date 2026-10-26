@@ -1,5 +1,73 @@
 # Verification
 
+## Notebook tools
+
+`preparation-workflow.test.ts` covers all five canonical modes using disposable
+PostgreSQL and non-owner roles: broad explicit scopes/pins, descendants, bounded
+continuation/replay, flexible brief sections, supported study answers, scoped gap
+answer lookup, historical weekly pairs and cross-note action completion, qualified
+past outcomes, preference/source/cancel publication races, forged citations, expiry,
+one action across batches, long-result atomic Save/Undo and DST boundaries.
+`notebook-tools-migration.test.ts` verifies populated031→033 preservation, default-off
+preferences, retained legacy/provider data, forced RLS and worker-only scheduling.
+
+```sh
+pnpm exec tsx --test tests/src/preparation-workflow.test.ts tests/src/notebook-tools-migration.test.ts
+pnpm --filter website exec playwright test tests/meeting-preparation.spec.ts tests/models.spec.ts tests/assistance.spec.ts
+pnpm --filter website exec playwright test --config playwright.meeting-webkit.config.ts
+```
+
+The existing meeting-named browser file now exercises **Create a brief** and shared
+Workbench entry, opt-in, exact-pin recovery, cancellation and uncertain enqueue/Save.
+Use the expanded synthetic `tests/src/fixtures/meeting-api.ts` for actual all-five
+UI→HTTP API→PostgreSQL/worker journeys. Its historical environment names/ports remain
+compatible. Check1440/390/320px, all workflow-specific result/practice states, source
+links, Save/Undo, unchanged originals, accessibility and overflow in both engines.
+No paid inference or production auth bypass is needed. Review relevant captures;
+deterministic provider output proves wiring, not live-model quality.
+
+For Workbench interaction changes, also verify full-row keyboard/touch launchers,
+Back focus and per-workflow drafts, notebook filtering with hidden selections,
+note title retention across search pages, missing-input guidance, optional detail,
+quiz-answer retention after Reveal/Hide, local pressed/practice counts and Retry save.
+Check short viewports and enlarged text as well as the normal three widths. Keep
+the Ask web/action Tools menu unchanged. Use existing suites and external manual
+scripts rather than adding frontend test files for the refinement.
+
+On hosts with tmpfs quota exhaustion, artifact tests support the normal CI temp path:
+set `CI=true TMPDIR=<task-owned-on-disk-directory>`; do not delete shared temp data.
+
+## Meeting preparation
+
+`meeting-preparation.test.ts` and `meeting-migration.test.ts` use fresh disposable
+databases/non-owner API and worker roles. They cover strict scope/input validation,
+default-off independent opt-in, source/tenant/version exclusion before inference,
+bounded lexical evidence in large notebooks, exact citations, source/preference
+publication races, action/replay settlement, reviewed Save/Undo, cancellation,
+private HTTP routes and expiry redaction. The populated pre031 upgrade preserves
+old notes/usage/disabled settings and forced RLS. The historical admin027 fixture
+asserts its exact named boundary before upgrading fully for current checks.
+
+With the disposable URLs below, run:
+
+```sh
+pnpm exec tsx --test tests/src/meeting-preparation.test.ts tests/src/meeting-migration.test.ts
+pnpm --filter website exec playwright test tests/meeting-preparation.spec.ts tests/assistance.spec.ts
+pnpm --filter website exec playwright test --config playwright.meeting-webkit.config.ts
+```
+
+Browser tests use actual components/production CSS with synthetic responses, checking
+deferred admission, consent, retained form inputs, lost enqueue/save replay, Cancel,
+source links, partial coverage,1440/390/320px WCAG/overflow and existing assistance
+expiry. Use isolated fixture ports as needed. For a real loopback API/PostgreSQL/
+worker journey, run `pnpm exec tsx tests/src/fixtures/meeting-api.ts` with the owned
+disposable API/worker URLs. It creates only synthetic notes, never paid inference;
+`MEETING_API_PORT`, `MEETING_SITE_URL` and `MEETING_FIXTURE_FILE` configure its
+loopback listener and ID receipt. Start the existing dashboard fixture with matching
+`DASHBOARD_TEST_PORT` and `DASHBOARD_API_FIXTURE_PORT`. No production authentication
+bypass is added. Screenshots use synthetic data; live-model quality is a separate
+explicitly authorized, bounded evaluation, not implied by these tests.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner

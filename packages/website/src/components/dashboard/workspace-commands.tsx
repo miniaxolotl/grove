@@ -93,6 +93,7 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
     ),
     workspaceCommand("notes", () => router.push("/app")),
     workspaceCommand("ask", () => router.push("/app/ask")),
+    workspaceCommand("tools", () => router.push("/app/tools")),
     workspaceCommand("archive", () => router.push("/app/archive")),
     workspaceCommand("settings", () => router.push("/app/settings")),
     workspaceCommand("help", () => setOpened("help")),

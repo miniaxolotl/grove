@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { reserveAction } from "./billing-quotas.ts";
+import { reserveAction, settleNamedAction } from "./billing-quotas.ts";
 import type { Knex } from "@lib/database";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import {
@@ -23,6 +23,21 @@ import {
   type ScopeDependency,
 } from "./assistance-data.ts";
 import { redactDigest } from "./notebook-digests.ts";
+import { workflowEvidence } from "./workflow-evidence.ts";
+import { meetingHeadings, meetingItems } from "./assistance-meeting.ts";
+import {
+  workflowQuery,
+  toolQuery,
+  isToolKind,
+} from "@lib/shared/notebook-workflows";
+import { toolEvidence } from "./tool-evidence.ts";
+import {
+  toolBudget,
+  toolWindow,
+  toolSavedNotes,
+  toolHasContent,
+  type ToolPage,
+} from "./notebook-tools.ts";
 
 const missing = () => new GroveError("not_found", "Preview unavailable", 404);
 const conflict = () =>
@@ -55,11 +70,31 @@ export class NotebookAssistance {
             (this.service.providers.embedding?.profile ?? null))
       )
         throw conflict();
-      const refs = "sources" in input ? input.sources : [];
-      const sources = await activeNotes(trx).whereIn(
-        "id",
-        refs.map((r) => r.id),
-      );
+      const refs = "sources" in input ? (input.sources ?? []) : [];
+      const tool =
+        "scope" in input
+          ? await toolEvidence(
+              trx,
+              input.scope,
+              toolQuery(input),
+              null,
+              toolBudget(input.kind),
+            )
+          : null;
+      const workflow =
+        input.kind === "meeting"
+          ? await workflowEvidence(trx, {
+              ...input,
+              query: workflowQuery(input),
+            })
+          : null;
+      const sources =
+        tool?.sources ??
+        workflow?.sources ??
+        (await activeNotes(trx).whereIn(
+          "id",
+          refs.map((r) => r.id),
+        ));
       if (
         refs.some(
           (r) => !sources.some((n) => n.id === r.id && n.version === r.version),
@@ -67,12 +102,19 @@ export class NotebookAssistance {
         (input.kind === "filing" && sources[0].projectId !== null)
       )
         throw changedSources();
-      const dependencies = sources.map(({ id, version, projectId }) => ({
-        id,
-        version,
-        projectId,
-      }));
-      const scopes: ScopeDependency[] = [];
+      const dependencies =
+        tool?.dependencies ??
+        sources.map(({ id, version, projectId }) => ({
+          id,
+          version,
+          projectId,
+        }));
+      const scopes: ScopeDependency[] =
+        tool?.projects.map(({ id, version, contentVersion }) => ({
+          id,
+          version,
+          contentVersion,
+        })) ?? [];
       if ("projectId" in input && input.projectId) {
         const project = await trx("projects")
           .where({ id: input.projectId })
@@ -81,7 +123,7 @@ export class NotebookAssistance {
         scopes.push({
           id: project.id,
           version: project.version,
-          ...(input.kind === "cleanup"
+          ...(input.kind === "cleanup" || input.kind === "meeting"
             ? { contentVersion: project.contentVersion }
             : {}),
         });
@@ -108,14 +150,49 @@ export class NotebookAssistance {
               .first()) as unknown as { expiresAt: Date | null })
           : {
               expiresAt:
+                tool?.scopeExpiresAt ??
                 sources
                   .map((note) => note.expiresAt)
                   .filter((at): at is Date => !!at)
                   .sort(
                     (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-                  )[0] ?? null,
+                  )[0] ??
+                null,
             };
       const state = {
+        ...(tool && "scope" in input
+          ? {
+              toolPage: {
+                sources: tool.sources.map(({ id, version }) => ({
+                  id,
+                  version,
+                })),
+                nextCursor: tool.nextCursor,
+                coverage: tool.coverage,
+              },
+              toolPasses: 0,
+              ...(input.scope.kind === "library"
+                ? { workflowAccountVersion: account.contentVersion }
+                : {}),
+              ...(input.scope.kind === "notebooks" &&
+              input.scope.includeDescendants
+                ? {
+                    workflowCatalogVersion: (
+                      await trx("accounts").where({ id: account.id }).first()
+                    ).notebookCatalogVersion,
+                  }
+                : {}),
+              ...(input.kind === "weekly_review"
+                ? {
+                    toolWindow: await toolWindow(trx, input),
+                    toolToken: (
+                      await trx("accounts").where({ id: account.id }).first()
+                    ).changeToken,
+                  }
+                : {}),
+            }
+          : {}),
+        ...(workflow ? { coverage: workflow.coverage } : {}),
         ...(input.kind === "filing"
           ? {
               accountVersion: account.contentVersion,
@@ -126,6 +203,19 @@ export class NotebookAssistance {
           : {}),
         ...(expiry?.expiresAt ? { expiresAt: expiry.expiresAt } : {}),
       };
+      let expiresAt: Date | undefined;
+      if (input.kind === "meeting" || "scope" in input) {
+        const {
+          rows: [clock],
+        } = await trx.raw("SELECT now()+interval '30 days' AS deadline");
+        expiresAt = new Date(
+          Math.min(
+            new Date(clock.deadline).getTime(),
+            expiry?.expiresAt ? new Date(expiry.expiresAt).getTime() : Infinity,
+          ),
+        );
+        state.expiresAt = expiresAt;
+      }
       const profile = assistanceProfile(
         generation.profile,
         this.service.providers.embedding?.profile,
@@ -148,6 +238,7 @@ export class NotebookAssistance {
         dependencies: JSON.stringify(dependencies),
         scopes: JSON.stringify(scopes),
         state: JSON.stringify(state),
+        ...(expiresAt ? { expiresAt } : {}),
       });
       await trx("jobs").insert({
         id: randomUUID(),
@@ -172,6 +263,40 @@ export class NotebookAssistance {
         .where({ id })
         .first();
       if (!row) throw missing();
+      return this.read(trx, row);
+    });
+  }
+  async cancel(principal: Principal, id: string, expectedVersion: number) {
+    return this.service.access(principal, "admin", async ({ trx }) => {
+      const row = await trx<AssistanceRow>("assistance_requests")
+        .where({ id })
+        .first();
+      if (!row || (row.kind !== "meeting" && !isToolKind(row.kind)))
+        throw missing();
+      if (row.status === "cancelled" && row.version === expectedVersion + 1)
+        return this.read(trx, row);
+      if (row.status !== "pending" || row.version !== expectedVersion)
+        throw conflict();
+      await trx("jobs").where({ kind: "assistance", target: id }).delete();
+      await settleNamedAction(
+        trx,
+        principal.accountId,
+        "assistance",
+        `assistance:${id}`,
+        "released",
+      );
+      row.status = "cancelled";
+      row.version++;
+      row.result = null;
+      row.state = {};
+      row.error = "Generation cancelled. Start a new result to try again.";
+      await trx("assistance_requests").where({ id }).update({
+        status: row.status,
+        version: row.version,
+        result: null,
+        state: "{}",
+        error: row.error,
+      });
       return this.read(trx, row);
     });
   }
@@ -227,6 +352,90 @@ export class NotebookAssistance {
     if (row.kind === "digest") await redactDigest(trx, row);
     return presentAssistance(row);
   }
+  async continue(principal: Principal, id: string, expectedVersion: number) {
+    return this.service.access(principal, "admin", async ({ trx, account }) => {
+      const row = await trx<AssistanceRow>("assistance_requests")
+        .where({ id })
+        .first();
+      if (!row || !("scope" in row.input)) throw missing();
+      if (row.state.toolContinueVersion === expectedVersion)
+        return this.read(trx, row);
+      if (
+        row.status !== "ready" ||
+        row.version !== expectedVersion ||
+        !row.result?.nextCursor ||
+        Number(row.state.toolPasses ?? 0) >= 24
+      )
+        throw conflict();
+      if (!account[assistancePreferences[row.kind]])
+        throw new GroveError(
+          "feature_disabled",
+          "This tool is turned off.",
+          409,
+        );
+      await this.checkProfile(trx, row);
+      await validAssistance(trx, row);
+      const page = await toolEvidence(
+        trx,
+        row.input.scope,
+        toolQuery(row.input),
+        row.result.nextCursor,
+        toolBudget(row.input.kind),
+      );
+      const dependencies = [
+        ...new Map(
+          [...row.dependencies, ...page.dependencies].map((ref) => [
+            `${ref.id}:${ref.version}`,
+            ref,
+          ]),
+        ).values(),
+      ];
+      const state = {
+        ...row.state,
+        toolPrevious: row.result,
+        toolContinueVersion: expectedVersion,
+        toolPage: {
+          sources: page.sources.map(({ id, version }) => ({ id, version })),
+          nextCursor: page.nextCursor,
+          coverage: page.coverage,
+        } satisfies ToolPage,
+      };
+      const expiresAt = new Date(
+        Math.min(
+          new Date(row.expiresAt!).getTime(),
+          page.scopeExpiresAt?.getTime() ?? Infinity,
+          ...page.sources
+            .filter((source) => source.expiresAt)
+            .map((source) => new Date(source.expiresAt!).getTime()),
+        ),
+      );
+      await trx("assistance_requests")
+        .where({ id })
+        .update({
+          status: "pending",
+          result: null,
+          version: row.version + 1,
+          expiresAt,
+          state: JSON.stringify(state),
+          dependencies: JSON.stringify(dependencies),
+        });
+      await trx("jobs").insert({
+        id: randomUUID(),
+        accountId: account.id,
+        kind: "assistance",
+        target: id,
+        profile: row.profile,
+        scope: JSON.stringify({ feature: row.kind }),
+        dueAt: trx.fn.now(),
+      });
+      return this.read(
+        trx,
+        (await trx<AssistanceRow>("assistance_requests")
+          .where({ id })
+          .first())!,
+      );
+    });
+  }
   private async checkProfile(trx: Knex.Transaction, row: AssistanceRow) {
     const { generation, embedding } = this.service.providers;
     const committed = await this.service.jobProfiles?.(trx);
@@ -280,7 +489,80 @@ export class NotebookAssistance {
       } else {
         await this.checkProfile(trx, row);
         await validAssistance(trx, row);
-        if (row.input.kind === "actions") {
+        if (
+          row.input.kind !== "meeting" &&
+          !("scope" in row.input) &&
+          input.destinationProjectId !== undefined
+        )
+          throw conflict();
+        if ("scope" in row.input) {
+          if (
+            !toolHasContent(row.result!) ||
+            input.action ||
+            input.candidate ||
+            input.edits
+          )
+            throw conflict();
+          const destination =
+            input.destinationProjectId === undefined
+              ? row.input.scope.kind === "notebooks" &&
+                row.input.scope.ids.length === 1
+                ? row.input.scope.ids[0]
+                : null
+              : input.destinationProjectId;
+          writes = toolSavedNotes(row.input, row.result!).map((content) => ({
+            content,
+            projectId: destination,
+          }));
+        } else if (row.input.kind === "meeting") {
+          const brief = row.result?.meeting;
+          if (
+            !brief ||
+            !meetingItems(brief).length ||
+            input.action ||
+            input.candidate ||
+            input.edits
+          )
+            throw conflict();
+          const content =
+            `# ${row.input.title.replaceAll("\n", " ")}\n\n` +
+            (row.input.meetingDate
+              ? `Meeting date: ${row.input.meetingDate}\n\n`
+              : "") +
+            `Based on ${row.result!.coverage.examined} of ${row.result!.coverage.total} notes supplied as evidence. ` +
+            (row.result!.coverage.partial
+              ? "Partial coverage; other notes may contain relevant evidence.\n\n"
+              : "\n\n") +
+            (Object.keys(meetingHeadings) as (keyof typeof meetingHeadings)[])
+              .map(
+                (key) =>
+                  `## ${meetingHeadings[key]}\n\n` +
+                  (brief[key].length
+                    ? brief[key]
+                        .map(
+                          (item) =>
+                            `- ${item.text.replaceAll("\n", " ")} — ${item.sources.map((ref) => `[source](/app/memories/${ref.id}?revision=${ref.version})`).join(" · ")}`,
+                        )
+                        .join("\n")
+                    : "No relevant recorded evidence found."),
+              )
+              .join("\n\n");
+          if (content.length > 6000)
+            throw new GroveError(
+              "preview_too_long",
+              "This brief is too long to save as one note.",
+              400,
+            );
+          writes = [
+            {
+              content,
+              projectId:
+                input.destinationProjectId === undefined
+                  ? row.input.projectId
+                  : input.destinationProjectId,
+            },
+          ];
+        } else if (row.input.kind === "actions") {
           const items = row.result!.items!;
           if (
             !items.length ||

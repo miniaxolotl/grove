@@ -40,6 +40,7 @@ import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
 import { NoteDeleteDialog } from "./note-delete-dialog";
 import { AssistanceAction } from "./assistance-action";
+import { ToolsAction } from "./tools-action";
 import { useNotebookVisit } from "./use-notebook-visit";
 import type { NotebookVisit } from "@lib/shared/assistance";
 const loadDetail = () =>
@@ -609,18 +610,31 @@ export function MemoryLibrary({
                 <LibrarySelection
                   assistance={
                     !archive && (
-                      <AssistanceAction
-                        compact
-                        disabled={busy || selectedItems.length > 6}
-                        input={{
-                          kind: "actions",
-                          sources: selectedItems.map(({ id, version }) => ({
-                            id,
-                            version,
-                          })),
-                          projectId: scopedProject ?? null,
-                        }}
-                      />
+                      <>
+                        <ToolsAction
+                          compact
+                          disabled={busy}
+                          scope={{
+                            kind: "notes",
+                            sources: selectedItems.map(({ id, version }) => ({
+                              id,
+                              version,
+                            })),
+                          }}
+                        />
+                        <AssistanceAction
+                          compact
+                          disabled={busy || selectedItems.length > 6}
+                          input={{
+                            kind: "actions",
+                            sources: selectedItems.map(({ id, version }) => ({
+                              id,
+                              version,
+                            })),
+                            projectId: scopedProject ?? null,
+                          }}
+                        />
+                      </>
                     )
                   }
                   count={selectedItems.length}

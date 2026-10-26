@@ -16,12 +16,15 @@ import { SettingsFrame } from "../../src/components/dashboard/settings-frame";
 import { SourceRevision } from "../../src/components/dashboard/source-revision";
 import { BillingPanel } from "../../src/components/dashboard/billing-panel";
 import { AdminPanel } from "../../src/components/dashboard/admin-panel";
+import { NotebookTools } from "../../src/components/dashboard/notebook-tools";
 
 function DashboardFixture() {
   const location = useLocation();
   const [path, search] = location.split("?");
   const query = new URLSearchParams(search);
-  const content = path.endsWith("/ask") ? (
+  const content = path.endsWith("/tools") ? (
+    <NotebookTools />
+  ) : path.endsWith("/ask") ? (
     <AskGrove />
   ) : path.endsWith("/journal") ? (
     <MemoryLibrary initialSort="created_desc" />

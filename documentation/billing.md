@@ -94,6 +94,13 @@ checks the reservation token, and completion stays in its original UTC month eve
 if inference finishes after reset. Existing provider counts are never converted into
 actions or reset during migration.
 
+All five notebook tools (and legacy meeting preparation) follow this assistance
+allowance: one completed frozen result, including staged verification and Review
+more sources, not one charge per source/batch. Empty scopes invoke no model and release the
+reservation. Cancel/failure releases action capacity while retaining provider-attempt
+evidence; reading, reviewed Save/Undo and durable replay do not add actions. The
+feature does not activate billing or the separately proposed weighted-credit wallet.
+
 Active, archived and expired non-deleted notes count toward storage. Soft-deleted
 notes and notebooks do not count, but their authored content/history remains retained.
 Imports, agent writes, Apply and nested notebook creation use the same account-locked

@@ -1,6 +1,36 @@
 # Notebook workflows — implementation proposal
 
-**Status: planned, not implemented.** Architecture baseline: development `3041590`,
+**Current source implementation: [Workbench](../notebook-tools.md).**
+All five worker/UI paths and broad explicit scopes are implemented: Weekly review,
+Create a brief, Study notes, Find knowledge gaps and Find past solutions. General
+briefs replace the meeting-specific launcher; retained031 APIs/data remain compatible.
+The linked current contract supersedes narrower meeting-only/twelve-selected-note
+defaults below. This proposal retains the original roadmap, including recurrence
+and quality/performance work that is not implemented or production-qualified.
+
+## Generalized implementation contract
+
+- One shared note/notebook scope, evidence budget, citation inspector, coverage,
+  cancellation, retry identity and reviewed Save/Undo lifecycle.
+- Five distinct jobs, not meeting templates: weekly calendar/history and unfinished
+  actions; any-goal briefs; study quiz/flashcard/explanation with supported
+  answers and Reveal; notebook-local gap searches; issue-driven prior solutions.
+- Each job has its own strict inputs, typed results and independent opt-in. General
+  briefs do not require meeting fields. Weekly review is separate from visits
+  and needs before/after decision evidence; it does not silently schedule recurrence.
+- A gap means evidence not found in the reviewed scope, not universal absence. Search
+  the notebook for answers before publishing a candidate gap. Prior-problem matches
+  need a substantive similarity, actual solution evidence and qualified outcomes.
+- Do not infer production activation/live-model acceptance from deterministic
+  contract/service/browser tests. See current delivery evidence for actual gates.
+
+## Original planning baseline (historical)
+
+The remainder preserves the original proposal and its future phases; it is not a
+current implementation status or a new authorization restriction. The current
+Workbench contract above governs the delivered source behavior.
+
+Architecture baseline: development `3041590`,
 refreshed against `05fe8fd` on 25 October 2026. This proposal covers weekly review,
 meeting preparation, study mode, knowledge gaps and similar past problems. It does not enable features,
 authorize paid inference, change allowances or schedule production work.

@@ -28,6 +28,7 @@ import { ActionMenu } from "./ui/action-menu";
 import { ShareDialog } from "./share-dialog";
 import { NotebookActions } from "./notebook-actions";
 import { AssistanceAction } from "./assistance-action";
+import { ToolsAction } from "./tools-action";
 import type { NotebookVisit } from "@lib/shared/assistance";
 const ConnectionPanel = deferredFeature(
   async () => ({
@@ -123,6 +124,13 @@ export function MemoryContext({
                     <span>Today’s note</span>
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <ToolsAction
+                      scope={{
+                        kind: "notebooks",
+                        ids: [project.id],
+                        includeDescendants: false,
+                      }}
+                    />
                     <AssistanceAction
                       input={{ kind: "digest", visitId: visit?.id ?? "" }}
                       disabled={!visit || visit.projectId !== project.id}

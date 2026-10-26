@@ -135,6 +135,14 @@ export const commandDefinitions = {
     order: 32,
     keywords: "browse archived notes",
   },
+  tools: {
+    label: "Open Workbench",
+    group: "navigate",
+    icon: "properties",
+    order: 32,
+    keywords:
+      "workbench tools weekly review brief study flashcards quiz knowledge gaps past solutions prepare",
+  },
   settings: {
     label: "Open Settings",
     group: "navigate",

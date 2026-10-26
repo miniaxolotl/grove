@@ -12,6 +12,8 @@ import { actionStep } from "./assistance-actions.ts";
 import { filingStep } from "./assistance-filing.ts";
 import { cleanupStep } from "./assistance-cleanup.ts";
 import { digestStep, redactDigest } from "./notebook-digests.ts";
+import { meetingStep } from "./assistance-meeting.ts";
+import { toolStep } from "./notebook-tools.ts";
 import type { ActionItem, DigestChange } from "@lib/shared/assistance";
 import { budgetedInference } from "./processing.ts";
 import {
@@ -132,13 +134,17 @@ export async function runAssistanceJob(
   try {
     const step = await owned(async (trx, row) => {
       const prepared =
-        row.kind === "actions"
-          ? await actionStep(trx, row)
-          : row.kind === "filing"
-            ? await filingStep(trx, row, providers, job.id)
-            : row.kind === "cleanup"
-              ? await cleanupStep(trx, row, providers)
-              : await digestStep(trx, row);
+        "scope" in row.input
+          ? await toolStep(trx, row)
+          : row.kind === "actions"
+            ? await actionStep(trx, row)
+            : row.kind === "filing"
+              ? await filingStep(trx, row, providers, job.id)
+              : row.kind === "cleanup"
+                ? await cleanupStep(trx, row, providers)
+                : row.kind === "meeting"
+                  ? await meetingStep(trx, row)
+                  : await digestStep(trx, row);
       if (!prepared) await resume(trx, row);
       else
         await markActionWork(

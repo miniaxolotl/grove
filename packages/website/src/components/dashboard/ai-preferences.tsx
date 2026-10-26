@@ -110,6 +110,46 @@ const groups: {
     ],
   },
   {
+    title: "Workbench",
+    features: [
+      {
+        key: "weeklyReviewEnabled",
+        label: "Weekly review",
+        description:
+          "Review new ideas, changed decisions and unfinished actions when you ask.",
+        provider: "generation",
+      },
+      {
+        key: "preparationEnabled",
+        label: "Create a brief",
+        description:
+          "Prepare source-linked context for any goal, not only meetings.",
+        provider: "generation",
+      },
+      {
+        key: "studyModeEnabled",
+        label: "Study notes",
+        description:
+          "Create supported quizzes, flashcards and explanations from chosen notes.",
+        provider: "generation",
+      },
+      {
+        key: "knowledgeGapsEnabled",
+        label: "Find knowledge gaps",
+        description:
+          "Search for answers before highlighting questions or missing evidence.",
+        provider: "generation",
+      },
+      {
+        key: "similarProblemsEnabled",
+        label: "Find past solutions",
+        description:
+          "Find earlier approaches and recorded outcomes for a situation you describe.",
+        provider: "generation",
+      },
+    ],
+  },
+  {
     title: "Connected agents",
     features: [
       {

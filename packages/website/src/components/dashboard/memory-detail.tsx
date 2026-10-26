@@ -27,6 +27,7 @@ import { ShareDialog } from "./share-dialog";
 import { ConnectionPanel } from "./connection-panel";
 import { NoteActions } from "./note-actions";
 import { AssistanceAction } from "./assistance-action";
+import { ToolsAction } from "./tools-action";
 
 export function MemoryDetail({
   memory,
@@ -268,6 +269,15 @@ export function MemoryDetail({
                 }
                 details={
                   <>
+                    {memory && (
+                      <ToolsAction
+                        disabled={writing || locked || isInactive(memory)}
+                        scope={{
+                          kind: "notes",
+                          sources: [{ id: memory.id, version: memory.version }],
+                        }}
+                      />
+                    )}
                     {memory && (
                       <AssistanceAction
                         disabled={writing || locked || isInactive(memory)}

@@ -15,12 +15,59 @@ documentation refresh.
 
 ## Topology
 
+### Notebook tools rollout (033)
+
+1. Verify the admitted source, frozen migration inventory and retained backup.
+   Apply forward `20261025_033_notebook_tools` after031 and any admitted intervening
+   migrations. Provisional032 belongs to the independent organization workstream;
+   it is not a dependency. Never rename/reset already-applied retained migrations.
+2. Drain old workers and deploy matching API/worker before the website. Readiness
+   probes all five preferences; existing meeting031 data remains unchanged. All
+   five new preferences start off, with no queued inference or billing activation.
+3. Explicitly enable each tool for a synthetic internal account. Verify canonical
+   scopes, explicit descendants, large-selection continuation, historical weekly
+   pairs/completion search, gap answer search, study Reveal and past outcomes.
+   Check one assistance action across batches versus separate provider attempts.
+4. Verify stale/expired/redacted results, cancellation, reviewed multi-note Save/Undo
+   and source preservation. Restore invalidates previews; no recurrence is enabled.
+5. Live-model grounding, latency/cost and physical-device acceptance remain separate
+   gates. Roll back by disabling tool admission/preferences and draining jobs;
+   preserve additive schema, authored notes, legacy requests and provider evidence.
+
+This source work performs no production migration, activation or deployment.
+
+### Meeting preparation rollout (031)
+
+1. Verify exact admitted source, current migration inventory and a tested retained
+   backup before any owner operation. Apply forward `20261025_031_meeting_preparation`
+   after merged028 and any intervening admitted migrations.031 deliberately avoids
+   parallel source proposals029 (context/cache) and030 (documents); those features
+   are not prerequisites. Reconcile identifiers against the final frozen source;
+   never rename a migration already applied to a retained environment.
+2. Deploy matching API/worker before the website; drain old workers so they cannot
+   claim a new assistance kind without its current schema/profile implementation.
+   Runtime readiness probes the new preference. Existing accounts and new accounts
+   start with Meeting preparation **off**, with no queued model work or provider,
+   billing, subscription or connection activation.
+3. After the matching site is deployed, explicitly enable the feature for a synthetic
+   internal account only. Verify notebook-local and selected-note sources, source
+   versions, partial coverage, cancellation, no-evidence abstention and reviewed
+   Save/Undo. Check actual provider-attempt usage and assistance accounting separately.
+   No email/calendar/attendee access or automatic source mutations are introduced.
+4. Confirm expiry hides evidence immediately and bounded maintenance redacts expired
+   preview/request/Undo bodies without deleting authored notes/history. Restore
+   invalidates generated previews through the existing reconciliation procedure.
+5. Broader availability needs grounding/latency/cost acceptance with the selected live
+   provider. Synthetic adapters and local browser passes do not establish model
+   accuracy. Roll back by disabling the preference/admission and draining jobs;
+   preserve additive schema, usage, saved briefs and source data.
+
 ### User-action allowances rollout (028)
 
 1. Verify the frozen source and actual migration history, take and verify the
    retained backup, then apply owner-only forward `20261025_028_action_usage` after
-    admin-support 027 and its existing prerequisites. Preserve the forward order
-    026 → 027 → 028; never reuse the independent admin-support migration slot.
+   admin-support 027 and its existing prerequisites. Preserve the forward order
+   026 → 027 → 028; never reuse the independent admin-support migration slot.
    028 adds empty action counters/leases only. Existing notes, revisions, billing
    subscriptions, provider attempts, research and audio usage are unchanged.
 2. Deploy matching API/worker code with the same

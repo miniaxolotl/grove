@@ -4,6 +4,13 @@ Migration **014** adds `background_tasks` for exports, cleanup, model backfills,
 imports and connector sync. Inference keeps `jobs`; email keeps its outbox.
 PostgreSQL owns eligibility, checkpoints, retries and leases.
 
+Meeting preparation reuses assistance jobs in the enrichment lane with one bounded
+generation call per requested brief. Its separate preference starts off; enabling
+it queues no work. Cancel deletes the pending job and fences late publication.
+Migration031 adds indexed derived-preview expiry to bounded retention cleanup;
+this removes generated/request/temporary Undo bodies, never authored source notes.
+See [meeting preparation](meeting-preparation.md) for scope, usage and lifecycle.
+
 ## Capacity and recovery
 
 | Lane        | Worker capacity             | Work                                                |

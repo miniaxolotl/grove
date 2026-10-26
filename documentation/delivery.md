@@ -1,5 +1,167 @@
 # Delivery evidence
 
+## Workbench UI and interaction refinement (25 October 2026)
+
+Source **ee98349** (refinement94630dd plus compact-navigation correction) renames the five-workflow section **Workbench**, preserving
+`/app/tools`, internal/API/preference identifiers, the five feature names and the
+unrelated Ask web/action **Tools** menu. The full-row directory previews each
+workflow's output and contextual scope. Forms group focus, sources and review;
+optional detail stays out of the main path. Notebook filtering retains hidden
+selections with an inspectable selected list. Selected note titles survive source
+pages, workflow drafts are retained, and Back restores launcher keyboard focus.
+
+Readiness guidance explains missing inputs/sources/consent. Creation uses outcome
+labels; invalid inputs show readable validation messages. Results separate source
+continuation and saving, explain unconfirmed Save/retry and confirm saved notes.
+Quiz drafts stay visible after Reveal/Hide, controls retain focus, and self-assessment
+uses pressed states and local counts. No grading or persisted progress is introduced.
+Existing independent opt-in, exact scopes/citations, cancellation, operation identity,
+publication fences, reviewed destination Save/Undo and unchanged originals remain.
+There is no backend, schema, usage-policy or provider change in this follow-up.
+
+Root/site lint, type checks, both builds, nine artifacts, twenty service/upgrade
+checks and website bundle budgets pass. Production CSS/build **SsA58UxOf8U3e2ncubtlS**
+was compiled from this source before the navigation commit; its manifest retains
+94630dd. Notes entry is **492,282 gzip bytes**, with no budget increase. All-five
+real UI→HTTP API→PostgreSQL/worker journeys pass in Chromium and supported Noble
+WebKit at1440/390/320px, including sources, practice, Save/Undo, unchanged originals,
+WCAG A/AA and no overflow/page errors. Additional both-engine checks pass keyboard
+launch/Back focus, retained drafts/detail/pins/titles, filtered hidden selections,
+explicit descendants, short viewports and200% text. Existing uncertain Continue recovery passes.
+Nineteen focused production consent/telemetry/sidebar checks pass, including the
+unchanged220px compact-navigation height and enlarged-text/overflow assertions.
+The first full repeat was not green:231 passed, ten failures followed an incorrectly
+configured development build and one exposed the Workbench label's320px navigation
+wrap. The corrected production build and content-aware flex sizing pass all nineteen
+focused cases without changing assertions or telemetry/provider implementation.
+Full current-head browser and hosted outcomes are recorded separately in PR#139.
+
+[Five reviewed captures](design/screenshots/notebook-tools/README.md) show synthetic
+data only. Current [contract](notebook-tools.md) and [testing guidance](development/testing.md#notebook-tools)
+describe the interactions. #139 remains stacked on unchanged#135; no merge, paid
+inference, production migration or deployment is authorized/performed.
+
+## Five notebook tools — source implementation (25 October 2026)
+
+Source **881d001** implements a shared **Tools** home with **Weekly review**,
+**Create a brief**, **Study notes**, **Find knowledge gaps** and **Find past solutions**.
+The same chooser is reachable from note/notebook/selection actions, Ask and commands.
+General briefs accept any goal and adapt cited sections; there are no required
+meeting fields. Explicit selected-note, multi-notebook, descendant and active-library
+scopes remain distinct from bounded evidence and resumable source batches.
+
+All five independently opted-in modes reuse private assistance, exact citations,
+version/profile/preference/expiry fences, cancellation and stable retries. Weekly
+uses frozen timezone/DST windows and historical before/after evidence; second scoped
+lookup checks task completion and gap answers, including prior candidates on Continue.
+Past solutions preserve recorded outcome distinctions; study Reveal/practice stays
+local, ungraded and unpersisted. Reviewed saves create ordinary source-linked notes,
+splitting long results at complete blocks with one atomic version-fenced Undo.
+
+Additive **033** preserves legacy031 meeting data/API and existing provider usage,
+adds five default-off preferences and a worker-only derived cleanup scheduler.
+One frozen result counts as one assistance action across staged calls/continuations;
+provider attempts remain separate. No automatic inference, recurrence, source edits,
+agent access expansion, migration application or production activation is introduced.
+[Current contract](notebook-tools.md), [rollout](deploy.md#notebook-tools-rollout-033)
+and [verification](development/testing.md#notebook-tools) describe the boundaries.
+
+Verification at the source checkpoint:20 generalized service/upgrade cases pass;
+the initial expanded full backend passes473/four optional-service skips. Later full
+local repeats hit host temporary-storage quota/resource stalls; those interrupted
+runs are not full-suite success evidence. Exact-head hosted results are recorded in
+PR#139 independently. Root/site lint/types/builds,9 artifacts,
+27 release contracts, workflow lint and bundle budgets pass. Notes492271gzip bytes,
+production CSS/build`uo_lbUVmQ-PwuUyVoqg4U`. Native OpenCode2.1.3, Claude2.1.309 and
+Codex0.164.0 checks pass in an isolated container with Node24/pnpm10.33. Host tmpfs
+quota failures required disk-backed artifact/Chromium temp paths and a clean container
+for hardcoded test temp paths; no assertions/timeouts/RLS or retained data were changed.
+
+17 focused Chromium and5 supported WebKit checks pass. All-five actual UI→HTTP
+API→PostgreSQL/worker journeys pass in both engines at1440/390/320px with source links,
+Reveal/practice, Save/Undo, unchanged originals, WCAG A/AA, no overflow/page errors.
+An additional synthetic actual-component check passes per-tool draft/scope retention
+and uncertain Continue→GET→new-version continuation without a new request. The
+narrow/enlarged-text sidebar regression is corrected without relaxing its220px normal
+height or overflow assertions. [Four reviewed captures](design/screenshots/notebook-tools/README.md)
+use synthetic notes, not paid/live-model outputs.
+
+Live-model grounding, latency/cost, large-scale relevance/performance, physical
+devices and recurrence remain unqualified/not enabled. PR#139 remains stacked on#135;
+exact-head hosted verification and review readiness are recorded in that PR separately
+from these local source results. No merge, production migration, paid inference or
+deployment performed.
+
+## Generalized contracts — historical foundation checkpoint (25 October 2026)
+
+The owner clarified that the delivery must cover **Weekly review, Meeting
+preparation, Study mode, Knowledge gaps and Similar past problems**, not stop at a
+meeting-specific product. PR #139 remains stacked on #135; the verified meeting
+slice below is a starting point, not completion of that expanded scope.
+
+Shared contracts now represent all five jobs with distinct inputs/results and a
+common scope/retrieval boundary. Study requires supported answers/explanations;
+weekly decision changes require before/after evidence; gap findings qualify the
+reviewed scope; claimed past outcomes require evidence. Meeting preparation reuses
+the same scope contract, and shared retrieval accepts a task query instead of
+meeting title/agenda. Nine test-first contract cases and a real PostgreSQL scoped
+topic-retrieval regression cover the new foundation. Four additional worker/UI
+paths and the generalized chooser remain unfinished; no inert options are presented
+as available features. This checkpoint adds no preferences, migration or activation.
+
+## Scoped meeting preparation — Phase A (25 October 2026)
+
+Meeting preparation is an independently opted-in, on-demand workflow from one
+notebook's direct notes or up to twelve selected saved revisions. Title, agenda and
+optional date lead to source-linked Decisions, Previous discussions and Open
+questions. Retrieval supplies at most twelve notes/24,000 characters from a bounded
+lexical candidate window, with one structured generation call and explicit partial
+coverage. No chat-history, descendant, calendar, attendee or web access is inferred.
+
+Exact citations, whole-scope/source/preference/profile publication fences, stable
+request/save retries, explicit cancellation and reviewed destination Save/Undo reuse
+the existing assistance infrastructure. Source notes remain unchanged; saved briefs
+retain coverage qualifications. Selected-source recovery preserves the agenda and
+never silently broadens scope. One completed generated brief uses one assistance
+action; actual provider-attempt evidence remains separate from user-action refunds.
+
+Forward migration **20261025_031_meeting_preparation** leaves authored data, provider
+usage and existing cleanup scheduling unchanged. The new worker-only cleanup
+scheduler handles thirty-day derived-preview expiry without replacing the retained
+scheduler. The preference defaults off and enables no background inference. The
+populated upgrade test verifies retained data, opt-outs, forced RLS and narrow grants.
+The existing admin migration test now asserts its named026→027 boundary before
+upgrading to the current schema; preservation assertions are retained.
+
+Implementation `daf189f` normally integrates subscription-badge development
+`06d8740` at verified source **56b675dcc1fdceeed6f354be678e13645e5d6b45**.
+Implementation PR #139 is stacked on planning PR #135; the plan integration changes
+only documentation and retains the runtime and test source verified below.
+Integrated verification: **446 backend passes, four optional S3/broker skips, zero
+failures**; root/site lint and types, root/production website builds, **nine artifact
+tests**, **50 CI/release/provider contracts**, workflow lint and bundle budgets pass.
+Production website build **TbNm5ggTLWqDzmLQS5OoP** keeps the Notes entry at **492,106
+gzip bytes** with deferred meeting UI. Five focused supported Noble WebKit cases
+pass. The initial full Chromium run passed241 cases and exposed an outdated
+sixteen-checkbox settings assertion after adding the seventeenth preference. The
+updated regression verifies default-off and explicit opt-in persistence independently
+of Ask, and passes in Chromium and WebKit. The full Chromium repeat passes **all242
+cases**, with no retries or weakened checks. The follow-up changes only test coverage,
+reviewed captures and delivery documentation; runtime source/build remains unchanged.
+
+The real UI→HTTP API→PostgreSQL/worker journey passes generation, source links,
+reviewed Save/Undo and unchanged originals, with no page errors, WCAG A/AA violations
+or horizontal overflow at1440/390/320px. All inference is deterministic synthetic
+test data, not a paid/live-model quality evaluation. [Four reviewed final-source
+captures](design/screenshots/meeting-preparation/README.md) include the real-service
+form/desktop/phone views and a WebKit partial-coverage/source disclosure.
+
+Weekly review/recurrence, study, knowledge gaps and similar past problems remain
+later phases, not implemented here. Large-scale retrieval performance, live-model
+grounding/cost/latency, physical-device behavior and production activation remain
+unqualified. No production migration, merge, provider/billing activation or deployment
+was performed; rollout is a separately authorized owner operation.
+
 ## Visible subscription and complimentary access (25 October 2026)
 
 The desktop/mobile workspace now keeps a small Free/Pro/Unlimited badge in its

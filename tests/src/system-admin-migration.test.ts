@@ -170,8 +170,16 @@ test("026→027 preserves retained accounts, content, grants, audit and usage wh
     await owner.raw(
       "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO grove_runtime,grove_worker",
     );
-    await owner.migrate.latest();
+    // Qualify the named historical boundary before later additive account columns.
+    await owner.migrate.latest({
+      migrationSource: {
+        ...migrationSource,
+        getMigrations: async () =>
+          migrations.filter((m) => m.name < "20261025_028"),
+      },
+    });
     assert.deepEqual(await fingerprint(), before);
+    await owner.migrate.latest();
     const privileges = (
       await runtime.raw(
         "SELECT has_function_privilege(current_user,'grove_admin_support_state(uuid)','EXECUTE') AS helper",

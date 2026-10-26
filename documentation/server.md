@@ -4,6 +4,12 @@ The Node 24 Hono service exposes `/v1` REST and stateless Streamable HTTP `/mcp`
 Both call the same transactional memory service and Zod contracts. The published
 CLI is an API-only stdio bridge; it has no database credentials or local database.
 
+The five built-in [Workbench workflows](notebook-tools.md) use owner-session-only `/v1/assistance`
+with explicit note/notebook/library scope. Versioned `continue` resumes a ready
+partial result; `cancel` fences pending work; reviewed Save/Undo retain destination
+and source guards. No new MCP tool or agent capability is added. Legacy
+`kind: "meeting"` requests remain compatible but are not the current Workbench UI.
+
 ## Authentication
 
 Private `/v1` data endpoints and `/mcp` require `Authorization: Bearer …`:

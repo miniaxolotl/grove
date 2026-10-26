@@ -307,7 +307,7 @@
   .app-navigation {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     margin: 0;
     gap: 2px;
   }
@@ -357,7 +357,7 @@
     flex-wrap: wrap;
   }
   .app-navigation .app-nav {
-    flex: 1 0 calc(25% - 2px);
+    flex: 1 0 0;
     min-width: max-content;
     flex-direction: column;
     gap: 3px;
@@ -365,6 +365,12 @@
     padding: 5px 4px;
     font-size: 11px;
     white-space: nowrap;
+  }
+}
+@media (max-width: 360px) {
+  .app-navigation .app-nav {
+    font-size: 10px;
+    padding-inline: 2px;
   }
 }
 @media (any-pointer: coarse) {
