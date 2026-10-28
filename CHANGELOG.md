@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.8](https://github.com/miniaxolotl/grove/compare/v1.11.7...v1.11.8) (2026-10-28)
+
+
+### Features
+
+* **notebooks:** add durable organization foundation ([#140](https://github.com/miniaxolotl/grove/issues/140)) ([aaea831](https://github.com/miniaxolotl/grove/commit/aaea8311f6ee1971c6e793dd344fea8712f19709))
+* **notebooks:** add shared organizer and touch controls ([#148](https://github.com/miniaxolotl/grove/issues/148)) ([e91a187](https://github.com/miniaxolotl/grove/commit/e91a187355cc5e76d5019d89e1b05d00e637bd11))
+
 ## [1.11.7](https://github.com/miniaxolotl/grove/compare/v1.11.6...v1.11.7) (2026-10-26)
 
 
