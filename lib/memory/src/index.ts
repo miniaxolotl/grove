@@ -37,6 +37,18 @@ import {
   type NotebookList,
 } from "@lib/shared/memory-tools";
 import { rememberSchema } from "@lib/shared/contracts";
+import {
+  notebookCatalogSchema,
+  organizeNotebookSchema,
+  type NotebookCatalogInput,
+  type OrganizeNotebook,
+  type NotebookCatalog,
+} from "@lib/shared/notebook-organization";
+import {
+  organizeNotebook,
+  notebookFields,
+  orderConflict,
+} from "./notebook-organization.ts";
 import type {
   NotebookLifecycleAction,
   NotebookLifecycleInput,
@@ -907,6 +919,7 @@ export class MemoryService {
     after: string;
     ceiling: string;
     updatedAt?: string;
+    state?: string;
     search?: {
       fingerprint: string;
       position: SearchPosition;
@@ -1956,6 +1969,74 @@ export class MemoryService {
           : row.parentId,
       }));
     });
+  }
+  private async notebookState(trx: Knex.Transaction) {
+    const account = await trx("accounts")
+      .select("id", "notebookOrderVersion")
+      .first();
+    return createHmac("sha256", this.cursorSecret)
+      .update(stable(account))
+      .digest("hex");
+  }
+  async projectCatalog(
+    principal: Principal,
+    request: NotebookCatalogInput,
+  ): Promise<NotebookCatalog> {
+    if (principal.type !== "session") throw forbidden();
+    const input = notebookCatalogSchema.parse(request);
+    return this.access(principal, "memory:read", async ({ trx, account }) => {
+      const state = await this.notebookState(trx);
+      const binding = stable(["notebook-catalog-v1", account.id, input.status]);
+      const cursor = input.cursor
+        ? this.decodeCursor(input.cursor, binding)
+        : null;
+      if (cursor && cursor.state !== state) throw orderConflict();
+      const offset = cursor ? Number(cursor.after) : 0;
+      if (!Number.isSafeInteger(offset) || offset < 0)
+        throw new GroveError("invalid_cursor", "Invalid notebook cursor");
+      const rows: Notebook[] = await trx("projects")
+        .select(notebookFields)
+        .where({ status: input.status })
+        .orderByRaw("parent_id NULLS FIRST")
+        .orderBy("position")
+        .orderBy("id")
+        .offset(offset)
+        .limit(input.limit + 1);
+      const items = rows.slice(0, input.limit);
+      return {
+        items,
+        state,
+        nextCursor:
+          rows.length > input.limit
+            ? this.encodeCursor({
+                binding,
+                state,
+                after: String(offset + input.limit),
+                ceiling: new Date().toISOString(),
+              })
+            : null,
+      };
+    });
+  }
+  async organizeProject(
+    principal: Principal,
+    id: string,
+    request: OrganizeNotebook,
+  ) {
+    if (principal.type !== "session") throw forbidden();
+    const input = organizeNotebookSchema.parse(request);
+    return this.access(principal, "memory:write", ({ trx, account }) =>
+      this.operation(
+        trx,
+        account.id,
+        input.operationId,
+        { action: "notebook:organize", id, ...input },
+        () =>
+          organizeNotebook(trx, id, input, (transaction) =>
+            this.notebookState(transaction),
+          ),
+      ),
+    );
   }
   async project(
     principal: Principal,

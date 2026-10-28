@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import { actionUsage } from "./action-usage-migration.ts";
+import { notebookOrder } from "./notebook-order-migration.ts";
 import { aiCache } from "./ai-cache-migration.ts";
 import { adminUsageReports } from "./admin-usage-migration.ts";
 import { conversationContext } from "./conversation-context-migration.ts";
@@ -269,6 +270,7 @@ export const migrations = [
   conversationDocuments,
   aiCache,
   adminUsageReports,
+  notebookOrder,
 ];
 
 export const migrationSource: Knex.MigrationSource<

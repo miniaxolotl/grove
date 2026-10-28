@@ -1,5 +1,60 @@
 # Delivery evidence
 
+## Notebook stack integration (27 October 2026)
+
+The foundation integrates development through `900aa77` without discarding search,
+explicit context, document uploads/files, AI caching or all-account usage reports.
+The unmerged notebook migration is now **035**, after retained document032,
+cache033 and report034; applied migration identities are unchanged. Readiness
+checks older prerequisites before the new rank/epoch columns. Populated document,
+report and notebook upgrades pass with all original retention/permission assertions.
+The report's historical row comparison stops at its named034 upgrade, then applies
+the remaining schema for current runtime verification.
+
+Cursor decoding retains both search positions and catalog state. The private proxy
+retains file routes alongside owner catalog/organization routes. Restore keeps
+document revocations/import cancellation and independently fences notebook Undo.
+No production schema, retained data, provider setting or deployment is changed.
+
+The integrated foundation passes **595 backend tests** (four optional broker/S3
+skips, zero failures), all **265 Chromium regressions**, **ten packed
+artifact tests**, all three pinned native hosts, root/site lint/types/builds,
+**50 CI/release/provider contracts**, workflow lint and the unchanged bundle gate
+(Notes **492,930 gzip bytes**). These are source integration checks, not a claim
+that the previously recorded physical-device or WebKit stress limits are repaired.
+
+## Notebook organization foundation (25 October 2026)
+
+The first implementation slice adds owner-session catalog paging and atomic
+parent/sibling-order writes. A complete 500-notebook fixture retains cross-page
+parents; the legacy 100-row array and scoped MCP contracts remain unchanged.
+State/version/anchor/cycle checks, exact retry receipts and inverse placements
+support safe future tap/keyboard/drag controls. An independent catalog epoch
+rejects stale Undo even after layout ABA or database restore.
+
+Forward 035 backfills sibling positions by name/ID and keeps existing writers
+compatible through append triggers. Reordering changes no note/source content,
+contentVersion or AI jobs/usage. Direct tenant writes cannot reorder archived
+notebooks. Private exports retain positions; source changes fence downloads and
+restore reconciliation invalidates pre-restore catalog tokens. Runtime readiness
+requires the additive columns. [API contract](notebook-organization.md) and
+[operator rollout](deploy.md#notebook-order-foundation-rollout-035) document boundaries.
+
+All **448 backend tests pass** (four optional broker/S3 skips), including 13 new
+organization/upgrade cases and the existing recovery/service regressions. The
+historical 026→027 preservation assertion now ends at 027, then migrates fully for
+current permission checks; no old-column assertion or tenant check was removed.
+Root/site lint, types and builds, **nine packaged artifacts**, **16 CI** and
+**34 release/provider contracts**, pinned workflow lint and bundle budgets pass.
+All **239 existing Chromium checks** pass against the production website build.
+These are compatibility regressions, not tests of a new Organize interface.
+
+No UI layout or gesture handler changes in this slice. Shared organizer/cache
+integration, visible destination search and physical mobile gesture qualification
+remain subsequent planned work. No fake after-screenshots are provided, and the
+owner's private reference capture is not committed. No retained database migration,
+provider/account change, merge, feature activation or deployment was performed.
+
 ## Cross-account usage reports (26 October 2026)
 
 **Settings → Admin → Usage reports** adds all-account totals, separate feature

@@ -83,7 +83,7 @@ async function forward(
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
     path !== "conversations/search" &&
     !/^files\/(?:search|storage|locations)$/.test(path) &&
-    !/^(assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
+    !/^(projects\/(?:catalog|[0-9a-f-]+\/organize)|assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,
     )
   )
@@ -127,6 +127,10 @@ async function forward(
     if (typeof content === "string" && Buffer.byteLength(content) > 128 * 1024)
       return fail(413, "Request body is too large");
     const target = new URL(`/v1/${path}`, origin.origin);
+    if (path === "projects/catalog")
+      for (const key of ["status", "limit", "cursor"])
+        if (request.nextUrl.searchParams.has(key))
+          target.searchParams.set(key, request.nextUrl.searchParams.get(key)!);
     if (media && request.nextUrl.searchParams.has("version"))
       target.searchParams.set(
         "version",

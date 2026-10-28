@@ -162,6 +162,8 @@ export type Notebook = {
   parentId?: string | null;
   version?: number;
   status?: "active" | "archived";
+  /** Owning-session display order. Scoped agent responses omit positions. */
+  position?: number;
 };
 export const projectSchema = z
   .object({

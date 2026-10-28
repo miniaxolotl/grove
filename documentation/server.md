@@ -140,6 +140,9 @@ No server content cache can outlive deletion or revocation.
 
 ## REST routes
 
+Owner-only notebook catalog and atomic parent/order endpoints are documented in
+[notebook organization](notebook-organization.md). This foundation does not change
+the legacy notebook-list or MCP contracts or yet add the Organize interface.
 Note list/recall/source search, relevance sorting, signed search cursors and
 optional query/version-bound `matches` evidence are described in
 [note search](search.md). Explicit date sorts keep their existing ordering.

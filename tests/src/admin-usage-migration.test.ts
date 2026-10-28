@@ -69,8 +69,7 @@ test("report upgrade preserves retained content, counters and all tenant policie
       );
     const oldPolicies = (await policies()).rows;
     await assert.rejects(probeDatabase(runtime), /usage-report migration/);
-    await db.migrate.latest();
-    await probeDatabase(runtime);
+    await db.migrate.up({ name: "20261025_034_admin_usage_reports" });
     for (let i = 0; i < tables.length; i++)
       assert.deepEqual(await db(tables[i]), before[i], tables[i]);
     assert.deepEqual((await policies()).rows, oldPolicies);
@@ -82,6 +81,8 @@ test("report upgrade preserves retained content, counters and all tenant policie
       worker: false,
       helper: false,
     });
+    await db.migrate.latest();
+    await probeDatabase(runtime);
   } finally {
     await Promise.all([db.destroy(), runtime.destroy()]);
     await authority.raw("DROP DATABASE ??", [name]);

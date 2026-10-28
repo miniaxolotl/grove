@@ -384,6 +384,13 @@ test("isolated restore replays current deletions and revocations without changin
       .where({ id: removedDocument })
       .update({ removedAt: source.fn.now() });
     const result = await reconcileRestore(source, target);
+    const restoredOrder = await target("accounts").where({ id: a }).first();
+    const authorityOrder = await source("accounts").where({ id: a }).first();
+    assert(
+      BigInt(restoredOrder.notebookOrderVersion ?? 0) >
+        BigInt(authorityOrder.notebookOrderVersion ?? 0),
+      "recovery fences every pre-restore notebook layout token",
+    );
     assert(
       (
         await target("conversation_documents")

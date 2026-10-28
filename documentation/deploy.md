@@ -47,6 +47,30 @@ documentation refresh.
 
 ## Topology
 
+### Notebook order foundation rollout (035)
+
+1. Refresh the admitted source and actual migration history. After a verified
+   retained backup, apply forward `20261025_035_notebook_order` with the migration
+   owner, after all earlier migrations present in the admitted source, including
+   document uploads032, caching033 and usage reports034. The original unmerged
+   notebook032 slot was resequenced; never rename an applied migration or reset
+   retained history. Verify actual prerequisites rather than inferring deployment.
+2. Verify original project IDs/names/parents/versions and account preferences,
+   authored notes, grants and provider usage are unchanged. Sibling ranks backfill
+   by name/ID. Existing export invalidation counters advance; the new order epoch
+   starts at zero and tracks subsequent catalog changes. No content is removed.
+3. Deploy the admitted matching API/worker through the protected release process.
+   Readiness rejects missing rank/epoch columns. Test owning-session paged catalogs,
+   a reversible before/after/reparent operation, stale/replayed requests and key/
+   OAuth/other-account denial using synthetic data. Verify existing agent writers
+   append without new fields. Restore the synthetic layout with a current token.
+4. This slice exposes the API/proxy foundation only. Do not advertise a new phone
+   organizer or repaired gestures before the separate UI/device qualification.
+   No provider, subscription or runtime flag change is required.
+5. Keep additive schema and positions on code rollback. Restores must apply the
+   same migrations, retain backup ranks and run reconciliation to fence old
+   catalog/Undo tokens before returning online. Never reset retained data to retry.
+
 ### Explicit context rollout (030)
 
 1. Verify source/migration history and the retained backup before owner-only forward

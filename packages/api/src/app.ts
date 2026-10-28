@@ -27,6 +27,10 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z, ZodError } from "zod";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
+import {
+  notebookCatalogSchema,
+  organizeNotebookSchema,
+} from "@lib/shared/notebook-organization";
 import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { searchConversationHistory } from "@lib/memory";
 import { Webhook } from "svix";
@@ -1327,6 +1331,25 @@ export function createApp(deps: AppDependencies) {
       data: await service.projects(
         c.get("principal"),
         z.enum(["active", "archived"]).parse(c.req.query("status") ?? "active"),
+      ),
+    }),
+  );
+  app.get("/v1/projects/catalog", async (c) =>
+    c.json({
+      success: true,
+      data: await service.projectCatalog(
+        c.get("principal"),
+        notebookCatalogSchema.parse(c.req.query()),
+      ),
+    }),
+  );
+  app.post("/v1/projects/:id/organize", async (c) =>
+    c.json({
+      success: true,
+      data: await service.organizeProject(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, organizeNotebookSchema),
       ),
     }),
   );
