@@ -146,6 +146,10 @@ notes can **Extract action list**; edit the preview before saving a checklist.
 Review source excerpts and changes, then apply or keep both; Undo checks later edits.
 These features have independent AI preferences. See [notebook assistance](notebook-assistance.md).
 
+Weekly review, meeting preparation, study mode, knowledge gaps and similar past
+problems are [planned workflows](development/notebook-workflows.md), not current
+workspace controls.
+
 ## Share with a link
 
 ### Private section links
