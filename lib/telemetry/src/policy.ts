@@ -43,10 +43,21 @@ export const events = [
   "memory_recalled",
   "chat_completed",
   "$ai_generation",
+  "ai_cache",
 ] as const;
 export type EventName = (typeof events)[number];
 export type Outcome = "success" | "unavailable" | "error" | "cancelled";
 export type Properties = {
+  cache_feature?:
+    | "query_embedding"
+    | "document_embedding"
+    | "organization"
+    | "classification"
+    | "planning"
+    | "answer"
+    | "research";
+  cache_status?: "fresh" | "cached" | "coalesced";
+  requests_avoided?: number;
   operation?: Operation;
   outcome?: Outcome;
   command?:
@@ -74,6 +85,16 @@ export function projectProperties(
 ): Properties {
   const output: Record<string, unknown> = {};
   const enums = {
+    cache_feature: [
+      "query_embedding",
+      "document_embedding",
+      "organization",
+      "classification",
+      "planning",
+      "answer",
+      "research",
+    ],
+    cache_status: ["fresh", "cached", "coalesced"],
     operation: operations,
     outcome: ["success", "unavailable", "error", "cancelled"],
     command: [
@@ -98,6 +119,7 @@ export function projectProperties(
       output[key] = input[key];
   for (const key of [
     "duration_ms",
+    "requests_avoided",
     "result_count",
     "input_tokens",
     "output_tokens",

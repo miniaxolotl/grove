@@ -90,11 +90,11 @@ again, even if restored positions match an old layout.
 
 ## Rollout and verification
 
-Forward migration `20261025_032_notebook_order` adds positions, the catalog epoch,
+Forward migration `20261025_035_notebook_order` adds positions, the catalog epoch,
 an order index and tenant-scoped compatibility/invalidation triggers. It creates
 no new tenant table or permission. Migration numbering avoids parallel provisional
 029/030/031; refresh actual source/history before operator rollout. Runtime readiness
-requires both new columns. See [rollout](deploy.md#notebook-order-foundation-rollout-032).
+requires both new columns. See [rollout](deploy.md#notebook-order-foundation-rollout-035).
 
 `notebook-organization.test.ts` exercises complete paged discovery beyond100,
 parent preservation, atomic nesting and reordering, source-version stability,

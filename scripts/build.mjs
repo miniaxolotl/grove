@@ -65,6 +65,18 @@ for (const name of selected) {
       component,
     }) + "\n",
   );
+  if (name === "mcp") {
+    // Generate every shipped skill from the same bundled runtime guidance.
+    const { memorySkill } = await import("../packages/mcp/dist/index.js");
+    for (const agent of ["claude", "codex"]) {
+      const path = `packages/grove-${agent}-plugin/skills/memory/SKILL.md`;
+      const frontmatter = (await readFile(path, "utf8")).match(
+        /^---\n[\s\S]*?\n---\n/,
+      );
+      if (!frontmatter) throw new Error(`Missing skill frontmatter: ${path}`);
+      await writeFile(path, `${frontmatter[0]}\n${memorySkill}\n`);
+    }
+  }
   if (name === "opencode")
     await copyFile(
       "packages/grove-claude-plugin/skills/memory/SKILL.md",

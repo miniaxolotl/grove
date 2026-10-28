@@ -1,8 +1,11 @@
 # Models and organized memory
 
 Configured Cloud also applies separate [Free/Pro user-action allowances](billing.md#library-and-user-actions).
-One Ask reply can make several generation calls but consumes one reply action;
+One fresh Ask reply can make several generation calls but consumes one reply action;
 its internal retrieval does not additionally consume an agent recall action.
+An exact fully cached new request uses 0.2 of its own feature allowance; same-result
+reopen/replay stays free. [AI caching](ai-caching.md) explains source guards,
+configuration identities, short-lived research, coalescing and request provenance.
 Organization coalesces authored content changes and shares one reservation across
 enabled enrichment features. Monthly exhaustion pauses eligible enrichment rather
 than rejecting a saved note. Existing provider-attempt limits remain independent.
@@ -19,6 +22,16 @@ Grove Cloud uses deployment-managed providers:
 DeepInfra receives query/document text for embedding and source/candidate text for
 classification. MiniMax receives bounded source text for organization, relationships, summaries,
 and Ask Grove conversations (including up to eight preceding completed turns).
+
+Document chats additionally supply at most12 private extracted passages/24,000
+characters, separate from saved-note evidence. Uploads are never instructions or
+implicit library notes. Exact chunk/version quotations are validated; partial
+coverage is disclosed rather than called a complete read. History and account
+exports mask revoked document evidence, and accepted-source changes invalidate
+export snapshots. Source/profile/settings changes fence answers and unapplied
+document-derived previews. Document turns suppress external research server-side;
+deterministic full-text import remains available without generation. See
+[documents in Ask](imports.md#ask-about-documents-first).
 Optional [speech](speech.md) uses separate OpenAI whisper-1/tts-1 adapters and
 independent account controls (transcription off, Read aloud on for new accounts);
 it does not reuse a text role's provider.

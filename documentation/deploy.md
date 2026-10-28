@@ -1,5 +1,37 @@
 # Hosting and releases
 
+## Admin usage reports rollout (034)
+
+This feature is stacked on the exact AI-cache release candidate (033). Apply
+forward migration `20261025_034_admin_usage_reports` using the owner procedure
+before deploying the matching API/worker/site; readiness checks its fixed report
+entry point. It adds guarded aggregate functions only: no retained content, usage,
+subscription, role or RLS policy is rewritten. Confirm current migration sequencing
+against merged history before applying; never rewrite an applied migration.
+
+Verify runtime/worker/ordinary-user denial, current admin/session revocation,
+independent action/provider/audio units, date bounds and global versus per-page
+totals. Check reports with purchases hidden. No production migration, activation,
+deployment or parent/child PR merge is authorized by source delivery. See
+[usage reports](admin-usage-reports.md) for coverage and scaling limits.
+
+## AI-cache rollout (033)
+
+Apply forward migration `20261025_033_ai_cache` using the existing owner procedure
+before rolling out the matching API/worker. Runtime readiness checks require the
+new cache table and action-unit column. The migration starts cache/backoff tables
+empty, keeps existing action rows at five integer units (one action), and retains
+all provider counters, subscription state and authored data. No pooled wallet or
+subscription repricing is introduced. See [AI caching](ai-caching.md).
+
+Roll out compatible API/worker together, then the website for fractional usage,
+cache provenance and Refresh sources. Older writers conservatively create full
+five-unit actions but their count-based readers do not understand cached discounts;
+do not promise the new accounting while a mixed fleet remains. Schema activation
+and production deployment remain separate explicit owner operations. Verify tenant
+denial, cold/warm provider-call counts, cache expiry, low-balance admission, source
+mutation/revocation fencing and source refresh before accepting production savings.
+
 Follow [shared release/naming conventions](release-conventions.md): patch-first
 automatic versions, explicit `Release-As` minor/major/breaking decisions, concise
 conventional commit/PR names and immutable promotion refs. Coordinated package and
@@ -15,13 +47,14 @@ documentation refresh.
 
 ## Topology
 
-### Notebook order foundation rollout (032)
+### Notebook order foundation rollout (035)
 
 1. Refresh the admitted source and actual migration history. After a verified
-   retained backup, apply forward `20261025_032_notebook_order` with the migration
-   owner, after all earlier migrations present in the admitted source. The number
-   avoids parallel provisional 029–031; do not infer those features are deployed
-   or skip applicable prerequisites from this document alone.
+   retained backup, apply forward `20261025_035_notebook_order` with the migration
+   owner, after all earlier migrations present in the admitted source, including
+   document uploads032, caching033 and usage reports034. The original unmerged
+   notebook032 slot was resequenced; never rename an applied migration or reset
+   retained history. Verify actual prerequisites rather than inferring deployment.
 2. Verify original project IDs/names/parents/versions and account preferences,
    authored notes, grants and provider usage are unchanged. Sibling ranks backfill
    by name/ID. Existing export invalidation counters advance; the new order epoch
@@ -37,6 +70,51 @@ documentation refresh.
 5. Keep additive schema and positions on code rollback. Restores must apply the
    same migrations, retain backup ranks and run reconciliation to fence old
    catalog/Undo tokens before returning online. Never reset retained data to retry.
+
+### Explicit context rollout (030)
+
+1. Verify source/migration history and the retained backup before owner-only forward
+   `20261025_030_conversation_context`, after search quality 029. It adds nullable
+   `conversation_turns.context`; existing questions, results, counters and RLS remain.
+2. Roll out the matching API/worker image through the protected release path before
+   the website. Readiness checks the new column. Older requests omit the optional
+   field; existing turn fingerprints must not be reserialized or rewritten.
+3. On synthetic accounts verify exact note selection, direct notebook membership,
+   partial large-notebook coverage, selected edit/merge previews, unavailable-source
+   recovery, strict no-research behavior and cross-account denial. Verify exports
+   retain selectors and restore still invalidates in-flight work/deleted chats.
+4. Keep the additive column on code rollback. Do not reset conversations, retained
+   sources, usage, provider settings or billing flags. No new provider key/flag is
+   needed; paid-model evaluation and production rollout require separate approval.
+
+### Search quality rollout
+
+1. Verify the frozen source and actual migration history; the feature currently
+   uses `20261025_029_search_quality` after 028. Resequence only an unapplied
+   feature migration if another feature merges first; never edit applied history.
+2. Back up/verify the retained database per the owner procedure below. Confirm
+   `pg_trgm` is available and the migration owner has the required extension
+   privileges. API/worker roles must remain non-owner, non-bypass and without
+   extension-install privileges.
+3. Apply the forward migration with the owner. It creates the extension and an
+   immutable **security-invoker** title resolver, leaving retained rows, the
+   existing body tsvector and indexes untouched. No provider, reindex job, table
+   rewrite or cross-account search vocabulary is required. Do not add a trigram
+   index or elevated helper merely to obtain an owner-like query plan under RLS.
+4. Roll out API/worker; readiness explicitly verifies search prerequisites. Then
+   roll out the website. Old clients can ignore optional `matches` metadata;
+   old API source can ignore the additive extension/function if rolled back.
+   Roll back the website before an older API: new `relevance` requests require
+   the matching API even though the extension/function are backward-compatible.
+   No reverse migration is needed. Restart pre-upgrade search traversals rather
+   than reinterpret their ordering; explicit date-sort cursors keep their path.
+5. Verify title/body order, prefix/typo lookup, archive/notebook isolation,
+   quote/exclusion behavior and stale-search refresh with synthetic notes. Check
+   actual non-owner plans/latency at representative account sizes. Semantic
+   provider failure and allowance recovery must preserve keyword traversals.
+
+See [matching contracts and limits](search.md). Source delivery does not
+authorize applying the production migration or deploying this feature.
 
 ### User-action allowances rollout (028)
 
@@ -68,6 +146,27 @@ documentation refresh.
    never roll back by dropping counters or rewriting past usage. The existing flag
    does not cancel subscriptions, waive explicit grants or replace incident handling.
 
+### Ask document rollout (032; stacked on import #132)
+
+1. Apply `20261025_032_conversation_documents` after import031, retaining committed
+   action028, search029 and explicit context030. The old feature-only028/030 names
+   were never released. Never rename a migration applied to a retained database.
+2. Back up PostgreSQL and the private original bucket, verify restore, then apply
+   the final ordered forward migrations using the owner before incompatible rollout.
+   The new schema adds chat evidence, immutable accepted chunks, private note
+   provenance and expiry/revocation cleanup; existing authored content stays intact.
+3. Deploy matching admitted API/worker/site artifacts. Keep private source storage
+   independent of expiring exports, Node24 parser permissions and bounded container
+   memory/bulk concurrency. Packaged production dependencies must include PDF.js,
+   `fflate@0.8.2` and `saxes@6.0.0` plus its `xmlchars` dependency.
+4. With synthetic documents test PDF/DOCX/Markdown/text upload, cited follow-ups,
+   private originals, explicit generated-note Apply and full-text import confirmation,
+   removal/expiry, current session/account fences and media-complete account exports.
+   No paid generation quality or real customer files are needed for source acceptance.
+5. Restore must run current reconciliation before traffic, preserving removals and
+   retained originals while invalidating unsent uploads/old leases. Keep schema on
+   rollback; production migration, provider changes and rollout need separate approval.
+
 ### Admin support rollout (027)
 
 1. Back up and verify the retained database using the normal owner procedure.
@@ -90,6 +189,28 @@ documentation refresh.
 
 Restore targets must apply matching migrations and run `reconcile-restore.ts`
 against current authority before going online, including suspension/support state.
+
+### Note and PDF import rollout (031)
+
+1. Follow the frozen-source release procedure. Back up PostgreSQL **and the private
+   source bucket**, verify restore and apply forward `20261025_031_document_imports`
+   after030 using the migration owner. It adds isolated staging/provenance and job
+   kinds without changing existing notes or widening media grants.
+2. Deploy the matching admitted API/worker image by digest, then website. Retain
+   existing private `MEDIA_STORAGE` configuration and source lifecycle receipt; do
+   not point originals at expiring export/speech storage. No new bucket/credential
+   is required. Missing source storage leaves file imports unavailable, not lossy.
+3. Verify the packaged pinned PDF parser and permission-limited child process on
+   the actual Node24 image. Keep bulk concurrency and container memory bounded;
+   V8 old-space limits do not cap total process RSS. Verify hosted streaming uploads
+   up to3 MiB, actual-byte/checksum enforcement and admission/cancellation behavior.
+4. With owned synthetic documents, exercise Markdown/text/PDF preview → existing/new
+   notebook → explicit confirmation, worker restart/retry, original download,
+   second-account/agent/public denial, sharing warning and media-complete export.
+   Check malformed/scanned PDFs, preference-off manual import and expired staging.
+5. Keep the forward schema on rollback. Recovery cancels unconfirmed import previews
+   and old task leases, preserving committed notes/provenance and accepted originals.
+   Migration execution, storage changes and production rollout remain owner operations.
 
 ### System administration rollout (025)
 

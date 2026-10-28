@@ -4,6 +4,9 @@ import {
   adminDetailsSchema,
   adminBrowseSchema,
   adminSupportSchema,
+  adminUsageReportSchema,
+  emptyUsageReportMetrics,
+  type AdminUsageReport,
   type AdminDetails,
   type AdminPage,
   type AdminSupportState,
@@ -151,6 +154,27 @@ export class SystemAdministration {
           input.accountId,
         ])
       ).rows[0].result;
+    });
+  }
+  usageReport(principal: Principal, raw: unknown): Promise<AdminUsageReport> {
+    return this.access(principal, async (trx) => {
+      await trx.raw("SELECT grove_admin_accounts(ARRAY[]::text[])");
+      const input = adminUsageReportSchema.parse(raw);
+      const report: AdminUsageReport = (
+        await trx.raw(
+          "SELECT grove_admin_usage_report(?::date,?::date,?::uuid) AS result",
+          [input.from ?? null, input.to ?? null, input.after ?? null],
+        )
+      ).rows[0].result;
+      report.totals.metrics = {
+        ...emptyUsageReportMetrics(),
+        ...report.totals.metrics,
+      };
+      report.users.accounts = report.users.accounts.map((user) => ({
+        ...user,
+        metrics: { ...emptyUsageReportMetrics(), ...user.metrics },
+      }));
+      return report;
     });
   }
   support(principal: Principal, raw: unknown): Promise<AdminSupportState> {

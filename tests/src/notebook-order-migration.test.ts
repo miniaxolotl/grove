@@ -24,7 +24,7 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
   const db = createDatabase(target(process.env.TEST_DATABASE_URL!));
   try {
     const before = migrations.filter(
-      (m) => m.name < "20261025_032_notebook_order",
+      (m) => m.name < "20261025_035_notebook_order",
     );
     const migrationSource: Knex.MigrationSource<(typeof migrations)[number]> = {
       getMigrations: async () => before,
