@@ -179,11 +179,12 @@ Reindex and restore reconciliation honor these independent preferences.
   grounded assessment, coverage, review, limits and migration. Classification
   never merges, deletes, or moves a memory. Salience provides a small ranking boost
   only after lexical/semantic relevance has selected candidates.
-- Library search combines text and vector matches with existing scope/status/kind/tag
-  filters. `searchMode` reports hybrid or lexical degradation; pagination remains in
-  stable ID order unless `updated_desc`, `updated_asc`, or `created_desc` is selected.
-  Timestamp cursors preserve microseconds. Agent recall uses reciprocal-rank fusion,
-  bounded by 6,000 characters.
+- Library search combines text/vector candidates with scope/status/kind/tag filters.
+  `searchMode` reports hybrid or lexical degradation. Queried library searches
+  default to title-first `relevance`; explicit date sorts stay global. Query-free
+  unsorted listing uses stable ID order. Cursors preserve timestamp microseconds and
+  query/version fences; [search](search.md) owns matching/pagination details. Agent
+  recall uses reciprocal-rank fusion, bounded by 6,000 characters.
 - **Settings → Account → About you** and **Notebook options → Summarize notebook**
   show cited summaries. **Progress notes** opens handoffs by title. Each statement links to exact source
   IDs/revisions. Check status or regenerate on demand.
@@ -247,9 +248,10 @@ pnpm models reset
 pnpm models status
 ```
 
-`reset` reports before/after counts, tombstones every removed memory, clears memories,
-revisions, vectors, enrichments, briefs, jobs and replay results, and increments account
-content versions. Accounts, projects, connections, model settings and usage totals remain.
+`reset` reports before/after counts, tombstones/hides memories and retained revisions,
+clears derived vectors, enrichments, briefs, jobs and replay results, and increments
+account content versions and the global processing epoch. DELETE triggers preserve authored rows/history;
+this is not physical erasure. Accounts, projects, connections, model settings and usage totals remain.
 `reindex` preserves memories and replaces derived queues/briefs. Apply identical model
 configuration, restart API/worker, save a disposable memory, inspect all three processing
 roles, verify a 4,096-dimensional vector, then test paraphrase recall and source invalidation.
@@ -263,41 +265,18 @@ outputs, quotas, invalid citations, stale jobs, source invalidation, scoped acce
 encrypted/masked configuration and reset counts. Browser fixtures exercise model settings,
 cloud read-only controls, cited context and accessibility. See [testing](development/testing.md).
 
-Live release checks subsequently passed on 2026-10-19 using dedicated production
-credentials and synthetic source text:
+Historical provider/rollout results are in the [archive](archive/README.md), not
+current health or model-quality guarantees. Requalify exact providers/profiles,
+dimensions, citations and source invalidation after an approved deployment.
 
-- DeepInfra Qwen returned all 4,096 dimensions; Grove normalized the vectors and
-  matched a paraphrase above an unrelated document. Query embedding took 251 ms
-  within the 850 ms deadline.
-- DeepInfra Clef returned valid kind, topic, salience and duplicate-relationship
-  choices through the production decision adapter.
-- MiniMax M3.1 Flash returned schema-valid titles/tags and a brief with exact source
-  ID/revision citations through the production pay-as-you-go generation adapter,
-  with low reasoning and structured tool output.
-
-The user-authorized production account check subsequently completed on 2026-10-19
-(2026-10-20 UTC), using the combined stack at `1188e6c`:
-
-- API and worker were paused, runtime database sessions drained, and migrations
-  `004` and `005` applied. Both components now use the same digest-pinned feature
-  image; the matching website is promoted at `https://usegrove.cloud`.
-- Six labelled demo memories were created through the signed-in account. All
-  current stored vectors have 4,096 dimensions and unit norm within float32
-  tolerance. All organization jobs completed, including opt-in preference
-  classification, explicit handoff preservation, and a duplicate relationship.
-- The paraphrase “How should feedback on pull requests be written?” retrieved
-  the sample review convention through hybrid recall in 817 ms end to end and
-  through hybrid library search. Query-free task recall included cached context.
-- Personal, project and task briefs are ready with exact, scope-correct source
-  citations. Editing the sample checkpoint hid the previous brief immediately;
-  regenerated context reflects Wednesday at 14:00 UTC and cites revision 2.
-- The final account queue is empty with no failed jobs. Cloud model settings show
-  the configured providers and full dimensions while returning masked keys.
-
-Combined-stack [CI](https://github.com/miniaxolotl/grove/actions/runs/39343596438)
-and the [release-image build](https://github.com/miniaxolotl/grove/actions/runs/39343613175)
-passed. PR #12 remains stacked on #11 for review; this verification did not merge
-either PR or publish new npm package versions.
+Preferences require `20261022_013_ai_preferences` after 012. Follow
+[schema upgrades](operations/schema.md), drain older grouped-preference writers,
+then deploy matching API/worker before website. Existing choices/notes remain;
+keep the additive schema and preference-aware binaries on rollback. Restore needs
+matching authority/target migrations and clears stale generated work. Test mixed
+preferences and disable/re-enable during inference with `preferences-migration.test.ts`
+and `models.test.ts`; provider settings/availability never establish successful paid
+dispatch on their own.
 
 Provider references: [DeepInfra embeddings](https://docs.deepinfra.com/api-reference/embeddings/openai-embeddings.md),
 [System One](https://docs.deepinfra.com/api-reference/decisions/systemone.md),

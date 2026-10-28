@@ -95,5 +95,25 @@ missing prerequisites. There is no new content-trigram index: owner GIN use
 does not prove runtime use for non-leakproof operators behind RLS. Relevance
 fingerprinting and typo shortfalls scan the eligible scope; `LIMIT` alone does
 not cap that work. Measure real runtime plans, never weaken RLS to force an index.
-See [rollout](deploy.md#search-quality-rollout) and
-[verification](development/testing.md#search-quality).
+
+## Rollout and verification
+
+Apply `20261025_029_search_quality` after action 028 using the
+[owner procedure](operations/schema.md). The owner needs `pg_trgm` extension
+privileges; runtime roles must not receive them. Deploy API/worker before website.
+On rollback, roll the website back before an older API that cannot accept
+`relevance`; keep the additive extension/function and restart old search traversals.
+No provider call, retained-row rewrite or reindex is needed for the migration.
+
+`search-quality.test.ts` covers title tiers, all-term prefix/typo matching, strict
+operators, current titles, semantic competition, scoped cursors, async changes,
+global sorting and query budgets. `search-migration.test.ts` checks populated
+retention and invoker-only prerequisites. Browser `search quality` cases in
+`workspace.spec.ts` and `playwright.search-webkit.config.ts` cover passages/title
+marks, stale refresh, explicit sorting and accessible 1440/390/320px layouts.
+
+`pnpm exec tsx tests/src/performance/search-quality.ts` uses disposable role URLs
+from [testing](development/testing.md), creates/removes its own `_test` database
+and measures runtime-RLS plans at 1k/10k notes plus cross-tenant noise. Set
+`SEARCH_EVIDENCE_DIR` to a private directory. [Measured limitations](development/search-quality-results.md)
+include typo/no-match scans; warm local results are not production HTTP p95.

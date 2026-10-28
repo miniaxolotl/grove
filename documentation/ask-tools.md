@@ -207,3 +207,24 @@ batch arrays normalize to empty; a notebook without a parent is a root notebook.
 Incomplete writes and invented citations are rejected. Batch status/descriptions
 come from Grove's validated operations, so model wording cannot claim unapplied
 notebook changes already happened. Invalid model responses remain retryable errors.
+
+## Verification
+
+Run `conversations.test.ts`, `conversation-history.test.ts`, `research.test.ts`,
+notebook-assistance and recovery cases with [disposable non-owner PostgreSQL](development/testing.md).
+Cover atomic intent-limited Apply/Undo, final-note-slot races/whole-batch rollback,
+retry IDs, source/settings revocation, tool-default partial updates, bounded
+research accounting and literal owner-only history search. Fixtures do not
+qualify live Exa/Tavily schemas or model answer quality.
+
+Browser `Ask tools`/`conversation history` cases in `workspace.spec.ts`, tool-default
+cache cases and `playwright.ask-webkit.config.ts` cover new-session/reload defaults,
+held/failed saves, old-chat independence, draft ownership, paging, explicit deletion
+and keyboard/accessibility at 1440/390/320px. Wait for history dismissal/focus before
+typing; a held open can replace the background draft. Check Latest reply preserves
+older reading position. Use synthetic content and the actual components.
+
+Research keys remain API-only. Deploy API/worker before website, keep additive 020
+schema on rollback, and never automatically rerun external calls after restore.
+Recheck configured provider modes/rates and approve explicit request/token/spend
+bounds before live tests; local schema success is not a paid-provider acceptance.

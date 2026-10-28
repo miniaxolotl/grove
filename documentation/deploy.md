@@ -1,971 +1,191 @@
-# Hosting and releases
-
-## Admin usage reports rollout (034)
-
-This feature is stacked on the exact AI-cache release candidate (033). Apply
-forward migration `20261025_034_admin_usage_reports` using the owner procedure
-before deploying the matching API/worker/site; readiness checks its fixed report
-entry point. It adds guarded aggregate functions only: no retained content, usage,
-subscription, role or RLS policy is rewritten. Confirm current migration sequencing
-against merged history before applying; never rewrite an applied migration.
-
-Verify runtime/worker/ordinary-user denial, current admin/session revocation,
-independent action/provider/audio units, date bounds and global versus per-page
-totals. Check reports with purchases hidden. No production migration, activation,
-deployment or parent/child PR merge is authorized by source delivery. See
-[usage reports](admin-usage-reports.md) for coverage and scaling limits.
-
-## AI-cache rollout (033)
-
-Apply forward migration `20261025_033_ai_cache` using the existing owner procedure
-before rolling out the matching API/worker. Runtime readiness checks require the
-new cache table and action-unit column. The migration starts cache/backoff tables
-empty, keeps existing action rows at five integer units (one action), and retains
-all provider counters, subscription state and authored data. No pooled wallet or
-subscription repricing is introduced. See [AI caching](ai-caching.md).
-
-Roll out compatible API/worker together, then the website for fractional usage,
-cache provenance and Refresh sources. Older writers conservatively create full
-five-unit actions but their count-based readers do not understand cached discounts;
-do not promise the new accounting while a mixed fleet remains. Schema activation
-and production deployment remain separate explicit owner operations. Verify tenant
-denial, cold/warm provider-call counts, cache expiry, low-balance admission, source
-mutation/revocation fencing and source refresh before accepting production savings.
-
-Follow [shared release/naming conventions](release-conventions.md): patch-first
-automatic versions, explicit `Release-As` minor/major/breaking decisions, concise
-conventional commit/PR names and immutable promotion refs. Coordinated package and
-marketplace version mappings remain part of the single root release.
-
-Shared workflow names, action pins, runtime and evidence conventions follow the
-[cross-repository CI/CD baseline](pipeline-conventions.md).
-
-The [Grove hardening review](development/cicd-hardening-review.md) distinguishes
-implemented digest-bound rollout/readiness from planned selection, draining and
-fenced automatic last-good recovery. Those controllers are not activated by this
-documentation refresh.
-
-## Topology
-
-### Notebook order foundation rollout (035)
-
-1. Refresh the admitted source and actual migration history. After a verified
-   retained backup, apply forward `20261025_035_notebook_order` with the migration
-   owner, after all earlier migrations present in the admitted source, including
-   document uploads032, caching033 and usage reports034. The original unmerged
-   notebook032 slot was resequenced; never rename an applied migration or reset
-   retained history. Verify actual prerequisites rather than inferring deployment.
-2. Verify original project IDs/names/parents/versions and account preferences,
-   authored notes, grants and provider usage are unchanged. Sibling ranks backfill
-   by name/ID. Existing export invalidation counters advance; the new order epoch
-   starts at zero and tracks subsequent catalog changes. No content is removed.
-3. Deploy the admitted matching API/worker through the protected release process.
-   Readiness rejects missing rank/epoch columns. Test owning-session paged catalogs,
-   a reversible before/after/reparent operation, stale/replayed requests and key/
-   OAuth/other-account denial using synthetic data. Verify existing agent writers
-   append without new fields. Restore the synthetic layout with a current token.
-4. This slice exposes the API/proxy foundation only. Do not advertise a new phone
-   organizer or repaired gestures before the separate UI/device qualification.
-   No provider, subscription or runtime flag change is required.
-5. Keep additive schema and positions on code rollback. Restores must apply the
-   same migrations, retain backup ranks and run reconciliation to fence old
-   catalog/Undo tokens before returning online. Never reset retained data to retry.
-
-### Explicit context rollout (030)
-
-1. Verify source/migration history and the retained backup before owner-only forward
-   `20261025_030_conversation_context`, after search quality 029. It adds nullable
-   `conversation_turns.context`; existing questions, results, counters and RLS remain.
-2. Roll out the matching API/worker image through the protected release path before
-   the website. Readiness checks the new column. Older requests omit the optional
-   field; existing turn fingerprints must not be reserialized or rewritten.
-3. On synthetic accounts verify exact note selection, direct notebook membership,
-   partial large-notebook coverage, selected edit/merge previews, unavailable-source
-   recovery, strict no-research behavior and cross-account denial. Verify exports
-   retain selectors and restore still invalidates in-flight work/deleted chats.
-4. Keep the additive column on code rollback. Do not reset conversations, retained
-   sources, usage, provider settings or billing flags. No new provider key/flag is
-   needed; paid-model evaluation and production rollout require separate approval.
-
-### Search quality rollout
-
-1. Verify the frozen source and actual migration history; the feature currently
-   uses `20261025_029_search_quality` after 028. Resequence only an unapplied
-   feature migration if another feature merges first; never edit applied history.
-2. Back up/verify the retained database per the owner procedure below. Confirm
-   `pg_trgm` is available and the migration owner has the required extension
-   privileges. API/worker roles must remain non-owner, non-bypass and without
-   extension-install privileges.
-3. Apply the forward migration with the owner. It creates the extension and an
-   immutable **security-invoker** title resolver, leaving retained rows, the
-   existing body tsvector and indexes untouched. No provider, reindex job, table
-   rewrite or cross-account search vocabulary is required. Do not add a trigram
-   index or elevated helper merely to obtain an owner-like query plan under RLS.
-4. Roll out API/worker; readiness explicitly verifies search prerequisites. Then
-   roll out the website. Old clients can ignore optional `matches` metadata;
-   old API source can ignore the additive extension/function if rolled back.
-   Roll back the website before an older API: new `relevance` requests require
-   the matching API even though the extension/function are backward-compatible.
-   No reverse migration is needed. Restart pre-upgrade search traversals rather
-   than reinterpret their ordering; explicit date-sort cursors keep their path.
-5. Verify title/body order, prefix/typo lookup, archive/notebook isolation,
-   quote/exclusion behavior and stale-search refresh with synthetic notes. Check
-   actual non-owner plans/latency at representative account sizes. Semantic
-   provider failure and allowance recovery must preserve keyword traversals.
-
-See [matching contracts and limits](search.md). Source delivery does not
-authorize applying the production migration or deploying this feature.
-
-### User-action allowances rollout (028)
-
-1. Verify the frozen source and actual migration history, take and verify the
-   retained backup, then apply owner-only forward `20261025_028_action_usage` after
-   admin-support 027 and its existing prerequisites. Preserve the forward order
-   026 → 027 → 028; never reuse the independent admin-support migration slot.
-   028 adds empty action counters/leases only. Existing notes, revisions, billing
-   subscriptions, provider attempts, research and audio usage are unchanged.
-2. Deploy matching API/worker code with the same
-   `BILLING_{FREE,PRO}_{NOTES,NOTEBOOKS}` and
-   `BILLING_{FREE,PRO}_{RECALL,ASK,ORGANIZATION,ASSISTANCE}_MONTHLY` settings.
-   Explicit existing environment values win over source defaults. Configured
-   billing startup probes the new tables; stop/drain old workers before cutover so
-   they cannot bypass action accounting. Do not activate purchases or change prices.
-3. Verify a flagged internal cohort before broader enforcement. New counters start
-   prospectively, without resetting or converting retained provider usage. Check
-   action totals against real requests, retries and worker fragments, actual provider
-   costs and deferred backlogs; the intro price is not a margin guarantee. The
-   existing billing flag controls ordinary plan enforcement and visibility; it is
-   not a new independent shadow-only switch. Complimentary grants remain effective.
-4. Deploy the website after the API, then verify both tiers, pending/exhausted states,
-   upgrade/downgrade, complimentary/unlimited grants, agent quota errors, keyword
-   fallback, and read/edit/export availability. Existing over-limit data remains
-   retained. Check per-account generation slots across both components, not only a
-   single process. Monthly errors must report the actual reset, not a 60-second loop.
-5. Roll back code/ordinary enforcement only through the established operator and
-   protected release process. Keep the additive schema and all usage/provider data;
-   never roll back by dropping counters or rewriting past usage. The existing flag
-   does not cancel subscriptions, waive explicit grants or replace incident handling.
-
-### Ask document rollout (032; stacked on import #132)
-
-1. Apply `20261025_032_conversation_documents` after import031, retaining committed
-   action028, search029 and explicit context030. The old feature-only028/030 names
-   were never released. Never rename a migration applied to a retained database.
-2. Back up PostgreSQL and the private original bucket, verify restore, then apply
-   the final ordered forward migrations using the owner before incompatible rollout.
-   The new schema adds chat evidence, immutable accepted chunks, private note
-   provenance and expiry/revocation cleanup; existing authored content stays intact.
-3. Deploy matching admitted API/worker/site artifacts. Keep private source storage
-   independent of expiring exports, Node24 parser permissions and bounded container
-   memory/bulk concurrency. Packaged production dependencies must include PDF.js,
-   `fflate@0.8.2` and `saxes@6.0.0` plus its `xmlchars` dependency.
-4. With synthetic documents test PDF/DOCX/Markdown/text upload, cited follow-ups,
-   private originals, explicit generated-note Apply and full-text import confirmation,
-   removal/expiry, current session/account fences and media-complete account exports.
-   No paid generation quality or real customer files are needed for source acceptance.
-5. Restore must run current reconciliation before traffic, preserving removals and
-   retained originals while invalidating unsent uploads/old leases. Keep schema on
-   rollback; production migration, provider changes and rollout need separate approval.
-
-### Admin support rollout (027)
-
-1. Back up and verify the retained database using the normal owner procedure.
-   Apply forward `20261025_027_admin_support` after 026 with the migration owner,
-   before deploying this API/worker/site. Runtime readiness checks the new column.
-2. Verify existing accounts, roles/grants, audit entries, notes and usage counters
-   are unchanged. All accounts start with `admin_suspended=false`; no current
-   provider ban or account status is cleared. Support notes default to empty.
-3. Deploy the admitted source image and matching site through the protected release
-   process. Confirm a current system-admin session can browse all pages, view one
-   selected user's aggregate usage and use audited support edits; confirm ordinary
-   sessions, agent keys/OAuth and worker roles are denied.
-4. Verify reversible suspension using synthetic accounts only: it blocks Grove and
-   ordinary worker dispatch, survives provider updates, and restoring it cannot
-   clear a provider ban. Confirm retry identities, concurrent-settings conflicts,
-   last-admin protection and private note isolation. Restore synthetic changes.
-5. Keep billing activation and identity-provider profile/password changes separate.
-   Vercel Flags paused/static mode serves `pausedOutcome`; `active=false` alone
-   does not prove billing is Off. Do not reset usage to resolve a support issue.
-
-Restore targets must apply matching migrations and run `reconcile-restore.ts`
-against current authority before going online, including suspension/support state.
-
-### Note and PDF import rollout (031)
-
-1. Follow the frozen-source release procedure. Back up PostgreSQL **and the private
-   source bucket**, verify restore and apply forward `20261025_031_document_imports`
-   after030 using the migration owner. It adds isolated staging/provenance and job
-   kinds without changing existing notes or widening media grants.
-2. Deploy the matching admitted API/worker image by digest, then website. Retain
-   existing private `MEDIA_STORAGE` configuration and source lifecycle receipt; do
-   not point originals at expiring export/speech storage. No new bucket/credential
-   is required. Missing source storage leaves file imports unavailable, not lossy.
-3. Verify the packaged pinned PDF parser and permission-limited child process on
-   the actual Node24 image. Keep bulk concurrency and container memory bounded;
-   V8 old-space limits do not cap total process RSS. Verify hosted streaming uploads
-   up to3 MiB, actual-byte/checksum enforcement and admission/cancellation behavior.
-4. With owned synthetic documents, exercise Markdown/text/PDF preview → existing/new
-   notebook → explicit confirmation, worker restart/retry, original download,
-   second-account/agent/public denial, sharing warning and media-complete export.
-   Check malformed/scanned PDFs, preference-off manual import and expired staging.
-5. Keep the forward schema on rollback. Recovery cancels unconfirmed import previews
-   and old task leases, preserving committed notes/provenance and accepted originals.
-   Migration execution, storage changes and production rollout remain owner operations.
-
-### System administration rollout (025)
-
-1. Verify the frozen candidate and production migration history. Back up and verify
-   the retained database, then apply forward `20261025_025_system_administration`
-   using the migration owner **after 024**. If speech-cache024 is pending, follow its
-   rollout below first; do not skip or repeat applied migrations. The new schema
-   creates no admins and changes no retained notes, accounts, subscriptions or usage.
-   This integrated source also requires the duration rollout 026 described below;
-   complete its retained-counter and matching runtime-configuration checks before
-   starting the new API/worker. The full forward order is 024 → 025 → 026.
-2. Deploy matching admitted API/worker images and website through the protected
-   release path. Preserve runtime configuration, billing flags and provider records.
-   No new credential or environment allowlist is required for system roles.
-3. Verify the owner's exact production Clerk identity and existing active account.
-   Invoke the owner-only, parameterized bootstrap described in
-   [system administration](system-administration.md#first-administrator-and-recovery).
-   Grant only the requested role; system-admin does not imply unlimited access.
-4. Verify the owner's Admin navigation/search, ordinary-user and agent denial,
-   private/no-store responses and an owned synthetic grant/revoke/audit round trip.
-   Confirm API/worker grants do not widen private-note access or activate billing.
-5. Retain the forward schema on rollback. Keep restored databases offline until
-   current-authority role/grant reconciliation and credential invalidation complete.
-   Never rebootstrap an unverified identity or revive a revoked snapshot role.
-
-### Tier allowances and speech-duration rollout (026)
-
-This source change does not activate billing, reprice the introductory $5 plan or
-authorize a production migration. Review [allowances](billing.md) and the
-[per-tier cost scenarios](development/tier-costs.md); the owner explicitly treats
-the price as introductory rather than a full-utilization margin guarantee.
-
-1. Back up retained tables and verify restore/isolation with the normal owner
-   procedure. Pause/drain dispatch; apply forward `20261025_026_speech_duration`
-   after this source's earlier migrations, including speech-cache 024 and system
-   administration 025. Preserve that order; do not skip or renumber migrations.
-2. Verify retained `speech_usage.requests/units` are unchanged, the new duration
-   column exists and actual non-owner API/worker tenant isolation still holds.
-   Unknown historical synthesis attempts get a conservative MP3-duration bound;
-   neither character counts nor current-month usage are reset. Old writers accrue
-   that bound too, but mixed-version speech writers are not the rollout target.
-3. Keep billing cohorts unchanged. Configure **matching API and worker** allowances
-   explicitly: source defaults do not override existing DigitalOcean/Doppler values.
-   Replace both `BILLING_*_SYNTHESIS_MONTHLY_CHARACTERS` names with
-   `BILLING_*_SYNTHESIS_MONTHLY_MS`, choosing milliseconds, not copied character
-   numbers. Defaults are 7,200,000 Free / 28,800,000 Pro per speech metric. Old
-   character settings deliberately fail startup rather than silently changing units.
-4. Deploy the admitted matching API/worker source image by digest; startup probes
-   require the duration column. Then deploy the website. Billing responses carry
-   explicit units, and the new website preserves character display for old responses
-   without the duration marker. Never deploy a new API that reports milliseconds to
-   an older website still labelling synthesis as characters; keep billing hidden or
-   use the maintenance window through the coordinated API/website cutover.
-5. Verify Free/Pro usage and hour labels, quota boundaries across API/worker,
-   research above the old per-account ceiling without changing global spend,
-   held/failing TTS reservations, successful duration settlement, cached replay,
-   cancellation, UTC reset and retained historical usage. Original recordings,
-   notes and saved transcripts must remain available. The 60-second recording,
-   3,000-unit narration, 20 speech attempts/day and provider byte/deadline bounds
-   remain; this is not long-lecture ingestion support.
-
-Rollback hides plan enforcement/UI through the existing billing flag and stops
-new dispatch if needed; retain the forward schema, accounting and provider records.
-Do not drop the new counter, erase exhausted usage, raise shared spend caps or
-revert to mixed character/duration reporting to manufacture a successful rollout.
-Real paid-provider/Stripe acceptance and production release require separate scope.
-
-### Billing rollout (023)
-
-Billing source does not authorize a production migration, Stripe live-mode change
-or charging customers. Follow [billing configuration and limits](billing.md).
-
-1. Back up the database; apply forward `20261024_023_billing` after 022 using the
-   owner connection. It adds billing tables/functions without rewriting retained
-   notes, accounts or existing usage. Do not reverse the migration.
-2. Keep `billing-enabled=false`. Install matching API/worker binaries and configure
-   the same Vercel SDK key, Stripe mode/credentials, Pro product/portal and allowances.
-   The Vercel numeric `billing-pro-monthly-usd` flag starts at 5; it controls new-sale
-   pricing in the API as well as the displayed quote. Existing prices are retained.
-   `BILLING_CONFIGURED=true` requires the billing schema at runtime startup.
-   Image-only deployments do not infer or activate these variables.
-3. Configure Stripe's customer portal, tax/legal/payment/receipt settings and the
-   signed API webhook endpoint. Use test mode and an internal Vercel flag cohort
-   first. Deploy the matching website with flag integration, not Stripe secrets.
-4. Verify Free usage, owned Checkout, completed payment → Pro, duplicate/lost
-   responses, signed webhook retry/reordering, period-end cancellation, past-due
-   downgrade, resubscription after cancellation, reset dates, API/worker quotas and
-   account-deletion cancellation. Include a lost Checkout response followed by
-   expiry or completed payment; historical idempotent responses must not redirect
-   to expired Checkout or block deletion by trying to expire paid Checkout.
-   Confirm a second account and agent credentials cannot manage another customer.
-5. Enable the intended cohort only after real Stripe test-mode/provider checks.
-   Live price selection, enablement and charging need separate operator approval.
-
-Hide all billing information and pause new sales/plan enforcement by turning the
-flag off, not by removing credentials or downgrading binaries. Website billing
-page/navigation and API status/checkout/portal return no billing details while off.
-Webhooks and deletion cancellation continue; the flag does not stop renewals.
-Existing safety limits remain. Retain provider billing records.
-
-Owner-authorized provider setup on 24 October 2026 created Grove Pro on the verified
-Bramble Labs Inc. live Stripe account, a $5 USD/month price, a dedicated portal and
-`https://api.usegrove.cloud/v1/webhooks/stripe` endpoint (API2026-09-30.endive).
-Restricted-key reads and live Checkout creation/expiry verified 500 cents/USD;
-no payment or subscription was created. Vercel `bramble-labs-inc/grove` has both
-flags configured, with billing **off in all environments**. New runtime credentials
-and configuration are saved in Doppler `grove/prd_api`, `prd_worker`, `prd_website`
-and ignored private local `secrets.md` inventories. Vercel production website has
-`BILLING_CONFIGURED=true` and its saved Flags Explorer secret for the next deployment.
-Production migration, API/worker runtime-variable synchronization, source promotion
-and website deployment remain release operations; catalog setup is not a deployed
-webhook-delivery or paid lifecycle acceptance claim.
-
-Customer support and Stripe reply-to use `hello@bramblelabs.co`. Stripe's custom
-email domain is `bramblelabs.co`; its required verification, six DKIM and bounce
-records are installed DNS-only, with all nine pre-existing DNS records preserved.
-Stripe must finish verification before the domain can be selected for sending;
-return to Customer emails → bramblelabs.co later and select Send email from this
-domain once available. Owner approved continuing the PR while verification waits.
-Stripe fixes sender local parts such as `billing` and `receipts`; the reply-to
-address remains `hello`, not a configurable sender local part.
-
-MXroute's verified `hello@bramblelabs.co` mailbox receives eight configured base
-forwarders: `billing`, `card-expiring`, `failed-payments`, `invoice`, `receipts`,
-`support`, `trial-ending` and `upcoming-invoice`. Stripe's `invoice+statements` and
-`support+express` use plus addressing; the panel rejects literal plus signs in
-forwarder names. The owner additionally approved a domain catch-all: every unmatched
-`@bramblelabs.co` address forwards to `hello@bramblelabs.co`. Its selected forward
-mode and destination were verified after reload. Existing mailboxes and named
-forwarders retain their normal handling. Actual external message delivery was not
-tested; no mailbox contents or pre-existing forwarding destinations were changed.
-
-After database restore, keep the flag **off** and provider traffic fenced until an
-owner reconciles customer mappings, subscriptions and deleted-account tombstones
-against Stripe. Do not open new Checkout from a pre-billing/stale customer snapshot
-or infer entitlement from restored rows/event receipts. Verify canonical status
-with disposable accounts before reopening; restore is not payment reconciliation.
-
-### Connection quality policy cutover
-
-The substantive-bridge policy requires no new database migration. Coordinate the
-matching API and worker application versions:
-
-1. Pause enrichment dispatch and drain/stop every old worker consumer before
-   enabling the new policy. Do not mix old/new relationship writers; profile-based
-   job selection alone does not prevent old binaries overwriting canonical pairs.
-2. Deploy the admitted matching API/worker image, then resume enrichment. Fresh
-   reads use `relationships-v3-*`; old assessments stay retained but hidden until
-   bounded reconciliation replaces them within existing budgets. Unchanged-source
-   dismissals survive and old inspector revisions cannot act on new assessments.
-3. Verify concrete positive links, template-only abstention, canonical graph/list
-   agreement and stale cleanup-preview rejection using owned synthetic notes.
-   No source edits, eager live reset/reindex or bulk all-pairs inference is needed.
-4. For rollback, pause consumers again and coordinate API/worker rollback. Retain
-   notes and review state; do not reverse migrations or run mixed policy writers.
-
-Older binaries do not understand policy-aware dismissal carryover. Do not resume
-old enrichment writers assuming reviews will remain effective after their next
-assessment. Prefer a compatible forward fix, or keep enrichment paused until an
-explicitly reviewed rollback/review-state procedure is available.
-
-See [connection processing and recovery](relationships.md#migration-and-recovery).
-
-### Speech rollout (019)
-
-Back up retained source objects and the database together. After 018, apply forward
-`20261023_019_speech` with the owner connection during the migration window; runtime
-readiness now requires its account columns. Drain old workers before enabling the
-new bulk task kinds. Roll out the admitted matching API/worker image with speech
-disabled, then configure `OPENAI_API_KEY`, `SPEECH_ENABLED=true`, `TTS_VOICE` and
-`SPEECH_PROVIDER_CONCURRENCY` identically. API startup publishes desired profiles;
-mismatched workers refuse to send or publish old speech. Image-only updates do not
-infer new variables or activate stored Doppler secrets.
-
-Verify original-media storage and temporary artifact storage separately. Cloud
-originals remain in the private durable bucket with no expiry; generated MP3 shares
-the private artifact bucket's one-day `speech/` lifecycle, never the source bucket.
-Migration [024](#content-addressed-speech-cache-024) supersedes this for new audio.
-Confirm bucket policy/lifecycle through an authorized operator, not a broader runtime
-key. Keep maintenance enabled for bounded candidate expiry and artifact removal.
-Migration 019 originally starts both speech preferences off. The forward default
-change below enables Read aloud only for accounts created after migration 021.
-
-Then deploy the matching website and use a disposable account to verify opt-in,
-candidate review/save, read aloud, cancellation, scoped Range playback and expiry.
-Recovery must use the updated reconciliation script: it cancels speech tasks,
-clears machine results and expires derived artifacts without deleting original
-audio or accepted transcript history. See [speech contracts](speech.md). This is
-an operator procedure, not evidence that production activation has occurred.
-
-### Speech defaults (021)
-
-Apply `20261023_021_speech_defaults` with the owner connection after 020 during the
-normal migration window. It changes only the database default for future accounts:
-transcription remains off and Read aloud starts on. Existing rows, saved choices,
-preference versions and queued work are untouched. Do not update existing accounts
-to simulate a default change, and do not edit historical migration 019.
-
-Roll out the matching API/worker and website through the normal protected release.
-Verify a disposable new account reports transcription off/Read aloud on, that it
-can save Read aloud off, and that opening a note or the audio controls never
-prepares/plays audio automatically. This source change does not authorize applying
-the migration to a retained database or changing production preferences.
-
-### Selectable speech voices (022)
-
-The historical environment-only activation below is superseded by migration 024's
-Vercel flag integration when `FLAGS` is configured; see the current rollout below.
-
-Apply `20261024_022_speech_voices` with the owner connection after 021. It backfills
-only the new Reed default, preserving consent flags/generations, and adds the
-per-voice installation profile map. Both runtime processes now require this schema.
-
-Drain old API/worker instances, install matching registry-aware binaries with
-`MINIMAX_TTS_ENABLED=false`, and let API startup publish `speech-voices-v1` plus
-the desired profile map. The protocol marker fences legacy single-voice workers;
-legacy TTS receipts require starting again. Do not restart old API instances that
-could republish the single-profile configuration. Verify Reed and transcription
-before enabling `MINIMAX_TTS_ENABLED=true` on API and worker with the existing
-server-only `MINIMAX_API_KEY` and temporary artifact storage. Keep `SPEECH_ENABLED`,
-`OPENAI_API_KEY`, `TTS_VOICE` and `SPEECH_PROVIDER_CONCURRENCY` consistent too.
-
-Deploy the matching website and verify remembered voices, explicit prepare/play,
-switch cancellation, cache reuse, and scoped playback with synthetic notes. Provider
-qualification and sample provenance are in the [voice evidence](design/screenshots/speech-voices/README.md).
-Operational rollback disables MiniMax TTS while retaining the new schema/binaries:
-saved choices remain visible as unavailable and Reed can be selected explicitly.
-Use the current restore reconciliation script to preserve the remembered choice
-without reviving generated audio. Production migration, provider activation and
-deployment remain separate operator operations.
-
-### Content-addressed speech cache (024)
-
-Apply forward `20261024_024_speech_cache` after 023 with the owner connection and
-the normal backup/migration procedure. It adds tenant-isolated cache metadata to
-the existing artifact registry and a note-write retention trigger. Existing authored
-notes, recordings, transcripts and legacy `speech/` objects retain their data and
-deadlines. Runtime startup checks the new columns.
-
-Before activation, inspect the private artifact bucket's lifecycle and runtime IAM
-prefix permissions. Allow MP3 reads/writes/deletes under `narration/`, and ensure
-**no bucket-wide or prefix age-expiration rule covers it**. Keep ordinary export
-and legacy `speech/` expiration scoped to their own prefixes. A seven-day bucket
-rule is unsuitable: matching audio is retained until its text becomes stale, not
-seven days after creation. Application maintenance owns stale-audio deletion.
-
-Drain older API/worker instances, then deploy the matching admitted image. API
-startup now publishes `speech-content-cache-v1`; older workers fail closed and
-pre-upgrade read-aloud receipts require starting again. Never restart an old API
-that would republish its older protocol. New failed writes still expire after one
-day; successful audio remains current, or expires seven days after its first text
-mismatch. Cleanup claims cannot be revived during object deletion. Restore still
-expires every derived artifact and advances the restore epoch.
-
-Verify with synthetic notes: prepare A, edit to B, revert to A and confirm the
-original object is reused; expire a request receipt and confirm a fresh receipt
-reuses its audio; verify stale-only cleanup and authenticated Range/HEAD playback.
-This source change does not apply production migrations or change bucket rules.
-
-**Alternate-voice investigation (24 October 2026):** read-only production spec
-inspection of active deployment `0ea705f1-ed0f-4b56-8b3d-637dcaaa3dd5` found
-`SPEECH_ENABLED=true` and both provider keys present on API/worker, but no
-`MINIMAX_TTS_ENABLED` on either. Its default is false, explaining the unavailable
-Willow/Cedar/Brook choices. Activation requires setting it true on both components
-and verifying the resulting voice availability; key presence is not a provider
-health/billing check. That initial investigation made no production changes.
-
-**Owner-authorized flag setup:** Vercel project `bramble-labs-inc/grove` now has
-`minimax-tts-enabled` (`flg_UFDbNBSQfL2MZSfLnMPbnGVZnuHI`), active boolean, serving
-**On in production**, **Off in preview/development**, verified by CLI readback.
-API and worker already have `FLAGS` configured. The new runtime uses this flag
-instead of the legacy environment opt-in when that SDK key is present. Use the
-same Vercel environment key on both replicas; retain `SPEECH_ENABLED`, provider
-credentials and artifact storage. The SDK falls back false and has no
-stale-on-error allowance. No billing flag was changed. Old deployed binaries do
-not read this new flag: voice activation still requires the protected source rollout
-after migration 024 and narration-storage verification. Rollback can turn this flag
-Off without changing credentials, saved voice choices or cached objects.
-
-### Ask Grove tools rollout (020)
-
-Apply `20261023_020_ask_tools` with the owner connection after the notebook lifecycle
-schema, during the normal drained migration window. Coordinate the separately
-reserved media migrations 017–019 against the final release source. The migration
-retains old conversations and adds defaults, tool revisions, execution records and
-provider spending counters. Runtime readiness requires the new conversation columns.
-
-Configure optional `EXA_API_KEY` / `TAVILY_API_KEY` as API-only runtime secrets, plus
-`RESEARCH_DAILY_CALL_LIMIT` and `RESEARCH_MONTHLY_BUDGET_USD`. Missing keys leave the
-respective provider unavailable; they do not disable saved-note chat. Initial app
-provisioning and Compose forward these settings only to the API. Existing image-only
-rollouts preserve provider configuration, so add keys/limits through the operator
-configuration procedure before testing. Never use public website variables for keys.
-
-Roll out the admitted API/worker image before the website. Verify Exa-only,
-Tavily-only, both-off, bounded research citations, notebook creation/filing and
-version-fenced Apply/Undo with a disposable account. Use the current recovery
-script: it preserves current tools and conservative spend, clears resumable external
-calls and invalidates old write previews. See [Ask tools](ask-tools.md).
-
-### Notebook lifecycle rollout (016)
-
-Back up the database and pause/drain API and worker mutations. Apply
-`20261023_016_notebook_lifecycle` with the owner connection after 015, then roll out
-the admitted matching API/worker image by digest before the website. The additive
-migration defaults existing notebooks to active, preserves authored records and
-adds archive provenance and inactive-notebook write guards; DDL requires the normal
-maintenance window. Runtime readiness requires the new project/note columns.
-
-Verify subtree Archive/Restore and soft Delete using a disposable account, including
-non-owner RLS denial, preserved source/history, stale-save rejection and revoked
-direct links. Restore does not revive direct links; a live ancestor link can cover
-restored descendants again. Use the current recovery reconciliation to replay
-notebook/note tombstones. This is forward-only; do not run older mutating API/worker
-versions after activation. See [notebook lifecycle](notebook-lifecycle.md).
-
-### Notebook assistance rollout (015)
-
-Apply `20261022_015_notebook_assistance` with the owner connection after 014 during
-the migration window, then deploy the matching admitted API/worker image and website.
-It preserves authored data and initializes four new preferences from existing choices.
-Runtime readiness requires the new columns. Old workers must be drained before the
-new assistance job kind is admitted. Verify a cited summary, a preview/Apply/Undo,
-private export and visit baseline using a disposable account. Use the updated recovery
-reconciliation to invalidate old previews and reset restored visit windows.
-See [notebook assistance](notebook-assistance.md) for the data and lease contracts.
-
-### Queue and retained-deletion rollout (014)
-
-1. Back up the database; pause API/worker mutations and retain lifecycle webhooks.
-2. Apply forward migration `20261022_014_queue_processing` with the owner connection,
-   after013. It preserves source rows, adds tombstones/visibility policies and
-   creates durable tasks, epoch fencing and atomic dispatch functions. Index/DDL
-   locks require the maintenance window. Do not run old workers after the cutover.
-3. Configure matching private export storage on API and workers using [jobs](jobs.md).
-   DigitalOcean needs S3-compatible storage, not ephemeral local disks. Keep cloud
-   exports disabled until the bucket/credentials/lifecycle and readiness are verified.
-   Image-only deployments preserve existing provider settings; add these separately
-   through the operator's configuration procedure.
-4. Roll out the admitted API/worker image by digest, then the website. Verify real
-   non-owner roles, retained-but-hidden records, public-link denial, queue fallback,
-   export/download isolation and an incremental backfill. Drain v1 broker deliveries
-   before disabling `WORKER_LEGACY_QUEUE`; allow40s worker shutdown grace.
-5. Recovery must use the updated reconciliation script. It retains authored rows,
-   replays tombstones and invalidates restored leases, exports and credentials.
-
-This is a forward-only lifecycle/API change. The old synchronous account-export
-route returns410; new clients use `/v1/exports` and `/v1/tasks`.
-
-- Next.js website: **https://usegrove.cloud** on Vercel, production Clerk and an authenticated BFF.
-- Hono API: **https://api.usegrove.cloud**, REST `/v1`, MCP `/mcp` on DigitalOcean App Platform.
-- Worker: leased processing, organization, retention, account deletion, and transactional mail.
-- Neon PostgreSQL 17 + pgvector 0.8.0: migrations and non-owner runtime roles.
-
-Production is deployed in New York, near Neon's AWS US East 1 database.
-One 1-vCPU/1-GB API and one matching worker cost **$20/month combined**, plus Neon
-usage. Worker polling keeps the database active; do not budget it as mostly asleep.
-The published Node 24 image runs both components. Compose remains available for
-self-hosting with pgvector 0.8.2. See [delivery evidence](delivery.md).
-
-API admission, interactive concurrency and per-process database pools are configurable.
-See [capacity settings and verification](development/backend-capacity.md) before
-changing connection counts or resource sizes.
-
-`usegrove.one`, `usegrove.ca`, `grovenote.app` and the four `www` names redirect
-with HTTP 308 to `usegrove.cloud`. Cloudflare hosts `usegrove.cloud` DNS; Porkbun
-remains its registrar and hosts the other redirect domains. Vercel handles redirects.
-
-Keep Cloudflare **Email Address Obfuscation** (`email_obfuscation`) **off** for
-`usegrove.cloud`. Its HTML rewriting changes server-rendered contact-email text
-before React hydration and causes error 418 on the legal pages. Public support
-emails must remain ordinary, readable mail links. After changing edge settings,
-review `/privacy` and `/terms` in a real browser and check for hydration errors;
-local Next.js tests do not exercise Cloudflare transformations.
-
-## Clerk
-
-Grove application `app_3KtGcnwE2Yg0P34l9PVij7LnOTS` has separate development and
-production instances. Production issuer: `https://clerk.usegrove.cloud`;
-development issuer: `https://wanted-bison-3950.clerk.accounts.dev`.
-Pull production keys with `clerk env pull --app app_3KtGcnwE2Yg0P34l9PVij7LnOTS
---instance prod --file /absolute/path/to/.env.clerk.production.local`.
-Secrets belong in Grove's Doppler project, ignored 0600 files and the private
-`secrets.md` custody inventory. Keep API, worker, website and operator configs
-separate; updating custody does not deploy or rotate provider credentials. Never
-commit the inventory or include values in plans or PRs. `usegrove.app` was a
-provisional mistake and is no longer configured.
-
-API environment: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_ISSUER`,
-`CLERK_WEBHOOK_SIGNING_SECRET`, exact `SITE_URL` and `API_ORIGIN`.
-Website environment: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`,
-`GROVE_API_URL` and `SITE_URL`. Publishable keys are public; secret keys are not.
-Sign-in/up routes are `/sign-in` and `/sign-up`; signed-in library is `/app`.
-
-Configure Svix delivery to `API_ORIGIN/v1/webhooks/clerk` for `user.created`,
-`user.updated`, `user.deleted`, `session.revoked`, `session.ended` and
-`session.removed`. Ban/lock updates are ordered; deletion tombstones win over stale
-events. Production endpoint `ep_3KtwL4AVpXAPBCGY4n5WalA3TVP` has its actual signing
-secret configured in both components. Live user/session delivery and deletion pass.
-Email/password authentication is enabled; Google login awaits provider credentials.
-
-For OAuth, enable provider client registration (or register supported public clients)
-with PKCE S256, refresh tokens, scopes `openid offline_access`
-and resource audience **`API_ORIGIN/mcp`**. CLI callbacks use loopback
-`http://127.0.0.1:34141/callback` (CLI), 34142 (OpenCode), 34143 (Claude), 34144
-(Codex). Metadata discovery and the SDK perform registration/authorization/refresh;
-Grove verifies resource and client grant before data access. Clerk does not accept
-custom memory scopes: capabilities are approved in Grove Connections instead.
-Enable `aud_claim_enabled`, keep opaque access tokens for online revocation checks,
-and set DCR `default_scopes` to `["openid"]` and `dynamic_client_allowed_scopes`
-to `["openid", "offline_access"]`. Production issuance, exact resource binding,
-refresh rotation and provider revocation pass. Consent remains required, followed
-by an explicit Grove connection grant. See the browser-automation qualification in
-[delivery evidence](delivery.md#hosted-production-verification).
-
-### Hosted chat connections
-
-ChatGPT and Claude web use the same `/mcp` resource and per-user OAuth grants;
-see [setup and acceptance limits](hosted-chat.md). No new secret or migration is
-required. Deploy the matching API before the website via the protected release
-path. This source feature does not publish a directory listing or change provider
-configuration.
-
-For official OpenAI setup, configure **API-only** `OPENAI_APPS_CHALLENGE` with the
-real portal-issued token. The admitted API serves it as exact plain text at
-`/.well-known/openai-apps-challenge`; unset means 404. It is public domain proof,
-not a credential, and creates no memory permission. Do not overwrite another app's
-existing proof: read the URL first, or use a portal-supported eligible parent host.
-Keep actual portal IDs/proof custody in the operator workflow, not generic examples.
-Set the value in the API's explicit runtime configuration; normal image-only rollout
-preserves existing provider settings and must not infer new variables or change
-the worker. No database migration is introduced by verification/tool titles.
-
-- Ensure both the API and issuer are reachable by the hosts, including discovery,
-  registration and token endpoints. Preserve the exact `/mcp` audience and S256 PKCE.
-- The current path is **DCR**, not CIMD. Do not advertise CIMD unless the actual
-  issuer implements it. Do not replace per-user OAuth with a shared static key.
-- If a predefined client is necessary, register exactly the callback the host shows.
-  Claude's hosted callback is `https://claude.ai/api/mcp/auth_callback`; ChatGPT's
-  callback depends on its issuer/connection setup. CLI loopback callbacks are not
-  hosted callbacks. Provider writes require explicit owner authorization.
-- Before advertising real-host support, qualify fresh sign-in, zero note access
-  before owner approval, save/recall across both hosts, narrowed scope, refresh,
-  wrong-account denial and revocation against the admitted deployment. Current
-  discovery/fixture evidence is not end-to-end hosted-client acceptance.
-- Rollback may restore previous API/website copy together; retained grants/notes
-  are preserved. No database rollback or permission broadening is needed.
-
-## Compose
+# Deployment and recovery
+
+This is an operator procedure, **not live deployment status or authorization**.
+Use the admitted source, current provider readbacks and private configuration.
+Historical deployment IDs, test totals and provider observations are in the
+[evidence archive](archive/README.md), not defaults to replay.
+
+## Topology and configuration
+
+- Website: `https://usegrove.cloud`, Next.js on Vercel; production branch `production`.
+- API: `https://api.usegrove.cloud`, Hono REST `/v1` and Streamable HTTP `/mcp`.
+- Worker: same Node 24 image, separate `node dist/worker.js` command and database login.
+- Database: PostgreSQL 17 with pgvector; migration owner separate from non-owner
+  API/worker roles. Runtime rejects superuser, BYPASSRLS and table-owner credentials.
+
+Use the repository's `.do/app.json` template and `scripts/deploy-digitalocean.mjs`
+for provisioning; verify actual provider region, sizing, database retention and
+connection budgets before changing them. Worker polling prevents assuming the
+database mostly sleeps. [Capacity guidance](development/backend-capacity.md)
+explains pools, admission and measured limits.
+
+Secrets belong in Doppler/private ignored 0600 files, never source, plans, screenshots
+or command arguments. Keep API, worker, website and migration-owner configuration
+separate. A saved secret is not deployed configuration. Image-only updates preserve
+existing encrypted provider settings; they do not install missing keys or enable flags.
+
+### Identity and website
+
+API configuration uses `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_ISSUER`,
+`CLERK_WEBHOOK_SIGNING_SECRET`, exact `SITE_URL` and `API_ORIGIN`. Website uses
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `GROVE_API_URL`, `SITE_URL`,
+and sign-in/up routes `/sign-in` and `/sign-up`. Production issuer is
+`https://clerk.usegrove.cloud`; development uses a separate instance.
+
+Configure Clerk webhook delivery to `/v1/webhooks/clerk` for `user.created`,
+`user.updated`, `user.deleted`, `session.revoked`, `session.ended`, `session.removed`.
+Verify actual signed delivery, event ordering and session revocation; key presence
+or configuration inspection is not a live test.
+
+Agent OAuth uses S256 PKCE, `openid offline_access`, opaque tokens for online
+revocation and the exact **`API_ORIGIN/mcp`** resource audience. Enable the audience
+claim; DCR defaults to `openid` and permits `openid`/`offline_access`. Clerk identity
+scopes do not grant note access: Grove Connections grants remain mandatory. See
+[agent setup](cloud-onboarding.md), [social sign-in](social-sign-in.md) and
+[hosted chats](hosted-chat.md) for callbacks, provider setup and acceptance limits.
+
+Private pages/BFF responses stay uncached and unindexed; public sharing stays outside
+Clerk/analytics. Redact capability paths in edge/provider logs, not only application
+telemetry. Keep Cloudflare email obfuscation **off** for `usegrove.cloud`: rewriting
+contact text before hydration can break legal pages. Review them in a real browser
+after edge changes.
+
+## Self-hosted Compose
 
 ```sh
 cp .env.example .env
-# Generate four independent values with openssl rand -hex 32:
-# POSTGRES_PASSWORD, API_DATABASE_PASSWORD, WORKER_DATABASE_PASSWORD, CURSOR_SECRET
-# Fill Grove Clerk keys, issuer, webhook secret and origins.
+# Generate independent POSTGRES_PASSWORD, API_DATABASE_PASSWORD,
+# WORKER_DATABASE_PASSWORD and CURSOR_SECRET with openssl rand -hex 32.
+# Fill Clerk settings and exact origins in the private .env file.
 docker compose up -d --build
 curl --fail http://localhost:26080/health/ready
 ```
 
-PostgreSQL has no published port. API binds loopback for a local TLS reverse proxy.
-The one-shot `migrate` service applies forward migrations and idempotently creates
-non-owner `grove_api`/`grove_jobs` logins. Existing role passwords are not rotated
-implicitly. API/worker never receive owner credentials. Named volumes preserve
-database and model data. `docker compose down` keeps data; deleting volumes erases it.
+PostgreSQL has no published port; API binds loopback for a TLS reverse proxy. The
+one-shot migrate service applies forward schema and bootstraps `grove_api`/`grove_jobs`;
+it does not implicitly rotate existing role passwords. API/worker never get owner
+credentials. Named volumes retain database/model/source data; do not delete them
+to troubleshoot a rollout.
 
-For a managed database, run the built `dist/migrate.js` with a migration-owner URL,
-then `dist/bootstrap.js` to create the runtime roles, or use equivalent operator
-SQL. Runtime `DATABASE_URL` must be non-owner/non-superuser/non-BYPASSRLS.
-`DATABASE_SSL=require` validates TLS certificates. On a private encrypted network,
-configure the provider's documented transport appropriately; do not disable
-certificate verification. Pgvector extension/role creation needs owner privileges.
+For managed PostgreSQL, run the built `dist/migrate.js`, then `dist/bootstrap.js`
+with the migration owner, or equivalent reviewed owner SQL. Use runtime-role URLs
+for services and `DATABASE_SSL=require` with a trusted CA. Do not disable certificate
+verification. First local model download needs writable cache and at least 180s
+startup allowance. `EMBEDDING_MODE=disabled` explicitly selects lexical operation;
+providers/dimensions never silently fall back. See [models](models.md).
 
-API starts with `node dist/server.js`; worker with `node dist/worker.js`.
-Apply forward migration `20261020_009_conversations` before deploying the
-conversation-capable API/worker and website. It adds account-isolated conversation,
-turn and deletion-tombstone tables; existing notes are unchanged. Back up before the
-owner migration. Roll out API/worker before the website. Conversations use the
-configured generation provider and existing account budgets; the website allows
-180 seconds for a contextual reply. Retain conversation tombstones during recovery;
-the reconciliation tool removes deleted chats and invalidates restored proposals.
+## Release and rollout
 
-Independent AI preferences require `20261022_013_ai_preferences` after 012.
-Verify a backup and migration history, pause API/worker traffic, apply the forward
-migration with the owner role, then deploy matching API/worker replicas before the
-website. The migration preserves each account's legacy choices and retained notes,
-adds independent controls and an Ask Grove cancellation version, and updates the
-reindex function. Verify mixed enabled/disabled controls with the non-owner roles
-before resuming traffic. Retain the additive schema and preference-aware API/worker
-on rollback: older binaries only enforce the grouped organization/summary flags.
-Restore reconciliation requires the same forward schema on authority and target.
+1. Merge feature PRs into protected `development`. Merge the Release Please PR,
+   then wait for its immutable source tag and independent full-source CI.
+2. Dispatch **Select Release Candidate** on development with that exact tag. It
+   opens frozen `promote/production/vX.Y.Z`; later development commits are excluded.
+   Verify source/tree, Release Please, policy/tooling and operator-run evidence.
+   Expired evidence requires refreshing the original selection run, not moving refs.
+3. Before an incompatible rollout, follow [schema upgrades](operations/schema.md):
+   inspect actual applied history, verify a retained backup and isolated restore,
+   pause/drain old writers and apply pending forward migrations using the owner.
+   Review the changed features' own rollout requirements; do not blindly run old
+   migration examples or mix incompatible API/worker generations.
+4. Require strict `CI Gate` and resolved conversations; promotion uses a **merge
+   commit**, never bypass/force. [Release conventions](release-conventions.md) owns
+   naming/version policy; [pipeline conventions](pipeline-conventions.md) owns CI.
+5. Production **Deploy** admits exact released source, preflights every npm tarball,
+   publishes coordinated packages/images and deploys API/worker by immutable digest.
+   Missing `DIGITALOCEAN_ACCESS_TOKEN`/`DIGITALOCEAN_APP_ID` is an error. Verify registry
+   integrity, active provider generation, both component digests and readiness.
+   Development does not publish or deploy. Existing previews need separate retirement.
+6. Deploy the compatible Vercel website after API/worker. Public variables are baked
+   at build time. Any manual deployment must use a clean archive of the promoted
+   production commit, not a worktree containing ignored private artifacts.
+7. Verify synthetic save → worker indexing → read, two-account/grant denial, current
+   session revocation and affected feature journeys. Readiness is not full user,
+   provider, privacy-log or physical-device acceptance. Record evidence in the
+   release PR; leave unrun checks explicit.
 
-Both use the same model configuration. Self-hosted local embeddings need a writable
-model-cache path and use CPU inference. Remote role configuration, encrypted settings
-and the Cloud DeepInfra/MiniMax defaults are documented in [models](models.md).
-`EMBEDDING_MODE=disabled` explicitly selects lexical-only operation. A profile never
-silently falls back to another provider or dimension.
+Five bundled packages/native-marketplace pins share one Release Please-owned version.
+Do not hand-bump versions or publish changed bytes under an existing version.
+`node scripts/publish.mjs --dry-run` preflights without publishing. For partial
+publication rerun Deploy on the same current production commit: identical artifacts
+are reused; conflicts need a new release. Never move a tag/frozen head.
 
-Readiness waits for database-role checks and embedding initialization. Configure
-at least 180 seconds of initial startup time for first model download. Health
-responses contain no customer data. Reverse proxy access logs must omit bodies,
-authorization headers and search queries; use POST search.
+### Feature requirements
 
-## Neon + DigitalOcean + Vercel
+Change only the owning guide when a feature's rollout changes:
 
-### Public sharing rollout
+| Area                                        | Canonical guide                                                                                      |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Models, preferences and exact AI cache      | [Models](models.md), [AI caching](ai-caching.md)                                                     |
+| Jobs, storage and transactional email       | [Jobs](jobs.md), [background services](background-services.md)                                       |
+| Images, original audio and generated speech | [Media](media.md), [recordings](recordings.md), [speech](speech.md)                                  |
+| Public capabilities and expiration          | [Sharing](sharing.md)                                                                                |
+| Notebooks                                   | [Lifecycle](notebook-lifecycle.md), [organization](notebook-organization.md)                         |
+| Ask, context and documents                  | [Ask tools](ask-tools.md), [context](explicit-context.md), [imports](imports.md)                     |
+| Search and relationship-policy cutover      | [Search](search.md), [relationships](relationships.md)                                               |
+| Billing, access and reporting               | [Billing](billing.md), [administration](system-administration.md), [reports](admin-usage-reports.md) |
 
-Before deploying a sharing-capable API/worker, apply the additive forward migration
-`20261021_011_public_sharing` with the migration-owner role. Configure an independent
-64-hex-character **`SHARE_LINK_KEY`** on the API only; all replicas must agree.
-Compose and initial DigitalOcean provisioning support the optional secret. Existing
-image-only rollouts preserve configuration, so install it explicitly in the API's
-`SECRET`/`RUN_TIME` environment before rollout. Deploy the matching website last.
-
-Without this key, sharing reports unavailable; the rest of Grove is usable and
-owners can still revoke links. Key replacement does not revoke existing links;
-replace/revoke links separately. Recovery revokes every restored link, including
-its encrypted copy, before serving traffic. Rollback retains the additive schema.
-See [sharing](sharing.md) for the key-backup and permission contract.
-
-Timed-link rollout additionally requires `20261022_012_share_expiration`. Take and
-verify the production backup, confirm only this forward migration is pending, apply
-it as the migration owner, and verify retained share tokens/versions and tenant
-policies. The additive migration preserves no-expiry links and enforces deadlines
-inside the public SQL reader. Deploy matching API/worker replicas before the website;
-keep this migration when rolling application code back. Do not repeat 010/011.
-
-Redact capability segments in edge/proxy logs for `/s/*` and `/public/shares/*`.
-Verify no-store/no-index/no-referrer headers, signed-out access, live edits, scope
-narrowing and revoked-link reload/history on the actual Vercel/API hosts. Public
-readers do not call Clerk or inference providers.
-The October22 Vercel canary was visible in request-path logs; actual host-path
-redaction remains unverified. Authentication providers are scoped to account and
-workspace layouts so shared-reader success/error/404 pages do not load their SDK.
-
-### Resources and provisioning
-
-- Neon project `rapid-meadow-36605074`, branch `br-calm-king-b7b0fvqj`.
-  Database `grove`; `grove_owner` is migration-only; runtime logins are `grove_api`
-  and `grove_jobs`. Compute scales between 0.25 and 1 CU.
-- DigitalOcean app `3aef47f9-3724-4f21-9cad-8c4eb5644af0`, region `nyc`.
-  Default ingress `grove-rgiwo.ondigitalocean.app`; DNS `api` is a CNAME to it.
-- Vercel project `prj_AAHDflaS5lkamhL46o3kAwRx2YKL`, team `bramble-labs-inc`,
-  root `packages/website`, Node 24, production branch `production`.
-
-`.do/app.json` is the bootstrap template. `scripts/deploy-digitalocean.mjs` adds
-runtime variables and validates it with DigitalOcean before creating/updating the
-app. Initial provisioning needs:
-
-| Variable                                    | Value                                                            |
-| ------------------------------------------- | ---------------------------------------------------------------- |
-| `DIGITALOCEAN_ACCESS_TOKEN`                 | Grove operator's provider token                                  |
-| `GROVE_API_DATABASE_URL`                    | `grove_api` login, `sslmode=verify-full&channel_binding=require` |
-| `GROVE_WORKER_DATABASE_URL`                 | Separate `grove_jobs` login with the same TLS settings           |
-| `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Matching production instance keys                                |
-| `CLERK_WEBHOOK_SIGNING_SECRET`              | Actual Svix endpoint signing secret                              |
-| `CURSOR_SECRET`                             | Shared random value, at least 32 characters                      |
-| `DEEPINFRA_API_KEY`, `MINIMAX_API_KEY`      | Server-only credentials for the Cloud inference roles            |
-| `API_ORIGIN`, `SITE_URL`, `CLERK_ISSUER`    | Optional overrides of the production origins above               |
-| `GROVE_IMAGE_DIGEST`                        | Optional SHA-256 override of the template's published image      |
-
-With those variables in private environment files, validate before first creation:
-
-```sh
-# Initial setup: DIGITALOCEAN_APP_ID must be unset.
-node --env-file=.env.digitalocean.local --env-file=.env.neon.local \
-  --env-file=.env.clerk.production.local scripts/deploy-digitalocean.mjs --propose
-node --env-file=.env.digitalocean.local --env-file=.env.neon.local \
-  --env-file=.env.clerk.production.local scripts/deploy-digitalocean.mjs --create --wait
-```
-
-The script never sends migration-owner credentials. Database URLs, Clerk secrets
-and inference/cursor keys are `SECRET`/`RUN_TIME` values. The API and worker receive only
-their own database login. `DATABASE_SSL=require` verifies certificates. These
-providers communicate over authenticated public TLS, not a shared private VPC.
-
-The API uses readiness `/health/ready`, liveness `/health/live`, and a 180-second
-startup allowance. Cloud inference uses remote providers; self-hosted local model
-cache is writable but ephemeral. The worker uses the same image/configuration with
-`node dist/worker.js`. App Platform edge caching is disabled for REST/MCP.
-
-### Rollout and rollback
-
-The release path is **feature PR → development → frozen release PR → production**.
-Merge the Release Please PR into development, wait for source CI and the immutable
-`vX.Y.Z` release, then dispatch **Select Release Candidate** on development with
-that tag. It opens `promote/production/vX.Y.Z`, labelled and assigned to
-`miniaxolotl`. Its tree/source/upstream/tooling and CI identity are frozen; later
-development commits never enter that PR. Use merge commits for promotion.
-
-Both core branches require strict GitHub Actions **CI Gate**, PR/conversation
-protection and no bypass. Production permits merge commits only. Release tags and
-frozen refs reject updates/deletion. Auto-merge may wait for these requirements.
-Candidate selection is operator-triggered; ordinary pushes never authorize it.
-Bot-created PRs receive explicit CI dispatch using `GITHUB_TOKEN`. Promotion CI
-also verifies the operator-triggered workflow's candidate artifact. Records expire
-after 90 days; rerun the original selection run to refresh its evidence.
-
-GitHub secret `DIGITALOCEAN_ACCESS_TOKEN` and variable `DIGITALOCEAN_APP_ID` are set
-on `miniaxolotl/grove`. **Deploy** admits only production and waits for independent
-full CI before resolving the tag's source SHA/tree separately from the production
-merge SHA. Missing DigitalOcean configuration fails before publication. It checks
-every npm tarball, publishes coordinated packages and immutable images, then rolls
-both API/worker components to the verified digest and checks readiness.
-Development runs validation and Release Please only. Vercel's production branch is
-production; preview deployments are disabled and its ignore command skips all other
-refs. Existing preview resources are retained pending a separate retirement choice.
-Database migrations remain an explicit owner-credential operation before rollout;
-check the applied migration history before promotion rather than repeating a
-migration from an earlier rollout.
-
-The nested-notebook feature requires forward migration
-`20261020_008_nested_notebooks` before deploying its API. It adds nullable parent
-references and revision counters to existing projects, with same-account foreign
-keys. Existing notebooks begin at the top level, and existing notes/grants are
-unchanged. Apply with the migration owner, then roll out the matching API/worker
-before the website. Older clients may omit `parentId` and `expectedVersion`; a
-legacy rename preserves nesting. The migration does not require data backfill or
-provider reindexing, and is not automatically rolled back.
-
-For the one-command Cloud onboarding release, apply `20261019_004_connection_setup`
-before updating the API, then deploy the approval website, publish updated CLI/native
-packages and verify the install commands. The website and npm release must be
-coordinated because older CLIs do not expose `connect`. See the detailed
-[onboarding rollout](cloud-onboarding.md#rollout).
-
-Existing-app updates preserve provider-encrypted secrets, domains and sizing:
-
-```sh
-node --env-file=.env.digitalocean.local scripts/deploy-digitalocean.mjs \
-  --app-id 3aef47f9-3724-4f21-9cad-8c4eb5644af0 \
-  --digest sha256:YOUR_PUBLISHED_DIGEST --propose
-# Repeat without --propose and with --wait to deploy.
-```
-
-Rollback uses the same command with a previously healthy digest after confirming
-current schema, runtime configuration and lifecycle/queue compatibility. Select a
-verified last-good deployment for the current environment; an old bootstrap image
-is not a default rollback target. Forward migrations are not automatically reversed.
-This remains an explicit operator recovery, not an automatic rollback controller.
-
-Update website variables in Vercel's **production** environment and redeploy:
-`SITE_URL=https://usegrove.cloud`, `GROVE_API_URL=https://api.usegrove.cloud`,
-the production Clerk keys, and `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` /
-`NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`. Public keys are included at build time.
-Private `/app` pages and BFF replies are uncached and omitted from indexing;
-analytics are mounted only in marketing.
-
-For manual Vercel deployments, build/upload a clean `git archive` snapshot of the
-promoted `production` commit rather than the operator worktree, which contains
-ignored private artifacts. Retrieve
-production environment only into that private staging directory. Deploy the API
-and worker first when website contracts change. Queue, retention, and Resend setup
-are documented in [background services](background-services.md).
-
-### Operating checks
+## Operating checks and rollback
 
 ```sh
 curl --fail https://api.usegrove.cloud/health/ready
-# Expected: {"status":"ready","semantic":"enabled"}
 curl -i https://api.usegrove.cloud/v1/me
-# Expected without credentials: 401, Cache-Control: private, no-store
+# Without credentials: 401 and private, no-store.
 ```
 
-Check API and worker runtime logs in App Platform, readiness, failed job counts,
-database capacity and Svix delivery attempts. Successful readiness includes the
-non-owner database probe and embedding startup. A test memory reaching
-`indexing: ready` verifies the worker. Logs must omit customer content and tokens.
+Inspect actual API/worker logs, ready/active generations, failed tasks, database
+capacity, broker fallback and lifecycle-webhook backlog. Logs must omit content,
+credentials, recipients and capability URLs. Graceful worker shutdown needs at
+least 40s; lease recovery is not proof of lossless hosted draining.
+
+Existing-app updates preserve domains, sizing and encrypted settings. Propose first:
+
+```sh
+node --env-file=.env.digitalocean.local scripts/deploy-digitalocean.mjs \
+  --app-id YOUR_VERIFIED_APP_ID --digest sha256:YOUR_PUBLISHED_DIGEST --propose
+# An explicitly authorized deployment uses the same inputs without --propose, with --wait.
+```
+
+Rollback is an explicit operator operation to a verified last-good digest compatible
+with the **current** forward schema, configuration, grants, queue and feature protocols.
+Drain/fence incompatible writers first. Retain schema/data; an old bootstrap image
+is not a default recovery target. Automatic last-good rollback/desired-state recovery
+and hosted failure drills are **not implemented/qualified** by current rollout fences.
 
 ## Backups and deletion
 
-Neon's configured point-in-time history is **86,400 seconds (one day)**. There is
-no separate snapshot schedule or 30-day backup retention configured. Confirm this
-window in Neon before choosing a restore point. Operator exports need their own
-encrypted storage, access restrictions and expiry policy.
+Application deletion **hides retained authored records/history**; it is not physical
+erasure. Derived vectors/cache, abandoned staging and expired exports may be cleaned.
+Already delivered copies and provider backups cannot be recalled. See
+[retained deletion](jobs.md#retained-deletion) and [media recovery](media.md#exports-and-recovery).
 
-Permanent application deletion removes live content, revisions, vectors and
-pending jobs. It cannot immediately rewrite historical provider backups or copies
-already delivered to agents. Recovery must replay newer privacy decisions:
-
-1. Restore into an isolated database named `grove_restore` (or ending in `_test`),
-   with API/worker traffic stopped. Use Neon branching/PITR or PostgreSQL 17
-   `pg_dump --format=custom` / `pg_restore --exit-on-error`. Restore the owner,
-   runtime groups, grants, pgvector extension, functions and RLS policies. When
-   restoring outside Neon, omit only provider-specific `cloud_admin` default ACLs;
-   preserve Grove's ownership and runtime grants.
-2. Apply the same forward migrations. Use a trusted CA bundle for `verify-full`
-   TLS; PostgreSQL client images may lack one. Keep backups private.
-3. Keep a current, trustworthy authority database available. Stop application
-   mutations for final reconciliation, retain incoming Clerk lifecycle events,
-   and replay them before reopening traffic. If current deletion authority is
-   unavailable, keep the restore offline until it can be recovered.
-4. Set owner connections `RECOVERY_AUTHORITY_DATABASE_URL` (current source) and
-   `RECOVERY_TARGET_DATABASE_URL` (isolated restore) in an ignored 0600 env file:
+1. Verify the provider's current PITR/retention window; do not assume a 30-day backup.
+   Keep independent operator backups encrypted with access/expiry controls. Back up
+   PostgreSQL **and** immutable source objects/checksums; DB-only is not media-complete.
+2. Restore offline into `grove_restore` or a uniquely named `_test` database. Use
+   PostgreSQL 17 `pg_dump --format=custom` / `pg_restore --exit-on-error` or verified
+   provider PITR. Preserve ownership, runtime groups/grants, extensions/functions/RLS.
+   Outside Neon omit only its provider-specific `cloud_admin` ACLs if necessary.
+3. Apply matching forward migrations. Restore and verify every ready source object's
+   bytes/checksum before reads. Keep a complete trustworthy **current authority** DB;
+   if unavailable, the restore stays offline. Fence application mutations for final
+   reconciliation and retain/replay incoming lifecycle events.
+4. Load owner URLs `RECOVERY_AUTHORITY_DATABASE_URL` and `RECOVERY_TARGET_DATABASE_URL`
+   from a private 0600 env file, then run:
 
    ```sh
    node --env-file=.env.recovery.local --import tsx scripts/database/reconcile-restore.ts
    ```
 
-   The source transaction is read-only. The target transaction replays permanent
-   memory/account/notebook tombstones, identity state and session revocations,
-   hides retained dependent content, clears cached mutation results, cancels old
-   jobs/downloads and invalidates **all** old
-   grants/API keys. Missing authority accounts or mismatched migrations fail closed.
+   Authority is read-only. The target replays current tombstones, revocations,
+   support/role/grant decisions and review state; invalidates old credentials,
+   pending work, mutation receipts, derived results and exports; and fences notebook
+   cursors/Undo. Matching migrations and complete authority are mandatory.
 
-5. Verify non-owner roles/RLS, two-account isolation, deletion absence, worker jobs
-   and readiness. Reissue API keys and reapprove OAuth connections. Rotate the
-   cursor secret for the recovered deployment, then update both runtime URLs and
-   cut over only after the authority/event backlog is reconciled.
+5. Keep billing/provider traffic off until an owner separately reconciles current
+   Stripe customers/subscriptions/tombstones. A restored billing receipt is not
+   payment authority. Verify non-owner RLS, second-account denial, revoked content,
+   worker/readiness and feature recovery. Reissue keys/reapprove OAuth, rotate the
+   cursor secret, reconcile the event backlog, then cut over runtime URLs.
 
-A real Neon dump was restored into isolated PostgreSQL on 2026-10-19. The drill
-verified post-snapshot memory/account deletion, real session-revocation webhook
-replay, old-credential invalidation and tenant isolation. This exercised logical
-restore; Neon in-place PITR and regional disaster recovery were not exercised.
-
-## Releases
-
-`pnpm build` prebuilds API, CLI, OpenCode and native Claude/Codex executables.
-`pnpm test:artifacts` packs each package and tests it away from the source tree.
-Because the CLI and shared libraries are bundled into multiple artifacts,
-Release Please uses one root version/changelog and updates all five package,
-native plugin and marketplace versions together, including shared-only changes.
-Both `feat` and `feature` are recognized. The first coordinated release is 1.2.0;
-the root 1.1.0 ledger establishes its migration baseline without republishing old
-components. Historical component changelogs and tags remain historical evidence.
-Publication to npm is on the `production` branch through `scripts/publish.mjs`,
-after build/type/artifact checks. CI also
-checks PostgreSQL/RLS, HTTP/MCP, website and image build on pull requests.
-The publisher preflights all tarballs against registry integrity before the first
-upload, rejecting changed contents under an existing version. Every package must
-declare the GitHub repository used by npm provenance. After each upload, integrity
-readback allows 60 attempts five seconds apart for asynchronous npm processing;
-conflicting bytes and provider errors fail immediately. Use
-`node scripts/publish.mjs --dry-run` to check the release without publishing.
-`scripts/release/pack.mjs` canonicalizes the resolved package manifest before final
-packing, because pnpm's asynchronous workspace-range resolution can reorder keys.
-Consumer artifact tests exercise these exact final tarballs. Retry still requires
-byte-for-byte registry integrity; metadata ordering never excuses a mismatch.
-Extraction preserves archive permissions, making retries independent of the
-operator's umask as well as the runner's.
-
-The PostgreSQL migration release is tracked in
-[PR #4](https://github.com/miniaxolotl/grove/pull/4): CLI and OpenCode **0.5.0**,
-with the new server, Claude and Codex packages at **1.0.0**. Native manifests and
-marketplace pins match their npm package versions. The one-time `release-as`
-overrides were retired with the explicit version updates. The new single-root
-release configuration uses root-relative explicit JSON updaters for every pin.
-
-Review versions and marketplace pins, require green release PR checks, then merge
-into `development` to create GitHub releases. Promote that release to `production`
-to publish npm artifacts and versioned container images. Verify registry versions,
-integrity and installation after publication. Package publication and live data
-migration are separate rollout steps.
-
-For a failed publication, rerun Deploy on the same current production commit.
-Identical registry artifacts and immutable source images are reused; conflicting
-bytes fail and require a new version. Do not overwrite versions or silently move
-a frozen head. Reconcile target divergence into development and select a new
-release. Local image helpers build only `grove:local`; public pushes use Deploy.
+Logical restore tests do not qualify regional disaster recovery or provider PITR.
+No down-migration, retained-source deletion or privilege weakening is a recovery step.

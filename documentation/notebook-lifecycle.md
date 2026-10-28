@@ -74,7 +74,10 @@ guards; they cannot write into or resurrect an inactive subtree.
 Requires forward migration **016** after **015**. Apply it with the owner connection
 in the maintenance window, then deploy matching API/worker before website. Runtime
 readiness checks the new columns. No migration or deployment is run automatically
-by this feature. See [rollout](deploy.md#notebook-lifecycle-rollout-016).
+by this feature. Follow the [owner procedure](operations/schema.md), drain old
+writers and retain forward schema on rollback; older mutating binaries cannot
+enforce inactive-notebook guards. Verify tombstone reconciliation before reopening
+a restored database. Restore never republishes revoked direct links.
 
 Tests in `tests/src/notebook-lifecycle*.test.ts` exercise real non-owner API/worker
 roles, subtree scope, provenance, retention, stale previews, retry receipts,

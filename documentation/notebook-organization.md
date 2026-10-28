@@ -2,7 +2,7 @@
 
 The owner-only catalog and atomic parent/order API support the shared **Organize**
 interface from the approved [organization plan](https://github.com/miniaxolotl/grove/pull/138).
-The UI is stacked on foundation PR140. Emulated/browser checks are not a claim
+Emulated/browser checks are not a claim
 that the owner's reported physical-phone gesture failures are repaired.
 
 ## Organize in the website
@@ -140,9 +140,12 @@ again, even if restored positions match an old layout.
 
 Forward migration `20261025_035_notebook_order` adds positions, the catalog epoch,
 an order index and tenant-scoped compatibility/invalidation triggers. It creates
-no new tenant table or permission. Migration numbering avoids parallel provisional
-029/030/031; refresh actual source/history before operator rollout. Runtime readiness
-requires both new columns. See [rollout](deploy.md#notebook-order-foundation-rollout-035).
+no new tenant table or permission. It follows document 032, cache 033 and reports 034;
+inspect actual source/applied history using [schema upgrades](operations/schema.md).
+Runtime readiness requires both new columns. Preserve project IDs/names/parents/
+versions, notes, grants and provider usage across backfill; only derived export
+invalidation counters may advance. Deploy compatible API/worker before the UI and
+keep additive ranks/epoch on rollback. No provider or billing flag is required.
 
 `notebook-organization.test.ts` exercises complete paged discovery beyond100,
 parent preservation, atomic nesting and reordering, source-version stability,
@@ -151,3 +154,19 @@ archive/delete handling, export and owner/tenant denial. The populated migration
 test preserves all earlier project/account columns except the existing derived
 export invalidation counter. Recovery tests require a fresh catalog epoch.
 All fixtures use disposable PostgreSQL and non-owner API/worker roles.
+
+Use actual components/production CSS with a real disposable API and a complete
+500-notebook catalog for reorder/nest/unnest/Undo, both-entry lost-response exact
+retry, explicit conflict review and stale Undo refusal. Confirm unchanged note
+scope/version. Check 1440/390/320px, short windows, selected-row visibility, empty
+search recovery, placement preview and Cancel focus; footers stay reachable while
+the body scrolls. Separate full-catalog functional checks from filtered dialog
+accessibility. Restart the fixture after rebuilding its CSS.
+
+**Qualification limits:** intermittent full-catalog WebKit busy/pointer/Undo results
+remain unexplained despite passing isolated repeats. An existing phone WebKit
+archive/draft journey could not reach Manage notebooks; Chromium passed. Physical
+iOS/Android drag, scrolling and note-swipe failures are not qualified as repaired.
+Use native tap for touch submissions and record pointer/request evidence before
+claiming a gesture/state repair. Historical results are in the
+[organizer gallery](design/screenshots/notebook-organizer/README.md).

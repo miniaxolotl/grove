@@ -71,3 +71,26 @@ or storage-policy migration is added. Object keys, hashes, raw staged bytes,
 document quotations, unrelated chat content and foreign metadata are not returned.
 Existing original readers remain the only content-download path. See
 [documents](imports.md), [media](media.md) and [delivery evidence](delivery.md).
+
+## Verification
+
+`files.test.ts` covers the actual non-owner read projection, independent budget/
+visible-byte totals, expiry/removal denial, agent/foreign-account isolation,
+microsecond-safe sort/filter cursors, shared-original deduplication and paged
+locations following current notebook membership. No migration or quota refund is
+introduced by this view. Browser `files.spec.ts` checks empty/error/retry, denied
+refresh, picker keyboard/focus, context-preserving reset and first-page recovery.
+
+Build the website, set the [disposable role URLs](development/testing.md), then run:
+
+```sh
+pnpm exec tsx scripts/testing/files-browser.mjs
+```
+
+The runner creates/removes its own `_test` database and checks real API/parser/
+worker/source-store behavior at 1440/390/320px with synthetic files/identities.
+`FILES_BROWSER=webkit` selects supported WebKit; `FILES_API_PORT` and
+`DASHBOARD_TEST_PORT` override its loopback ports. Verify collapsed storage,
+location search, whole-inventory sorting, byte-identical originals and removed
+source concealment. [Captures](design/screenshots/files-experience/README.md) are
+dated evidence, not a live account inventory.

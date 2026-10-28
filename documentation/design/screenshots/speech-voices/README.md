@@ -83,6 +83,6 @@ latency guarantee. Subjective listening, long-note fatigue and language-quality
 acceptance remain unverified. Voice descriptions reflect the curated preset names.
 
 [Speech behavior/privacy](../../../speech.md),
-[022 rollout](../../../deploy.md#selectable-speech-voices-022) and
+[voice rollout](../../../speech.md#installation-and-api) and
 [verification guide](../../../development/testing.md) describe the installation
 gate, provider-specific retention and remaining operational checks.

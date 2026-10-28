@@ -69,7 +69,7 @@ and `outputTokens`; only applicable fields should be presented for that feature.
 Responses are private/no-store. The website proxy permits this exact POST path
 and retains session/origin checks. Reporting works while purchases are hidden.
 
-Forward migration **034**, stacked after caching **033**, adds two fixed aggregate
+Forward migration **034**, after caching **033**, adds two fixed aggregate
 functions. It creates no report-data table, alters no tenant policy and rewrites
 no usage/content. The owner-only helper scopes fixed aggregate queries to known
 accounts and restores the operator's tenant context on success or error; only
@@ -83,3 +83,22 @@ execution still grows with retained account/activity volume and uses existing
 database/request deadlines. The synthetic 43-account journey is not production
 scale/latency qualification. Large installations may need a separately designed
 aggregate pipeline; this change does not silently enable one.
+
+## Rollout and verification
+
+Apply `20261025_034_admin_usage_reports` using the [owner procedure](operations/schema.md)
+before matching API/worker/site. Readiness checks the fixed report entry point;
+keep additive functions on rollback. No content, usage, role, subscription or RLS
+policy is rewritten and no billing activation is required.
+
+`admin-usage.test.ts` and `admin-usage-migration.test.ts` cover independent units,
+fifth-action discounts, released reservations, inclusive UTC dates, global versus
+page totals, thirty-user paging, identity outages/revocation, forced RLS,
+actor-context restoration and non-superuser ownership. The populated 034 upgrade
+retains existing rows/policies before upgrading fully for current runtime checks.
+
+Use real Admin components, a disposable non-owner API/database and synthetic
+identities in Chromium/WebKit at 1440/390/320px. Check intent-only loading, feature/
+date selection, global CSV amounts, pagination, inspection, empty/error recovery,
+revocation concealment, accessibility and local table scrolling without page overflow.
+See [fixtures](development/testing.md) and [captures](design/screenshots/admin-usage/README.md).
