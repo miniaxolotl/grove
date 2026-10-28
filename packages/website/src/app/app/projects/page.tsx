@@ -3,7 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import type { Project } from "@/lib/dashboard-api";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "@/components/dashboard/workspace-cache";
 import { ActionMenu } from "@/components/dashboard/ui/action-menu";
@@ -20,17 +19,23 @@ import { PageHeading } from "@/components/dashboard/ui/page-heading";
 import { Button } from "@/components/dashboard/ui/button";
 import { NotebookActions } from "@/components/dashboard/notebook-actions";
 import { SearchField } from "@/components/dashboard/ui/search-field";
-import { NotebookDropTarget } from "@/components/dashboard/memory-drag";
+import {
+  NotebookDropTarget,
+  useWorkspaceDrag,
+} from "@/components/dashboard/memory-drag";
 
 export default function ProjectsPage() {
   const active = useNotebooks();
+  const drag = useWorkspaceDrag();
   const cache = useWorkspaceCache();
   const archived = useSearchParams().get("status") === "archived";
   const archiveQuery = useQuery({
-    ...cache.resource<Project[]>("/projects?status=archived"),
+    ...cache.notebookCatalog("archived"),
     enabled: archived,
   });
-  const projects = archived ? (archiveQuery.data ?? []) : active.projects;
+  const projects = archived
+    ? (archiveQuery.data?.items ?? [])
+    : active.projects;
   const loading = archived ? archiveQuery.isPending : active.loading;
   const error = archived
     ? archiveQuery.error
@@ -49,12 +54,16 @@ export default function ProjectsPage() {
     <>
       <PageHeading
         title={archived ? "Archived notebooks" : "Notebooks"}
-        description={`${projects.length} notebooks`}
         actions={
-          <Button onClick={() => setAction({ mode: "create" })}>
-            <Plus size={16} />
-            New notebook
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => active.openOrganizer()}>
+              Organize
+            </Button>
+            <Button onClick={() => setAction({ mode: "create" })}>
+              <Plus size={16} />
+              New notebook
+            </Button>
+          </>
         }
       />
       <nav className="notebook-status-nav" aria-label="Notebook status">
@@ -86,7 +95,9 @@ export default function ProjectsPage() {
             placeholder="Find a notebook…"
           />
           <span>
-            {matches.length} {matches.length === 1 ? "notebook" : "notebooks"}
+            {query.trim()
+              ? `${matches.length} of ${projects.length} notebooks`
+              : `${projects.length} ${projects.length === 1 ? "notebook" : "notebooks"}`}
           </span>
         </div>
       )}
@@ -143,23 +154,23 @@ export default function ProjectsPage() {
           className="notebook-manager"
           aria-label="Notebook organization"
         >
-          <NotebookDropTarget projectId={null} name="Top level" root />
+          {drag.active?.kind === "notebook" && (
+            <NotebookDropTarget projectId={null} name="Top level" root />
+          )}
           <NotebookTree
             projects={projects}
             query={query}
             defaultExpanded
             actions={(project) => (
-              <NotebookActions
-                compact
-                project={project}
-                onAction={setAction}
-                onShare={() => setSharing(project.id)}
-              />
+              <ActionMenu label={`More actions for ${project.name}`}>
+                <NotebookActions
+                  project={project}
+                  onAction={setAction}
+                  onShare={() => setSharing(project.id)}
+                />
+              </ActionMenu>
             )}
           />
-          <p className="notebook-organization-hint">
-            Drag notebooks to nest them. Drop at Top level to unnest.
-          </p>
         </section>
       )}
       {action && (

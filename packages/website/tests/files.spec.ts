@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const id = "00000000-0000-4000-a000-000000000101";
 const storage = {
@@ -202,10 +203,7 @@ test("file filters, notebook picker and sorting reset pagination without losing 
   const projectId = "00000000-0000-4000-a000-000000000103";
   let last: Record<string, unknown> = {};
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname.replace(
-      "/api/grove",
-      "",
-    );
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
     let data: unknown = [];
     if (path === "/me") data = { accountId: "polished-files" };
     if (path === "/projects")
@@ -223,7 +221,12 @@ test("file filters, notebook picker and sorting reset pagination without losing 
       last = route.request().postDataJSON();
       data = { items: [file], nextCursor: "next" };
     }
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/settings/files?memoryId=${id}`);
   await expect(page.locator(".files-storage")).not.toHaveAttribute("open", "");

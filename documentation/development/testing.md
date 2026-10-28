@@ -10,10 +10,47 @@ concurrent reorders, no-op/source-version stability, stale Undo/ABA, export rank
 and restore epoch fencing. The populated upgrade must preserve retained source
 columns and grants; only existing derived export counters may advance on backfill.
 
-This API/proxy slice adds no new UI or gestures. Existing browser suites remain
-regressions, not evidence that the reported physical-phone issue is fixed. The
-future Organize UI must still qualify tap/keyboard tasks and physical iOS/Android
-scroll/pickup/cancellation as specified in the approved planning PR138.
+The stacked UI uses the actual workspace components and production CSS with a
+loopback real API/non-owner PostgreSQL fixture (`DASHBOARD_API_FIXTURE_PORT`).
+Use a complete500-notebook account, including a child whose parent is on another
+catalog page. Verify manager/explorer/sub-notebook order, search/path preservation,
+adjacent moves, nest/unnest, explicit before/after placement, cancellation and Undo.
+Hold/lose accepted responses and compare the complete retry body/operation ID;
+conflicts must require explicit review and reset the chooser. Stale Undo must not
+refresh/replay itself. Failed catalog scans retain the previous complete snapshot
+and block movement until retry; lifecycle removes cached rows immediately.
+
+Run the existing Chromium suite and supported WebKit notebook/navigation cases.
+Review320/390/1440px, short viewports, focus return, keyboard selection, WCAG A/AA,
+overflow and touch target/scroll behavior. Large-catalog functional checks and
+representative filtered accessibility checks are distinct evidence. Use synthetic
+names for [reviewed captures](../design/screenshots/notebook-organizer/README.md).
+No new frontend test cases are added in this pass; existing fixtures/interactions
+are adapted to the paged wire contract and the single-menu/searchable-Move UI.
+
+Physical iOS/Android reproduction of the owner's notebook drag, scrolling and note
+swipe failures remains required for a device-fix claim. The coarse-pointer notebook
+folder control intentionally opens Organize and permits native scroll; note drag/
+swipe handlers remain unchanged. Browser emulation is not physical acceptance.
+
+The full500-row WebKit pointer/Undo qualification gap remains recorded independently
+of the PR's ready/draft setting; isolated passing repeats do not explain earlier
+intermittent results. Capture pointer/focus targets and actual organization requests
+before proposing any mutation/notification repair.
+For organizer polish, review the two-pane desktop and stacked phone layouts, selected
+row visibility after resize, sibling position, empty search recovery, destination/
+placement preview while filtering, and Cancel focus return. Check Done and Move/
+Cancel footers at320/390/1440px and420px height, with the body scrollable. Check that
+the Move search has only one border and all existing API/state fences remain intact.
+Use native `tap` for touch/mobile submissions, recording mouse-click journeys
+separately. The polish review has passing native-tap recovery and isolated full500
+functional runs, but an intermittent long mouse-click submission remains recorded.
+The selected existing WebKit archive/draft case could not reach Manage notebooks
+from the phone editor; do not describe its seven passing neighbors as eight passes.
+Small filtered journeys are not a substitute. Use a task-owned TMPDIR when shared
+scratch storage is at quota, and restart the fixture after a production rebuild:
+its CSS manifest is captured at startup. Missing CSS and cancelled downloads from
+those harness failures must not be misclassified as application regressions.
 
 ## Cross-account usage reports
 

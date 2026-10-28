@@ -126,6 +126,11 @@ export function MemoryContext({
                     <span>Today’s note</span>
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <NotebookActions
+                      project={project}
+                      onAction={setNotebookAction}
+                      onShare={() => setSharing(true)}
+                    />
                     <button type="button" onClick={() => setImporting(true)}>
                       <Upload size={15} />
                       Import notes
@@ -136,11 +141,6 @@ export function MemoryContext({
                     />
                     <AssistanceAction
                       input={{ kind: "cleanup", projectId: project.id }}
-                    />
-                    <NotebookActions
-                      project={project}
-                      onAction={setNotebookAction}
-                      onShare={() => setSharing(true)}
                     />
                     <button
                       className="action-group-start"
@@ -227,6 +227,14 @@ export function MemoryContext({
             <h2>Sub-notebooks</h2>
             <NotebookTree
               projects={projects.filter((p) => p.parentId === project.id)}
+              actions={(child) => (
+                <ActionMenu label={`Notebook actions for ${child.name}`}>
+                  <NotebookActions
+                    project={child}
+                    onAction={setNotebookAction}
+                  />
+                </ActionMenu>
+              )}
             />
           </section>
         )}

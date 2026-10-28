@@ -1,5 +1,101 @@
 # Delivery evidence
 
+## Notebook organizer polish (26 October 2026)
+
+The organizer separates browsing from selected-notebook controls on desktop and
+stacks them on phones. Done has its own footer, sibling position is explicit, and
+the selected row stays visible when the list resizes. One **Move to…** action
+replaces competing destination links; Cancel returns focus to that action, or the
+selected heading when recovery has locked movement. Reopening starts unfiltered.
+
+Move uses one search outline, separate notebook names/ancestor paths, clear empty
+search recovery and a destination/placement preview that remains visible in the
+form when filtering hides the chosen row. Its action footer stays outside scrolling
+content, including short windows. Grove's palette/type and all operation, retry,
+review and Undo state fences are unchanged. [Reviewed captures](design/screenshots/notebook-organizer/README.md)
+use actual components, production CSS and the disposable synthetic500-notebook API.
+
+All **239 Chromium regressions** pass with the CI telemetry build settings and
+isolated temporary directories. All **nine packaged artifact tests**, root/site
+lint, types, production builds and the
+bundle gate pass; Notes is **496,249 gzip bytes** under513,351, editor deferred.
+Both engines pass the500-notebook API/RLS journey for reorder/nest/unnest/Undo,
+accepted-lost exact replay from both entry points, reviewed conflicts, stale-Undo
+refusal and unchanged original note scope/version. Both also pass1440/390/320px,
+420px-height footer/body-scroll, empty-state, search, selected-row and focus checks,
+with representative filtered WCAG A/AA checks. Mobile WebKit's recovery submission
+uses native tap. Existing frontend assertions/timeouts remain unchanged; no new
+frontend test cases are added.
+
+Instrumented full500 mobile WebKit pointer Undo and the longer real-service journey
+passed before these visual edits. The trace confirms the notification's actual hit
+target and inverse write; it does not explain earlier intermittent failures. No
+notification/mutation repair or physical-phone acceptance is inferred.
+The later long touch/mobile WebKit sequence missed a mouse-click submission, though
+the native-tap repeat and separate full functional journey pass. An additional
+existing WebKit archive/draft case also could not reach Manage notebooks from the
+phone editor (seven of eight selected cases pass); its Chromium equivalent passes.
+These remain explicit qualification limits, not hidden skips or repaired-device
+claims. No migration, retained-data reset, merge or deployment is part of polish.
+
+## Shared notebook organizer (25 October 2026)
+
+**Qualification limit:** the full500-row WebKit pointer/Undo stress journey was
+not consistently passing. Small filtered real-service moves/Undo and seven existing
+WebKit regressions pass, but they do not qualify the large-catalog notification
+interaction. Isolated passing repeats in the polish pass do not establish its prior
+root cause; do not infer physical-phone repair from the Chromium evidence below.
+
+Stacked on foundation PR140, the website now combines every owner catalog page
+before presenting notebook trees or destinations. **Organize** offers Move up/down,
+Nest inside and Move out; the shared Move dialog searches full destination paths
+and supports explicit sibling placement. Manager rows use one menu and one count;
+explorer and sub-notebook controls share the same saved order and mutation path.
+Touch-primary folder controls open Organize and permit native vertical scrolling;
+mouse before/after/inside and keyboard nesting remain optional enhancements.
+
+Unknown organization outcomes retain the exact request and operation ID. Explicit
+conflict review resets open chooser bases; accepted retries reconcile from a fresh
+complete catalog rather than installing stale replay snapshots. Undo retains its
+original state fence and refuses intervening layout changes. Archive/delete prune
+the new catalog caches as well as note sources. Existing browser fixtures now model
+catalog envelopes and same-operation note receipts, matching the actual API instead
+of returning a false version conflict for an identical concurrent save replay.
+
+Root/site lint, types and builds, **nine artifacts**, **448 backend passes** (four
+optional-service skips), **43 CI/release contracts** and workflow lint pass. Website
+regressions pass **all239 Chromium cases** and **seven focused supported WebKit
+cases**. Existing assertions remain intact; fixtures follow the new catalog/menu
+contract and replay behavior rather than skipping affected coverage. Website
+build `tipF56b61ayjRXkmtRKT1` keeps Notes at **495,071 gzip bytes** within its513,351
+budget, with the editor deferred. [Four reviewed captures](design/screenshots/notebook-organizer/README.md)
+use real components, production CSS and synthetic data; no private reference image
+or production account is included.
+
+Actual API/non-owner PostgreSQL journeys cover500 notebooks, complete cross-page
+parentage, tap moves/nesting/unnesting/Undo, exact accepted-lost retries from both
+organizer and standalone Move, reviewed conflicts, stale Undo refusal and unchanged
+original note scope/version. Mouse before/after drops persist order without a source
+version bump. Cache probes reject partial/repeated scans, restart a changed scan
+atomically, retain complete snapshots after page failure and fence account teardown.
+Tree/path/destination rendering reuses lookup indexes rather than rebuilding a
+500-row map for every row. The tap/keyboard organizer renders plain rows without
+registering disabled drag/drop handlers. WebKit stress exposed a cancelled
+reconciliation read being reported as a failed refresh after a saved move;
+reconciliation joins/restarts that read once without repeating or rebasing the write.
+WCAG A/AA and overflow review at1440/390/320px uses representative filtered layouts,
+separately from full-catalog functional checks. Trusted Chromium touch checks cover
+native folder-handle scroll, tap Organize, inner-list scroll, short320px dismissal
+and note-body swipe reveal/Escape without writes.
+
+Note swipe/drag handlers are unchanged. Physical iOS/Android reproduction of the
+owner-reported notebook drag/scroll/swipe failures remains outstanding; emulation
+does not prove those device failures repaired. No additional schema migration,
+retained-data reset, paid provider call, merge, feature activation or deployment
+is part of this child UI slice. [Behavior/API](notebook-organization.md) and
+[verification guidance](development/testing.md#notebook-organization-foundation)
+record those boundaries.
+
 ## Notebook stack integration (27 October 2026)
 
 The foundation integrates development through `900aa77` without discarding search,
@@ -22,6 +118,24 @@ artifact tests**, all three pinned native hosts, root/site lint/types/builds,
 **50 CI/release/provider contracts**, workflow lint and the unchanged bundle gate
 (Notes **492,930 gzip bytes**). These are source integration checks, not a claim
 that the previously recorded physical-device or WebKit stress limits are repaired.
+
+The child normally integrates parent `3c4efa2`, retaining **Import notes** alongside
+the shared NotebookActions and all upstream file/cache/search behavior. New upstream
+import/file browser fixtures now use the existing paged-catalog adapter instead of
+returning a legacy array; the eight focused cases and fifteen organization/upgrade/
+restore backend cases pass without changed assertions/timeouts. Root/site static
+checks/builds and ten artifacts pass; Notes is **497,618 gzip bytes**, editor deferred.
+The child changes no parent backend behavior beyond its existing shared import path.
+
+Chromium and an instrumented WebKit repeat pass the actual API/non-owner500-notebook
+reorder/nest/unnest/Undo, accepted-lost exact replay, conflict review, stale Undo
+refusal and unchanged note scope/version journey. A preceding WebKit run remained
+busy after Move up; its passing repeat is not a root-cause repair. Both engines pass
+1440/390/320px and short-window layout/focus/recovery checks. Representative filtered
+WCAG A/AA audits scope the active dialog; full existing browser audits cover global
+layouts. An earlier external audit included the inert500-row background and stalled;
+that interrupted run is not counted as a pass. Historical physical/WebKit limits
+remain separate from conflict resolution and hosted CI readiness.
 
 ## Notebook organization foundation (25 October 2026)
 

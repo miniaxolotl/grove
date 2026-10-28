@@ -10,6 +10,10 @@ import {
 import type { Memory, MemoryList, Notebook, Page } from "@lib/shared/contracts";
 import type { Conversation } from "@lib/shared/conversations";
 import type { AskTools } from "@lib/shared/ask-tools";
+import type {
+  NotebookCatalog,
+  NotebookOrganization,
+} from "@lib/shared/notebook-organization";
 import type { AskResult } from "@lib/shared/models";
 import type {
   ConnectionPage,
@@ -310,6 +314,77 @@ export class WorkspaceCache {
       gcTime: path === "/ask" ? 60_000 : 300_000,
     });
   }
+  notebookCatalog(status: "active" | "archived" = "active") {
+    return queryOptions({
+      queryKey: workspaceKeys.resource("/projects/catalog", { status }),
+      queryFn: async ({ signal }): Promise<NotebookCatalog> => {
+        // A changed catalog invalidates the entire scan, never just one page.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const items: Notebook[] = [];
+          const cursors = new Set<string>();
+          const ids = new Set<string>();
+          let state: string | undefined;
+          let cursor: string | null = null;
+          try {
+            do {
+              const params = new URLSearchParams({ status });
+              if (cursor) params.set("cursor", cursor);
+              const page = await this.read<NotebookCatalog>(
+                `/projects/catalog?${params}`,
+                undefined,
+                signal,
+              );
+              if (
+                !page ||
+                !Array.isArray(page.items) ||
+                !/^[a-f0-9]{64}$/.test(page.state) ||
+                !(
+                  page.nextCursor === null ||
+                  (typeof page.nextCursor === "string" &&
+                    page.nextCursor.length > 0)
+                )
+              )
+                throw new Error(
+                  "Your complete notebook directory could not load. Retry to continue.",
+                );
+              state ??= page.state;
+              if (page.state !== state)
+                throw new DashboardApiError(
+                  "notebook_order_conflict",
+                  "Your notebooks changed while loading. Retry the directory.",
+                  409,
+                );
+              for (const item of page.items) {
+                if (!item || typeof item.id !== "string" || ids.has(item.id))
+                  throw new Error(
+                    "The notebook directory returned an invalid or repeated notebook. Retry to continue.",
+                  );
+                ids.add(item.id);
+                items.push(item);
+              }
+              cursor = page.nextCursor;
+              if (cursor && cursors.has(cursor))
+                throw new Error(
+                  "The notebook directory returned a repeated page. Retry to continue.",
+                );
+              if (cursor) cursors.add(cursor);
+            } while (cursor);
+            return { items, state: state!, nextCursor: null };
+          } catch (error) {
+            if (
+              attempt === 0 &&
+              error instanceof DashboardApiError &&
+              error.code === "notebook_order_conflict"
+            )
+              continue;
+            throw error;
+          }
+        }
+        throw new Error("Your notebook directory could not load.");
+      },
+      staleTime: 120_000,
+    });
+  }
   relationships(
     input: Omit<ConnectionQuery, "limit" | "includeDismissed" | "cursor"> &
       Partial<Pick<ConnectionQuery, "limit" | "includeDismissed">>,
@@ -403,6 +478,9 @@ export class WorkspaceCache {
       return (
         kind === "resource" &&
         (key === change.resource ||
+          (change.resource.startsWith("/projects") &&
+            typeof key === "string" &&
+            key.startsWith("/projects/catalog")) ||
           (change.resource === "/conversations" &&
             typeof key === "string" &&
             key.startsWith("/conversations")) ||
@@ -521,6 +599,21 @@ export class WorkspaceCache {
       else this.client.setQueryData(workspaceKeys.note(id), null);
     }
     this.patchPages(notes);
+    for (const status of ["active", "archived"] as const) {
+      this.client.setQueryData<NotebookCatalog>(
+        this.notebookCatalog(status).queryKey,
+        (old) =>
+          old
+            ? {
+                ...old,
+                items: old.items.filter(
+                  (project) => !scopes.includes(project.id),
+                ),
+              }
+            : old,
+      );
+    }
+    this.invalidate({ resource: "/projects" });
     for (const path of ["/projects", "/projects?status=archived"]) {
       this.client.setQueryData<Notebook[]>(
         workspaceKeys.resource(path),
@@ -896,6 +989,23 @@ export class WorkspaceCache {
           resource: `/projects/lifecycle/${resultChange.action}`,
           scopes: resultChange.projectIds,
         });
+      } else if (/^\/projects\/[^/]+\/organize$/.test(path)) {
+        const organized = result as NotebookOrganization;
+        const old = this.client.getQueryData<NotebookCatalog>(
+          workspaceKeys.resource("/projects/catalog", { status: "active" }),
+        );
+        const before = old?.items.find((p) => p.id === organized.project.id);
+        void this.client.cancelQueries({
+          predicate: (query) => this.affected(query, { resource: "/projects" }),
+        });
+        this.invalidate({ resource: "/projects" });
+        this.publish?.({ resource: "/projects" });
+        if (!before || before.parentId !== organized.project.parentId) {
+          this.invalidate({ resource: "/assistance" });
+          this.publish?.({ resource: "/assistance" });
+          this.invalidate({ resource: "/relationships/search" });
+          this.publish?.({ resource: "/relationships/search" });
+        }
       } else if (path.startsWith("/projects")) {
         const project = result as Notebook;
         const key = workspaceKeys.resource("/projects");
@@ -916,6 +1026,10 @@ export class WorkspaceCache {
             { updatedAt: previous.dataUpdatedAt },
           );
         else this.invalidate({ resource: "/projects" });
+        void this.client.cancelQueries({
+          predicate: (query) => this.affected(query, { resource: "/projects" }),
+        });
+        this.invalidate({ resource: "/projects" });
         this.publish?.({ resource: "/projects" });
         this.invalidate({ resource: "/assistance" });
         this.publish?.({ resource: "/assistance" });

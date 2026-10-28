@@ -1,10 +1,58 @@
-# Notebook organization foundation
+# Notebook organization
 
-This first implementation slice provides the owner-only catalog and atomic
-parent/order API for the approved [organization plan](https://github.com/miniaxolotl/grove/pull/138).
-The shared Organize interface, searchable picker and mobile gesture work are
-follow-up slices. Existing website controls are unchanged; this is not a mobile
-gesture-fix or physical-device acceptance claim.
+The owner-only catalog and atomic parent/order API support the shared **Organize**
+interface from the approved [organization plan](https://github.com/miniaxolotl/grove/pull/138).
+The UI is stacked on foundation PR140. Emulated/browser checks are not a claim
+that the owner's reported physical-phone gesture failures are repaired.
+
+## Organize in the website
+
+- Open **Organize** from the notebook manager or explorer, or **Rearrange notebook**
+  from a notebook's actions menu. Select a notebook to **Move up**, **Move down**,
+  **Move to…** or **Move out**. Move to opens the destination/position chooser;
+  Move out places it after its former parent. The selection shows its current
+  location and sibling position. Changes save immediately; Done closes Organize.
+- **Move notebook** in any notebook menu opens the same searchable destination
+  chooser. Select Top level or another notebook, then choose At the end or an
+  explicit before/after sibling position. The source and its descendants are not
+  offered as destinations. Search matches full ancestor paths, displayed below
+  destination names. A preview retains the chosen destination and position even
+  when search hides its row. Cancel returns focus to Move to in Organize.
+- Filtered Organize lists disable adjacent Move up/down until the search is cleared;
+  a filtered list is not the complete sibling group. Archived notebooks remain in
+  their separate list with Restore/Delete, not ordering controls.
+- The manager has one row menu, one count and a full-width search. Explorer,
+  manager and sub-notebook lists all use saved sibling order. Rename keeps order;
+  new notebooks append. Long manager titles wrap to two lines with the full name
+  retained in their link's accessible name/title.
+- Mouse drag supports inside/before/after placement; keyboard drag retains nesting
+  and cancellation. Tap/keyboard Organize remains the primary complete path. On a
+  touch-primary device the notebook folder control opens Organize instead of
+  activating long-press drag, and permits native vertical scrolling/pinch zoom.
+  Note drag and swipe handlers are unchanged by this slice.
+
+The desktop organizer separates the notebook browser from the selected controls.
+Phones stack them, with Done outside the scrolling content. Move keeps its action
+footer reachable while destinations and supporting information scroll. Empty
+searches offer Clear search; reopening Organize starts with an unfiltered list.
+
+Every owner tree uses a complete catalog scan before presenting destinations.
+Partial scans never replace the last complete snapshot. A changed scan restarts
+once; failed/repeated/malformed pages require retry. Save, lifecycle and same-account
+cross-tab notifications invalidate the complete catalog. Archive/delete immediately
+remove affected rows from cached catalogs and source views while they refresh.
+
+An uncertain organization response freezes new moves and offers **Retry same move**
+with its exact operation ID and body, even if the originating view closes. An
+accepted response is reconciled from a fresh catalog, never installed as an old
+replayed row snapshot. A conflict requires **Review latest layout**, which resets
+the open chooser before a new intent. Undo uses the saved response's exact state
+and inverse placement; a later layout change blocks it rather than silently rebasing.
+Retries/Undo live only in the authenticated workspace session, not persistent storage.
+
+If a newer invalidation cancels the read reconciling a successful move, the UI
+joins/restarts the catalog read once. This is a bounded read retry, not another
+organization operation or an Undo rebase. Other refresh errors remain visible.
 
 ## Complete owner catalog
 

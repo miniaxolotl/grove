@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidSchema, type Notebook } from "./contracts.ts";
+import { uuidSchema, type Notebook } from "@lib/shared/contracts";
 
 export const notebookCatalogSchema = z
   .object({

@@ -43,17 +43,23 @@ import { WorkspaceNotice } from "./toasts";
 export type WorkspaceDragItem =
   | { kind: "notes"; items: Memory[] }
   | { kind: "notebook"; project: Project };
-type Undo =
-  | { kind: "notes"; before: Memory; after: Memory }
-  | { kind: "notebook"; before: Project; after: Project };
+type Undo = { kind: "notes"; before: Memory; after: Memory };
 const Context = createContext<{
   active: WorkspaceDragItem | null;
   busy: boolean;
-}>({ active: null, busy: false });
+  keyboard: boolean;
+}>({ active: null, busy: false, keyboard: false });
 export const useWorkspaceDrag = () => useContext(Context);
 
 type Destination =
-  | { kind: "notebook"; projectId: string | null; root: boolean; name: string }
+  | {
+      kind: "notebook";
+      projectId: string | null;
+      root: boolean;
+      name: string;
+      beforeId?: string;
+      afterId?: string;
+    }
   | { kind: "cancel"; name: string };
 function validDestination(
   item: WorkspaceDragItem,
@@ -68,11 +74,17 @@ function validDestination(
     return false;
   return item.kind === "notebook"
     ? (destination.projectId !== null || destination.root) &&
-        (item.project.parentId ?? null) !== destination.projectId &&
+        ((item.project.parentId ?? null) !== destination.projectId ||
+          !!destination.beforeId ||
+          !!destination.afterId) &&
+        destination.beforeId !== item.project.id &&
+        destination.afterId !== item.project.id &&
         !notebookPath(projects, destination.projectId).some(
           (p) => p.id === item.project.id,
         )
-    : (destination.projectId !== null || !destination.root) &&
+    : !destination.beforeId &&
+        !destination.afterId &&
+        (destination.projectId !== null || !destination.root) &&
         item.items.some((note) => note.projectId !== destination.projectId);
 }
 // Mouse/touch keep their tuned activation. Pens use their own primary-pointer path.
@@ -217,6 +229,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const path = usePathname();
   const origin = useRef<{ path: string; source: Element | null } | null>(null);
   const [active, setActive] = useState<WorkspaceDragItem | null>(null);
+  const [keyboard, setKeyboard] = useState(false);
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
   const pickingUp = useRef(false);
@@ -269,20 +282,18 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     // A replay can return a newer note. Undo may only replace our own revision.
     return { ...saved, version: note.version + 1 };
   }
-  async function moveNotebook(project: Project, parentId: string | null) {
-    const saved = await api<Project>(
-      `/projects/${project.id}`,
-      {
-        name: project.name,
-        identity: project.identity,
-        parentId,
-        expectedVersion: project.version,
-      },
-      "PATCH",
-    );
-    return saved;
-  }
-  async function move(item: WorkspaceDragItem, destination: string | null) {
+  async function move(
+    item: WorkspaceDragItem,
+    destination: string | null,
+    placement: { beforeId?: string; afterId?: string } = {},
+  ) {
+    if (item.kind === "notebook") {
+      await notebooks.organize(item.project, {
+        parentId: destination,
+        ...placement,
+      });
+      return;
+    }
     if (working.current) return;
     working.current = true;
     setBusy(true);
@@ -291,34 +302,17 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     setUndo([]);
     const completed: Undo[] = [];
     const errors: string[] = [];
-    if (item.kind === "notebook") {
+    for (const before of item.items
+      .filter((note) => note.projectId !== destination)
+      .slice(0, 50)) {
       try {
-        if (
-          item.project.parentId !== destination &&
-          !notebookPath(notebooks.projects, destination).some(
-            (p) => p.id === item.project.id,
-          )
-        ) {
-          const after = await moveNotebook(item.project, destination);
-          completed.push({ kind: "notebook", before: item.project, after });
-        }
+        completed.push({
+          kind: "notes",
+          before,
+          after: await moveNote(before, destination),
+        });
       } catch (error) {
-        errors.push(`${item.project.name}: ${errorMessage(error)}`);
-        notebooks.reload();
-      }
-    } else {
-      for (const before of item.items
-        .filter((note) => note.projectId !== destination)
-        .slice(0, 50)) {
-        try {
-          completed.push({
-            kind: "notes",
-            before,
-            after: await moveNote(before, destination),
-          });
-        } catch (error) {
-          errors.push(`${memoryTitle(before)}: ${errorMessage(error)}`);
-        }
+        errors.push(`${memoryTitle(before)}: ${errorMessage(error)}`);
       }
     }
     setUndo(completed);
@@ -327,12 +321,10 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
       ? notebookPath(notebooks.projects, destination)
           .map((p) => p.name)
           .join(" / ")
-      : item.kind === "notebook"
-        ? "Top level"
-        : "Unfiled";
+      : "Unfiled";
     setNotice(
       completed.length
-        ? `${completed.length} ${item.kind === "notebook" ? "notebook" : completed.length === 1 ? "note" : "notes"} moved to ${name}.`
+        ? `${completed.length} ${completed.length === 1 ? "note" : "notes"} moved to ${name}.`
         : errors.length
           ? "Could not complete the move."
           : "Already in this notebook.",
@@ -348,9 +340,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     const errors: string[] = [];
     for (const record of undo) {
       try {
-        if (record.kind === "notes")
-          await moveNote(record.after, record.before.projectId);
-        else await moveNotebook(record.after, record.before.parentId ?? null);
+        await moveNote(record.after, record.before.projectId);
       } catch (error) {
         remaining.push(record);
         errors.push(errorMessage(error));
@@ -363,8 +353,6 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         ? "Some changes could not be undone. Your newer changes are preserved."
         : "Change undone.",
     );
-    if (remaining.some((record) => record.kind === "notebook"))
-      notebooks.reload();
     setBusy(false);
     working.current = false;
   }
@@ -372,7 +360,8 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     <Context.Provider
       value={{
         active,
-        busy,
+        busy: busy || notebooks.organizationLocked,
+        keyboard,
       }}
     >
       <DndContext
@@ -382,12 +371,20 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             x: args.collisionRect.left + 8,
             y: args.collisionRect.top + 8,
           };
+          const targets = args.droppableContainers.filter((target) =>
+            insideScrollClip(target.node.current, point),
+          );
           return pointerWithin({
             ...args,
             pointerCoordinates: point,
-            droppableContainers: args.droppableContainers.filter((target) =>
-              insideScrollClip(target.node.current, point),
-            ),
+            droppableContainers: targets,
+          }).sort((a, b) => {
+            const placement = (id: typeof a.id) => {
+              const d = targets.find((target) => target.id === id)?.data.current
+                ?.destination;
+              return Number(!!(d?.beforeId || d?.afterId));
+            };
+            return placement(b.id) - placement(a.id);
           });
         }}
         accessibility={{
@@ -417,6 +414,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           pickingUp.current = false;
         }}
         onDragStart={({ active, activatorEvent }) => {
+          setKeyboard(activatorEvent.type === "keydown");
           pickingUp.current = true;
           if (!working.current) {
             origin.current = {
@@ -445,7 +443,12 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             origin.current.source?.isConnected &&
             validDestination(active, destination, notebooks.projects)
           )
-            void move(active, destination.projectId);
+            void move(active, destination.projectId, {
+              ...(destination.beforeId
+                ? { beforeId: destination.beforeId }
+                : {}),
+              ...(destination.afterId ? { afterId: destination.afterId } : {}),
+            });
           setActive(null);
         }}
       >
@@ -536,16 +539,18 @@ export function useNotebookDrop(
   projectId: string | null,
   name: string,
   root = false,
+  placement?: { beforeId?: string; afterId?: string },
 ) {
   const id = useId();
-  const { active, busy } = useWorkspaceDrag();
+  const { active, busy, keyboard } = useWorkspaceDrag();
   const { projects } = useNotebooks();
   const invalid =
     !active ||
     busy ||
+    (!!placement && (keyboard || active?.kind !== "notebook")) ||
     !validDestination(
       active,
-      { kind: "notebook", projectId, root, name },
+      { kind: "notebook", projectId, root, name, ...placement },
       projects,
     );
   const drop = useDroppable({
@@ -557,6 +562,7 @@ export function useNotebookDrop(
         projectId,
         root,
         name,
+        ...placement,
       } satisfies Destination,
     },
     disabled: invalid,
