@@ -7,7 +7,7 @@ fixtures, not personal content or paid inference. Captured 24 October 2026.
 Desktop is 1440×1000; phone widths are 390 and 320 at 844px height. Chromium captures
 below were reviewed alongside the same journeys in supported container WebKit.
 The production CSS build is `HkGkWjBTfIv_-H4GG_I-r`; component changes use the existing
-workspace styles. Application source is `98742ee`. Source evidence and final verification are in [delivery](../../../delivery.md#note-and-notebook-management-tools-24-october-2026).
+workspace styles. Application source is `98742ee`. Source evidence and final verification are in [historical delivery](https://github.com/miniaxolotl/grove/blob/e91a187355cc5e76d5019d89e1b05d00e637bd11/documentation/delivery.md#note-and-notebook-management-tools-24-october-2026).
 
 | Archive subtree                                                 | Move notebook                          | Confirm note deletion                                   |
 | --------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------- |

@@ -199,6 +199,15 @@ existing notes or losing keyboard position.
 
 ## Checks
 
+Session recovery uses held/rejected/null token promises, expired Bearer responses
+and account/session replacement in actual components. Initial reads wait for a
+token; concurrent 401s share one forced refresh. Replayed saves retain exact
+operation/version/body while newer typing stays a separate draft. Network/403/409/
+5xx errors must not cause auth replay. A terminal denial clears private state;
+refresh failure keeps useful content and explicit retry. Check opt-out headers
+after token waits and forced refresh, cross-tab teardown and first-save focus.
+Synthetic JWT/Clerk probes do not qualify the initiating physical Safari incident.
+
 `tests/cache.spec.ts` covers ownership, cancellation, freshness/version/deletion,
 expiry and retention. `tests/client-cache.spec.ts` uses actual workspace components
 for navigation, retained drafts, cross-tab changes, linked titles and request counts.

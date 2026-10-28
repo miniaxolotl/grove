@@ -43,7 +43,22 @@ focuses the persistent note surface, retaining keyboard context actions and Undo
 media, transcripts or historical revisions. Copied media addresses still require
 the current account's authorization; they do not enable public sharing.
 
-No backend, migration, provider configuration or deployment change is required by
-this UI slice. Originally stacked on recordings (#95), it now integrates the landed
-recordings and speech implementations on development, preserving both sets of controls.
+No backend, migration or provider configuration change is required. Context actions
+share the current recording/speech controls and normal note-save contracts.
 [Reviewed captures](design/screenshots/note-context-actions/README.md).
+
+## Verification
+
+Use actual components with synthetic notes, PNG and WAV data in Chromium/WebKit,
+after the [production build](development/testing.md#website-and-browsers). Check
+right-click/Shift+F10, selection, formatting/Undo, denied or delayed clipboard,
+native-menu escape and 1440/390/320px bounds. Hold cut/paste across note identity,
+mode and disabled-state changes; ordinary menu dismissal must still permit its
+chosen action. Check decoded unsafe links, CRLF caret/duplicate references,
+growth-only oversized-draft limits and Preview focus after removing its last media.
+
+Verify original-byte downloads through a loopback upstream, lazy playback/mute,
+transcript access and held-upload disabled controls. Native downloads bypass
+Playwright routing; save bytes with `saveAs`. Removing a reference must never
+delete retained source/history. Browser emulation does not qualify OS touch menus
+or physical-device clipboard/file delivery.

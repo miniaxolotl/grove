@@ -100,6 +100,7 @@ pnpm lint
 pnpm dev:website
 ```
 
+[Documentation](documentation/README.md) is the current topic index.
 [Verification commands](documentation/development/testing.md) cover actual
 PostgreSQL/RLS, authenticated HTTP/MCP, packed stdio clients, and browser checks.
 [Reviewed file imports](documentation/imports.md) bring Markdown, plain text and
@@ -107,9 +108,8 @@ text-based PDFs into existing or new notebooks without overwriting existing note
 [Legacy import](documentation/migration.md) is explicit, ownership-mapped, and
 source-read-only. Local execution plans are in
 `~/Development/bramble-labs/plans/grove/` (`plan.md`, `notes.md`, `status.md`);
-recovered `sources/` are historical snapshots. The tracked
-[images, recordings and speech review](documentation/development/media-plan.md)
-records proposed scope and acceptance gates, not shipped functionality.
+recovered `sources/` and the [documentation archive](documentation/archive/README.md)
+are historical evidence, not current implementation plans.
 Current implementation contracts are documented under [media](documentation/media.md),
 [recordings](documentation/recordings.md) and [speech](documentation/speech.md);
 production activation follows the release and explicit migration procedure.
@@ -119,7 +119,7 @@ production activation follows the release and explicit migration procedure.
 Release Please manages one coordinated product version across the server, CLI
 and three integrations. A released tag is deliberately frozen and promoted from
 `development` through a protected PR to `production`. Only production publishes
-packages, images and the website. See the [release runbook](documentation/deploy.md#releases).
+packages, images and the website. See the [release runbook](documentation/deploy.md#release-and-rollout).
 
 ## License
 

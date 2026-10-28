@@ -130,6 +130,8 @@ removes local `.partial` files left by terminated processes.
 Session-owner routes:
 
 - `POST /v1/exports`: `{id, projectId?, includeDescendants?: false}` →202/task.
+- Add `includeMedia: true` for checksummed original-media v3 exports; omitted/false
+  keeps the compatible structured v2 format.
 - `GET /v1/tasks[?projectId=UUID]`: latest 10 user jobs; `GET /v1/tasks/:id`.
 - `POST /v1/tasks/:id/cancel` or `/retry`: resume or stop durable work.
 - `GET /v1/tasks/:id/download`: current unexpired export only.
@@ -185,3 +187,22 @@ observed RSS growth was 34.7 MiB. Read p95 was 16.5 ms before and 14.3 ms during
 This is a local regression fixture, not a hosted throughput guarantee. Reproduce
 with the final test in `tests/src/queue.test.ts`; it asserts page bounds and complete
 output rather than machine-specific timing thresholds.
+
+## Rollout and verification
+
+Apply `20261022_014_queue_processing` after 013 with the
+[owner procedure](operations/schema.md), then deploy compatible API/worker before
+website. Drain old writers and v1 deliveries before disabling `WORKER_LEGACY_QUEUE`;
+retiring queues is a separate operator action. Configure shared private artifact
+storage and verify readiness before enabling cloud exports. Keep additive schema,
+tombstones and source data on rollback. Recovery cancels old leases/downloads and
+replays current privacy decisions before traffic.
+
+`queue.test.ts`, `queue-migration.test.ts`, `broker.test.ts`, `worker.test.ts`,
+artifact and recovery cases cover populated preservation, fair claims, quotas,
+leases, publisher/retry fencing, broker fallback and two real worker processes
+draining on SIGTERM. Browser `exports.spec.ts` covers retry identity, scope,
+cancel/retry, actual downloads and desktop/phone accessibility. Optional broker/S3
+services are explicit skips when absent; see [test setup](development/testing.md).
+Local draining and bounded export measurements are not hosted continuity/throughput
+acceptance.

@@ -38,16 +38,16 @@ Ask and search show request provenance without exposing cache keys or private in
 
 ## Reusable work
 
-| Feature | Exact identity | Retention |
-| --- | --- | --- |
-| Query embedding | Account, effective text, purpose, embedding profile/model and dimensions | 24 hours |
-| Note embedding | Account, text, document purpose and embedding configuration | 7 days |
-| Title/tags | Account, source text/attributes and generation prompt/profile | 7 days |
-| Classification | Account, source attributes/notebook, decision profile and exact candidate versions | 7 days |
-| Planning | Account, exact question/history/scope, tools/preferences, source generation and model/prompt version | 30 minutes |
-| Read-only answer | Account, exact question/context, current source snapshot/versions, settings, prompt/model and web evidence | 5 minutes |
-| Research search | Account, provider configuration, exact query and request settings | 5 minutes; 1 minute for explicitly time-sensitive queries |
-| Page extraction | Account, provider configuration and exact requested URL set | 15 minutes |
+| Feature          | Exact identity                                                                                             | Retention                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Query embedding  | Account, effective text, purpose, embedding profile/model and dimensions                                   | 24 hours                                                  |
+| Note embedding   | Account, text, document purpose and embedding configuration                                                | 7 days                                                    |
+| Title/tags       | Account, source text/attributes and generation prompt/profile                                              | 7 days                                                    |
+| Classification   | Account, source attributes/notebook, decision profile and exact candidate versions                         | 7 days                                                    |
+| Planning         | Account, exact question/history/scope, tools/preferences, source generation and model/prompt version       | 30 minutes                                                |
+| Read-only answer | Account, exact question/context, current source snapshot/versions, settings, prompt/model and web evidence | 5 minutes                                                 |
+| Research search  | Account, provider configuration, exact query and request settings                                          | 5 minutes; 1 minute for explicitly time-sensitive queries |
+| Page extraction  | Account, provider configuration and exact requested URL set                                                | 15 minutes                                                |
 
 These are maximum retention periods, not permission to use invalid evidence. Hits
 do not extend expiry. Search and extraction remain different operations/providers.
@@ -128,3 +128,25 @@ imports remain unchanged: this checkout has no concrete conditional-read connect
 to qualify. Future adapters must explicitly support account/configuration-scoped
 TTL/ETag/Last-Modified behavior. A 304 saves bytes, not an external request; never
 cache or replay connector writes.
+
+## Rollout and verification
+
+Apply `20261025_033_ai_cache` after 032 using the [owner procedure](operations/schema.md).
+Cache/backoff tables start empty; historical action rows retain five integer units
+(one action). Readiness requires cache schema and the action-unit column. Deploy
+matching API/worker together before fractional-usage/source-refresh website controls;
+old count-only readers cannot promise cached discounts. Keep schema and provider
+usage on rollback; no price, subscription or billing-flag change is implied.
+
+`ai-cache.test.ts`, `ai-cache-migration.test.ts`, action/model/conversation/background/
+capacity and recovery suites cover cross-replica coalescing, exact keys, invalid
+vectors, cancellation/late owners, tenant isolation, expiry/generation fences,
+fifth-unit admission and replay/refresh. Populated upgrade checks retain notes,
+provider counters and old five-unit actions. Cancellation tests must force a cache
+miss and verify propagation rather than signal-object identity.
+
+Use actual Billing/Ask components with synthetic identities to check fractional
+usage, receipts, refresh during a draft, exact failed-refresh retry, source
+invalidation and narrow keyboard/accessibility states. See [testing](development/testing.md)
+and [captures](design/screenshots/ai-caching/README.md). Approve live provider-call
+measurements separately; allowance discounts are not measured dollar savings.

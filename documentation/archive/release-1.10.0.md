@@ -1,5 +1,7 @@
 # v1.10.0 production delivery
 
+Historical acceptance for this exact release, not current runtime state.
+
 ## Release identity — 22 October 2026 UTC
 
 - Immutable source: [`v1.10.0`](https://github.com/miniaxolotl/grove/releases/tag/v1.10.0),
@@ -93,7 +95,7 @@ sharing, expiry and relationship acceptance above.
 
 The links are opaque server-validated capabilities; pagination cursors are
 separately signed. The observed Vercel capability-path canary remains documented in
-[sharing](sharing.md): hosting-path redaction is not verified.
+[sharing](../sharing.md): hosting-path redaction is not verified.
 
 Local verification and reviewed desktop/phone captures are recorded in
-[delivery evidence](delivery.md#timed-public-links-22-october-2026-utc).
+[delivery evidence](https://github.com/miniaxolotl/grove/blob/e91a187355cc5e76d5019d89e1b05d00e637bd11/documentation/delivery.md#timed-public-links-22-october-2026-utc).

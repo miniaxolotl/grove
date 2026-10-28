@@ -30,7 +30,7 @@ cutoff. Client-supplied owner IDs are rejected.
 Protected-resource discovery: `/.well-known/oauth-protected-resource/mcp`.
 Anonymous requests receive 401 and `WWW-Authenticate`. Provider outages return 503,
 not a fabricated connected state. Development and production OAuth verification
-are recorded in [delivery evidence](delivery.md#hosted-production-verification);
+are recorded in the [historical delivery ledger](archive/README.md);
 this is not acceptance of either hosted-chat client. See [hosted-chat setup](hosted-chat.md).
 
 An authenticated, unapproved OAuth client can initialize MCP and list tool schemas,
@@ -141,8 +141,8 @@ No server content cache can outlive deletion or revocation.
 ## REST routes
 
 Owner-only notebook catalog and atomic parent/order endpoints are documented in
-[notebook organization](notebook-organization.md). This foundation does not change
-the legacy notebook-list or MCP contracts or yet add the Organize interface.
+[notebook organization](notebook-organization.md), including the shared Organize UI.
+The legacy notebook-list and scoped MCP contracts remain unchanged.
 Note list/recall/source search, relevance sorting, signed search cursors and
 optional query/version-bound `matches` evidence are described in
 [note search](search.md). Explicit date sorts keep their existing ordering.
@@ -193,7 +193,7 @@ operation ID; conflicting identifiers are rejected. Restore can select an older
 revision and creates a new revision; `durable: true` promotes a handoff to a fact.
 
 Library filters also accept `sourceAgent`, `updatedAfter`, `lifetime`
-(`permanent`/`ephemeral`), and `sort` (`updated_desc`/`updated_asc`/`created_desc`).
+(`permanent`/`ephemeral`), and `sort` (`relevance`/`updated_desc`/`updated_asc`/`created_desc`).
 `POST /v1/ask` accepts `query`, optional `projectId`, `includePersonal`,
 `previousQuestions` (up to four), and `mode` (`answer`/`search`). Omitted project
 scope searches all authorized notebooks; null selects Personal. Replies include
