@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.11.7](https://github.com/miniaxolotl/grove/compare/v1.11.6...v1.11.7) (2026-10-26)
+
+
+### Features
+
+* **admin:** add cross-account usage reports ([ff37777](https://github.com/miniaxolotl/grove/commit/ff37777395535bd666800e1a2ddef610889779d8))
+* **ai:** reuse exact work with separate cached usage discounts ([26b0778](https://github.com/miniaxolotl/grove/commit/26b0778a1c52bc3227726b9e2dab4b1839f5f1f1))
+
+
+### Bug Fixes
+
+* **ai:** validate document citations before caching answers ([1aebd71](https://github.com/miniaxolotl/grove/commit/1aebd71269125451659b80275d1308ecf6c61c6e))
+
+## [1.11.6](https://github.com/miniaxolotl/grove/compare/v1.11.5...v1.11.6) (2026-10-26)
+
+
+### Features
+
+* **admin:** add guarded usage reports and account support controls ([b3feaa0](https://github.com/miniaxolotl/grove/commit/b3feaa04f8a783aeffb2785b392dca2500a1bd6b))
+* **admin:** add simple account usage and support controls ([efeaae2](https://github.com/miniaxolotl/grove/commit/efeaae2cac73a3d5b4f73f8234cb0db9064d8ed1))
+* **admin:** add simple people and account support dashboard ([25021e9](https://github.com/miniaxolotl/grove/commit/25021e9334432b3abcbb6ea47ec7d9c4fc96dc8c))
+* **admin:** polish account management and editing ([05fe8fd](https://github.com/miniaxolotl/grove/commit/05fe8fd073f34e2eb5fed7e399ef28446e51538a))
+* **admin:** polish account management and guard edits ([507c56b](https://github.com/miniaxolotl/grove/commit/507c56bc5f331e93faf8e7e099f78b4d8e3541ef))
+* **agents:** guide human-readable Markdown note writing ([54f7688](https://github.com/miniaxolotl/grove/commit/54f76883dc5d24a9e20408182ed6c33b148fc695))
+* **agents:** guide human-readable Markdown note writing ([b920ba5](https://github.com/miniaxolotl/grove/commit/b920ba582dcf16d17774e696db8eda633f05e679))
+* **ask:** add cited document chats and reviewed conversion ([#136](https://github.com/miniaxolotl/grove/issues/136)) ([2ba2c9c](https://github.com/miniaxolotl/grove/commit/2ba2c9c4864d6f12f0dd7c5659bf140ead67a3af))
+* **ask:** select explicit note and notebook context ([27288e3](https://github.com/miniaxolotl/grove/commit/27288e3d9af01024ad6e47bbd31061c13fe80a3c))
+* **ask:** select explicit note and notebook context ([9e9600d](https://github.com/miniaxolotl/grove/commit/9e9600dbe0bd598517f03a652b37c120f6a104ed))
+* **billing:** enforce Free and Pro action allowances ([3041590](https://github.com/miniaxolotl/grove/commit/304159032145ca67d31d303110d157fc15692889))
+* **billing:** enforce Free and Pro action and storage allowances ([a72cb5c](https://github.com/miniaxolotl/grove/commit/a72cb5c391842f00fa411434e4b5ecac5b0e6e3a))
+* **billing:** show a compact plan badge and usage details ([06d8740](https://github.com/miniaxolotl/grove/commit/06d87400e75944dced738c1ffd060687546bd1cd))
+* **billing:** show subscription source in the workspace ([109c27d](https://github.com/miniaxolotl/grove/commit/109c27dc9bc5e63c27667a9823f5748f2d761122))
+* **billing:** streamline the badge with on-demand usage details ([06f7e5e](https://github.com/miniaxolotl/grove/commit/06f7e5ef792b83de807f33386734e834f2e2653b))
+* **discovery:** publish maintained Grove references ([#149](https://github.com/miniaxolotl/grove/issues/149)) ([208bb89](https://github.com/miniaxolotl/grove/commit/208bb89732d1ef5ca9bb080c0f1f9b2ac48668de))
+* **files:** add private upload inventory and storage view ([#142](https://github.com/miniaxolotl/grove/issues/142)) ([93c3cc8](https://github.com/miniaxolotl/grove/commit/93c3cc8ae185f4d20f5ce75687543a9683920acf))
+* **files:** refine upload browsing and mobile layout ([#145](https://github.com/miniaxolotl/grove/issues/145)) ([ba9d4e7](https://github.com/miniaxolotl/grove/commit/ba9d4e7519e7dd71cc1f30499b24a50350dafe1f))
+* **imports:** add reviewed note and PDF uploads ([#132](https://github.com/miniaxolotl/grove/issues/132)) ([ee6d116](https://github.com/miniaxolotl/grove/commit/ee6d11621e33ccce33051c81d4da4162a095236b))
+* **search:** prioritize titles and add typo-tolerant lookup ([d8d78df](https://github.com/miniaxolotl/grove/commit/d8d78df50560c67aaa412db7d979cc74ad8e738e))
+* **search:** prioritize titles and add typo-tolerant note lookup ([c981610](https://github.com/miniaxolotl/grove/commit/c9816100c4f14982e021d69865d24a082a41e3bb))
+
+
+### Bug Fixes
+
+* **admin:** explain request limits without discarding retries ([8e083b1](https://github.com/miniaxolotl/grove/commit/8e083b19f838ee89f8282718e11dd5c2b15776ca))
+* **admin:** preserve clean refreshes and keyboard focus ([f2078d4](https://github.com/miniaxolotl/grove/commit/f2078d4665076899de87ebeec988d9a5d1cd644d))
+
 ## [1.11.5](https://github.com/miniaxolotl/grove/compare/v1.11.4...v1.11.5) (2026-10-25)
 
 

@@ -4,6 +4,14 @@ Migration **014** adds `background_tasks` for exports, cleanup, model backfills,
 imports and connector sync. Inference keeps `jobs`; email keeps its outbox.
 PostgreSQL owns eligibility, checkpoints, retries and leases.
 
+Migration **033** adds [exact AI-work caching](ai-caching.md). Enrichment jobs can
+reuse unchanged text/configuration artifacts without another provider reservation,
+but still publish only to the current note version under the current preference,
+profile, source and lease guards. Classification also fences candidate versions.
+Cache eviction/expiry never deletes retained authored records. Account/retention
+tasks remove derived cache/backoff rows in bounded existing checkpoint stages;
+restore/model reset clears them and invalidates older processing generations.
+
 ## Capacity and recovery
 
 | Lane        | Worker capacity             | Work                                                |
@@ -132,6 +140,19 @@ clients must create an export and wait for its download. Queue admission limits
 each account to 20 outstanding user jobs and one active export.
 
 ## Imports and connectors
+
+The workspace also supports reviewed [Markdown/text/PDF/DOCX uploads](imports.md) through
+`/v1/import-batches`. `document_prepare` and `document_import` use the bulk lane,
+bounded source staging, server-side review plans and owner-only progress/retry.
+Preparation creates no notes; confirmed Apply uses ordinary note/notebook writes.
+The existing record API below remains compatible and separate.
+
+Ask attachments use `conversation_document` in the bulk lane, not an expiring import
+batch or a hidden saved note. Upload enqueues extraction; explicit acceptance retains
+private originals before Send/save. Failed worker tasks can retry only while the
+file is still pending, unexpired and attached. Format errors need a corrected file;
+removal/cancellation immediately clears unaccepted staging and excerpts. See the
+[chat document contract](imports.md#ask-about-documents-first).
 
 Session owners can `POST /v1/imports` with `{id,source,records}`. Each record has
 `sourceId`, `content` and optional `projectId`; send at most 100 records and 128 KiB per

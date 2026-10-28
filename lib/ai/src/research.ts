@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -15,6 +16,7 @@ export type WebEvidence = {
   kind: "search" | "page";
 };
 export type ResearchProvider = {
+  profile?: string;
   search(query: string, signal?: AbortSignal): Promise<WebEvidence[]>;
   extract(urls: string[], signal?: AbortSignal): Promise<WebEvidence[]>;
 };
@@ -190,6 +192,16 @@ export function createResearchProvider(
     }
   }
   return {
+    profile: createHash("sha256")
+      .update(
+        JSON.stringify([
+          "public-research-v1",
+          provider,
+          url.href,
+          options.timeoutMs ?? 20000,
+        ]),
+      )
+      .digest("hex"),
     search(query, signal) {
       query = z.string().trim().min(1).max(500).parse(query);
       return provider === "exa"

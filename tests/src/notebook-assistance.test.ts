@@ -346,7 +346,9 @@ test("cleanup keeps reviewed pairs stable, combines atomically, and restores bot
   const f = await fixture(),
     a = await f.save("Japan train tickets cost 100 yen."),
     b = await f.save("Japan train tickets cost 100 yen.");
-  f.providers.generation!.generate = async (schema, _prompt, sources) => {
+  let authoringPrompt = "";
+  f.providers.generation!.generate = async (schema, prompt, sources) => {
+    authoringPrompt = prompt;
     assert.equal(schema, cleanupAssessmentSchema);
     return schema.parse({
       kind: "duplicate",
@@ -377,6 +379,9 @@ test("cleanup keeps reviewed pairs stable, combines atomically, and restores bot
     kind: "cleanup",
     projectId: f.project.id,
   });
+  assert.match(authoringPrompt, /human-readable/);
+  assert.match(authoringPrompt, /GitHub-flavored Markdown/);
+  assert.match(authoringPrompt, /note bodies only/);
   assert.equal(result.status, "ready");
   const candidate = result.result!.candidates![0];
   assert(candidate);

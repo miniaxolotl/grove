@@ -32,6 +32,9 @@ export function NotebookActions({
   const notebooks = useNotebooks();
   const lifecycle = (
     <>
+      <Link href={`/app/settings/files?projectId=${project.id}`}>
+        <FolderInput size={15} /> Files &amp; storage
+      </Link>
       <button
         type="button"
         className="action-group-start"

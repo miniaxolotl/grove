@@ -4,6 +4,10 @@ The Node 24 Hono service exposes `/v1` REST and stateless Streamable HTTP `/mcp`
 Both call the same transactional memory service and Zod contracts. The published
 CLI is an API-only stdio bridge; it has no database credentials or local database.
 
+The owner-only [Files & storage API](files-storage.md#api-and-privacy) projects
+upload metadata, authorized locations and conservative storage counters without
+exposing source keys or widening the existing original-download readers.
+
 ## Authentication
 
 Private `/v1` data endpoints and `/mcp` require `Authorization: Bearer …`:
@@ -59,6 +63,12 @@ All memory tools publish human-readable titles and explicit safety annotations
 for directory discovery. Names, arguments and per-call permissions remain unchanged.
 
 ## Memory and notebook tools
+
+Tools carry shared [human-readable note-writing guidance](agent-note-writing.md)
+and model-visible content/scope/capture/version/retry descriptions. Note bodies use
+CommonMark/GFM; a supplied `content` replaces the complete body even on a partial
+field update. Guidance does not normalize content, change validation or authorize
+an action. Existing schemas, bounds, defaults and grants remain unchanged.
 
 | Tool                               | Purpose                                            | Main fields                                                                                  |
 | ---------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -133,44 +143,48 @@ No server content cache can outlive deletion or revocation.
 Owner-only notebook catalog and atomic parent/order endpoints are documented in
 [notebook organization](notebook-organization.md). This foundation does not change
 the legacy notebook-list or MCP contracts or yet add the Organize interface.
+Note list/recall/source search, relevance sorting, signed search cursors and
+optional query/version-bound `matches` evidence are described in
+[note search](search.md). Explicit date sorts keep their existing ordering.
 
 Responses use `{success: true, data}` or
 `{success: false, error: {code, message, requestId}}`. Export is NDJSON.
 
-| Routes                                                                 | Access                                                                                          |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `GET /v1/me`                                                           | Authenticated identity/effective grant and settings                                             |
-| `POST /v1/connect`                                                     | Agent starts/resumes its own connection request; API keys require existing scope                |
-| `GET /v1/connect/:id`                                                  | Request's agent connection or owning website session                                            |
-| `POST /v1/connect/:id/approve`                                         | Owning website session; transactional project link and grant                                    |
-| `POST /v1/connect/:id/cancel`                                          | Request's agent connection or owning website session                                            |
-| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                     | Approved scope; create needs all-project access or website session                              |
-| `GET /v1/projects?status=archived`; `GET /v1/projects/:id/lifecycle`   | Archived listing and full-subtree preview; owner website session only                           |
-| `POST /v1/projects/:id/archive`, `/restore`, `/delete`                 | Owner-only, version/snapshot-checked subtree lifecycle; deletion is soft only                   |
-| `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                                  |
-| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                                   |
-| `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                                    |
-| `GET /v1/memories/:id/revisions/:version`                              | Exact historical revision; current scope, deletion and expiry checks                            |
-| `/v1/assistance`, `/v1/notebook-visits`                                | Owning website session; [notebook assistance](notebook-assistance.md)                           |
-| `POST /v1/memories/:id/archive`; `…/restore`                           | `memory:write`, operation ID and current version                                                |
-| `POST /v1/memories/delete`                                             | `memory:delete`                                                                                 |
-| `POST /v1/recall`                                                      | `memory:read`                                                                                   |
-| `POST /v1/tools/:tool`                                                 | Same tool schemas and scoped capabilities as MCP; notebook lifecycle remains owner-only         |
-| `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                                             |
-| `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`     | Owning website session only; saved chat history                                                 |
-| `POST /v1/conversations/search`                                        | Owner-only history search: `{ query?, after? }`; titles/questions, 30 results and signed cursor |
-| `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`  | Owning website session only; contextual replies and previewed note changes                      |
-| `POST /v1/briefs`; `POST /v1/briefs/refresh`                           | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`                              |
-| `POST /v1/memories/:id/reprocess`                                      | Scoped `memory:write`; body `{expectedVersion}`                                                 |
-| `GET /v1/models`; `GET /v1/account/usage`                              | Website session; masked settings / account usage                                                |
-| `PATCH /v1/models`; `POST /v1/models/test`                             | Configured self-hosted installation administrator only                                          |
-| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`       | Website session only                                                                            |
-| `POST /v1/keys`                                                        | Website session only; secret returned once                                                      |
-| `POST /v1/logout`                                                      | Revoke calling agent's connection                                                               |
-| `PATCH /v1/account/settings`; `POST /v1/account/delete`                | Website session only                                                                            |
-| `/v1/exports`, `/v1/imports`, `/v1/tasks`                              | Session-owner durable work; see [jobs](jobs.md)                                                 |
-| `POST /v1/webhooks/clerk`                                              | Svix signature, replay receipt and event ordering                                               |
-| `GET /health/live`, `/health/ready`                                    | Public, content-free                                                                            |
+| Routes                                                                 | Access                                                                                                                         |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/me`                                                           | Authenticated identity/effective grant and settings                                                                            |
+| `POST /v1/connect`                                                     | Agent starts/resumes its own connection request; API keys require existing scope                                               |
+| `GET /v1/connect/:id`                                                  | Request's agent connection or owning website session                                                                           |
+| `POST /v1/connect/:id/approve`                                         | Owning website session; transactional project link and grant                                                                   |
+| `POST /v1/connect/:id/cancel`                                          | Request's agent connection or owning website session                                                                           |
+| `GET, POST /v1/projects`; `PATCH /v1/projects/:id`                     | Approved scope; create needs all-project access or website session                                                             |
+| `GET /v1/projects?status=archived`; `GET /v1/projects/:id/lifecycle`   | Archived listing and full-subtree preview; owner website session only                                                          |
+| `POST /v1/projects/:id/archive`, `/restore`, `/delete`                 | Owner-only, version/snapshot-checked subtree lifecycle; deletion is soft only                                                  |
+| `POST /v1/memories`; `PATCH /v1/memories/:id`                          | `memory:write`                                                                                                                 |
+| `GET /v1/memories`; `POST /v1/memories/search`; `GET /v1/memories/:id` | `memory:read`                                                                                                                  |
+| `GET /v1/memories/:id/revisions`                                       | `memory:read`, current scope                                                                                                   |
+| `GET /v1/memories/:id/revisions/:version`                              | Exact historical revision; current scope, deletion and expiry checks                                                           |
+| `/v1/assistance`, `/v1/notebook-visits`                                | Owning website session; [notebook assistance](notebook-assistance.md)                                                          |
+| `POST /v1/memories/:id/archive`; `…/restore`                           | `memory:write`, operation ID and current version                                                                               |
+| `POST /v1/memories/delete`                                             | `memory:delete`                                                                                                                |
+| `POST /v1/recall`                                                      | `memory:read`                                                                                                                  |
+| `POST /v1/tools/:tool`                                                 | Same tool schemas and scoped capabilities as MCP; notebook lifecycle remains owner-only                                        |
+| `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                                                                            |
+| `GET, POST /v1/conversations`; `GET, DELETE /v1/conversations/:id`     | Owning website session only; saved chat history                                                                                |
+| `POST /v1/conversations/search`                                        | Owner-only history search: `{ query?, after? }`; titles/questions, 30 results and signed cursor                                |
+| `POST /v1/conversations/:id/turns`; `…/turns/:turnId/apply`; `…/undo`  | Owning website session only; contextual replies and previewed note changes                                                     |
+| `/v1/conversations/:id/documents`; `/v1/memories/:id/document-sources` | Owning website session only; private upload/evidence/conversion/original routes; see [documents](imports.md#chat-document-api) |
+| `POST /v1/briefs`; `POST /v1/briefs/refresh`                           | Scoped `memory:read` / `memory:write`; body `{projectId, taskId?}`                                                             |
+| `POST /v1/memories/:id/reprocess`                                      | Scoped `memory:write`; body `{expectedVersion}`                                                                                |
+| `GET /v1/models`; `GET /v1/account/usage`                              | Website session; masked settings / account usage                                                                               |
+| `PATCH /v1/models`; `POST /v1/models/test`                             | Configured self-hosted installation administrator only                                                                         |
+| `GET, POST /v1/connections`; `PATCH, DELETE /v1/connections/:id`       | Website session only                                                                                                           |
+| `POST /v1/keys`                                                        | Website session only; secret returned once                                                                                     |
+| `POST /v1/logout`                                                      | Revoke calling agent's connection                                                                                              |
+| `PATCH /v1/account/settings`; `POST /v1/account/delete`                | Website session only                                                                                                           |
+| `/v1/exports`, `/v1/imports`, `/v1/tasks`                              | Session-owner durable work; see [jobs](jobs.md)                                                                                |
+| `POST /v1/webhooks/clerk`                                              | Svix signature, replay receipt and event ordering                                                                              |
+| `GET /health/live`, `/health/ready`                                    | Public, content-free                                                                                                           |
 
 Use POST search so query text stays out of URLs. Cursors are signed and bound to
 account, connection, filters, and creation-time ceiling. Pagination is bounded,
@@ -190,6 +204,14 @@ The website's **Ask** mode uses durable conversations. Create with a client UUID
 optional `projectId` and `includePersonal`. Submit turns with a client UUID, `query`
 (up to 6,000 characters), `format` (`plain`/`markdown`), and `expectedVersion` from
 the conversation. Retries reuse the same body/UUID; changed payloads conflict.
+Optional `context: { notes: UUID[], notebooks: UUID[], only: boolean }` selects
+per-turn evidence (12 individual notes/six direct-member notebooks, unique IDs,
+at least one selector). Strict mode excludes unselected retrieval/history/web
+evidence; large notebooks use bounded in-scope keyword retrieval, with at most12
+supplied notes and explicit `result.contextCoverage`. Selectors persist on turns
+and in exports. `context_unavailable` (409) rejects invalid/inaccessible selectors
+before provider dispatch or conversation advancement. [Source contract](explicit-context.md)
+details evidence/citation distinctions, selected edit/merge previews and recovery.
 `GET /v1/conversations?after=<last-id>` returns 30 recent conversations per page.
 The history browser uses `POST /v1/conversations/search` with optional `query`
 (up to 200 characters) and `after` (opaque signed cursor). It searches titles and
@@ -201,7 +223,7 @@ most-recent-first; deleted/foreign chats and assistant payloads are excluded.
 The cursor identifies an account-owned row; it contains no query text. History
 pagination reflects concurrent activity rather than a frozen snapshot.
 
-Reference resolution uses the latest eight completed turns, then retrieves current
+Without strict source selection, reference resolution uses the latest eight completed turns, then retrieves current
 scoped evidence. Replies cite exact revisions and can propose explicit note edits,
 creation/merge, notebook organization, or archive/restore/delete. Lifecycle previews
 name exact notes and count full notebook subtrees. `apply` and `undo` take `{}` and

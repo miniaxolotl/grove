@@ -56,8 +56,8 @@ Deploy from the repository root using `pnpm install --frozen-lockfile`, `pnpm bu
 - Next.js App Router with request-time SSR (`connection()`) for `/` and `/install`.
 - React Server Components for the page content, with small client components for tabs, copying, navigation, and sharing.
 - Tailwind CSS v4. Shared TypeScript and ESLint workspace configurations, extended for Next.js.
-- Locally bundled DM Sans and Instrument Serif fonts; no external font requests.
-- Generated 1200×630 Open Graph image, X/Twitter cards, favicon, Apple icon, canonical URLs, sitemap, robots, and JSON-LD.
+- Locally bundled Space Grotesk and JetBrains Mono fonts; no external font requests.
+- Branded 1200×628 Open Graph image, X/Twitter cards, favicon, Apple icon, canonical URLs, sitemap, robots, and JSON-LD.
 - Native Web Share with clipboard/manual-copy fallbacks, plus X, LinkedIn, and Bluesky sharing links.
 
 | Location                               | Purpose                                       |
@@ -85,4 +85,11 @@ pnpm --filter website exec playwright install chromium
 pnpm test:website
 ```
 
-Browser tests use the production build on port 3100 (override with `WEBSITE_TEST_PORT`). Build and run tests with the same `SITE_URL`; when using a custom `.env.local`, also export that value for the test runner. Tests cover no-JavaScript content, keyboard navigation, installation and clipboard flows, share fallbacks, SEO/image routes, responsive layouts, and WCAG accessibility checks.
+Browser tests use the production build on port 4372 (override with `WEBSITE_TEST_PORT`). Build and run tests with the same `SITE_URL`; when using a custom `.env.local`, also export that value for the test runner. Tests cover no-JavaScript content, keyboard navigation, installation and clipboard flows, share fallbacks, SEO/image routes, responsive layouts, and WCAG accessibility checks.
+
+## Public reference pages
+
+`/docs` renders an explicit selection of committed monorepo documentation. Keep
+files outside the website root available during builds; no moving upstream fetch
+is used. See [source selection and discovery boundaries](../../documentation/website-discovery.md)
+before publishing another document or changing crawler/measurement policy.

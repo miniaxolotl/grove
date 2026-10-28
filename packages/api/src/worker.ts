@@ -11,6 +11,8 @@ import {
   cleanupHandlers,
   exportHandlers,
   importHandlers,
+  documentImportHandlers,
+  conversationDocumentHandlers,
   scheduleCleanup,
   runTask,
   providerProfiles,
@@ -19,6 +21,7 @@ import {
 } from "@lib/memory";
 import { queueLanes, type QueueLane, type TaskKind } from "@lib/shared/jobs";
 import { readMediaBytes } from "./media-input.ts";
+import { extractDocument } from "./document-extraction.ts";
 
 const runtime = await createRuntime();
 const reporter = telemetry("worker");
@@ -72,6 +75,8 @@ const handlers: Partial<Record<TaskKind, TaskHandler>> = {
     ? exportHandlers(runtime.db, runtime.artifacts, runtime.media)
     : {}),
   ...importHandlers(runtime.memories),
+  ...documentImportHandlers(runtime.memories, extractDocument, runtime.media),
+  ...conversationDocumentHandlers(runtime.memories, extractDocument),
   ...cleanupHandlers(
     runtime.db,
     async (subject) => {

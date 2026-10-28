@@ -54,6 +54,13 @@ billing flag or schema change is required.
 
 ## Library and user actions
 
+AI cache reuse discounts a **distinct fully cached request to 0.2 actions** from
+its existing feature allowance; fresh/partly cached requests use one action.
+Allowances remain independent—there is no pooled pricing system. Reopening or
+replaying the same completed operation remains free. Billing shows fresh/cached
+counts and weighted usage. See [AI caching](ai-caching.md) for admission, receipts,
+source validity, refresh and the distinction from actual provider attempts.
+
 | Resource                                  |         Free |           Pro |
 | ----------------------------------------- | -----------: | ------------: |
 | Stored notes                              |       10,000 |        50,000 |
@@ -68,8 +75,9 @@ generation calls/account**, shared by foreground requests and all worker replica
 The latter is independent of the existing lane/provider capacity controls. An
 unlimited grant removes plan action/storage limits, not the two-call safety ceiling.
 
-These counters describe user actions, not provider requests. A complete conversation
-turn counts one reply, including its planner and internal retrieval. Reopening or
+These counters describe user actions, not provider requests. A fresh complete conversation
+turn counts one reply, including its planner and internal retrieval; a fully cached
+new turn counts 0.2 replies. Reopening or
 retrying its same ready turn does not charge again. Failed/cancelled replies release
 the action reservation; their provider-attempt evidence remains retained. Stateless
 Ask calls and external recall/search calls are independent operations; transport

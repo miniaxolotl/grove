@@ -90,17 +90,34 @@ export async function probeDatabase(db: Knex) {
     "SELECT content_version, ask_enabled, export_version, filing_enabled, change_token, admin_suspended FROM accounts LIMIT 0",
   );
   await db.raw("SELECT id, lane, lease_id FROM background_tasks LIMIT 0");
-  await db.raw(
-    "SELECT status, archive_operation_id, position FROM projects LIMIT 0",
-  );
-  await db.raw("SELECT notebook_order_version FROM accounts LIMIT 0");
+  await db.raw("SELECT status, archive_operation_id FROM projects LIMIT 0");
   await db.raw("SELECT duration_ms FROM speech_usage LIMIT 0");
   await db.raw("SELECT archive_operation_id FROM memories LIMIT 0");
-  await db.raw("SELECT tools, tools_version FROM conversations LIMIT 0");
+  await db.raw("SELECT context FROM conversation_turns LIMIT 0");
+  await db.raw(
+    "SELECT tools, tools_version, documents_version FROM conversations LIMIT 0",
+  );
+  await db.raw(
+    "SELECT id, accepted, removed_at FROM conversation_documents LIMIT 0",
+  );
+  await db.raw("SELECT units FROM action_usage LIMIT 0");
+  await db.raw("SELECT key, lease_id FROM ai_cache LIMIT 0");
   const versions = await db.raw(
     "SELECT extversion FROM pg_extension WHERE extname = 'vector'",
   );
   if (!versions.rows[0]) throw new Error("The vector extension is required");
+  const search = await db.raw(
+    "SELECT 1 FROM pg_extension WHERE extname='pg_trgm' AND to_regprocedure('public.grove_search_title(text,text)') IS NOT NULL",
+  );
+  if (!search.rows.length)
+    throw new Error("The search-quality migration (pg_trgm) is required");
+  const reports = await db.raw(
+    "SELECT to_regprocedure('public.grove_admin_usage_report(date,date,uuid)') IS NOT NULL AS ready",
+  );
+  if (!reports.rows[0].ready)
+    throw new Error("The usage-report migration (034) is required");
+  await db.raw("SELECT position FROM projects LIMIT 0");
+  await db.raw("SELECT notebook_order_version FROM accounts LIMIT 0");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */

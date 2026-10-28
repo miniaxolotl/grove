@@ -1,5 +1,24 @@
 # Images and durable media
 
+**[Files & storage](files-storage.md)** lists private document uploads, images and
+original recordings with their note/notebook/chat locations and storage budgets.
+
+Reviewed [document imports and Ask attachments](imports.md) retain accepted PDF,
+DOCX, Markdown and text originals through
+the same immutable source store, with a separate document-only validation method.
+They do not widen image/WAV note attachment endpoints or public media readers.
+Imports share the account's retained-byte/attempt safety budget. Media-complete
+exports also include original-document records; unconfirmed database staging expires
+separately and never enters source-object deletion.
+
+Chat documents are independent of saved-note image/WAV media: uploading or asking
+creates no library note. Send/save accepts private retained originals; Remove and
+chat deletion revoke chat use without deleting originals. Explicitly saved generated
+notes retain separate owner-session-only source bindings. Neither these bindings
+nor notebook sharing publish original documents. Unaccepted staging/excerpts expire
+after24 hours, under a shared75 MiB account staging ceiling. See the
+[document lifecycle/API](imports.md#ask-about-documents-first).
+
 Images attach to saved notes. Choose **Add media → Add image**, paste an image or drop a file
 into the editor after the note and its changes have saved. The website accepts
 static PNG, JPEG and WebP up to **3 MiB** (within the hosted proxy request budget).

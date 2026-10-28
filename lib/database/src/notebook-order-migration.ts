@@ -1,7 +1,7 @@
 import type { Knex } from "knex";
 
 export const notebookOrder = {
-  name: "20261025_032_notebook_order",
+  name: "20261025_035_notebook_order",
   async up(db: Knex) {
     await db.raw(`
       ALTER TABLE projects ADD COLUMN position integer;

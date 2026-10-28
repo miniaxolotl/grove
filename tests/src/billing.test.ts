@@ -526,6 +526,7 @@ test("account usage exposes an owner-only local plan breakdown with actual used,
     used: 1,
     reserved: 1,
     limit: 7,
+    cache: { fresh: 1, cached: 0 },
   });
   assert.equal(snapshot.resources.metrics.notes.used, 1);
   assert.equal(snapshot.usage.metrics.generation.today, 3);

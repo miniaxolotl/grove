@@ -48,6 +48,11 @@
 .sidebar-create > svg {
   flex-shrink: 0;
 }
+.sidebar-create > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .workspace-search-launcher,
 .workspace-command-launcher {
   display: flex;

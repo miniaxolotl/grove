@@ -52,6 +52,99 @@ scratch storage is at quota, and restart the fixture after a production rebuild:
 its CSS manifest is captured at startup. Missing CSS and cancelled downloads from
 those harness failures must not be misclassified as application regressions.
 
+## Cross-account usage reports
+
+`admin-usage.test.ts` and `admin-usage-migration.test.ts` cover global per-feature
+totals, fifth-action discounts, request/token/duration separation, released/expired
+reservations, UTC ranges, thirty-user pagination, website-only current authority,
+identity-outage fallback and post-lookup revocation, forced-RLS isolation, actor
+context restoration, non-superuser function ownership and populated upgrade
+preservation of all rows and tenant policies. Include existing system-admin,
+search-migration, accounting and full backend suites after integration.
+
+Use actual Admin components, the real API and a disposable PostgreSQL fixture with
+synthetic identities at 1440/390/320px in Chromium and supported WebKit. Verify
+idle reporting before intent, feature/unit selection, global CSV amounts rather
+than only the loaded page, pagination, inspection, date bounds/empty ranges,
+transient retry retaining data, revocation concealment, accessibility and local
+table scrolling without page overflow.
+Store reviewed captures under `design/screenshots/admin-usage/`. A host temporary
+storage quota is not a product failure or permission to weaken assertions; use
+task-owned disk-backed temporary storage in the pinned Linux runner instead.
+
+## AI caching and separate discounted allowances
+
+Use `ai-cache.test.ts`, `ai-cache-migration.test.ts`, `action-quotas.test.ts`,
+`models.test.ts`, `conversations.test.ts`, `background.test.ts`, `capacity.test.ts`
+and `recovery.test.ts` with the disposable non-owner URLs below. Coverage includes
+cross-replica reuse/coalescing, exact keys, invalid vectors, cancellation and late
+owners, RLS, expiry/generation fences, retained account cleanup/reset, independent
+fifth-unit usage, final 0.2 admission, prevention of paid upgrades without quota,
+unchanged-content enrichment, validated planning, exact answers, account research
+reuse and explicit refresh/replay. A populated pre-033 upgrade preserves notes,
+provider counters and historical five-unit actions. Cancellation fixtures must
+force a cache miss and verify abort propagation, not signal-object identity.
+
+Browser review uses actual Billing/Ask components and production CSS with synthetic
+identities: fractional weighted usage, fresh/cached counts, receipts, source refresh
+while a draft exists, refresh retry identity, stale-source removal, narrow widths,
+keyboard/focus and WCAG A/AA. Run existing full Chromium and focused supported
+WebKit cases; no live provider/account or new frontend test files are necessary.
+When a prompt or response contract changes, bump its feature cache protocol/version
+as well as updating validation: parse compatibility alone does not establish that
+an older result answers the new instructions.
+Record inspected screenshots under `design/screenshots/ai-caching/`. A failed
+fixture script load (`ERR_NETWORK_CHANGED`) is environment evidence, not a reason
+to weaken a locator or assert an unrun browser journey passed.
+
+## Explicit context selection
+
+`conversations.test.ts` covers exact selected IDs, direct-member large notebooks,
+pinned ordering/deduplication, partial/omitted evidence, strict history/web exclusion,
+selected edit/merge Apply/Undo, unavailable/foreign/archived/expired selectors,
+source races/retry identities, invalid citations and HTTP/export compatibility.
+`conversation-context-migration.test.ts` upgrades populated pre030 chats and checks
+unchanged old columns, nullable defaults and non-owner tenant isolation. Use the
+disposable API/worker/migration URLs below; no paid providers are needed.
+
+After the production website build, exercise actual components with a disposable
+API/PostgreSQL and deterministic generation: source picker/search/pagination,
+duplicate titles/paths, read-only nested previews/focus return, @note/@notebook
+Space/Tab/Enter/IME/cancellation, strict chips and last-chip send guard, scope
+changes, draft/history ownership, exact uncertain retry, unavailable-source recovery,
+Add sources, explicit edit/merge previews and selected/provided/cited distinctions.
+Review 1440/390/320px in Chromium and supported WebKit with WCAG/overflow checks.
+Run the existing full Chromium and focused Ask WebKit suites as regressions.
+See [source behavior](../explicit-context.md),
+[evaluation limits](explicit-context-results.md) and
+[reviewed captures](../design/screenshots/explicit-context/README.md).
+
+## Search quality
+
+`search-quality.test.ts` covers final title tiers, all-term prefix/typo matching,
+strict phrases/OR/exclusions, current visible generated titles, semantic/salience
+competition, scoped keys, relevance fingerprints, asynchronous title changes,
+global date sorting, global lexical-shortfall activation and response budgets.
+`search-migration.test.ts` upgrades populated source without changing retained
+rows/vectors and verifies the invoker-only title function and `pg_trgm`.
+Use the three disposable owner/API/worker URLs below; no paid inference is needed.
+
+The `search quality` browser cases in `workspace.spec.ts` exercise 1440/390/320px
+title marks/passages, honest typo excerpts, WCAG contrast/overflow, explicit sort
+retention and stale-cursor restart. Use `--grep 'search quality'` with Chromium
+and `playwright.search-webkit.config.ts`. They use synthetic response evidence with actual
+components/CSS; backend service tests independently qualify SQL matching.
+
+Run `pnpm exec tsx tests/src/performance/search-quality.ts` from the root with
+disposable owner/API URLs to create a task-owned temporary `_test` database and
+measure1k/10k eligible notes plus equal-sized cross-tenant noise. The runner
+removes only its newly created database and reports warm service samples, a
+clearly non-equivalent baseline SQL timing, and actual runtime-RLS plans.
+Set `SEARCH_EVIDENCE_DIR` to an existing private evidence directory. These
+observations are not production capacity or an HTTP p95 qualification.
+[Measured outcomes and limitations](search-quality-results.md) retain the slower
+typo/no-match scans as well as the optimized common-query results.
+
 ## Admin interface polish
 
 Use the actual AdminPanel with production CSS and a disposable real API/non-owner
@@ -98,6 +191,67 @@ separate action coverage pins the production two-call ceiling across replicas.
 Use only the disposable databases described below. [Usage captures](../design/screenshots/free-pro-usage/README.md)
 record actual-component desktop/mobile warnings and legacy/unlimited compatibility.
 
+## Files & storage
+
+Refinement regressions also pin global newest/name/size ordering across pages,
+microsecond date positions, deterministic ties, sort-bound cursors and location-
+aware search/view filters. The file UI tests cover notebook picker keyboard/focus,
+context-preserving reset and first-page recovery. Real browser journeys check
+collapsed storage, visible mobile file heading, keyboard expansion, untruncated
+notebook-root labels, location search and whole-inventory sort controls.
+
+`tests/src/files.test.ts` covers the real read projection under non-owner RLS:
+mixed import/chat/media metadata, conservative budget versus available bytes,
+expiry/removal/deleted-source denial, foreign accounts/agent denial, filename
+literal matching, signed filter/account-bound pagination, current notebook moves,
+historical image bindings, shared-original deduplication and many-note location
+pagination. No new migration, original deletion or quota refund is introduced.
+
+After a production website build, run the normal Chromium suite including
+`tests/files.spec.ts` for errors/retry, denied location refresh, page controls,
+empty/invalid filters and multiple entry points. For disposable real API/parser/
+worker/source-store verification:
+
+```sh
+node --import tsx scripts/testing/files-browser.mjs
+```
+
+Set the three disposable test database URLs as documented below. It creates and
+drops its own `_test` database; checks notebook associations, storage/filtering,
+byte-identical originals and removed-source refresh at1440/390/320px, WCAG A/AA,
+overflow and page errors. `FILES_BROWSER=webkit` chooses supported WebKit;
+`FILES_API_PORT`/`DASHBOARD_TEST_PORT` override loopback26656/26657. Use the existing
+supported Playwright container if native host dependencies are missing. This
+uses synthetic documents/identities, no paid providers or production data.
+
+## Documents in Ask Grove
+
+Run `conversation-documents.test.ts`, `conversation-document-migration.test.ts`,
+`document-extraction.test.ts`, existing conversations/import tests and recovery
+against disposable non-owner API/worker URLs. Coverage includes upload integrity,
+no hidden library writes, exact quotations/revisions, actual serialized provider
+payloads, acceptance replay/races, pre-dispatch/removal fences, private note-linked
+originals, failed-task retry, shared staging admission, chat-only exports and restored
+revocations. DOCX adversarial cases run only against synthetic packages in the
+permission-limited process. The populated031→032 case preserves old notes/imports/chats.
+
+After a production website build, `tests/ask-documents.spec.ts` exercises actual
+components and production CSS at1440/390/320px with synthetic responses. For real
+API/PostgreSQL/parser/original-store journeys run:
+
+```sh
+pnpm exec tsx scripts/testing/ask-documents-browser.mjs
+```
+
+It creates/removes an isolated `_test` database, uploads real synthetic DOCX/Markdown,
+uses an explicitly synthetic generation provider, checks citations/follow-ups,
+byte-identical private originals, reviewed full-text save, removal masking and WCAG
+A/AA/overflow/page errors. `ASK_BROWSER=webkit` chooses supported WebKit;
+`ASK_WORKER_DIRECTORY=/path/to/pnpm-deploy-output` chooses the packaged production
+worker and asserts clean SIGTERM draining. Use the existing supported Playwright
+container when native host libraries are absent. Synthetic model responses do not
+qualify live-model answer quality. [Reviewed captures](../design/screenshots/ask-documents/README.md).
+
 ## Admin support and usage
 
 `system-admin.test.ts`, `system-admin-migration.test.ts` and `recovery.test.ts`
@@ -116,6 +270,41 @@ capture/recall/support note edits, suspension/restoration, access grants, clipbo
 fallback, same-operation lost-response retry, errors/revocation concealment and
 keyboard/focus/overflow/accessibility. Screenshots must use synthetic identities.
 No production identity or support edit is necessary for source verification.
+
+## Note and PDF imports
+
+Use `document-extraction.test.ts`, `document-imports.test.ts`,
+`document-import-migration.test.ts` and `recovery.test.ts`. They exercise real PDFs,
+strict UTF-8, lossless bounded segmentation, the 030→031 populated upgrade, non-owner
+RLS/session boundaries, upload integrity, versioned review, original attempt tracking,
+idempotent note/notebook creation, cancellation/expiry, private downloads, original
+immutability, preference guards and media-complete provenance exports.
+
+`packages/website/tests/imports.spec.ts` runs the actual workspace components with
+production CSS and synthetic API responses at1440/390/320px. It covers upload,
+review/edit, new/existing destinations, confirmation, keyboard-operable controls,
+WCAG A/AA, overflow and page errors. The synthetic PDF response is not extraction
+evidence; real parsing and authorization belong to the backend cases. Relevant
+[captures](../design/screenshots/note-imports/README.md) use synthetic notes only.
+
+Keep worker/container resource limits in addition to the parser's old-space/deadline
+guards. Never use customer documents or retained databases for malicious-PDF tests.
+
+For the complete real API/worker/PostgreSQL journey (not mocked import responses),
+build the website first, set the disposable test URLs below and run:
+
+```sh
+pnpm exec tsx scripts/testing/document-imports-browser.mjs
+```
+
+It creates/removes its own `_test` database, uses real binary Markdown/PDF uploads,
+reviews mixed existing/new destinations at1440/390/320px, confirms normal note writes
+and compares downloaded originals byte-for-byte. `IMPORT_BROWSER=webkit` selects
+WebKit; use the supported Playwright container below when host libraries are absent.
+`IMPORT_WORKER_DIRECTORY=/path/to/pnpm-deploy-output` runs that prebuilt production
+worker in a separate process instead of the source handler loop, covering parser
+packaging and clean SIGTERM draining. All identities/documents are synthetic; this
+runner adds no authentication bypass to production code and makes no model calls.
 
 ## System administration
 
@@ -215,6 +404,33 @@ independence. `speech-runtime.test.ts` checks Vercel precedence over the legacy
 opt-in, self-host fallback, missing credentials/storage and master speech disable.
 
 ## Hosted chat connections
+
+### Agent note-writing guidance
+
+Run `pnpm exec tsx --test tests/src/note-guidance.test.ts tests/src/directory.test.ts`.
+The official SDK checks initialization instructions and model-visible content,
+scope, capture, version and retry descriptions without executing note tools. Source
+skills must exactly match the runtime body, fit the existing automatic-context
+budget and retain the expanded catalog/lifecycle wording. Compatibility checks keep
+plain/literal content, defaults, strict unknown-field rejection and version guards.
+Cleanup cache identity includes the prose policy without changing other profiles.
+
+After `pnpm build`, run `pnpm test:artifacts` and `pnpm test:agents`. Packed source
+isolation checks inspect all three native skill artifacts and initialize all four
+packaged bridges to verify writing instructions and content argument documentation.
+Run `conversations.test.ts` and `notebook-assistance.test.ts` with the disposable
+non-owner database URLs below: model request fixtures verify authoring policy,
+unchanged planners/structured evidence and preview-before-Apply. Fixtures prove
+instruction wiring, not live model writing quality. The
+[labeled review corpus](../agent-note-writing.md#evaluation-cases) separates quality
+expectations from rendering and authorization. Do not send private notes or make
+paid-model calls without explicit authorization.
+
+Use existing workspace Markdown/task and media scenarios for renderer compatibility;
+do not add syntax support just to satisfy examples. Any captures must identify the
+synthetic input/source/build and must not be presented as actual model output.
+
+### Hosted connection verification
 
 `pnpm exec tsx --test tests/src/directory.test.ts` runs without a database listener.
 It verifies exact optional public proof, content type/cache/nosniff, HEAD and wrong
