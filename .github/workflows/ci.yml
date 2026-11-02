@@ -24,7 +24,7 @@ permissions:
 jobs:
   changes:
     name: Change Classification
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 5
     outputs:
       selection: ${{ steps.classify.outputs.selection }}
@@ -45,7 +45,7 @@ jobs:
 
   promotion:
     name: Promotion Admission
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,7 +75,7 @@ jobs:
         contracts-quality,
         image,
       ]
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,7 +92,7 @@ jobs:
     name: Website
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection).website }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -140,7 +140,7 @@ jobs:
     name: Website Quality
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection)['website-quality'] }}
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -159,7 +159,7 @@ jobs:
     name: TypeScript Tests
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection).contracts }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 20
     env:
       TEST_MIGRATION_DATABASE_URL: postgresql://postgres:grove_test@127.0.0.1:5432/grove_test
@@ -195,7 +195,7 @@ jobs:
     name: TypeScript Quality
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection)['contracts-quality'] }}
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -216,7 +216,7 @@ jobs:
     name: Container Build
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection).image }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
