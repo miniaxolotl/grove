@@ -10,7 +10,6 @@ const pins = {
   "actions/download-artifact": "9000827ccba6bdab643e8b6fd33ac0654aef8333",
   "actions/cache/restore": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
   "actions/cache/save": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
-  "pnpm/setup": "a0881977cd8ea73b1ed212236c99ca10dcc80cf4",
   "googleapis/release-please-action":
     "45996ed1f6d02564a971a2fa1b5860e934307cf7",
   "docker/setup-buildx-action": "f87e5991a6d7451dcb8d9637bfbc97413f497069",
