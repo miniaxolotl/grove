@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.9](https://github.com/miniaxolotl/grove/compare/v1.11.8...v1.11.9) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ci:** keep pnpm 10 compatible setup action ([8ca22a7](https://github.com/miniaxolotl/grove/commit/8ca22a7c93002292a29f7edd20b71bce5e46aaaa))
+* **ci:** key concurrency group to the ref to escape stale queued runs ([67de3d9](https://github.com/miniaxolotl/grove/commit/67de3d9e49cecd3a91e2443600e83efd59c6f3cb))
+
 ## [1.11.8](https://github.com/miniaxolotl/grove/compare/v1.11.7...v1.11.8) (2026-10-28)
 
 
