@@ -13,7 +13,7 @@ on:
         default: ""
 
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.merge_group.head_ref || github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.event.merge_group.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -65,7 +65,16 @@ jobs:
   ci-gate:
     name: CI Gate
     if: always()
-    needs: [changes, promotion, website, contracts, image]
+    needs:
+      [
+        changes,
+        promotion,
+        website,
+        website-quality,
+        contracts,
+        contracts-quality,
+        image,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -106,8 +115,6 @@ jobs:
           path: packages/website/.next/cache
           key: next-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: next-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('pnpm-lock.yaml') }}-
-      - run: pnpm lint:website
-      - run: pnpm check-types:website
       - run: pnpm build:website
         env:
           VERCEL_ENV: production
@@ -129,6 +136,25 @@ jobs:
           path: packages/website/.next/cache
           key: ${{ steps.build-cache.outputs.cache-primary-key }}
 
+  website-quality:
+    name: Website Quality
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection)['website-quality'] }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0; pnpm 10
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint:website
+      - run: pnpm check-types:website
+
   contracts:
     name: TypeScript Tests
     needs: changes
@@ -144,33 +170,33 @@ jobs:
       TEST_MEDIA_S3_REGION: us-east-1
       TEST_MEDIA_S3_KEY: grove_media_test
       TEST_MEDIA_S3_SECRET: grove_media_disposable_only
-    services:
-      media-storage:
-        # RustFS 1.0.3: disposable source-store conformance, never production data.
-        image: rustfs/rustfs@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
-        env:
-          RUSTFS_ACCESS_KEY: grove_media_test
-          RUSTFS_SECRET_KEY: grove_media_disposable_only
-          RUSTFS_CONSOLE_ENABLE: "false"
-          RUSTFS_OBS_LOGGER_LEVEL: error
-        ports: ["9000:9000"]
-        options: >-
-          --health-cmd "curl -fsS http://127.0.0.1:9000/health"
-          --health-interval 5s --health-timeout 5s --health-retries 20
-      rabbitmq:
-        image: rabbitmq:4.1-alpine
-        env: { RABBITMQ_DEFAULT_USER: grove, RABBITMQ_DEFAULT_PASS: grove_disposable_queue }
-        ports: ["5672:5672"]
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 5s --health-timeout 5s --health-retries 20
-      postgres:
-        image: pgvector/pgvector:0.8.2-pg17
-        env: { POSTGRES_DB: grove_test, POSTGRES_PASSWORD: grove_test }
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U postgres -d grove_test"
-          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0; pnpm 10
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start disposable CI test services
+        run: docker compose --file docker-compose.ci.yml up --detach --wait
+      - run: pnpm build
+      - run: pnpm test:db:setup
+      - run: pnpm test
+      - run: pnpm test:artifacts
+      - run: pnpm test:agents
+      - name: Tear down disposable CI test services
+        if: ${{ always() }}
+        run: docker compose --file docker-compose.ci.yml down --volumes
+
+  contracts-quality:
+    name: TypeScript Quality
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection)['contracts-quality'] }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -185,11 +211,6 @@ jobs:
       - run: node --test tests/digitalocean.test.mjs
       - run: node --test scripts/release/*.test.mjs
       - run: pnpm check-types
-      - run: pnpm build
-      - run: pnpm test:db:setup
-      - run: pnpm test
-      - run: pnpm test:artifacts
-      - run: pnpm test:agents
 
   image:
     name: Container Build
