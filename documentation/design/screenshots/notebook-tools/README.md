@@ -1,5 +1,25 @@
 # Workbench — reviewed synthetic captures
 
+## Integrated notebook catalog
+
+Source **e768e2d80a4e981e1bc2c0a1aae2e76e7e4cb5ed**, production build
+**YtzoCgqgyIh9rugQJuLxP**, captured on 3 November 2026 in supported Noble WebKit
+at 1440×900 and 390×900. Actual dashboard components and production CSS use the
+current paged notebook-catalog fixture and a synthetic brief response. The desktop
+capture shows Workbench alongside notebook organization; both show explicit scope,
+partial coverage, a revision citation and the reviewed save destination.
+
+| Integrated desktop brief                                       | Integrated phone brief                                                    |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ![Brief with notebook organization](integrated-brief-1440.png) | ![Brief with source and destination on a phone](integrated-brief-390.png) |
+
+The accompanying browser cases verify lost enqueue/save replay, explicit opt-in,
+cancellation, source recovery, WCAG A/AA and no horizontal overflow. These captures
+use routed synthetic HTTP data, not the real-service adapter used below; they do
+not establish live-model or physical-device acceptance.
+
+## Original all-workflow gallery
+
 Application source **ee98349** (refinement94630dd plus compact-navigation fix),
 production CSS/build **SsA58UxOf8U3e2ncubtlS**. The build compiled this source
 before the navigation commit; its manifest retains94630dd. Four Chromium captures use actual dashboard components
