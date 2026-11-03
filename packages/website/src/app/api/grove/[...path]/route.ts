@@ -83,7 +83,7 @@ async function forward(
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
     path !== "conversations/search" &&
     !/^files\/(?:search|storage|locations)$/.test(path) &&
-    !/^(projects\/(?:catalog|[0-9a-f-]+\/organize)|assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review|cancel|continue))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
+    !/^(projects\/(?:catalog|[0-9a-f-]+\/organize)|assistance(?:\/[0-9a-f-]+(?:\/(?:apply|undo|review))?)?|notebook-visits|exports|imports|tasks(?:\/[0-9a-f-]+(?:\/(?:cancel|retry|download))?)?)$/.test(
       path,
     )
   )

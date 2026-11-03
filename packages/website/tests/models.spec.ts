@@ -179,17 +179,11 @@ test("categorized AI preferences persist independently with provider availabilit
     "Connections",
     "Summaries",
     "Ask Grove",
-    "Workbench",
     "Connected agents",
     "Speech",
   ])
     await expect(page.getByRole("group", { name, exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox")).toHaveCount(21);
-  const meeting = page.getByRole("checkbox", {
-    name: "Create a brief",
-    exact: true,
-  });
-  await expect(meeting).not.toBeChecked();
+  await expect(page.getByRole("checkbox")).toHaveCount(16);
   const titles = page.getByRole("checkbox", {
     name: "Titles and tags",
     exact: true,
@@ -224,11 +218,6 @@ test("categorized AI preferences persist independently with provider availabilit
   await page.getByRole("button", { name: "Save preferences" }).click();
   await page.reload();
   await expect(titles).toBeChecked();
-  await expect(meeting).not.toBeChecked();
-  await meeting.check();
-  await page.getByRole("button", { name: "Save preferences" }).click();
-  await page.reload();
-  await expect(meeting).toBeChecked();
   await expect(
     page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
   ).not.toBeChecked();
