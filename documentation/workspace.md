@@ -61,6 +61,10 @@ Each has independent AI preferences. Proposed changes need explicit review/Apply
 generation does not silently rewrite notes. [Connected notebooks and linked notes](relationships.md)
 explain current evidence, partial coverage and retained Dismiss/Undo decisions.
 
+Weekly review, meeting preparation, study mode, knowledge gaps and similar past
+problems are [planned workflows](development/notebook-workflows.md), not current
+workspace controls.
+
 ## Share with a link
 
 ### Private section links
