@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.11.10](https://github.com/miniaxolotl/grove/compare/v1.11.9...v1.11.10) (2026-11-03)
+
+
+### Features
+
+* **workflows:** add grounded notebook workflows ([46fc0e2](https://github.com/miniaxolotl/grove/commit/46fc0e2d6433d71dc698fcdfc8ffbd6b6ba335d6))
+
+
+### Bug Fixes
+
+* **delivery:** deploy the website after backend readiness ([9b4ba0f](https://github.com/miniaxolotl/grove/commit/9b4ba0fa3ece106edd07c2b80e2fac324a0401a6))
+* **delivery:** deploy the website after backend readiness ([35ec8f8](https://github.com/miniaxolotl/grove/commit/35ec8f8e5ad1727b048c3e062aa428ccf7051a9f))
+* **deps:** integrate the current Sharp dependency update ([19fbca1](https://github.com/miniaxolotl/grove/commit/19fbca123e53e0678b333294f413fe75bb2a206e))
+* **deps:** upgrade the transitive Sharp runtime ([4c17ecd](https://github.com/miniaxolotl/grove/commit/4c17ecde81cc7af26178c279306efc9bdae59a46))
+* **workflows:** integrate current development contracts ([c642594](https://github.com/miniaxolotl/grove/commit/c64259449d53e0c1c204ff299415065ea266b2fe))
+
+
+### Reverts
+
+* **workflows:** revert PRs [#135](https://github.com/miniaxolotl/grove/issues/135) and [#139](https://github.com/miniaxolotl/grove/issues/139) ([28f1a43](https://github.com/miniaxolotl/grove/commit/28f1a431742cc4593c0be4c2579bc47d173bd6c1))
+* **workflows:** revert PRs [#135](https://github.com/miniaxolotl/grove/issues/135) and [#139](https://github.com/miniaxolotl/grove/issues/139) ([5589572](https://github.com/miniaxolotl/grove/commit/55895724e8e3eea3911e221b67e6440111386ffe))
+
 ## [1.11.9](https://github.com/miniaxolotl/grove/compare/v1.11.8...v1.11.9) (2026-11-02)
 
 
