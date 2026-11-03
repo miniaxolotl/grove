@@ -113,23 +113,10 @@ Browser tests cover selected-agent commands, approval customization/retry, ended
 requests, wrong-account handling and desktop/mobile accessibility. See
 [verification commands](development/testing.md).
 
-Verified locally on 2026-10-19: 23 database/auth/client/recovery checks, 4 packed
-artifact checks on both Node 24 and Node 22, 21 browser/accessibility checks, 5
-deployment-script checks, root/website type checks and lint, production builds,
-and the Docker image build. Desktop/mobile approval and Cloud setup were visually
-reviewed. Claude Code 2.1.304 and Codex CLI 0.163.0 successfully added the published
-marketplace and installed its plugin twice in isolated homes. These native checks
-exercise installer repeatability with the currently published plugin, not a new
-release. OAuth continuation is exercised against the test issuer; the released
-production flow still needs the rollout smoke test above.
-
-The seamless-onboarding follow-up passed 25 database/auth/client/recovery checks,
-5 packed-artifact checks on Node 24 and 22, 24 browser/accessibility checks, and
-root/website lint, type checks and production builds. An interactive terminal
-probe covered agent selection and invalid-choice recovery. Fresh Claude 2.1.304
-and Codex 0.163.0 installs followed by no-op retries passed in isolated homes using
-published plugins. Packed bridge tests verify login and endpoint switching within
-one running MCP process. At 320×640, the default approval action now starts around
-y=532 and fits in the first viewport (previously y=949); desktop/mobile renders
-were visually reviewed. Browser tests also cover storage-disabled selection,
-temporary polling failures, optional project-list failure and approval in another tab.
+Use `connect.test.ts`, client/auth and recovery suites for the real non-owner API;
+artifact/native checks qualify packaged installation independently from API access.
+Browser `connect.spec.ts` covers held/ended requests, scope customization, optional
+directory errors, wrong-account denial and desktop/phone accessibility. Run tests
+with isolated homes and current pinned host versions, not your normal credentials.
+Historical rollout/host results are in the [archive](archive/README.md); they do not
+replace a fresh released-host smoke test.

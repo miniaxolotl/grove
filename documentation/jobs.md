@@ -4,6 +4,14 @@ Migration **014** adds `background_tasks` for exports, cleanup, model backfills,
 imports and connector sync. Inference keeps `jobs`; email keeps its outbox.
 PostgreSQL owns eligibility, checkpoints, retries and leases.
 
+Migration **033** adds [exact AI-work caching](ai-caching.md). Enrichment jobs can
+reuse unchanged text/configuration artifacts without another provider reservation,
+but still publish only to the current note version under the current preference,
+profile, source and lease guards. Classification also fences candidate versions.
+Cache eviction/expiry never deletes retained authored records. Account/retention
+tasks remove derived cache/backoff rows in bounded existing checkpoint stages;
+restore/model reset clears them and invalidates older processing generations.
+
 ## Capacity and recovery
 
 | Lane        | Worker capacity             | Work                                                |
@@ -122,6 +130,8 @@ removes local `.partial` files left by terminated processes.
 Session-owner routes:
 
 - `POST /v1/exports`: `{id, projectId?, includeDescendants?: false}` →202/task.
+- Add `includeMedia: true` for checksummed original-media v3 exports; omitted/false
+  keeps the compatible structured v2 format.
 - `GET /v1/tasks[?projectId=UUID]`: latest 10 user jobs; `GET /v1/tasks/:id`.
 - `POST /v1/tasks/:id/cancel` or `/retry`: resume or stop durable work.
 - `GET /v1/tasks/:id/download`: current unexpired export only.
@@ -132,6 +142,19 @@ clients must create an export and wait for its download. Queue admission limits
 each account to 20 outstanding user jobs and one active export.
 
 ## Imports and connectors
+
+The workspace also supports reviewed [Markdown/text/PDF/DOCX uploads](imports.md) through
+`/v1/import-batches`. `document_prepare` and `document_import` use the bulk lane,
+bounded source staging, server-side review plans and owner-only progress/retry.
+Preparation creates no notes; confirmed Apply uses ordinary note/notebook writes.
+The existing record API below remains compatible and separate.
+
+Ask attachments use `conversation_document` in the bulk lane, not an expiring import
+batch or a hidden saved note. Upload enqueues extraction; explicit acceptance retains
+private originals before Send/save. Failed worker tasks can retry only while the
+file is still pending, unexpired and attached. Format errors need a corrected file;
+removal/cancellation immediately clears unaccepted staging and excerpts. See the
+[chat document contract](imports.md#ask-about-documents-first).
 
 Session owners can `POST /v1/imports` with `{id,source,records}`. Each record has
 `sourceId`, `content` and optional `projectId`; send at most 100 records and 128 KiB per
@@ -164,3 +187,22 @@ observed RSS growth was 34.7 MiB. Read p95 was 16.5 ms before and 14.3 ms during
 This is a local regression fixture, not a hosted throughput guarantee. Reproduce
 with the final test in `tests/src/queue.test.ts`; it asserts page bounds and complete
 output rather than machine-specific timing thresholds.
+
+## Rollout and verification
+
+Apply `20261022_014_queue_processing` after 013 with the
+[owner procedure](operations/schema.md), then deploy compatible API/worker before
+website. Drain old writers and v1 deliveries before disabling `WORKER_LEGACY_QUEUE`;
+retiring queues is a separate operator action. Configure shared private artifact
+storage and verify readiness before enabling cloud exports. Keep additive schema,
+tombstones and source data on rollback. Recovery cancels old leases/downloads and
+replays current privacy decisions before traffic.
+
+`queue.test.ts`, `queue-migration.test.ts`, `broker.test.ts`, `worker.test.ts`,
+artifact and recovery cases cover populated preservation, fair claims, quotas,
+leases, publisher/retry fencing, broker fallback and two real worker processes
+draining on SIGTERM. Browser `exports.spec.ts` covers retry identity, scope,
+cancel/retry, actual downloads and desktop/phone accessibility. Optional broker/S3
+services are explicit skips when absent; see [test setup](development/testing.md).
+Local draining and bounded export measurements are not hosted continuity/throughput
+acceptance.

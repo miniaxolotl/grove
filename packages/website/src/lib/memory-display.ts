@@ -1,14 +1,8 @@
 import type { Memory } from "@lib/shared/contracts";
+import { noteTitle, plainExcerpt } from "@lib/shared/search";
 
 export const memoryTitle = (memory: Memory) => {
-  const firstLine = memory.content.trim().split("\n")[0];
-  const heading = firstLine.match(/^#{1,6}\s+(.+)/)?.[1].trim();
-  return (
-    heading?.slice(0, 110) ||
-    memory.enrichment?.title ||
-    firstLine.slice(0, 110) ||
-    "Untitled note"
-  );
+  return noteTitle(memory.content, memory.enrichment?.title) || "Untitled note";
 };
 
 export const noteKindLabel = (kind: Memory["kind"]) =>
@@ -20,18 +14,11 @@ export const noteKindLabel = (kind: Memory["kind"]) =>
     handoff: "Progress note",
   })[kind];
 
-export const memoryExcerpt = (memory: Pick<Memory, "content">, length = 160) => {
-  const text = memory.content
-    .trim()
-    .replace(/^#{1,6}[ \t]+[^\n]+\n+/, "")
-    .replace(/^[ \t]*(?:`{3,}|~{3,})[^\n]*$/gm, "")
-    .replace(/^[ \t]*(?:>[ \t]*)+/gm, "")
-    .replace(/^[ \t]*(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]*)?/gm, "")
-    .replace(/!?\[([^\]\n]+)\]\([^\n)]*\)/g, "$1")
-    .replace(/[#*`_]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text;
+export const memoryExcerpt = (
+  memory: Pick<Memory, "content">,
+  length = 160,
+) => {
+  return plainExcerpt(memory.content, length);
 };
 
 export const isInactive = (memory: Memory) =>

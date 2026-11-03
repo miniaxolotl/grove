@@ -1,6 +1,6 @@
 # System administration
 
-**Settings → Admin → People & access** is available only to a current website session with the
+**Settings → Admin** has **People & access** and **Usage reports**, available only to a current website session with the
 `system_admin` role. Ordinary accounts use the `user` role. All role decisions
 come from the database, never browser state, email-domain rules, token metadata
 or connected-agent permissions. API keys and OAuth agents cannot use admin routes,
@@ -59,6 +59,12 @@ capture/recall. Changes to availability or system role require an additional rev
 with the target, changed values, audit reason and consequences before confirmation.
 
 ### Usage and support
+
+For global totals, feature/day breakdowns, paginated per-user usage and CSV feature
+exports, open **Usage reports**. It keeps cached/fresh action accounting separate
+from provider requests and audio duration; current library counts are snapshots.
+See [cross-account reports](admin-usage-reports.md) for units, UTC ranges, metering
+coverage, identity fallbacks, retained-history limits and the migration boundary.
 
 Usage shows current note/notebook/active-connection counts and **today / this month**
 generation requests, web-research calls, transcription minutes and read-aloud
@@ -158,6 +164,8 @@ The page shows the latest fifty changes, while the full audit remains retained.
 - `PATCH /v1/admin/accounts`: `accountId`, `operationId`, `expectedVersion`,
   `role` (`user`/`system_admin`), `access` (`default`/`pro`/`unlimited`) and `reason`.
 - `GET /v1/admin/audit`: latest fifty changes.
+- `POST /v1/admin/usage`: bounded UTC range and user cursor for all-account reports;
+  no private content or general-purpose cross-tenant reader is exposed.
 
 Responses are private/no-store. The website proxy admits only these exact methods
 and routes, authenticates its session and checks the origin for writes. Every API
@@ -180,7 +188,7 @@ general-purpose cross-account query API or new private-content privileges.
 API keys, OAuth agents, ordinary users and workers cannot call support functions.
 Readiness requires the new account column, so rollout must apply 027 before the
 new API/worker/site are started. Existing roles, grants, counters and private
-content are retained. See [support rollout](deploy.md#admin-support-rollout-027).
+content are retained. Use the [owner schema procedure](operations/schema.md).
 
 ## First administrator and recovery
 
@@ -205,8 +213,26 @@ with current metadata for retained accounts and replays available audit receipts
 preventing resurrected privileges. If every admin becomes unavailable, an explicit
 owner-reviewed recovery is required; do not weaken account or session checks.
 
-See [rollout](deploy.md#system-administration-rollout-025),
-[verification](development/testing.md), the [original role captures](design/screenshots/system-admin/README.md)
-and [admin polish captures](design/screenshots/admin-polish/README.md). The UI polish
-adds no migration or new API permissions; support features retain the 027 rollout
-prerequisite above.
+## Rollout and verification
+
+Apply 025 after 024 and 027 after 026 before the matching API/worker/site. Preserve
+existing roles/grants/audit, account status, provider bans, notes and usage. Verify
+non-owner/ordinary-user/agent/worker denial; no new runtime credential or billing
+flag is required. Vercel paused/static flags serve `pausedOutcome`: `active=false`
+alone does not establish billing is off. Keep bootstrap owner-only and reconcile
+current authority before bringing a restored target online.
+
+`system-admin.test.ts`, `system-admin-migration.test.ts` and `recovery.test.ts`
+cover populated 025/027 retention, fixed metadata-only functions, non-superuser
+ownership, tenant-context restoration, last-admin protection, session revocation,
+version conflicts and exact-operation audit-once behavior. Support suspension
+must survive provider updates and cannot clear provider bans; unlimited grants
+still obey safety/provider concurrency and cannot access private note content.
+
+With [disposable fixtures](development/testing.md), verify People paging/search,
+separate access/role/status, dirty exits, Keep editing/Discard, held saves, complete
+uncertain retries, explicit conflict review and revocation concealment. Unknown
+write outcomes must not offer Discard. Check selectable clipboard fallback, reason
+validation, focus, 1440/390/320px/short windows and accessible local scrolling.
+The UI adds no permissions. [Role captures](design/screenshots/system-admin/README.md)
+and [admin polish](design/screenshots/admin-polish/README.md) are synthetic dated evidence.

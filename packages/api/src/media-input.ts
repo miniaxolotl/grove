@@ -4,9 +4,13 @@ import { GroveError } from "@lib/shared/contracts";
 import { imageLimits } from "@lib/shared/media";
 
 /** A fixed allocation bounds memory independently of incoming chunk count. */
-export async function readMediaBytes(source: Readable, signal: AbortSignal) {
+export async function readMediaBytes(
+  source: Readable,
+  signal: AbortSignal,
+  maximum: number = imageLimits.bytes,
+) {
   signal.throwIfAborted();
-  const input = Buffer.allocUnsafe(imageLimits.bytes);
+  const input = Buffer.allocUnsafe(maximum);
   let size = 0;
   await pipeline(
     source,

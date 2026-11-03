@@ -12,6 +12,7 @@ import { MemoryContext } from "../../src/components/dashboard/context";
 import { AskGrove } from "../../src/components/dashboard/ask-grove";
 import { NoteDocument } from "../../src/components/dashboard/note-document";
 import { SettingsPanel } from "../../src/components/dashboard/settings-panel";
+import { FilesPanel } from "../../src/components/dashboard/files-panel";
 import { SettingsFrame } from "../../src/components/dashboard/settings-frame";
 import { SourceRevision } from "../../src/components/dashboard/source-revision";
 import { BillingPanel } from "../../src/components/dashboard/billing-panel";
@@ -40,6 +41,8 @@ function DashboardFixture() {
     <ModelSettings />
   ) : path.endsWith("/settings/account") ? (
     <SettingsPanel section="account" />
+  ) : path.endsWith("/settings/files") ? (
+    <FilesPanel />
   ) : path.endsWith("/settings/data") ? (
     <SettingsPanel section="data" />
   ) : path.endsWith("/profile") ? (

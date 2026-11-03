@@ -86,6 +86,22 @@ export function LibraryFilterBar({
   const panel = useRef<HTMLDivElement>(null);
   const done = useRef<HTMLButtonElement>(null);
   const id = useId();
+  const explicitSort = useRef(value.sort !== "updated_desc");
+  const previousSort = useRef(value.sort);
+  function withSearch(current: LibraryFilters, search: string): LibraryFilters {
+    if (!current.search && search && !explicitSort.current) {
+      previousSort.current = current.sort;
+      return { ...current, search, sort: "relevance" };
+    }
+    return {
+      ...current,
+      search,
+      sort:
+        !search && current.sort === "relevance"
+          ? previousSort.current
+          : current.sort,
+    };
+  }
   // An empty-state reset can clear filters outside this bar. Keep unsent typing
   // until the applied query actually changes, then reconcile before rendering.
   if (appliedSearch !== value.search) {
@@ -144,7 +160,7 @@ export function LibraryFilterBar({
         onChange((current) =>
           current.search === query.trim()
             ? current
-            : { ...current, search: query.trim() },
+            : withSearch(current, query.trim()),
         ),
       350,
     );
@@ -189,7 +205,7 @@ export function LibraryFilterBar({
         className="workspace-search"
         onSubmit={(event) => {
           event.preventDefault();
-          update({ search: query.trim() });
+          onChange((current) => withSearch(current, query.trim()));
         }}
       >
         <SearchField
@@ -274,10 +290,16 @@ export function LibraryFilterBar({
           <Select
             label="Sort notes"
             value={value.sort}
-            onValueChange={(sort) =>
-              update({ sort: sort as LibraryFilters["sort"] })
-            }
+            onValueChange={(sort) => {
+              explicitSort.current = true;
+              if (sort !== "relevance")
+                previousSort.current = sort as LibraryFilters["sort"];
+              update({ sort: sort as LibraryFilters["sort"] });
+            }}
             options={[
+              ...(value.search
+                ? [{ value: "relevance", label: "Relevance" }]
+                : []),
               { value: "updated_desc", label: "Recently updated" },
               { value: "updated_asc", label: "Oldest updated" },
               { value: "created_desc", label: "Date written" },
@@ -477,7 +499,10 @@ export function LibraryFilterBar({
               setTag("");
               onChange((current) => ({
                 ...initialFilters(archive),
-                sort: current.sort,
+                sort:
+                  current.sort === "relevance"
+                    ? previousSort.current
+                    : current.sort,
               }));
             }}
           >

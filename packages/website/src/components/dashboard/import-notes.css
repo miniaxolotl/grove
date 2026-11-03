@@ -1,0 +1,157 @@
+.import-notes {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.import-notes h3 {
+  font-weight: 600;
+  font-size: 15px;
+}
+.import-small {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.import-drop {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  border: 1px dashed var(--color-line);
+  background: var(--color-paper);
+  border-radius: 10px;
+  padding: 28px 16px;
+}
+.import-files {
+  display: grid;
+  gap: 12px;
+}
+.import-files li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.import-files li > svg {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.import-files li > div {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.import-files strong {
+  font-weight: 500;
+}
+.import-files span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.import-files a {
+  font-size: 12px;
+  text-decoration: underline;
+}
+.import-files .import-warning {
+  color: #793825;
+}
+.import-notes section > .text-button {
+  display: block;
+  text-align: left;
+  margin-top: 8px;
+}
+.import-placement,
+.import-confirm {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--color-line);
+  padding-top: 18px;
+}
+.import-destination {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.import-notes label:not(.import-include) {
+  display: grid;
+  gap: 5px;
+}
+.import-notes input:not([type="checkbox"]):not([type="file"]),
+.import-notes textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-forest);
+  font: inherit;
+}
+.import-notes textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.import-draft {
+  padding: 14px 0;
+  border-top: 1px solid var(--color-line);
+  min-width: 0;
+}
+.import-include {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+.import-include span {
+  display: grid;
+  min-width: 0;
+}
+.import-include small {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.import-draft details {
+  margin-top: 10px;
+}
+.import-draft summary {
+  cursor: pointer;
+  min-height: 36px;
+  display: list-item;
+  font-size: 13px;
+}
+.import-draft details[open] > :not(summary) {
+  margin-top: 12px;
+}
+.import-confirm > label {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 10px !important;
+}
+.import-notes input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.import-notes .app-button {
+  width: fit-content;
+  max-width: 100%;
+  white-space: normal;
+  min-height: 44px;
+}
+@media (max-width: 400px) {
+  .import-actions {
+    display: grid;
+  }
+  .import-actions .app-button {
+    width: 100%;
+  }
+  .import-drop {
+    padding: 20px 12px;
+  }
+}

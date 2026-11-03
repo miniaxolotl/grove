@@ -31,7 +31,7 @@ const subscribeDesktop = (callback: () => void) => {
 };
 
 export function NotebookExplorer() {
-  const { projects, loading, error, reload } = useNotebooks();
+  const { projects, loading, error, reload, openOrganizer } = useNotebooks();
   const path = usePathname();
   const currentNotebook = useCurrentNotebook();
   const [action, setAction] = useState<NotebookAction | null>(null);
@@ -133,6 +133,13 @@ export function NotebookExplorer() {
       >
         <div className="notebook-explorer-heading">
           <span>Notebooks</span>
+          <button
+            type="button"
+            className="text-button notebook-organize-entry"
+            onClick={() => openOrganizer()}
+          >
+            Organize
+          </button>
           <Link
             href="/app/projects"
             className="app-icon notebook-manage"

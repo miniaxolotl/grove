@@ -1,3 +1,4 @@
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { Assistance, AssistanceRequest } from "@lib/shared/assistance";
@@ -36,7 +37,7 @@ test("action preview is lazy, source-linked, editable and keeps its save identit
   let current: Assistance | undefined,
     lose = true;
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname,
+    const path = fixturePath(route.request().url()),
       body = route.request().postDataJSON();
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
@@ -79,7 +80,12 @@ test("action preview is lazy, source-linked, editable and keeps its save identit
       current = { ...current!, status: "undone", version: 4 };
       data = current;
     } else if (path.includes("/assistance/")) data = current;
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app`);
   expect(requests).toHaveLength(0);
@@ -139,7 +145,7 @@ test("visible notebook visits freeze once; history and cleanup use compact evide
     current: Assistance | undefined;
   const visitId = "00000000-0000-4000-8000-000000000053";
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname,
+    const path = fixturePath(route.request().url()),
       body = route.request().postDataJSON();
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
@@ -217,7 +223,12 @@ test("visible notebook visits freeze once; history and cleanup use compact evide
       };
       data = current;
     } else if (path.includes("/assistance/")) data = current;
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/projects/${project.id}`);
   await expect.poll(() => visits).toBe(1);
@@ -269,7 +280,7 @@ test("filing suggestion is requested from the existing move chooser and can abst
   let current: Assistance | undefined,
     calls = 0;
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname,
+    const path = fixturePath(route.request().url()),
       body = route.request().postDataJSON();
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
@@ -311,7 +322,12 @@ test("filing suggestion is requested from the existing move chooser and can abst
       };
       data = current;
     } else if (path.includes("/assistance/")) data = current;
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app`);
   await page.getByRole("checkbox", { name: "Select these notes" }).check();
@@ -348,7 +364,7 @@ test("assistance expiry removes visible evidence even when the refresh is offlin
 }) => {
   let current: Assistance | undefined;
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
     else if (path.endsWith("/me"))
@@ -378,7 +394,12 @@ test("assistance expiry removes visible evidence even when the refresh is offlin
       }
       data = current;
     }
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app`);
   await page.getByRole("checkbox", { name: "Select these notes" }).check();

@@ -9,6 +9,7 @@ import {
   ListTodo,
   Network,
   Download,
+  Upload,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { deferredFeature } from "./deferred-feature";
@@ -27,6 +28,7 @@ import { PersonalOptions, type ContextPrompt } from "./personal-options";
 import { ActionMenu } from "./ui/action-menu";
 import { ShareDialog } from "./share-dialog";
 import { NotebookActions } from "./notebook-actions";
+import { ImportNotesPanel } from "./import-notes-button";
 import { AssistanceAction } from "./assistance-action";
 import type { NotebookVisit } from "@lib/shared/assistance";
 const ConnectionPanel = deferredFeature(
@@ -78,6 +80,7 @@ export function MemoryContext({
   const [sharing, setSharing] = useState(false);
   const [visit, setVisit] = useState<NotebookVisit | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
   // Keep an uncertain lifecycle request mounted with its original retry identity
@@ -123,17 +126,21 @@ export function MemoryContext({
                     <span>Today’s note</span>
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <NotebookActions
+                      project={project}
+                      onAction={setNotebookAction}
+                      onShare={() => setSharing(true)}
+                    />
+                    <button type="button" onClick={() => setImporting(true)}>
+                      <Upload size={15} />
+                      Import notes
+                    </button>
                     <AssistanceAction
                       input={{ kind: "digest", visitId: visit?.id ?? "" }}
                       disabled={!visit || visit.projectId !== project.id}
                     />
                     <AssistanceAction
                       input={{ kind: "cleanup", projectId: project.id }}
-                    />
-                    <NotebookActions
-                      project={project}
-                      onAction={setNotebookAction}
-                      onShare={() => setSharing(true)}
                     />
                     <button
                       className="action-group-start"
@@ -183,6 +190,11 @@ export function MemoryContext({
           retry={reload}
         />
       )}
+      {importing && (
+        <Dialog title="Import notes" close={() => setImporting(false)}>
+          <ImportNotesPanel projectId={projectId ?? undefined} />
+        </Dialog>
+      )}
       {project && view !== "memories" && (
         <button
           className="text-button mb-4"
@@ -215,6 +227,14 @@ export function MemoryContext({
             <h2>Sub-notebooks</h2>
             <NotebookTree
               projects={projects.filter((p) => p.parentId === project.id)}
+              actions={(child) => (
+                <ActionMenu label={`Notebook actions for ${child.name}`}>
+                  <NotebookActions
+                    project={child}
+                    onAction={setNotebookAction}
+                  />
+                </ActionMenu>
+              )}
             />
           </section>
         )}

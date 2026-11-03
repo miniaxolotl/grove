@@ -1,3 +1,4 @@
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
@@ -25,10 +26,7 @@ async function fixture(
 ) {
   let memories = structuredClone(initial);
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname.replace(
-      "/api/grove",
-      "",
-    );
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
     const body = route.request().postDataJSON();
     let data: unknown = [];
     if (path === "/relationships/search")
@@ -86,7 +84,12 @@ async function fixture(
         captureEnabled: true,
         recallEnabled: true,
       };
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
 }
 

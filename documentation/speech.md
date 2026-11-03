@@ -239,8 +239,15 @@ marker. Older/mismatched workers fail closed; legacy TTS tasks without a voice
 identity require starting again. Transcription keeps its independent profile.
 Runtime startup verifies the new account/configuration schema. Initial/image-only
 hosting operations do not infer missing speech secrets or activate the new flag.
-See voice [activation](deploy.md#selectable-speech-voices-022) and the coordinated
-[024 rollout](deploy.md#content-addressed-speech-cache-024).
+Drain older API/worker instances before publishing the content-cache protocol;
+do not restart an old API that republishes obsolete single-voice configuration.
+Verify `narration/` has no bucket-wide/prefix age expiry and has private GET/PUT/DELETE
+permission; keep one-day expiration scoped to exports and legacy `speech/` only.
+Migration 021 changes defaults for future accounts, never existing choices;
+022 retains remembered voices, and 024 preserves old artifacts' existing deadlines.
+Use [schema upgrades](operations/schema.md) and coordinate API/worker/site units
+with [billing rollout](billing.md#rollout-and-verification). Keep schema and saved
+choices on rollback; disable alternate voices rather than deleting audio or keys.
 
 - `GET /v1/me`: includes `transcriptionEnabled`, `readAloudEnabled`,
   `readAloudVoiceId`, `speechVoices: [{id,name,description,basic,available,sampleId?}]`
@@ -262,3 +269,24 @@ See voice [activation](deploy.md#selectable-speech-voices-022) and the coordinat
 [Verification and reviewed synthetic captures](design/screenshots/speech/README.md).
 [Selectable voices, sample provenance and captures](design/screenshots/speech-voices/README.md).
 [On-demand chooser and compact playback captures](design/screenshots/speech-voice-flow/README.md).
+
+## Verification
+
+Run the `speech-*.test.ts` suites and `recovery.test.ts` with
+[disposable non-owner services](development/testing.md). They cover actual adapter
+response bounds/abort, exact voice routing, duration reservations, source/profile/
+preference/session/lease fences, cache A→B→A, receipt-independent lifetime, stale-only
+cleanup, failed writes and populated 019/021/022/024/026 retention. The loopback S3
+test checks requests, not live bucket policy. No personal audio/provider call is
+needed for these deterministic cases.
+
+Use actual components in Chromium and touch/mobile WebKit. Browsing/cancelling the
+chooser must not request samples, save preferences or generate narration. Sample
+playback is explicit and independent from selection; same-voice confirmation keeps
+the player/position, different voice cancels old work without preparing new audio.
+Check held/failed saves, newer drafts, lost enqueue replies, both close controls,
+in-app navigation and uncertain cancellation. Settings discard and unavailable
+saved voices must remain honest, without fallback. Test 1440/390/320px, short
+windows, focus/native radio keys and accessible playback. Hard exits cannot promise
+cancellation. Live voice/language quality and long-note fatigue remain separately
+unqualified; a decoded MP3 or synthetic response is not listening acceptance.

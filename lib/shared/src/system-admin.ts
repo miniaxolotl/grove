@@ -80,3 +80,80 @@ export const adminDetailsSchema = z.object({ accountId: uuidSchema }).strict();
 export const adminBrowseSchema = z
   .object({ after: uuidSchema.optional() })
   .strict();
+
+export const usageReportFeatures = [
+  "recall",
+  "ask",
+  "organization",
+  "assistance",
+  "embedding",
+  "decision",
+  "generation",
+  "research",
+  "transcription",
+  "synthesis",
+] as const;
+export type UsageReportFeature = (typeof usageReportFeatures)[number];
+export type UsageReportMetric = {
+  used: number;
+  reserved: number;
+  requests: number;
+  cached: number;
+  fresh: number;
+  inputTokens: number;
+  outputTokens: number;
+};
+export type UsageReportMetrics = Record<UsageReportFeature, UsageReportMetric>;
+export const emptyUsageReportMetrics = (): UsageReportMetrics =>
+  Object.fromEntries(
+    usageReportFeatures.map((feature) => [
+      feature,
+      {
+        used: 0,
+        reserved: 0,
+        requests: 0,
+        cached: 0,
+        fresh: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+      },
+    ]),
+  ) as UsageReportMetrics;
+export const adminUsageReportSchema = z
+  .object({
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+    after: uuidSchema.optional(),
+  })
+  .strict()
+  .superRefine((input, ctx) => {
+    if (
+      !!input.from !== !!input.to ||
+      (input.from &&
+        input.to &&
+        (input.from > input.to ||
+          Date.parse(input.to) - Date.parse(input.from) > 365 * 86400000))
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Choose a UTC date range of at most 366 days",
+      });
+  });
+export type AdminUsageReportUser = AdminAccount & {
+  metrics: UsageReportMetrics;
+  name?: string | null;
+  email?: string | null;
+};
+export type AdminUsageReport = {
+  from: string;
+  to: string;
+  generatedAt: string;
+  totals: {
+    accounts: number;
+    activeUsers: number;
+    metrics: UsageReportMetrics;
+    current: { notes: number; notebooks: number; connections: number };
+  };
+  days: (UsageReportMetric & { day: string; feature: UsageReportFeature })[];
+  users: AdminPage<AdminUsageReportUser>;
+};

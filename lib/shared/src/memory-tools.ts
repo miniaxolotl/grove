@@ -9,21 +9,35 @@ import {
   uuidSchema,
   kindSchema,
   sourceSchema,
+  captureSchema,
+  expectedVersionSchema,
 } from "./contracts.ts";
+import { noteContentDescription } from "@lib/shared/note-writing";
 
 export const memoryUpdateSchema = z
   .object({
     operationId: operationSchema,
     id: uuidSchema,
-    expectedVersion: z.number().int().positive(),
-    content: z.string().trim().min(1).max(6000).optional(),
+    expectedVersion: expectedVersionSchema,
+    content: z
+      .string()
+      .trim()
+      .min(1)
+      .max(6000)
+      .describe(noteContentDescription)
+      .optional(),
     kind: kindSchema.optional(),
     autoKind: z.boolean().optional(),
-    projectId: uuidSchema.nullable().optional(),
+    projectId: uuidSchema
+      .nullable()
+      .optional()
+      .describe(
+        "Destination notebook UUID; null moves to Personal. Omit to preserve the current notebook. Filing changes require user direction.",
+      ),
     taskId: z.string().min(1).max(128).nullable().optional(),
     retentionDays: z.number().int().min(1).max(365).nullable().optional(),
     source: sourceSchema.optional(),
-    capture: z.enum(["explicit", "automatic"]).default("explicit"),
+    capture: captureSchema,
   })
   .strict()
   .refine(
@@ -69,7 +83,7 @@ export const notebookUpdateSchema = z
   .object({
     operationId: operationSchema,
     id: uuidSchema,
-    expectedVersion: z.number().int().positive(),
+    expectedVersion: expectedVersionSchema,
     name: z.string().trim().min(1).max(120).optional(),
     parentId: uuidSchema.nullable().optional(),
   })
@@ -83,7 +97,7 @@ export const notebookToolLifecycleSchema = z
     id: uuidSchema,
     action: z.enum(["preview", "archive", "restore", "delete"]),
     operationId: operationSchema.optional(),
-    expectedVersion: z.number().int().positive().optional(),
+    expectedVersion: expectedVersionSchema.optional(),
     fingerprint: z
       .string()
       .regex(/^[a-f0-9]{64}$/)
@@ -103,7 +117,7 @@ export const memoryTools = {
     title: "Save a memory",
     schema: rememberSchema,
     description:
-      "Save a concise memory or replace it by id/expectedVersion. Replacement writes replace metadata too. Reuse operationId on retries. Handoffs default to 30 days; expired records are hidden and later soft-deleted.",
+      "Save a focused, human-readable Markdown memory. Optional id/expectedVersion corrections replace the complete body and replace metadata too, not just supplied fields. Reuse operationId on retries. Handoffs default to 30 days; expired records are hidden and later soft-deleted.",
   },
   recall: {
     title: "Recall saved context",
@@ -149,7 +163,7 @@ export const memoryTools = {
     title: "Update a memory",
     schema: memoryUpdateSchema,
     description:
-      "Partially update a note at expectedVersion. Omitted content, scope, kind, provenance and lifetime are preserved. projectId moves the note; null means Personal. Reuse operationId on retry.",
+      "Partially update note fields at expectedVersion. Supplied content replaces the complete body: use human-readable Markdown and preserve unrequested details. Omitted content, scope, kind, provenance and lifetime are preserved. projectId moves the note; null means Personal. Reuse operationId on retry.",
   },
   move_memories: {
     title: "Move memories",
@@ -163,7 +177,7 @@ export const memoryTools = {
       .object({
         id: uuidSchema,
         operationId: operationSchema,
-        expectedVersion: z.number().int().positive(),
+        expectedVersion: expectedVersionSchema,
       })
       .strict(),
     description:

@@ -30,6 +30,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "askTools",
       "contentVersion",
       "changeToken",
+      "notebookOrderVersion",
     );
     const subjects = await source("subject_authority").select("*");
     const researchBudget = await source("research_global_usage").select("*");
@@ -62,6 +63,9 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
     const deletedConversations = await source("deleted_conversations").select(
       "*",
     );
+    const removedDocuments = await source("conversation_documents")
+      .whereNotNull("removedAt")
+      .select("accountId", "id", "removedAt");
     const tombstones = new Map<
       string,
       { id: string; accountId: string; deletedAt: Date }[]
@@ -174,7 +178,37 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       await target("media_objects")
         .where({ status: "pending" })
         .update({ status: "failed", leaseUntil: target.fn.now() });
+      await target("conversation_document_chunks")
+        .whereIn(
+          "documentId",
+          target("conversation_documents")
+            .where({ accepted: false })
+            .select("id"),
+        )
+        .update({ content: "[Upload unavailable]" });
+      await target("conversation_documents").where({ accepted: false }).update({
+        staging: null,
+        removedAt: target.fn.now(),
+        acceptLease: null,
+        acceptUntil: null,
+      });
+      await target("conversation_documents").update({
+        acceptLease: null,
+        acceptUntil: null,
+      });
+      for (const doc of removedDocuments)
+        await target("conversation_documents")
+          .where({ accountId: doc.accountId, id: doc.id })
+          .update({ removedAt: doc.removedAt });
+      await target("conversations").increment("documentsVersion", 1);
+      // Old draft/Apply previews are not authorization to recreate notebooks or notes.
+      // The cancellation trigger clears only unconfirmed bytes/content, never originals.
+      await target("document_import_batches")
+        .whereNotIn("status", ["complete", "cancelled"])
+        .update({ status: "cancelled", version: target.raw("version+1") });
       await target("memory_enrichments").delete();
+      await target("ai_cache").delete();
+      await target("ai_provider_backoff").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
       await target("notebook_summary_nodes").delete();
@@ -341,6 +375,10 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             changeToken: target.raw("greatest(change_token,?::bigint)+1", [
               current.changeToken,
             ]),
+            notebookOrderVersion: target.raw(
+              "greatest(notebook_order_version,?::bigint)+1",
+              [current.notebookOrderVersion],
+            ),
             organizationDueAt: target.fn.now(),
           });
         if (gone) {

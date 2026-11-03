@@ -161,7 +161,9 @@ include profile identity, so an old inspector cannot review/undo a new-policy
 assessment. Changed sources require fresh review. Cleanup uses the same substantive
 duplicate/conflict policy and its own policy-versioned preview profile; unrelated
 assistance kinds keep their cache identity. Existing reviewed Apply/Undo authority
-is unchanged. See [rollout](deploy.md#connection-quality-policy-cutover).
+is unchanged. Verify concrete positive links, template-only abstention, canonical
+graph/list agreement and stale cleanup-preview refusal on synthetic notes before
+resuming dispatch.
 
 Model reindexing clears profiles/scan checkpoints and schedules reconciliation;
 pair reviews survive. Recovery reconciliation copies current authoritative
@@ -169,9 +171,10 @@ review decisions, increments review versions, invalidates explanations and clear
 old operations/jobs before rebuilding. Account deletion cascades pair/profile
 records. Explicit model-data reset clears notebook artifacts with the notes.
 
-For application rollback, pause consumers, disable organization, and deploy the
-previous application without reversing the migration. Retain the tables and
-review metadata. Re-enable only with compatible workers/API. Follow
+For application rollback, pause consumers and retain the schema/review metadata.
+Older binaries do not understand policy-aware dismissal carryover: prefer a
+compatible forward fix or keep enrichment paused until an owner-reviewed rollback
+procedure preserves review decisions. Do not resume old writers blindly. Follow
 [deployment guidance](deploy.md) and the protected release process.
 
 ## Quality evaluation
@@ -211,3 +214,12 @@ an existing result, which truncates the file before the runner starts.
 Existing split labels identify development partitions; cases inspected during
 tuning are not an independent held-out evaluation, regardless of their label.
 Approve provider/model and request/token/spend bounds before a paid run.
+
+For deterministic verification, run `relationship-evidence.test.ts`,
+`relationship-discovery.test.ts`, `relationship-evaluation.test.ts`,
+`relationships.test.ts`, `notebook-assistance.test.ts` and recovery with the
+[disposable non-owner fixtures](development/testing.md). Cover template negatives,
+bounded candidate recall, minority threads, source/profile/expiry fencing, retained
+Dismiss/Undo and cross-tenant denial. Browser graph/evidence/cache/cleanup cases
+and `playwright.relationships-webkit.config.ts` check exact excerpts, partial
+coverage, focus return and narrow layouts; native fullscreen graph is Chromium-only.

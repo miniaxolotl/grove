@@ -197,6 +197,274 @@ async function fixture(
   return { principal, providers, service, worker, drain };
 }
 
+test("metadata-only revisions reuse document embeddings and title/tag work", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, {
+    classificationEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+    personalSummaryEnabled: false,
+    notebookSummariesEnabled: false,
+  });
+  let embeddings = 0,
+    titles = 0;
+  const embed = f.providers.embedding!.embed,
+    generate = f.providers.generation!.generate;
+  f.providers.embedding!.embed = async (...args) => {
+    embeddings++;
+    return embed(...args);
+  };
+  f.providers.generation!.generate = async (...args) => {
+    titles++;
+    return generate(...args);
+  };
+  const note = await f.service.remember(
+    f.principal,
+    input("Garden irrigation settings"),
+  );
+  await f.drain();
+  assert.equal(embeddings, 1);
+  assert.equal(titles, 1);
+  const notebook = await f.service.project(f.principal, {
+    name: "Garden",
+    identity: randomUUID(),
+  });
+  const moved = await f.service.remember(
+    f.principal,
+    input(note.content, {
+      id: note.id,
+      expectedVersion: note.version,
+      projectId: notebook.id,
+    }),
+  );
+  await f.drain();
+  assert.equal(
+    embeddings,
+    1,
+    "metadata-only moves must not send text for embedding again",
+  );
+  assert.equal(titles, 1, "unchanged content must not regenerate title/tags");
+  const vectors = await admin("memory_embeddings").where({
+    memoryId: note.id,
+    version: moved.version,
+  });
+  assert.equal(
+    vectors.length,
+    1,
+    "reused vectors belong to the current revision",
+  );
+  await f.service.remember(
+    f.principal,
+    input("Updated irrigation settings", {
+      id: note.id,
+      expectedVersion: moved.version,
+      projectId: notebook.id,
+    }),
+  );
+  await f.drain();
+  assert.equal(embeddings, 2);
+  assert.equal(titles, 2);
+});
+
+test("exact read-only answers reuse generation but source revisions immediately require fresh work", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, {
+    classificationEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+    personalSummaryEnabled: false,
+    notebookSummariesEnabled: false,
+  });
+  const note = await f.service.remember(
+    f.principal,
+    input("Garden irrigation uses rainwater."),
+  );
+  await f.drain();
+  let answers = 0;
+  const generate = f.providers.generation!.generate;
+  f.providers.generation!.generate = async (...args) => {
+    if (Object.is(args[0], answerSchema)) answers++;
+    return generate(...args);
+  };
+  const question = askSchema.parse({ query: "garden irrigation" });
+  await f.service.ask(f.principal, question);
+  await f.service.ask(f.principal, question);
+  assert.equal(answers, 1);
+  await f.service.remember(
+    f.principal,
+    input("Garden irrigation now uses tap water.", {
+      id: note.id,
+      expectedVersion: note.version,
+    }),
+  );
+  await f.service.ask(f.principal, question);
+  assert.equal(answers, 2);
+});
+
+test("disabling enrichment while its cache claim waits prevents a paid generation call", async () => {
+  const f = await fixture({ generationOnly: true });
+  await f.service.settings(f.principal, {
+    personalSummaryEnabled: false,
+    notebookSummariesEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+  });
+  const note = await f.service.remember(
+    f.principal,
+    input("Source must not leave after opt-out"),
+  );
+  let calls = 0;
+  const generate = f.providers.generation!.generate;
+  f.providers.generation!.generate = async (...args) => {
+    calls++;
+    return generate(...args);
+  };
+  const blocker = await admin.transaction();
+  await blocker.raw("SELECT pg_advisory_xact_lock(hashtextextended(?,39))", [
+    f.principal.accountId,
+  ]);
+  const pending = f.worker.runJob();
+  try {
+    let claimed = false;
+    for (let i = 0; i < 100; i++) {
+      if (
+        await admin("jobs")
+          .where({ memoryId: note.id, kind: "organization" })
+          .whereNotNull("leaseId")
+          .first()
+      ) {
+        claimed = true;
+        break;
+      }
+      await new Promise((done) => setTimeout(done, 10));
+    }
+    assert(claimed);
+    await f.service.settings(f.principal, { titlesTagsEnabled: false });
+    await blocker.commit();
+    await pending;
+    assert.equal(calls, 0);
+  } finally {
+    if (!blocker.isCompleted()) await blocker.rollback();
+    await pending;
+  }
+});
+
+test("invalidated in-flight enrichment cannot publish a reusable cache artifact", async () => {
+  for (const invalidate of ["toggle", "delete"] as const) {
+    const f = await fixture({ generationOnly: true });
+    await f.service.settings(f.principal, {
+      personalSummaryEnabled: false,
+      notebookSummariesEnabled: false,
+      noteConnectionsEnabled: false,
+      notebookConnectionsEnabled: false,
+    });
+    const note = await f.service.remember(
+      f.principal,
+      input("Fenced enrichment artifact"),
+    );
+    const entered = deferred(),
+      release = deferred();
+    let calls = 0;
+    const generate = f.providers.generation!.generate;
+    f.providers.generation!.generate = async (...args) => {
+      calls++;
+      entered.resolve();
+      await release.promise;
+      return generate(...args);
+    };
+    const pending = f.worker.runJob();
+    try {
+      await entered.promise;
+      if (invalidate === "toggle") {
+        await f.service.settings(f.principal, { titlesTagsEnabled: false });
+        await f.service.settings(f.principal, { titlesTagsEnabled: true });
+      } else {
+        await admin("jobs")
+          .where({ memoryId: note.id, kind: "organization" })
+          .delete();
+      }
+    } finally {
+      release.resolve();
+      await pending;
+    }
+    assert.deepEqual(
+      await admin("ai_cache").where({
+        accountId: f.principal.accountId,
+        feature: "organization",
+      }),
+      [],
+      `${invalidate}: stale inference must not populate the reusable cache`,
+    );
+    assert.deepEqual(
+      await admin("memory_enrichments").where({ memoryId: note.id }),
+      [],
+    );
+    assert.equal(calls, 1);
+    assert.equal(
+      Number(
+        (await admin("inference_usage")
+          .where({ accountId: f.principal.accountId, role: "generation" })
+          .sum("requests as requests")
+          .first())!.requests,
+      ),
+      1,
+      "actual paid-attempt evidence is retained",
+    );
+    if (invalidate === "toggle") {
+      await f.drain();
+      assert.equal(
+        calls,
+        2,
+        "re-enabled work must not reuse the invalidated result",
+      );
+    }
+  }
+});
+
+test("disabling Ask while an answer cache claim waits prevents private-text generation", async () => {
+  const f = await fixture({ generationOnly: true });
+  await f.service.remember(
+    f.principal,
+    input("Orchard planning uses a private autumn schedule."),
+  );
+  let calls = 0;
+  const generate = f.providers.generation!.generate;
+  f.providers.generation!.generate = async (...args) => {
+    calls++;
+    return generate(...args);
+  };
+  const blocker = await admin.transaction();
+  await blocker.raw("SELECT pg_advisory_xact_lock(hashtextextended(?,39))", [
+    f.principal.accountId,
+  ]);
+  const pending = f.service.ask(
+    f.principal,
+    askSchema.parse({ query: "orchard planning" }),
+  );
+  const rejected = assert.rejects(pending, { code: "sources_changed" });
+  try {
+    let waiting = false;
+    for (let i = 0; i < 100; i++) {
+      const result = await admin.raw(
+        "SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%hashtextextended%39%' LIMIT 1",
+      );
+      if (result.rows.length) {
+        waiting = true;
+        break;
+      }
+      await new Promise((done) => setTimeout(done, 10));
+    }
+    assert(waiting, "the answer is actually waiting on its cache claim");
+    await f.service.settings(f.principal, { askEnabled: false });
+    await blocker.commit();
+    await rejected;
+    assert.equal(calls, 0);
+  } finally {
+    if (!blocker.isCompleted()) await blocker.rollback();
+    await rejected;
+  }
+});
+
 test("settings HTTP updates are partial, legacy-compatible and restricted to the owning session", async () => {
   const f = await fixture();
   const other = await fixture();

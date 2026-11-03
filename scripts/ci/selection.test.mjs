@@ -42,16 +42,27 @@ test("repository policy covers every workflow job and shared bundles", () => {
     assert.ok(Object.values(classify(actual, [path])).every(Boolean));
   assert.deepEqual(classify(actual, ["packages/website/src/page.tsx"]), {
     website: true,
+    "website-quality": true,
     contracts: false,
+    "contracts-quality": false,
     image: false,
   });
   assert.deepEqual(
     classify(actual, ["packages/grove-claude-plugin/skills/memory/SKILL.md"]),
-    { website: false, contracts: true, image: true },
+    {
+      website: false,
+      "website-quality": false,
+      contracts: true,
+      "contracts-quality": true,
+      image: true,
+    },
   );
   for (const job of actual.jobs)
     assert.ok(
-      workflow.includes(`fromJSON(needs.changes.outputs.selection).${job}`),
+      workflow.includes(`fromJSON(needs.changes.outputs.selection).${job}`) ||
+        workflow.includes(
+          `fromJSON(needs.changes.outputs.selection)['${job}']`,
+        ),
     );
 });
 test("selection is conservative for empty/unknown paths and includes shared dependencies", () => {
