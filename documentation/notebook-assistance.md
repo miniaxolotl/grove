@@ -4,6 +4,11 @@ Notebook summaries adapt to the notes' subject. Filing, action lists, visit dige
 and cleanup run only when requested. Each has an independent AI preference;
 automatic note/notebook connections can stay off.
 
+The [notebook workflow proposal](development/notebook-workflows.md) describes
+planned weekly reviews, meeting briefs, study sets, knowledge-gap reviews and
+similar-problem retrieval. These are not available features; the visit digest
+below remains separate from a calendar-based weekly review.
+
 ## In the workspace
 
 - **Summary** shows a compact overview, source revisions and examined/cited counts.
