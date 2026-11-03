@@ -4,11 +4,6 @@ Migration **014** adds `background_tasks` for exports, cleanup, model backfills,
 imports and connector sync. Inference keeps `jobs`; email keeps its outbox.
 PostgreSQL owns eligibility, checkpoints, retries and leases.
 
-[Workbench](notebook-tools.md) reuses assistance jobs in the enrichment lane with
-bounded, resumable evidence batches. Separate preferences start off; enabling them
-queues no work. Cancel fences late publication. Retention cleanup redacts expired
-derived request/result/Undo bodies while preserving authored notes and usage.
-
 Migration **033** adds [exact AI-work caching](ai-caching.md). Enrichment jobs can
 reuse unchanged text/configuration artifacts without another provider reservation,
 but still publish only to the current note version under the current preference,

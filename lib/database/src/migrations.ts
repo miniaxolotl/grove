@@ -1,7 +1,5 @@
 import type { Knex } from "knex";
 import { actionUsage } from "./action-usage-migration.ts";
-import { meetingPreparation } from "./meeting-migration.ts";
-import { notebookWorkflows } from "./workflow-migration.ts";
 import { notebookOrder } from "./notebook-order-migration.ts";
 import { aiCache } from "./ai-cache-migration.ts";
 import { adminUsageReports } from "./admin-usage-migration.ts";
@@ -273,10 +271,6 @@ export const migrations = [
   aiCache,
   adminUsageReports,
   notebookOrder,
-  // Keep published migration identities; late workflow additions run after the
-  // integrated registry rather than sorting by their original numeric prefixes.
-  meetingPreparation,
-  notebookWorkflows,
 ];
 
 export const migrationSource: Knex.MigrationSource<

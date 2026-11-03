@@ -17,11 +17,7 @@ test("report upgrade preserves retained content, counters and all tenant policie
   apiTarget.pathname = `/${name}`;
   const runtime = createDatabase(apiTarget.href);
   try {
-    const boundary = migrations.findIndex(
-      (m) => m.name === "20261025_034_admin_usage_reports",
-    );
-    assert(boundary > 0);
-    const previous = migrations.slice(0, boundary);
+    const previous = migrations.filter((m) => m.name < "20261025_034");
     const migrationSource: Knex.MigrationSource<(typeof migrations)[number]> = {
       getMigrations: async () => previous,
       getMigrationName: (m) => m.name,
@@ -72,16 +68,7 @@ test("report upgrade preserves retained content, counters and all tenant policie
         "SELECT schemaname,tablename,policyname,roles,cmd,qual,with_check FROM pg_policies ORDER BY schemaname,tablename,policyname",
       );
     const oldPolicies = (await policies()).rows;
-    assert.equal(
-      (
-        await db.raw(
-          "SELECT to_regprocedure('grove_admin_usage_report(date,date,uuid)') AS report",
-        )
-      ).rows[0].report,
-      null,
-    );
-    // The current runtime checks the later workflow prerequisites first.
-    await assert.rejects(probeDatabase(runtime), /meeting_preparation_enabled/);
+    await assert.rejects(probeDatabase(runtime), /usage-report migration/);
     await db.migrate.up({ name: "20261025_034_admin_usage_reports" });
     for (let i = 0; i < tables.length; i++)
       assert.deepEqual(await db(tables[i]), before[i], tables[i]);

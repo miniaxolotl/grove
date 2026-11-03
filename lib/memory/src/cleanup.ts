@@ -36,12 +36,8 @@ async function pruneCache(trx: Knex.Transaction, expiredOnly: boolean) {
   return Math.max(rows.length, backoffs.length);
 }
 export async function scheduleCleanup(db: Knex) {
-  const {
-    rows: [row],
-  } = await db.raw(
-    "SELECT grove_schedule_cleanup()+grove_schedule_meeting_cleanup()+grove_schedule_tool_cleanup() AS scheduled",
-  );
-  return row.scheduled as number;
+  return (await db.raw("SELECT grove_schedule_cleanup() AS scheduled")).rows[0]
+    .scheduled as number;
 }
 export function cleanupHandlers(
   db: Knex,
@@ -167,46 +163,12 @@ export function cleanupHandlers(
         .pluck("minute");
       if (buckets.length)
         await trx("rate_buckets").whereIn("minute", buckets).delete();
-      const previews = await trx("assistance_requests")
-        .whereIn("kind", [
-          "meeting",
-          "preparation",
-          "weekly_review",
-          "study",
-          "knowledge_gaps",
-          "similar_problems",
-        ])
-        .where("expiresAt", "<=", trx.fn.now())
-        .whereRaw("input <> '{}'::jsonb")
-        .orderBy("expiresAt")
-        .limit(batchSize)
-        .pluck("id");
-      if (previews.length) {
-        await trx("jobs")
-          .where({ kind: "assistance" })
-          .whereIn("target", previews)
-          .delete();
-        await trx("assistance_requests")
-          .whereIn("id", previews)
-          .update({
-            input: "{}",
-            result: null,
-            state: "{}",
-            undo: null,
-            status: trx.raw(
-              "CASE WHEN status IN ('applied','undone') THEN status ELSE 'stale' END",
-            ),
-            error: "This brief expired. Create a new brief.",
-          });
-      }
       const cache = await pruneCache(trx, true);
       return {
-        processed:
-          Number(task.processed) + expired.length + previews.length + cache,
+        processed: Number(task.processed) + expired.length + cache,
         complete:
           expired.length < batchSize &&
           buckets.length < batchSize &&
-          previews.length < batchSize &&
           cache < batchSize,
       };
     });

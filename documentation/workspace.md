@@ -61,12 +61,6 @@ Each has independent AI preferences. Proposed changes need explicit review/Apply
 generation does not silently rewrite notes. [Connected notebooks and linked notes](relationships.md)
 explain current evidence, partial coverage and retained Dismiss/Undo decisions.
 
-**Workbench** groups Weekly review, Create a brief, Study notes, Find knowledge gaps
-and Find past solutions. Open it from navigation, Ask Grove, commands or contextual
-note/notebook actions. Each tool requires independent opt-in and explicit sources;
-review cited results and coverage before Save/Undo. Source notes stay unchanged.
-See [Workbench](notebook-tools.md) for continuation, practice and recovery.
-
 ## Share with a link
 
 ### Private section links

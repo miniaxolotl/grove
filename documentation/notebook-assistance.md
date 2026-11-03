@@ -4,17 +4,6 @@ Notebook summaries adapt to the notes' subject. Filing, action lists, visit dige
 and cleanup run only when requested. Each has an independent AI preference;
 automatic note/notebook connections can stay off.
 
-The [Workbench section](notebook-tools.md) groups five separately opted-in, on-demand
-workflows: Weekly review, Create a brief, Study notes, Find knowledge gaps and Find
-past solutions. They support broad explicit note/notebook/library scopes, exact
-sources, bounded continuation and reviewed Save/Undo. General briefs replace the
-meeting-specific launcher; legacy031 requests remain compatible. The visit digest
-below remains separate from calendar-week review, and recurrence is not enabled.
-
-The [original proposal](development/notebook-workflows.md) retains the phased
-roadmap and future qualification work; the current Workbench contract governs source
-behavior.
-
 ## In the workspace
 
 - **Summary** shows a compact overview, source revisions and examined/cited counts.
