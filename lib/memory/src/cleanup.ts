@@ -1,7 +1,40 @@
 import { tenant, type Knex } from "@lib/database";
 import { TaskError, taskTransaction, type TaskHandler } from "./task-runner.ts";
+import { expireDocumentDrafts } from "./document-imports.ts";
+import { expireConversationDocuments } from "./conversation-documents.ts";
 
 const batchSize = 100;
+async function pruneCache(trx: Knex.Transaction, expiredOnly: boolean) {
+  const rows: { feature: string; key: string }[] = await trx("ai_cache")
+    .modify((q) => {
+      if (expiredOnly) q.where("expiresAt", "<=", trx.fn.now());
+    })
+    .select("feature", "key")
+    .orderBy("createdAt")
+    .limit(batchSize);
+  if (rows.length)
+    await trx("ai_cache")
+      .whereIn(
+        ["feature", "key"],
+        rows.map((row) => [row.feature, row.key]),
+      )
+      .delete();
+  const backoffs: { profile: string }[] = await trx("ai_provider_backoff")
+    .modify((q) => {
+      if (expiredOnly)
+        q.where("retryAt", "<", trx.raw("now()-interval '1 day'"));
+    })
+    .select("profile")
+    .limit(batchSize);
+  if (backoffs.length)
+    await trx("ai_provider_backoff")
+      .whereIn(
+        "profile",
+        backoffs.map((row) => row.profile),
+      )
+      .delete();
+  return Math.max(rows.length, backoffs.length);
+}
 export async function scheduleCleanup(db: Knex) {
   const {
     rows: [row],
@@ -63,14 +96,20 @@ export function cleanupHandlers(
               research.map((row) => row.day),
             )
             .delete();
+        // Extend an existing checkpoint stage rather than renumbering retained tasks.
+        const cache =
+          table === "memory_briefs" ? await pruneCache(trx, false) : 0;
         return {
           cursor: {
             stage:
-              rows.length === batchSize || research.length === batchSize
+              rows.length === batchSize ||
+              research.length === batchSize ||
+              cache === batchSize
                 ? stage
                 : stage + 1,
           },
-          processed: Number(task.processed) + rows.length + research.length,
+          processed:
+            Number(task.processed) + rows.length + research.length + cache,
         };
       });
       return;
@@ -102,6 +141,8 @@ export function cleanupHandlers(
   const retention_cleanup: TaskHandler = async (task, signal) => {
     await taskTransaction(db, task, async (trx) => {
       signal.throwIfAborted();
+      await expireDocumentDrafts(trx);
+      await expireConversationDocuments(trx);
       const expired = await trx("memories")
         .where("purgeAt", "<=", trx.fn.now())
         .select("id")
@@ -158,12 +199,15 @@ export function cleanupHandlers(
             error: "This brief expired. Create a new brief.",
           });
       }
+      const cache = await pruneCache(trx, true);
       return {
-        processed: Number(task.processed) + expired.length + previews.length,
+        processed:
+          Number(task.processed) + expired.length + previews.length + cache,
         complete:
           expired.length < batchSize &&
           buckets.length < batchSize &&
-          previews.length < batchSize,
+          previews.length < batchSize &&
+          cache < batchSize,
       };
     });
   };

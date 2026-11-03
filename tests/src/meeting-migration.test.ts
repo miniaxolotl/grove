@@ -19,11 +19,29 @@ test("meeting upgrade preserves existing source, usage and opt-outs; new fields 
   try {
     await authority.raw("CREATE DATABASE ??", [name]);
     const all = await migrationSource.getMigrations([]);
+    const boundary = all.findIndex(
+      (migration) => migration.name === "20261025_031_meeting_preparation",
+    );
+    assert(boundary > 0);
+    assert.deepEqual(
+      all.slice(28, boundary + 2).map((migration) => migration.name),
+      [
+        "20261025_029_search_quality",
+        "20261025_030_conversation_context",
+        "20261025_031_document_imports",
+        "20261025_032_conversation_documents",
+        "20261025_033_ai_cache",
+        "20261025_034_admin_usage_reports",
+        "20261025_035_notebook_order",
+        "20261025_031_meeting_preparation",
+        "20261025_033_notebook_tools",
+      ],
+      "workflow identities append after the published registry without reordering it",
+    );
     await owner.migrate.latest({
       migrationSource: {
         ...migrationSource,
-        getMigrations: async () =>
-          all.filter((m) => m.name <= "20261025_028_action_usage"),
+        getMigrations: async () => all.slice(0, boundary),
       },
     });
     const a = randomUUID(),

@@ -26,6 +26,7 @@ import { NotebookExplorer } from "./notebook-explorer";
 import { setAccountBoundary } from "@/lib/analytics";
 import { TelemetryChoice } from "@/components/website-telemetry";
 import { WorkspaceDrag } from "./memory-drag";
+import { NotebookOrganizer } from "./notebook-organizer";
 import { WorkspaceSearch, WorkspaceSearchButton } from "./workspace-search";
 import { ToastProvider } from "./toasts";
 import { WorkspacePlan } from "./account-plan";
@@ -206,6 +207,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         </footer>
                       </div>
                     </div>
+                    <NotebookOrganizer />
                   </WorkspaceSearch>
                 </WorkspaceDrag>
               </WorkspaceCommands>
@@ -224,7 +226,7 @@ function NewNoteLink() {
       className="app-button sidebar-create"
       href={`/app/notes/new${notebook ? `?notebook=${encodeURIComponent(notebook)}` : ""}`}
     >
-      <Plus size={16} /> New note
+      <Plus size={16} /> <span>New note</span>
     </Link>
   );
 }

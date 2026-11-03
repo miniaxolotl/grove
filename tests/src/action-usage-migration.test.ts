@@ -19,9 +19,7 @@ test("the action-usage upgrade adds isolated empty counters without reinterpreti
   const db = createDatabase(target(process.env.TEST_DATABASE_URL!));
   const worker = createDatabase(target(process.env.TEST_WORKER_DATABASE_URL!));
   try {
-    const before = migrations.filter(
-      (m) => m.name !== "20261025_028_action_usage",
-    );
+    const before = migrations.filter((m) => m.name < "20261025_028");
     const migrationSource: Knex.MigrationSource<(typeof migrations)[number]> = {
       getMigrations: async () => before,
       getMigrationName: (m) => m.name,

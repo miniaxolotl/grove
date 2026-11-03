@@ -2,6 +2,13 @@ import type { Knex } from "knex";
 import { actionUsage } from "./action-usage-migration.ts";
 import { meetingPreparation } from "./meeting-migration.ts";
 import { notebookWorkflows } from "./workflow-migration.ts";
+import { notebookOrder } from "./notebook-order-migration.ts";
+import { aiCache } from "./ai-cache-migration.ts";
+import { adminUsageReports } from "./admin-usage-migration.ts";
+import { conversationContext } from "./conversation-context-migration.ts";
+import { searchQuality } from "./search-quality-migration.ts";
+import { conversationDocuments } from "./conversation-document-migration.ts";
+import { documentImports } from "./document-import-migration.ts";
 import { billing } from "./billing-migration.ts";
 import { systemAdministration } from "./system-admin-migration.ts";
 import { adminSupport } from "./admin-support-migration.ts";
@@ -259,6 +266,15 @@ export const migrations = [
   speechDuration,
   adminSupport,
   actionUsage,
+  searchQuality,
+  conversationContext,
+  documentImports,
+  conversationDocuments,
+  aiCache,
+  adminUsageReports,
+  notebookOrder,
+  // Keep published migration identities; late workflow additions run after the
+  // integrated registry rather than sorting by their original numeric prefixes.
   meetingPreparation,
   notebookWorkflows,
 ];

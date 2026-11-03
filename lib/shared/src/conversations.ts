@@ -1,5 +1,11 @@
 import { z } from "zod";
 import {
+  documentStatementSchema,
+  type DocumentSource,
+  type DocumentEvidence,
+  type ConversationDocument,
+} from "@lib/shared/conversation-documents";
+import {
   answerSchema,
   sourceRefSchema,
   type SourceRef,
@@ -55,6 +61,7 @@ export type WebSource = {
   kind: "search" | "page";
 };
 export type ToolRun = {
+  completedAt?: string;
   key: string;
   provider: "exa" | "tavily";
   operation: "search" | "extract";
@@ -143,12 +150,41 @@ export const conversationScopeSchema = z
 export const conversationCreateSchema = conversationScopeSchema.extend({
   id: z.uuid(),
 });
+export const conversationContextSchema = z
+  .object({
+    notes: z.array(z.uuid().transform((id) => id.toLowerCase())).max(12),
+    notebooks: z.array(z.uuid().transform((id) => id.toLowerCase())).max(6),
+    only: z.boolean(),
+  })
+  .strict()
+  .refine(
+    ({ notes, notebooks }) => notes.length + notebooks.length > 0,
+    "Choose a source",
+  )
+  .refine(
+    ({ notes, notebooks }) =>
+      new Set(notes).size === notes.length &&
+      new Set(notebooks).size === notebooks.length,
+    "Choose each source once",
+  );
+export type ConversationContext = z.infer<typeof conversationContextSchema>;
+export type ContextCoverage = {
+  eligible: number;
+  provided: number;
+  partial: boolean;
+  /** Direct notebook members not already individually pinned. */
+  notebookEligible: number;
+  notebookProvided: number;
+};
 export const conversationTurnSchema = z
   .object({
     id: z.uuid(),
     query: z.string().trim().min(1).max(6000),
     format: z.enum(["plain", "markdown"]).default("plain"),
     expectedVersion: z.number().int().min(0),
+    refreshSources: z.boolean().optional(),
+    context: conversationContextSchema.optional(),
+    documentsVersion: z.number().int().nonnegative().optional(),
   })
   .strict();
 export const conversationPlanSchema = z
@@ -192,6 +228,7 @@ export const conversationReplySchema = z
 export const conversationGenerationSchema = conversationReplySchema
   .omit({ proposal: true })
   .extend({
+    documentStatements: z.array(documentStatementSchema).max(8).default([]),
     lifecycle: z.array(lifecycleProposalSchema).max(1).default([]),
     organization: z.array(organizationProposalSchema).max(1).default([]),
     proposals: z
@@ -265,8 +302,21 @@ export type ConversationReply = Omit<
   researchIncomplete?: boolean;
   organization?: OrganizationProposal;
   lifecycle?: LifecycleProposal;
+  usage?: import("./billing.ts").ActionUsageReceipt;
+  stale?: boolean;
+  webExpiresAt?: string | null;
+  contextCoverage?: ContextCoverage;
+  documentStatements?: z.infer<typeof documentStatementSchema>[];
+  documentSources?: DocumentSource[];
+  documentCoverage?: { shown: number; total: number; partial: boolean };
+  documentContext?: Pick<DocumentEvidence, "version" | "documents"> & {
+    generationProfile?: string;
+    askVersion?: number;
+    toolsVersion?: number;
+  };
 };
 export type ConversationTurn = {
+  refreshSources?: boolean;
   id: string;
   question: string;
   format: "plain" | "markdown";
@@ -276,6 +326,8 @@ export type ConversationTurn = {
   error: string | null;
   createdAt: string;
   toolRuns?: ToolRun[];
+  context?: ConversationContext;
+  documentsVersion?: number;
 };
 export type ConversationSummary = {
   id: string;
@@ -285,8 +337,12 @@ export type ConversationSummary = {
   updatedAt: string;
   tools: AskTools;
   toolsVersion: number;
+  documentsVersion?: number;
 };
-export type Conversation = ConversationSummary & { turns: ConversationTurn[] };
+export type Conversation = ConversationSummary & {
+  turns: ConversationTurn[];
+  documents?: ConversationDocument[];
+};
 export type ConversationPage = {
   items: ConversationSummary[];
   nextCursor: string | null;

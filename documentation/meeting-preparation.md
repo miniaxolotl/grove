@@ -117,6 +117,6 @@ Pending work cannot publish after expiry. Account cleanup and restore retain the
 existing rules; generated previews are excluded from exports, applied operation
 metadata remains account-export-only and authored saved briefs export as notes.
 
-See [rollout](deploy.md#meeting-preparation-rollout-031),
-[verification](development/testing.md#meeting-preparation), and the
+See [rollout](notebook-tools.md#rollout-and-recovery),
+[verification](notebook-tools.md#verification), and the
 [reviewed captures](design/screenshots/meeting-preparation/README.md).

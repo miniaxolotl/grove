@@ -147,5 +147,5 @@ PR; documentation-only evidence updates do not imply a new model-quality result.
 There is no new SQL migration. Matching API/worker versions require a coordinated
 pause/drain of old enrichment consumers; profile separation alone cannot prevent
 arbitrary old binaries overwriting canonical pairs. See
-[rollout](../deploy.md#connection-quality-policy-cutover). No production notes,
+[rollout](../relationships.md#migration-and-recovery). No production notes,
 backfill, migration or deployment are part of local verification.

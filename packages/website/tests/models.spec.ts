@@ -1,3 +1,4 @@
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
 import { modelConfigSchema, type ModelSettings } from "@lib/shared/models";
@@ -37,7 +38,7 @@ test("preferences retain newer edits during saving and errors do not move the fo
   const started = Promise.withResolvers<void>();
   const saves: Record<string, boolean>[] = [];
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     if (path.endsWith("/account/settings")) {
       saves.push(route.request().postDataJSON());
       if (saves.length === 1) {
@@ -61,7 +62,13 @@ test("preferences retain newer edits during saving and errors do not move the fo
       return;
     }
     await route.fulfill({
-      json: { success: true, data: path.endsWith("/me") ? preferences : [] },
+      json: {
+        success: true,
+        data: catalogResponse(
+          route.request().url(),
+          path.endsWith("/me") ? preferences : [],
+        ),
+      },
     });
   });
   await page.goto(`${base}/app/settings`);
@@ -149,7 +156,7 @@ test("categorized AI preferences persist independently with provider availabilit
     summariesEnabled: false,
   });
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     if (path.endsWith("/account/settings"))
       Object.assign(preferences, route.request().postDataJSON());
     await route.fulfill({
@@ -269,7 +276,7 @@ test("preference drafts survive settings tabs, discard restores saved choices, a
   const started = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     if (path.endsWith("/account/settings")) {
       const patch = route.request().postDataJSON();
       saves.push(patch);
@@ -396,7 +403,7 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
   page,
 }, info) => {
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     const data = path.endsWith("/me")
       ? {
           captureEnabled: true,
@@ -416,7 +423,12 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
         : path.endsWith("/usage")
           ? { today: [], dailyRequestLimit: 2000, failedJobs: 0 }
           : [];
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/settings`);
   const header = page.locator(".settings-header");
@@ -511,7 +523,7 @@ for (const editable of [true, false])
     let saved = false;
     let attempts = 0;
     await page.route("**/api/grove/**", async (route) => {
-      const path = new URL(route.request().url()).pathname;
+      const path = fixturePath(route.request().url());
       let data: unknown = settings;
       if (path.endsWith("/usage"))
         data = {
@@ -556,7 +568,12 @@ for (const editable of [true, false])
         data = settings;
         saved = true;
       }
-      await route.fulfill({ json: { success: true, data } });
+      await route.fulfill({
+        json: {
+          success: true,
+          data: catalogResponse(route.request().url(), data),
+        },
+      });
     });
     await page.goto(`${base}/app/settings/models`);
     await expect(
@@ -674,7 +691,7 @@ test("saving a summary preference refreshes derived content in another open tab"
 }) => {
   const preferences = preferencesFor({});
   await context.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     if (path.endsWith("/account/settings"))
       Object.assign(preferences, route.request().postDataJSON());
     const data =
@@ -692,7 +709,12 @@ test("saving a summary preference refreshes derived content in another open tab"
               truncated: false,
             }
           : [];
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   const other = await context.newPage();
   await other.goto(`${base}/app/profile`);
@@ -715,8 +737,13 @@ test("source-linked personal context exposes current revision links and honest q
   let pending = false;
   const id = "00000000-0000-4000-8000-000000000001";
   await page.route("**/api/grove/**", async (route) => {
-    if (route.request().url().endsWith("/projects")) {
-      await route.fulfill({ json: { success: true, data: [] } });
+    if (fixturePath(route.request().url()).endsWith("/projects")) {
+      await route.fulfill({
+        json: {
+          success: true,
+          data: catalogResponse(route.request().url(), []),
+        },
+      });
       return;
     }
     if (route.request().url().endsWith("/refresh")) pending = true;
@@ -794,7 +821,7 @@ test("notebook summary coverage, compact refresh and exact source revisions stay
     finish = resolve;
   });
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
     else if (path.endsWith("/me"))
@@ -840,7 +867,12 @@ test("notebook summary coverage, compact refresh and exact source revisions stay
         createdAt: "2026-10-20T10:00:00Z",
         expiresAt: null,
       };
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();

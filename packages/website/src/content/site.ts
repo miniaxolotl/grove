@@ -11,6 +11,7 @@ export const navigation = [
   { label: "Why Grove", href: "/#features" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "For developers", href: "/#for-developers" },
+  { label: "Docs", href: "/docs" },
 ];
 
 export const faqs = [

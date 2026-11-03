@@ -1,6 +1,9 @@
 # Ask Grove tools
 
-Ask Grove combines selected saved notes with optional **Web search** and **Research**.
+Ask Grove combines automatically retrieved or explicitly selected saved notes with
+private [document attachments](imports.md#ask-about-documents-first) and optional
+**Web search** and **Research**. Document turns do not dispatch external
+research; relevant passages go only to the configured generation provider.
 Grove cloud supplies provider access to all accounts; users do not need provider
 accounts or personal API keys. An installation must configure each provider before
 it becomes available. Existing saved conversations remain readable.
@@ -32,6 +35,13 @@ for timely/external context and research-backed note creation. Ordinary note-onl
 retrieval and greetings should not trigger research. Both providers disabled means
 no external research, including retries. Changing tools during a reply stops that
 reply; server-side revisions reject late results even after disable/re-enable.
+
+**Use only these sources** overrides enabled web tools for that one question,
+without changing their saved settings. It also excludes earlier answers and
+unrestricted library retrieval. Explicit source questions retain reviewed note
+edit/merge previews but not creation, organization or lifecycle discovery; use an
+ordinary question without selectors for those. See [source selection](explicit-context.md)
+for previews, direct-member notebook retrieval, partial coverage and recovery.
 
 Web statements cite only returned URLs. **Web sources** records the tool, retrieval
 date and whether the evidence is a search result or page extract. Saved-note
@@ -197,3 +207,24 @@ batch arrays normalize to empty; a notebook without a parent is a root notebook.
 Incomplete writes and invented citations are rejected. Batch status/descriptions
 come from Grove's validated operations, so model wording cannot claim unapplied
 notebook changes already happened. Invalid model responses remain retryable errors.
+
+## Verification
+
+Run `conversations.test.ts`, `conversation-history.test.ts`, `research.test.ts`,
+notebook-assistance and recovery cases with [disposable non-owner PostgreSQL](development/testing.md).
+Cover atomic intent-limited Apply/Undo, final-note-slot races/whole-batch rollback,
+retry IDs, source/settings revocation, tool-default partial updates, bounded
+research accounting and literal owner-only history search. Fixtures do not
+qualify live Exa/Tavily schemas or model answer quality.
+
+Browser `Ask tools`/`conversation history` cases in `workspace.spec.ts`, tool-default
+cache cases and `playwright.ask-webkit.config.ts` cover new-session/reload defaults,
+held/failed saves, old-chat independence, draft ownership, paging, explicit deletion
+and keyboard/accessibility at 1440/390/320px. Wait for history dismissal/focus before
+typing; a held open can replace the background draft. Check Latest reply preserves
+older reading position. Use synthetic content and the actual components.
+
+Research keys remain API-only. Deploy API/worker before website, keep additive 020
+schema on rollback, and never automatically rerun external calls after restore.
+Recheck configured provider modes/rates and approve explicit request/token/spend
+bounds before live tests; local schema success is not a paid-provider acceptance.

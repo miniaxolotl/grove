@@ -15,6 +15,7 @@ import type { SummaryEvidence } from "@lib/shared/summaries";
 import { activeNotes } from "./relationship-data.ts";
 import { relationshipPolicyVersion } from "@lib/shared/relationships";
 import { isToolKind } from "@lib/shared/notebook-workflows";
+import { noteWritingPolicyVersion } from "@lib/shared/note-writing";
 import {
   changedSources,
   type NoteUndo,
@@ -42,6 +43,7 @@ export const assistanceProfile = (
             generation,
             embedding: embedding ?? null,
             policy: relationshipPolicyVersion,
+            writing: noteWritingPolicyVersion,
           })
         : profileId("assistance-v2", {
             generation,

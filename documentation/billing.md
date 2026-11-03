@@ -54,6 +54,13 @@ billing flag or schema change is required.
 
 ## Library and user actions
 
+AI cache reuse discounts a **distinct fully cached request to 0.2 actions** from
+its existing feature allowance; fresh/partly cached requests use one action.
+Allowances remain independent—there is no pooled pricing system. Reopening or
+replaying the same completed operation remains free. Billing shows fresh/cached
+counts and weighted usage. See [AI caching](ai-caching.md) for admission, receipts,
+source validity, refresh and the distinction from actual provider attempts.
+
 | Resource                                  |         Free |           Pro |
 | ----------------------------------------- | -----------: | ------------: |
 | Stored notes                              |       10,000 |        50,000 |
@@ -68,8 +75,9 @@ generation calls/account**, shared by foreground requests and all worker replica
 The latter is independent of the existing lane/provider capacity controls. An
 unlimited grant removes plan action/storage limits, not the two-call safety ceiling.
 
-These counters describe user actions, not provider requests. A complete conversation
-turn counts one reply, including its planner and internal retrieval. Reopening or
+These counters describe user actions, not provider requests. A fresh complete conversation
+turn counts one reply, including its planner and internal retrieval; a fully cached
+new turn counts 0.2 replies. Reopening or
 retrying its same ready turn does not charge again. Failed/cancelled replies release
 the action reservation; their provider-attempt evidence remains retained. Stateless
 Ask calls and external recall/search calls are independent operations; transport
@@ -120,7 +128,7 @@ a one-second retry. Basic reads, edits, keyword search and export remain availab
 The new policy uses the existing configured billing/entitlement gate: flag-off and
 self-hosted installations keep their prior safeguards. No new billing activation,
 subscription, price or provider configuration is implied. See the
-[028 rollout](deploy.md#user-action-allowances-rollout-028).
+[rollout requirements](#rollout-and-verification).
 
 ## Provider-attempt and audio safeguards
 
@@ -329,8 +337,40 @@ the generation/research/audio configuration or installation-wide spending contro
 Authenticated responses are private/no-store. The website proxy allowlists only
 these billing operations and checks request origin for writes.
 
-See [tier rollout](deploy.md#tier-allowances-and-speech-duration-rollout-026),
-[initial billing setup](deploy.md#billing-rollout-023) and
-[verification](development/testing.md).
-The [post-merge review](development/billing-review.md) records recovered Checkout
-edge cases and distinguishes synthetic lifecycle coverage from paid acceptance.
+## Rollout and verification
+
+Use the [owner schema procedure](operations/schema.md). Billing requires 023,
+duration 026 after 025, action 028 after 027, and cached discounts 033 after 032.
+Preserve subscriptions, provider attempts, original notes/history and usage. New
+action rows start prospectively; unknown historical speech duration remains
+conservatively charged, never reset or converted from characters.
+
+Drain old writers and deploy matching API/worker with explicit matching limits.
+Old count-only readers do not understand fractional cache units. Replace legacy
+character settings with deliberately chosen **millisecond** values; a source
+default cannot override deployed configuration. Coordinate website hour/action
+labels with API units; keep billing hidden or use maintenance during an incompatible
+cutover. Keep the forward schema and provider records on rollback.
+
+Keep `billing-enabled` false initially, configure the portal/webhook and price in
+one Stripe mode, then use an approved internal cohort and disposable identities.
+Verify Checkout completion → canonical Pro, stale quotes, signed webhook replay/
+reordering, lost Checkout responses followed by expiry or payment, cancellation,
+resubscription, past-due downgrade, deletion cancellation and second-account denial.
+Flag-off hides billing and ordinary plan enforcement; it does **not** stop renewals,
+webhooks, deletion cleanup or explicit grants. Do not remove credentials as rollback.
+After restore, keep provider traffic fenced until an owner reconciles current
+Stripe mappings/subscriptions/tombstones; restored receipts are not payment authority.
+
+`billing.test.ts`, `billing-pricing.test.ts`, `billing-migration.test.ts`,
+`billing-limits.test.ts`, `tier-quotas.test.ts`, `action-quotas.test.ts`,
+`action-usage-migration.test.ts` and speech-duration/job/cache cases cover synthetic
+provider lifecycle, API/worker final-slot races, exact retries, month boundaries,
+grants, zero/custom limits, coalescing and retained-column upgrades. Use
+[non-owner disposable PostgreSQL](development/testing.md); local Stripe fixtures
+are not payment acceptance. Real test/live payments require separate approval.
+
+Browser Billing/plan-panel checks cover independent units, pending/exhausted states,
+warnings, unavailable reads, flag-off/complimentary access and keyboard/focus at
+1440/390/320px. Use [billing captures](design/screenshots/billing/README.md) and
+[action-allowance captures](design/screenshots/free-pro-usage/README.md) as dated evidence.

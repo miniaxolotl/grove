@@ -7,6 +7,26 @@
   font-size: 14px;
   line-height: 1.5;
 }
+.admin-sections {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--color-line);
+}
+.admin-sections button {
+  padding: 10px 0;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--color-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.admin-sections button[aria-pressed="true"] {
+  border-bottom-color: var(--color-forest);
+  color: var(--color-forest);
+}
 .admin-heading,
 .admin-list-summary,
 .admin-section-heading {

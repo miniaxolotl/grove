@@ -21,6 +21,14 @@ PostgreSQL/RLS and browser verification. Release changes also require
 `node --test scripts/release/*.test.mjs` and workflow lint. Never weaken tenant
 isolation, delete retained provider data or reset an existing database to pass CI.
 
+Documentation is a concise source of current contracts, not a task log. Follow
+`documentation/development/documentation.md`: edit the owning topic's behavior,
+rollout and verification together. Do not append routine feature summaries to
+`delivery.md`, `deploy.md` or `development/testing.md`. Keep exact-head checks in
+the PR and local plans outside Git; preserve dated evidence separately. Run
+`pnpm test:docs` after documentation changes. Only change indexes/shared guides
+when navigation or the shared process actually changes.
+
 ## Release contract
 
 - Follow `documentation/release-conventions.md` for the shared patch-first policy:

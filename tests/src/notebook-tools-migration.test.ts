@@ -19,11 +19,14 @@ test("033 preserves legacy meeting data, usage and opt-outs and adds only defaul
   try {
     await authority.raw("CREATE DATABASE ??", [name]);
     const all = await migrationSource.getMigrations([]);
+    const boundary = all.findIndex(
+      (migration) => migration.name === "20261025_033_notebook_tools",
+    );
+    assert(boundary > 0);
     await owner.migrate.latest({
       migrationSource: {
         ...migrationSource,
-        getMigrations: async () =>
-          all.filter((m) => m.name <= "20261025_031_meeting_preparation"),
+        getMigrations: async () => all.slice(0, boundary),
       },
     });
     const a = randomUUID(),

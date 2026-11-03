@@ -12,6 +12,7 @@ const sections = [
   ["/app/settings/connections", "Connections"],
   ["/app/settings/models", "AI & search"],
   ["/app/settings/data", "Your data"],
+  ["/app/settings/files", "Files & storage"],
 ];
 export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
   const cache = useWorkspaceCache();

@@ -118,9 +118,52 @@ Derived request/state/results expire after30 days or earlier scope source expiry
 Maintenance redacts only derived bodies, retaining replay/applied references and
 authored source/history/provider evidence. Saved notes follow ordinary retention.
 
-Migration **033** adds five default-off preferences, new assistance kinds/index and
-a worker-only cleanup scheduler. Legacy meeting031 requests/schema/data remain
+Migration `20261025_033_notebook_tools` adds five default-off preferences, new
+assistance kinds/index and a worker-only cleanup scheduler. Legacy meeting requests/schema/data remain
 compatible; their specialized launcher is replaced by the general Workbench UI.
 The `/app/tools` route, internal identifiers and API/preference names are unchanged.
-See [rollout](deploy.md#notebook-tools-rollout-033), [testing](development/testing.md#notebook-tools)
-and [reviewed captures](design/screenshots/notebook-tools/README.md).
+
+## Rollout and recovery
+
+Follow the [owner schema procedure](operations/schema.md) with the admitted source,
+actual applied history and a verified retained backup. The migration registry appends
+`20261025_031_meeting_preparation` and then `20261025_033_notebook_tools` after the
+existing notebook-order migration. Their original full names remain stable; their
+numeric prefixes are not the application order and do not replace the distinct
+document-import or AI-cache migrations. Never rename or reset applied migrations.
+
+Drain old workers, apply pending forward migrations and deploy matching API/worker
+before the website. All five preferences start off without queuing inference.
+Enable tools explicitly for a synthetic internal account and verify scope, continuation,
+citations, cancellation, expiry, source preservation and reviewed multi-note Save/Undo.
+Check one assistance action across batches separately from actual provider attempts.
+Restore invalidates previews. Rollback disables admission/preferences and drains jobs
+while retaining additive schema, authored notes, legacy requests and usage evidence.
+Live-model grounding, latency/cost, large-library relevance and physical-device
+acceptance require separate qualification; recurring delivery is not enabled.
+
+## Verification
+
+Use [disposable PostgreSQL and browser setup](development/testing.md) with non-owner
+API/worker roles and actual production CSS:
+
+```sh
+pnpm exec tsx --test tests/src/preparation-workflow.test.ts tests/src/notebook-tools-migration.test.ts tests/src/meeting-preparation.test.ts tests/src/meeting-migration.test.ts
+pnpm --filter website exec playwright test tests/meeting-preparation.spec.ts tests/models.spec.ts tests/assistance.spec.ts
+pnpm --filter website exec playwright test --config playwright.meeting-webkit.config.ts
+```
+
+Service cases cover explicit scopes/pins and descendants, bounded continuation/replay,
+flexible briefs, supported study answers, gap answer lookup, historical weekly pairs,
+cross-note action completion, qualified past outcomes, DST windows, source/preference/
+cancel races, citations, expiry and long-result atomic Save/Undo. Upgrade cases retain
+legacy/provider data and opt-outs, forced RLS and worker-only scheduling.
+
+The meeting-named browser suite covers the current Create a brief flow. For all-five
+UI→HTTP API→PostgreSQL/worker journeys use `tests/src/fixtures/meeting-api.ts` with
+task-owned `MEETING_API_PORT`, `MEETING_SITE_URL` and `MEETING_FIXTURE_FILE`, plus
+matching dashboard fixture ports. Verify 1440/390/320px and short/enlarged-text views,
+keyboard Back focus, per-tool drafts, filtered notebook selections, retained note
+titles, Reveal/Hide/practice, uncertain requests, Save/Undo, sources and unchanged
+originals. Deterministic adapters establish wiring, not live-model quality.
+See [reviewed captures](design/screenshots/notebook-tools/README.md).

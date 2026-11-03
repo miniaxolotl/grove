@@ -118,7 +118,8 @@ Public admission is separate from owner quotas: **1,200 requests/minute globally
 (including invalid tokens), then **240/minute per link**, coordinated in PostgreSQL
 across replicas. Responses include 429 and `Retry-After: 60`. Forwarded IP headers
 do not establish identity. Queries have a five-second statement deadline; scope is
-bounded by the account's 100-notebook limit and cycle-safe recursion. Notes are
+cycle-safe; available notebook capacity follows the configured plan/grant rather
+than a universal 100-notebook ceiling. Notes are
 paginated in UUID order. Readers do not call Clerk/models, create sessions or
 consume the owner's signed-in API quota.
 
@@ -166,3 +167,15 @@ replay. Configure edge/access logs to omit or redact capability segments in **bo
 The October 22 hosting canary appeared in Vercel request-path logs; hosting-path
 redaction is not currently verified. Application filtering does not redact those logs.
 See [deployment](deploy.md) and [testing](development/testing.md).
+
+## Verification
+
+`sharing.test.ts`, `share-expiration-migration.test.ts` and recovery use real
+non-owner roles for scope, concurrent revocation/moves/expiry, current account
+status, token encryption, temporary-schema shadowing, independent quotas and
+restore invalidation. The populated 011→012 upgrade retains capabilities and RLS.
+Browser sharing/workspace/telemetry cases and `playwright.sharing-webkit.config.ts`
+cover signed-out reads, owner review/retry, inherited scope, revoked reload/history,
+generic metadata, denied third-party/auth traffic and 1440/390/320px accessibility.
+No-JS active reading/navigation works; current Next unavailable/error fallbacks
+are client-rendered, so verify 404 status/metadata/privacy headers independently.

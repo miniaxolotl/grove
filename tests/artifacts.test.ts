@@ -19,6 +19,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { build } from "esbuild";
 import { memoryTools } from "@lib/shared/memory-tools";
+import { memorySkill } from "@lib/integration-core";
 
 const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -159,6 +160,29 @@ test("each packed marketplace artifact contains prebuilt executables and declare
   }
 });
 
+test("packed skills share the current runtime note-writing guidance", async () => {
+  for (const name of [
+    "grove-claude-plugin",
+    "grove-codex-plugin",
+    "grove-opencode-plugin",
+  ]) {
+    const skill = await readFile(
+      join(
+        paths.get(name)!,
+        name === "grove-opencode-plugin"
+          ? "dist/memory-skill.md"
+          : "skills/memory/SKILL.md",
+      ),
+      "utf8",
+    );
+    assert.equal(
+      skill.replace(/^---\n[\s\S]*?\n---\n\n/, "").trim(),
+      memorySkill.trim(),
+    );
+    assert.match(skill, /human-readable/);
+  }
+});
+
 test("packed stdio MCP authenticates explicit saves, records provenance and blocks private automatic saves", async () => {
   for (const name of [
     "mcp",
@@ -192,6 +216,11 @@ test("packed stdio MCP authenticates explicit saves, records provenance and bloc
     });
     try {
       await client.connect(transport);
+      assert.match(client.getInstructions()!, /human-readable/);
+      const contentSchema = (await client.listTools()).tools.find(
+        (tool) => tool.name === "remember",
+      )!.inputSchema.properties as Record<string, { description?: string }>;
+      assert.match(contentSchema.content.description ?? "", /Markdown/);
       assert.deepEqual(
         (await client.listTools()).tools.map((t) => t.name),
         Object.keys(memoryTools),

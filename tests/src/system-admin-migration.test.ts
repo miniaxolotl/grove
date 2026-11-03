@@ -170,7 +170,7 @@ test("026→027 preserves retained accounts, content, grants, audit and usage wh
     await owner.raw(
       "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO grove_runtime,grove_worker",
     );
-    // Qualify the named historical boundary before later additive account columns.
+    // Verify the named upgrade, not unrelated columns from later features.
     await owner.migrate.latest({
       migrationSource: {
         ...migrationSource,
@@ -179,6 +179,7 @@ test("026→027 preserves retained accounts, content, grants, audit and usage wh
       },
     });
     assert.deepEqual(await fingerprint(), before);
+    // Still exercise current permissions and services against the latest schema.
     await owner.migrate.latest();
     const privileges = (
       await runtime.raw(

@@ -1,3 +1,4 @@
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { Assistance, AssistanceRequest } from "@lib/shared/assistance";
@@ -26,7 +27,7 @@ test("general brief starts only on request, shows sources/coverage and keeps enq
     loseRequest = true,
     loseSave = true;
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     const body = route.request().postDataJSON();
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
@@ -98,7 +99,12 @@ test("general brief starts only on request, shows sources/coverage and keeps enq
       current = { ...current!, status: "undone", version: 4 };
       data = current;
     } else if (path.includes("/assistance/")) data = current;
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
@@ -164,9 +170,7 @@ test("general brief starts only on request, shows sources/coverage and keeps enq
     .getByRole("button", { name: "Save result", exact: true })
     .click();
   await expect(dialog.getByRole("alert")).toBeVisible();
-  await dialog
-    .getByRole("button", { name: "Retry save", exact: true })
-    .click();
+  await dialog.getByRole("button", { name: "Retry save", exact: true }).click();
   await expect(
     dialog.getByRole("button", { name: "Undo", exact: true }),
   ).toBeVisible();
@@ -186,7 +190,7 @@ test("tool opt-in is never silently changed and cancelling preserves the brief i
     requests = 0,
     current: Assistance | undefined;
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     const body = route.request().postDataJSON();
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
@@ -221,7 +225,12 @@ test("tool opt-in is never silently changed and cancelling preserves the brief i
       };
       data = current;
     } else if (path.includes("/assistance/")) data = current;
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/projects/${project.id}`);
   await page.getByRole("button", { name: "Notebook options" }).click();
@@ -298,7 +307,7 @@ test("brief source recovery keeps the goal, removes exact pins and never falls b
   }));
   const requests: AssistanceRequest[] = [];
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     let data: unknown = {};
     if (path.endsWith("/projects")) data = [project];
     else if (path.endsWith("/me"))
@@ -325,7 +334,12 @@ test("brief source recovery keeps the goal, removes exact pins and never falls b
       const found = notes.find((item) => path.endsWith(`/memories/${item.id}`));
       if (found) data = { ...found, version: 2 };
     }
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app`);
   await page.getByRole("checkbox", { name: "Select these notes" }).check();
