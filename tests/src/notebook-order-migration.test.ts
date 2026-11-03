@@ -23,9 +23,11 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
   const admin = createDatabase(target(url));
   const db = createDatabase(target(process.env.TEST_DATABASE_URL!));
   try {
-    const before = migrations.filter(
-      (m) => m.name < "20261025_035_notebook_order",
+    const boundary = migrations.findIndex(
+      (m) => m.name === "20261025_035_notebook_order",
     );
+    assert(boundary > 0);
+    const before = migrations.slice(0, boundary);
     const migrationSource: Knex.MigrationSource<(typeof migrations)[number]> = {
       getMigrations: async () => before,
       getMigrationName: (m) => m.name,
@@ -33,8 +35,13 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
     };
     await admin.migrate.latest({ migrationSource });
     await assert.rejects(
+      db.raw("SELECT position FROM projects LIMIT 0"),
+      /position/,
+    );
+    // The current runtime checks the later workflow prerequisites first.
+    await assert.rejects(
       probeDatabase(db),
-      /position|notebook_order_version/,
+      /meeting_preparation_enabled/,
       "new runtime must reject a schema without notebook order",
     );
     const accountId = randomUUID(),
@@ -53,7 +60,7 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
     ]);
     const retained = await admin("projects").orderBy("id");
     const accounts = await admin("accounts").orderBy("id");
-    await admin.migrate.latest();
+    await admin.migrate.up({ name: "20261025_035_notebook_order" });
     const upgraded = await admin("projects").orderBy("id");
     assert.deepEqual(
       upgraded.map(({ position: _position, ...row }) => row),
@@ -106,6 +113,8 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
       /row-level security/,
     );
     assert.deepEqual(await db("projects"), []);
+    await admin.migrate.latest();
+    await probeDatabase(db);
   } finally {
     await Promise.all([db.destroy(), admin.destroy()]);
     await authority.raw("DROP DATABASE ??", [name]);

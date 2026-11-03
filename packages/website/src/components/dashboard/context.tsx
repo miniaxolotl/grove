@@ -30,6 +30,7 @@ import { ShareDialog } from "./share-dialog";
 import { NotebookActions } from "./notebook-actions";
 import { ImportNotesPanel } from "./import-notes-button";
 import { AssistanceAction } from "./assistance-action";
+import { ToolsAction } from "./tools-action";
 import type { NotebookVisit } from "@lib/shared/assistance";
 const ConnectionPanel = deferredFeature(
   async () => ({
@@ -126,6 +127,13 @@ export function MemoryContext({
                     <span>Today’s note</span>
                   </Link>
                   <ActionMenu label="Notebook options">
+                    <ToolsAction
+                      scope={{
+                        kind: "notebooks",
+                        ids: [project.id],
+                        includeDescendants: false,
+                      }}
+                    />
                     <NotebookActions
                       project={project}
                       onAction={setNotebookAction}

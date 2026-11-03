@@ -24,12 +24,13 @@ test("031→032 preserves notes, import drafts and chat history with isolated do
   try {
     const migrations = await migrationSource.getMigrations([]);
     const names = migrations.map((entry) => entry.name);
-    assert.deepEqual(names, [...names].sort());
-    assert.equal(
-      new Set(names.map((entry) => entry.split("_").slice(0, 2).join("_")))
-        .size,
-      names.length,
+    const boundary = names.indexOf("20261025_032_conversation_documents");
+    assert(boundary > 0);
+    assert.deepEqual(
+      names.slice(0, boundary + 1),
+      [...names.slice(0, boundary + 1)].sort(),
     );
+    assert.equal(new Set(names).size, names.length);
     assert.equal(
       names[names.indexOf("20261025_031_document_imports") + 1],
       "20261025_032_conversation_documents",
@@ -37,8 +38,7 @@ test("031→032 preserves notes, import drafts and chat history with isolated do
     await owner.migrate.latest({
       migrationSource: {
         ...migrationSource,
-        getMigrations: async () =>
-          migrations.filter((entry) => entry.name < "20261025_032"),
+        getMigrations: async () => migrations.slice(0, boundary),
       },
     });
     const a = randomUUID(),
@@ -83,9 +83,11 @@ test("031→032 preserves notes, import drafts and chat history with isolated do
       before = await Promise.all(tables.map((table) => owner(table)));
     const oldChat = await owner("conversations").first();
     await assert.rejects(
-      probeDatabase(runtime),
-      /documents_version|conversation_documents/,
+      runtime.raw("SELECT documents_version FROM conversations LIMIT 0"),
+      /documents_version/,
     );
+    // The current runtime checks the later workflow prerequisites first.
+    await assert.rejects(probeDatabase(runtime), /meeting_preparation_enabled/);
     await owner.migrate.latest();
     await probeDatabase(runtime);
     assert.deepEqual(

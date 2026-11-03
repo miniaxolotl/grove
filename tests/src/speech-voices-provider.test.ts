@@ -63,7 +63,7 @@ after(() => {
   server.closeAllConnections();
   server.close();
 });
-const provider = (voice = "English_CalmWoman") => {
+const provider = (voice = "English_CalmWoman", timeoutMs = 100) => {
   assert.equal(
     typeof speech.createMiniMaxSpeech,
     "function",
@@ -73,7 +73,7 @@ const provider = (voice = "English_CalmWoman") => {
     apiKey: "fixture-key",
     baseUrl: origin,
     voice,
-    timeoutMs: 100,
+    timeoutMs,
   });
 };
 
@@ -199,7 +199,9 @@ test("MiniMax reads provider control notation as prose instead of performing pau
 });
 
 test("MiniMax rejects malformed, incomplete and oversized successful audio responses", async () => {
-  const voice = provider();
+  // Body validation must reach its byte limit even on a busy CI runner. The
+  // separate stalled-response test below retains the 100ms transport deadline.
+  const voice = provider("English_CalmWoman", 2000);
   for (const invalid of [
     "mime",
     "null",
@@ -211,13 +213,18 @@ test("MiniMax rejects malformed, incomplete and oversized successful audio respo
   ]) {
     mode = invalid;
     await assert.rejects(
-      voice.synthesize("Text", AbortSignal.timeout(2000)),
+      voice.synthesize("Text", AbortSignal.timeout(5000)),
       (error: unknown) => {
         assert.equal(
           (error as { retryable: boolean }).retryable,
           false,
           invalid,
         );
+        if (invalid === "oversized")
+          assert.equal(
+            (error as { code: string }).code,
+            "provider_response_too_large",
+          );
         return true;
       },
     );

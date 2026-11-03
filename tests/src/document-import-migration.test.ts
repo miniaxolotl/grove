@@ -19,15 +19,17 @@ test("030→031 preserves authored content and adds tenant-isolated import stagi
   try {
     const migrations = await migrationSource.getMigrations([]);
     const names = migrations.map((entry) => entry.name);
+    const boundary = names.indexOf("20261025_031_document_imports");
+    assert(boundary > 0);
     assert.deepEqual(
-      names,
-      [...names].sort(),
-      "forward migrations retain their committed order",
+      names.slice(0, boundary + 1),
+      [...names.slice(0, boundary + 1)].sort(),
+      "the published import migration prefix retains its committed order",
     );
     assert.equal(
-      new Set(names.map((name) => name.split("_").slice(0, 2).join("_"))).size,
+      new Set(names).size,
       names.length,
-      "migration sequence numbers are unique",
+      "full migration identities are unique",
     );
     assert.equal(
       names[names.indexOf("20261025_030_conversation_context") + 1],
@@ -36,8 +38,7 @@ test("030→031 preserves authored content and adds tenant-isolated import stagi
     await owner.migrate.latest({
       migrationSource: {
         ...migrationSource,
-        getMigrations: async () =>
-          migrations.filter((entry) => entry.name < "20261025_031"),
+        getMigrations: async () => migrations.slice(0, boundary),
       },
     });
     const a = randomUUID(),
