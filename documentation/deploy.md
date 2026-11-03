@@ -95,9 +95,11 @@ providers/dimensions never silently fall back. See [models](models.md).
    Missing `DIGITALOCEAN_ACCESS_TOKEN`/`DIGITALOCEAN_APP_ID` is an error. Verify registry
    integrity, active provider generation, both component digests and readiness.
    Development does not publish or deploy. Existing previews need separate retirement.
-6. Deploy the compatible Vercel website after API/worker. Public variables are baked
-   at build time. Any manual deployment must use a clean archive of the promoted
-   production commit, not a worktree containing ignored private artifacts.
+6. Deploy's `website` job runs only after API/worker deployment and readiness pass.
+   It checks out the admitted source, builds with Vercel's production configuration,
+   deploys prebuilt output and verifies project/source metadata and public
+   `/release.json` identity. A stale production ref or failed backend prevents the
+   website job. Public variables are baked at build time.
 7. Verify synthetic save → worker indexing → read, two-account/grant denial, current
    session revocation and affected feature journeys. Readiness is not full user,
    provider, privacy-log or physical-device acceptance. Record evidence in the
@@ -108,6 +110,19 @@ Do not hand-bump versions or publish changed bytes under an existing version.
 `node scripts/publish.mjs --dry-run` preflights without publishing. For partial
 publication rerun Deploy on the same current production commit: identical artifacts
 are reused; conflicts need a new release. Never move a tag/frozen head.
+
+### Coordinated Vercel delivery
+
+The GitHub production environment requires `VERCEL_TOKEN` (a Vercel CI access
+token), `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. Preflight verifies the exact project,
+team, `packages/website` root and production environment keys before publication.
+The project is `bramble-labs-inc/grove` (`prj_AAHDflaS5lkamhL46o3kAwRx2YKL`).
+Configure its ignored-build command as `exit 0` and retain
+`packages/website/vercel.json` with `git.deploymentEnabled: false`. These prevent
+independent Git builds; `gitProviderOptions.createDeployments` only controls GitHub
+deployment records. The pinned CLI builds locally and publishes prebuilt output.
+Retain existing deployments and aliases while preparing this cutover. The Vercel
+CI token and DigitalOcean account must be operational before promoting this path.
 
 ### Feature requirements
 
