@@ -377,6 +377,18 @@
     font-size: 16px;
     line-height: 1.65;
   }
+  .notebook-home .library-panel {
+    padding: 16px;
+  }
+  .notebook-home .library-memory {
+    padding: 20px;
+  }
+  .notebook-home .sample-workspace-heading {
+    padding-top: 20px;
+  }
+  .notebook-home .library-window .tab-list {
+    padding-top: 16px;
+  }
   .notebook-home .note-path p {
     font-size: 16px;
   }

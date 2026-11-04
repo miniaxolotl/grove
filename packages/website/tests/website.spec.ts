@@ -261,6 +261,8 @@ test("sharing copies the canonical URL and offers a fallback when clipboard is u
   await expect(
     page.getByRole("textbox", { name: "Grove link to share" }),
   ).toHaveValue(siteURL);
+  await page.getByRole("dialog").getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("button", { name: "Share Grove" })).toBeFocused();
 
   for (const platform of ["X", "LinkedIn", "Bluesky"]) {
     const href = await page

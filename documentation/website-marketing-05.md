@@ -76,6 +76,8 @@ intrinsic state in shared grid tracks. Inactive panels remain mounted but are
 inert and hidden from assistive technology. There are no selection-driven height
 measurements, clipped answers or remount keys. Four-width public stability tests
 also verify graph keyboard selection, contrast and absence of account requests.
+Phone library panels use compact 16px insets and 20px note padding. The complete
+largest sample still determines the shared height; no note or graph detail is clipped.
 
 ## Setup and public documentation
 
@@ -87,6 +89,14 @@ approval, client-specific activation and a fresh-session save/recall check; API
 access alone is not host verification. The [client guide](client.md) owns exact
 commands, grants, revocation and diagnosis, rather than copying the reference
 into the marketing page.
+
+Public guides keep a persistent desktop sidebar and use a native “Guides and
+reference” disclosure on phones, leaving the article close to its heading without
+requiring JavaScript. Mobile pricing aligns both plans with the page frame instead
+of adding another inset. Failed native sharing/clipboard access opens a focused
+native dialog with a selected link, Done/Escape dismissal and focus return; neither
+copy feedback nor recovery resizes the footer. These are public-site behaviors,
+not changes to notebook sharing or billing configuration.
 
 See [reviewed desktop/phone home and pricing screenshots](design/screenshots/product-redesign/README.md).
 Build and browser checks use local source/fixtures, not payment/provider or

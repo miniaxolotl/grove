@@ -4,6 +4,23 @@ Reviewed local optimized-build captures of the live-layout-led polish pass.
 [Capture provenance](capture.json) records the source fingerprint, build ID,
 browser, viewports and synthetic-data boundary.
 
+## Refinement review
+
+Phone guides use a native resource disclosure; useful notebook instructions start
+216px sooner at 390px. Pricing aligns both plans to the 20px page edge rather than
+adding a 28px inset. Compact library padding retains every note/graph detail and
+the mounted intrinsic-height tracks; it does not clip or remount the sample.
+
+| Guide navigation expanded                                                  | Manual-copy recovery                                                  |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ![Native resource disclosure on a phone](docs-notebook-navigation-390.png) | ![Native share fallback with a selected link](share-fallback-390.png) |
+
+Recovery uses synthetic denied share/clipboard access. Done/Escape returns focus;
+copy feedback and recovery leave the footer/page/scroll unchanged. All 272 browser
+cases pass. Four-width reviews report zero inspector failures, automated
+accessibility violations, overflow or demo-height changes.
+[Small-phone pricing](pricing-320.png) · [Tablet pricing](pricing-768.png).
+
 Captured from the local optimized Next.js build of `feature/website-product-refresh`.
 The paper split introduction, Space Grotesk and working notebook examples preserve
 the live site's hierarchy. The public graph reuses the app canvas and force layout

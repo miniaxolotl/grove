@@ -38,11 +38,26 @@
   display: flex;
   flex-direction: column;
   align-items: start;
+  gap: 4px;
+  font-size: 14px;
+}
+.sidebar {
   align-self: start;
   position: sticky;
   top: 104px;
-  gap: 4px;
-  font-size: 14px;
+}
+.mobileNavigation {
+  display: none;
+}
+.mobileNavigation summary {
+  min-height: 44px;
+  padding-block: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.mobileNavigation[open] .navigation {
+  padding-block: 8px 16px;
 }
 .navigation a[aria-current] {
   font-weight: 600;
@@ -137,12 +152,14 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }
-  .navigation {
+  .sidebar {
     position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
-    column-gap: 24px;
-    padding-bottom: 24px;
+  }
+  .desktopNavigation {
+    display: none;
+  }
+  .mobileNavigation {
+    display: block;
   }
   .heading {
     padding-block: 24px 32px;

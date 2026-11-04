@@ -407,7 +407,7 @@
     font-size: 32px;
   }
   .product-redesign .plan {
-    padding: 28px;
+    padding: 24px 0;
   }
   .product-redesign .plan .plan-price {
     font-size: 36px;
@@ -416,8 +416,9 @@
     padding: 16px 10px;
     font-size: 14px;
   }
-  .product-redesign .pricing-intro {
+  .product-redesign.pricing-page .pricing-intro {
     padding-block: 48px 32px;
+    margin-bottom: 16px;
   }
 }
 .marketing-site .site-footer :is(.footer-bottom, .bramble-family) {
