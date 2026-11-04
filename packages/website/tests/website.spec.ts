@@ -1,7 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "./telemetry-fixtures";
+import { canonical, indexable } from "./site-fixture";
 
-const siteURL = new URL(process.env.SITE_URL || "http://localhost:3000").origin;
+const siteURL = canonical.origin;
 
 test("serves the notebook story, signup links, and FAQ without JavaScript", async ({
   browser,
@@ -338,9 +339,11 @@ test("social metadata, crawler routes, and generated images are usable", async (
   expect(png.readUInt32BE(16)).toBe(1200);
   expect(png.readUInt32BE(20)).toBe(628);
   expect((await request.get("/apple-icon")).ok()).toBe(true);
-  expect(await (await request.get("/sitemap.xml")).text()).toContain(
-    `${siteURL}/install`,
-  );
+  const sitemap = await request.get("/sitemap.xml");
+  expect(sitemap.ok()).toBe(true);
+  const sitemapText = await sitemap.text();
+  if (indexable) expect(sitemapText).toContain(`${siteURL}/install</loc>`);
+  else expect(sitemapText).not.toContain("<loc>");
   expect(await (await request.get("/robots.txt")).text()).toContain(
     `${siteURL}/sitemap.xml`,
   );

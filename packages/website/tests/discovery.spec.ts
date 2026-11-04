@@ -1,10 +1,5 @@
 import { expect, test } from "@playwright/test";
-
-const canonical = new URL(process.env.SITE_URL || "http://localhost:3000");
-const indexable =
-  !["localhost", "127.0.0.1", "[::1]"].includes(canonical.hostname) &&
-  process.env.SITE_NOINDEX !== "true" &&
-  !["preview", "development"].includes(process.env.VERCEL_ENV || "");
+import { canonical, indexable } from "./site-fixture";
 
 const references = [
   ["notebook", "Your Grove notebook", "Your first saved note"],
