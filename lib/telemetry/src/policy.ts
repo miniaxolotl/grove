@@ -48,6 +48,9 @@ export const events = [
 export type EventName = (typeof events)[number];
 export type Outcome = "success" | "unavailable" | "error" | "cancelled";
 export type Properties = {
+  failure_code?: string;
+  failure_stage?: string;
+  validation_field?: string;
   cache_feature?:
     | "query_embedding"
     | "document_embedding"
@@ -85,6 +88,48 @@ export function projectProperties(
 ): Properties {
   const output: Record<string, unknown> = {};
   const enums = {
+    failure_code: [
+      "auth_unavailable",
+      "provider_authentication",
+      "provider_rate_limited",
+      "provider_unavailable",
+      "provider_timeout",
+      "provider_invalid_response",
+      "provider_empty_response",
+      "provider_response_too_large",
+      "inference_budget",
+      "generation_invalid_response",
+      "generation_incomplete",
+      "generation_invalid_citation",
+      "generation_invalid_reference",
+      "generation_invalid_proposal",
+      "generation_invalid_organization",
+      "generation_invalid_lifecycle",
+      "generation_invalid_web_citation",
+      "generation_invalid_cursor",
+      "generation_missing_document_evidence",
+      "embedding_invalid_response",
+      "embedding_profile_mismatch",
+      "invalid_embedding",
+      "decision_invalid_response",
+    ],
+    failure_stage: ["response_json", "response_schema"],
+    validation_field: [
+      "message",
+      "statements",
+      "proposals",
+      "organization",
+      "lifecycle",
+      "webStatements",
+      "documentStatements",
+      "title",
+      "tags",
+      "query",
+      "intent",
+      "references",
+      "research",
+      "organizeAfter",
+    ],
     cache_feature: [
       "query_embedding",
       "document_embedding",

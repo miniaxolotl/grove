@@ -304,11 +304,23 @@ export class Reporter implements TelemetrySink {
       !opaqueIdentity(identity)
     )
       return;
+    let diagnostics: Properties = {};
+    try {
+      if (cause && typeof cause === "object")
+        diagnostics = projectProperties({
+          failure_code: "code" in cause ? cause.code : undefined,
+          failure_stage: "stage" in cause ? cause.stage : undefined,
+          validation_field: "field" in cause ? cause.field : undefined,
+        });
+    } catch {
+      // Untrusted error accessors must never change application behavior.
+    }
     const ended = performance.now();
     this.enqueue({
       event: "operation_completed",
       properties: projectProperties({
         ...properties,
+        ...diagnostics,
         operation,
         outcome,
         duration_ms: ended - started,
@@ -323,7 +335,7 @@ export class Reporter implements TelemetrySink {
           ? safeError(
               {
                 type: undefined,
-                tags: { operation, outcome },
+                tags: { ...diagnostics, operation, outcome },
                 exception: {
                   values: [
                     {

@@ -43,6 +43,11 @@ edit/merge previews but not creation, organization or lifecycle discovery; use a
 ordinary question without selectors for those. See [source selection](explicit-context.md)
 for previews, direct-member notebook retrieval, partial coverage and recovery.
 
+Grouping items _inside_ a note is a content edit; grouping notes _among notebooks_
+is organization. Selected-source questions can preview explicit content edits but
+return guidance for unsupported notebook/batch actions without dispatching research
+or asking the model to produce an answer-only substitute.
+
 Web statements cite only returned URLs. **Web sources** records the tool, retrieval
 date and whether the evidence is a search result or page extract. Saved-note
 citations continue to open the note inspector. Research-backed note content includes
