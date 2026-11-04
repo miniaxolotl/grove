@@ -255,11 +255,11 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .marketing-site .demo-panel:not([hidden]) .demo-query {
+  .marketing-site .demo-panel:not([inert]) .demo-query {
     animation: query-reveal 650ms steps(24, end);
   }
   .marketing-site [data-reveal-state="visible"] .idea-map-lines path,
-  .marketing-site [role="tabpanel"]:not([hidden]) .idea-map-lines path {
+  .marketing-site [role="tabpanel"]:not([inert]) .idea-map-lines path {
     stroke-dasharray: 1;
     animation: connect-notes 800ms ease both;
   }

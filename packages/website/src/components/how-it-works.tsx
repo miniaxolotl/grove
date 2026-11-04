@@ -1,65 +1,53 @@
-import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="dark-section relative overflow-hidden bg-forest text-paper"
+      className="page-container story-section"
       aria-labelledby="how-heading"
     >
-      <div className="page-container section-space relative">
-        <div className="section-intro" data-reveal>
-          <div>
-            <p className="eyebrow text-lime/75">GET STARTED</p>
-            <h2 id="how-heading" className="section-heading mt-4">
-              Open Grove.
-              <br />
-              <em className="text-lime!">Write your first note.</em>
-            </h2>
-          </div>
-          <p className="text-paper/65!">
-            Start in your browser. Organize as you go.
+      <div className="section-lead" data-reveal>
+        <h2 id="how-heading" className="section-title">
+          Get started
+        </h2>
+        <p>
+          Start in your browser. Connect other tools only when you want to take
+          your notebook with you.
+        </p>
+      </div>
+      <ol
+        className="note-path"
+        aria-label="Set up your Grove notebook"
+        data-stagger
+      >
+        <li data-reveal>
+          <h3>Open Grove</h3>
+          <p>
+            Sign in and start writing in your browser. You can create notebooks
+            later; no install or agent connection is required.
           </p>
-        </div>
-
-        <ol className="getting-started-steps" data-stagger>
-          {[
-            {
-              number: "01",
-              title: "Create an account.",
-              description: "Sign up and open your private notebook.",
-            },
-            {
-              number: "02",
-              title: "Save a note.",
-              description:
-                "Write a plan, idea or journal entry. Group related pages into notebooks.",
-            },
-            {
-              number: "03",
-              title: "Find it again.",
-              description:
-                "Search by meaning or ask a question. Follow answers back to your notes.",
-            },
-          ].map(({ number, title, description }) => (
-            <li key={number} data-reveal>
-              <span className="getting-started-number">{number}</span>
-              <h3 className="mt-4 text-lg font-medium tracking-tight">
-                {title}
-              </h3>
-              <p className="mt-3 text-[13px] leading-7 text-paper/65">
-                {description}
-              </p>
-            </li>
-          ))}
-        </ol>
-        <div className="optional-connection">
-          <p>Use AI tools? They can work with your notebook, too.</p>
-          <Link href="/install">
-            Connect your AI tools <ArrowUpRight size={14} />
-          </Link>
-        </div>
+        </li>
+        <li data-reveal>
+          <h3>Save a first note</h3>
+          <p>
+            Choose New note, write something and wait for the saved
+            confirmation. Reopen it from Notes to check that it is there.
+          </p>
+        </li>
+        <li data-reveal>
+          <h3>Check a first answer</h3>
+          <p>
+            Open Ask, select the note in Sources and ask about it. Open the
+            citation to compare the answer with what you saved.
+          </p>
+        </li>
+      </ol>
+      <div className="note-path-caption">
+        <Link className="text-link" href="/docs/notebook">
+          Read the notebook guide <ArrowRight size={16} aria-hidden="true" />
+        </Link>
       </div>
     </section>
   );

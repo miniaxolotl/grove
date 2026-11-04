@@ -1,0 +1,18 @@
+{
+  "source": "Bramble Labs marketing kit",
+  "derivative": "sRGB WebP, quality 86, at most 2400px wide; no upscaling",
+  "assets": [
+    {
+      "file": "/images/kit/grove-journal.webp",
+      "kitSource": "_source/assets/photos/grove-journal.jpg",
+      "kitSourceSha256": "595e96ca5d738e62cff0ca733674163af0d233cd5009c6f04c2be49ee0d80ade",
+      "sha256": "fc4d9964a385c140a7edc7a0de4075f37db942d182ddfb7566ab768500582756",
+      "width": 2400,
+      "height": 3600,
+      "source": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+      "license": "https://unsplash.com/license",
+      "creditRecord": "marketing/_source/assets/photos/CREDITS.md",
+      "use": "Illustrative marketing photography, not product capture or customer data"
+    }
+  ]
+}

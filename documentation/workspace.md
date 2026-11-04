@@ -5,6 +5,27 @@ Notebooks live in the sidebar; on phones, open **Notebooks** beneath navigation.
 The Grove logo returns to Notes. Connected agents share these notes and their
 approved permissions; technical references stay in **Note properties → Agent details**.
 
+## Your first saved note
+
+You only need a Grove account and a browser. No CLI, agent plugin or personal
+model-provider key is needed for the Cloud notebook.
+
+1. [Create an account](https://usegrove.cloud/sign-up), then open **Notes**.
+2. Choose **New note**. You can file it in a notebook later.
+3. Write a short title and something you will want to find,
+   such as a packing list. Save the note and wait for the saved confirmation.
+4. Return to Notes and reopen your note. Seeing the saved text
+   there verifies the browser workflow; typing alone does not establish a save.
+5. Open **Ask Grove**, choose **Sources**, select that note and choose **Done**.
+   Ask a specific question about its text, then open the answer's citation to
+   compare it with your original note.
+
+Start with non-sensitive sample text while trying a feature. Keep an unsaved or
+failed draft open: reloading is not a recovery step. The sections below explain
+editing, search, sharing and recovery. [Connect an AI tool](https://usegrove.cloud/install)
+only if you want to use the notebook outside the browser; that separate guide
+owns connection commands and approval.
+
 ## Write, find, and organize
 
 - **New note**, **Today’s note** and existing notes use the same workspace.
@@ -154,3 +175,24 @@ saved values. Availability is separate from preferences and provider health. See
 [models](models.md), [billing](billing.md) and [files/storage](files-storage.md).
 Original images/audio, [manual transcripts](recordings.md) and editing remain usable
 without inference; [speech](speech.md) requires separate explicit actions.
+
+## When something does not work
+
+- **A note has not saved:** keep the editor open, read its save feedback and retry
+  the failed save. Copy or export the draft before closing the page if you need a
+  separate recovery copy. Do not assume a refresh will restore unsaved text.
+- **Search does not find a note:** check notebook and filter scope, then look for
+  the note directly. Archived or expired notes are not ordinary active results.
+- **Ask misses a detail:** use the Sources chooser and inspect the provided
+  evidence. Follow the [source-selection guide](explicit-context.md); a reply is
+  not proof that every note was considered.
+- **An AI action is unavailable:** check the account's AI preference and displayed
+  allowance. Provider availability is separate from the switch being enabled;
+  saved writing remains usable without inference.
+- **A connected tool is missing:** use the [client diagnosis](client.md#diagnose-installation-and-startup)
+  rather than reinstalling the notebook or deleting credentials.
+
+For help, include the page, action, approximate time and redacted error in a
+[support request](https://usegrove.cloud/support). Do not include note contents,
+private sharing links, API keys or sign-in tokens unless you deliberately choose
+to share a safe reproduction.

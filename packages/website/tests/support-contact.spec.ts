@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { canonical, indexable } from "./site-fixture";
 
 test("current public contacts use the Grove support mailbox", async ({
   page,
@@ -27,12 +28,7 @@ for (const route of ["support", "contact"]) {
     page,
     request,
   }) => {
-    const origin = new URL(
-      process.env.SITE_URL ||
-        (process.env.VERCEL_PROJECT_PRODUCTION_URL &&
-          `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`) ||
-        "http://localhost:3000",
-    ).origin;
+    const origin = canonical.origin;
     expect((await page.goto(`/${route}`))?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       route === "support" ? "Support for Grove." : "Contact Grove.",
@@ -54,9 +50,11 @@ for (const route of ["support", "contact"]) {
     await expect(
       footer.getByRole("link", { name: "Contact", exact: true }),
     ).toHaveAttribute("href", "/contact");
-    expect(await (await request.get("/sitemap.xml")).text()).toContain(
-      `${origin}/${route}`,
-    );
+    const sitemap = await request.get("/sitemap.xml");
+    expect(sitemap.ok()).toBe(true);
+    const sitemapText = await sitemap.text();
+    if (indexable) expect(sitemapText).toContain(`${origin}/${route}</loc>`);
+    else expect(sitemapText).not.toContain("<loc>");
     for (const width of [320, 1440]) {
       await page.setViewportSize({ width, height: 950 });
       expect(

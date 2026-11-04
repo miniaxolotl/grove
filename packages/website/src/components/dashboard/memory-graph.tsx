@@ -889,3 +889,7 @@ function KeepGraphCenter({
   }, [container, getViewport, setViewport]);
   return null;
 }
+
+// Public examples reuse the real canvas with local fixtures, without mounting
+// the account-connected graph container or its query hooks.
+export { Canvas as MemoryGraphCanvas, layout as layoutMemoryGraph };
