@@ -1,6 +1,13 @@
 // Explicitly published reference documents, never an index of the whole repository.
 export const documentation = [
   {
+    slug: "notebook",
+    source: "workspace.md",
+    title: "Your Grove notebook",
+    description:
+      "Save your first note, verify it, ask a source-linked question and learn the browser's writing, sharing and recovery controls.",
+  },
+  {
     slug: "client",
     source: "client.md",
     title: "Agent installation",

@@ -4,14 +4,9 @@ import { faqs } from "@/content/site";
 
 export function FAQ() {
   return (
-    <section
-      id="faq"
-      className="border-t border-line bg-sage/30"
-      aria-labelledby="faq-heading"
-    >
+    <section id="faq" aria-labelledby="faq-heading">
       <div className="page-container section-space grid gap-10 md:grid-cols-[0.8fr_1.2fr] md:gap-20">
         <div>
-          <p className="eyebrow">QUESTIONS</p>
           <h2 id="faq-heading" className="section-heading mt-4">
             Common questions.
           </h2>
@@ -22,7 +17,7 @@ export function FAQ() {
             Ask us a question <ArrowUpRight size={14} />
           </Link>
         </div>
-        <div className="border-t border-line">
+        <div>
           {faqs.map(({ question, answer }) => (
             <details
               key={question}

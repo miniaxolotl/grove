@@ -1,53 +1,43 @@
 export const positioning = {
-  title: "Grove | Good ideas. Room to grow.",
+  title: "Grove | Private notes. Lasting context.",
   description:
-    "Keep notes, plans and a journal in one private notebook. Search by meaning, find related ideas and connect your coding agents.",
+    "A private notebook for your ideas, plans and journal. Search by meaning, ask source-linked questions and carry context into your AI tools. Start free.",
   shareText: "Keep your notes in one place. Find them again with Grove.",
   imageAlt:
     "Grove. Your notes, in one place. Write, organize and find them again.",
 } as const;
 
 export const navigation = [
-  { label: "Why Grove", href: "/#features" },
-  { label: "How it works", href: "/#how-it-works" },
-  { label: "For developers", href: "/#for-developers" },
+  { label: "Features", href: "/#features" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "Integrations", href: "/#for-developers" },
   { label: "Docs", href: "/docs" },
 ];
 
 export const faqs = [
   {
-    question: "What is Grove?",
+    question: "Will Ask change my notes without asking?",
     answer:
-      "A private notebook for notes, plans and journal entries. Organize pages into notebooks, search by meaning and explore related ideas.",
-  },
-  {
-    question: "Do I need to connect an AI tool?",
-    answer:
-      "No. Use the notebook and Ask Grove in your browser. Connecting OpenCode, Claude Code or Codex is optional.",
-  },
-  {
-    question: "Where do Ask Grove's answers come from?",
-    answer:
-      "Your selected notes, plus web sources when you enable research tools. Answers link to their sources. Proposed note and notebook changes are saved only when you apply them.",
+      "Proposed note edits and notebook changes are previews. Review the changes and choose the explicit save or apply action before Grove writes them. Asking a question does not authorize a change.",
   },
   {
     question: "Is my notebook private?",
     answer:
-      "Your notes belong to your account. You choose which connected AI tools can access them and can turn that access off at any time. Grove uses service providers to store notes and provide search and answers. Our Privacy Policy explains how your information is handled.",
+      "Your notes belong to your account. Grove uses service providers to store notes and provide search and answers; private does not mean end-to-end encrypted. The Privacy Policy explains how your information is handled.",
   },
   {
-    question: "Can I edit or delete a note?",
+    question: "Can I undo a deletion?",
     answer:
-      "Yes. Edit a note, restore an earlier version, archive it or delete it.",
+      "Deletion hides the note and its history and has no ordinary Undo or restore. Use Archive when you want to put a note away but may need it again.",
   },
   {
-    question: "What do I need to get started?",
+    question: "What if an answer misses something?",
     answer:
-      "Create an account and open Grove in your browser. No install needed.",
+      "Open the citations and check the evidence. You can choose exact notes in Sources and ask a narrower question. A cited answer is not a guarantee that the whole notebook was read or that every statement is correct.",
   },
   {
-    question: "Can I take my notes with me?",
+    question: "Can I run Grove on my own server?",
     answer:
-      "Yes. You can export your notes, archived notes, and earlier versions from Settings. Grove is also open source, with a separate self-hosting guide for people who prefer to run it themselves.",
+      "Yes. Grove is open source. The self-hosting guide covers the separate infrastructure and provider configuration; creating a Cloud account does not set up a self-hosted server.",
   },
 ];

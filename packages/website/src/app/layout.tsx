@@ -10,6 +10,9 @@ import "./brand-family.css";
 import "./marketing-ui.css";
 import "./site-chrome.css";
 import "./cookie-consent.css";
+import "./product-design.css";
+import "./family-finish.css";
+import "./composition.css";
 
 const space = localFont({
   src: [
@@ -74,8 +77,8 @@ export const metadata: Metadata = {
     "Grove",
   ],
   robots: {
-    index: true,
-    follow: true,
+    index: site.indexable,
+    follow: site.indexable,
     googleBot: { "max-image-preview": "large", "max-snippet": -1 },
   },
 };
@@ -90,6 +93,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="alternate"
+          type="text/plain"
+          href="/llms.txt"
+          title="Public product guide"
+        />
+      </head>
       <body id="top" className={`${space.variable} ${mono.variable}`}>
         <WebsiteTelemetry />
         <WebsiteCookieConsent />

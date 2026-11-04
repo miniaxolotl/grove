@@ -15,26 +15,25 @@ export default async function InstallPage() {
   await connection();
 
   return (
-    <main id="main" className="page-container pb-20 pt-9 md:pb-28 md:pt-12">
+    <main id="main" className="page-container setup-page">
       <Link
         href="/"
         className="inline-flex min-h-11 items-center gap-2 text-xs text-leaf hover:underline"
       >
         <ArrowLeft size={14} /> Back to Grove
       </Link>
-      <div className="mt-9 max-w-2xl">
-        <p className="eyebrow">CONNECT TO GROVE CLOUD</p>
-        <h1 className="section-heading mt-4 text-[56px]! sm:text-[72px]!">
+      <div className="setup-intro">
+        <h1 className="setup-heading">
           Connect your
           <br />
-          <em>AI tools.</em>
+          AI tools.
         </h1>
-        <p className="mt-6 max-w-lg text-sm leading-7 text-muted">
-          Choose your web chat or coding agent, sign in, and approve the notes
-          it can use. Your context stays together across tools.
+        <p>
+          Choose a client, approve its access and verify a first saved note. You
+          can keep using the browser notebook without connecting a tool.
         </p>
       </div>
-      <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-y border-line py-5 text-xs text-leaf">
+      <div className="setup-prerequisites">
         <span className="flex items-center gap-2">
           <Terminal size={14} /> Node.js 22+ for terminal clients only
         </span>
@@ -43,14 +42,11 @@ export default async function InstallPage() {
         </span>
       </div>
       <Installation />
-      <section
-        className="mt-6 rounded-xl border border-line bg-sage/50 p-6 sm:p-8"
-        aria-labelledby="next-heading"
-      >
+      <section className="setup-reference" aria-labelledby="next-heading">
         <h2 id="next-heading" className="text-xl font-medium tracking-tight">
           Documentation and self-hosting
         </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
+        <p className="mt-3 max-w-2xl text-sm leading-7">
           Explore the memory and notebook tools, manage connections in your
           dashboard, or set up Grove on your own server.
         </p>

@@ -14,17 +14,17 @@ export const metadata = pageMetadata(
 export default function DocsPage() {
   return (
     <DocumentationPage title="Grove documentation" description={description}>
-      <h2>Start with your notebook</h2>
+      <h2>Choose your starting point</h2>
       <p>
-        Use Grove in your browser without an agent integration. Keep notes in
-        notebooks, search by meaning and ask questions with sources. Connecting
-        an AI tool is optional; you review what each connection can access.
+        Start with the notebook guide for browser use. For a coding agent or web
+        chat, use the guided connection setup; it is separate from creating your
+        Grove account.
       </p>
       <p>
         <Link href="/install">Connect your AI tools</Link> for guided setup, or{" "}
         <Link href="/self-host">run your own installation</Link>.
       </p>
-      <h2>Reference guides</h2>
+      <h2>Guides and reference</h2>
       <dl>
         {documentation.map((item) => (
           <div key={item.slug} className="mb-6">

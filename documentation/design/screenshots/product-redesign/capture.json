@@ -1,0 +1,296 @@
+{
+  "capturedAt": "2026-11-04T17:51:20.822706+00:00",
+  "sourceBranch": "feature/website-product-refresh",
+  "sourceBase": "1ce19fca549200878fb2bafff2e9c03da02e2483",
+  "source": "Working-tree source included in the feature PR; source tree fingerprint excludes documentation/captures",
+  "sourceSha256": "d54891e2b03ec81946adda1462132fc66eb83a183f08b2ad7bbac45f0871f6e4",
+  "project": "grove",
+  "buildId": "-xCOPsZMZCd4_qkycnYm2",
+  "browser": "156.0.8078.4",
+  "viewports": [
+    [1440, 900],
+    [768, 900],
+    [390, 900],
+    [320, 900]
+  ],
+  "reducedMotion": true,
+  "consent": "Optional cookies declined using the visible No thanks control",
+  "content": "Labelled local samples and licensed marketing-kit derivatives, no private account data",
+  "croppedRegions": "Footer and graph images are pixel crops of the matching full-page screenshots",
+  "routeChecks": [
+    {
+      "path": "/pricing",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "heading": "Free and Pro",
+      "brokenFragments": []
+    },
+    {
+      "path": "/install",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "heading": "Connect yourAI tools.",
+      "brokenFragments": []
+    },
+    {
+      "path": "/docs/notebook",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "heading": "Your Grove notebook",
+      "brokenFragments": []
+    },
+    {
+      "path": "/pricing",
+      "width": 390,
+      "scrollWidth": 390,
+      "heading": "Free and Pro",
+      "brokenFragments": []
+    },
+    {
+      "path": "/install",
+      "width": 390,
+      "scrollWidth": 390,
+      "heading": "Connect yourAI tools.",
+      "brokenFragments": []
+    },
+    {
+      "path": "/docs/notebook",
+      "width": 390,
+      "scrollWidth": 390,
+      "heading": "Your Grove notebook",
+      "brokenFragments": []
+    },
+    {
+      "width": 1440,
+      "publicLinks": [
+        "/",
+        "/#features",
+        "/#for-developers",
+        "/contact",
+        "/docs",
+        "/docs/notebook",
+        "/install",
+        "/pricing",
+        "/privacy",
+        "/self-host",
+        "/support",
+        "/terms"
+      ]
+    },
+    {
+      "width": 768,
+      "publicLinks": [
+        "/",
+        "/#features",
+        "/#for-developers",
+        "/contact",
+        "/docs",
+        "/docs/notebook",
+        "/install",
+        "/pricing",
+        "/privacy",
+        "/self-host",
+        "/support",
+        "/terms"
+      ]
+    },
+    {
+      "width": 390,
+      "publicLinks": [
+        "/",
+        "/#features",
+        "/#for-developers",
+        "/contact",
+        "/docs",
+        "/docs/notebook",
+        "/install",
+        "/pricing",
+        "/privacy",
+        "/self-host",
+        "/support",
+        "/terms"
+      ]
+    },
+    {
+      "width": 320,
+      "publicLinks": [
+        "/",
+        "/#features",
+        "/#for-developers",
+        "/contact",
+        "/docs",
+        "/docs/notebook",
+        "/install",
+        "/pricing",
+        "/privacy",
+        "/self-host",
+        "/support",
+        "/terms"
+      ]
+    }
+  ],
+  "selectedRegions": [
+    {
+      "file": "walkthrough-1440.png",
+      "region": ".note-path"
+    },
+    {
+      "file": "newsletter-1440.png",
+      "region": ".notebook-preview"
+    },
+    {
+      "file": "ask-1440.png",
+      "region": ".demo-shell"
+    },
+    {
+      "file": "walkthrough-390.png",
+      "region": ".note-path"
+    },
+    {
+      "file": "newsletter-390.png",
+      "region": ".notebook-preview"
+    },
+    {
+      "file": "ask-390.png",
+      "region": ".demo-shell"
+    }
+  ],
+  "files": [
+    {
+      "file": "ask-1440.png",
+      "sha256": "0cc0b6754410afc87e107e9f848ace13e12e18e5067d2d65c16435f40123c3df"
+    },
+    {
+      "file": "ask-390.png",
+      "sha256": "f00573e4cdffb1caaf2a056019771e9f783d4a334abebcbba5e84009a74c6264"
+    },
+    {
+      "file": "docs-notebook-1440.png",
+      "sha256": "120f6a9928c4f208535e224c30707811e3723a527da8a2255a8d2f229c6dd47e"
+    },
+    {
+      "file": "docs-notebook-390.png",
+      "sha256": "8447b559e91a0d3caae19feed39571cea230b1d0cde61ff5f18d7630dc040d03"
+    },
+    {
+      "file": "docs-notebook-page-1440.png",
+      "sha256": "3408e4f9d71444c14016f645b2f6d032a4781fbc5b8e77f54277cf6d8e5f00af"
+    },
+    {
+      "file": "docs-notebook-page-390.png",
+      "sha256": "424ebdb593ab97b6f0df6227f6d120f14cde604d087b75abdaca512199ad5cc9"
+    },
+    {
+      "file": "graph-1440.png",
+      "sha256": "c17bcaa920f912e885c2d743313e1383e57ac9cf9979df330c80a691b60b5397"
+    },
+    {
+      "file": "graph-390.png",
+      "sha256": "24d786e38c5bbb9200f43dc7396674acf8fe836e069992de93e9591f6a84866e"
+    },
+    {
+      "file": "home-1440.png",
+      "sha256": "1a5fc438359867468e8431a32c9841db59f9402a4512c18dc9b6cb739884ba5c"
+    },
+    {
+      "file": "home-320.png",
+      "sha256": "6b6cb4d69e901d11cc092669703eabe5d270101d7eb00b36a5949edb9830aafc"
+    },
+    {
+      "file": "home-390.png",
+      "sha256": "a74569881f65cee6a65bd8c780de93d28ea9b6c847f7d16858102fbe06c0251b"
+    },
+    {
+      "file": "home-768.png",
+      "sha256": "5399c5662276bb00602bf1718964dd88949c11542ae7a585a6345d5337aabbfa"
+    },
+    {
+      "file": "home-focus-1440.png",
+      "sha256": "1199e5a024cb74ea0caf880ccac655f91a160d36fd1741ae9186e20c8ef11bd8"
+    },
+    {
+      "file": "home-footer-1440.png",
+      "sha256": "0009f59efcf12e13cb5166824253c9fc1c8217286c1b9d572e9210d362b5aa2c"
+    },
+    {
+      "file": "home-footer-320.png",
+      "sha256": "7bf7e192c313fb76a5fa987140330a78e84099201033ac7db6ea435cedcb3065"
+    },
+    {
+      "file": "home-footer-390.png",
+      "sha256": "2c2d53b182121ac55529258969f1952e792f659ce73065d38fb88f8531351368"
+    },
+    {
+      "file": "home-footer-768.png",
+      "sha256": "8bbf48b3c9667776642097361fe3c0926ada9da1e61ed194483b2cb1223bea4e"
+    },
+    {
+      "file": "home-page-1440.png",
+      "sha256": "8ecdef15f6aa44132a2ef0cdb5cfa5c77a7e702349ac4db54e920bf2f4209aa2"
+    },
+    {
+      "file": "home-page-320.png",
+      "sha256": "09d3a5a13b55f8f1cbdd0d858700146b1ef9507022ac2d737349540ab230ff62"
+    },
+    {
+      "file": "home-page-390.png",
+      "sha256": "cdde63d1283f3ec22c05b3fe54d617496a274b59c9787c5289aff3944f4242f3"
+    },
+    {
+      "file": "home-page-768.png",
+      "sha256": "2f1fcc12b60d3ade250fa4ad22d7dee240123d319e7a844aa5174d57773241c5"
+    },
+    {
+      "file": "home-zoom-200.png",
+      "sha256": "31878d7b31d90a3e58607e63af475001556b9c477c7b821478cde3f3c45717c1"
+    },
+    {
+      "file": "install-1440.png",
+      "sha256": "82feb9fd8595870bfd9bd4078b3270c33b2fbaed8e8b63cb1c30562dd30c3131"
+    },
+    {
+      "file": "install-390.png",
+      "sha256": "f55009c90c978c1a196e688692e66d937eaf20e603ea8b06b7b2c34b7dc1122b"
+    },
+    {
+      "file": "install-page-1440.png",
+      "sha256": "783016fadc2509b6b589fc97e3f3a84327bbc3eb07518d2e8e1506564adce864"
+    },
+    {
+      "file": "install-page-390.png",
+      "sha256": "41c0c29884edb1e2c243d7035c5d6d125a4a5c7aab92c7d845ba726f1e37c2b1"
+    },
+    {
+      "file": "newsletter-1440.png",
+      "sha256": "8c86281eaf55460034bce1ef09533aee269d40e09b55d40b31cb3157e71b2621"
+    },
+    {
+      "file": "newsletter-390.png",
+      "sha256": "1bfa70a25fa2204857952cc1605ca746b36954aee1f35e965eb991bba9421472"
+    },
+    {
+      "file": "pricing-1440.png",
+      "sha256": "3d5b090d565da8c81244b891cf7f05a47d1a67f56cbd090717121c09f69827a7"
+    },
+    {
+      "file": "pricing-390.png",
+      "sha256": "72d8a82c4ccdedaf2fb2734ae7bc68665b3b9d12c9d540f740ba376d2681c951"
+    },
+    {
+      "file": "pricing-page-1440.png",
+      "sha256": "470096dd025af331b213fad208c271fcca139c32c9b7230e1968231fb0318e8d"
+    },
+    {
+      "file": "pricing-page-390.png",
+      "sha256": "483d642041c02f4657152feb680ba718087e34ef23777ead71446b2b95b4a39d"
+    },
+    {
+      "file": "walkthrough-1440.png",
+      "sha256": "907651f84421a63f8077f40dbd13519ae7949ea94fd22cf60a1f786d3628e526"
+    },
+    {
+      "file": "walkthrough-390.png",
+      "sha256": "09d9c1a45b70a97d95b653f2fd5413b8cb4db62c3029230508b0660b64de7563"
+    }
+  ]
+}

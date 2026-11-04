@@ -11,13 +11,13 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   const page = await context.newPage();
   await page.goto(baseURL!);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Good ideas.Room to grow.",
+    "A home foryour notes.",
   );
   await expect(
     page.getByRole("link", { name: "Start your notebook" }).first(),
   ).toHaveAttribute("href", "/sign-up");
   await expect(
-    page.getByRole("heading", { name: "Saturday", exact: true }),
+    page.getByRole("heading", { name: "A slower Sunday", exact: true }),
   ).toBeVisible();
   await page.getByText("Is my notebook private?", { exact: true }).click();
   await expect(
@@ -31,10 +31,58 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await expect(
     page.getByLabel("OpenCode connection command", { exact: true }),
   ).toContainText("grove connect opencode");
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Pricing", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/pricing$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Free and Pro",
+  );
+  await expect(
+    page.getByRole("article", { name: "Free", exact: true }),
+  ).toContainText("$0");
+  await expect(
+    page.getByRole("article", { name: "Pro", exact: true }),
+  ).toContainText("$5");
+  await expect(page.getByRole("table")).toContainText("150,000 / month");
+  await expect(page.getByRole("table")).toContainText("8 hours / month");
+  await expect(
+    page.getByRole("article", { name: "Pro", exact: true }).getByRole("link"),
+  ).toHaveAttribute("href", "/sign-up");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    `${siteURL}/pricing`,
+  );
   await page.goto(baseURL!);
   await page.getByRole("link", { name: "Start your notebook" }).first().click();
   await expect(page).toHaveURL(/\/sign-up$/);
   await context.close();
+});
+
+test("hero notebook switches between complete sample notes and their cited answers", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const notebook = page.getByRole("figure", {
+    name: "Example notebook with saved notes and source-linked answers",
+  });
+  await notebook
+    .getByRole("button", { name: "A small newsletter", exact: true })
+    .click();
+  await expect(
+    notebook.getByRole("heading", { name: "The first issue", exact: true }),
+  ).toBeVisible();
+  await expect(notebook).toContainText("Monthly, not weekly");
+  const source = notebook.getByRole("link", {
+    name: "View source: The first issue",
+  });
+  await source.click();
+  await expect(page).toHaveURL(/#hero-note-newsletter$/);
+  await notebook
+    .getByRole("button", { name: "The long weekend", exact: true })
+    .click();
+  await expect(notebook).toContainText("10:30");
 });
 
 test("Ask Grove examples, comparison and source notes work with keyboard navigation", async ({
@@ -63,7 +111,7 @@ test("Ask Grove examples, comparison and source notes work with keyboard navigat
     page.getByRole("tabpanel", { name: "Everyday preferences" }),
   ).toContainText("Something vegetarian, made in one pan");
   await page
-    .getByRole("link", { name: "View note: Weeknight dinners" })
+    .getByRole("link", { name: "View note: 1. Weeknight dinners" })
     .focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#example-note-preferences$/);
@@ -138,10 +186,9 @@ test("Cloud setup selects the right agent and keeps self-hosting on its own page
 test("the public library preview supports keyboard exploration without account mutations", async ({
   page,
 }) => {
-  const writes: string[] = [];
+  const requests: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/api/grove/") && request.method() !== "GET")
-      writes.push(request.url());
+    if (request.url().includes("/api/grove/")) requests.push(request.url());
   });
   await page.goto("/");
   await page.getByRole("tab", { name: "Notes", exact: true }).focus();
@@ -153,14 +200,36 @@ test("the public library preview supports keyboard exploration without account m
     page.getByRole("tabpanel", { name: "By date", exact: true }),
   ).toContainText("A small win");
   await page.keyboard.press("End");
+  const graph = page.getByRole("region", { name: "Sample linked notes graph" });
+  await expect(graph).toContainText("8 sample notes · 8 connections");
+  await expect(graph.locator(".react-flow__node")).toHaveCount(8);
+  const garden = graph.locator(
+    '.react-flow__node[data-id="00000000-0000-4000-a000-000000000001"]',
+  );
+  await garden.focus();
+  await page.keyboard.press("Space");
+  await expect(graph.locator(".sample-note-page:not([inert])")).toContainText(
+    "A tiny balcony garden",
+  );
+  await graph
+    .getByRole("button", { name: "Fresh herbs for dinner", exact: true })
+    .click();
+  await expect(graph.locator(".sample-note-page:not([inert])")).toContainText(
+    "Use the first mint leaves",
+  );
   await expect(
-    page.getByRole("tabpanel", { name: "Graph", exact: true }).getByRole("img"),
-  ).toHaveAccessibleName(/connections between a balcony garden/);
+    graph.getByRole("button", { name: "Show note titles" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await graph.getByRole("button", { name: "Show note titles" }).click();
+  await expect(
+    graph.getByRole("button", { name: "Show note titles" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("tab", { name: "Graph", exact: true }).focus();
   await page.keyboard.press("Home");
   await expect(
     page.getByRole("tabpanel", { name: "Notes", exact: true }),
   ).toContainText("A tiny balcony garden");
-  expect(writes).toEqual([]);
+  expect(requests).toEqual([]);
 });
 
 test("sharing copies the canonical URL and offers a fallback when clipboard is unavailable", async ({
@@ -247,7 +316,7 @@ test("social metadata, crawler routes, and generated images are usable", async (
   );
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
-    "Grove | Good ideas. Room to grow.",
+    "Grove | Private notes. Lasting context.",
   );
   const schema = JSON.parse(
     (await page.locator('script[type="application/ld+json"]').textContent())!,
@@ -320,7 +389,7 @@ test("mobile navigation and layouts work at narrow and wide widths", async ({
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page
     .getByRole("navigation", { name: "Mobile navigation" })
-    .getByRole("link", { name: "Why Grove" })
+    .getByRole("link", { name: "Features", exact: true })
     .click();
   await expect(
     page.getByRole("navigation", { name: "Mobile navigation" }),

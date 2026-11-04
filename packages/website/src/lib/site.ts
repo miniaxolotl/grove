@@ -17,6 +17,11 @@ export const site = {
   creator: "Bramble Labs Inc.",
   ...positioning,
   url: origin.origin,
+  indexable:
+    process.env.SITE_NOINDEX !== "true" &&
+    process.env.VERCEL_ENV !== "preview" &&
+    process.env.VERCEL_ENV !== "development" &&
+    !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname),
   github: "https://github.com/miniaxolotl/grove",
   npm: "https://www.npmjs.com/package/@miniaxolotl/grove",
   docs: "https://github.com/miniaxolotl/grove/blob/HEAD/documentation/server.md",
