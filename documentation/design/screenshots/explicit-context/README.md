@@ -1,5 +1,27 @@
 # Explicit context selection — reviewed captures
 
+## Selected-source action recovery — 4 November 2026
+
+API/application source **`6a1acaa`**, with unchanged website source and production
+CSS build **`PZ-YR2JVYHrJmPV5U3shn`** (Node 24.21.0 / pnpm 10.33.0). The isolated
+dashboard uses the actual API, MemoryService and non-owner PostgreSQL role. The
+labelled deterministic generation adapter returns a batch intent for notebook
+organization and an edit intent for content changes; it fails if unsupported
+actions dispatch answer inference. No production account or paid model is used.
+
+| Unsupported notebook action, 1440×1000                                                                        | Reviewed content edit, 390×844                                                             |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![Selected-source notebook request returns guidance instead of a retry error](unsupported-action-desktop.png) | ![Grouped note contents remain an unapplied preview with Apply edit](content-edit-390.png) |
+
+Both states pass main-region WCAG A/AA checks, page-error and horizontal-overflow
+checks. The source remains at version 1; no edit was applied for these captures.
+The notebook request uses planning only, while the supported edit uses planning
+and answering. Backend regressions separately verify Apply/Undo, unchanged replay,
+strict/mixed selected-source modes and all unsupported batch/lifecycle intents.
+These are Chromium synthetic fixtures, not production or physical-device acceptance.
+
+## Earlier source-selection captures
+
 Application source: search-quality integration of **`d8d78df`** with **`dbe27d0`**,
 retaining subscription visibility, note-writing guidance and explicit context.
 Production website build: **`J4mEDYRWCDRlQZxNEuBUm`**, Node 24.21.0 / pnpm 10.33.0.
