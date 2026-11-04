@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createDatabase, tenant, type Knex } from "@lib/database";
+import {
+  createDatabase,
+  probeDatabase,
+  tenant,
+  type Knex,
+} from "@lib/database";
 import { migrations } from "../../lib/database/src/migrations.ts";
 
 test("AI cache upgrade preserves authored data and provider counts and gives old split actions full usage units", async () => {
@@ -55,7 +60,18 @@ test("AI cache upgrade preserves authored data and provider counts and gives old
     const notes = await admin("memories");
     const providers = await admin("inference_usage");
     const actions = await admin("action_usage");
+    await assert.rejects(
+      db.transaction(async (trx) => {
+        await trx.raw("SET TRANSACTION READ ONLY");
+        await probeDatabase(trx);
+      }),
+      /column "units" does not exist/,
+    );
     await admin.migrate.latest();
+    await db.transaction(async (trx) => {
+      await trx.raw("SET TRANSACTION READ ONLY");
+      await probeDatabase(trx);
+    });
     assert.deepEqual(await admin("memories"), notes);
     assert.deepEqual(await admin("inference_usage"), providers);
     assert.deepEqual(
