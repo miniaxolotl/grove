@@ -1,7 +1,7 @@
 {
-  "capturedAt": "2026-11-04T17:51:20.822706+00:00",
+  "capturedAt": "2026-11-04T18:04:25.917827+00:00",
   "sourceBranch": "feature/website-product-refresh",
-  "sourceBase": "1ce19fca549200878fb2bafff2e9c03da02e2483",
+  "sourceBase": "f3db4ef5c8cf3352e1ff88aae78aab1e6edafd4d",
   "source": "Working-tree source included in the feature PR; source tree fingerprint excludes documentation/captures",
   "sourceSha256": "d54891e2b03ec81946adda1462132fc66eb83a183f08b2ad7bbac45f0871f6e4",
   "project": "grove",
