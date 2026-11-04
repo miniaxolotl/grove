@@ -53,6 +53,21 @@ Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build
 
 The workflow files contain authoritative SHA pins and job details.
 
+## Dependency security resolution
+
+Scoped pnpm overrides select `minimatch` 11.0.4 for affected 7–11.0.0 consumers,
+`glob` 14.0.3 for affected 9–14.0.1 consumers, and `brace-expansion` 5.0.12 for
+affected 4.x/5.x consumers. Safe legacy majors keep their existing API. Parent
+ranges currently prevent Dependabot from resolving these fixes on its own.
+Builds use esbuild 0.28.2; TypeScript runners use tsx 4.23.15 and esbuild 0.28.x.
+
+The existing CI contract lane runs `scripts/ci/dependency-security.test.mjs` over
+all locked copies. This gate covers the named advisory ranges, not a clean bill
+of health for every dependency: continue running `pnpm audit` and reviewing its
+separate findings. Remove overrides only after upstream ranges resolve safely
+and frozen installation, builds, packed artifacts and agent-host tests pass.
+Roll back matching manifests/lockfile together and record renewed exposure.
+
 ## Hardening status
 
 The [historical Grove review](archive/README.md) and

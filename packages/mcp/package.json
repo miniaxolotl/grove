@@ -60,7 +60,7 @@
     "@lib/telemetry": "workspace:*",
     "@lib/integration-core": "workspace:*",
     "@lib/typescript-config": "workspace:*",
-    "tsx": "~4.21.0",
+    "tsx": "~4.23.15",
     "typescript": "~6.0.2"
   }
 }
