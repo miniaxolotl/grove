@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.11](https://github.com/miniaxolotl/grove/compare/v1.11.10...v1.11.11) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ask:** clarify unsupported selected-source actions ([4d8a022](https://github.com/miniaxolotl/grove/commit/4d8a02284cb9bed47501b690eb7a09adfa0a79f2))
+* **ask:** clarify unsupported selected-source actions ([6a1acaa](https://github.com/miniaxolotl/grove/commit/6a1acaae62542ccbaf37159a2a38e97102293367))
+
 ## [1.11.10](https://github.com/miniaxolotl/grove/compare/v1.11.9...v1.11.10) (2026-11-03)
 
 
