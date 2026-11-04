@@ -1,6 +1,6 @@
 {
   "name": "@miniaxolotl/grove",
-  "version": "1.11.11",
+  "version": "1.11.12",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
