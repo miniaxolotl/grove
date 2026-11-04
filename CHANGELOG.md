@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.13](https://github.com/miniaxolotl/grove/compare/v1.11.12...v1.11.13) (2026-11-04)
+
+
+### Bug Fixes
+
+* **delivery:** guard schema readiness and resolve security updates ([#169](https://github.com/miniaxolotl/grove/issues/169)) ([44e25e6](https://github.com/miniaxolotl/grove/commit/44e25e6046aed0ebb69d8e75f1e4f75dac7ce3f9))
+
 ## [1.11.12](https://github.com/miniaxolotl/grove/compare/v1.11.11...v1.11.12) (2026-11-04)
 
 
