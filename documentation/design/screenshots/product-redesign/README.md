@@ -64,8 +64,9 @@ All notebook and answer content is labelled synthetic demonstration data. The jo
 photograph is a local marketing-kit derivative with retained source/licence hashes in
 the [asset manifest](../../../../packages/website/public/images/kit/manifest.json).
 No customer proof or live account content is used. Pricing reads
-the existing shared allowances and price flag. These captures show the default
-introductory $5 USD/month with purchases disabled; no checkout is created. Effective
+the existing shared allowances and price flag. These retained pricing captures
+show the former $5 USD/month; [current $19.99 pricing evidence](../pro-price/README.md)
+supersedes them. Purchases are disabled; no checkout is created. Effective
 account grants and checkout remain authoritative.
 
 Optional cookies were declined using the real notice before unobstructed capture;

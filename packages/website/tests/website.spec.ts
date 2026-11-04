@@ -45,7 +45,7 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   ).toContainText("$0");
   await expect(
     page.getByRole("article", { name: "Pro", exact: true }),
-  ).toContainText("$5");
+  ).toContainText("$19.99");
   await expect(page.getByRole("table")).toContainText("150,000 / month");
   await expect(page.getByRole("table")).toContainText("8 hours / month");
   await expect(
