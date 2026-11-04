@@ -42,6 +42,6 @@ comparison. Runtime plans use tenant-filtered scans; an owner GIN plan cannot be
 substituted as proof of runtime behavior behind RLS. No extra content-trigram
 index, policy weakening, elevated helper or global threshold setting was used.
 
-Reproduce with the disposable role URLs from [testing](testing.md#search-quality)
+Reproduce with the disposable role URLs from [testing](testing.md#disposable-postgresql)
 and an existing `SEARCH_EVIDENCE_DIR`. Private raw runs, initial failures and
 actual plans are retained in the task's external plan/evidence directory.

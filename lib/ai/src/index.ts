@@ -136,6 +136,8 @@ export class InferenceError extends Error {
   constructor(
     readonly code: string,
     readonly retryable = true,
+    readonly stage?: "response_json" | "response_schema",
+    readonly field?: string,
   ) {
     super(code);
   }
@@ -486,11 +488,27 @@ export function createGenerationProvider(
               : undefined
             : choice.message.content;
         if (!text) throw new InferenceError("generation_invalid_response");
+        let value: unknown;
         try {
-          return schema.parse(JSON.parse(text));
+          value = JSON.parse(text);
         } catch {
-          throw new InferenceError("generation_invalid_response");
+          throw new InferenceError(
+            "generation_invalid_response",
+            true,
+            "response_json",
+          );
         }
+        const result = schema.safeParse(value);
+        if (!result.success) {
+          const field = result.error.issues[0]?.path[0];
+          throw new InferenceError(
+            "generation_invalid_response",
+            true,
+            "response_schema",
+            typeof field === "string" ? field : undefined,
+          );
+        }
+        return result.data;
       });
     },
   };

@@ -42,6 +42,6 @@ timeouts; bounded file concurrency passes without changing assertions or runtime
 timeouts. Integration of speech #119 required applying its forward migration to
 the disposable base fixture before rerunning; no retained database was reset.
 
-See [test commands](../../../development/testing.md#remembered-ask-grove-tools-and-history)
+See [test commands](../../../ask-tools.md#verification)
 and the [current tool contract](../../../ask-tools.md). This feature adds no new
 migration; deploy its API before the matching website.

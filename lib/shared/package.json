@@ -17,6 +17,7 @@
     "./memory-tools": "./src/memory-tools.ts",
     "./note-writing": "./src/note-writing.ts",
     "./notebook-lifecycle": "./src/notebook-lifecycle.ts",
+    "./notebook-organization": "./src/notebook-organization.ts",
     "./models": "./src/models.ts",
     "./media": "./src/media.ts",
     "./speech": "./src/speech.ts",

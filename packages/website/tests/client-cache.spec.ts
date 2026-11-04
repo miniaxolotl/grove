@@ -1,3 +1,4 @@
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
 
@@ -31,10 +32,7 @@ async function fixture(page: Page) {
     writes: [] as Record<string, unknown>[],
   };
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname.replace(
-      "/api/grove",
-      "",
-    );
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
     const input = route.request().postDataJSON();
     if (path === "/memories") {
       state.writes.push(input);
@@ -56,7 +54,12 @@ async function fixture(page: Page) {
                   accountId: "fixture",
                 }
               : [];
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   return state;
 }
@@ -424,7 +427,7 @@ test("notebook and note reads start independently and hidden mobile previews sta
 }) => {
   const state = await fixture(page);
   const release = Promise.withResolvers<void>();
-  await page.route("**/api/grove/projects", async (route) => {
+  await page.route("**/api/grove/projects/catalog?**", async (route) => {
     await release.promise;
     await route.fallback();
   });

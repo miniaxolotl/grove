@@ -12,8 +12,8 @@ The collapsed panel stays below365px high in the five-plan/three-width checks.
 Account details remain reachable while Billing
 is hidden. Existing account typography, palette and notebook navigation are retained.
 
-| Compact badge at rest | Usage on hover, desktop | Usage on phone | Unlimited at 320px |
-| --- | --- | --- | --- |
+| Compact badge at rest          | Usage on hover, desktop                          | Usage on phone                                           | Unlimited at 320px                                                   |
+| ------------------------------ | ------------------------------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------- |
 | ![Paid Pro](pro-paid-1440.png) | ![Complimentary Pro](pro-complimentary-1440.png) | ![Complimentary Pro on phone](pro-complimentary-390.png) | ![Complimentary Unlimited at 320px](unlimited-complimentary-320.png) |
 
 Reviewed Chromium captures at1440/390/320px. **24 journeys per Chromium and supported
@@ -28,4 +28,4 @@ host lacks ICU/media libraries; verification uses the documented Playwright1.64.
 Noble image with Node24.21.0 instead of changing the workstation.
 
 Production build and final source verification are recorded in
-[delivery evidence](../../../delivery.md#visible-subscription-and-complimentary-access-25-october-2026).
+[historical delivery evidence](https://github.com/miniaxolotl/grove/blob/e91a187355cc5e76d5019d89e1b05d00e637bd11/documentation/delivery.md#visible-subscription-and-complimentary-access-25-october-2026).

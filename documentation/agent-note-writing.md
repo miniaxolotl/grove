@@ -33,6 +33,7 @@ A decision needing rationale can be slightly more structured:
 Use keyword search for the first release. It works without a model provider.
 
 ## Next
+
 - [ ] Compare semantic search after collecting representative queries.
 ```
 
@@ -75,13 +76,13 @@ not an invitation to rewrite history. Exact imports/source excerpts remain exact
 
 ## How the guidance reaches agents
 
-| Surface | Guidance |
-| --- | --- |
-| Remote MCP / hosted ChatGPT and Claude | Initialization instructions, self-contained tool descriptions and argument documentation |
-| Packaged stdio bridge / CLI | The same MCP catalog and initialization instructions |
-| OpenCode | Registered memory skill and shared MCP guidance |
-| Claude Code / Codex | Generated memory skill plus shared MCP guidance; optional existing SessionStart context |
-| Ask Grove / cleanup | The shared prose policy on note-authoring model requests; existing grounding, review/Apply and conflict checks remain |
+| Surface                                | Guidance                                                                                                              |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Remote MCP / hosted ChatGPT and Claude | Initialization instructions, self-contained tool descriptions and argument documentation                              |
+| Packaged stdio bridge / CLI            | The same MCP catalog and initialization instructions                                                                  |
+| OpenCode                               | Registered memory skill and shared MCP guidance                                                                       |
+| Claude Code / Codex                    | Generated memory skill plus shared MCP guidance; optional existing SessionStart context                               |
+| Ask Grove / cleanup                    | The shared prose policy on note-authoring model requests; existing grounding, review/Apply and conflict checks remain |
 
 `lib/shared/src/note-writing.ts` owns the prose policy and content-argument wording.
 `lib/integration-core/src/index.ts` composes the runtime skill with scope, capture,
@@ -107,24 +108,31 @@ Use synthetic content. Check readability and factual fidelity separately from
 rendering, scope and mutation behavior. The cases below are a review corpus, not
 claims of live-model scores or a new paid-model CI job.
 
-| Request/case | Expected result |
-| --- | --- |
-| Save a short preference | One readable sentence; correct requested scope/kind; no forced headings |
-| Record a decision and rationale | Clear choice plus its actual reason; no duplicated summary |
-| Save research findings | Focused prose and only real supplied supporting URLs |
-| Save open actions | Genuine task checkboxes; no invented owners/deadlines |
-| Compare options | Compact table only when useful; preserve qualifications |
-| Save a code example | Correct literal fencing; no extra document wrapper |
-| Request a detailed note | Preserve requested depth; do not impose an arbitrary brevity cap |
-| Import exact text | Preserve the original; no style rewrite of source evidence |
-| Edit one paragraph | Complete resulting body, with unrelated content/metadata retained |
-| Edit a note containing media | Preserve exact existing references and authorization |
-| Ambiguous destination | Clarify; no guessed UUID, cross-project search or new notebook |
-| Organization request | Only requested items; appropriate existing destinations/kinds |
-| Paused/private automatic capture | No automatic save/recall; explicit tools retain existing rules |
-| Request unsupported rich formatting | Use supported Markdown without claiming unavailable rendering |
-| Explain how saving works | Answer; do not create a note merely because tools are available |
-| Multi-topic, unclear scope | Clarify rather than unsolicited splitting, moves or notebook creation |
+| Request/case                        | Expected result                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------- |
+| Save a short preference             | One readable sentence; correct requested scope/kind; no forced headings |
+| Record a decision and rationale     | Clear choice plus its actual reason; no duplicated summary              |
+| Save research findings              | Focused prose and only real supplied supporting URLs                    |
+| Save open actions                   | Genuine task checkboxes; no invented owners/deadlines                   |
+| Compare options                     | Compact table only when useful; preserve qualifications                 |
+| Save a code example                 | Correct literal fencing; no extra document wrapper                      |
+| Request a detailed note             | Preserve requested depth; do not impose an arbitrary brevity cap        |
+| Import exact text                   | Preserve the original; no style rewrite of source evidence              |
+| Edit one paragraph                  | Complete resulting body, with unrelated content/metadata retained       |
+| Edit a note containing media        | Preserve exact existing references and authorization                    |
+| Ambiguous destination               | Clarify; no guessed UUID, cross-project search or new notebook          |
+| Organization request                | Only requested items; appropriate existing destinations/kinds           |
+| Paused/private automatic capture    | No automatic save/recall; explicit tools retain existing rules          |
+| Request unsupported rich formatting | Use supported Markdown without claiming unavailable rendering           |
+| Explain how saving works            | Answer; do not create a note merely because tools are available         |
+| Multi-topic, unclear scope          | Clarify rather than unsolicited splitting, moves or notebook creation   |
 
 Verification commands and evidence limits are in
-[testing](development/testing.md#agent-note-writing-guidance).
+[testing](development/testing.md).
+
+For guidance changes, run `note-guidance.test.ts` and `directory.test.ts`, then
+build and run artifact/native-host checks. Packed skills must match runtime policy
+and retain privacy, scope, retry and full-body-edit descriptions. Conversation and
+assistance request fixtures check policy wiring without paid inference. Verify
+existing Markdown/task/media rendering at desktop/390/320px; deterministic wiring
+does not establish live-model writing quality.

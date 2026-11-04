@@ -933,6 +933,12 @@ test("action-covered semantic retrieval does not hit the smaller background embe
   configure(false);
   assert.equal(
     (await s.recall(p, recallSchema.parse({ query: "unmatched term" }))).mode,
+    "hybrid",
+    "a valid cached embedding does not require another provider admission",
+  );
+  assert.equal(
+    (await s.recall(p, recallSchema.parse({ query: "another unmatched term" })))
+      .mode,
     "lexical",
   );
 });

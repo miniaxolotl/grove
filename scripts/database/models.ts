@@ -19,6 +19,8 @@ export async function modelDataCounts(db: Knex) {
     "notebook_summary_nodes",
     "notebook_summary_work",
     "jobs",
+    "ai_cache",
+    "ai_provider_backoff",
   ])
     counts[table] = Number(
       (await db(table).count("* as count").first())?.count ?? 0,
@@ -31,6 +33,9 @@ export async function resetModelData(db: Knex) {
     // Serialize with writes and worker completion, which lock the account first.
     await trx("accounts").orderBy("id").forUpdate().select("id");
     const before = await modelDataCounts(trx);
+    await trx("processing_control").increment("epoch", 1);
+    await trx("ai_cache").delete();
+    await trx("ai_provider_backoff").delete();
     await trx.raw(
       "INSERT INTO deleted_memories(account_id,id) SELECT account_id,id FROM memories ON CONFLICT DO NOTHING",
     );

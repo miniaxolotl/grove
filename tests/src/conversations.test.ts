@@ -184,6 +184,143 @@ async function fixture() {
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
 
+test("unchanged failed-turn retries reuse the validated plan", async () => {
+  const f = await fixture();
+  await f.save("Garden watering schedule");
+  const chat = await f.create(),
+    input = turn("Find garden notes");
+  f.behavior.fail = true;
+  await assert.rejects(
+    f.service.conversations.turn(f.principal, chat.id, input),
+  );
+  f.behavior.fail = false;
+  await f.service.conversations.turn(f.principal, chat.id, input);
+  assert.equal(
+    f.behavior.schemas.filter((s) => s === conversationPlanSchema).length,
+    1,
+  );
+});
+
+test("recent exact research is reused across questions in the same account", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost guide", urls: [] }];
+  for (const question of ["Find compost guidance", "Research garden compost"]) {
+    const chat = await f.create();
+    await f.service.conversations.turn(f.principal, chat.id, turn(question));
+  }
+  assert.equal(calls, 1);
+});
+
+test("read-only conversation generation reuses exact evidence but not changed notes", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden needs morning water");
+  const ask = async () => {
+    const chat = await f.create();
+    return f.service.conversations.turn(
+      f.principal,
+      chat.id,
+      turn("Find garden notes"),
+    );
+  };
+  await ask();
+  const reused = await ask();
+  assert.equal(
+    reused.turns[0].result?.usage?.status,
+    "cached",
+    "identical question, context and evidence need no paid planning or answering",
+  );
+  assert.equal(
+    f.behavior.schemas.filter((s) => s !== conversationPlanSchema).length,
+    1,
+  );
+  await f.save("Garden needs evening water", {
+    id: note.id,
+    expectedVersion: note.version,
+  });
+  await ask();
+  assert.equal(
+    f.behavior.schemas.filter((s) => s !== conversationPlanSchema).length,
+    2,
+  );
+});
+
+test("explicit source refresh replaces cached research without repeating paid work on ready-turn replay", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.service.research = {
+    exa: {
+      search: async () => {
+        calls++;
+        return [];
+      },
+      extract: async () => [],
+    },
+  };
+  f.behavior.research = [{ provider: "exa", query: "compost guide", urls: [] }];
+  const first = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    first.id,
+    turn("Research garden compost"),
+  );
+  const second = await f.create();
+  const refresh = conversationTurnSchema.parse({
+    ...turn("Research garden compost"),
+    refreshSources: true,
+  });
+  await f.service.conversations.turn(f.principal, second.id, refresh);
+  await f.service.conversations.turn(f.principal, second.id, refresh);
+  assert.equal(calls, 2);
+  const third = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    third.id,
+    turn("Research garden compost"),
+  );
+  assert.equal(
+    calls,
+    2,
+    "ordinary requests use the explicitly refreshed evidence",
+  );
+});
+
+test("changed notes immediately stop supporting a stored read-only answer without deleting conversation history", async () => {
+  const f = await fixture();
+  const note = await f.save("Garden needs morning water");
+  const chat = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    turn("Find garden notes"),
+  );
+  await f.save("Garden needs evening water", {
+    id: note.id,
+    expectedVersion: note.version,
+  });
+  const read = await f.service.conversations.get(f.principal, chat.id);
+  assert.equal(read.turns.length, 1);
+  assert.deepEqual(read.turns[0].result!.statements, []);
+  assert.match(read.turns[0].result!.message, /changed|expired/i);
+  const stored = await admin("conversation_turns")
+    .where({ conversationId: chat.id })
+    .first();
+  assert.equal(
+    stored.result.statements.length,
+    1,
+    "retained history is not physically deleted",
+  );
+});
+
 test("explicit notes replace automatic evidence and survive replay/history", async () => {
   const f = await fixture();
   const selected = await f.save(
@@ -450,6 +587,116 @@ test("strict selected note edits and merges retain reviewed Apply and Undo", asy
   }
 });
 
+test("selected-source batch requests clarify without answer generation or research", async () => {
+  for (const only of [true, false]) {
+    for (const intent of [
+      "organize",
+      "create",
+      "archive",
+      "restore",
+      "delete",
+    ] as const) {
+      const f = await fixture();
+      const selected = await f.save("Garden inventory: basil, mint, tulip");
+      const outside = await f.save("Garden unrelated private source");
+      f.behavior.intent = intent;
+      f.behavior.fail = true;
+      f.behavior.research = [
+        { provider: "exa", query: "garden grouping", urls: [] },
+      ];
+      let researchCalls = 0;
+      f.service.research = {
+        exa: {
+          search: async () => {
+            researchCalls++;
+            return [];
+          },
+          extract: async () => [],
+        },
+      };
+      const chat = await f.create();
+      const input = conversationTurnSchema.parse({
+        ...turn(`${intent} the selected garden notes`),
+        context: { notes: [selected.id], notebooks: [], only },
+      });
+      const result = await f.service.conversations.turn(
+        f.principal,
+        chat.id,
+        input,
+      );
+      const reply = result.turns[0].result!;
+      assert.equal(result.turns[0].status, "ready");
+      assert.match(reply.message, /Selected sources support answers/);
+      assert.equal(reply.proposal, null);
+      assert.equal(reply.organization, undefined);
+      assert.equal(reply.lifecycle, undefined);
+      assert.deepEqual(reply.statements, []);
+      assert.deepEqual(reply.webStatements, []);
+      assert.deepEqual(result.turns[0].toolRuns, []);
+      assert.equal(researchCalls, 0);
+      assert.equal(f.behavior.calls.length, 1, "only planning needs inference");
+      assert.deepEqual(
+        reply.sources.map((s) => s.id),
+        [selected.id],
+      );
+      assert.equal((await f.service.get(f.principal, selected.id)).version, 1);
+      assert.equal((await f.service.get(f.principal, outside.id)).version, 1);
+      assert.equal(
+        (await f.service.conversations.turn(f.principal, chat.id, input))
+          .turns[0].status,
+        "ready",
+        "replaying the clarification does not dispatch inference",
+      );
+      assert.equal(f.behavior.calls.length, 1);
+    }
+  }
+});
+
+test("selected-source clarification allows a later explicit reviewed content edit", async () => {
+  const f = await fixture();
+  const source = await f.save("Garden plants: mint, tulip, basil");
+  f.behavior.intent = "organize";
+  f.behavior.fail = true;
+  const chat = await f.create();
+  const context = { notes: [source.id], notebooks: [], only: true };
+  await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    conversationTurnSchema.parse({
+      ...turn("Group the selected notes into notebooks"),
+      context,
+    }),
+  );
+  f.behavior.intent = "edit";
+  f.behavior.fail = false;
+  const edited = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    conversationTurnSchema.parse({
+      ...turn("Edit this note: group its contents by plant type", 1),
+      context,
+    }),
+  );
+  assert.equal(edited.turns[1].status, "ready");
+  assert.equal(edited.turns[1].result?.proposal?.kind, "edit");
+  assert.equal(
+    (await f.service.get(f.principal, source.id)).content,
+    source.content,
+  );
+  await f.service.conversations.apply(f.principal, chat.id, edited.turns[1].id);
+  assert.equal((await f.service.get(f.principal, source.id)).version, 2);
+  await f.service.conversations.apply(
+    f.principal,
+    chat.id,
+    edited.turns[1].id,
+    true,
+  );
+  assert.equal(
+    (await f.service.get(f.principal, source.id)).content,
+    source.content,
+  );
+});
+
 test("Ask authoring requests carry readable-note policy without changing planner or Apply", async () => {
   for (const intent of ["create", "edit", "merge", "organize"] as const) {
     const f = await fixture();
@@ -517,20 +764,21 @@ test("empty notebooks remain empty and strict selections cannot authorize unsupp
   assert.deepEqual(result.turns[0].result?.sources, []);
   assert.deepEqual(f.behavior.calls.at(-1)?.sources, []);
   f.behavior.intent = "create";
-  await assert.rejects(
-    f.service.conversations.turn(
-      f.principal,
-      chat.id,
-      conversationTurnSchema.parse({
-        ...turn("Create a note", 1),
-        context: { notes: [], notebooks: [book.id], only: true },
-      }),
-    ),
+  const clarified = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    conversationTurnSchema.parse({
+      ...turn("Create a note", 1),
+      context: { notes: [], notebooks: [book.id], only: true },
+    }),
   );
-  assert.equal(
-    (await f.service.conversations.get(f.principal, chat.id)).turns[1].status,
-    "failed",
+  assert.equal(clarified.turns[1].status, "ready");
+  assert.match(
+    clarified.turns[1].result!.message,
+    /Selected sources support answers/,
   );
+  assert.equal(clarified.turns[1].result?.proposal, null);
+  assert.deepEqual(clarified.turns[1].result?.sources, []);
 });
 
 test("selected source overlap deduplicates and duplicate titles never resolve by name", async () => {

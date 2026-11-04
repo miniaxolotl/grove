@@ -710,6 +710,7 @@ test("a document-grounded notebook preview saves only on Apply with durable sour
 test("invalid document chunk IDs, versions and quotations fail closed", async () => {
   for (const invalid of ["id", "version", "quote"]) {
     const f = await readyDocument();
+    let broken = true;
     f.service.providers.generation = {
       profile: `invalid-${invalid}`,
       generate: async (schema, _i, _s, o) => {
@@ -731,9 +732,12 @@ test("invalid document chunk IDs, versions and quotations fail closed", async ()
               text: "Damp mulch",
               sources: [
                 {
-                  id: invalid === "id" ? randomUUID() : source.id,
-                  version: invalid === "version" ? 2 : 1,
-                  quote: invalid === "quote" ? "Invented text" : "damp mulch",
+                  id: broken && invalid === "id" ? randomUUID() : source.id,
+                  version: broken && invalid === "version" ? 2 : 1,
+                  quote:
+                    broken && invalid === "quote"
+                      ? "Invented text"
+                      : "damp mulch",
                 },
               ],
             },
@@ -741,22 +745,30 @@ test("invalid document chunk IDs, versions and quotations fail closed", async ()
         });
       },
     };
+    const input = conversationTurnSchema.parse({
+      id: randomUUID(),
+      expectedVersion: 0,
+      query: "Explain",
+      documentsVersion: f.list.version,
+    });
     await assert.rejects(
-      f.service.conversations.turn(
-        f.principal,
-        f.chat.id,
-        conversationTurnSchema.parse({
-          id: randomUUID(),
-          expectedVersion: 0,
-          query: "Explain",
-          documentsVersion: f.list.version,
-        }),
-      ),
+      f.service.conversations.turn(f.principal, f.chat.id, input),
     );
     assert.equal(
       (await f.service.conversations.get(f.principal, f.chat.id)).turns[0]
         .result,
       null,
+    );
+    broken = false;
+    const recovered = await f.service.conversations.turn(
+      f.principal,
+      f.chat.id,
+      input,
+    );
+    assert.equal(
+      recovered.turns[0].result?.documentStatements?.length,
+      1,
+      "invalid document evidence must not poison the retry cache",
     );
   }
 });

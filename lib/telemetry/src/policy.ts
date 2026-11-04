@@ -43,10 +43,24 @@ export const events = [
   "memory_recalled",
   "chat_completed",
   "$ai_generation",
+  "ai_cache",
 ] as const;
 export type EventName = (typeof events)[number];
 export type Outcome = "success" | "unavailable" | "error" | "cancelled";
 export type Properties = {
+  failure_code?: string;
+  failure_stage?: string;
+  validation_field?: string;
+  cache_feature?:
+    | "query_embedding"
+    | "document_embedding"
+    | "organization"
+    | "classification"
+    | "planning"
+    | "answer"
+    | "research";
+  cache_status?: "fresh" | "cached" | "coalesced";
+  requests_avoided?: number;
   operation?: Operation;
   outcome?: Outcome;
   command?:
@@ -74,6 +88,58 @@ export function projectProperties(
 ): Properties {
   const output: Record<string, unknown> = {};
   const enums = {
+    failure_code: [
+      "auth_unavailable",
+      "provider_authentication",
+      "provider_rate_limited",
+      "provider_unavailable",
+      "provider_timeout",
+      "provider_invalid_response",
+      "provider_empty_response",
+      "provider_response_too_large",
+      "inference_budget",
+      "generation_invalid_response",
+      "generation_incomplete",
+      "generation_invalid_citation",
+      "generation_invalid_reference",
+      "generation_invalid_proposal",
+      "generation_invalid_organization",
+      "generation_invalid_lifecycle",
+      "generation_invalid_web_citation",
+      "generation_invalid_cursor",
+      "generation_missing_document_evidence",
+      "embedding_invalid_response",
+      "embedding_profile_mismatch",
+      "invalid_embedding",
+      "decision_invalid_response",
+    ],
+    failure_stage: ["response_json", "response_schema"],
+    validation_field: [
+      "message",
+      "statements",
+      "proposals",
+      "organization",
+      "lifecycle",
+      "webStatements",
+      "documentStatements",
+      "title",
+      "tags",
+      "query",
+      "intent",
+      "references",
+      "research",
+      "organizeAfter",
+    ],
+    cache_feature: [
+      "query_embedding",
+      "document_embedding",
+      "organization",
+      "classification",
+      "planning",
+      "answer",
+      "research",
+    ],
+    cache_status: ["fresh", "cached", "coalesced"],
     operation: operations,
     outcome: ["success", "unavailable", "error", "cancelled"],
     command: [
@@ -98,6 +164,7 @@ export function projectProperties(
       output[key] = input[key];
   for (const key of [
     "duration_ms",
+    "requests_avoided",
     "result_count",
     "input_tokens",
     "output_tokens",

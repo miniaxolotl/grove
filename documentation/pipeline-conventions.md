@@ -55,13 +55,23 @@ The workflow files contain authoritative SHA pins and job details.
 
 ## Hardening status
 
-The [Grove review](development/cicd-hardening-review.md) records current source and
-policy; the [shared review](https://github.com/bramble-labs/website/pull/38)
-coordinates the four repositories. Current source CI uses GitHub Ubuntu for
+The [historical Grove review](archive/README.md) and
+[shared review](https://github.com/bramble-labs/website/pull/38) record the original
+investigation. Current source CI uses GitHub Ubuntu for
 website/Burrow/Grove and Blacksmith for Fern. The owner explicitly retained runner
 placement, superseding the older vendor-reallocation proposal. Selected PR gates,
 authenticated promotion reuse and protected caches retain independent full source
 validation and frozen artifacts.
+
+Rollout rechecks provider configuration and deployment identity before writes and
+requires the actual active generation plus both component digests before success.
+These fences are not atomic provider locks or automatic rollback. Automatic
+last-good recovery, desired-state reconciliation, alerts and hosted failure/drain
+drills remain unqualified; use the explicit [operator recovery](deploy.md).
+
+`documentation.yml` independently checks parsed local documentation links/anchors
+with a read-only token on relevant PRs, including stacked bases. It has no publishing
+permissions and does not change main CI's selected-job inventory or promotion reuse.
 
 ## Grove feature-stack admission
 

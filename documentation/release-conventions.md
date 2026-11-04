@@ -2,7 +2,7 @@
 
 ## One release structure
 
-All four products use one root Release Please manifest and changelog, action
+All five products use one root Release Please manifest and changelog, action
 5.0.0 pinned by SHA, library/schema 17.6.0 and the upstream `node` strategy with
 `versioning: always-bump-patch`. Root `package.json` and the manifest agree;
 product-specific `extra-files` keep Go, Flutter and bundled package versions in sync.
@@ -26,12 +26,20 @@ before merging them. An old minor/major proposal cannot bypass the explicit
 decision: publication checks the merged manifest against the released version.
 
 Source Release runs only on protected `development`, serially without cancellation.
-It checks release intent before invoking Release Please. Website/Burrow/Grove use
+It checks release intent before invoking Release Please. Website/Burrow/Grove/InkByte use
 job-scoped `GITHUB_TOKEN` plus explicit generated-PR CI dispatch. Fern retains its
-dedicated release credential and manifest-format normalizer because generated PR
-updates must also trigger Apple source checks; changing that handoff is a separate
-tested cutover. This is the documented credential exception, not a version-policy
-difference. Runner placement is unchanged.
+dedicated release credential and manifest-format normalizer. Apple builds start
+only on protected staging/production updates; source validation uses Linux/Android.
+
+Since [June 2026](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/),
+`GITHUB_TOKEN`-created/updated PRs can create approval-required native workflow runs.
+Review and approve those runs in GitHub, then verify the actual PR checks. A green
+independent dispatch does not clear that approval or make the PR mergeable.
+
+All five repositories enforce strict `CI Gate`, enable auto-merge and automatic
+feature-branch deletion, disable rebase merging and enable Dependabot alerts/security
+updates. Public repositories enable secret scanning/push protection. Private Fern
+and Website scanning requires available GitHub Secret Protection entitlement.
 
 ## Names and PR delivery
 
@@ -64,7 +72,7 @@ core/frozen refs remain protected.
 
 ## Promotion is separate from source release
 
-Website/Burrow/Grove: feature PR → development → released tag → deliberately
+Website/Burrow/Grove/InkByte: feature PR → development → released tag → deliberately
 selected frozen production PR → production. Fern additionally stages the candidate
 and records exact server/native/TestFlight/provider/device acceptance before
 production prepares the **same accepted build** for owner App Review.

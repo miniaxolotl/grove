@@ -4,6 +4,7 @@ import type {
   AdminAccount,
   AdminPage,
   AdminUser,
+  AdminUsageReport,
 } from "@lib/shared/system-admin";
 import { SystemAdministration, type MemoryService } from "@lib/memory";
 import { z } from "zod";
@@ -87,15 +88,36 @@ export class AdminAccounts {
       accounts: await this.identities(principal, page.accounts),
     };
   }
-  private async identities(
+  async usageReport(
     principal: Principal,
-    accounts: AdminAccount[],
-  ): Promise<AdminUser[]> {
+    raw: unknown,
+  ): Promise<AdminUsageReport> {
+    const report = await this.administration.usageReport(principal, raw);
+    report.users.accounts = await this.identities(
+      principal,
+      report.users.accounts,
+      true,
+    );
+    return report;
+  }
+  private async identities<T extends AdminAccount>(
+    principal: Principal,
+    accounts: T[],
+    tolerateDirectoryFailure = false,
+  ): Promise<(T & Pick<AdminUser, "name" | "email">)[]> {
+    const lookup = this.directory?.users(
+      accounts
+        .filter(
+          (account) =>
+            !tolerateDirectoryFailure ||
+            ["active", "disabled"].includes(account.status),
+        )
+        .map((account) => account.subject),
+    );
     const identities = new Map(
       (
-        (await this.directory?.users(
-          accounts.map((account) => account.subject),
-        )) ?? []
+        (await (tolerateDirectoryFailure ? lookup?.catch(() => []) : lookup)) ??
+        []
       ).map((user) => [user.subject, user]),
     );
     await this.administration.accounts(principal, []);

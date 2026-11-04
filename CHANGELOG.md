@@ -1,5 +1,64 @@
 # Changelog
 
+## [1.11.11](https://github.com/miniaxolotl/grove/compare/v1.11.10...v1.11.11) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ask:** clarify unsupported selected-source actions ([4d8a022](https://github.com/miniaxolotl/grove/commit/4d8a02284cb9bed47501b690eb7a09adfa0a79f2))
+* **ask:** clarify unsupported selected-source actions ([6a1acaa](https://github.com/miniaxolotl/grove/commit/6a1acaae62542ccbaf37159a2a38e97102293367))
+
+## [1.11.10](https://github.com/miniaxolotl/grove/compare/v1.11.9...v1.11.10) (2026-11-03)
+
+
+### Features
+
+* **workflows:** add grounded notebook workflows ([46fc0e2](https://github.com/miniaxolotl/grove/commit/46fc0e2d6433d71dc698fcdfc8ffbd6b6ba335d6))
+
+
+### Bug Fixes
+
+* **delivery:** deploy the website after backend readiness ([9b4ba0f](https://github.com/miniaxolotl/grove/commit/9b4ba0fa3ece106edd07c2b80e2fac324a0401a6))
+* **delivery:** deploy the website after backend readiness ([35ec8f8](https://github.com/miniaxolotl/grove/commit/35ec8f8e5ad1727b048c3e062aa428ccf7051a9f))
+* **deps:** integrate the current Sharp dependency update ([19fbca1](https://github.com/miniaxolotl/grove/commit/19fbca123e53e0678b333294f413fe75bb2a206e))
+* **deps:** upgrade the transitive Sharp runtime ([4c17ecd](https://github.com/miniaxolotl/grove/commit/4c17ecde81cc7af26178c279306efc9bdae59a46))
+* **workflows:** integrate current development contracts ([c642594](https://github.com/miniaxolotl/grove/commit/c64259449d53e0c1c204ff299415065ea266b2fe))
+
+
+### Reverts
+
+* **workflows:** revert PRs [#135](https://github.com/miniaxolotl/grove/issues/135) and [#139](https://github.com/miniaxolotl/grove/issues/139) ([28f1a43](https://github.com/miniaxolotl/grove/commit/28f1a431742cc4593c0be4c2579bc47d173bd6c1))
+* **workflows:** revert PRs [#135](https://github.com/miniaxolotl/grove/issues/135) and [#139](https://github.com/miniaxolotl/grove/issues/139) ([5589572](https://github.com/miniaxolotl/grove/commit/55895724e8e3eea3911e221b67e6440111386ffe))
+
+## [1.11.9](https://github.com/miniaxolotl/grove/compare/v1.11.8...v1.11.9) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ci:** keep pnpm 10 compatible setup action ([8ca22a7](https://github.com/miniaxolotl/grove/commit/8ca22a7c93002292a29f7edd20b71bce5e46aaaa))
+* **ci:** key concurrency group to the ref to escape stale queued runs ([67de3d9](https://github.com/miniaxolotl/grove/commit/67de3d9e49cecd3a91e2443600e83efd59c6f3cb))
+
+## [1.11.8](https://github.com/miniaxolotl/grove/compare/v1.11.7...v1.11.8) (2026-10-28)
+
+
+### Features
+
+* **notebooks:** add durable organization foundation ([#140](https://github.com/miniaxolotl/grove/issues/140)) ([aaea831](https://github.com/miniaxolotl/grove/commit/aaea8311f6ee1971c6e793dd344fea8712f19709))
+* **notebooks:** add shared organizer and touch controls ([#148](https://github.com/miniaxolotl/grove/issues/148)) ([e91a187](https://github.com/miniaxolotl/grove/commit/e91a187355cc5e76d5019d89e1b05d00e637bd11))
+
+## [1.11.7](https://github.com/miniaxolotl/grove/compare/v1.11.6...v1.11.7) (2026-10-26)
+
+
+### Features
+
+* **admin:** add cross-account usage reports ([ff37777](https://github.com/miniaxolotl/grove/commit/ff37777395535bd666800e1a2ddef610889779d8))
+* **ai:** reuse exact work with separate cached usage discounts ([26b0778](https://github.com/miniaxolotl/grove/commit/26b0778a1c52bc3227726b9e2dab4b1839f5f1f1))
+
+
+### Bug Fixes
+
+* **ai:** validate document citations before caching answers ([1aebd71](https://github.com/miniaxolotl/grove/commit/1aebd71269125451659b80275d1308ecf6c61c6e))
+
 ## [1.11.6](https://github.com/miniaxolotl/grove/compare/v1.11.5...v1.11.6) (2026-10-26)
 
 

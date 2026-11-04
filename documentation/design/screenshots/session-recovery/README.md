@@ -22,7 +22,7 @@ The outage capture shows the existing save-retry surface receiving the new
 recoverable session error. Recovery never claims an unsaved draft is saved.
 The initial-load capture follows an actual injected 401 and successful replay.
 These are controlled recovery checks, not a captured production token race or
-physical iOS suspension test. [Verification procedure](../../../development/testing.md#workspace-session-recovery).
+physical iOS suspension test. [Verification procedure](../../../development/client-cache.md#session-readiness-and-recovery).
 
 ## Superseded replay follow-up
 

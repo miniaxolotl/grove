@@ -11,7 +11,7 @@ https://api.usegrove.cloud/mcp
 
 For self-hosted Grove, use your own publicly reachable HTTPS API URL plus `/mcp`,
 with its matching website and OAuth issuer. Do not put tokens in that URL.
-See [operator prerequisites](deploy.md#hosted-chat-connections).
+See [operator prerequisites](deploy.md#identity-and-website).
 
 ## ChatGPT
 
@@ -141,12 +141,12 @@ Source work reuses existing OAuth/grants and requires no migration or new secret
 Deploy the matching admitted API before the website instructions through the normal
 release path; merging source does not deploy it. Public listings remain separate.
 
-| Layer                                    | Evidence / limit                                                                                                                                                                                        |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Local HTTP + official MCP SDK            | Disposable PostgreSQL/non-owner-role tests cover pending scan, denied content, exact-client guidance, owner approval, two-client recall, retries/correction, read-only and revocation.                  |
-| Real ChatGPT discovery, 24 Oct 2026      | Current public endpoint's issuer, scopes/resource and DCR were discovered; CIMD correctly unavailable. No new host connection was created.                                                              |
-| Real Claude discovery, 24 Oct 2026       | Current public endpoint detected OAuth sign-in and automatic DCR registration. No new connector was added.                                                                                              |
-| Real hosts against this source candidate | **Not verified**: requires an explicitly authorized reachable HTTPS candidate and end-to-end sign-in/save/recall/refresh/revocation in both hosts. Discovery or fixture success is not this acceptance. |
+| Layer                                  | Evidence / limit                                                                                                                                                                       |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local HTTP + official MCP SDK          | Disposable PostgreSQL/non-owner-role tests cover pending scan, denied content, exact-client guidance, owner approval, two-client recall, retries/correction, read-only and revocation. |
+| Real ChatGPT discovery, 24 Oct 2026    | Current public endpoint's issuer, scopes/resource and DCR were discovered; CIMD correctly unavailable. No new host connection was created.                                             |
+| Real Claude discovery, 24 Oct 2026     | Current public endpoint detected OAuth sign-in and automatic DCR registration. No new connector was added.                                                                             |
+| Current-release full acceptance matrix | Requires authorized fresh sign-in/save/recall/refresh/expiry/revocation in both hosts. Historical bounded checks below do not qualify every release or the complete matrix.            |
 
 The discovery rows above describe the initial pre-authorization checks. Later
 production **1.11.3** tests completed actual hosted OAuth and synthetic note
@@ -158,13 +158,25 @@ notebook-scope and revoked-connection denials. These bounded results do not clai
 an exhaustive refresh/expiry matrix or directory approval.
 [Reviewer evidence and recording](https://github.com/miniaxolotl/grove/blob/92fc224d85ee6e93f540c1a0893abd239a0ec951/documentation/design/review/hosted-chat/README.md).
 
-Local browser evidence and actual gate results are recorded in
-[delivery](delivery.md) and the [reviewed gallery](design/screenshots/hosted-chat/README.md).
+For local verification, run `directory.test.ts` without a database, then
+`hosted-chat.test.ts`, `connect.test.ts` and `memory-tools.test.ts` with
+[disposable non-owner roles](development/testing.md). Verify pending discovery,
+owner-only approval, exact connection/state fingerprints, two-client access,
+scope denial, retry identity and revocation. Public domain proof must not grant
+account access or call identity/database services.
+
+After the website build, `hosted-chat.spec.ts`, `connect.spec.ts` and
+`playwright.hosted-chat-webkit.config.ts` cover manual endpoint-copy fallback,
+pending-client refresh, narrowed approval/retry and desktop/phone accessibility.
+Local fixtures are not the real-host matrix above. The
+[reviewed gallery](design/screenshots/hosted-chat/README.md) and
+[historical ledger](archive/README.md) preserve source-specific outcomes.
 
 ## Official directory submissions
 
-OpenAI's **1.11.3** package is submitted and **In review**, not approved or
-published. Claude's tested draft is held for written clarification of current
+The last recorded submission readback for OpenAI's **1.11.3** package was **In
+review**, not approved or published. Recheck the portal before claiming current
+status. The recorded Claude draft was held for written clarification of
 [Software Directory Policy §1.G](https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy)
 for explicitly requested external preference notes and cross-session recall.
 Do not claim a policy exception or submit a false compliance acknowledgement.

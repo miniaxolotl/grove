@@ -1,3 +1,4 @@
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
@@ -25,7 +26,7 @@ test("account export retries the same request and progresses to an authenticated
   let task: Task | undefined;
   const requests: { id: string }[] = [];
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     if (path.endsWith("/exports")) {
       requests.push(route.request().postDataJSON());
       if (requests.length === 1)
@@ -94,7 +95,7 @@ test("notebook exports keep scope explicit and support cancellation and retry af
   let task: Task | undefined;
   let payload: Record<string, unknown> | undefined;
   await page.route("**/api/grove/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     let data: unknown = [];
     if (path.endsWith("/projects"))
       data = [
@@ -129,7 +130,12 @@ test("notebook exports keep scope explicit and support cancellation and retry af
       data = task;
     }
     if (path.endsWith("/tasks")) data = task ? [task] : [];
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/projects/${projectId}`);
   const open = async () => {

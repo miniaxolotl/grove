@@ -220,6 +220,42 @@ Recovery invalidates unconfirmed review/Apply batches and old task leases rather
 than recreating notes from them. Confirmed originals and committed provenance are
 retained; current account/note tombstones and revoked grants still govern access.
 
-See [verification](development/testing.md#note-and-pdf-imports),
-[reviewed captures](design/screenshots/note-imports/README.md) and
-[owner rollout](deploy.md#note-and-pdf-import-rollout-031).
+## Rollout and verification
+
+Apply `20261025_031_document_imports`, then `20261025_032_conversation_documents`
+for Ask attachments, after 030 using the [owner procedure](operations/schema.md).
+Back up PostgreSQL and private originals together. Deploy matching API/worker before
+website. Keep original storage independent from expiring export/speech prefixes;
+no new source key/bucket is needed. Missing storage makes imports unavailable,
+not lossy. Restore cancels unconfirmed previews/uploads and old leases while
+retaining committed notes, accepted originals and current document revocations.
+
+Verify the pinned PDF/DOCX parsers and their permission-limited child processes on
+the packaged Node 24 worker. Keep container memory/bulk concurrency bounded: a V8
+old-space limit is not an RSS cap. Production packaging must include the parser's
+actual dependencies, including `fflate`, `saxes` and `xmlchars`; use the frozen
+lockfile rather than manually reproducing versions. Verify streaming uploads
+through deployed proxies separately from local source tests.
+
+`document-extraction.test.ts`, `document-imports.test.ts`,
+`document-import-migration.test.ts`, `conversation-documents.test.ts`,
+`conversation-document-migration.test.ts`, conversations and recovery cover real
+PDF/DOCX/UTF-8 parsing, integrity/limits, populated upgrades, non-owner isolation,
+private originals, no hidden library writes, citations, explicit Apply, concurrent
+acceptance/retry, removal/expiry and media-complete exports. Use only synthetic
+adversarial documents and [disposable services](development/testing.md).
+
+Build the website, set its disposable database URLs, then run the real journeys:
+
+```sh
+pnpm exec tsx scripts/testing/document-imports-browser.mjs
+pnpm exec tsx scripts/testing/ask-documents-browser.mjs
+```
+
+These runners create/remove only their own `_test` databases and compare downloaded
+original bytes, confirmation/citations, removal and accessible 1440/390/320px states.
+`IMPORT_BROWSER=webkit` / `ASK_BROWSER=webkit` select supported WebKit;
+`IMPORT_WORKER_DIRECTORY` / `ASK_WORKER_DIRECTORY` select a packaged worker for
+parser packaging and SIGTERM draining. Deterministic model output is not live
+answer-quality evidence. [Import captures](design/screenshots/note-imports/README.md)
+and [Ask captures](design/screenshots/ask-documents/README.md) retain provenance.

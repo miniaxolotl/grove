@@ -1,0 +1,219 @@
+.admin-report {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  min-width: 0;
+}
+.admin-report > * {
+  min-width: 0;
+}
+.admin-report .admin-heading > div {
+  max-width: 100%;
+}
+.admin-report h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 500;
+}
+.admin-report p {
+  margin: 0;
+}
+.admin-report-range {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-report-range label,
+.admin-report-feature {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.admin-report-range input,
+.admin-report-feature select {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-paper);
+  color: var(--color-forest);
+  font: inherit;
+  font-size: 14px;
+}
+.admin-report-range input {
+  width: 160px;
+}
+.admin-report-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.admin-report-summary strong {
+  font-size: 18px;
+  font-weight: 500;
+}
+.admin-report-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.admin-report-footprint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin: 0;
+  padding: 16px 0;
+  border-block: 1px solid var(--color-line);
+}
+.admin-report-footprint div {
+  display: grid;
+  gap: 3px;
+}
+.admin-report-footprint dt {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.admin-report-footprint dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.admin-report-table {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-top: 12px;
+}
+.admin-report-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-report-table th,
+.admin-report-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--color-line);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.admin-report-table th {
+  font-weight: 500;
+}
+.admin-report-table th:first-child {
+  text-align: left;
+  padding-left: 0;
+  white-space: normal;
+  min-width: 130px;
+}
+.admin-report-table thead th {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.admin-report-chart {
+  margin: 18px 0 10px;
+}
+.admin-report-chart figcaption {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.admin-report-bars {
+  height: 100px;
+  display: flex;
+  gap: 0;
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 4px;
+  border-bottom: 1px solid var(--color-line);
+}
+.admin-report-bars li {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: end;
+  height: 100%;
+}
+.admin-report-bars li > span:first-child {
+  display: block;
+  width: 100%;
+  background: var(--color-forest);
+  box-shadow: inset -1px 0 var(--color-paper);
+  border-radius: 2px 2px 0 0;
+}
+.admin-report-chart-dates {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.admin-report-daily {
+  margin: 16px 0 24px;
+}
+.admin-report-daily summary {
+  cursor: pointer;
+  min-height: 24px;
+  font-size: 12px;
+}
+.admin-report-daily .admin-report-table {
+  max-height: 260px;
+  overflow: auto;
+}
+.admin-report-users {
+  list-style: none;
+  margin: 8px 0 16px;
+  padding: 0;
+}
+.admin-report-users li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 80px;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--color-line);
+  padding: 14px 0;
+}
+.admin-report-person-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.admin-report-notes {
+  max-width: 78ch;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+}
+@media (max-width: 600px) {
+  .admin-report .admin-heading,
+  .admin-report-summary {
+    align-items: start;
+    flex-direction: column;
+  }
+  .admin-report-range {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .admin-report-range input {
+    width: 100%;
+  }
+  .admin-report-range .text-button {
+    justify-self: start;
+  }
+  .admin-report .admin-section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+  .admin-report-feature {
+    width: 100%;
+  }
+  .admin-report-users li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .admin-report-users .admin-person {
+    grid-column: 1 / -1;
+  }
+  .admin-report-person-amount {
+    text-align: left;
+  }
+}

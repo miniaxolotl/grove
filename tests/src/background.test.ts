@@ -393,10 +393,12 @@ test("Ask Grove discards answers after cancellation, revoked access, disabled su
     const started = deferred(),
       gate = deferred();
     const controller = new AbortController();
+    let inferenceSignal: AbortSignal | undefined;
     service.providers.generation = {
       profile: "ask-delayed",
       generate: async (schema, _instructions, _sources, options) => {
-        assert.equal(options?.signal, controller.signal);
+        inferenceSignal = options?.signal;
+        assert(inferenceSignal && !inferenceSignal.aborted);
         started.resolve();
         await gate.promise;
         return schema.parse({
@@ -424,7 +426,10 @@ test("Ask Grove discards answers after cancellation, revoked access, disabled su
           },
     );
     await started.promise;
-    if (change === "cancel") controller.abort();
+    if (change === "cancel") {
+      controller.abort();
+      assert.equal(inferenceSignal?.aborted, true, "caller cancellation reaches the composed cache/provider signal");
+    }
     if (change === "revoke")
       await service.revoke(principal, grant.connection.id);
     if (change === "settings")

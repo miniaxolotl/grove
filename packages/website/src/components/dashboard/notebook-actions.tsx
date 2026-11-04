@@ -15,6 +15,7 @@ import type { Project } from "@/lib/dashboard-api";
 import type { NotebookAction } from "./notebook-dialog";
 import { IconButton } from "./ui/button";
 import { ActionMenu } from "./ui/action-menu";
+import { useNotebooks } from "./notebooks-provider";
 
 /** Common creation/organization order across notebook menus and Manage. */
 export function NotebookActions({
@@ -28,6 +29,7 @@ export function NotebookActions({
   onShare?: () => void;
   compact?: boolean;
 }) {
+  const notebooks = useNotebooks();
   const lifecycle = (
     <>
       <Link href={`/app/settings/files?projectId=${project.id}`}>
@@ -121,6 +123,15 @@ export function NotebookActions({
             <Share2 size={15} /> Share notebook
           </button>
         ))}
+      {!compact && (
+        <button
+          type="button"
+          onClick={() => notebooks.openOrganizer(project.id)}
+        >
+          <FolderInput size={15} />
+          Rearrange notebook
+        </button>
+      )}
       {compact ? (
         <ActionMenu label={`More actions for ${project.name}`}>
           {lifecycle}
