@@ -64,10 +64,18 @@ clear an existing unsent draft first so it is not overwritten.
 An explicit request can preview an edit or merge of supplied source revisions when
 **Manage notes** is enabled. Selection alone does not authorize a write. Existing
 **Apply edit** / **Merge notes**, version checks and **Undo** remain required.
+Reformatting a note's contents—such as sorting its lines or grouping its items—is
+an edit, not notebook organization. Ask explicitly to edit the selected note;
+an ambiguous request may need clarification.
 Selected-source questions do not discover notebook destinations, create notes or run
 organization/lifecycle batches; start an ordinary question without selectors for
 those operations. In strict mode every proposed edit/merge reference must come from
 the selected evidence, not other notes or previous turns.
+
+When planning identifies an unsupported selected-source action, Grove returns
+guidance without a second model call, web research or automatic library retrieval.
+The reply does not contain an actionable proposal. Clear the selectors to request
+a notebook/batch action, or ask for an explicit edit of the selected note's contents.
 
 Missing, foreign, deleted, archived, expired and out-of-conversation selectors fail
 before provider dispatch. An empty accessible notebook stays empty; it never falls
@@ -115,7 +123,9 @@ in-flight work and deleted chats rather than reviving evidence.
 
 `conversations.test.ts` covers exact IDs, direct membership, pinned order,
 partial/omitted evidence, strict history/web exclusion, reviewed Apply/Undo,
-source races/retries, invalid citations and HTTP/export compatibility.
+source races/retries, invalid citations and HTTP/export compatibility. It also
+checks deterministic unsupported-action guidance, unchanged retries and a later
+reviewed edit without broadening the selected sources.
 `conversation-context-migration.test.ts` checks populated pre-030 retention and
 non-owner isolation. Browser checks cover picker/search/pagination, duplicate
 titles/paths, @mention keyboard/IME/cancel, chips, last-selector guards, drafts,

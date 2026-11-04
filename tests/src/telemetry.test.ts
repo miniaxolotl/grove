@@ -71,6 +71,67 @@ const eventBatches = (requests: { url: string; data: string }[]) =>
       return value.batch ?? [value];
     });
 
+test("failure diagnostics retain allowlisted codes and fields but drop arbitrary error data", async () => {
+  const endpoint = await sink();
+  try {
+    const reporter = new Reporter(endpoint.config);
+    for (const code of ["generation_invalid_response", "PRIVATE_CODE"]) {
+      reporter.operation(
+        "model_request",
+        performance.now(),
+        "error",
+        {},
+        Object.assign(new Error("PRIVATE_PROVIDER_BODY"), {
+          code,
+          stage: code === "PRIVATE_CODE" ? "PRIVATE_STAGE" : "response_schema",
+          field: code === "PRIVATE_CODE" ? "PRIVATE_FIELD" : "proposals",
+          source: "PRIVATE_NOTE",
+        }),
+      );
+    }
+    assert.doesNotThrow(() =>
+      reporter.operation(
+        "model_request",
+        performance.now(),
+        "error",
+        {},
+        Object.defineProperty(new Error("PRIVATE_ERROR"), "code", {
+          get() {
+            throw new Error("PRIVATE_GETTER");
+          },
+        }),
+      ),
+    );
+    await reporter.close();
+    const all = JSON.stringify(endpoint.requests);
+    assert.doesNotMatch(all, /PRIVATE/);
+    const events = eventBatches(endpoint.requests);
+    assert.equal(
+      events[0].properties.failure_code,
+      "generation_invalid_response",
+    );
+    assert.equal(events[0].properties.failure_stage, "response_schema");
+    assert.equal(events[0].properties.validation_field, "proposals");
+    assert.equal(events[1].properties.failure_code, undefined);
+    assert.equal(events[1].properties.failure_stage, undefined);
+    assert.equal(events[1].properties.validation_field, undefined);
+    const errors = endpoint.requests
+      .filter((r) => r.url.includes("envelope"))
+      .flatMap((r) =>
+        r.data
+          .trim()
+          .split("\n")
+          .filter((_, i) => i > 0 && i % 2 === 0)
+          .map((l) => JSON.parse(l)),
+      )
+      .filter((e) => e.exception);
+    assert.equal(errors[0].tags.failure_code, "generation_invalid_response");
+    assert.equal(errors[0].tags.validation_field, "proposals");
+  } finally {
+    await endpoint.close();
+  }
+});
+
 test("real Node SDKs serialize only bounded metadata and preserve the host's SDK scope and handlers", async () => {
   const endpoint = await sink();
   const client = getClient();

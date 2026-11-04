@@ -21,6 +21,11 @@ enter clients.
   only after commit. Replays, denied/rolled-back writes and edits are not conversions.
 - Allowlisted provider/role/outcome/token/timing metadata excludes prompts, responses,
   vectors, names, origins, paths, keys, headers, bodies and custom model names.
+- Failure diagnostics retain only fixed allowlisted error categories, JSON-versus-
+  schema validation stages and known top-level schema fields. Arbitrary error codes,
+  field names, nested paths, validation messages and model output are discarded.
+  Error getters cannot interrupt the application. These diagnostics do not enable
+  collection when telemetry or the account preference is off.
 - Sentry uses an isolated client/scope, not host-agent global handlers. Emitted
   filenames/coordinates support source maps without local paths/source excerpts.
   The sampling header is projected from Grove's own client configuration at send
