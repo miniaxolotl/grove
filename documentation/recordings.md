@@ -66,3 +66,11 @@ capture, custom playback/transcript at1440/390/320px, public reading, native no-
 playback and forced colours. Browser synthetic devices verify the
 capture/cleanup path; physical device microphones and OS permission UX need their
 own qualification.
+
+`recordings.test.ts` and the media/recovery suites exercise real WAV validation,
+Range/HEAD responses, transcript version/retry/history, portable exports and
+retained-source recovery with [disposable fixtures](development/testing.md).
+Browser review covers lazy source loading, play/pause/seek/speed/mute/end/retry,
+unmount cleanup, current versus historical URLs, transcript drafts and no-JS public
+playback. Do not treat emulated microphone capture or instrumented codec playback
+as physical-device permission/native-control acceptance.

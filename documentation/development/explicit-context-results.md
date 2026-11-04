@@ -48,9 +48,27 @@ spend ceilings; stop on the first exceeded ceiling. Do not use personal/customer
 - Injection: source instructions cannot authorize research, source expansion or writes.
 - Paired scope: irrelevant automatic canaries never influence strict answers.
 
-No live paid-model evaluation has been run for this feature. Report observed rates
-and failure examples rather than claiming general accuracy from a small corpus or
-from deterministic adapters. Production rollout is a separate operator action.
+The full answer-quality matrix has not been run against a paid model. Report
+observed rates and failure examples rather than claiming general accuracy from a
+small corpus or deterministic adapters. Production rollout is a separate operator action.
+
+### Bounded routing probe — 4 November 2026
+
+A synthetic garden-inventory note in an isolated PostgreSQL account exercised the
+fixed development working tree based on `1ce19fc`, using MiniMax-M3.1-Flash, tool
+output, low reasoning effort and a 4,096-token completion ceiling per call:
+
+| Request                                                               | Observed plan | Result                                               | Provider calls |
+| --------------------------------------------------------------------- | ------------- | ---------------------------------------------------- | -------------- |
+| Organise, sort, and group by plant type                               | `organize`    | Guidance; no forbidden proposal or second generation | 1              |
+| Edit this note: group its contents by plant type; preserve every item | `edit`        | Valid reviewed edit preview                          | 2              |
+| Group the selected notes into new notebooks                           | `organize`    | Guidance; no forbidden proposal or second generation | 1              |
+
+All three turns completed; the source stayed at version 1 and nothing was applied.
+This confirms routing/recovery for these inputs, not general intent accuracy,
+answer quality, invoice cost or actual production acceptance. Actual token totals
+were not retained by this bounded probe. Ambiguous grouping still needs clarification;
+Grove does not silently convert an unsupported notebook action into an edit.
 
 ## Execution evidence
 

@@ -1,8 +1,14 @@
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page, type Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
+import {
+  organizeNotebookSchema,
+  type NotebookCatalog,
+  type NotebookOrganization,
+} from "@lib/shared/notebook-organization";
 import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { chooseOption } from "./fixtures/select";
 import { openNoteAction } from "./fixtures/note-action";
@@ -315,7 +321,7 @@ async function notebookLifecycleFixture(page: Page) {
   };
   await page.route("**/api/grove/projects**", async (route) => {
     const url = new URL(route.request().url());
-    const path = url.pathname.replace("/api/grove", "");
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
     let data: unknown;
     if (route.request().method() === "GET" && path === "/projects")
       data = state.projects.filter(
@@ -383,7 +389,12 @@ async function notebookLifecycleFixture(page: Page) {
       await route.abort("failed");
       return;
     }
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   return {
     ...state,
@@ -2913,7 +2924,7 @@ test("connections recover from failed processing, paginate, and reject stale rev
   ]);
   let failed = true;
   await page.route("**/api/grove/relationships/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const path = fixturePath(route.request().url());
     if (path.endsWith("/retry")) {
       failed = false;
       return route.fulfill({
@@ -3708,7 +3719,7 @@ test("sidebar pages and keyboard notebook nesting share destinations, cancellati
   ).toHaveAttribute("data-drop-active", "true");
   await page.keyboard.press("Space");
   await expect(page.locator(".workspace-notice")).toContainText(
-    "notebook moved to Garden",
+    `“${project.name}” moved.`,
   );
   expect(state.projects.find((p) => p.id === project.id)?.parentId).toBe(
     parent.id,
@@ -3719,7 +3730,7 @@ test("sidebar pages and keyboard notebook nesting share destinations, cancellati
     .getByRole("button", { name: "Undo" })
     .click();
   await expect(page.locator(".workspace-notice")).toContainText(
-    "Change undone",
+    "Notebook move undone.",
   );
   expect(state.projects.find((p) => p.id === project.id)?.parentId).toBeNull();
 });
@@ -3820,7 +3831,7 @@ async function shareFixture(page: Page) {
     /\/api\/grove\/(?:memories|projects)\/[^/]+\/share$|\/api\/grove\/shares\//,
     async (route) => {
       const request = route.request();
-      const path = new URL(request.url()).pathname.replace("/api/grove", "");
+      const path = fixturePath(request.url()).replace("/api/grove", "");
       const body = request.postDataJSON();
       calls.push({ path, body });
       const state = path.startsWith("/shares/")
@@ -4163,7 +4174,11 @@ test("notebook sharing entry points preserve scope and refresh conflicting setti
   await page.goto(`${base}/app/projects`);
   await page.setViewportSize({ width: 320, height: 900 });
   await page
-    .getByRole("button", { name: `Share ${project.name}`, exact: true })
+    .locator(".notebook-manager")
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Share notebook", exact: true })
     .click();
   await expect(dialog.getByLabel("Current link")).toHaveValue(url);
   for (const width of [1440, 390, 320]) {
@@ -4351,7 +4366,19 @@ async function fixture(page: Page, initial = [note, handoff]) {
   const records = new Map(
     initial.map((memory) => [memory.id, structuredClone(memory)]),
   );
-  const projects = [structuredClone(project)];
+  const projects: (typeof project & { position?: number })[] = [
+    structuredClone(project),
+  ];
+  const organizationReceipts = new Map<
+    string,
+    { input: unknown; result: NotebookOrganization }
+  >();
+  const noteReceipts = new Map<string, { input: string; id: string }>();
+  const catalog = () =>
+    catalogResponse(
+      "http://fixture/projects/catalog",
+      projects,
+    ) as NotebookCatalog;
   const revisions = new Map(
     initial.map((memory) => [memory.id, [structuredClone(memory)]]),
   );
@@ -4425,7 +4452,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
     }
   await page.route("**/api/grove/**", async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.replace("/api/grove", "");
+    const path = fixturePath(request.url()).replace("/api/grove", "");
     const body = request.postDataJSON();
     calls.push({ path, body });
     let data: unknown;
@@ -4625,6 +4652,53 @@ async function fixture(page: Page, initial = [note, handoff]) {
         projects.push(created);
         data = created;
       } else data = projects;
+    } else if (/^\/projects\/[^/]+\/organize$/.test(path)) {
+      const input = organizeNotebookSchema.parse(body);
+      const receipt = organizationReceipts.get(input.operationId);
+      const current = projects.find((p) => p.id === path.split("/")[2])!;
+      if (receipt) {
+        if (JSON.stringify(receipt.input) !== JSON.stringify(input))
+          return conflict();
+        data = receipt.result;
+      } else {
+        const before = catalog();
+        if (
+          input.expectedState !== before.state ||
+          input.expectedVersion !== current.version
+        )
+          return conflict();
+        const ordered = before.items
+          .filter((p) => p.parentId === current.parentId)
+          .sort((a, b) => a.position! - b.position!);
+        const index = ordered.findIndex((p) => p.id === current.id);
+        const undo = {
+          parentId: current.parentId,
+          ...(index > 0
+            ? { afterId: ordered[index - 1].id }
+            : ordered[index + 1]
+              ? { beforeId: ordered[index + 1].id }
+              : {}),
+        };
+        const target = before.items
+          .filter((p) => p.id !== current.id && p.parentId === input.parentId)
+          .sort((a, b) => a.position! - b.position!);
+        const anchor = input.beforeId ?? input.afterId;
+        const anchorIndex = anchor
+          ? target.findIndex((p) => p.id === anchor)
+          : target.length;
+        if (anchorIndex < 0) return conflict();
+        if (current.parentId !== input.parentId) current.version++;
+        current.parentId = input.parentId;
+        target.splice(anchorIndex + (input.afterId ? 1 : 0), 0, current);
+        target.forEach((p, i) => {
+          projects.find((item) => item.id === p.id)!.position = i + 1;
+        });
+        data = { project: { ...current }, state: catalog().state, undo };
+        organizationReceipts.set(input.operationId, {
+          input,
+          result: structuredClone(data) as NotebookOrganization,
+        });
+      }
     } else if (path.startsWith("/projects/")) {
       const input = projectSchema.parse(body);
       const current = projects.find((p) => p.id === path.split("/")[2]);
@@ -4683,6 +4757,13 @@ async function fixture(page: Page, initial = [note, handoff]) {
       };
     } else if (path === "/memories") {
       const input = rememberSchema.parse(body);
+      const receipt = noteReceipts.get(input.operationId);
+      if (receipt) {
+        if (receipt.input !== JSON.stringify(input)) return conflict();
+        return route.fulfill({
+          json: { success: true, data: records.get(receipt.id) },
+        });
+      }
       const previous = input.id ? records.get(input.id) : undefined;
       if (input.id && previous?.version !== input.expectedVersion)
         return conflict();
@@ -4706,6 +4787,10 @@ async function fixture(page: Page, initial = [note, handoff]) {
         enrichment: undefined,
       };
       records.set(saved.id, saved);
+      noteReceipts.set(input.operationId, {
+        input: JSON.stringify(input),
+        id: saved.id,
+      });
       const history = revisions.get(saved.id) ?? [];
       if (previous && !history.some((row) => row.version === previous.version))
         history.push(previous);
@@ -4760,7 +4845,12 @@ async function fixture(page: Page, initial = [note, handoff]) {
     else if (path.startsWith("/memories/"))
       data = records.get(path.split("/")[2]);
     else throw new Error(`Unexpected fixture request: ${path}`);
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   return { records, calls, projects, chats, pairs, revisions };
 }
@@ -7105,7 +7195,11 @@ test("notebook rename preserves location and requires review of a concurrent cha
   const state = await fixture(page);
   await page.goto(`${base}/app/projects`);
   await page
-    .getByRole("button", { name: `Rename ${project.name}`, exact: true })
+    .locator(".notebook-manager")
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Rename notebook", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
     name: "Rename notebook",
@@ -7138,11 +7232,17 @@ test("notebook rename preserves location and requires review of a concurrent cha
     version: 3,
   });
   await page
-    .getByRole("button", { name: "Move My renamed notebook", exact: true })
+    .locator(".notebook-manager")
+    .getByRole("button", { name: "More actions for My renamed notebook" })
+    .click();
+  await page
+    .getByRole("button", { name: "Move notebook", exact: true })
     .click();
   const move = page.getByRole("dialog", { name: "Move notebook", exact: true });
   await expect(move.getByLabel("Notebook name")).toHaveCount(0);
-  await expect(move.getByRole("combobox")).toBeFocused();
+  await expect(
+    move.getByRole("textbox", { name: "Find destination" }),
+  ).toBeFocused();
   await move.screenshot({ path: info.outputPath("move-notebook.png") });
   await expect(
     move.getByRole("button", { name: "Move notebook", exact: true }),
@@ -7160,7 +7260,10 @@ test("nested notebooks share paths, create and move controls, and preserve note 
   await page.goto(`${base}/app/projects`);
   const manager = page.getByRole("region", { name: "Notebook organization" });
   await manager
-    .getByRole("button", { name: `Add sub-notebook to ${project.name}` })
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await manager
+    .getByRole("button", { name: "New sub-notebook", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
   await expect(
@@ -7174,7 +7277,10 @@ test("nested notebooks share paths, create and move controls, and preserve note 
   const child = state.projects.find((p) => p.name === "Research")!;
   expect(child.parentId).toBe(project.id);
   await manager
-    .getByRole("button", { name: "Add sub-notebook to Research" })
+    .getByRole("button", { name: "More actions for Research" })
+    .click();
+  await manager
+    .getByRole("button", { name: "New sub-notebook", exact: true })
     .click();
   await dialog.getByLabel("Notebook name").fill("Interviews");
   await expect(
@@ -7202,24 +7308,18 @@ test("nested notebooks share paths, create and move controls, and preserve note 
   });
 
   await manager
-    .getByRole("button", { name: "Move Research", exact: true })
+    .getByRole("button", { name: "More actions for Research" })
     .click();
-  await dialog.getByRole("combobox", { name: "Parent notebook" }).click();
+  await manager
+    .getByRole("button", { name: "Move notebook", exact: true })
+    .click();
   await expect(
-    page.getByRole("option").filter({ hasText: "Research" }),
+    dialog.getByRole("radio").filter({ hasText: "Research" }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("option").filter({ hasText: "Interviews" }),
+    dialog.getByRole("radio").filter({ hasText: "Interviews" }),
   ).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
-  await expect(
-    dialog.getByRole("combobox", { name: "Parent notebook" }),
-  ).toBeFocused();
-  await chooseOption(
-    dialog.getByRole("combobox", { name: "Parent notebook" }),
-    "",
-  );
+  await dialog.getByRole("radio", { name: "Top level", exact: true }).check();
   await dialog
     .getByRole("button", { name: "Move notebook", exact: true })
     .click();

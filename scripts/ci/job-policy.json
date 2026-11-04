@@ -1,10 +1,37 @@
 {
-  "jobs": ["website", "contracts", "image"],
+  "jobs": [
+    "website",
+    "website-quality",
+    "contracts",
+    "contracts-quality",
+    "image"
+  ],
   "rules": [
-    { "prefix": "packages/website/", "jobs": ["website"] },
-    { "prefix": "packages/api/", "jobs": ["contracts", "image"] },
-    { "prefix": "lib/", "jobs": ["website", "contracts", "image"] },
-    { "prefix": "packages/mcp/", "jobs": ["contracts", "image"] },
-    { "prefix": "packages/grove-", "jobs": ["contracts", "image"] }
+    {
+      "prefix": "packages/website/",
+      "jobs": ["website", "website-quality"]
+    },
+    {
+      "prefix": "packages/api/",
+      "jobs": ["contracts", "contracts-quality", "image"]
+    },
+    {
+      "prefix": "lib/",
+      "jobs": [
+        "website",
+        "website-quality",
+        "contracts",
+        "contracts-quality",
+        "image"
+      ]
+    },
+    {
+      "prefix": "packages/mcp/",
+      "jobs": ["contracts", "contracts-quality", "image"]
+    },
+    {
+      "prefix": "packages/grove-",
+      "jobs": ["contracts", "contracts-quality", "image"]
+    }
   ]
 }

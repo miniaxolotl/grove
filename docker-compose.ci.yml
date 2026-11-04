@@ -1,0 +1,44 @@
+# Disposable CI test services for the contracts lane. Never production data;
+# the job tears the project down with --volumes after the run.
+name: grove-ci-test-services
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg17
+    environment:
+      POSTGRES_DB: grove_test
+      POSTGRES_PASSWORD: grove_test
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d grove_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  rabbitmq:
+    image: rabbitmq:4.1-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: grove
+      RABBITMQ_DEFAULT_PASS: grove_disposable_queue
+    ports:
+      - "127.0.0.1:5672:5672"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  media-storage:
+    # RustFS 1.0.3: disposable source-store conformance, never production data.
+    image: rustfs/rustfs@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
+    environment:
+      RUSTFS_ACCESS_KEY: grove_media_test
+      RUSTFS_SECRET_KEY: grove_media_disposable_only
+      RUSTFS_CONSOLE_ENABLE: "false"
+      RUSTFS_OBS_LOGGER_LEVEL: error
+    ports:
+      - "127.0.0.1:9000:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20

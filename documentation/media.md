@@ -121,8 +121,8 @@ purged as part of recovery.
 ## Configuration and rollout
 
 Apply forward migration **017 `20261023_017_media_attachments`** using the owner
-procedure before API/worker. It is independent of pending notebook-lifecycle 016;
-integrated installations still apply registered migrations in order. API and worker
+procedure before API/worker, after notebook-lifecycle 016. Follow
+[registered migration order](operations/schema.md). API and worker
 need identical storage settings. `MEDIA_STORAGE=disabled` keeps uploads unavailable.
 Cloud requires `s3`; it cannot fall back to local disk. Use private DigitalOcean
 Spaces, `MEDIA_S3_ENDPOINT=https://<region>.digitaloceanspaces.com`, SDK signing
@@ -142,17 +142,49 @@ AccessDenied case; known expiration rules and failed conditional writes still fa
 Reverify the receipt after bucket/retention changes and before activation. Do not
 put an account-wide Spaces credential in the API/worker to enable inspection.
 
-Initial user-authorized NYC3 provisioning verified private source and temporary buckets,
-source non-expiry, one-day exports/speech expiry, anonymous403, conditional412 and
-cross-bucket scoped denial. Active keys are in Grove Doppler configs `prd_media`
-and `prd_artifacts`, mirrored in the main checkout's ignored0600 `secrets.md`.
-Temporary operator keys were revoked. Runtime configs were not activated and no
-application deployment occurred. Hosting body limits and capability-log redaction
-remain rollout checks. See [storage details](development/media-foundation.md),
-[sharing limitations](sharing.md) and [deployment](deploy.md).
+Verify current bucket privacy, conditional PUT 412, cross-bucket scoped denial,
+source non-expiry and prefix-scoped temporary lifecycle before rollout. Store
+credentials only in private operator custody; historical provisioning is not
+current runtime status. Hosting upload limits and capability-log redaction remain
+actual-host checks. See [sharing limitations](sharing.md#storage-and-rollout) and
+[deployment](deploy.md). Runtime configuration alone is not live storage acceptance.
 
 [Recordings](recordings.md) add original WAV playback and editable transcripts;
 current [STT/TTS contracts](speech.md) include text-hash audio caching. Migration
 024's `narration/` prefix must be excluded from the original one-day speech rule.
 [Screenshots](design/screenshots/media-images/README.md) show synthetic
 desktop/phone and export states; the PR uses three previews per row.
+
+## Storage implementation and verification
+
+`MediaStore` has no source-deletion API. The local adapter requires private persistent
+directories/files, rejects symlinks and noncanonical keys, publishes by no-overwrite
+hard link and fsyncs successful writes. Same-user filesystem access is trusted; this
+is not a sandbox or full power-loss durability qualification. Failed attempts remove
+their temporary file; process-crash `.partial` reconciliation remains unqualified.
+Never delete final source files to reclaim abandoned staging.
+
+The S3 adapter uses verified bytes/MIME/checksum, private/no-store metadata and
+`If-None-Match: *`. Readiness checks lifecycle and a unique `media-probes/` object;
+only this scratch object can be deleted by the probe. Bucket policy privacy needs
+independent verification. Separate scratch-delete permission from source GET/PUT;
+runtime does not need source DELETE. Do not weaken immutability for a provider.
+
+Run `media-foundation.test.ts`, `media-access.test.ts`, `media-migration.test.ts`
+and recovery with [disposable non-owner services](development/testing.md). Cover
+real raster decode, bytes/checksums, malformed/animation/MIME/size rejection,
+fragmented streams, cancellation, private immutable local/S3 behavior, tenant/revision/
+scope denial, lost upload replies, lease/quota races, public current-only reads,
+portable byte-complete export and retained-source recovery.
+
+Optional source-store integrations create/remove only uniquely named fixture buckets:
+`TEST_MEDIA_S3_ENDPOINT`, `TEST_MEDIA_S3_REGION`, `TEST_MEDIA_S3_KEY`,
+`TEST_MEDIA_S3_SECRET` select an owned conforming store. `TEST_MEDIA_UNSAFE_S3_ENDPOINT`,
+`TEST_MEDIA_UNSAFE_S3_KEY`, `TEST_MEDIA_UNSAFE_S3_SECRET` select the nonconforming
+Garage fixture for fail-closed probes. Omitted services are explicit skips, not
+deployed-provider qualification. Never point these tests at an application bucket.
+
+Browser checks use synthetic PNG/WAV bytes and actual components: paste/drop/move,
+ordinary save/Undo, current/history/public reads, export/PDF bounds, no-JS reading
+and 1440/390/320px accessibility. A new source revision or account teardown must
+discard stale reads/previews without deleting original bytes.

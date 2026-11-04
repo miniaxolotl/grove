@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import type {
   ImportBatch,
   ImportDestination,
@@ -25,7 +26,7 @@ for (const width of [1440, 390, 320])
     let confirmations = 0;
     await page.route("**/api/grove/**", async (route) => {
       const request = route.request(),
-        path = new URL(request.url()).pathname.replace("/api/grove", "");
+        path = fixturePath(request.url()).replace("/api/grove", "");
       let data: unknown = [];
       if (path === "/projects")
         data = [
@@ -158,7 +159,9 @@ for (const width of [1440, 390, 320])
             .map((note) => JSON.stringify(note.destination)),
         ).size;
       }
-      await route.fulfill({ json: { success: true, data } });
+      await route.fulfill({
+        json: { success: true, data: catalogResponse(request.url(), data) },
+      });
     });
     await page.goto(`${base}/app`);
     await page

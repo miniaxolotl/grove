@@ -162,6 +162,8 @@ export type Notebook = {
   parentId?: string | null;
   version?: number;
   status?: "active" | "archived";
+  /** Owning-session display order. Scoped agent responses omit positions. */
+  position?: number;
 };
 export const projectSchema = z
   .object({
@@ -251,6 +253,7 @@ export type Principal = {
   capabilities: Capability[];
 };
 export type Page<T> = {
+  usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   visit?: {
     projectId: string;
@@ -263,6 +266,7 @@ export type Page<T> = {
   searchMode?: "hybrid" | "lexical";
 };
 export type RecallResult = {
+  usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   items: Memory[];
   mode: "hybrid" | "lexical" | "profile";

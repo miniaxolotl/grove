@@ -61,6 +61,7 @@ export type WebSource = {
   kind: "search" | "page";
 };
 export type ToolRun = {
+  completedAt?: string;
   key: string;
   provider: "exa" | "tavily";
   operation: "search" | "extract";
@@ -181,6 +182,7 @@ export const conversationTurnSchema = z
     query: z.string().trim().min(1).max(6000),
     format: z.enum(["plain", "markdown"]).default("plain"),
     expectedVersion: z.number().int().min(0),
+    refreshSources: z.boolean().optional(),
     context: conversationContextSchema.optional(),
     documentsVersion: z.number().int().nonnegative().optional(),
   })
@@ -300,6 +302,9 @@ export type ConversationReply = Omit<
   researchIncomplete?: boolean;
   organization?: OrganizationProposal;
   lifecycle?: LifecycleProposal;
+  usage?: import("./billing.ts").ActionUsageReceipt;
+  stale?: boolean;
+  webExpiresAt?: string | null;
   contextCoverage?: ContextCoverage;
   documentStatements?: z.infer<typeof documentStatementSchema>[];
   documentSources?: DocumentSource[];
@@ -311,6 +316,7 @@ export type ConversationReply = Omit<
   };
 };
 export type ConversationTurn = {
+  refreshSources?: boolean;
   id: string;
   question: string;
   format: "plain" | "markdown";

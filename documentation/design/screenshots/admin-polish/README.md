@@ -52,7 +52,7 @@ as provider-attempt counters, not user-action allowances. Unlimited wording foll
 the integrated plan storage/action exemptions without removing shared safety limits.
 
 See [delivery](../../../delivery.md), [behavior and safety contract](../../../system-administration.md)
-and [verification guidance](../../../development/testing.md#admin-interface-polish)
+and [verification guidance](../../../system-administration.md#rollout-and-verification)
 for final-source results. Each screenshot is a UI state, not evidence of a deployed
 production feature. Local scripts and disposable database receipts are retained in
 the external task plan; the UI polish introduces no new migration or API permission.

@@ -14,7 +14,7 @@ component/citation captures with `packages/website/tests/ask-documents.spec.ts` 
 building the website. Reading starts automatically, no library note is created by
 upload or Q&A, and full-text save opens an explicit import review. See the
 [contract](../../../imports.md#ask-about-documents-first) and
-[verification](../../../development/testing.md#documents-in-ask-grove).
+[verification](../../../imports.md#rollout-and-verification).
 
 The direct-import captures in [note-imports](../note-imports/README.md) are refreshed
 for automatic preparation and the optional Ask handoff, not a second import system.

@@ -251,6 +251,49 @@ test("transport redacts provider errors, bounds response bodies, refuses redirec
   assert(Date.now() - started < 1500);
 });
 
+test("generation failures expose bounded validation location without model output", async () => {
+  let output = JSON.stringify({
+    title: { PRIVATE_FIELD: "PRIVATE_RESULT" },
+    tags: [],
+  });
+  respond = (_body, response) =>
+    json(response, {
+      choices: [
+        {
+          finish_reason: "tool_calls",
+          message: {
+            tool_calls: [
+              { function: { name: "record_result", arguments: output } },
+            ],
+          },
+        },
+      ],
+    });
+  const provider = createGenerationProvider(config().generation);
+  await assert.rejects(
+    provider.generate(organizationSchema, "Organize", [source]),
+    (error: unknown) => {
+      assert(error instanceof InferenceError);
+      assert.equal(error.code, "generation_invalid_response");
+      assert.equal(Reflect.get(error, "stage"), "response_schema");
+      assert.equal(Reflect.get(error, "field"), "title");
+      assert.doesNotMatch(JSON.stringify(error), /PRIVATE/);
+      return true;
+    },
+  );
+  output = "PRIVATE_INVALID_JSON";
+  await assert.rejects(
+    provider.generate(organizationSchema, "Organize", [source]),
+    (error: unknown) => {
+      assert(error instanceof InferenceError);
+      assert.equal(Reflect.get(error, "stage"), "response_json");
+      assert.equal(Reflect.get(error, "field"), undefined);
+      assert.doesNotMatch(JSON.stringify(error), /PRIVATE/);
+      return true;
+    },
+  );
+});
+
 test("real model requests expose only usage and outcome metadata while preserving caller accounting", async () => {
   const records: unknown[] = [];
   const sink: TelemetrySink = {

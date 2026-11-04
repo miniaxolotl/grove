@@ -87,6 +87,12 @@ snapshot. Retained original notes and revisions follow the existing deletion con
 
 ## Verification
 
+Apply `20261022_015_notebook_assistance` after 014 using the
+[owner procedure](operations/schema.md). It initializes preferences from existing
+choices without rewriting notes. Drain old workers before admitting the assistance
+job kind, deploy compatible API/worker before website, and keep additive schema on
+rollback. Restore invalidates previews and resets visit windows before reopening.
+
 `notebook-summaries.test.ts`, `notebook-assistance.test.ts` and
 `assistance-migration.test.ts` use fresh PostgreSQL databases and real non-owner
 roles. They cover populated 014→015 upgrades, RLS, replay, stale sources/preferences,

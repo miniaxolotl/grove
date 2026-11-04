@@ -30,6 +30,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
       "askTools",
       "contentVersion",
       "changeToken",
+      "notebookOrderVersion",
     );
     const subjects = await source("subject_authority").select("*");
     const researchBudget = await source("research_global_usage").select("*");
@@ -206,6 +207,8 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
         .whereNotIn("status", ["complete", "cancelled"])
         .update({ status: "cancelled", version: target.raw("version+1") });
       await target("memory_enrichments").delete();
+      await target("ai_cache").delete();
+      await target("ai_provider_backoff").delete();
       await target("memory_briefs").delete();
       await target("notebook_profiles").delete();
       await target("notebook_summary_nodes").delete();
@@ -372,6 +375,10 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
             changeToken: target.raw("greatest(change_token,?::bigint)+1", [
               current.changeToken,
             ]),
+            notebookOrderVersion: target.raw(
+              "greatest(notebook_order_version,?::bigint)+1",
+              [current.notebookOrderVersion],
+            ),
             organizationDueAt: target.fn.now(),
           });
         if (gone) {

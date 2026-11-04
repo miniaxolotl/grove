@@ -1,383 +1,156 @@
 # Your Grove notebook
 
-Grove is a place for notes, ideas, and everyday writing. Start in **Notes** to write
-and organize, or **Ask Grove** to talk about your notes. Notebooks live in the sidebar;
-on a phone, tap **Notebooks** below the navigation to browse them. Search shares the
-heading row with **New note**. Connected agents use the same notes and permissions; their references live in
-**Note properties → Agent details**. The sidebar logo always returns to Notes.
-
-Optional [speech](speech.md) belongs to a current note's Preview: review a suggested
-recording transcript before copying it into a draft and saving, or open **Read aloud**
-for user-started generated playback. Enable each feature independently in
-**Settings → Preferences → Speech**. New accounts start with transcription off and
-Read aloud on; existing choices are preserved. Original recordings and
-manual transcripts remain available without either provider. Unsaved changes must
-finish saving before read aloud; shared readers never initiate inference.
+Start in **Notes** to write and browse, or **Ask Grove** to work with your notes.
+Notebooks live in the sidebar; on phones, open **Notebooks** beneath navigation.
+The Grove logo returns to Notes. Connected agents share these notes and their
+approved permissions; technical references stay in **Note properties → Agent details**.
 
 ## Write, find, and organize
 
-**[Files & storage](files-storage.md)** under Settings brings together uploaded
-documents, images and original recordings. Expand a file to see its current notes,
-notebooks or chats. Shortcuts in Ask, imports, note actions and notebook actions
-open the same view with context filters; uploading alone never files a note.
+- **New note**, **Today’s note** and existing notes use the same workspace.
+  **Edit note** / **Preview** switch in place, preserving cursor, Undo and reading
+  position. **Write** styles Markdown; **Markdown** exposes source. Formatting,
+  outline and focus mode remain available while writing.
+- Autosave starts after a 450ms typing pause; viewer checklist changes start saving
+  immediately. **Save note** or Ctrl/Cmd+S saves now. First-save routing retains
+  the editor, focus, scroll and Undo. Another New note starts a separate document.
+- Drafts/retry identities stay in account/session-owned memory during navigation,
+  not on disk. Saves retain newer typing and require review of concurrent edits.
+  Opening a draft during its save follows that request, not a duplicate create.
+  Reload cannot restore it. Signing out, account/session replacement or terminal
+  refreshed-session denial clears private drafts; transient recovery keeps them
+  mounted with retry feedback. See [session recovery](development/client-cache.md#session-readiness-and-recovery).
+- Search with Ctrl/Cmd+K; `/` opens library filtering. **Filters** groups notebook,
+  kind, topic, source, date, lifetime and sorting. They apply to the entire matching
+  library, not just loaded rows. Queries remain in POST bodies. See
+  [search](search.md) for relevance, typo/prefix matching and partial evidence.
+- **New note** follows your current notebook; notes without one are **Unfiled**.
+  Sidebar expansion, list scroll and outline pinning can be remembered per account
+  in this browser without storing note text, names, queries or drafts.
+- Create with the sidebar **+**; **Manage notebooks** browses the catalog. Use
+  **Organize** for sibling order and **Move notebook** for a searchable destination
+  and explicit placement. Touch notebook folder controls open Organize rather than
+  requiring long-press drag. Mouse and keyboard paths remain available. The
+  [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
+  and device qualification limits. Parent access never grants child access.
+- Select up to 50 loaded notes for batch move/archive/restore. Note handles support
+  mouse/pen, keyboard Space/arrows/Escape and deliberate touch drag; horizontal
+  swipe reveals ordinary note actions while vertical input scrolls. Notebook touch
+  controls follow the separate Organize path above. Partial failures identify notes;
+  Undo never overwrites a later edit.
 
-- **New note**, **Today’s note**, and existing notes share one reading/writing
-  workspace. **Edit note** and **Preview** switch modes in place, keeping your cursor,
-  undo history and scroll position. **Write** styles Markdown as you work;
-  **Markdown** shows its source. Use the shared formatting toolbar,
-  undo/redo, heading outline, and focus mode (Escape exits focus). Reading/writing
-  and outline controls stay available in focus mode. The compact outline shows
-  heading levels and lets you find a heading and jump to it with Enter. Choosing a
-  heading returns focus to that section or its source in the editor. Use **Jump to
-  heading** in Commands or `Ctrl`/`Cmd` + `Alt` + `O` while reading or writing.
-  **Pin outline on wide screens** keeps the section list beside the document when
-  there is enough room; phones and narrow drawers keep the dialog. The current
-  section follows reading scroll or the writing cursor/scroll.
-  **New note** follows the notebook you are browsing, filtering, or editing.
-  Notes outside a notebook appear in **Unfiled**.
-- Notes save automatically after a 450 ms typing pause, including in the wider drawer.
-  Viewer checklist changes start saving immediately through the same version-checked
-  save path. First-save navigation keeps the editor, focus, scroll and undo history;
-  opening another **New note** starts a separate document. **Save note** or
-  `Ctrl`/`Cmd` + `S` saves immediately. Formatting supports `Ctrl`/`Cmd` + `B`, `I`, and `K`.
-  Drawer editors can expand without losing their selection or undo history.
-- Drafts stay in account/session-scoped memory while navigating Grove, including
-  their original revision and retry ID. Unsaved drafts are not stored on disk;
-  reload/close prompts while drafts remain. Saving checks concurrent changes and
-  preserves typing that happens during a request.
-  Reopening a draft during a save follows the same request rather than creating
-  another note.
-  When opening or returning to Grove, workspace requests wait for a current session
-  token and recover once from an expired token. If reconnecting is temporarily
-  unavailable, your draft stays open with retry feedback. Use the save control again
-  when the connection returns. A delayed rejection from an older session refresh
-  keeps the draft available for retry. Signing out, changing accounts/sessions, or
-  rejection of the current refreshed session clears private in-memory drafts; a
-  page reload cannot restore them.
-  **History** opens earlier revisions without leaving the workspace.
-  **Linked notes** is a collapsed accordion below your writing. On a wide screen
-  **Export** sits in the toolbar and **Delete note…** beside it, including focus
-  mode. **Note actions** orders Move, Export, revision history/properties, Archive
-  or Restore, then separated Delete; compact screens keep every secondary action —
-  Export, Delete, focus mode, previous/next and Commands — in this one menu.
-  Full-page notes fill the phone viewport, with **Back to notes** returning to
-  navigation. Save state stays visible; feedback does not move the page.
-  Save stays visually quiet until there are changes to save.
-- Press `Ctrl`/`Cmd` + `K` to search across your Grove, or `/` to filter the library.
-  Results update after a short pause as you type. **Filters** gathers notebook,
-  note type, topic, source, updated date, retention and sorting in one panel.
-  Queries stay in POST bodies. Sorting and filtering apply to the entire
-  matching library; the note count shows the active notebook when one is chosen.
-  Relevance ranks displayed-title matches before body matches. Plain queries
-  support final-word prefixes and conservative typo recovery; explicit date
-  sorts stay selected. [Search behavior and limits](search.md) explain English
-  stemming, operators and supported corrections.
-  Search excerpts show a passage near proven matches, with stem/prefix highlights.
-  Global search and Ask Grove's Search tab show the notebook path. Semantic-only
-  and typo-only matches show an ordinary excerpt rather than invented highlights.
-- Create a notebook with the sidebar **+** and just a name. **Manage notebooks** opens all
-  notebook settings. Each notebook's action menu includes **New sub-notebook**;
-  expand/collapse the tree in the sidebar to see notebooks and recent pages. Search retains
-  matching notebooks' ancestors so you can see where they belong.
-  Sidebar expansion, notebook-list scroll and outline pinning are remembered on
-  this browser for your account, including after signing out and back in. Desktop
-  and phone notebook lists keep separate scroll positions. No note text, drafts,
-  search queries or notebook names are stored with these choices. Blocked browser
-  storage simply disables remembering them.
-- **Rename notebook** focuses the name; **Move notebook** focuses the destination
-  and preserves the name. Choose a **Parent notebook** or **Top level**;
-  sub-notebooks move with their parent. Breadcrumbs and dropdowns show full paths.
-  A notebook cannot move into itself or its descendants. Concurrent changes keep
-  your inputs and offer the current version for review. Unchanged actions are disabled.
-  Single-note moves start at their current notebook; mixed selections ask for a destination.
-- Agent grants keep each notebook's own scope: parent access does not include children.
-  Notes/search/Ask Grove stay scoped to the chosen notebook. Moving a notebook
-  preserves its notes, revisions, retention, and stable agent/repository references.
-- Select up to 50 loaded notes to move, archive, or restore. Drag a handle into a
-  notebook, or press Space, choose a destination with the arrows, and press Space
-  again. Escape cancels. On touch screens, a horizontal swipe reveals ordinary
-  action buttons for one note at a time; vertical gestures scroll. A long press
-  on the handle starts dragging and reveals a scrollable list of destinations.
-  Hold near the list's edge to scroll, or release over **Drop here to cancel**
-  at the bottom of the same destination panel. The file/folder icon doubles as a
-  drag handle in the sidebar. The preview identifies the item and stays beside
-  the pointer (above a touch contact); the whole source row is marked while dragging;
-  the current destination is highlighted as you move.
-  Pens start from the same handles. Interrupted gestures do not move a note.
-  Notebook handles also support drag or keyboard nesting; hover over a collapsed
-  destination to expand it. Focus mode fills the viewport and hides secondary tools.
-- **Undo** checks the version produced by the original action. It never overwrites
-  someone else's later edit. Partial failures identify the affected notes.
-  Move and bulk-action Undo stays available in the shared notification stack
-  alongside later copy feedback, including inside an open dialog. Compact neutral
-  confirmations sit at the lower right, clear of the chat composer.
-
-Dropdowns share keyboard, touch and focus behavior across filters, notebook choices,
-note properties and settings. Use arrows, Home/End or typeahead, Enter to
-choose, and Escape to dismiss; inside a dialog, the first Escape closes the menu.
-An outside tap or click dismisses a dialog or drawer; scrolling or dragging across
-its edge does not. Action menus follow their opener when scrolling/resizing and
-scroll internally in short viewports. Confirmed mutations finish before
-closing; background autosave retains its request and draft when you navigate away.
+Full-page phone notes use **Back to notes** instead of the sidebar. **Note actions**
+keeps compact secondary tools together. Menus/dialogs dismiss on outside press,
+not a drag crossing their edge; confirmations wait for mutations, while autosave
+retains its draft/request when you navigate away.
 
 ## Archive and delete notebooks
 
-Use **Archive notebook** or **Delete notebook…** from notebook options, sidebar
-actions, or the notebook manager's **More actions** menu. Confirmation includes
-all sub-notebooks and their notes, with counts. Cancel leaves everything unchanged;
-finish saving or resolving local drafts before confirming.
-
-**Manage notebooks → Archived** offers **Restore notebook** and **Delete notebook…**.
-Restore a parent before its archived child. Restoration keeps earlier independent
-archives and original retention dates. Archived notebooks stay out of notebook
-pickers and cannot receive new notes or edits until restored.
-
-Delete is **soft deletion only**: notebooks, notes and history become hidden, not
-permanently erased. There is no in-app Undo. Direct links are turned off; restore
-does not reactivate them, though a shared parent can include restored content again.
-See [notebook lifecycle](notebook-lifecycle.md) for permissions and recovery.
+Notebook options and manager actions offer whole-subtree Archive/Delete. Review
+descendant/note counts and resolve local drafts before confirmation. **Manage
+notebooks → Archived** offers Restore/Delete; restore the parent first. Independently
+archived descendants remain archived. Deletion hides retained source/history and
+has no in-app Undo. Direct revoked links never reactivate on restore. See
+[lifecycle](notebook-lifecycle.md) for scope, concurrency and recovery.
 
 ## Notebook assistance
 
-**Summary** adapts to your notebook's subject and links its sources. Use the icon in
-**Move** to suggest a notebook for an unfiled note. A note or selection of up to six
-notes can **Extract action list**; edit the preview before saving a checklist.
-**Notebook options** includes **Since your last visit** and **Review notebook**.
-Review source excerpts and changes, then apply or keep both; Undo checks later edits.
-These features have independent AI preferences. See [notebook assistance](notebook-assistance.md).
+Use cited notebook summaries, filing suggestions, action-list previews, change
+digests and cleanup review through [notebook assistance](notebook-assistance.md).
+Each has independent AI preferences. Proposed changes need explicit review/Apply;
+generation does not silently rewrite notes. [Connected notebooks and linked notes](relationships.md)
+explain current evidence, partial coverage and retained Dismiss/Undo decisions.
 
 ## Share with a link
 
 ### Private section links
 
-Use the link icon beside a heading in **Note outline** to copy a link to that
-section of the saved note. Clipboard denial shows a field you can select and copy.
-New notes must be saved first. These are authenticated workspace links: copying
-one does not enable public sharing or grant another account access. A heading in
-an unsaved edit is not published by copying its link.
-
-Links reopen the section after the note loads and work in reading/writing modes,
-on reload and with Back/Forward. Unrecognized or malformed sections leave the note
-usable without changing its text. Heading names determine their anchors; duplicate
-names get unique numeric suffixes. Renaming a heading or rearranging duplicates
-can change their links. Public-link creation continues to use the controls below.
+Copy a heading link from **Note outline** after saving. It grants no access or public
+sharing. Links reopen that section in reading/writing, including reload/Back/Forward.
+Heading names generate anchors; renaming/reordering duplicate headings may change
+links. A missing section leaves the note usable without altering text.
 
 ### Public read-only links
 
-Open **Share note** in a saved note's toolbar, the phone's **Note actions** menu, or
-Commands. **Share notebook** is
-available in notebook options and sidebar actions; the notebook manager also has
-a Share button. Choose **Anyone with the link**, then save the settings. Visitors
-can read the latest saved content without an account; permission is **Can view**.
-Notebook scope defaults to **This notebook only**; **Include sub-notebooks** also
-includes current and future descendants. Newly saved or moved-in notes become
-visible through the chosen scope.
-
-Copy/open reuses the current link. Replace invalidates the previous link. Choose
-**Restricted → Turn off direct link** to revoke. The dialog lists any notebook
-links that still include the content, with access to their settings. Archived and
-expired notes are hidden until restored; deleted notes are unavailable. Pending
-saves prevent new or replacement links while revocation remains available.
-See [public sharing](sharing.md) for lifecycle and permission details.
+**Share note/notebook** creates a live read-only capability for anyone with its URL.
+Choose direct versus descendant scope and optional expiry; review before saving.
+Unshared drafts/history/agent metadata are not published. Revoking one direct link
+does not remove independently covering links. [Public sharing](sharing.md) owns
+controls, permissions, expiry and privacy limits.
 
 ## Commands and keyboard shortcuts
 
-Open **Commands** from the sidebar utilities or the note-actions menu on compact
-screens, or press `Ctrl`/`Cmd` + `Shift` + `P`. Type an
-action, use Up/Down to choose, and Enter to run it. The menu includes actions for
-the current note, including after a new note's first save. Escape returns focus to
-where you were. **Keyboard shortcuts**
-in the sidebar/footer, or `Ctrl`/`Cmd` + `/`, opens the help menu.
+Open **Commands** from sidebar utilities, compact Note actions, or Ctrl/Cmd+Shift+P.
+Search, choose with arrows and Enter, Escape to return focus. Shortcut help is
+Ctrl/Cmd+/. Text fields retain their normal editing behavior.
 
-| Shortcut             | Action                                     |
-| -------------------- | ------------------------------------------ |
-| Ctrl/Cmd + K         | Search notes (insert a link while writing) |
-| Ctrl/Cmd + Alt + N   | New note in the current notebook           |
-| Ctrl/Cmd + E         | Toggle edit / preview                      |
-| Ctrl/Cmd + S         | Save now                                   |
-| Ctrl/Cmd + Shift + F | Toggle focus mode                          |
-| Ctrl/Cmd + Alt + O   | Find and jump to a heading                 |
-| Ctrl/Cmd + comma     | Settings                                   |
-| Up / Down            | Move between focused note rows or commands |
-| Left / Right         | Previous / next note in the drawer         |
-| Delete / Backspace   | Ask to delete the focused or open note     |
+| Shortcut         | Action                                  |
+| ---------------- | --------------------------------------- |
+| Ctrl/Cmd+K       | Search notes; insert link while writing |
+| Ctrl/Cmd+Alt+N   | New note in the current notebook        |
+| Ctrl/Cmd+E       | Toggle edit/preview                     |
+| Ctrl/Cmd+S       | Save now                                |
+| Ctrl/Cmd+Shift+F | Toggle focus mode                       |
+| Ctrl/Cmd+Alt+O   | Find/jump to heading                    |
+| Ctrl/Cmd+comma   | Settings                                |
+| Up/Down          | Navigate focused rows or commands       |
+| Left/Right       | Previous/next note in the drawer        |
+| Delete/Backspace | Confirm deletion of focused/open note   |
 
-Arrow and Delete keys keep their normal behavior inside text fields and editors.
-Deleting always requires confirmation. Drag handles retain their own Space/arrow
-controls. Long notes scroll within the workspace while the mode switch stays visible.
+Outline pinning uses wide screens; phones/narrow drawers retain the dialog. Focus
+mode hides secondary navigation without replacing the document or losing history.
 
 ## Export and delete notes
 
-Ask Grove can also archive, restore or delete selected notes and notebooks after a
-named preview. Notebook previews count all descendants; deletion has no Undo.
-Retained local drafts block these lifecycle actions until saved or resolved. It can
-move existing notebooks, with version-checked Undo. See [Ask tools](ask-tools.md).
+**Export** offers Markdown, PDF and Copy Markdown using the current reading/editing
+text, including unsaved drafts. Row export uses a retained draft or latest saved
+content. Oversized drafts remain exportable even when they cannot be saved.
+PDF is local/on-demand, searchable and paginated, with code/tables/links; unsupported
+characters get explicit Unicode fallbacks. Authorized owned raster images can be
+embedded; external images stay links. Audio is a textual reference, not embedded
+playback. [Media exports](media.md#exports-and-recovery) own image limits, portable
+original-byte TARs and media-complete account exports.
 
-**Export** opens three choices: **Markdown (.md)**, **PDF (.pdf)** and
-**Copy Markdown**. It uses the text you are reading or editing, including new and
-unsaved drafts, without requiring a save. The chooser identifies unsaved changes.
-From a row, Export uses a retained draft or fetches the latest saved note.
-Files contain the note body; their names follow its current title.
+**Settings → Your data** prepares a background account export; notebook export can
+include descendants. Progress/retry/cancel/download survive navigation; see
+[jobs](jobs.md#exports-and-storage) for format, expiry and source-change fencing.
 
-Markdown and Copy preserve source text and Unicode. PDF produces searchable,
-paginated text with links, headings, lists, code and tables. Images become labelled
-links; raw HTML is omitted. It loads locally only when requested, without sending
-your writing to a conversion service. Unsupported font characters appear as explicit
-Unicode codes; Markdown retains the originals. Very wide tables become labelled records.
-The PDF uses a quiet monochrome layout, real checkboxes, embedded monospace code,
-and section bookmarks. Ordinary table rows stay together; six-to-eight-column
-tables use landscape sheets while the rest of the note stays portrait. Page
-numbers appear only on multi-page notes.
-If an automatic PDF download does not start, use **Download PDF** in the chooser.
-Closing it cancels preparation. Clipboard denial leaves selectable source text.
-
-Drafts longer than 6,000 characters stay available for export; shorten them to save.
-PDF supports up to 100,000 characters. **Settings → Your data** prepares a queued
-account export; **Notebook options → Export notebook** exports a notebook, with
-optional sub-notebooks. Icon controls show progress, cancel, retry and download.
-Files include notes and revisions; account exports also contain conversations.
-
-**Delete note…** is also available under a row's Actions button, without opening
-the note. Confirmation names the note and hides it and its retained history. Cancel
-keeps your draft. If you have unsaved edits, the confirmation explicitly discards
-them; it pauses autosave and waits for an active save. An uncertain save must be
-resolved with **Retry pending save** first. Concurrent edits require review rather
-than deletion against an unseen version. Successful deletion has no Undo.
+**Delete note…** confirms by name, hides the note/history and has no ordinary Undo.
+It can discard a dirty draft, but waits for a running save and requires resolving
+an uncertain save first. A concurrent edit requires review, never unseen deletion.
 
 ## Daily writing and personal details
 
-**Today’s note** starts with today's date in your current notebook. It is an ordinary
-note, available in the same library, search and Ask Grove. Choose **Date written**
-under **Filters → Sort notes** to group all matching notes by day. Existing Journal links open this
-dated view. There is no separate journal to manage.
-
-Notebook pages open directly to their notes. **Notebook options** offers **Ask about
-these notes**, **Summarize notebook** and **Progress notes**, alongside rename,
-move and sub-notebook creation. Progress notes record where work stands; their
-agent references survive edits and moves.
-
-**Settings → Account → About you** offers prompts for preferences and things you
-want Grove to know.
+**Today’s note** is an ordinary dated note in the current notebook. **Filters →
+Sort notes → Date written** groups notes by day; there is no separate journal store.
+**Progress notes** are handoffs whose references survive editing/moving. **Settings →
+Account → About you** records preferences and things you want Grove to know.
 
 ## History and how long notes stay
 
-Ordinary notes stay until you remove them. Under **Note options**, any kind of note
-can instead be kept for 1–365 days. Progress notes default to 30 days. Editing or
-moving preserves the expiry date; changing the duration starts it again. Expired
-notes leave search and recall, and remain restorable for 60 more days before deletion.
-Restoring renews their duration. Archive is available in the footer.
-
-**History** keeps readable versions, side-by-side comparison, and **Restore as a new
-revision**. A concurrent edit preserves your draft and presents the newer saved
-version for review. Replacing or restoring always creates another version.
+Ordinary notes stay until removed. Any kind can use a 1–365-day lifetime; progress
+notes default to 30 days. Ordinary editing/moving preserves expiry; changing lifetime
+restarts it. Expired notes leave recall/search and remain restorable for 60 days
+before soft deletion. Restore renews the duration. Archive is available from navigation.
+**History → Restore as a new revision** preserves prior versions and checks concurrent
+edits. [API contracts](server.md#memory-and-notebook-tools) define exact semantics.
 
 ## Linked notes and Ask Grove
 
-Choose **Graph** within Notes to explore recorded related, duplicate, or conflicting
-ideas. It uses the loaded, current notes in the selected scope. Load earlier pages
-to expand it. Drag to pan, or hold Ctrl/Cmd while scrolling to zoom; ordinary wheel
-input scrolls the page. On touch screens, tap notes in the embedded graph and use
-**Expand graph** for one-finger pan and pinch zoom. Expansion also works without
-browser fullscreen. Zoom and the central view stay stable when selecting, reading,
-editing or resizing; **Fit View** deliberately brings all loaded nodes into view.
-Space selects a focused node; Enter reads it. Escape clears a focused selection or
-leaves expanded exploration.
-**Controls** reveals pointer, touch and keyboard guidance when needed. **Done**
-returns from expanded exploration. Connection legends describe the visible edges;
-empty-state guidance stays below the canvas.
+**Graph** explores loaded current notes/notebooks; load earlier pages for broader
+coverage. Ordinary wheel input scrolls the page; Ctrl/Cmd+wheel zooms. Touch users
+expand for pan/pinch; keyboard users can focus/select/read nodes and return focus.
+Linked-note explanations cite current excerpts; see [relationships](relationships.md).
 
-Select a row in **Linked notes** or an edge in the graph for a compact explanation.
-Expand **Supporting notes** for current excerpts. **Compare notes** opens both
-originals read-only; **Dismiss suggestion** and version-checked **Undo dismissal**
-review the connection from either endpoint. Automatic note comparisons stay within
-their notebook or Unfiled.
+**Ask Grove** has cited saved-note answers, optional web tools and explicit reviewed
+note changes. [Ask tools](ask-tools.md) owns tools/history/composer behavior;
+[selected sources](explicit-context.md) owns Sources/@mentions and strict scope;
+[document imports](imports.md) owns attachments/full-text review. Uploading or asking
+does not implicitly create a library note. Drafts remain private session memory.
 
-**Notebook options → Connected notebooks** and **Graph → Notebooks** explain how
-collections relate. Partial coverage is flagged in the summary; supporting notes
-include source links and explicit **X of Y notes** coverage. A limited shared thread
-is distinguished from broad shared context.
-Sub-notebooks are assessed separately. See [connections](relationships.md) for
-evidence, processing, API and migration details.
-
-**Ask Grove** finds, explains and helps change your notes. Follow-ups such as
-“shorten that note” use the conversation's context. Choose all notes, Unfiled, or
-a notebook; optionally include unfiled notes. **Search** finds pages as you type.
-The search field and status stay in place through pending, empty and result states;
-a failed search offers an inline retry. Clearing it returns focus to the field.
-Source links open the cited note and identify when it has since changed.
-
-Use **Sources** or `@note` / `@notebook` followed by Space, Tab or Enter to choose
-exact context for a question. Preview before selecting, check notebook paths for
-duplicate titles, and keep **Use only these sources** on to exclude automatic
-library retrieval, earlier answers and web research. Large notebooks use bounded
-direct-member retrieval with visible partial coverage. Selected scope, supplied
-evidence and citations remain distinct. **Add sources** and **Edit sources** preserve
-questions/choices without automatic sending or broadening. Explicit selected-note
-edits/merges still need review and Apply; other mutation types use an ordinary
-question. [Source selection](explicit-context.md) covers limits, recovery and scope.
-
-The message box's **Tools** menu controls **Web search**, **Research**, and
-**Manage notes** independently. Enabled research tools are used when
-outside context would help; saved-note searches and greetings do not need a web
-search. Changes save automatically for the current chat and remember that switch
-for new chats, including after signing in again or restarting. Old chats keep their
-own choices until you change them. Changing tools before sending a question does
-not add an empty chat to History. **Refresh tools** confirms saved choices after
-a failed or uncertain save; your unsent message is kept. Unconfigured providers
-show as unavailable. Web claims link to
-external sources separately from saved-note citations. See [Ask tools](ask-tools.md)
-for allowances, provider setup and incomplete-research behavior.
-
-Ask Grove can create notebooks/sub-notebooks, rename them, file notes and create
-notes inside an existing or proposed notebook. Review the combined preview, then
-choose **Apply changes**. **Undo** checks that notes/notebooks have not changed;
-new work added to a created notebook prevents Undo from archiving it. Organization
-considers at most 50 current notes per batch and shows partial coverage. Existing
-date-based sorting remains a read-only library operation.
-
-Use **History** to browse saved conversations by date or search their titles and
-your questions. Each row shows a distinct question preview, notebook scope, date and question
-count; **Current** marks the open conversation. Search covers all saved history,
-including conversations beyond the first page. **More conversations** loads older
-results; a failed page retries in place.
-
-Choose a conversation to read it from the beginning, then use **Latest reply** to
-return to its end. Unsent messages stay with their conversation while switching;
-**New conversation** returns to an unfinished new-message draft. These drafts are
-account/session-owned memory, not durable storage across a browser reload.
-Opening failures stay in History, and closing it cancels an unfinished open.
-Each row has a labelled **Delete** action, including older empty conversations.
-Confirmation names the conversation, starts on **Cancel**, and keeps saved notes.
-A failed deletion stays open for retry. Successful deletion removes the chat from
-history and clears its reader if it was open; it stays deleted after reload.
-
-Changing the
-scope starts a new conversation. Stop cancels the current reply; interrupted replies
-can be retried. Explicit edit, create and merge requests show a preview before
-saving, with version-checked **Undo** afterward. Merges archive the originals and keep earlier revisions.
-New-note proposals show one preview and **Save note**, without an empty comparison.
-Edit and merge proposals retain **Review changes** to compare existing and proposed text.
-If a note changes after the preview, ask for an updated preview before applying it.
-
-The message box grows with your writing. The formatting toggle reveals Markdown tools and a
-preview; switching modes keeps your text and selection. Plain text uses Enter to send
-and Shift+Enter for a new line. Markdown uses Enter for new lines and Ctrl/Cmd+Enter
-to send. The send button works in either mode, including touch keyboards.
-Replies follow the conversation only while you are near its latest message. Scroll
-up to keep reading older messages, even as a reply arrives or the composer grows.
-**Latest reply** returns to the bottom and resumes following. Sending a new question
-also resumes following.
-
-**Settings** groups Preferences, Account, Connections, AI & search and
-Your data under a persistent heading and navigation. Section content scrolls
-independently, keeping navigation in place. AI preference drafts survive visits to
-other settings tabs; **Discard changes** restores saved choices. Save submits only
-changed controls and retains edits made while saving. A dot marks unsaved
-preferences, and clean forms follow changes saved in another tab. **AI & search**
-shows service availability separately from your feature preferences. Export includes
-notes, revisions, conversations and relationship review state. Self-hosted administrators retain provider
-configuration at [Model settings](models.md).
-
-The interface uses self-hosted Space Grotesk and the [Sprout palette](design/grove-sprout.md).
-Browser checks cover narrow layouts, keyboard and native touch interaction, graph,
-cited chat, dated writing, history, concurrent edits, cancellation, and accessibility.
+**Settings** keeps navigation while section content scrolls. Preference drafts survive
+tab switches; Save submits changed controls and retains newer typing, Discard restores
+saved values. Availability is separate from preferences and provider health. See
+[models](models.md), [billing](billing.md) and [files/storage](files-storage.md).
+Original images/audio, [manual transcripts](recordings.md) and editing remain usable
+without inference; [speech](speech.md) requires separate explicit actions.
