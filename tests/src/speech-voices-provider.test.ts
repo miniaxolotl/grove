@@ -1,6 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { setTimeout as delay } from "node:timers/promises";
 import * as speech from "../../lib/ai/src/speech.ts";
 import { speechRequestSchema } from "@lib/shared/speech";
 import { settingsUpdateSchema } from "@lib/shared/settings";
@@ -34,7 +35,12 @@ const server = createServer(async (req, res) => {
   res.writeHead(200, {
     "content-type": mode === "mime" ? "text/html" : "application/json",
   });
-  if (mode === "oversized") return res.end("x".repeat(6 * 1024 * 1024 + 65537));
+  if (mode === "oversized") {
+    // Validation must still run when a large response takes longer than the
+    // short deadline used by the separate stalled-provider test.
+    await delay(150);
+    return res.end("x".repeat(6 * 1024 * 1024 + 65537));
+  }
   res.end(
     JSON.stringify({
       base_resp: { status_code: code, status_msg: "SECRET_DIAGNOSTIC" },
@@ -63,7 +69,7 @@ after(() => {
   server.closeAllConnections();
   server.close();
 });
-const provider = (voice = "English_CalmWoman") => {
+const provider = (voice = "English_CalmWoman", timeoutMs = 5000) => {
   assert.equal(
     typeof speech.createMiniMaxSpeech,
     "function",
@@ -73,7 +79,7 @@ const provider = (voice = "English_CalmWoman") => {
     apiKey: "fixture-key",
     baseUrl: origin,
     voice,
-    timeoutMs: 100,
+    timeoutMs,
   });
 };
 
@@ -218,6 +224,11 @@ test("MiniMax rejects malformed, incomplete and oversized successful audio respo
           false,
           invalid,
         );
+        if (invalid === "oversized")
+          assert.equal(
+            (error as { code: string }).code,
+            "provider_response_too_large",
+          );
         return true;
       },
     );
@@ -226,7 +237,7 @@ test("MiniMax rejects malformed, incomplete and oversized successful audio respo
 });
 
 test("MiniMax speech preserves caller cancellation and bounds stalled responses", async () => {
-  const voice = provider();
+  const voice = provider("English_CalmWoman", 100);
   mode = "stall";
   await assert.rejects(
     voice.synthesize("Text", AbortSignal.timeout(1000)),
