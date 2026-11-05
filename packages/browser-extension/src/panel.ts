@@ -620,4 +620,16 @@ void action(async () => {
       );
     } else throw error;
   }
+  const key = `entryError:${windowId}`;
+  const [entry, globalEntry] = await Promise.all([
+    host.storage.session.get(key),
+    host.storage.session.get("entryError:0"),
+  ]);
+  const error = entry[key] ?? globalEntry["entryError:0"];
+  if (typeof error === "string") {
+    notice(error);
+    await host.storage.session.remove(
+      entry[key] !== undefined ? key : "entryError:0",
+    );
+  }
 });

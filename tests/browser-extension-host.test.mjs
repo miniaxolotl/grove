@@ -90,8 +90,11 @@ for (const target of ["chrome", "edge"])
       await worker.evaluate(
         async ({ accountId, connectionId }) => {
           const browser = globalThis.chrome;
+          const currentWindow = await browser.windows.getCurrent();
           const key = `oauth:https://api.usegrove.cloud|https://clerk.usegrove.cloud|${browser.identity.getRedirectURL()}`;
           await browser.storage.session.set({
+            [`entryError:${currentWindow.id}`]:
+              "Synthetic capture was rejected before the panel opened.",
             [`${key}:tokens`]: {
               access_token: "fixture-token",
               token_type: "Bearer",
@@ -175,6 +178,12 @@ for (const target of ["chrome", "edge"])
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`chrome-extension://${extensionId}/panel.html`);
       await page.locator("#workspace").waitFor({ state: "visible" });
+      await page
+        .locator("#notice")
+        .filter({
+          hasText: "Synthetic capture was rejected before the panel opened.",
+        })
+        .waitFor({ timeout: 3000 });
       await page.evaluate(async () => {
         const window = await globalThis.chrome.windows.getCurrent();
         globalThis.chrome.sidePanel.onOpened.addListener((info) => {
