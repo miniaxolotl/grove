@@ -35,6 +35,11 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
 - [Public reference publishing](website-discovery.md) · [website design](website-marketing-05.md)
   · [identity](design/grove-sprout.md)
 
+### Proposals
+
+- [Browser extension first-release proposal](design/browser-extension.md) — draft
+  scope and implementation gates for Chrome, Firefox and Edge; not implemented.
+
 ## Maintain the source of truth
 
 [Documentation maintenance](development/documentation.md) defines topic ownership,
