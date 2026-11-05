@@ -280,6 +280,11 @@ cleanup, failed writes and populated 019/021/022/024/026 retention. The loopback
 test checks requests, not live bucket policy. No personal audio/provider call is
 needed for these deterministic cases.
 
+The MiniMax adapter fixture separates response validation from deadline checks:
+validation has a five-second provider budget and deliberately delays the oversized
+response beyond 100 ms, still requiring a non-retryable size error. Only the stalled
+provider case uses a 100 ms deadline. Runtime provider deadlines remain 45 seconds.
+
 Use actual components in Chromium and touch/mobile WebKit. Browsing/cancelling the
 chooser must not request samples, save preferences or generate narration. Sample
 playback is explicit and independent from selection; same-voice confirmation keeps
