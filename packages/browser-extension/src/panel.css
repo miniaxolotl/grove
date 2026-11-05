@@ -1,0 +1,434 @@
+@font-face {
+  font-family: Grove;
+  src: url("space-grotesk-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Grove;
+  src: url("space-grotesk-600.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+:root {
+  color-scheme: light;
+  --ground: #fafafa;
+  --surface: #fff;
+  --ink: #181a18;
+  --muted: #5e625e;
+  --line: #e4e6e4;
+  --control: #b6bdb6;
+  --active: #ecefec;
+  --negative: #a62b31;
+  font-family: Grove, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--ground);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 280px;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+button,
+a,
+input,
+textarea,
+select,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+.button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  background: var(--surface);
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 20px;
+}
+button:hover,
+.button:hover {
+  border-color: var(--ink);
+}
+button:active {
+  transform: translateY(1px);
+}
+button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  background: var(--active);
+}
+.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: white;
+}
+.primary:disabled {
+  color: var(--muted);
+}
+a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+a:not([href]) {
+  cursor: default;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+[hidden] {
+  display: none !important;
+}
+/* A single narrow sheet: width = 20px + fluid content + 20px. No reserved empty rail. */
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.masthead img {
+  display: block;
+  width: 94px;
+  height: auto;
+}
+.masthead span {
+  font-size: 12px;
+  color: var(--muted);
+}
+main {
+  max-width: 680px;
+  margin: auto;
+  padding: 24px 20px 104px;
+}
+h1 {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  margin: 0 0 20px;
+}
+h2 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 28px 0 12px;
+}
+p {
+  line-height: 1.6;
+  margin: 12px 0 20px;
+}
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+}
+.title-row,
+.between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.title-row {
+  margin-bottom: 20px;
+}
+.title-row h1,
+.title-row h2 {
+  margin: 0;
+}
+.title-row button {
+  flex: none;
+}
+label {
+  display: block;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+input:not([type="checkbox"]),
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px;
+  min-height: 40px;
+}
+textarea {
+  resize: vertical;
+  line-height: 1.6;
+  min-height: 160px;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+}
+select {
+  padding-right: 28px;
+}
+#note-help {
+  margin: 8px 0 20px;
+  font-variant-numeric: tabular-nums;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.feedback {
+  min-height: 44px;
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+#notice {
+  color: var(--negative);
+}
+#notice:empty {
+  min-height: 0;
+  margin: 0;
+}
+details {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+  font-weight: 600;
+}
+#source-label {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+.field-stack {
+  padding-bottom: 12px;
+}
+.joined {
+  display: flex;
+  gap: 8px;
+}
+.joined input {
+  min-width: 0;
+}
+.joined button {
+  flex: none;
+}
+.result-heading {
+  margin-top: 24px;
+}
+.result-heading h2 {
+  margin: 0;
+}
+.result-heading button {
+  font-size: 12px;
+  padding: 6px 8px;
+}
+.results {
+  display: grid;
+  gap: 0;
+}
+.note-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
+}
+.note-row input {
+  margin: 4px 0;
+  accent-color: var(--ink);
+  width: 18px;
+  height: 18px;
+}
+.note-row button {
+  border: none;
+  min-height: 0;
+  padding: 0;
+  text-align: left;
+  display: block;
+  width: 100%;
+  background: transparent;
+}
+.note-row p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.note-row .excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.result-footer {
+  font-size: 12px;
+}
+#search-more,
+#page-more {
+  margin-top: 16px;
+}
+#page-current {
+  margin-top: 8px;
+}
+#page-form > .primary {
+  margin-top: 16px;
+}
+.inbox-row {
+  padding: 12px;
+  background: var(--active);
+  border-radius: 6px;
+  margin: 8px 0;
+}
+.inbox-row p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0 0 8px;
+}
+.inbox-row button {
+  font-size: 12px;
+}
+.pending-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.pending-row span {
+  font-size: 12px;
+}
+dl {
+  margin: 0;
+}
+dt {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+nav button {
+  border: 0;
+  background: transparent;
+  padding: 8px 4px;
+  font-size: 12px;
+  min-height: 44px;
+}
+nav button[aria-current] {
+  background: var(--active);
+  font-weight: 600;
+}
+dialog {
+  width: calc(100% - 24px);
+  max-width: 600px;
+  max-height: calc(100% - 40px);
+  overflow: auto;
+  padding: 20px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  box-shadow: 0 12px 48px #0002;
+}
+dialog::backdrop {
+  background: #0005;
+}
+.note-source {
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+.check {
+  display: flex;
+  gap: 10px;
+  font-weight: 400;
+  line-height: 1.5;
+  align-items: start;
+}
+.check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+}
+#context-text {
+  font-size: 12px;
+}
+#pending-list:empty::after {
+  content: "No unconfirmed saves.";
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 340px) {
+  main {
+    padding: 20px 16px 100px;
+  }
+  .masthead {
+    padding: 16px;
+  }
+  .title-row {
+    gap: 8px;
+  }
+  h1 {
+    font-size: 22px;
+  }
+  .title-row button {
+    padding: 6px 8px;
+  }
+  .result-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active {
+    transform: none;
+  }
+}

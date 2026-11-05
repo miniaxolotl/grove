@@ -9,6 +9,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createContext, runInContext } from "node:vm";
 import { transform } from "esbuild";
+import { unzipSync } from "fflate";
 
 const root = resolve(import.meta.dirname, "..");
 const exec = promisify(execFile);
@@ -54,10 +55,72 @@ test("extension core bundles without Node, server dependencies, credentials or i
     ),
   );
   assert.deepEqual((await readdir(artifact.outdir)).sort(), [
+    "chrome",
     "core.build.json",
     "core.js",
+    "edge",
+    "firefox",
+    "grove-chrome.zip",
+    "grove-edge.zip",
+    "grove-firefox.zip",
+    "packages.build.json",
   ]);
   const second = await build("second");
+  for (const target of ["chrome", "firefox", "edge"]) {
+    const zip = await readFile(join(artifact.outdir, `grove-${target}.zip`));
+    assert.deepEqual(
+      zip,
+      await readFile(join(second.outdir, `grove-${target}.zip`)),
+    );
+    const files = unzipSync(zip);
+    const manifest = JSON.parse(
+      new TextDecoder().decode(files["manifest.json"]),
+    );
+    assert.equal(manifest.manifest_version, 3);
+    assert.equal(manifest.version, artifact.report.sourceVersion);
+    assert.deepEqual(manifest.host_permissions, [
+      "https://api.usegrove.cloud/*",
+      "https://clerk.usegrove.cloud/*",
+    ]);
+    assert.equal(manifest.incognito, "not_allowed");
+    assert.ok(
+      !manifest.content_scripts &&
+        !manifest.web_accessible_resources &&
+        !manifest.externally_connectable,
+    );
+    assert.ok(
+      !manifest.permissions.includes("tabs") &&
+        !manifest.permissions.includes("scripting"),
+    );
+    assert.ok(
+      manifest.content_security_policy.extension_pages.includes(
+        "object-src 'none'",
+      ),
+    );
+    assert.ok(
+      !manifest.content_security_policy.extension_pages.includes("unsafe"),
+    );
+    if (target === "firefox") {
+      assert.deepEqual(manifest.background, { scripts: ["background.js"] });
+      assert.equal(manifest.sidebar_action.default_panel, "panel.html");
+      assert.ok(manifest.browser_specific_settings.gecko.id);
+    } else {
+      assert.equal(manifest.background.service_worker, "background.js");
+      assert.equal(manifest.side_panel.default_path, "panel.html");
+    }
+    for (const required of [
+      "background.js",
+      "panel.js",
+      "panel.html",
+      "panel.css",
+      "wordmark.svg",
+      "icon.png",
+      "space-grotesk-400.woff2",
+    ])
+      assert.ok(files[required], required);
+    const js = new TextDecoder().decode(files["background.js"]);
+    assert.ok(!/node:|createRequire|process\.env|@sentry|posthog/.test(js));
+  }
   assert.equal(
     second.code,
     artifact.code,
