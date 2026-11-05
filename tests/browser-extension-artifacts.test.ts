@@ -14,7 +14,7 @@ import { unzipSync } from "fflate";
 const root = resolve(import.meta.dirname, "..");
 const exec = promisify(execFile);
 
-test("extension core bundles without Node, server dependencies, credentials or installation claims", async () => {
+test("browser packages preserve the isolated core, reproducible ZIPs, licenses and restricted manifests", async () => {
   const script = join(root, "scripts/build-browser-extension.mjs");
   assert.ok(existsSync(script), "the browser-only build must exist");
   const base = process.env.CI ? tmpdir() : "/tmp/opencode";
@@ -116,6 +116,9 @@ test("extension core bundles without Node, server dependencies, credentials or i
       "wordmark.svg",
       "icon.png",
       "space-grotesk-400.woff2",
+      "space-grotesk-OFL.txt",
+      "GROVE-LICENSE.txt",
+      "THIRD-PARTY-NOTICES.txt",
     ])
       assert.ok(files[required], required);
     const js = new TextDecoder().decode(files["background.js"]);
@@ -174,7 +177,7 @@ test("extension core bundles without Node, server dependencies, credentials or i
   assert.equal(prepared.save.request.content, "Sandbox note");
 });
 
-test("root build and quality scripts include the private browser core", async () => {
+test("root build and quality scripts include the private browser package", async () => {
   const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   assert.ok(pkg.scripts.lint.includes("packages/browser-extension/src"));
   assert.ok(

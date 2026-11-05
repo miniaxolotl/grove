@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath, URL } from "node:url";
 import { resolve, join } from "node:path";
@@ -63,6 +63,11 @@ export async function buildBrowserExtension({
     `${JSON.stringify(report, null, 2)}\n`,
   );
   const assets = {
+    "GROVE-LICENSE.txt": "LICENSE",
+    "space-grotesk-OFL.txt":
+      "packages/website/public/brand-kit/licenses/space-grotesk-OFL.txt",
+    "space-grotesk-LICENSE.txt":
+      "packages/website/public/brand-kit/licenses/space-grotesk-LICENSE.txt",
     "panel.html": "packages/browser-extension/src/panel.html",
     "panel.css": "packages/browser-extension/src/panel.css",
     "wordmark.svg": "packages/website/public/brand/wordmark-primary.svg",
@@ -169,6 +174,36 @@ export async function buildBrowserExtension({
         `${JSON.stringify(manifest, null, 2)}\n`,
       ),
     };
+    const dependencies = [
+      ...new Set(
+        Object.keys(runtime.metafile.inputs)
+          .filter((input) => input.startsWith("node_modules/"))
+          .map(
+            (input) =>
+              input.match(/^(.*\/node_modules\/(?:@[^/]+\/)?[^/]+)\//)?.[1],
+          ),
+      ),
+    ].sort();
+    const notices = [];
+    for (const directory of dependencies) {
+      if (!directory) throw new Error("Unrecognized extension dependency path");
+      const dependency = JSON.parse(
+        await readFile(join(root, directory, "package.json"), "utf8"),
+      );
+      const license = (await readdir(join(root, directory))).find((name) =>
+        /^licen[sc]e(?:\.(?:md|txt))?$/i.test(name),
+      );
+      if (!license)
+        throw new Error(
+          `Missing extension dependency license: ${dependency.name}`,
+        );
+      notices.push(
+        `${dependency.name} ${dependency.version}\n\n${await readFile(join(root, directory, license), "utf8")}`,
+      );
+    }
+    files["THIRD-PARTY-NOTICES.txt"] = new TextEncoder().encode(
+      notices.join("\n\n---\n\n"),
+    );
     for (const [name, path] of Object.entries(assets))
       files[name] = await readFile(join(root, path));
     for (const file of runtime.outputFiles)
