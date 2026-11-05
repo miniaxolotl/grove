@@ -2,7 +2,15 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDatabase, tenant } from "@lib/database";
-import { MemoryService } from "@lib/memory";
+import {
+  MemoryService,
+  Tasks,
+  runTask,
+  importHandlers,
+  exportHandlers,
+} from "@lib/memory";
+import { mkdir, mkdtemp } from "node:fs/promises";
+import { localArtifacts } from "../../packages/api/src/artifacts.ts";
 import { Authentication } from "../../packages/api/src/auth.ts";
 import { type Principal } from "@lib/shared/contracts";
 
@@ -18,6 +26,7 @@ const auth = new Authentication(db, {
 });
 let a: Principal, b: Principal;
 before(async () => {
+  await mkdir("/tmp/opencode", { recursive: true });
   a = await auth.principal(
     new Request("http://localhost/v1/me", {
       headers: { authorization: `Bearer user_browser_${randomUUID()}` },
@@ -30,6 +39,102 @@ before(async () => {
   );
 });
 after(() => db.destroy());
+
+test("durable exports include source provenance without changing structured note bodies", async () => {
+  const workerDb = createDatabase(process.env.TEST_WORKER_DATABASE_URL!);
+  try {
+    const store = localArtifacts(
+      await mkdtemp("/tmp/opencode/grove-browser-export-"),
+    );
+    const tasks = new Tasks(service, true),
+      handlers = exportHandlers(workerDb, store);
+    const project = await service.project(a, {
+      name: "Browser export",
+      identity: `browser-export-${randomUUID()}`,
+    });
+    const provenance = {
+      url: "https://example.com/export?utm_source=fixture",
+      title: "Export source",
+      capturedAt: "2026-11-05T12:00:00Z",
+    };
+    const note = await service.captureWeb(a, {
+      operationId: randomUUID(),
+      content: "Exported browser note",
+      projectId: project.id,
+      capture: "explicit",
+      provenance,
+    });
+    const task = await tasks.export(a, {
+      id: randomUUID(),
+      projectId: project.id,
+      includeDescendants: false,
+    });
+    for (let i = 0; i < 40; i++)
+      if (!(await runTask(workerDb, handlers, { id: task.id }))) break;
+    assert.equal((await tasks.get(a, task.id)).downloadable, true);
+    const artifact = await tasks.artifact(a, task.id),
+      chunks: Buffer[] = [];
+    for await (const chunk of await store.read(artifact.key))
+      chunks.push(chunk);
+    const rows = Buffer.concat(chunks)
+      .toString()
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const exported = rows.find(
+      (row) => row.type === "note" && row.id === note.id,
+    );
+    assert.equal(exported.content, note.content);
+    assert.deepEqual(exported.webCapture, {
+      ...provenance,
+      url: "https://example.com/export",
+    });
+  } finally {
+    await workerDb.destroy();
+  }
+});
+
+test("queued imports preserve provenance through replay and provenance-only changes", async () => {
+  const workerDb = createDatabase(process.env.TEST_WORKER_DATABASE_URL!);
+  try {
+    const tasks = new Tasks(service, false),
+      handlers = importHandlers(
+        new MemoryService(
+          workerDb,
+          "browser-test-cursor-secret-at-least-32-characters",
+        ),
+      );
+    const sourceId = randomUUID(),
+      source = `browser-${randomUUID()}`;
+    const url = `https://example.com/import/${sourceId}`;
+    for (const title of ["Original", "Original", "Revised attribution"]) {
+      const task = await tasks.import(a, {
+        id: randomUUID(),
+        source,
+        records: [
+          {
+            sourceId,
+            content: "Imported source note",
+            projectId: null,
+            webCapture: { url, title, capturedAt: "2026-11-05T12:00:00Z" },
+          },
+        ],
+      });
+      await runTask(workerDb, handlers, { id: task.id });
+      assert.equal((await tasks.get(a, task.id)).status, "succeeded");
+      const notes = await service.pageCaptures(a, { url, projectId: null });
+      assert.equal(notes.items.length, 1);
+      await tenant(db, a.accountId, async (trx) => {
+        const capture = await trx("web_captures")
+          .where({ memoryId: notes.items[0].id, active: true })
+          .first();
+        assert.equal(capture.provenance.title, title);
+      });
+    }
+  } finally {
+    await workerDb.destroy();
+  }
+});
 
 test("browser capture service commits provenance and scope-checked replay atomically", async (t) => {
   assert.equal(typeof service.captureWeb, "function");
