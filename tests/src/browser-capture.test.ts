@@ -153,4 +153,21 @@ test("browser capture contracts validate reviewed sources without changing docum
       );
     },
   );
+
+  await t.test(
+    "lone carriage returns cannot break external text out of its quote",
+    () => {
+      assert.match(
+        capture.formatWebCapture({
+          text: "First\rSecond",
+          source: {
+            url: "https://example.com/",
+            title: "Docs",
+            capturedAt: "2026-11-05T20:00:00.000Z",
+          },
+        }),
+        /^> First\n> Second\n/,
+      );
+    },
+  );
 });

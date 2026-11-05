@@ -97,7 +97,7 @@ export function formatWebCapture(input: {
     const source = webCaptureSchema.parse(input.source);
     const quote = text
       ? text
-          .replaceAll("\r\n", "\n")
+          .replace(/\r\n?/g, "\n")
           .split("\n")
           .map((line) => (line ? `> ${escapeMarkdown(line)}` : ">"))
           .join("\n")
