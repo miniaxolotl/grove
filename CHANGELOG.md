@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.14](https://github.com/miniaxolotl/grove/compare/v1.11.13...v1.11.14) (2026-11-05)
+
+
+### Bug Fixes
+
+* **release:** use project-scoped Vercel authentication ([#172](https://github.com/miniaxolotl/grove/issues/172)) ([1f07465](https://github.com/miniaxolotl/grove/commit/1f07465a171154049c06f8f447bcb0df9a7e0fec))
+
 ## [1.11.13](https://github.com/miniaxolotl/grove/compare/v1.11.12...v1.11.13) (2026-11-04)
 
 
