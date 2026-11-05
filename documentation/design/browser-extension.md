@@ -1,10 +1,17 @@
-# Browser extension: first-release proposal
+# Browser extension: first-release design
 
-**Release proposal; v1 is not implemented.** Chrome, Firefox and Microsoft Edge are
-the selected desktop launch browsers. An internal [developer core](../browser-extension.md)
-starts the implementation; it is not an installable or qualified extension. The
-remaining scope and technical choices below are recommendations, not claims of
-browser support or permission to configure providers, migrate, deploy or publish.
+Chrome, Firefox and Microsoft Edge are the selected desktop launch browsers.
+The [current guide](../browser-extension.md) owns implemented behavior, unsigned
+local installation, rollout and verification. This design retains the release
+requirements and deferred scope; it is not evidence of signed/store distribution,
+live provider acceptance or permission to migrate, deploy or publish.
+
+The shared TypeScript runtime now provides capture, search/read, reviewed context,
+explicit exact-URL lookup and Settings. A separate **This page** view makes the
+URL-disclosure consent boundary visible rather than running lookups on navigation.
+Browser-specific manifests, trusted session OAuth/storage and atomic provenance
+APIs implement the earlier core-only gaps below. The remaining release acceptance
+checklist is intentionally stricter than fixture/unsigned-package success.
 
 ## Goal and release scope
 
@@ -20,9 +27,8 @@ tool. Ship one shared interface with native browser adapters, not three products
 | Copy context           | Select notes, preview the exact bounded text and source links, then copy. No model call, site-specific insertion or automatic prompt submission.                          |
 | Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.             |
 
-One sidebar has **Save** and **Search** modes; selected search results expose
-**Copy context**. Page matches belong beside the capture source, not in another
-primary destination. **Settings is last** and contains useful account/connection,
+One sidebar has **Capture**, **Search** and explicit **This page** views; selected
+search results expose **Copy context**. **Settings is last** and contains account/connection,
 destination, privacy, draft-clearing and shortcut information. Existing notebook
 management and full editing remain in Grove's web app.
 
@@ -32,11 +38,11 @@ history ingestion, research-tab bundles, new-tab replacement, Safari and mobile.
 Existing hosted ChatGPT/Claude connections remain a separate integration; this
 extension must not depend on their directory approval or modify their setup.
 
-## Existing contracts and implementation gaps
+## Shared design constraints
 
 Source owners: [shared contracts](../../lib/shared/src/contracts.ts),
 [API transport](../../packages/api/src/app.ts) and
-[bundle targets](../../scripts/build.mjs). Recheck them when implementation starts.
+[bundle targets](../../scripts/build.mjs).
 
 - Reuse [authenticated API and tool contracts](../server.md), [search](../search.md)
   and existing scoped notebook discovery. The API owns authorization and writes;
@@ -44,9 +50,9 @@ Source owners: [shared contracts](../../lib/shared/src/contracts.ts),
 - The current `agentSchema` accepts only OpenCode, Claude and Codex. Terminal
   [connection setup](../cloud-onboarding.md) uses a loopback listener and cannot
   simply be embedded in an extension. Extension OAuth/approval is a prerequisite.
-- Current `sourceSchema` only has agent/session/verification; notes have no
-  structured URL lookup. Page recall requires a new scoped source contract, not
-  string search over the latest list page or a local copy of the whole library.
+- `sourceSchema` keeps agent/session/verification. Browser provenance and exact URL
+  lookup use their own scoped contract, not string search over the latest list page
+  or a local copy of the whole library.
 - Current note bodies accept at most 6,000 characters. Include headings, quotes
   and attribution in that budget; show overflow and let users edit. Do not silently
   truncate a selection or invent automatic note splitting.
@@ -55,20 +61,20 @@ Source owners: [shared contracts](../../lib/shared/src/contracts.ts),
 - API CORS currently names the website origin. Test privileged extension requests
   with exact API host permissions; do not add wildcard CORS or relax website JWT
   origin validation to make an extension work.
-- Native build targets produce Node bundles; the internal extension core has a
-  separate browser-only build. Final manifests/UI must use browser-safe imports,
+- Native build targets produce Node bundles; the extension has a
+  separate browser-only build. Manifests/UI must use browser-safe imports,
   not the CLI bundle, native credential store or website's server modules.
 
 ## Architecture and safety requirements
 
 ### Shared application and browser adapters
 
-`packages/browser-extension` starts with a private TypeScript core and esbuild
-browser target, reusing the repository's toolchain without a new framework. The
-remaining application, API transport and UI need thin adapters for panels, identity,
-context menus, commands, storage and clipboard. Reuse browser-safe code under
+`packages/browser-extension` uses a private TypeScript runtime and esbuild
+browser target, reusing the repository's toolchain without a new framework. Thin
+adapters cover panels, identity, context menus, commands, storage and clipboard.
+Reuse browser-safe code under
 `lib/` where it actually fits; do not pull server imports through a shared barrel.
-MV3 packaging and native-host feasibility remain unqualified by a core-only build.
+MV3 packaging alone does not qualify native hosts or live OAuth.
 
 Produce separate manifest/artifact variants from the same source:
 
@@ -120,7 +126,7 @@ do not offer cached offline library reads.
 
 ### Capture and exact page lookup
 
-Propose an additive capture contract that commits the ordinary note and bounded
+Use an additive capture contract that commits the ordinary note and bounded
 web provenance atomically: source URL, title, capture timestamp and a normalized
 lookup key associated with the note. Use explicit capture and existing mutation
 UUID/replay rules. Derive account and connection identity server-side. Keep the
@@ -136,7 +142,7 @@ cross-account or stale lookup entries. No background backfill is required for v1
 legacy notes without structured provenance are not claimed as page matches.
 
 Define URL normalization before persistence: HTTP(S) only, no username/password,
-remove only specifically reviewed tracking parameters and non-identifying anchors.
+remove only specifically reviewed tracking parameters and retain all fragments.
 Preserve functional query parameters and identity-bearing hash routes; when unsure,
 retain the distinction rather than collapsing different documents. Preview the
 outbound URL and let users remove sensitive parameters or omit the source. Treat
@@ -154,7 +160,7 @@ two separately confirmed captures may legitimately reference the same page.
 ### Drafts, retries and durable work
 
 Keep drafts in trusted, account/origin-scoped session storage, never browser sync.
-Proposed maximum lifetime is 24 hours, ending earlier on discard, sign-out or
+Maximum lifetime is 24 hours, ending earlier on discard, window closure, sign-out or
 browser session end; enforce expiry on every read. Closing/reopening the panel or
 suspending the background context must not lose a draft. Do not claim browser-
 restart recovery unless explicitly implemented and privacy-qualified.
@@ -180,36 +186,23 @@ Do not keep transactions open during remote I/O or queue content/tokens.
 Use POST search, server pagination and current notebook grants. Preserve mounted
 rows, filters, selection, focus and scroll during refresh; mark stale/failed refresh
 honestly. Cancel/discard late responses after query, account or scope changes.
-Render note Markdown safely without executing HTML or loading remote tracking
-images; apply existing safe-link conventions.
+Display exact note source as text, without executing HTML or loading remote tracking
+images; link to the full Grove reader for rendered documents.
 
 Copy is an explicit disclosure of private text to the clipboard. Re-fetch selected
 notes and recheck current versions/access before showing the final copy preview;
-removed or changed sources require review. Include titles, notebook context and
-canonical Grove/source links with a visible size budget. Never include auth tokens
+removed or changed sources require review. Include note text and
+canonical Grove links with a visible size budget. Never include auth tokens
 or public capability links automatically. Never read the clipboard or inject into
 another website. Clipboard denial offers selectable plain text, not a false success.
 Text already copied outside Grove cannot be recalled after revocation.
 
-## Ordered implementation milestones
+## Release qualification gates
 
-Implement the entire feature in **one implementation PR**, initially stacked on
-planning PR #179, then retargeted to `development` after its parent merges. Use
-atomic, incremental commits grouping related changes. The milestones below are
-ordered commit groups/checkpoints, not additional feature PRs. Development does
-not authorize provider changes, live migrations, deployment or publication.
-
-Keep each commit coherent and reviewable: related contracts/tests, a browser
-adapter, one user-facing capability, or its focused documentation. Develop
-test-first locally, then commit the passing tests with their implementation rather
-than leaving deliberately failing checkpoints. Keep unrelated refactors out and
-avoid one final catch-all commit. Suggested commit groups follow P0–P5; a milestone
-may need several small commits without becoming another PR. Re-run affected tests
-at each checkpoint and full gates on the final exact head. The single PR must meet
-all three-browser acceptance gates before merge; do not merge a partial milestone.
-
-Do not implement against the unmerged structured-document stack or race its
-write-path changes; reassess the central mutation contract when that stack lands.
+These gates distinguish source implementation from a qualified three-browser
+release. Passing fixture tests does not authorize provider changes, live migrations,
+deployment or publication. Captures use the common structured-revision writer;
+structured-document edits must continue to invalidate stale source associations.
 
 | Milestone                        | Deliverables                                                                                                                                                                                                 | Exit gate                                                                                                                                                                                    |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -220,8 +213,8 @@ write-path changes; reassess the central mutation contract when that stack lands
 | P4 — retrieve and reuse          | Search/reader, explicit page matches, bounded selected-context preview/copy and safe canonical links.                                                                                                        | Pagination and lexical-only operation pass; deletion/revocation before copy, stale search, clipboard denial, tab changes and cross-account isolation pass.                                   |
 | P5 — qualify and prepare release | Packaged-browser tests, accessibility/privacy review, relevant captures, reproducible artifacts/hashes, upgrade tests, reviewer instructions and offline submission materials for three stores.              | Every browser passes the same core checklist. CI is green on the exact candidate; store signing/configuration and live checks remain separately identified operator gates.                   |
 
-P0 gates P1/P2; P1 and P2 gate P3/P4; P3/P4 gate P5. Do not estimate dates until
-P0 resolves identity/provider access and packaging constraints. A failed launch
+Do not estimate launch dates until identity/provider access and packaging constraints
+are resolved. A failed launch
 browser gate blocks the advertised three-browser release unless the owner changes
 scope; it must not quietly become an unsupported compatibility build.
 
@@ -272,21 +265,17 @@ operator decisions. No extension listing or website install claim before availab
 
 Implementation screenshots belong in `documentation/design/screenshots/browser-extension/`
 with synthetic content, browser/build provenance and acceptance limits; embed only
-relevant previews in PRs, at most four per row. The core-only increment has no UI
-and needs no screenshots.
+relevant previews in PRs, at most four per row.
 
 ## Remaining product and qualification decisions
 
-1. Approve or adjust the five-feature v1 boundary; Chrome/Firefox/Edge are selected.
-2. P0: choose build tooling, concrete browser/OS support, OAuth redirects and safe
-   token/session storage behavior; prove native host behavior before promising it.
-3. P1: finalize additive provenance, URL normalization, uncertainty reconciliation
-   and connection approval UX; do not widen coding-agent permissions implicitly.
-4. Recommend Cloud-first supported onboarding, keeping transport origin-scoped so
-   later self-hosted support does not require a rewrite. Decide whether self-hosted
-   host permissions/provider qualification are required for v1 before P2 scope locks.
-5. Identify store/operator ownership and approve version mapping before P5; no
-   guessed account IDs, signing secrets, fees or publication dates.
+1. Qualify concrete browser/OS versions, native entry points, live OAuth redirects,
+   session/suspension recovery and actual setup timing before advertising support.
+2. Cloud-first defaults and exact-host self-hosted builds are implemented; each
+   additional installation/issuer still requires its own provider qualification.
+3. Confirm store/operator ownership, final store IDs, signing, privacy declarations
+   and rollout order. Builds reuse the coordinated product version, not a second
+   version authority. Do not guess developer account IDs, fees or publication dates.
 
 ### Browser references
 

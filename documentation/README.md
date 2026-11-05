@@ -23,8 +23,8 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
 
 - [Tools, authentication and API](server.md) · [agent note-writing contract](agent-note-writing.md)
   · [structured notes and revision diffs](structured-documents.md)
-- [Browser extension developer core](browser-extension.md) — internal groundwork;
-  no installable extension yet.
+- [Browser extension](browser-extension.md) — unsigned local installation, privacy,
+  capture and source recall; store/live-provider acceptance remains separate.
 - [Models and preferences](models.md) · [relationships](relationships.md)
   · [AI caching](ai-caching.md) · [background jobs](jobs.md)
   · [broker and account email](background-services.md)
@@ -40,8 +40,8 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
 
 ## Designs
 
-- [Browser extension first-release proposal](design/browser-extension.md) — draft
-  scope and implementation gates for Chrome, Firefox and Edge; not implemented.
+- [Browser extension design](design/browser-extension.md) — release requirements
+  and deferred scope for Chrome, Firefox and Edge.
 - [Structured documents, targeted edits and revision diffs](design/structured-documents.md)
   — design rationale; current behavior is in the structured-notes guide above.
 
