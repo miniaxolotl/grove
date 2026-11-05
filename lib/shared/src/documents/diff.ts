@@ -6,8 +6,8 @@ import {
   type DocumentTextDiff,
   type TextDiffPart,
   type DocumentDiff,
-} from "./schema.ts";
-import { validateDocument } from "./document.ts";
+} from "./schema";
+import { validateDocument } from "./document";
 
 /** Deterministic LCS, used only after callers enforce an explicit cell budget. */
 function commonIndices(a: string[], b: string[]): Set<number> {

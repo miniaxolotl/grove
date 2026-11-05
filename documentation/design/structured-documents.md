@@ -1,9 +1,10 @@
 # Structured documents and targeted editing
 
-**Status: integration proposed; initial P0 core implemented.** The pure
+**Status: core and storage/MCP/editor integration implemented in source.** The pure
 [document core](../development/document-core.md) supplies lossless snapshots,
-guarded patches and deterministic diff data, but no product path uses it yet.
-This remains an implementation design, not a description of available tools.
+guarded patches and deterministic diff data. The [structured note guide](../structured-documents.md)
+owns the actual integrated contract, conservative compatibility choices and rollout.
+This design also includes future work, not a claim that every phase or sharing feature is available.
 The baseline is v1.11.14. Current writing and
 editing behavior remains in [workspace](../workspace.md),
 [agent note writing](../agent-note-writing.md) and [API contracts](../server.md).

@@ -11,6 +11,23 @@ export async function executeMemoryTool(
   signal?: AbortSignal,
 ): Promise<unknown> {
   switch (tool) {
+    case "get_memory_document": {
+      const input = memoryTools.get_memory_document.schema.parse(value);
+      return service.getMemoryDocument(principal, input.id, input.revision);
+    }
+    case "preview_memory_patch":
+      return service.previewMemoryPatch(principal, value);
+    case "apply_memory_patch":
+      return service.applyMemoryPatch(principal, value);
+    case "compare_memory_revisions": {
+      const input = memoryTools.compare_memory_revisions.schema.parse(value);
+      return service.compareMemoryRevisions(
+        principal,
+        input.id,
+        input.beforeVersion,
+        input.afterVersion,
+      );
+    }
     case "remember":
       return service.remember(
         principal,

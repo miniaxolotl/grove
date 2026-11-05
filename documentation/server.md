@@ -77,7 +77,7 @@ an action. Existing schemas, bounds, defaults and grants remain unchanged.
 | `memories`                         | Inspect IDs, versions, provenance and statuses     | `query`, `projectId`, `kind`, `status`, `cursor`, `limit`                                    |
 | `forget`                           | Exact-ID soft deletion; retained history is hidden | `operationId`, `items: [{id, expectedVersion}]`                                              |
 | `get_memory`                       | Exact current or historical note                   | `id`, optional `revision`                                                                    |
-| `memory_history`                   | Latest 100 revisions                               | `id`                                                                                         |
+| `memory_history`                   | Latest 100 logical revision groups                 | `id`; use returned `version` for exact reads, not its display `revision`                     |
 | `update_memory`                    | Partial edit; omitted fields preserved             | `operationId`, `id`, `expectedVersion`, changed fields                                       |
 | `move_memories`                    | Atomic batch filing (up to 50)                     | `operationId`, `items`, destination `projectId` or null                                      |
 | `archive_memory`, `restore_memory` | Archive or restore an exact note                   | `operationId`, `id`, `expectedVersion`; restore: optional `revision`, `durable`              |
@@ -86,7 +86,12 @@ an action. Existing schemas, bounds, defaults and grants remain unchanged.
 | `update_notebook`                  | Partial rename/move                                | `operationId`, `id`, `expectedVersion`, `name` and/or `parentId`                             |
 | `notebook_lifecycle`               | Owner-only subtree preview/archive/restore/delete  | `id`, `action`; changes also require `operationId`, `expectedVersion`, preview `fingerprint` |
 
-All 14 tools share schemas and execution between remote MCP and the packaged stdio
+The four structured editing tools are `get_memory_document`,
+`preview_memory_patch`, `apply_memory_patch` and `compare_memory_revisions`.
+See [structured notes](structured-documents.md) for exact source offsets, review
+binding, retry identity and capability negotiation.
+
+All 18 tools share schemas and execution between remote MCP and the packaged stdio
 bridge. `POST /v1/tools/:tool` accepts the same arguments and normal REST envelopes.
 Existing REST routes and the original four tools remain compatible. Ship the matching
 API before the upgraded bundled clients; an older server cannot execute new tools.
@@ -112,7 +117,9 @@ Batch moves are all-or-nothing; `forget` retains its per-item outcome contract.
 Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope is
 `projectId: null`. Project IDs are account-owned UUIDs. A handoff requires a stable
 `taskId`; update its existing ID/version instead of creating duplicate handoffs.
-Content is trimmed, 1–6,000 characters. `capture: "automatic"` is rejected when
+Legacy complete content is trimmed, 1–6,000 characters. Exact source-splice edits
+preserve outer whitespace and are bounded by the same 6,000-character limit.
+`capture: "automatic"` is rejected when
 automatic capture is paused; explicit user-requested saves use `"explicit"`.
 
 `retentionDays` is nullable and independent of kind: `null` keeps the note until
