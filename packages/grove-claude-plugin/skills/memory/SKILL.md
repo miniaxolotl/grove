@@ -13,7 +13,7 @@ Write human-readable notes: simple, concise, focused on one subject and understa
 
 Use CommonMark/GitHub-flavored Markdown. A short note can be one sentence; do not force a template. Use descriptive headings and lists when helpful, checkboxes only for real tasks, tables only for tabular information, and fenced blocks for code/literal examples. Do not wrap the whole note in a Markdown fence. Do not rely on raw HTML, Mermaid, math or wiki-link rendering. Preserve existing links and grove-media: attachment references; never fabricate attachment IDs.
 
-For edits, preserve unrequested facts, structure, task states, links and verbatim examples. Supplied content is the complete intended body, not a changed fragment. Do not summarize away unrelated information or rewrite historical revisions. Apply this style to authored note bodies only, not ordinary replies, structured evidence or verbatim source excerpts.
+For passage edits, read the exact current note and version, use preview_memory_patch with exact source splices, show the diff, then apply_memory_patch with the unchanged review token and operationId. Edit only the requested portion; never silently fall back to full-body replacement. Legacy supplied content is the complete intended body, not a changed fragment. Preserve unrequested facts, structure, task states, links and verbatim examples. Do not summarize away unrelated information or rewrite historical revisions. Apply this style to authored note bodies only, not ordinary replies, structured evidence or verbatim source excerpts.
 
 ## Tools and retries
 
@@ -22,3 +22,7 @@ Use remember for new saves; legacy id/expectedVersion corrections replace metada
 ## Capture and handoffs
 
 Set capture=automatic for agent-initiated saves/updates; explicit requires a user-requested save/update. Never ingest raw transcripts, tool logs, credentials or inferred sensitive details as memory. Honor private sessions and disabled capture/recall; never save or recall automatically when paused. For a handoff, save goal, verified progress, blockers and next action under a stable taskId; update its existing id/expectedVersion rather than duplicate it. Handoffs default to 30 days, then a 60-day expired restoration window and retained soft deletion. Durable memories persist until explicitly changed/deleted.
+
+## Editing sessions
+
+Reuse one UUID editSession for a continuous targeted editing task so nearby small source edits can share a logical history revision. Pass it unchanged through preview/apply and identical retries; use checkpoint=true for an explicit revision boundary. Never share session hints across independent editing tasks or writers. The server checks timing, complexity and trusted actor identity; the hint grants no authority. History revision is a display number; use its version field for exact source reads, comparisons and restore. Atomic save versions and citations remain immutable.
