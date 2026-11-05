@@ -191,10 +191,22 @@ Text already copied outside Grove cannot be recalled after revocation.
 
 ## Ordered implementation milestones
 
-Each milestone should be a focused development PR, test-first for implementation,
-with its owning documentation and explicit acceptance limits. Do not implement
-against the unmerged structured-document stack or race its write-path changes;
-reassess the central mutation contract when that stack lands.
+Implement the entire feature in **one PR against `development`**, using atomic,
+incremental commits that group related changes. The milestones below are ordered
+commit groups and verification checkpoints, not separate or stacked PRs. This
+planning-only proposal does not start implementation or authorize publication.
+
+Keep each commit coherent and reviewable: related contracts/tests, a browser
+adapter, one user-facing capability, or its focused documentation. Develop
+test-first locally, then commit the passing tests with their implementation rather
+than leaving deliberately failing checkpoints. Keep unrelated refactors out and
+avoid one final catch-all commit. Suggested commit groups follow P0–P5; a milestone
+may need several small commits without becoming another PR. Re-run affected tests
+at each checkpoint and full gates on the final exact head. The single PR must meet
+all three-browser acceptance gates before merge; do not merge a partial milestone.
+
+Do not implement against the unmerged structured-document stack or race its
+write-path changes; reassess the central mutation contract when that stack lands.
 
 | Milestone                        | Deliverables                                                                                                                                                                                                 | Exit gate                                                                                                                                                                                    |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
