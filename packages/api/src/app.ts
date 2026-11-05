@@ -26,6 +26,10 @@ import {
 } from "@lib/telemetry/context";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import {
+  browserCaptureRequestSchema,
+  browserPageRequestSchema,
+} from "@lib/shared/web-capture";
 import { z, ZodError } from "zod";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
 import {
@@ -1326,6 +1330,44 @@ export function createApp(deps: AppDependencies) {
       ),
     });
   });
+  app.post("/v1/browser/connect", async (c) => {
+    await body(c, z.object({}).strict());
+    const principal = c.get("principal");
+    const identity = await service.me(principal);
+    const approval = new URL("/app/connections", deps.siteUrl);
+    approval.hash = `connection-${principal.connectionId}`;
+    return c.json({
+      success: true,
+      data: { ...identity, siteUrl: deps.siteUrl, approvalUrl: approval.href },
+    });
+  });
+  app.post("/v1/browser/captures", async (c) =>
+    c.json({
+      success: true,
+      data: await service.captureWeb(
+        c.get("principal"),
+        await body(c, browserCaptureRequestSchema),
+      ),
+    }),
+  );
+  app.get("/v1/browser/captures/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await service.webCaptureStatus(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.post("/v1/browser/pages", async (c) =>
+    c.json({
+      success: true,
+      data: await service.pageCaptures(
+        c.get("principal"),
+        await body(c, browserPageRequestSchema),
+      ),
+    }),
+  );
   app.get("/v1/projects", async (c) =>
     c.json({
       success: true,

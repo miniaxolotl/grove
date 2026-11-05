@@ -373,6 +373,11 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
       "createdAt",
       "updatedAt",
     );
+    q.select(
+      trx.raw(
+        "(SELECT provenance FROM web_captures wc WHERE wc.memory_id=memories.id AND wc.account_id=memories.account_id AND wc.active ORDER BY version DESC LIMIT 1) AS web_capture",
+      ),
+    );
     if (projects) q.whereIn("projectId", projects);
   } else if (kind === "notebook") {
     q.select(

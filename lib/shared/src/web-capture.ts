@@ -78,6 +78,25 @@ export const webCaptureSchema = z
   .strict();
 export type WebCapture = z.infer<typeof webCaptureSchema>;
 
+export const browserCaptureRequestSchema = z
+  .object({
+    operationId: z.uuid(),
+    content: rememberSchema.shape.content,
+    projectId: z.uuid().nullable(),
+    capture: z.literal("explicit"),
+    provenance: webCaptureSchema.optional(),
+  })
+  .strict();
+export const browserPageRequestSchema = z
+  .object({
+    url: webCaptureSchema.shape.url,
+    projectId: z.uuid().nullable(),
+    cursor: z.string().max(2048).optional(),
+  })
+  .strict();
+export type BrowserCaptureRequest = z.infer<typeof browserCaptureRequestSchema>;
+export type BrowserPageRequest = z.input<typeof browserPageRequestSchema>;
+
 function escapeMarkdown(value: string): string {
   return value
     .replaceAll("&", "&amp;")
