@@ -136,8 +136,11 @@ are reused; conflicts need a new release. Never move a tag/frozen head.
 
 ### Coordinated Vercel delivery
 
-The GitHub production environment requires `VERCEL_TOKEN` (a Vercel CI access
-token), `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. Preflight verifies the exact project,
+The GitHub production environment requires `VERCEL_TOKEN` (a Vercel access token
+scoped to this project), `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. Pass these through
+the CLI environment; do not add `--scope`, which resolves user/team resources that
+project-only tokens cannot access. Keep credentials out of command arguments.
+Preflight verifies the exact project,
 team, `packages/website` root and production environment keys before publication.
 The project is `bramble-labs-inc/grove` (`prj_AAHDflaS5lkamhL46o3kAwRx2YKL`).
 Configure its ignored-build command as `exit 0` and retain
