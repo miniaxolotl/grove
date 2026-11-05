@@ -1,0 +1,523 @@
+/* Shared Bramble public-site language. Keep the core in sync across all four sites. Marketing scope never changes dashboard styles. */
+.marketing-site .site-header {
+  border-bottom: 0;
+}
+.marketing-site .site-header .header-actions > a {
+  min-height: 40px;
+  border: 0;
+  background: var(--brand-ink);
+  color: var(--brand-paper);
+  border-radius: 4px;
+  font-size: 14px;
+}
+.marketing-site .site-header .header-menu-toggle {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+}
+.marketing-site .site-header .header-navigation > a {
+  font-size: 14px;
+  color: var(--brand-ink);
+}
+.marketing-site .site-footer {
+  border: 0;
+}
+.product-redesign {
+  --product-surface: #e5eddb;
+  --product-ink: var(--brand-ink);
+  color: var(--product-ink);
+}
+.product-redesign .page-container {
+  max-width: 1280px;
+}
+.product-redesign .product-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+  align-items: center;
+  gap: 64px;
+  min-height: 660px;
+  padding-block: 76px 96px;
+}
+.product-redesign .product-hero-copy {
+  min-width: 0;
+}
+.product-redesign .hero-title {
+  font-family: inherit;
+  font-size: clamp(44px, 5vw, 72px);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+  margin: 0;
+  color: var(--product-ink);
+}
+.product-redesign .hero-summary {
+  max-width: 44ch;
+  margin-top: 32px;
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--product-ink);
+}
+.product-redesign .hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  margin-top: 28px;
+}
+.product-redesign .hero-proof {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 20px;
+  color: var(--brand-muted);
+}
+.product-redesign :is(.button, .button-primary) {
+  min-height: 46px;
+  border: 0;
+  border-radius: 4px;
+  padding: 12px 20px;
+  box-shadow: none;
+  font-size: 15px;
+  gap: 14px;
+}
+.product-redesign .text-link {
+  font-size: 15px;
+  min-height: 44px;
+}
+.product-redesign .product-stage {
+  min-width: 0;
+  margin: 0;
+  padding: 28px;
+  background: var(--product-surface);
+  border-radius: 8px;
+}
+.product-redesign .section-title {
+  margin: 0;
+  font-family: inherit;
+  font-size: clamp(30px, 3vw, 42px);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  color: inherit;
+}
+.product-redesign :is(p, li, dd):not([data-ui] *) {
+  font-size: 16px;
+  line-height: 1.65;
+}
+.product-redesign p:not([data-ui] *) {
+  max-width: 65ch;
+}
+.product-redesign .hero-summary {
+  font-size: 19px;
+}
+.product-redesign .hero-proof {
+  font-size: 14px;
+}
+.product-redesign .story-section {
+  padding-block: 88px;
+}
+.product-redesign .section-lead {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 64px;
+  margin-bottom: 48px;
+}
+.product-redesign .section-lead > p {
+  margin: 0;
+  max-width: 44ch;
+}
+.product-redesign .feature-index {
+  padding-block: 88px;
+  background: transparent;
+}
+.product-redesign .feature-index-layout {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 96px;
+  align-items: start;
+}
+.product-redesign .feature-index-heading > p {
+  margin-top: 24px;
+  max-width: 34ch;
+}
+.product-redesign .feature-list {
+  margin: 0;
+  display: grid;
+  gap: 32px;
+}
+.product-redesign .feature-row {
+  display: grid;
+  gap: 8px;
+}
+.product-redesign .feature-row dt {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.product-redesign .feature-row dd {
+  margin: 0;
+  max-width: 55ch;
+}
+.product-redesign .product-facts {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 96px;
+  padding-block: 88px;
+}
+.product-redesign .product-facts p + p {
+  margin-top: 20px;
+}
+.product-redesign .product-facts a,
+.product-redesign .hero-proof a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.product-redesign .feature-index > .product-facts {
+  padding-block: 0;
+}
+.product-redesign .page-close {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  padding-block: 88px;
+}
+.product-redesign .page-close p {
+  margin-top: 24px;
+  max-width: 48ch;
+}
+.product-redesign .faq-section {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 64px;
+}
+.product-redesign .faq-item {
+  border: 0;
+  background: var(--product-surface);
+  padding: 0 24px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+.product-redesign .faq-item summary {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.product-redesign .faq-item p {
+  padding: 0 0 24px;
+  margin: 0;
+}
+.product-redesign :is(h2, h3, h4) em {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-style: normal;
+  color: inherit;
+}
+.product-redesign .notebook-preview {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  border-radius: 4px;
+}
+.product-redesign .simple-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  list-style: none;
+  padding: 0;
+  margin-bottom: 32px;
+}
+.product-redesign .simple-steps h3 {
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+.product-redesign .library-section {
+  padding-block: 64px 88px;
+  background: transparent;
+  border: 0;
+}
+.product-redesign .library-window {
+  box-shadow: none;
+}
+.product-redesign .library-layout > .section-intro {
+  margin-bottom: 40px;
+}
+.product-redesign .section-heading {
+  font-size: clamp(30px, 3vw, 42px);
+  font-weight: 500;
+  line-height: 1.12;
+  font-style: normal;
+}
+.product-redesign .section-heading em {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-style: normal;
+  color: inherit;
+}
+.product-redesign .agent-story {
+  padding-block: 88px;
+}
+.product-redesign .agent-terminal {
+  box-shadow: none;
+}
+.product-redesign .pricing-intro {
+  padding-block: 80px 56px;
+}
+.product-redesign .pricing-intro .hero-title {
+  max-width: 14ch;
+}
+.product-redesign .plan-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.product-redesign .plan {
+  background: transparent;
+  padding: 32px 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.product-redesign .plan-pro {
+  background: transparent;
+  color: var(--brand-ink);
+}
+.product-redesign .plan h2 {
+  font-size: 28px;
+  font-weight: 500;
+  margin: 0 0 24px;
+}
+.product-redesign .plan .plan-price {
+  font-size: 44px;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  margin-bottom: 24px;
+}
+.product-redesign .plan-price span {
+  font-size: 15px;
+  letter-spacing: 0;
+  display: inline-block;
+}
+.product-redesign .plan ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  margin: 28px 0 36px;
+}
+.product-redesign .plan .button-primary {
+  margin-top: auto;
+}
+.product-redesign .plan-pro .button-primary {
+  background: var(--brand-ink);
+  color: var(--brand-paper);
+}
+.product-redesign .plan .plan-note {
+  font-size: 14px;
+  margin-top: 20px;
+}
+.product-redesign .comparison-scroll {
+  overflow-x: auto;
+}
+.product-redesign .plan-comparison {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.product-redesign .plan-comparison caption {
+  text-align: left;
+  margin-bottom: 24px;
+  font-size: 16px;
+}
+.product-redesign .plan-comparison th {
+  font-weight: 500;
+}
+.product-redesign .plan-comparison :is(td, th) {
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--brand-line);
+  text-align: left;
+}
+.product-redesign .plan-comparison thead {
+  background: var(--product-surface);
+}
+.product-redesign .comparison-note {
+  font-size: 14px;
+  margin-top: 24px;
+}
+@media (max-width: 1023px) {
+  .product-redesign .product-hero {
+    gap: 32px;
+  }
+  .product-redesign :is(.feature-index-layout, .product-facts) {
+    gap: 48px;
+  }
+}
+@media (max-width: 767px) {
+  .product-redesign .product-hero {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    min-height: 0;
+    padding-block: 48px 64px;
+  }
+  .product-redesign .hero-title {
+    font-size: clamp(36px, 8.8vw, 56px);
+  }
+  .product-redesign .hero-summary {
+    font-size: 18px;
+    margin-top: 24px;
+  }
+  .product-redesign .product-stage {
+    padding: 20px;
+  }
+  .product-redesign
+    :is(
+      .section-lead,
+      .feature-index-layout,
+      .product-facts,
+      .faq-section,
+      .simple-steps,
+      .plan-pair
+    ) {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .product-redesign
+    :is(.story-section, .feature-index, .product-facts, .page-close) {
+    padding-block: 56px;
+  }
+  .product-redesign .page-close {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .product-redesign .section-title {
+    font-size: 32px;
+  }
+  .product-redesign .plan {
+    padding: 24px 0;
+  }
+  .product-redesign .plan .plan-price {
+    font-size: 36px;
+  }
+  .product-redesign .plan-comparison :is(td, th) {
+    padding: 16px 10px;
+    font-size: 14px;
+  }
+  .product-redesign.pricing-page .pricing-intro {
+    padding-block: 48px 32px;
+    margin-bottom: 16px;
+  }
+}
+.marketing-site .site-footer :is(.footer-bottom, .bramble-family) {
+  border: 0;
+}
+.marketing-site .site-footer :is(p, a, button, small, span) {
+  font-size: 13px;
+}
+.marketing-site .site-footer strong {
+  font-size: 13px;
+}
+.product-redesign .plan-price span {
+  margin-left: 8px;
+}
+.product-redesign .demo-source {
+  font-size: 14px;
+}
+.product-redesign #features {
+  background: transparent;
+}
+.product-redesign .plan-pro {
+  background: transparent;
+}
+.product-redesign .pricing-intro {
+  background: transparent;
+  max-width: none;
+  padding-inline: max(calc((100vw - 1184px) / 2), 20px);
+  margin-bottom: 48px;
+}
+.marketing-site .site-footer .bramble-family nav {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.product-redesign [data-ui] :not(pre, code, pre *, code *) {
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+.product-redesign [data-ui] :is(span, small, figcaption, button) {
+  font-size: 13px;
+}
+.product-redesign .agent-terminal > p {
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.product-redesign .memory-note > p {
+  font-family: inherit;
+  font-size: 18px;
+}
+.product-redesign #faq,
+.product-redesign #faq .border-t {
+  border: 0;
+}
+.product-redesign .library-layout {
+  display: block;
+}
+.product-redesign .library-layout > .section-intro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+}
+.product-redesign .library-layout .library-description {
+  max-width: 44ch;
+}
+@keyframes product-arrive {
+  from {
+    transform: translateY(12px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .product-hero-copy > * {
+    animation: product-arrive 700ms cubic-bezier(0.2, 0.65, 0.3, 1) both;
+  }
+  .product-stage {
+    animation: product-arrive 850ms cubic-bezier(0.2, 0.65, 0.3, 1) both;
+  }
+}
+@media (min-width: 768px) and (max-width: 900px) {
+  .product-redesign .product-hero {
+    grid-template-columns: 1fr;
+  }
+  .product-redesign .hero-title {
+    font-size: 56px;
+  }
+}
+@media (max-width: 767px) {
+  .product-redesign .library-layout > .section-intro {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-redesign *,
+  .product-redesign *::before,
+  .product-redesign *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto;
+  }
+}

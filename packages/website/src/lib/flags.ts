@@ -21,7 +21,7 @@ export const billingEnabled = flag<boolean, { user?: { id: string } }>({
 export const billingMonthlyUsd = flag<number, { user?: { id: string } }>({
   key: billingPriceFlagKey,
   description: "Monthly USD price for new Grove Pro subscriptions",
-  defaultValue: 5,
+  defaultValue: 19.99,
   identify,
   adapter: vercelAdapter,
 });

@@ -90,7 +90,8 @@ providers/dimensions never silently fall back. See [models](models.md).
 4. Require strict `CI Gate` and resolved conversations; promotion uses a **merge
    commit**, never bypass/force. [Release conventions](release-conventions.md) owns
    naming/version policy; [pipeline conventions](pipeline-conventions.md) owns CI.
-5. Production **Deploy** admits exact released source, preflights every npm tarball,
+5. Production **Deploy** admits exact released source, probes its required database
+   schema with both runtime roles, preflights every npm tarball,
    publishes coordinated packages/images and deploys API/worker by immutable digest.
    Missing `DIGITALOCEAN_ACCESS_TOKEN`/`DIGITALOCEAN_APP_ID` is an error. Verify registry
    integrity, active provider generation, both component digests and readiness.
@@ -104,6 +105,28 @@ providers/dimensions never silently fall back. See [models](models.md).
    session revocation and affected feature journeys. Readiness is not full user,
    provider, privacy-log or physical-device acceptance. Record evidence in the
    release PR; leave unrun checks explicit.
+
+### Read-only schema preflight
+
+Configure GitHub's protected production environment with `GROVE_API_DATABASE_URL`
+and `GROVE_WORKER_DATABASE_URL`, matching the actual provider API/worker runtime
+connections. Use the existing `grove_api`/`grove_jobs` non-owner logins, the same
+database endpoint/name and `sslmode=verify-full`; keep owner credentials out of CI.
+These settings are required, not implied by a DigitalOcean secret being present.
+
+`node --import tsx scripts/release/database-preflight.mjs` reuses the admitted
+source's `probeDatabase` in bounded **read-only transactions**, before publication
+and again immediately before rollout. It closes both pools, rejects unsafe or
+mismatched targets, and fails closed without logging connection values. It never
+runs migrations or repairs grants. Configure private network reachability/trusted
+TLS before enabling the production job; do not bypass a failed check.
+
+For `action_usage.units` failures, inspect applied history: migration
+`20261025_033_ai_cache` already provides that column and preserves historical
+action counts. Apply the admitted source's pending migrations through the reviewed
+[schema-upgrade procedure](operations/schema.md), including backup/restore and
+writer coordination. Do not add a duplicate column migration, weaken runtime
+readiness, or infer that this source change migrated the live database.
 
 Five bundled packages/native-marketplace pins share one Release Please-owned version.
 Do not hand-bump versions or publish changed bytes under an existing version.

@@ -1,12 +1,15 @@
 "use client";
 
 import { Check, Share2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { positioning } from "@/content/site";
+import styles from "./share-site.module.css";
 
 export function ShareSite({ url }: { url: string }) {
   const [status, setStatus] = useState<"idle" | "copied" | "fallback">("idle");
   const [busy, setBusy] = useState(false);
+  const fallback = useRef<HTMLDialogElement>(null);
+  const heading = useId();
 
   useEffect(() => {
     if (status !== "copied") return;
@@ -34,6 +37,7 @@ export function ShareSite({ url }: { url: string }) {
       setStatus("copied");
     } catch {
       setStatus("fallback");
+      fallback.current?.showModal();
     } finally {
       setBusy(false);
     }
@@ -47,24 +51,38 @@ export function ShareSite({ url }: { url: string }) {
         disabled={busy}
         className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-forest hover:text-leaf disabled:opacity-50"
       >
-        {status === "copied" ? <Check size={15} /> : <Share2 size={15} />}
-        {status === "copied" ? "Link copied" : "Share Grove"}
+        {status === "copied" ? (
+          <Check size={15} aria-hidden="true" />
+        ) : (
+          <Share2 size={15} aria-hidden="true" />
+        )}
+        <span className={styles.label}>
+          <span aria-hidden={status === "copied"}>Share Grove</span>
+          <span aria-hidden={status !== "copied"}>Link copied</span>
+        </span>
       </button>
       <span role="status" className="sr-only">
         {status === "copied" ? "Grove link copied to your clipboard." : ""}
       </span>
-      {status === "fallback" && (
-        <label className="mt-1 block text-[11px] text-muted">
-          Copy this link to share
-          <input
-            aria-label="Grove link to share"
-            value={url}
-            readOnly
-            onFocus={(event) => event.target.select()}
-            className="mt-2 block w-full rounded-md border border-line bg-white px-3 py-2 text-xs text-forest"
-          />
-        </label>
-      )}
+      <dialog
+        ref={fallback}
+        aria-labelledby={heading}
+        className={styles.dialog}
+      >
+        <form method="dialog">
+          <h2 id={heading}>Share Grove</h2>
+          <label>
+            Copy this link to share Grove
+            <input
+              aria-label="Grove link to share"
+              value={url}
+              readOnly
+              onFocus={(event) => event.target.select()}
+            />
+          </label>
+          <button type="submit">Done</button>
+        </form>
+      </dialog>
     </div>
   );
 }

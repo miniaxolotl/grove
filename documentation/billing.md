@@ -1,8 +1,8 @@
 # Billing and usage
 
 Grove Cloud starts on **Free**. **Pro** increases AI allowances through a Stripe
-subscription; it does not sell a prepaid credit balance. Pro starts at an
-**introductory $5 USD/month**. A future price change is a separate owner decision.
+subscription; it does not sell a prepaid credit balance. Pro starts at
+**$19.99 USD/month** for new monthly subscriptions.
 The Vercel number flag `billing-pro-monthly-usd` controls the displayed amount and
 the amount charged for new monthly subscriptions. No yearly price is offered in
 the configured Cloud launch.

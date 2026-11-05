@@ -3,8 +3,10 @@ import { site } from "@/lib/site";
 import { documentation } from "@/content/documentation";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (!site.indexable) return [];
   return [
     { url: site.url, changeFrequency: "monthly", priority: 1 },
+    { url: `${site.url}/pricing`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${site.url}/docs`, changeFrequency: "monthly", priority: 0.8 },
     ...documentation.map(({ slug }) => ({
       url: `${site.url}/docs/${slug}`,

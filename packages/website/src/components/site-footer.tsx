@@ -16,17 +16,17 @@ export function SiteFooter() {
         <div className="footer-main">
           <div className="footer-brand">
             <Brand compact />
-            <p className="mt-4 max-w-60 text-xs leading-6 text-muted">
-              A private notebook for notes, plans and journal entries.
-            </p>
           </div>
           <nav className="footer-links" aria-label="Resources">
-            <p className="eyebrow mb-3">EXPLORE</p>
+            <p className="mb-3">Explore</p>
             <Link href="/#features" className="footer-link">
               Why Grove
             </Link>
             <Link href="/app" className="footer-link">
               Your notebook
+            </Link>
+            <Link href="/pricing" className="footer-link">
+              Pricing
             </Link>
             <Link href="/install" className="footer-link">
               Connect AI tools
@@ -39,7 +39,7 @@ export function SiteFooter() {
             </Link>
           </nav>
           <div className="footer-links">
-            <p className="eyebrow mb-3">STAY IN TOUCH</p>
+            <p className="mb-3">Stay in touch</p>
             <Link href="/contact" className="footer-link">
               Say hello <ArrowUpRight size={12} />
             </Link>
@@ -49,7 +49,7 @@ export function SiteFooter() {
             <ShareSite url={site.url} />
             <div className="mt-1 flex flex-wrap gap-x-4">
               <a
-                className="footer-link text-[11px]!"
+                className="footer-link"
                 href={`https://twitter.com/intent/tweet?${new URLSearchParams({ text: shareText, url: site.url })}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -58,7 +58,7 @@ export function SiteFooter() {
                 X <ArrowUpRight size={12} aria-hidden="true" />
               </a>
               <a
-                className="footer-link text-[11px]!"
+                className="footer-link"
                 href={`https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url: site.url })}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -67,7 +67,7 @@ export function SiteFooter() {
                 LinkedIn <ArrowUpRight size={12} aria-hidden="true" />
               </a>
               <a
-                className="footer-link text-[11px]!"
+                className="footer-link"
                 href={`https://bsky.app/intent/compose?${new URLSearchParams({ text: `${shareText} ${site.url}` })}`}
                 target="_blank"
                 rel="noopener noreferrer"

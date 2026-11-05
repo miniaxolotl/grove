@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { canonical, indexable } from "./site-fixture";
 
 const references = [
+  ["notebook", "Your Grove notebook", "Your first saved note"],
   ["client", "Agent installation", "npx @miniaxolotl/grove connect"],
   ["server", "Memory tools and API", "memory_history"],
   ["models", "Models", "embedding"],
@@ -18,7 +20,7 @@ test.describe("public reference documents", () => {
       await expect(page.locator("article")).toContainText(content);
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
         "href",
-        `http://localhost:3000/docs/${slug}`,
+        `${canonical.origin}/docs/${slug}`,
       );
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
@@ -30,7 +32,10 @@ test.describe("public reference documents", () => {
           .getByRole("link", { name: "Agent installation", exact: true }),
       ).toHaveAttribute("href", "/docs/client");
       const sitemap = await page.request.get("/sitemap.xml");
-      expect(await sitemap.text()).toContain(`/docs/${slug}</loc>`);
+      const sitemapText = await sitemap.text();
+      if (indexable)
+        expect(sitemapText).toContain(`${canonical.origin}/docs/${slug}</loc>`);
+      else expect(sitemapText).not.toContain("<loc>");
     });
   }
 

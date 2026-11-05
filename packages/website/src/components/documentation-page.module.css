@@ -32,26 +32,48 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 760px);
   gap: 48px;
-  border-top: 1px solid var(--color-line);
   padding-top: 32px;
 }
 .navigation {
   display: flex;
   flex-direction: column;
   align-items: start;
-  align-self: start;
   gap: 4px;
   font-size: 14px;
+}
+.sidebar {
+  align-self: start;
+  position: sticky;
+  top: 104px;
+}
+.mobileNavigation {
+  display: none;
+}
+.mobileNavigation summary {
+  min-height: 44px;
+  padding-block: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.mobileNavigation[open] .navigation {
+  padding-block: 8px 16px;
 }
 .navigation a[aria-current] {
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.navigation a:hover {
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
 .body {
   min-width: 0;
   max-width: 76ch;
-  line-height: 1.85;
+  font-size: 17px;
+  line-height: 1.75;
   overflow-wrap: anywhere;
 }
 .body > * + * {
@@ -92,10 +114,9 @@
   padding: 20px;
   overflow-x: auto;
   background: var(--color-sage);
-  border: 1px solid var(--color-line);
   border-radius: 4px;
   line-height: 1.7;
-  font-size: 13px;
+  font-size: 14px;
   overflow-wrap: normal;
 }
 .body code {
@@ -131,14 +152,19 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }
-  .navigation {
-    flex-direction: row;
-    flex-wrap: wrap;
-    column-gap: 24px;
-    border-bottom: 1px solid var(--color-line);
-    padding-bottom: 24px;
+  .sidebar {
+    position: static;
+  }
+  .desktopNavigation {
+    display: none;
+  }
+  .mobileNavigation {
+    display: block;
   }
   .heading {
     padding-block: 24px 32px;
+  }
+  .heading h1 {
+    font-size: clamp(28px, 7.8vw, 40px);
   }
 }

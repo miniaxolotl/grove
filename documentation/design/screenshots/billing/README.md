@@ -6,7 +6,8 @@ Update payment action. Customer copy omits providers, API limits and internal
 accounting explanations; the operational contract remains in the billing guide.
 
 Synthetic Free/Pro accounts, Stripe-hosted destination fixtures and fixed UTC reset
-dates. The displayed **$5 USD/month** matches the approved launch amount and numeric
+dates. These historical captures display the then-approved **$5 USD/month**;
+current new-subscription pricing is **$19.99 USD/month**, controlled by the numeric
 Vercel flag. Accounts and usage in the screenshots are synthetic; no payment is made.
 
 The actual Billing component is bundled by the isolated dashboard fixture and
@@ -15,16 +16,16 @@ uses production CSS from Next build `_d54R6Hq27doDKPcayxwK`, based on billing so
 Playwright1.64.1 Noble container iPhone/WebKit; locale en-US, local timezone shown
 in each capture. Pro's monthly allowances are disclosed before opening Checkout.
 
-| Free, desktop | Pro cancellation, phone | Free, narrow phone |
-| --- | --- | --- |
+| Free, desktop                                      | Pro cancellation, phone                                  | Free, narrow phone                             |
+| -------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
 | ![Free usage and checkout](chromium-free-1440.png) | ![Pro with scheduled cancellation](chromium-pro-390.png) | ![Narrow Free checkout](chromium-free-320.png) |
 
 Each engine covers widths 1440, 390 and 320 for `free`, `pro` and `payment` captures.
 The additional `usage-320` capture brings the last usage meter into view. The compact
 screen often fits without scrolling at this height. Links show the WebKit subset:
 
-| Free | Pro | Payment attention |
-| --- | --- | --- |
+| Free                                | Pro                               | Payment attention                                   |
+| ----------------------------------- | --------------------------------- | --------------------------------------------------- |
 | ![WebKit Free](webkit-free-390.png) | ![WebKit Pro](webkit-pro-390.png) | ![WebKit payment attention](webkit-payment-320.png) |
 
 Both-engine journeys check labelled usage meters, exhausted allowance, 5-dollar pricing,

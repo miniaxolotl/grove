@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.11.13](https://github.com/miniaxolotl/grove/compare/v1.11.12...v1.11.13) (2026-11-04)
+
+
+### Bug Fixes
+
+* **delivery:** guard schema readiness and resolve security updates ([#169](https://github.com/miniaxolotl/grove/issues/169)) ([44e25e6](https://github.com/miniaxolotl/grove/commit/44e25e6046aed0ebb69d8e75f1e4f75dac7ce3f9))
+
+## [1.11.12](https://github.com/miniaxolotl/grove/compare/v1.11.11...v1.11.12) (2026-11-04)
+
+
+### Features
+
+* **website:** refine notebook demos and pricing ([#167](https://github.com/miniaxolotl/grove/issues/167)) ([da8aef9](https://github.com/miniaxolotl/grove/commit/da8aef96256be0392c82fbe3c3cec76ac0932531))
+
 ## [1.11.11](https://github.com/miniaxolotl/grove/compare/v1.11.10...v1.11.11) (2026-11-04)
 
 

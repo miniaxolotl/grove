@@ -1,0 +1,73 @@
+{
+  "capturedAt": "2026-11-04T20:17:23.924886+00:00",
+  "sourceBranch": "feature/website-product-refresh",
+  "sourceBase": "7b7364732e99ab319f74884b7d35053537dbe14e",
+  "source": "Working-tree price follow-up; fingerprint includes website source only",
+  "sourceSha256": "c06413108c17d7adb65fe3ccfb8fededeeff4dbbde6f9ad27c30bc132508dfdd",
+  "project": "grove",
+  "buildId": "4X8-PtYY899O765YRNA34",
+  "browser": "156.0.8078.4",
+  "viewports": [
+    [1440, 900],
+    [768, 900],
+    [390, 900],
+    [320, 900]
+  ],
+  "scenario": "Unconfigured local flag adapter uses USD19.99 fallback; purchases remain disabled; optional cookies declined",
+  "samples": [
+    {
+      "width": 1440,
+      "overflow": 0,
+      "pro": "Pro\n\n$19.99USD / month\n\nIntroductory monthly price. Confirm the current amount in your account before checkout.\n\n50,000 notes and 500 notebooks\n1,500 Ask Grove replies each month\nHigher search and organization allowances\nMore transcription and read-aloud time\nCreate an account\n\nPro purchases aren\u2019t currently available here. You can still start free.",
+      "free": "Free\n\n$0 USD / month\n\nWriting, search and source-linked answers.\n\n10,000 notes and 100 notebooks\n300 Ask Grove replies each month\nSemantic search and agent connections\nRevision history and exports\nStart your notebook",
+      "violations": []
+    },
+    {
+      "width": 768,
+      "overflow": 0,
+      "pro": "Pro\n\n$19.99USD / month\n\nIntroductory monthly price. Confirm the current amount in your account before checkout.\n\n50,000 notes and 500 notebooks\n1,500 Ask Grove replies each month\nHigher search and organization allowances\nMore transcription and read-aloud time\nCreate an account\n\nPro purchases aren\u2019t currently available here. You can still start free.",
+      "free": "Free\n\n$0 USD / month\n\nWriting, search and source-linked answers.\n\n10,000 notes and 100 notebooks\n300 Ask Grove replies each month\nSemantic search and agent connections\nRevision history and exports\nStart your notebook",
+      "violations": []
+    },
+    {
+      "width": 390,
+      "overflow": 0,
+      "pro": "Pro\n\n$19.99USD / month\n\nIntroductory monthly price. Confirm the current amount in your account before checkout.\n\n50,000 notes and 500 notebooks\n1,500 Ask Grove replies each month\nHigher search and organization allowances\nMore transcription and read-aloud time\nCreate an account\n\nPro purchases aren\u2019t currently available here. You can still start free.",
+      "free": "Free\n\n$0 USD / month\n\nWriting, search and source-linked answers.\n\n10,000 notes and 100 notebooks\n300 Ask Grove replies each month\nSemantic search and agent connections\nRevision history and exports\nStart your notebook",
+      "violations": []
+    },
+    {
+      "width": 320,
+      "overflow": 0,
+      "pro": "Pro\n\n$19.99USD / month\n\nIntroductory monthly price. Confirm the current amount in your account before checkout.\n\n50,000 notes and 500 notebooks\n1,500 Ask Grove replies each month\nHigher search and organization allowances\nMore transcription and read-aloud time\nCreate an account\n\nPro purchases aren\u2019t currently available here. You can still start free.",
+      "free": "Free\n\n$0 USD / month\n\nWriting, search and source-linked answers.\n\n10,000 notes and 100 notebooks\n300 Ask Grove replies each month\nSemantic search and agent connections\nRevision history and exports\nStart your notebook",
+      "violations": []
+    }
+  ],
+  "files": [
+    {
+      "file": "pricing-1440.png",
+      "sha256": "2b1fb0098f0c1add38b2540fa7a4709dcd7e526ae6c227362aa45918d7e5cb82"
+    },
+    {
+      "file": "pricing-320.png",
+      "sha256": "542a81056becc41a6240c6970113b1c0c4e52f59fbb1dd247be940c6d7d438fb"
+    },
+    {
+      "file": "pricing-390.png",
+      "sha256": "f19302e56445f6949ca28bfb421ca8c7177dd4a786931240f0e2c4cca5c71b6b"
+    },
+    {
+      "file": "pricing-768.png",
+      "sha256": "c3b6245f75f27ca33079c1fd2ef5981e19f9638126fdce9d011f8309c8c533f0"
+    },
+    {
+      "file": "pricing-page-1440.png",
+      "sha256": "e0a0f251773f8778ffdd982ef3b3e1bd447cdf4f1ba7ac8a46ea2e4beda1ed45"
+    },
+    {
+      "file": "pricing-page-390.png",
+      "sha256": "d91b2043514f6b768f37671dab4aaf86a489cd460583d09305c4c55a5775324b"
+    }
+  ]
+}
