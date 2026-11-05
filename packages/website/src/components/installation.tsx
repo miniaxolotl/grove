@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useId } from "react";
-import { ArrowDown, Check, Sprout } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import type { ConnectInput } from "@lib/shared/contracts";
 import { CodeBlock } from "@/components/code-block";
 import { Tabs } from "@/components/tabs";
@@ -73,7 +73,7 @@ export function AgentSetup({
               <p className="mt-3 text-xs leading-6 text-muted">
                 {value === "mcp"
                   ? "Add this remote MCP server in your client, sign in with OAuth, then approve its access in Grove Connections. Named API keys are also available for headless clients."
-                  : `Run this inside your project with ${label} installed and Node.js 22+. The command downloads Grove, opens account creation or sign-in, and finishes setup automatically after you approve access.`}
+                  : `Run this inside your project with ${label} installed and Node.js 22+. The command opens browser sign-in and installs the integration after approval. Loading it in your agent is a separate step below.`}
               </p>
             </>
           )}
@@ -106,18 +106,13 @@ export function Installation() {
     <ol className="installation-steps">
       <li className="installation-step">
         <div className="installation-copy">
-          <span className="step-number">01</span>
           <h3>Choose your agent.</h3>
           <p>Use Grove in a web chat or connect your coding agent.</p>
-          <span className="mt-4 inline-flex items-center gap-1.5 text-[11px] text-leaf">
-            <Check size={13} /> Browser sign-in and scoped access
-          </span>
         </div>
         <AgentSetup />
       </li>
       <li className="installation-step">
         <div className="installation-copy">
-          <span className="step-number">02</span>
           <h3>Sign in and approve access.</h3>
           <p>
             Create an account or sign in with your preferred provider. Approve
@@ -134,16 +129,39 @@ export function Installation() {
           </p>
           <p className="mt-3 text-muted">
             {hosted
-              ? "Grove approval is separate from signing in. Return to your chat and ask Grove to save and recall a note to check that the connection works."
-              : "Keep the terminal open while you approve. Grove finishes setup and tells you how to load its tools. Interrupted? Run the same command to resume."}
+              ? "In Settings → Connections, approve the exact pending client you just added. Signing in alone does not approve its access."
+              : "Keep the terminal open while you approve. Interrupted? Run the same command to resume; do not delete credentials to start over."}
           </p>
         </div>
       </li>
       <li className="installation-step">
         <div className="installation-copy">
-          <span className="step-number">
-            <Sprout size={18} />
-          </span>
+          <h3>
+            {hosted ? "Return to your chat." : "Load Grove in your tool."}
+          </h3>
+          <p>
+            Account access and a running host connection are separate checks.
+          </p>
+        </div>
+        <div className="setup-checkpoint">
+          <p>
+            {hosted
+              ? "Return to the chat where you added Grove and check that its tools are available. A completed Grove approval alone does not prove the chat has loaded the connection."
+              : client === "opencode"
+                ? "OpenCode reloads watched configuration automatically. Check its MCP tools for Grove; use /reload if it has not appeared."
+                : client === "claude"
+                  ? "In Claude Code, run /reload-plugins or start a new session. Check that the Grove plugin and its MCP tools are available."
+                  : client === "codex"
+                    ? "Restart Codex after setup. Check that Grove's MCP tools are loaded, and review or trust optional hooks in the host before relying on automatic recall."
+                    : "Refresh your MCP client's server connection and tool catalog. Use its connection status to check that Grove is available."}
+          </p>
+          <Link href="/docs/client#diagnose-installation-and-startup">
+            Troubleshoot the connection
+          </Link>
+        </div>
+      </li>
+      <li className="installation-step">
+        <div className="installation-copy">
           <h3>Save your first note.</h3>
           <p>
             Ask your agent to save a note. Open a new session and ask it to

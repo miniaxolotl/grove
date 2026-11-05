@@ -1,0 +1,286 @@
+.sample-graph {
+  --color-line: #dce3da;
+  --color-muted: #536358;
+  --color-forest: #284c38;
+  --color-sage: #edf2e9;
+  grid-column: 1 / -1;
+  background: #fff;
+  width: 100%;
+  --graph-surface: #fff;
+  --graph-line: var(--color-line);
+  --graph-muted: var(--color-muted);
+  --graph-text: var(--color-forest);
+  color: var(--graph-text);
+  color-scheme: light;
+  overflow: hidden;
+  border: 1px solid var(--graph-line);
+  border-radius: 8px;
+
+  /* Graph-only appearance from app/exploration.css. Never import that full
+     sheet here: it also owns authenticated editor and chat layout rules. */
+  .graph-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 1px solid var(--graph-line);
+  }
+  .graph-heading strong {
+    display: block;
+    font-weight: 500;
+  }
+  .graph-heading div > span {
+    display: block;
+    margin-top: 4px;
+    color: var(--graph-muted);
+  }
+  .graph-tool-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--graph-line);
+    border-radius: 6px;
+    color: var(--graph-text);
+  }
+  .graph-tool-button:hover {
+    background: var(--color-sage);
+  }
+  .graph-layout {
+    display: grid;
+  }
+  .graph-canvas {
+    position: relative;
+    min-width: 0;
+    background: #f8faf6;
+  }
+  .graph-flow {
+    width: 100%;
+    height: 100%;
+  }
+  .react-flow__pane {
+    touch-action: pan-y pinch-zoom;
+  }
+  .graph-memory-node {
+    position: relative;
+    width: 160px;
+    height: 104px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: var(--graph-text);
+  }
+  .graph-node-orbit {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    transform: scale(var(--graph-detail-scale));
+  }
+  .graph-node-core {
+    width: var(--graph-node-size);
+    height: var(--graph-node-size);
+    border-radius: 50%;
+    background: var(--graph-node-color);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px
+      color-mix(in srgb, var(--graph-node-color) 40%, transparent);
+  }
+  .graph-node-label {
+    position: absolute;
+    top: 28px;
+    left: 50%;
+    width: 160px;
+    transform: scale(var(--graph-detail-scale)) translate(-50%, 22px);
+    transform-origin: 0 0;
+    pointer-events: none;
+    opacity: 0;
+    padding: 0 4px;
+  }
+  .has-title .graph-node-label {
+    opacity: 1;
+  }
+  .graph-node-label strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-weight: 500;
+    line-height: 1.45;
+  }
+  .graph-node-label > span {
+    display: block;
+    margin-top: 4px;
+    color: var(--graph-muted);
+    opacity: 0;
+  }
+  .is-emphasized .graph-node-label > span {
+    opacity: 1;
+  }
+  .is-emphasized .graph-node-orbit,
+  .react-flow__node.selected .graph-node-orbit {
+    border-color: color-mix(in srgb, var(--graph-node-color) 45%, transparent);
+    background: color-mix(in srgb, var(--graph-node-color) 7%, transparent);
+  }
+  .react-flow__handle {
+    opacity: 0;
+    pointer-events: none;
+    top: 28px;
+    bottom: auto;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .graph-connection {
+    opacity: 0.5;
+  }
+  .graph-connection.is-emphasized {
+    opacity: 1;
+  }
+  .graph-connection.is-dimmed {
+    opacity: 0.08;
+  }
+  .graph-connection path {
+    fill: none;
+    stroke: var(--graph-edge-color);
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .graph-connection .react-flow__edge-interaction {
+    stroke: transparent;
+    cursor: pointer;
+  }
+  .graph-connection-line {
+    stroke-width: 1;
+  }
+  .graph-connection-glow,
+  .graph-connection-spark {
+    display: none;
+  }
+  .react-flow__controls {
+    overflow: hidden;
+    border: 1px solid var(--graph-line);
+    border-radius: 7px;
+    box-shadow: 0 3px 12px #0002;
+  }
+  .react-flow__controls-button {
+    width: 36px;
+    height: 36px;
+    border-color: var(--graph-line);
+    color: var(--graph-text);
+    fill: currentColor;
+    background: #fff;
+  }
+  .graph-inspector {
+    min-width: 0;
+    border-left: 1px solid var(--graph-line);
+  }
+  .graph-inspector-notebook {
+    display: block;
+    color: var(--graph-muted);
+    font-size: 12px;
+  }
+  .graph-inspector h3 {
+    margin-top: 8px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+  .graph-inspector p {
+    margin-block: 16px;
+    color: var(--graph-muted);
+  }
+  .graph-inspector h4 {
+    margin-top: 24px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  :is(button, .react-flow__node):focus-visible {
+    outline: 2px solid #557044;
+    outline-offset: 3px;
+  }
+}
+.sample-graph .graph-toolbar {
+  padding: 16px 20px;
+}
+.sample-graph .graph-heading strong {
+  font-size: 15px;
+}
+.sample-graph .graph-heading div > span {
+  font-size: 12px;
+}
+.sample-graph .graph-layout.has-selection {
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+.sample-graph .graph-canvas {
+  height: 480px;
+}
+.sample-graph .graph-inspector {
+  padding: 24px;
+  max-height: none;
+}
+.sample-graph .graph-inspector :is(p, button) {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.sample-graph .graph-inspector h3 {
+  font-size: 22px;
+  line-height: 1.25;
+}
+.sample-graph .sample-note-pages {
+  display: grid;
+}
+.sample-graph .sample-note-page {
+  grid-area: 1 / 1;
+}
+.sample-graph .sample-note-page[data-inactive="true"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+.sample-graph .sample-linked-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 144px;
+}
+.sample-graph .sample-linked-notes button {
+  min-height: 44px;
+  padding-block: 8px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sample-graph .graph-node-label strong {
+  font-size: 12px;
+}
+.sample-graph .graph-connection-spark {
+  animation: none;
+}
+.sample-graph .sample-graph-caption {
+  padding: 16px 20px;
+  margin: 0;
+  font-size: 12px;
+  color: #536358;
+}
+@media (max-width: 767px) {
+  .sample-graph .graph-node-label {
+    width: 140px;
+  }
+  .sample-graph .graph-layout.has-selection {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sample-graph .graph-canvas {
+    height: 380px;
+  }
+  .sample-graph .graph-inspector {
+    padding: 24px 20px;
+    border-left: 0;
+    border-top: 1px solid var(--graph-line);
+  }
+}

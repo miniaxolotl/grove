@@ -1,0 +1,158 @@
+/* Public chrome only. Page composition belongs in composition.css. */
+.marketing-site {
+  --site-control: 44px;
+  --site-radius: 4px;
+}
+.marketing-site .page-container {
+  max-width: 1280px;
+  padding-inline: clamp(20px, 3.34vw, 48px);
+}
+.marketing-site .site-header .header-inner {
+  height: 80px;
+  gap: 32px;
+}
+.marketing-site .site-header {
+  background: var(--brand-paper);
+}
+.marketing-site .site-header .header-navigation {
+  gap: 28px;
+}
+.marketing-site .site-header .header-actions > a {
+  min-height: 36px;
+  height: auto;
+  padding: 6px 14px;
+  font-size: 14px;
+  line-height: 24px;
+  border-radius: var(--site-radius);
+}
+.marketing-site .site-header .header-menu-toggle {
+  width: var(--site-control);
+  height: var(--site-control);
+  min-width: var(--site-control);
+  padding: 0;
+}
+.marketing-site .site-header .header-navigation > a {
+  min-height: var(--site-control);
+  font-size: 14px;
+}
+.marketing-site .site-footer {
+  background: var(--brand-paper);
+  padding-block: 40px 20px;
+}
+.marketing-site .product-redesign .faq-item {
+  background: transparent;
+  padding-inline: 0;
+  border-radius: 0;
+  margin-bottom: 16px;
+}
+.marketing-site
+  .site-footer
+  :is(p, small, .footer-bottom, .footer-utilities a, .footer-utilities button) {
+  color: var(--brand-ink);
+}
+.marketing-site .site-footer .footer-main {
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 48px;
+  padding-bottom: 24px;
+}
+.marketing-site .site-footer .footer-links > p {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--brand-ink);
+}
+.marketing-site
+  .site-footer
+  :is(.footer-links, .footer-utilities)
+  :is(a, button) {
+  min-height: var(--site-control);
+  padding-block: 10px;
+  font-size: 14px;
+  line-height: 24px;
+  gap: 8px;
+}
+.marketing-site .site-footer .footer-bottom {
+  align-items: flex-start;
+  gap: 16px 32px;
+}
+.marketing-site .site-footer .footer-bottom > :is(p, span) {
+  margin: 0;
+  padding-block: 10px;
+  line-height: 24px;
+}
+.marketing-site .site-footer .footer-utilities {
+  gap: 0 24px;
+}
+.marketing-site .site-footer .footer-brand .site-brand {
+  max-width: 100%;
+}
+.marketing-site .site-footer .footer-brand .site-brand img {
+  width: 280px;
+  max-width: 100%;
+  height: auto;
+}
+.marketing-site .site-footer .footer-brand > p {
+  max-width: 30ch;
+  margin-top: 16px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.marketing-site .site-footer .bramble-family {
+  padding-block: 12px;
+  gap: 12px;
+}
+.marketing-site .site-footer .bramble-family small {
+  display: none;
+}
+.marketing-site .site-footer .bramble-family nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 20px;
+}
+.marketing-site .site-footer .bramble-family nav > :is(a, span) {
+  min-height: var(--site-control);
+  display: inline-flex;
+  align-items: center;
+}
+.marketing-site .product-redesign :is(.button, .button-primary) {
+  min-height: 38px;
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 22px;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .marketing-site .site-header .header-inner {
+    height: 72px;
+    gap: 12px;
+  }
+  .marketing-site .site-header .header-actions {
+    gap: 8px;
+  }
+  .marketing-site .site-header .header-actions > a {
+    padding-inline: 12px;
+  }
+  .marketing-site .site-footer {
+    padding-top: 32px;
+  }
+  .marketing-site .site-footer .footer-main {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .marketing-site .site-footer .footer-brand {
+    grid-column: 1 / -1;
+  }
+  .marketing-site .site-footer .footer-brand .site-brand img {
+    width: 220px;
+  }
+  .marketing-site .site-footer .footer-utilities {
+    gap: 0 20px;
+  }
+}
+@media (pointer: coarse) {
+  .marketing-site .product-redesign :is(.button, .button-primary),
+  .marketing-site .site-header .header-actions > a {
+    min-height: var(--site-control);
+  }
+}

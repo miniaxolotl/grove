@@ -2,9 +2,9 @@
 
 ## Scope and price
 
-Pro's **$5 USD/month is an introductory price**, intentionally separate from full-
-allowance cost. The owner plans to reconsider pricing later; this change does not
-reprice subscriptions, alter the price flag or activate billing.
+Pro's current price is **$19.99 USD/month** for new monthly subscriptions,
+intentionally separate from full-allowance cost. Existing subscriptions keep their
+agreed price. Changing the amount does not activate billing or alter allowances.
 
 The figures below use the public provider rates retrieved during this task, not
 invented invoices. They are **calculated per-user scenarios, not measured actual
@@ -74,7 +74,7 @@ Explicit scenario assumptions:
 The two TTS rows are **alternatives**, not additive: all voices share one quota.
 These subtotals **exclude embedding, classification, storage, bandwidth, database,
 API/worker hosting, email, payment fees, tax and support**. They are neither a total
-cost of service nor a guaranteed maximum. Pro gross revenue is $5 before fees;
+cost of service nor a guaranteed maximum. New Pro gross revenue is $19.99 before fees;
 in the illustrated full-use case its variable subtotal alone exceeds that revenue.
 
 ### Measured MiniMax sample sensitivity

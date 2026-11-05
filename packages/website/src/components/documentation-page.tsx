@@ -17,6 +17,22 @@ export function DocumentationPage({
   slug?: string;
   children: ReactNode;
 }) {
+  const links = (
+    <>
+      <Link href="/install">Connect AI tools</Link>
+      <Link href="/self-host">Self-host Grove</Link>
+      {documentation.map((item) => (
+        <Link
+          key={item.slug}
+          href={`/docs/${item.slug}`}
+          aria-current={slug === item.slug ? "page" : undefined}
+        >
+          {item.title}
+        </Link>
+      ))}
+      <Link href="/support">Get support</Link>
+    </>
+  );
   return (
     <main id="main" className={`page-container ${styles.page}`}>
       <Link href="/docs" className={styles.back}>
@@ -27,20 +43,20 @@ export function DocumentationPage({
         <p>{description}</p>
       </header>
       <div className={styles.layout}>
-        <nav className={styles.navigation} aria-label="Documentation">
-          <Link href="/install">Connect AI tools</Link>
-          <Link href="/self-host">Self-host Grove</Link>
-          {documentation.map((item) => (
-            <Link
-              key={item.slug}
-              href={`/docs/${item.slug}`}
-              aria-current={slug === item.slug ? "page" : undefined}
-            >
-              {item.title}
-            </Link>
-          ))}
-          <Link href="/support">Get support</Link>
-        </nav>
+        <div className={styles.sidebar}>
+          <details className={styles.mobileNavigation}>
+            <summary>Guides and reference</summary>
+            <nav className={styles.navigation} aria-label="Documentation">
+              {links}
+            </nav>
+          </details>
+          <nav
+            className={`${styles.navigation} ${styles.desktopNavigation}`}
+            aria-label="Documentation"
+          >
+            {links}
+          </nav>
+        </div>
         <article className={styles.body}>{children}</article>
       </div>
     </main>

@@ -10,46 +10,39 @@ export function AgentStory() {
     >
       <div className="agent-story-grid">
         <div data-reveal>
-          <p className="eyebrow">FOR DEVELOPERS</p>
           <h2 id="agents-heading" className="section-heading">
-            New session.
-            <br />
-            <em>Same context.</em>
+            Connect your AI tools
           </h2>
           <p className="agent-story-copy">
             Give OpenCode, Claude Code or Codex the project notes it needs.
-            Choose its notebooks, review what it saves and pick up where you
-            left off.
+            Choose its notebooks and review what it saves.
           </p>
           <div className="agent-story-actions">
             <Link href="/install" className="button-primary">
-              Connect your agent <ArrowRight size={16} aria-hidden="true" />
+              Connect your AI tools <ArrowRight size={16} aria-hidden="true" />
             </Link>
             <Link href="/self-host" className="nav-link">
               Self-host Grove <ArrowUpRight size={14} aria-hidden="true" />
             </Link>
           </div>
         </div>
-        <figure className="agent-terminal" data-reveal>
-          <p>CONNECT YOUR AGENT</p>
+        <figure className="agent-terminal" data-ui data-reveal>
+          <p>Connect your agent</p>
           <code>$ npx @miniaxolotl/grove connect</code>
           <ol>
             <li>
-              <span>01</span>
               <div>
                 Connect your tool
                 <small>Authorize access to your Grove account.</small>
               </div>
             </li>
             <li>
-              <span>02</span>
               <div>
                 Choose its notebooks
                 <small>Give it access to the notes it needs.</small>
               </div>
             </li>
             <li>
-              <span>03</span>
               <div>
                 Save and recall notes
                 <small>Use saved notes across sessions.</small>
@@ -57,7 +50,8 @@ export function AgentStory() {
             </li>
           </ol>
           <figcaption>
-            Illustrated setup. Tools: remember, recall, memories, forget.
+            Illustrated setup. Browse the documentation for the current tools
+            and access controls.
           </figcaption>
         </figure>
       </div>
