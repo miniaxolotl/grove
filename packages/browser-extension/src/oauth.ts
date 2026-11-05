@@ -126,6 +126,8 @@ export class BrowserOAuth implements OAuthClientProvider {
       interactive: true,
     });
     if (!callback) throw new Error("Sign-in was cancelled");
+    if (attempt.expires <= Date.now())
+      throw new Error("Sign-in expired. Sign in again.");
     this.code = authorizationCode(
       callback,
       this.redirectUrl,

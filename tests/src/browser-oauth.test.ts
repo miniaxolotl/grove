@@ -96,6 +96,8 @@ test("SDK discovery performs public PKCE exchange and single-flight renewal with
   });
   const original = globalThis.fetch,
     requests: { url: string; body: URLSearchParams }[] = [];
+  const originalNow = Date.now;
+  let lateCallback = false;
   let verifier = "",
     refreshes = 0;
   globalThis.fetch = async (input, init) => {
@@ -162,6 +164,7 @@ test("SDK discovery performs public PKCE exchange and single-flight renewal with
             "S256",
           );
           assert.ok(authorization.searchParams.get("code_challenge"));
+          if (lateCallback) Date.now = () => originalNow() + 600001;
           return `https://fixture.chromiumapp.org/?code=fixture-code&state=${authorization.searchParams.get("state")}`;
         },
       },
@@ -180,7 +183,19 @@ test("SDK discovery performs public PKCE exchange and single-flight renewal with
         (key) => key.endsWith(":state") || key.endsWith(":verifier"),
       ),
     );
+    await provider.invalidateCredentials("tokens");
+    lateCallback = true;
+    const exchanges = requests.filter((request) =>
+      request.url.endsWith("/token"),
+    ).length;
+    await assert.rejects(provider.signIn(), /Sign-in could not be completed/);
+    assert.equal(
+      requests.filter((request) => request.url.endsWith("/token")).length,
+      exchanges,
+      "expired callback must not reach token exchange",
+    );
   } finally {
+    Date.now = originalNow;
     globalThis.fetch = original;
   }
 });
