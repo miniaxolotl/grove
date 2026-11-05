@@ -60,6 +60,12 @@ test("website publishes only after build and current-ref checks, then verifies e
   const calls = [];
   let identity;
   const run = (args) => {
+    assert.ok(
+      !args.includes("--scope"),
+      "project-scoped tokens must use the explicit project/team environment, not CLI user scope resolution",
+    );
+    assert.ok(!args.includes("--token"), "credentials stay in the environment");
+    assert.ok(!args.includes(env.VERCEL_TOKEN));
     calls.push(args[0]);
     if (args[0] === "deploy") return "https://fixture.vercel.app\n";
   };
