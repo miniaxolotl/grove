@@ -3,6 +3,7 @@ import { readFile, mkdir, copyFile, writeFile } from "node:fs/promises";
 import { telemetryBuild } from "./release/telemetry-build.mjs";
 import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
+import { buildBrowserExtension } from "./build-browser-extension.mjs";
 
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -18,11 +19,13 @@ const targets = {
   opencode: { directory: "packages/grove-opencode-plugin", entries: ["index"] },
 };
 const selected =
-  process.argv[2] === "opencode"
-    ? ["mcp", "opencode"]
-    : process.argv[2]
-      ? [process.argv[2]]
-      : Object.keys(targets);
+  process.argv[2] === "browser-extension"
+    ? []
+    : process.argv[2] === "opencode"
+      ? ["mcp", "opencode"]
+      : process.argv[2]
+        ? [process.argv[2]]
+        : Object.keys(targets);
 for (const name of selected) {
   const target = targets[name];
   if (!target) throw new Error(`Unknown target ${name}`);
@@ -96,3 +99,5 @@ if (selected.includes("mcp")) {
     }
   }
 }
+if (!process.argv[2] || process.argv[2] === "browser-extension")
+  await buildBrowserExtension();
