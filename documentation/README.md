@@ -35,6 +35,11 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
 - [Public reference publishing](website-discovery.md) · [website design](website-marketing-05.md)
   · [identity](design/grove-sprout.md)
 
+## Proposed designs
+
+- [Structured documents, targeted edits and revision diffs](design/structured-documents.md)
+  — implementation proposal, not available functionality.
+
 ## Maintain the source of truth
 
 [Documentation maintenance](development/documentation.md) defines topic ownership,
