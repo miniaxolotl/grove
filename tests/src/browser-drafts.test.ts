@@ -73,6 +73,18 @@ test("browser draft core isolates accounts and preserves exact uncertain save id
         null,
       );
       assert.equal(drafts.readCaptureDraft(null, scope, now), null);
+      assert.equal(
+        drafts.readCaptureDraft(draft, { ...scope, origin: "not a URL" }, now),
+        null,
+      );
+      assert.equal(
+        drafts.readCaptureDraft(
+          { ...draft, scope: { ...scope, origin: "not a URL" } },
+          scope,
+          now,
+        ),
+        null,
+      );
       assert.equal(drafts.readCaptureDraft(draft, scope, Number.NaN), null);
       assert.throws(() =>
         drafts.createCaptureDraft({

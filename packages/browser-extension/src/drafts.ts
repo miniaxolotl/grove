@@ -14,8 +14,12 @@ const scopeSchema = z
       .string()
       .url()
       .refine((value) => {
-        const url = new URL(value);
-        return url.protocol === "https:" && url.origin === value;
+        try {
+          const url = new URL(value);
+          return url.protocol === "https:" && url.origin === value;
+        } catch {
+          return false;
+        }
       }),
     accountId: uuidSchema,
     connectionId: uuidSchema,
@@ -23,7 +27,7 @@ const scopeSchema = z
   .strict();
 export type CaptureScope = z.infer<typeof scopeSchema>;
 
-// A frozen local command snapshot, not a currently supported HTTP request body.
+// A local command snapshot separate from later edits, not a supported HTTP body.
 const requestSchema = z
   .object({
     operationId: uuidSchema,
