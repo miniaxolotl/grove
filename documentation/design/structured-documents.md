@@ -1,7 +1,10 @@
 # Structured documents and targeted editing
 
-**Status: proposed, not implemented.** This is an implementation design, not a
-description of available tools. The baseline is v1.11.14. Current writing and
+**Status: integration proposed; initial P0 core implemented.** The pure
+[document core](../development/document-core.md) supplies lossless snapshots,
+guarded patches and deterministic diff data, but no product path uses it yet.
+This remains an implementation design, not a description of available tools.
+The baseline is v1.11.14. Current writing and
 editing behavior remains in [workspace](../workspace.md),
 [agent note writing](../agent-note-writing.md) and [API contracts](../server.md).
 
