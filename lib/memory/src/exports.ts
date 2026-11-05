@@ -333,6 +333,7 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
         "r.document",
         "r.change",
         "r.actor",
+        "r.revisionGroup",
       )
       .orderBy("r.memoryId")
       .orderBy("r.version")

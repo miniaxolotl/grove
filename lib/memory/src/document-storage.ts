@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 import { GroveError } from "@lib/shared/contracts";
 import type { Knex } from "@lib/database";
 import {
+  revisionGroup,
+  type RevisionEdit,
+  type PreviousRevision,
+} from "./revision-groups.ts";
+import {
   createDocument,
   validateDocument,
   compareDocuments,
@@ -118,12 +123,19 @@ export async function reconcileDocument(
 export async function documentRevisionValues(
   trx: Knex.Transaction,
   row: { id: string; version: number; content: string },
+  edit?: RevisionEdit,
 ) {
   const previousRow =
     row.version > 1
       ? await trx("memory_revisions")
           .where({ memoryId: row.id, version: row.version - 1 })
-          .first("version")
+          .first(
+            "version",
+            "content",
+            "createdAt",
+            "revisionGroup",
+            trx.raw("CURRENT_TIMESTAMP AS saved_at"),
+          )
       : undefined;
   const previous = previousRow
     ? await revisionDocument(trx, row.id, row.version - 1)
@@ -135,6 +147,16 @@ export async function documentRevisionValues(
     previous,
   );
   return {
+    revisionGroup: JSON.stringify(
+      revisionGroup(
+        row.version,
+        document,
+        previousRow?.savedAt ?? new Date(),
+        previousRow as PreviousRevision | undefined,
+        previous,
+        edit,
+      ),
+    ),
     document: JSON.stringify(document),
     change: previous
       ? JSON.stringify(await compareDocuments(previous, document))

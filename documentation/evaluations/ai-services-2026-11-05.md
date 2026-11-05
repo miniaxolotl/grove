@@ -39,6 +39,11 @@ credential equality, runtime feature-flag evaluation or every replica's behavior
 All Ask cases left the synthetic note at revision 1. A proposal is not an applied
 edit. These are actual service journeys against live models, not mocked model
 responses, but they bypass production authentication/browser/deployment boundaries.
+The durable embedding → retrieval Ask → exact-cache repeat was rerun after the
+stack's dependency-security updates: ready with one cited source, one query
+embedding and one generation request; the repeat added zero model requests. Its
+disposable note stayed at source version 1. This also exercises the updated Zod
+runtime with a live model rather than relying solely on fixture responses.
 
 One initial retrieval probe returned `no_evidence` with zero generation calls and
 one query embedding: the new note had not been indexed, and the whole-question
@@ -76,7 +81,10 @@ New deterministic disposable-service evidence:
 The measured reduction is four save-triggered source versions coalesced into one
 embedding invocation **when none started during the burst**. This is not a claimed
 75% production saving: already-running work and real workload distributions differ.
-Every actual authored edit still gets its own atomic revision.
+Every actual authored edit still gets its own immutable atomic source version.
+Subsequent [revision grouping](../structured-documents.md#coalesced-revision-history)
+coalesces nearby simple saves into one logical history entry without changing the
+inference measurements above or rewriting source versions.
 
 ### Batching decision
 

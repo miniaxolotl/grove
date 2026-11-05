@@ -186,6 +186,7 @@ export function MemoryEditor({
     input?: Record<string, unknown>;
   } | null>(draft?.pending ?? null);
   const saveImmediately = useRef(false);
+  const editSession = useRef<string | null>(null);
   const dirty = base
     ? content !== base.content ||
       kind !== base.kind ||
@@ -442,7 +443,9 @@ export function MemoryEditor({
   useEffect(() => {
     onLockChange?.(mediaBusy || busy || dirty || !!latest);
   }, [onLockChange, mediaBusy, busy, dirty, latest]);
-  function persist() {
+  function persist(automatic = false) {
+    if (!editSession.current || !automatic)
+      editSession.current = crypto.randomUUID();
     if (mediaBusy) return;
     // Retrying an uncertain save must use its original payload even if newer
     // local edits are empty or exceed the save limit.
@@ -470,7 +473,14 @@ export function MemoryEditor({
           ? { taskId: null }
           : {}),
       source: base?.source ?? { agent: "website" },
-      ...(base ? { id: base.id, expectedVersion: base.version } : {}),
+      ...(base
+        ? {
+            id: base.id,
+            expectedVersion: base.version,
+            editSession: editSession.current,
+            checkpoint: !automatic,
+          }
+        : {}),
     };
     const fingerprint = JSON.stringify(input);
     if (pending.current?.fingerprint !== fingerprint) {
@@ -500,7 +510,7 @@ export function MemoryEditor({
         submitted: submitted.current,
       });
   }
-  const autosave = useEffectEvent(persist);
+  const autosave = useEffectEvent(() => persist(true));
   const openExport = () =>
     noteExport.open({
       key: draftKey ?? (base ? `note:${base.id}` : "new:compact"),

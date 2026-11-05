@@ -1,5 +1,8 @@
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
-import { applySourceEdits } from "@lib/shared/document-edits";
+import {
+  applySourceEdits,
+  sourceEditsBetween,
+} from "@lib/shared/document-edits";
 import { memoryUpdateSchema } from "@lib/shared/memory-tools";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page, type Download } from "@playwright/test";
@@ -606,6 +609,9 @@ test("notebook archive never discards a retained local draft", async ({
     name: "What should stay with you?",
   });
   await editor.fill("Unsaved writing ".repeat(450));
+  await page
+    .getByRole("button", { name: "Back to notes", exact: true })
+    .click();
   const notebooksToggle = page.getByRole("button", {
     name: "Notebooks",
     exact: true,
@@ -632,6 +638,11 @@ test("notebook archive never discards a retained local draft", async ({
   ).toBeDisabled();
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.goBack();
+  await page.locator(`[data-note-id="${handoff.id}"] .memory-open`).click();
+  await page
+    .getByRole("dialog", { name: "Note", exact: true })
+    .getByRole("button", { name: "Write", exact: true })
+    .click();
   await expect(editor).toContainText("Unsaved writing");
 });
 
@@ -2340,8 +2351,14 @@ test("row export reads current content and first-save routing retains the export
   expect((await loading.promise).numPages).toBe(1);
   await loading.destroy();
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  const exportTrigger = page.getByRole("button", {
+    name: "Export",
+    exact: true,
+  });
   await expect(
-    page.getByRole("button", { name: "Export", exact: true }),
+    (await exportTrigger.isVisible())
+      ? exportTrigger
+      : page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeFocused();
 });
 
@@ -4432,7 +4449,94 @@ for (const width of [1440, 390, 320]) {
   });
 }
 
+for (const width of [1440, 390]) {
+  test(`quick autosaves share one readable revision at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 960 });
+    const state = await fixture(page, [note]);
+    await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+    const editor = page.getByRole("textbox", {
+      name: "What should stay with you?",
+    });
+    const first = note.content.replace("working example", "tested example");
+    await editor.fill(first);
+    await expect(page.locator(".note-save-status")).toHaveText("Saved");
+    const second = first.replace("Read the change", "Read the draft");
+    await editor.fill(second);
+    await expect(page.locator(".note-save-status")).toHaveText("Saved");
+    const writes = state.calls.filter((call) => call.path === "/memories");
+    expect(writes).toHaveLength(2);
+    expect(writes[0].body.editSession).toMatch(/^[0-9a-f-]{36}$/);
+    expect(writes[1].body.editSession).toBe(writes[0].body.editSession);
+    expect(writes.map((w) => w.body.checkpoint)).toEqual([false, false]);
+    await page
+      .getByRole("button", { name: "Note actions", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Revision history", exact: true })
+      .click();
+    const history = page.getByRole("dialog", { name: "Revision history" });
+    await expect(history.locator(".revision-list > li")).toHaveCount(2);
+    await expect(history).toContainText("Revision 2 · Current · 2 saves");
+    await expect(history.locator(".revision-diff del").first()).toContainText(
+      "working",
+    );
+    await expect(history.locator(".revision-diff ins").first()).toContainText(
+      "tested",
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .include("dialog[open]")
+          .withTags(["wcag2a", "wcag2aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    await page.screenshot({
+      path: `../../documentation/design/screenshots/structured-documents/coalesced-${width}.png`,
+    });
+    await history.getByRole("button", { name: "Close dialog" }).click();
+    // Isolate the explicit keyboard save from the 450ms autosave timer: WebKit
+    // may spend longer than that delivering a multi-key chord under load.
+    await page.clock.install();
+    await page.clock.pauseAt(new Date());
+    await editor.fill(second.replace("specific", "precise"));
+    await editor.press("Control+s");
+    await page.clock.resume();
+    await expect(page.locator(".note-save-status")).toHaveText("Saved");
+    const manual = state.calls
+      .filter((call) => call.path === "/memories")
+      .at(-1)!.body;
+    expect(manual.checkpoint).toBe(true);
+    expect(manual.editSession).not.toBe(writes[0].body.editSession);
+    await page
+      .getByRole("button", { name: "Note actions", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Revision history", exact: true })
+      .click();
+    await expect(history.locator(".revision-list > li")).toHaveCount(3);
+    await expect(history).toContainText("Revision 3 · Current");
+  });
+}
+
 async function fixture(page: Page, initial = [note, handoff]) {
+  const revisionGroups = new Map<
+    string,
+    {
+      revision: number;
+      firstVersion: number;
+      saves: number;
+      session?: string;
+      open: boolean;
+    }
+  >();
   const records = new Map(
     initial.map((memory) => [memory.id, structuredClone(memory)]),
   );
@@ -4846,6 +4950,8 @@ async function fixture(page: Page, initial = [note, handoff]) {
           ? applySourceEdits(previous.content, body.edits)
           : previous.content;
         delete payload.edits;
+        delete payload.editSession;
+        delete payload.checkpoint;
         if (payload.taskId === null) delete payload.taskId;
       }
       const input = rememberSchema.parse(payload);
@@ -4878,6 +4984,31 @@ async function fixture(page: Page, initial = [note, handoff]) {
         id: saved.id,
       });
       const history = revisions.get(saved.id) ?? [];
+      const prior = previous
+        ? revisionGroups.get(`${saved.id}:${previous.version}`)
+        : undefined;
+      const splices = previous
+        ? sourceEditsBetween(previous.content, saved.content)
+        : [];
+      const small =
+        !!body.edits &&
+        splices.reduce((n, s) => n + s.oldText.length + s.text.length, 0) <=
+          256 &&
+        splices.every((s) => !/[\r\n]/.test(s.oldText + s.text));
+      const coalesced =
+        small &&
+        !body.checkpoint &&
+        !!prior?.open &&
+        prior.session === body.editSession;
+      revisionGroups.set(`${saved.id}:${saved.version}`, {
+        revision: coalesced
+          ? prior!.revision
+          : (prior?.revision ?? previous?.version ?? 0) + 1,
+        firstVersion: coalesced ? prior!.firstVersion : saved.version,
+        saves: coalesced ? prior!.saves + 1 : 1,
+        session: body.editSession,
+        open: small && !body.checkpoint,
+      });
       if (previous && !history.some((row) => row.version === previous.version))
         history.push(previous);
       history.push(saved);
@@ -4926,9 +5057,23 @@ async function fixture(page: Page, initial = [note, handoff]) {
           ],
         },
       };
-    } else if (path.endsWith("/revisions"))
-      data = revisions.get(path.split("/")[2]) ?? [];
-    else if (path.startsWith("/memories/"))
+    } else if (path.endsWith("/revisions")) {
+      const id = path.split("/")[2],
+        grouped = new Map<
+          number,
+          Memory & { revision?: number; firstVersion?: number; saves?: number }
+        >();
+      for (const row of revisions.get(id) ?? []) {
+        const group = revisionGroups.get(`${id}:${row.version}`);
+        grouped.set(group?.firstVersion ?? row.version, {
+          ...row,
+          revision: group?.revision ?? row.version,
+          firstVersion: group?.firstVersion ?? row.version,
+          saves: group?.saves ?? 1,
+        });
+      }
+      data = [...grouped.values()].sort((a, b) => b.version - a.version);
+    } else if (path.startsWith("/memories/"))
       data = records.get(path.split("/")[2]);
     else throw new Error(`Unexpected fixture request: ${path}`);
     await route.fulfill({
@@ -6839,8 +6984,7 @@ test("returning to a draft during its first save follows that save without dupli
   await editor.press("Control+s");
   await expect.poll(() => started).toBe(true);
   await page
-    .getByRole("navigation", { name: "Notebook navigation" })
-    .getByRole("link", { name: "Notes", exact: true })
+    .getByRole("button", { name: "Back to notes", exact: true })
     .click();
   await page.getByRole("link", { name: "New note", exact: true }).click();
   await expect(page.locator(".note-save-status")).toHaveText("Saving…");

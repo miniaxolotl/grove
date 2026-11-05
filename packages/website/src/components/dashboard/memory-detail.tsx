@@ -72,7 +72,14 @@ export function MemoryDetail({
   const [editorRevision, setEditorRevision] = useState(0);
   const historyQuery = useQuery({
     ...cache.resource<
-      { version: number; content: string; createdAt: string }[]
+      {
+        version: number;
+        content: string;
+        createdAt: string;
+        revision?: number;
+        firstVersion?: number;
+        saves?: number;
+      }[]
     >(`/memories/${memory?.id}/revisions`),
     enabled: historyOpen && !!memory,
   });
@@ -498,11 +505,14 @@ export function MemoryDetail({
           {!history && !historyError && <p role="status">Loading history…</p>}
           <ol className="revision-list">
             {reviewHistory?.map((revision) => (
-              <li key={revision.version}>
+              <li key={revision.firstVersion ?? revision.version}>
                 <div className="flex flex-wrap justify-between gap-2 text-xs text-muted">
                   <span>
-                    Revision {revision.version}
+                    Revision {revision.revision ?? revision.version}
                     {revision.version === memory.version ? " · Current" : ""}
+                    {(revision.saves ?? 1) > 1
+                      ? ` · ${revision.saves} saves`
+                      : ""}
                   </span>
                   <span>{dateLabel(revision.createdAt)}</span>
                 </div>

@@ -20,6 +20,17 @@ export const memoryUpdateSchema = z
     operationId: operationSchema,
     id: uuidSchema,
     expectedVersion: expectedVersionSchema,
+    editSession: uuidSchema
+      .optional()
+      .describe(
+        "Stable UUID for one editing session. Small nearby source edits may share one history revision; this is not actor identity or authorization.",
+      ),
+    checkpoint: z
+      .boolean()
+      .optional()
+      .describe(
+        "Explicit save boundary: keep this change as its own revision and close the editing burst.",
+      ),
     edits: sourceEditsSchema
       .optional()
       .describe(
@@ -71,6 +82,8 @@ export const memoryPatchPreviewSchema = z
     expectedVersion: expectedVersionSchema,
     operationId: operationSchema,
     edits: sourceEditsSchema,
+    editSession: uuidSchema.optional(),
+    checkpoint: z.boolean().optional(),
     capture: captureSchema,
   })
   .strict();
@@ -214,7 +227,7 @@ export const memoryTools = {
     schema: z.object({ id: uuidSchema }).strict(),
     readOnly: true,
     description:
-      "Read up to 100 most recent revisions of an accessible note, including revision numbers and authored content.",
+      "Read up to 100 most recent logical revisions of an accessible note. Nearby small edits share an entry. revision is the history number; version is the immutable source version to use for reads, comparisons and restore. firstVersion/saves describe the group.",
   },
   update_memory: {
     title: "Update a memory",

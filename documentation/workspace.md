@@ -36,7 +36,9 @@ owns connection commands and approval.
   immediately. **Save note** or Ctrl/Cmd+S saves now. First-save routing retains
   the editor, focus, scroll and Undo. Another New note starts a separate document.
   Existing notes send precise source edits, preserving unedited passages. Revision
-  comparisons show highlighted additions/removals; **Full versions** expands both
+  history groups nearby small autosaves from one editing session instead of listing
+  each keystroke save. Large/structural changes and explicit Save stay separate.
+  Comparisons show highlighted additions/removals; **Full versions** expands both
   complete documents. See [structured notes](structured-documents.md).
 - Drafts/retry identities stay in account/session-owned memory during navigation,
   not on disk. Saves retain newer typing and require review of concurrent edits.

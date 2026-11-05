@@ -41,6 +41,7 @@ import {
 import { rememberSchema } from "@lib/shared/contracts";
 import { applySourceEdits } from "@lib/shared/document-edits";
 import { compareDocuments } from "@lib/shared/documents";
+import type { RevisionEdit } from "./revision-groups.ts";
 import {
   revisionDocument,
   documentRevisionValues,
@@ -505,8 +506,9 @@ export class MemoryService {
     trx: Knex.Transaction,
     row: MemoryModel,
     deferProcessing = false,
+    edit?: RevisionEdit,
   ) {
-    const structured = await documentRevisionValues(trx, row);
+    const structured = await documentRevisionValues(trx, row, edit);
     await trx("memory_revisions")
       .insert({
         accountId: row.accountId,
@@ -587,6 +589,7 @@ export class MemoryService {
         schemaVersion: 1,
         sourceEdits: true,
         reviewedPatches: true,
+        coalescedRevisions: true,
       },
     }));
   }
@@ -775,7 +778,8 @@ export class MemoryService {
                   409,
                 );
             }
-            const { edits, ...fields } = request as MemoryUpdate;
+            const { edits, editSession, checkpoint, ...fields } =
+              request as MemoryUpdate;
             let exactContent: string | undefined;
             if (edits) {
               if (
@@ -922,7 +926,36 @@ export class MemoryService {
                   id: randomUUID(),
                   status: input.archived ? "archived" : "active",
                 });
-            await this.revise(trx, row, !!edits);
+            const session = editSession ?? principal.sessionId;
+            await this.revise(
+              trx,
+              row,
+              !!edits,
+              edits && old && session
+                ? {
+                    session,
+                    writer: digest(
+                      stable([
+                        principal.accountId,
+                        principal.type,
+                        principal.subject,
+                        principal.connectionId ?? null,
+                        principal.sessionId ?? null,
+                        principal.clientId ?? null,
+                      ]),
+                    ),
+                    checkpoint,
+                    eligible:
+                      old.status === row.status &&
+                      old.projectId === row.projectId &&
+                      old.kind === row.kind &&
+                      old.autoKind === row.autoKind &&
+                      old.taskId === row.taskId &&
+                      old.retentionDays === row.retentionDays &&
+                      stable(old.source) === stable(row.source),
+                  }
+                : undefined,
+            );
             created = !input.id;
             return { id: row.id, version: row.version };
           },
@@ -1119,11 +1152,26 @@ export class MemoryService {
   async revisions(principal: Principal, id: string) {
     return this.access(principal, "memory:read", async ({ trx, grant }) => {
       if (!(await this.query(trx, grant).findById(id))) throw missing();
-      return trx("memory_revisions")
+      const groups = trx("memory_revisions")
         .where({ memoryId: id })
-        .select("version", "content", "source", "createdAt")
+        .select(
+          trx.raw(
+            "DISTINCT ON (coalesce((revision_group->>'start')::integer,version)) version,content,source,created_at,revision_group",
+          ),
+        )
+        .orderByRaw(
+          "coalesce((revision_group->>'start')::integer,version), version DESC",
+        );
+      const rows = await trx
+        .from(groups.as("history"))
         .orderBy("version", "desc")
         .limit(100);
+      return rows.map(({ revisionGroup: group, ...row }) => ({
+        ...row,
+        revision: group?.number ?? row.version,
+        firstVersion: group?.start ?? row.version,
+        saves: row.version - (group?.start ?? row.version) + 1,
+      }));
     });
   }
 

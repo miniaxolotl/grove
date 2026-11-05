@@ -103,6 +103,20 @@ test("populated structured-document upgrade preserves raw history and real-role 
           ),
         /revision_document_projection/,
       );
+      await assert.rejects(
+        () =>
+          tenant(runtime, accountId, (trx) =>
+            trx("memory_revisions").insert({
+              accountId,
+              memoryId: id,
+              version: 3,
+              content: "Invalid group",
+              source: { agent: "api" },
+              revisionGroup: JSON.stringify({ start: 99, number: 2 }),
+            }),
+          ),
+        /revision_group_bounds/,
+      );
     }
   } finally {
     await Promise.all([db.destroy(), worker.destroy(), admin.destroy()]);

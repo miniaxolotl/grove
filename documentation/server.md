@@ -77,7 +77,7 @@ an action. Existing schemas, bounds, defaults and grants remain unchanged.
 | `memories`                         | Inspect IDs, versions, provenance and statuses     | `query`, `projectId`, `kind`, `status`, `cursor`, `limit`                                    |
 | `forget`                           | Exact-ID soft deletion; retained history is hidden | `operationId`, `items: [{id, expectedVersion}]`                                              |
 | `get_memory`                       | Exact current or historical note                   | `id`, optional `revision`                                                                    |
-| `memory_history`                   | Latest 100 revisions                               | `id`                                                                                         |
+| `memory_history`                   | Latest 100 logical revision groups                 | `id`; use returned `version` for exact reads, not its display `revision`                     |
 | `update_memory`                    | Partial edit; omitted fields preserved             | `operationId`, `id`, `expectedVersion`, changed fields                                       |
 | `move_memories`                    | Atomic batch filing (up to 50)                     | `operationId`, `items`, destination `projectId` or null                                      |
 | `archive_memory`, `restore_memory` | Archive or restore an exact note                   | `operationId`, `id`, `expectedVersion`; restore: optional `revision`, `durable`              |

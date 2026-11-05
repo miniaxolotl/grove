@@ -3,7 +3,14 @@ export const structuredDocuments = {
   name: "20261105_036_structured_documents",
   async up(db: Knex) {
     await db.raw(`
-      ALTER TABLE memory_revisions ADD COLUMN document jsonb, ADD COLUMN change jsonb, ADD COLUMN actor jsonb;
+      ALTER TABLE memory_revisions ADD COLUMN document jsonb, ADD COLUMN change jsonb, ADD COLUMN actor jsonb,
+        ADD COLUMN revision_group jsonb;
+      ALTER TABLE memory_revisions ADD CONSTRAINT revision_group_bounds CHECK (
+        revision_group IS NULL OR (jsonb_typeof(revision_group)='object'
+          AND (revision_group->>'start')::integer BETWEEN 1 AND version
+          AND (revision_group->>'number')::integer BETWEEN 1 AND version) IS TRUE);
+      CREATE INDEX revision_history_groups ON memory_revisions
+        (account_id,memory_id,(coalesce((revision_group->>'start')::integer,version)),version DESC);
       CREATE FUNCTION grove_document_matches(doc jsonb, note uuid, revision integer, source text)
       RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,public AS $$
         SELECT doc IS NULL OR (

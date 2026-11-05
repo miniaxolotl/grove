@@ -20,7 +20,7 @@ versions** expands the complete rendered before/after documents. Code, whitespac
 and formatting changes are not silently normalized. Long comparisons use a labelled
 grouped diff instead of truncated results. Unsaved drafts above the note limit
 retain full-version comparison rather than crashing the review.
-Revision history opens the latest previous revision's diff first; the complete
+Revision history opens the latest previous logical revision's diff first; the complete
 current revision follows it. Individual comparisons can still be opened or closed.
 
 The editor stays mounted through saves. Existing local Undo, held saves, newer
@@ -69,8 +69,9 @@ read and write. Existing notebook grants, media rules and capture controls remai
 
 ## Storage and compatibility
 
-Migration `20261105_036_structured_documents` adds nullable `document`, `change`
-and `actor` JSONB fields to the existing RLS-protected `memory_revisions` table.
+Migration `20261105_036_structured_documents` adds nullable `document`, `change`,
+`actor` and `revision_group` JSONB fields to the existing RLS-protected
+`memory_revisions` table, with a history-group index and group-number bounds.
 It does not rewrite retained notes/history or expand permissions. A SQL constraint
 requires non-null document identity/revision and exact concatenated source to match
 the revision. The core additionally validates unique IDs, hashes and partitioning.
@@ -133,7 +134,47 @@ release. Do not drop the new fields or deploy a writer that assumes they are abs
 after activation. An incompatible rollback requires a forward repair or read-only
 mode. No migration is automatically run by the website or MCP request path.
 
-Run `document-editing.test.ts`, `structured-documents-migration.test.ts`, core,
+### Coalesced revision history
+
+Small nearby source edits from one writer/editing session extend the same logical
+revision, instead of filling history with autosaves. Membership is decided inside
+the atomic save transaction using the last committed edit; no worker, timer, extra
+AI request or delayed durability is needed. History groups before applying its
+100-entry limit, so a long burst does not hide older useful restore points.
+
+The quiet window is **30 seconds**, separate from the five-second inference delay.
+A group is capped at two minutes and 1,000 cumulative changed UTF-16 units. Each
+eligible edit changes at most 256 units, touches no line break, preserves block
+identity/order/kinds, and replaces no more than a quarter of the prior note (with
+a 32-unit allowance for short notes). These are conservative deterministic limits,
+not an AI judgment of semantic importance.
+
+Another trusted actor/connection/login session or editor session, an idle gap,
+metadata/lifecycle/restore changes, structural edits or larger changes start a new
+revision. Larger changes close their group too, so later tiny edits cannot be
+absorbed into a major rewrite. Explicit **Save note** / Ctrl/Cmd+S creates a closed
+checkpoint when there is a change; a no-op still does not manufacture a revision.
+The browser changes its session hint at an explicit save, including a clean save.
+
+MCP/API callers can supply one stable UUID `editSession` across a targeted editing
+task; `checkpoint: true` makes a separate, closed revision. Preview/apply binds both
+fields. Without a hint, a trusted authenticated session can provide continuity;
+otherwise saves remain separate. A client hint is never trusted actor identity and
+cannot join another writer's group. Missing legacy metadata is not guessed or
+retroactively merged, and ambiguous complex edits remain distinct.
+
+History returns `revision` (logical display number), `firstVersion`, `saves`, and
+the final immutable `version`/content of the group. **Use `version`, not `revision`,
+for exact reads, comparisons, citation/media references and restore.** Every save
+still has its own version fence, operation receipt and retained immutable source
+snapshot; coalescing does not overwrite snapshots another reader may have cited.
+Exports retain those snapshots and their `revisionGroup` metadata. The web history
+shows one entry per group and compares its final content; restore starts a new
+logical revision. Group growth retains the history row's identity in the UI.
+[Desktop and phone captures](design/screenshots/structured-documents/README.md)
+show two saves in one entry with the combined diff.
+
+Run `revision-groups.test.ts`, `document-editing.test.ts`, `structured-documents-migration.test.ts`, core,
 memory-tool, lifecycle, conversation/assistance and export/recovery tests against
 disposable PostgreSQL using actual non-owner roles. Verify remote/shared MCP and
 packed artifacts, then browser source-splice payloads, held/uncertain saves,

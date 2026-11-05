@@ -22,3 +22,7 @@ Use remember for new saves; legacy id/expectedVersion corrections replace metada
 ## Capture and handoffs
 
 Set capture=automatic for agent-initiated saves/updates; explicit requires a user-requested save/update. Never ingest raw transcripts, tool logs, credentials or inferred sensitive details as memory. Honor private sessions and disabled capture/recall; never save or recall automatically when paused. For a handoff, save goal, verified progress, blockers and next action under a stable taskId; update its existing id/expectedVersion rather than duplicate it. Handoffs default to 30 days, then a 60-day expired restoration window and retained soft deletion. Durable memories persist until explicitly changed/deleted.
+
+## Editing sessions
+
+Reuse one UUID editSession for a continuous targeted editing task so nearby small source edits can share a logical history revision. Pass it unchanged through preview/apply and identical retries; use checkpoint=true for an explicit revision boundary. Never share session hints across independent editing tasks or writers. The server checks timing, complexity and trusted actor identity; the hint grants no authority. History revision is a display number; use its version field for exact source reads, comparisons and restore. Atomic save versions and citations remain immutable.
