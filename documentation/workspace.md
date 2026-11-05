@@ -35,6 +35,9 @@ owns connection commands and approval.
 - Autosave starts after a 450ms typing pause; viewer checklist changes start saving
   immediately. **Save note** or Ctrl/Cmd+S saves now. First-save routing retains
   the editor, focus, scroll and Undo. Another New note starts a separate document.
+  Existing notes send precise source edits, preserving unedited passages. Revision
+  comparisons show highlighted additions/removals; **Full versions** expands both
+  complete documents. See [structured notes](structured-documents.md).
 - Drafts/retry identities stay in account/session-owned memory during navigation,
   not on disk. Saves retain newer typing and require review of concurrent edits.
   Opening a draft during its save follows that request, not a duplicate create.

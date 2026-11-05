@@ -80,6 +80,7 @@ async function forward(
     !admin &&
     !speech &&
     !allowed.test(path) &&
+    !/^memories\/[0-9a-f-]+\/edit$/.test(path) &&
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
     path !== "conversations/search" &&
     !/^files\/(?:search|storage|locations)$/.test(path) &&

@@ -32,11 +32,20 @@ import {
   moveMemoriesSchema,
   notebookCreateSchema,
   notebookUpdateSchema,
+  memoryPatchPreviewSchema,
+  memoryPatchApplySchema,
   type MemoryUpdate,
   type MoveMemories,
   type NotebookList,
 } from "@lib/shared/memory-tools";
 import { rememberSchema } from "@lib/shared/contracts";
+import { applySourceEdits } from "@lib/shared/document-edits";
+import { compareDocuments } from "@lib/shared/documents";
+import {
+  revisionDocument,
+  documentRevisionValues,
+  reconcileDocument,
+} from "./document-storage.ts";
 import {
   notebookCatalogSchema,
   organizeNotebookSchema,
@@ -182,6 +191,7 @@ type Account = AccountSettings & {
   askTools: import("@lib/shared/ask-tools").AskTools;
 };
 type Access = { trx: Knex.Transaction; account: Account; grant?: Connection };
+const revisionActors = new WeakMap<Knex.Transaction, Principal>();
 const missing = () => new GroveError("not_found", "Memory not found", 404);
 const forbidden = () =>
   new GroveError(
@@ -290,6 +300,7 @@ export class MemoryService {
         capability !== null && capability !== "memory:read",
       );
       inheritBillingQuotas(this.db, trx);
+      revisionActors.set(trx, principal);
       return run(access);
     }).catch((error: unknown) => {
       const databaseError = error as {
@@ -490,7 +501,12 @@ export class MemoryService {
     await invalidateBriefs(trx, accountId);
   }
 
-  async revise(trx: Knex.Transaction, row: MemoryModel) {
+  async revise(
+    trx: Knex.Transaction,
+    row: MemoryModel,
+    deferProcessing = false,
+  ) {
+    const structured = await documentRevisionValues(trx, row);
     await trx("memory_revisions")
       .insert({
         accountId: row.accountId,
@@ -498,6 +514,19 @@ export class MemoryService {
         version: row.version,
         content: row.content,
         source: JSON.stringify(row.source),
+        ...structured,
+        actor: JSON.stringify(
+          revisionActors.has(trx)
+            ? (() => {
+                const actor = revisionActors.get(trx)!;
+                return {
+                  type: actor.type,
+                  subject: actor.subject,
+                  connectionId: actor.connectionId ?? null,
+                };
+              })()
+            : { type: "service" },
+        ),
       })
       .catch((error) => {
         if (
@@ -514,6 +543,14 @@ export class MemoryService {
     await trx("memory_embeddings").where({ memoryId: row.id }).delete();
     await this.changed(trx, row.accountId);
     await this.queue(trx, row);
+    if (deferProcessing)
+      await trx("jobs")
+        .where({ memoryId: row.id, version: row.version })
+        .whereIn("kind", ["embedding", "decision", "organization"])
+        .whereNull("leaseId")
+        .update({
+          dueAt: trx.raw("greatest(due_at, now() + interval '5 seconds')"),
+        });
   }
 
   private async queue(trx: Knex.Transaction, row: MemoryModel) {
@@ -546,6 +583,11 @@ export class MemoryService {
           }
         : null,
       apiVersion: 1,
+      documentEditing: {
+        schemaVersion: 1,
+        sourceEdits: true,
+        reviewedPatches: true,
+      },
     }));
   }
 
@@ -555,6 +597,147 @@ export class MemoryService {
 
   async updateMemory(principal: Principal, input: MemoryUpdate) {
     return this.saveMemory(principal, memoryUpdateSchema.parse(input), true);
+  }
+
+  async getMemoryDocument(principal: Principal, id: string, revision?: number) {
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      const row = await this.query(trx, grant).findById(id);
+      if (!row || (row.expiresAt && new Date(row.expiresAt) <= new Date()))
+        throw missing();
+      const document = await revisionDocument(trx, id, revision ?? row.version);
+      if (
+        (revision === undefined || revision === row.version) &&
+        document.blocks.map((b) => b.source).join("") !== row.content
+      )
+        throw new GroveError(
+          "version_conflict",
+          "Document projection changed; reload before editing",
+          409,
+        );
+      return document;
+    });
+  }
+
+  async compareMemoryRevisions(
+    principal: Principal,
+    id: string,
+    before: number,
+    after: number,
+  ) {
+    return compareDocuments(
+      await this.getMemoryDocument(principal, id, before),
+      await this.getMemoryDocument(principal, id, after),
+    );
+  }
+
+  private patchReview(principal: Principal, patch: unknown, expires: string) {
+    return createHmac("sha256", this.cursorSecret)
+      .update(
+        stable({
+          account: principal.accountId,
+          subject: principal.subject,
+          connection: principal.connectionId ?? null,
+          session: principal.sessionId ?? null,
+          patch,
+          expires,
+        }),
+      )
+      .digest("hex");
+  }
+
+  async previewMemoryPatch(principal: Principal, raw: unknown) {
+    const input = memoryPatchPreviewSchema.parse(raw);
+    return this.access(
+      principal,
+      "memory:write",
+      async ({ trx, grant, account }) => {
+        if (
+          !principal.capabilities.includes("memory:read") ||
+          (grant && !grant.capabilities.includes("memory:read"))
+        )
+          throw forbidden();
+        if (input.capture === "automatic" && !account.captureEnabled)
+          throw new GroveError(
+            "capture_paused",
+            "Automatic capture is paused",
+            403,
+          );
+        const row = await this.query(trx, grant).findById(input.id);
+        if (
+          !row ||
+          row.status !== "active" ||
+          (row.expiresAt && new Date(row.expiresAt) <= new Date())
+        )
+          throw missing();
+        if (row.version !== input.expectedVersion)
+          throw new GroveError(
+            "version_conflict",
+            "Note changed; refresh the preview",
+            409,
+          );
+        const before = await revisionDocument(trx, row.id, row.version);
+        if (before.blocks.map((b) => b.source).join("") !== row.content)
+          throw new GroveError(
+            "version_conflict",
+            "Document projection changed; reload before editing",
+            409,
+          );
+        let content: string;
+        try {
+          content = applySourceEdits(row.content, input.edits);
+        } catch {
+          throw new GroveError(
+            "version_conflict",
+            "Selected text changed or the edit is invalid",
+            409,
+          );
+        }
+        if (content === row.content)
+          throw new GroveError("no_change", "The edit makes no change", 400);
+        const after = await reconcileDocument(
+          row.id,
+          row.version + 1,
+          content,
+          before,
+        );
+        const expires = String(Date.now() + 30 * 60_000);
+        return {
+          review: `${expires}.${this.patchReview(principal, input, expires)}`,
+          expiresAt: new Date(Number(expires)).toISOString(),
+          diff: await compareDocuments(before, after),
+        };
+      },
+    );
+  }
+
+  async applyMemoryPatch(principal: Principal, raw: unknown) {
+    const { review, ...input } = memoryPatchApplySchema.parse(raw);
+    return this.access(principal, "memory:write", async ({ trx, grant }) => {
+      if (
+        !principal.capabilities.includes("memory:read") ||
+        (grant && !grant.capabilities.includes("memory:read"))
+      )
+        throw forbidden();
+      const match = /^(\d{13})\.([a-f0-9]{64})$/.exec(review);
+      const expires = match?.[1],
+        signature = match?.[2];
+      const expected = this.patchReview(principal, input, expires ?? "");
+      const replay = await trx("memory_operations")
+        .where({ id: input.operationId })
+        .first("id");
+      if (
+        !/^\d{13}$/.test(expires ?? "") ||
+        !/^[a-f0-9]{64}$/.test(signature ?? "") ||
+        !timingSafeEqual(Buffer.from(expected), Buffer.from(signature ?? "")) ||
+        (!replay && Number(expires) <= Date.now())
+      )
+        throw new GroveError(
+          "review_changed",
+          "Review expired or changed; preview the exact edit again",
+          409,
+        );
+      return this.inTransaction(trx).updateMemory(principal, input);
+    });
   }
 
   private async saveMemory(
@@ -592,6 +775,48 @@ export class MemoryService {
                   409,
                 );
             }
+            const { edits, ...fields } = request as MemoryUpdate;
+            let exactContent: string | undefined;
+            if (edits) {
+              if (
+                !old ||
+                old.status !== "active" ||
+                (old.expiresAt && new Date(old.expiresAt) <= new Date())
+              )
+                throw missing();
+              const revision = await trx("memory_revisions")
+                .where({ memoryId: old.id, version: old.version })
+                .first("content");
+              if (!revision || revision.content !== old.content)
+                throw new GroveError(
+                  "version_conflict",
+                  "Document projection changed; reload before editing",
+                  409,
+                );
+              try {
+                exactContent = applySourceEdits(old.content, edits);
+              } catch {
+                throw new GroveError(
+                  "version_conflict",
+                  "Selected text changed or the edit is invalid; read and review again",
+                  409,
+                );
+              }
+              if (
+                exactContent === old.content &&
+                Object.keys(fields).every((key) =>
+                  ["id", "expectedVersion", "operationId", "capture"].includes(
+                    key,
+                  ),
+                )
+              )
+                throw new GroveError(
+                  "no_change",
+                  "The edit makes no change",
+                  400,
+                );
+            } else if (partial && old && fields.content === undefined)
+              exactContent = old.content;
             const input = rememberSchema.parse(
               partial && old
                 ? {
@@ -601,14 +826,18 @@ export class MemoryService {
                     projectId: old.projectId,
                     source: old.source,
                     retentionDays: old.retentionDays,
-                    ...request,
+                    ...fields,
+                    ...(exactContent === undefined
+                      ? {}
+                      : { content: exactContent }),
                     taskId:
                       request.taskId === null
                         ? undefined
                         : (request.taskId ?? old.taskId ?? undefined),
                   }
-                : request,
+                : fields,
             );
+            if (exactContent !== undefined) input.content = exactContent;
             this.scope(grant, input.projectId);
             if (input.projectId) {
               const notebook = await trx("projects")
@@ -671,6 +900,18 @@ export class MemoryService {
                       ]),
               updatedAt: trx.fn.now(),
             };
+            if (
+              partial &&
+              old &&
+              old.content === values.content &&
+              old.kind === values.kind &&
+              old.autoKind === values.autoKind &&
+              old.projectId === values.projectId &&
+              old.taskId === values.taskId &&
+              old.retentionDays === values.retentionDays &&
+              stable(old.source) === stable(values.source)
+            )
+              return { id: old.id, version: old.version };
             const row = input.id
               ? await MemoryModel.query(trx).patchAndFetchById(input.id, {
                   ...values,
@@ -681,7 +922,7 @@ export class MemoryService {
                   id: randomUUID(),
                   status: input.archived ? "archived" : "active",
                 });
-            await this.revise(trx, row);
+            await this.revise(trx, row, !!edits);
             created = !input.id;
             return { id: row.id, version: row.version };
           },

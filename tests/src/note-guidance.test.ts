@@ -113,7 +113,7 @@ test("cleanup preview cache identity includes the writing policy without changin
       generation: "fixture",
       embedding: null,
       policy: relationshipPolicyVersion,
-      writing: "note-writing-v1",
+      writing: "note-writing-v2",
     }),
   );
   assert.equal(

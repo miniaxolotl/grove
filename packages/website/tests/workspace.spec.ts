@@ -1,4 +1,6 @@
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
+import { applySourceEdits } from "@lib/shared/document-edits";
+import { memoryUpdateSchema } from "@lib/shared/memory-tools";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page, type Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -2195,7 +2197,9 @@ test("row deletion resolves a lost save with its original identity and keeps new
     if (attempts.length === 1) {
       state.records.set(note.id, {
         ...note,
-        content: input.content,
+        content: input.edits
+          ? applySourceEdits(note.content, input.edits)
+          : input.content,
         version: 2,
       });
       return route.abort("failed");
@@ -4362,6 +4366,72 @@ test("sharing an editing note permits revocation while retaining the pending dra
   await expect(drawer.locator(".note-save-status")).toHaveText("Saved");
 });
 
+for (const width of [1440, 390, 320]) {
+  test(`structured passage saves and visible revision diffs at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 960 });
+    const state = await fixture(page, [note]);
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+    const editor = page.getByRole("textbox", {
+      name: "What should stay with you?",
+    });
+    const content = note.content.replace("working example", "tested example");
+    await editor.fill(content);
+    await editor.press("Control+s");
+    await expect(page.locator(".note-save-status")).toHaveText("Saved");
+    await expect(editor).toBeFocused();
+    const saved = state.calls.find((call) => call.path === "/memories")!.body;
+    expect(saved.content).toBeUndefined();
+    expect(saved.edits).toEqual([
+      {
+        from: note.content.indexOf("working"),
+        to: note.content.indexOf("working") + 7,
+        oldText: "working",
+        text: "tested",
+      },
+    ]);
+    expect(state.records.get(note.id)!.content).toBe(content);
+    await page
+      .getByRole("button", { name: "Note actions", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Revision history", exact: true })
+      .click();
+    const history = page.getByRole("dialog", { name: "Revision history" });
+    await expect(
+      history.getByRole("button", { name: "Close comparison", exact: true }),
+    ).toBeVisible();
+    await expect(history.locator(".revision-diff del")).toHaveText("working");
+    await expect(history.locator(".revision-diff ins")).toHaveText("tested");
+    const a11y = await new AxeBuilder({ page })
+      .include("dialog[open]")
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
+    expect(a11y.violations).toEqual([]);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    expect(errors).toEqual([]);
+    if (width !== 320)
+      await page.screenshot({
+        path: `../../documentation/design/screenshots/structured-documents/revision-${width}.png`,
+      });
+    const full = history.getByText("Full versions", { exact: true });
+    await full.click();
+    await expect(history.locator(".revision-compare")).toContainText(
+      "working example",
+    );
+    await expect(history.locator(".revision-compare")).toContainText(
+      "tested example",
+    );
+  });
+}
+
 async function fixture(page: Page, initial = [note, handoff]) {
   const records = new Map(
     initial.map((memory) => [memory.id, structuredClone(memory)]),
@@ -4755,15 +4825,31 @@ async function fixture(page: Page, initial = [note, handoff]) {
           return { id: item.id, outcome: "deleted" };
         }),
       };
-    } else if (path === "/memories") {
-      const input = rememberSchema.parse(body);
-      const receipt = noteReceipts.get(input.operationId);
-      if (receipt) {
-        if (receipt.input !== JSON.stringify(input)) return conflict();
+    } else if (path === "/memories" || /^\/memories\/[^/]+\/edit$/.test(path)) {
+      const replay = noteReceipts.get(body.operationId);
+      if (replay) {
+        if (replay.input !== JSON.stringify(body)) return conflict();
         return route.fulfill({
-          json: { success: true, data: records.get(receipt.id) },
+          json: { success: true, data: records.get(replay.id) },
         });
       }
+      if (body.id && records.get(body.id)?.version !== body.expectedVersion)
+        return conflict();
+      const editing =
+        path.endsWith("/edit") ||
+        !!body.edits ||
+        (!!body.id && body.content === undefined);
+      const payload = { ...body };
+      if (editing) {
+        const previous = records.get(body.id)!;
+        payload.content = body.edits
+          ? applySourceEdits(previous.content, body.edits)
+          : previous.content;
+        delete payload.edits;
+        if (payload.taskId === null) delete payload.taskId;
+      }
+      const input = rememberSchema.parse(payload);
+      if (editing) input.content = payload.content;
       const previous = input.id ? records.get(input.id) : undefined;
       if (input.id && previous?.version !== input.expectedVersion)
         return conflict();
@@ -4788,7 +4874,7 @@ async function fixture(page: Page, initial = [note, handoff]) {
       };
       records.set(saved.id, saved);
       noteReceipts.set(input.operationId, {
-        input: JSON.stringify(input),
+        input: JSON.stringify(body),
         id: saved.id,
       });
       const history = revisions.get(saved.id) ?? [];
@@ -6524,6 +6610,8 @@ test("a changed note preserves the draft for review and restoring history create
   const revision = page
     .locator(".revision-list > li")
     .filter({ hasText: "Revision 2" });
+  if (await revision.getByRole("button", { name: "Close comparison" }).count())
+    await revision.getByRole("button", { name: "Close comparison" }).click();
   await revision.getByRole("button", { name: "Compare with current" }).click();
   await expect(revision.locator(".revision-compare")).toContainText(
     "An agent corrected this",
@@ -6660,7 +6748,7 @@ test("full-page writing keeps formatting, outline, focus and repeated keyboard s
   await expect(page.locator(".note-save-status")).toHaveText("Saved");
   expect(state.records.get(note.id)?.version).toBe(3);
   expect(state.records.get(note.id)?.content).toBe(
-    `${content}\n\nBring a notebook.`,
+    `${content}\n\nBring a notebook.\n\n`,
   );
   expect(
     state.calls
@@ -7027,7 +7115,10 @@ test("autosave retries a lost first response before saving newer typing and clea
   page,
 }) => {
   const state = await fixture(page, []);
-  const attempts: ReturnType<typeof rememberSchema.parse>[] = [];
+  const attempts: (
+    | ReturnType<typeof rememberSchema.parse>
+    | ReturnType<typeof memoryUpdateSchema.parse>
+  )[] = [];
   const saved: Memory = {
     ...note,
     id: crypto.randomUUID(),
@@ -7036,12 +7127,15 @@ test("autosave retries a lost first response before saving newer typing and clea
     enrichment: undefined,
   };
   await page.route("**/api/grove/memories", async (route) => {
-    const input = rememberSchema.parse(route.request().postDataJSON());
+    const raw = route.request().postDataJSON();
+    const input = raw.edits
+      ? memoryUpdateSchema.parse(raw)
+      : rememberSchema.parse(raw);
     attempts.push(input);
     if (attempts.length === 1) {
       state.records.set(saved.id, {
         ...saved,
-        kind: input.kind,
+        kind: input.kind ?? saved.kind,
         autoKind: input.autoKind,
       });
       return route.abort("failed");
@@ -7066,7 +7160,7 @@ test("autosave retries a lost first response before saving newer typing and clea
   expect(attempts[2]).toMatchObject({
     id: saved.id,
     expectedVersion: 1,
-    content: "The first draft, with a newer thought.",
+    edits: [{ from: 15, to: 15, oldText: "", text: ", with a newer thought." }],
   });
   expect(state.records.size).toBe(1);
   expect(state.records.get(saved.id)!.version).toBe(2);

@@ -21,7 +21,12 @@ export async function startBridge(agent: AgentName = "cli") {
       if (tool === "remember")
         input.source = { ...(input.source as Record<string, unknown>), agent };
       if (
-        (tool === "remember" || tool === "update_memory") &&
+        [
+          "remember",
+          "update_memory",
+          "preview_memory_patch",
+          "apply_memory_patch",
+        ].includes(tool) &&
         input.capture === "automatic" &&
         (process.env.GROVE_PRIVATE === "1" || (await readConfig()).paused)
       )

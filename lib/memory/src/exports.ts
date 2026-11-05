@@ -324,7 +324,16 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
           "r.accountId",
         );
       })
-      .select("r.memoryId", "r.version", "r.content", "r.source", "r.createdAt")
+      .select(
+        "r.memoryId",
+        "r.version",
+        "r.content",
+        "r.source",
+        "r.createdAt",
+        "r.document",
+        "r.change",
+        "r.actor",
+      )
       .orderBy("r.memoryId")
       .orderBy("r.version")
       .limit(pageSize);

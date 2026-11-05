@@ -11,14 +11,20 @@ import {
   sourceSchema,
   captureSchema,
   expectedVersionSchema,
-} from "./contracts.ts";
+} from "./contracts";
 import { noteContentDescription } from "@lib/shared/note-writing";
+import { sourceEditsSchema } from "./document-edits";
 
 export const memoryUpdateSchema = z
   .object({
     operationId: operationSchema,
     id: uuidSchema,
     expectedVersion: expectedVersionSchema,
+    edits: sourceEditsSchema
+      .optional()
+      .describe(
+        "Exact sequential UTF-16 source splices. Prefer this for passage edits; oldText must match at from/to. Never include content with edits.",
+      ),
     content: z
       .string()
       .trim()
@@ -44,6 +50,7 @@ export const memoryUpdateSchema = z
     (input) =>
       [
         "content",
+        "edits",
         "kind",
         "autoKind",
         "projectId",
@@ -52,8 +59,24 @@ export const memoryUpdateSchema = z
         "source",
       ].some((key) => key in input),
     "Supply a field to update",
+  )
+  .refine(
+    (input) => !(input.content !== undefined && input.edits !== undefined),
+    "Use content or edits, not both",
   );
 export type MemoryUpdate = z.infer<typeof memoryUpdateSchema>;
+export const memoryPatchPreviewSchema = z
+  .object({
+    id: uuidSchema,
+    expectedVersion: expectedVersionSchema,
+    operationId: operationSchema,
+    edits: sourceEditsSchema,
+    capture: captureSchema,
+  })
+  .strict();
+export const memoryPatchApplySchema = memoryPatchPreviewSchema
+  .extend({ review: z.string().min(1).max(300) })
+  .strict();
 export const moveMemoriesSchema = forgetSchema
   .extend({ projectId: uuidSchema.nullable() })
   .refine(
@@ -113,6 +136,40 @@ export const notebookToolLifecycleSchema = z
 
 /** One contract for remote MCP, the stdio bridge and HTTP tool calls. */
 export const memoryTools = {
+  get_memory_document: {
+    title: "Read a structured note",
+    schema: z
+      .object({ id: uuidSchema, revision: expectedVersionSchema.optional() })
+      .strict(),
+    readOnly: true,
+    description:
+      "Read exact structured blocks with stable IDs and source. UTF-16 source offsets for edits are relative to the complete concatenated source, not a node. Check revision and permissions before editing.",
+  },
+  preview_memory_patch: {
+    title: "Preview targeted note edits",
+    schema: memoryPatchPreviewSchema,
+    description:
+      "Preview exact source splices without saving. Read the current note, edit only requested passages and present the returned diff for review. Keep operationId, edits, capture and version unchanged for Apply.",
+  },
+  apply_memory_patch: {
+    title: "Apply reviewed note edits",
+    schema: memoryPatchApplySchema,
+    description:
+      "Apply the exact reviewed source splices using the preview review token. Requires user direction; a token is not proof of consent. Reuse identical arguments and operationId after uncertain acceptance. On conflict re-read and review; never replace the whole note as fallback.",
+  },
+  compare_memory_revisions: {
+    title: "Compare note revisions",
+    schema: z
+      .object({
+        id: uuidSchema,
+        beforeVersion: expectedVersionSchema,
+        afterVersion: expectedVersionSchema,
+      })
+      .strict(),
+    readOnly: true,
+    description:
+      "Read deterministic source diffs between exact accessible revisions. Changes include added, removed, moved and edited blocks with before/after source and word-level diff parts.",
+  },
   remember: {
     title: "Save a memory",
     schema: rememberSchema,
@@ -163,7 +220,7 @@ export const memoryTools = {
     title: "Update a memory",
     schema: memoryUpdateSchema,
     description:
-      "Partially update note fields at expectedVersion. Supplied content replaces the complete body: use human-readable Markdown and preserve unrequested details. Omitted content, scope, kind, provenance and lifetime are preserved. projectId moves the note; null means Personal. Reuse operationId on retry.",
+      "Partially update note fields at expectedVersion. Prefer exact edits for passage changes, with a reviewed preview/apply flow for agent edits. Legacy supplied content replaces the complete body: use human-readable Markdown and preserve unrequested details. Omitted content, scope, kind, provenance and lifetime are preserved. projectId moves the note; null means Personal. Reuse operationId on retry.",
   },
   move_memories: {
     title: "Move memories",

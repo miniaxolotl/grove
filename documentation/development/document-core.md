@@ -1,8 +1,9 @@
 # Structured document core
 
 `@lib/shared/documents` is a pure, versioned document/patch/diff foundation. It is
-not connected to note persistence, HTTP, MCP, plugins or the web editor yet.
-Current notes still use the [complete-body editing contract](../agent-note-writing.md#editing-without-losing-information).
+connected through the [structured note service](../structured-documents.md) to
+revision persistence, HTTP/MCP/plugins and browser save/review. Legacy complete-body
+writes remain compatible. The pure core alone does not authenticate a caller.
 The [implementation design](../design/structured-documents.md) owns the remaining
 storage, integration, review and collaboration work.
 
@@ -130,9 +131,10 @@ target scopes, conflicts, Unicode, stable IDs/moves, diff reconstruction and
 browser-platform bundling. It uses no database or provider. Browser bundling is not
 real editor, device or multi-user acceptance.
 
-Before enabling this in a product path, complete persisted gateway/idempotency and
-authorization, mixed-writer fencing, immutable revision/export compatibility,
-review binding, legacy replacement ID reconciliation, guarded inverse operations,
-performance qualification and browser/MCP adapters. Concurrent rebase, CRDT/OT,
-sharing roles and public editing remain outside this increment. No schema migration
-or deployment is required or authorized by the core alone.
+The [integration service](../structured-documents.md) supplies persistence,
+authorization/idempotency, review binding, legacy snapshot reconciliation, exports
+and browser/MCP adapters. It uses guarded source splices for structural typing,
+while the pure core keeps conservative block-operation boundaries. Inverse patch
+rebasing, broader performance qualification, concurrent rebase, CRDT/OT, sharing
+roles and public editing remain separate. The core alone never authorizes a
+migration or deployment; the service requires its documented forward migration.

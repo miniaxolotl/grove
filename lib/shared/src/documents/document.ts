@@ -9,7 +9,7 @@ import {
   parseInput,
   type DocumentBlock,
   type StructuredDocument,
-} from "./schema.ts";
+} from "./schema";
 
 export async function hashSource(source: string): Promise<string> {
   const bytes = await globalThis.crypto.subtle.digest(

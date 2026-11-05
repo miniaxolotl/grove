@@ -63,7 +63,7 @@ export function MemoryDetail({
   const api = cache.api;
   const root = useRef<HTMLElement>(null);
   const toast = useToast();
-  const [compare, setCompare] = useState<number | null>(null);
+  const [compare, setCompare] = useState<number | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [editorLocked, setEditorLocked] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -77,6 +77,20 @@ export function MemoryDetail({
     enabled: historyOpen && !!memory,
   });
   const history = historyQuery.data;
+  const reviewHistory = history
+    ? [...history].sort((a, b) =>
+        a.version === memory?.version
+          ? 1
+          : b.version === memory?.version
+            ? -1
+            : b.version - a.version,
+      )
+    : undefined;
+  const comparedVersion =
+    compare === undefined
+      ? reviewHistory?.find((revision) => revision.version !== memory?.version)
+          ?.version
+      : compare;
   const historyError = historyQuery.error
     ? errorMessage(historyQuery.error)
     : "";
@@ -483,7 +497,7 @@ export function MemoryDetail({
           )}
           {!history && !historyError && <p role="status">Loading history…</p>}
           <ol className="revision-list">
-            {history?.map((revision) => (
+            {reviewHistory?.map((revision) => (
               <li key={revision.version}>
                 <div className="flex flex-wrap justify-between gap-2 text-xs text-muted">
                   <span>
@@ -492,7 +506,7 @@ export function MemoryDetail({
                   </span>
                   <span>{dateLabel(revision.createdAt)}</span>
                 </div>
-                {compare === revision.version ? (
+                {comparedVersion === revision.version ? (
                   <RevisionCompare
                     media={{
                       noteId: memory.id,
@@ -518,13 +532,13 @@ export function MemoryDetail({
                       className="text-button"
                       onClick={() =>
                         setCompare(
-                          compare === revision.version
+                          comparedVersion === revision.version
                             ? null
                             : revision.version,
                         )
                       }
                     >
-                      {compare === revision.version
+                      {comparedVersion === revision.version
                         ? "Close comparison"
                         : "Compare with current"}
                     </button>

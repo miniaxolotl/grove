@@ -10,6 +10,8 @@
     "./conversation-documents": "./src/conversation-documents.ts",
     "./document-imports": "./src/document-imports.ts",
     "./documents": "./src/documents/index.ts",
+    "./document-edits": "./src/document-edits.ts",
+    "./document-diff": "./src/documents/diff.ts",
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
     "./search": "./src/search.ts",
