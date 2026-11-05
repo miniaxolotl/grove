@@ -9,6 +9,7 @@
     "./files": "./src/files.ts",
     "./conversation-documents": "./src/conversation-documents.ts",
     "./document-imports": "./src/document-imports.ts",
+    "./documents": "./src/documents/index.ts",
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
     "./search": "./src/search.ts",
@@ -42,6 +43,8 @@
   },
   "dependencies": {
     "mdast-util-from-markdown": "2.0.2",
+    "mdast-util-gfm": "3.1.0",
+    "micromark-extension-gfm": "3.0.0",
     "zod": "~4.1.8"
   },
   "devDependencies": {
