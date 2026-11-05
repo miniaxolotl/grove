@@ -1,4 +1,4 @@
-/* global URL, Headers, Response, crypto, document, innerWidth, console */
+/* global URL, Headers, Response, crypto, document, innerWidth, console, fetch, AbortSignal */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -44,6 +44,49 @@ for (const target of ["chrome", "edge"])
         context.serviceWorkers()[0] ??
         (await context.waitForEvent("serviceworker"));
       const extensionId = new URL(worker.url()).host;
+      if (process.env.EXTENSION_PUBLIC_NETWORK === "1") {
+        const publicHosts = await worker.evaluate(async () => {
+          const metadata = await fetch(
+            "https://api.usegrove.cloud/.well-known/oauth-protected-resource/mcp",
+            {
+              credentials: "omit",
+              cache: "no-store",
+              redirect: "error",
+              signal: AbortSignal.timeout(10000),
+            },
+          );
+          if (!metadata.ok)
+            throw new Error(`Public API discovery status ${metadata.status}`);
+          const resource = await metadata.json();
+          const discovery = await fetch(
+            "https://clerk.usegrove.cloud/.well-known/openid-configuration",
+            {
+              credentials: "omit",
+              cache: "no-store",
+              redirect: "error",
+              signal: AbortSignal.timeout(10000),
+            },
+          );
+          if (!discovery.ok)
+            throw new Error(
+              `Public issuer discovery status ${discovery.status}`,
+            );
+          return {
+            resource: resource.resource,
+            issuers: resource.authorization_servers,
+            issuer: (await discovery.json()).issuer,
+          };
+        });
+        assert.equal(publicHosts.resource, "https://api.usegrove.cloud/mcp");
+        assert.deepEqual(publicHosts.issuers, ["https://clerk.usegrove.cloud"]);
+        assert.equal(
+          new URL(publicHosts.issuer).origin,
+          "https://clerk.usegrove.cloud",
+        );
+        console.info(
+          `${target} privileged public API/issuer discovery passed (no credentials or mutations)`,
+        );
+      }
       await worker.evaluate(
         async ({ accountId, connectionId }) => {
           const browser = globalThis.chrome;
