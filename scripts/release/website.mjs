@@ -88,11 +88,12 @@ export async function deployWebsite(
     sourceSha: env.RELEASE_SOURCE_SHA,
     productionSha: env.GITHUB_SHA,
   };
-  const auth = ["--token", env.VERCEL_TOKEN, "--scope", env.VERCEL_ORG_ID];
+  // VERCEL_TOKEN/ORG_ID/PROJECT_ID already select the exact project. --scope
+  // triggers a user lookup that project-only tokens intentionally cannot access.
   assertCurrent();
-  run(["pull", "--yes", "--environment=production", ...auth]);
+  run(["pull", "--yes", "--environment=production"]);
   writeIdentity(identity);
-  run(["build", "--prod", ...auth]);
+  run(["build", "--prod"]);
   assertCurrent();
   const url = new URL(
     run([
@@ -104,7 +105,6 @@ export async function deployWebsite(
       `releaseSourceSha=${env.RELEASE_SOURCE_SHA}`,
       "--meta",
       `githubCommitSha=${env.GITHUB_SHA}`,
-      ...auth,
     ]).trim(),
   );
   assert(
