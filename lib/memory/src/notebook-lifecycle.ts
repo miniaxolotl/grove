@@ -120,8 +120,18 @@ export async function applyNotebookLifecycle(
     UPDATE memories SET status=?,archive_operation_id=?,version=version+1,updated_at=now()
       WHERE project_id=ANY(?::uuid[]) AND status=? ${action === "restore" ? "AND archive_operation_id=?" : ""}
     RETURNING account_id,id,version,content,source
-  ) INSERT INTO memory_revisions(account_id,memory_id,version,content,source)
-    SELECT account_id,id,version,content,source FROM changed`,
+   ) INSERT INTO memory_revisions(account_id,memory_id,version,content,source,document,revision_group)
+     SELECT account_id,id,version,content,source,
+       (SELECT jsonb_set(r.document,'{revision}',to_jsonb(changed.version))
+        FROM memory_revisions r WHERE r.account_id=changed.account_id
+          AND r.memory_id=changed.id AND r.version=changed.version-1
+          AND r.content=changed.content),
+       (SELECT jsonb_build_object('start',changed.version,
+           'number',coalesce((r.revision_group->>'number')::integer,r.version)+1,
+           'startedAt',now(),'size',0,'open',false,'session',null,'writer',null)
+        FROM memory_revisions r WHERE r.account_id=changed.account_id
+          AND r.memory_id=changed.id AND r.version=changed.version-1)
+     FROM changed`,
     [
       action === "archive" ? "archived" : "active",
       action === "archive" ? input.operationId : null,

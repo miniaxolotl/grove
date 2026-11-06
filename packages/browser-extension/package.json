@@ -1,0 +1,12 @@
+{
+  "name": "@monorepo/browser-extension",
+  "private": true,
+  "type": "module",
+  "description": "Grove browser extension for Chrome, Firefox and Edge",
+  "dependencies": {
+    "@lib/shared": "workspace:*",
+    "@lib/integration-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "~4.1.8"
+  }
+}

@@ -114,6 +114,21 @@ export function importHandlers(
           source: { agent: "import" },
         }),
       );
+      if (record.webCapture) {
+        await trx("web_captures")
+          .where({ memoryId: note.id, active: true })
+          .update({ active: false });
+        await trx("web_captures")
+          .insert({
+            accountId,
+            memoryId: note.id,
+            version: note.version,
+            provenance: JSON.stringify(record.webCapture),
+            active: true,
+          })
+          .onConflict(["accountId", "memoryId", "version"])
+          .ignore();
+      }
       await trx("import_sources")
         .insert({
           accountId,

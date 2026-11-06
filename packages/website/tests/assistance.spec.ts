@@ -242,6 +242,9 @@ test("visible notebook visits freeze once; history and cleanup use compact evide
     exact: true,
   });
   await history.getByText("edited", { exact: true }).click();
+  await expect(history.locator(".revision-diff del")).toContainText("night");
+  await expect(history.locator(".revision-diff ins")).toContainText("daytime");
+  await history.getByText("Full versions", { exact: true }).click();
   await expect(
     history.getByText("Take the night train.", { exact: true }),
   ).toBeVisible();
@@ -260,6 +263,7 @@ test("visible notebook visits freeze once; history and cleanup use compact evide
     exact: true,
   });
   await cleanup.getByText("Preview changes", { exact: true }).click();
+  await cleanup.getByText("Full versions", { exact: true }).click();
   await expect(
     cleanup.getByRole("heading", { name: "Proposed note" }),
   ).toBeVisible();

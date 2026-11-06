@@ -118,6 +118,10 @@ export async function probeDatabase(db: Knex) {
     throw new Error("The usage-report migration (034) is required");
   await db.raw("SELECT position FROM projects LIMIT 0");
   await db.raw("SELECT notebook_order_version FROM accounts LIMIT 0");
+  await db.raw(
+    "SELECT document, change, actor, revision_group FROM memory_revisions LIMIT 0",
+  );
+  await db.raw("SELECT provenance FROM web_captures LIMIT 0");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */
