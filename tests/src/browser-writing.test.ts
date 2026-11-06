@@ -341,7 +341,7 @@ test("website writing senders need the exact extension, native top-level tab and
     );
 });
 
-test("writing preferences merge independent changes and isolate account/language state", async () => {
+test("writing controls are browser-wide while personal words remain account/language scoped", async () => {
   const values = new Map<string, unknown>();
   const store = new WritingPreferencesStore(
     {
@@ -371,7 +371,7 @@ test("writing preferences merge independent changes and isolate account/language
   assert.equal(state.settings.rules.quotes, false);
   assert.deepEqual(state.settings.words, ["Grove", "Axolotl"]);
   assert.equal((await store.read(other)).settings.words.length, 0);
-  assert.equal((await store.read(other)).settings.spelling, true);
+  assert.equal((await store.read(other)).settings.spelling, false);
   assert.ok([...values.keys()].every((key) => key.endsWith(":en")));
   await store.configure(first, {
     site: {
@@ -402,4 +402,142 @@ test("writing preferences merge independent changes and isolate account/language
   ])
     await assert.rejects(() => store.configure(first, input));
   assert.ok(!JSON.stringify([...values]).includes("never persist text"));
+});
+
+test("website checks default on and domain exceptions include descendants without affecting siblings or suffix lookalikes", async () => {
+  const path = new URL(
+    "../../packages/browser-extension/src/writing/preferences.ts",
+    import.meta.url,
+  ).href;
+  const { writingSettingsFor } = await import(path);
+  assert.equal(typeof writingSettingsFor, "function");
+  const values = new Map<string, unknown>();
+  const storage = {
+    get: async (key: string) => values.get(key),
+    set: async (key: string, value: unknown) => {
+      values.set(key, structuredClone(value));
+    },
+    remove: async (key: string) => {
+      values.delete(key);
+    },
+  };
+  const store = new WritingPreferencesStore(storage, "https://api.example.com");
+  assert.equal(
+    writingSettingsFor(await store.read(), "https://unseen.example").enabled,
+    true,
+  );
+  await store.configure(undefined, {
+    site: { domain: "Example.COM.", enabled: false },
+  });
+  for (const origin of [
+    "https://example.com",
+    "http://docs.example.com:8080",
+    "https://deep.docs.example.com.",
+  ])
+    assert.equal(writingSettingsFor(await store.read(), origin).enabled, false);
+  for (const origin of [
+    "https://notexample.com",
+    "https://example.com.evil.test",
+    "https://example.org",
+  ])
+    assert.equal(writingSettingsFor(await store.read(), origin).enabled, true);
+  await store.configure(undefined, {
+    site: { domain: "docs.example.com", enabled: true },
+  });
+  assert.equal(
+    writingSettingsFor(await store.read(), "https://docs.example.com").enabled,
+    false,
+    "a child cannot override a blocked parent",
+  );
+  await store.configure(undefined, { removeDomain: "example.com" });
+  assert.equal(
+    writingSettingsFor(await store.read(), "https://docs.example.com").enabled,
+    true,
+  );
+  await store.configure(undefined, { patch: { enabled: false } });
+  assert.equal(
+    writingSettingsFor(await store.read(), "https://unseen.example").enabled,
+    false,
+  );
+  const reopened = new WritingPreferencesStore(
+    storage,
+    "https://other-api.example",
+  );
+  assert.equal(
+    (await reopened.read()).settings.enabled,
+    false,
+    "sign-out, API/account changes and restart do not undo browser-wide Off",
+  );
+  for (const domain of [
+    "*.example.com",
+    "https://example.com",
+    "example.com/path",
+    "example.com:8080",
+    "a@example.com",
+  ])
+    await assert.rejects(() =>
+      store.configure(undefined, { site: { domain, enabled: false } }),
+    );
+});
+
+test("upgrade preserves every existing opt-out without sharing personal words between accounts", async () => {
+  const first = "00000000-0000-4000-a000-000000000001",
+    other = "00000000-0000-4000-a000-000000000002";
+  const core = await import(modulePath);
+  const values = new Map<string, unknown>([
+    [
+      `writing:https://api.example.com:${first}:en`,
+      {
+        version: 2,
+        settings: core.writingSettingsSchema.parse({
+          spelling: false,
+          words: ["Axolotl"],
+        }),
+        sites: [
+          { origin: "https://example.com", enabled: false, restrictions: {} },
+        ],
+      },
+    ],
+    [
+      `writing:https://api.example.com:${other}:en`,
+      {
+        version: 1,
+        settings: core.writingSettingsSchema.parse({
+          rules: { quotes: false },
+          words: ["Grove"],
+        }),
+        sites: [],
+      },
+    ],
+  ]);
+  const storage = {
+    get: async (key: string) => values.get(key),
+    set: async (key: string, value: unknown) => {
+      values.set(key, structuredClone(value));
+    },
+    remove: async (key: string) => {
+      values.delete(key);
+    },
+  };
+  const store = new WritingPreferencesStore(
+    storage,
+    "https://api.example.com",
+    async () => Object.fromEntries(values),
+  );
+  const signedOut = await store.read();
+  assert.equal(signedOut.settings.spelling, false);
+  assert.equal(signedOut.settings.rules.quotes, false);
+  assert.deepEqual(signedOut.settings.words, []);
+  assert.deepEqual((await store.read(first)).settings.words, ["Axolotl"]);
+  assert.deepEqual((await store.read(other)).settings.words, ["Grove"]);
+  assert.equal(
+    signedOut.sites.find(
+      (site: { domain: string }) => site.domain === "example.com",
+    )?.enabled,
+    false,
+  );
+  assert.equal(
+    JSON.stringify(values.get("writing-browser:en")).includes("Axolotl"),
+    false,
+  );
 });

@@ -247,7 +247,7 @@ test("Connections offers an explicit refresh for newly signed-in hosted clients"
     }),
   );
   await page.goto(`${base}/app/settings/connections`);
-  await expect(page.getByText("Your agents are welcome here.")).toBeVisible();
+  await expect(page.getByText("No connections yet.")).toBeVisible();
   appeared = true;
   await page
     .getByRole("button", { name: "Refresh connections", exact: true })
@@ -285,11 +285,9 @@ test("AI sentence permission is explicit and independent of note scope", async (
   await page.goto(`${base}/app/settings/connections`);
   await page.getByRole("button", { name: "Edit scope", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Connection access" });
-  await expect(
-    dialog.getByLabel("Allow explicit sentence rewrites"),
-  ).not.toBeChecked();
+  await expect(dialog.getByLabel("Allow AI writing tools")).not.toBeChecked();
   await expect(dialog.getByLabel("Read notes", { exact: true })).toBeChecked();
-  await dialog.getByLabel("Allow explicit sentence rewrites").check();
+  await dialog.getByLabel("Allow AI writing tools").check();
   await dialog
     .getByRole("button", { name: "Approve access", exact: true })
     .click();
@@ -297,9 +295,7 @@ test("AI sentence permission is explicit and independent of note scope", async (
   expect(saved?.writingEnabled).toBe(true);
   expect(saved?.capabilities).toEqual(["memory:read"]);
   await page.getByRole("button", { name: "Edit scope", exact: true }).click();
-  await expect(
-    dialog.getByLabel("Allow explicit sentence rewrites"),
-  ).toBeChecked();
+  await expect(dialog.getByLabel("Allow AI writing tools")).toBeChecked();
 });
 
 test("stale approval preserves the review, blocks duplicate submissions and requires an explicit refresh", async ({

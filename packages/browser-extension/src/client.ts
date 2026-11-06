@@ -248,7 +248,7 @@ export class ExtensionClient {
     await this.session.remove(`draft:${windowId}`);
     return this.draft(windowId, identity);
   }
-  async save(windowId: number) {
+  async save(windowId: number, currentPage?: () => Promise<WebCapture | null>) {
     const identity = await this.identity();
     this.need(identity, "memory:write");
     let draft = await this.draft(windowId, identity);
@@ -256,8 +256,9 @@ export class ExtensionClient {
       draft.save?.status === "saved" &&
       draft.save.request.content === formatWebCapture(draft) &&
       draft.save.request.projectId === draft.projectId &&
-      JSON.stringify(draft.save.request.provenance) ===
-        JSON.stringify(draft.source)
+      (!draft.source ||
+        JSON.stringify(draft.save.request.provenance) ===
+          JSON.stringify(draft.source))
     )
       return this.state(windowId);
     const ambiguous =
@@ -266,11 +267,18 @@ export class ExtensionClient {
       draft.save && draft.save.status !== "saved"
         ? draft.save.request.operationId
         : crypto.randomUUID();
+    const pageSource =
+      !draft.source &&
+      (!draft.save || draft.save.status === "saved") &&
+      currentPage
+        ? await currentPage()
+        : undefined;
     draft = prepareCaptureSave(
       draft,
       this.scope(identity),
       operationId,
       Date.now(),
+      pageSource,
     );
     await this.session.set(`draft:${windowId}`, draft);
     await this.addPending(draft);

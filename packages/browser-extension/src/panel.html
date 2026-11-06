@@ -52,7 +52,7 @@
           aria-labelledby="capture-title"
         >
           <div class="title-row">
-            <h1 id="capture-title">Capture</h1>
+            <h1 id="capture-title">Keep a thought.</h1>
             <button id="new-note" class="quiet" hidden>New note</button>
           </div>
           <div id="inbox" hidden>
@@ -60,7 +60,7 @@
             <div id="inbox-list"></div>
           </div>
           <form id="capture-form">
-            <label for="note">Note</label
+            <label for="note" class="visually-hidden">Note</label
             ><textarea
               id="note"
               rows="7"
@@ -76,40 +76,21 @@
                 aria-label="Check writing"
               >
                 Check writing</button
-              ><span id="writing-hint">Markdown supported</span
+              ><span id="writing-hint" role="status">Markdown supported</span
               ><span id="length">0 / 6,000</span>
             </div>
-            <div class="destination-field">
-              <label for="destination">Save to</label
-              ><select id="destination" class="notebook-select"></select>
-            </div>
-            <details id="source-details">
-              <summary>Source link <span id="source-label"></span></summary>
-              <div class="field-stack">
-                <label for="source-url">URL</label
-                ><input
-                  id="source-url"
-                  type="url"
-                  maxlength="4096"
-                  placeholder="https://"
-                /><label for="source-title">Page title</label
-                ><input id="source-title" maxlength="300" />
-                <div class="actions">
-                  <button id="attach" type="button">Use current page</button
-                  ><button id="remove-source" type="button">
-                    Remove source
-                  </button>
-                </div>
-                <p class="muted small">
-                  Only this reviewed link is saved. No page content is fetched.
-                </p>
+            <div class="composer-footer">
+              <div class="destination-field">
+                <label for="destination" class="visually-hidden">Save to</label
+                ><select id="destination" class="notebook-select"></select>
               </div>
-            </details>
-            <div class="actions">
-              <button id="save" type="submit" class="primary">Save note</button
-              ><a id="saved-link" hidden target="_blank" rel="noreferrer"
-                >Open saved note</a
-              >
+              <div class="actions">
+                <button id="save" type="submit" class="primary">
+                  Save note</button
+                ><a id="saved-link" hidden target="_blank" rel="noreferrer"
+                  >Open saved note</a
+                >
+              </div>
             </div>
             <p id="save-state" class="feedback" role="status"></p>
             <details id="save-details" hidden>
@@ -124,7 +105,7 @@
           </form>
         </section>
         <section data-view="search" hidden aria-labelledby="search-title">
-          <h1 id="search-title">Search</h1>
+          <h1 id="search-title">Find a note.</h1>
           <div class="search-modes" role="group" aria-label="Find notes by">
             <button id="all-notes" type="button" aria-pressed="true">
               Notes
@@ -216,12 +197,10 @@
         </section>
         <section class="settings-section" aria-label="Writing settings">
           <details id="writing-settings">
-            <summary>
-              Writing <span class="muted small">English · on this device</span>
-            </summary>
+            <summary>Writing <span class="muted small">English</span></summary>
             <div id="writing-controls" class="field-stack">
               <label class="writing-option"
-                ><span>Writing assistance</span
+                ><span>Check writing everywhere</span
                 ><input id="writing-enabled" type="checkbox" role="switch"
               /></label>
               <label class="writing-option"
@@ -232,16 +211,14 @@
                 ><span>Basic grammar</span
                 ><input id="writing-grammar" type="checkbox" role="switch"
               /></label>
-              <p class="muted small">
-                Spelling and basic grammar stay on this device.
-              </p>
+              <p class="muted small">Local checks. No sign-in needed.</p>
               <label class="writing-option"
                 ><span>AI writing tools</span
                 ><input id="writing-ai-rewrites" type="checkbox" role="switch"
               /></label>
               <p class="muted small">
-                Only a selected sentence is sent, after you choose a tool and
-                approve AI use.
+                Only your selection is sent, after you choose a tool and approve
+                AI use.
               </p>
               <details>
                 <summary>Advanced</summary>
@@ -273,13 +250,24 @@
                 </button>
               </details>
               <details>
-                <summary>Websites</summary>
-                <button id="writing-enable-site" type="button">
-                  Enable on this site
-                </button>
+                <summary>Domain exceptions</summary>
+                <form id="writing-domain-form">
+                  <label for="writing-domain">Domain to skip</label>
+                  <div class="joined">
+                    <input
+                      id="writing-domain"
+                      placeholder="usegrove.cloud"
+                      maxlength="253"
+                      autocomplete="off"
+                      required
+                    /><button type="submit">Skip domain</button>
+                  </div>
+                  <button id="writing-enable-site" type="button" class="quiet">
+                    Use current domain
+                  </button>
+                </form>
                 <p class="muted small">
-                  Only long-form text boxes. No passwords, usernames or search
-                  fields.
+                  Includes all subdomains. Sensitive fields are always excluded.
                 </p>
                 <div id="writing-sites"></div>
               </details>
@@ -297,7 +285,7 @@
         >
           <h2 id="connection-settings-title">Access</h2>
           <p id="connection-help" class="muted small">
-            Connect Grove to check notebook access.
+            Sign in to save and find your notes.
           </p>
           <div id="connection-settings" hidden>
             <p id="capabilities" class="muted"></p>
@@ -338,7 +326,10 @@
         </section>
         <section class="settings-section" aria-labelledby="privacy-title">
           <h2 id="privacy-title">Privacy</h2>
-          <p class="muted">No automatic capture or browsing history.</p>
+          <p class="muted">
+            Local checks stay on this device. Page links are added only when you
+            save.
+          </p>
           <details>
             <summary>Storage and recovery</summary>
             <p class="muted small field-stack">

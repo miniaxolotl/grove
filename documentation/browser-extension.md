@@ -49,15 +49,20 @@ Page lookup is inside Search; context actions appear only after selecting notes.
 
 ### English writing checks
 
-Capture checks spelling and basic grammar locally while you write. Open an underline
+Spelling and basic grammar run locally by default in eligible textareas across normal
+website tabs, even while signed out. Capture uses the same checker. Open an underline
 or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
-word**. Applying a correction uses the editor's native Undo history and updates only
+word**. Choosing a correction copies it and replaces only that range with native Undo,
+without changing an already-submitted save. Clipboard failure leaves the edit intact
+and reports that copying was unavailable. Applying a correction updates only
 the current draft, never an already-submitted save. Saving does not wait for checks.
 
 Settings → **Writing** contains independent spelling/grammar switches, an Advanced
 disclosure for individual rules, automatic checking and highlights, and a personal
-dictionary. Parent switches preserve individual choices. Preferences and personal
-words are stored on this device, scoped to the API/account and English language.
+dictionary. Parent switches preserve individual choices. Writing switches and domain
+exceptions apply browser-wide on this device, including after sign-out. Personal
+dictionary words remain scoped to the API/account and English language (with a separate
+signed-out dictionary). Upgrade preserves existing opt-outs rather than resetting them.
 They do not contain draft text or check results. Turning Grove off overrides them.
 
 The bundled `dictionary-en` 4.0.0 data is SCOWL-derived **American English**, with
@@ -68,16 +73,23 @@ capitalization. They are not a complete grammar/style analysis. Unknown names ca
 added to the dictionary; ambiguous rules abstain rather than guess a replacement.
 Future UI translations and proofing languages remain separate; only English ships.
 
-Under Writing → **Websites**, choose **Enable on this site** from the native panel
-beside a website and approve its native permission prompt. Returning visits reuse
-that choice. Only eligible multiline textareas are currently bound. HTML inputs,
+There is no per-site setup. Writing → **Check writing everywhere** pauses local
+assistance browser-wide; **Domain exceptions** skips a chosen hostname and all its
+subdomains, across HTTP(S) and ports. Domain matching uses label boundaries, not
+substring matching: blocking `example.com` also blocks `docs.example.com`, but not
+`notexample.com` or `example.com.other.test`. A child exception cannot override a
+blocked parent. **Use current domain** fills the exact hostname for review; it does
+not guess a registrable parent. Remove an exception to inherit browser defaults.
+
+Only eligible multiline textareas are currently bound. HTML inputs,
 passwords, usernames, search/subject/title fields, readonly/hidden/code fields and
 author opt-outs are excluded before reading their contents. Verification/identity/
 address labels and explicit single-line ARIA semantics also exclude a field. Label
 inspection is bounded, follows static accessible labels and skips nested editors;
 ambiguous or excessive metadata stays unbound. Rich-text/contenteditable
-editors are not yet supported by the installed adapter. Site restrictions cannot
-override a globally disabled feature. Removing website access stops binding.
+editors are not yet supported by the installed adapter. Domain restrictions cannot
+override a globally disabled feature. Browser-withheld site access, restricted pages
+and private browsing remain unavailable; extension controls cannot bypass native grants.
 
 Checks cover a bounded 6,000 UTF-16-unit window and expose partial coverage for longer
 text; results never replace newer typing. Keystrokes coalesce, dictionary work runs
@@ -87,18 +99,23 @@ Warm latency is a regression measurement, not a universal responsiveness guarant
 Run `pnpm test:writing` and the installed browser journeys to reproduce the focused
 rules, bounds, source/Undo, permission and excluded-field checks.
 
-### Explicit AI sentence tools
+### Explicit AI writing tools
 
 Select one sentence, then choose **Use AI** (or **Alt+Enter** with a selection).
-The compact menu offers **Make more concise**, **Make more verbose**, **Rewrite**
+The compact menu offers **Shorten**, **Expand**, **Rewrite**
 and **Humanize**. Only the chosen tool runs. Selection and opening the menu send
-nothing. First use shows the sentence and configured provider disclosure with
+nothing. Select a single word instead to see **Synonyms**, **Opposite words**, **Rewrite**
+and **Humanize**. Word alternatives are requested from the configured AI provider,
+not an offline thesaurus. Opposites deliberately change meaning; review before choosing.
+First use shows the selection and configured provider disclosure with
 **Generate alternatives**; valid connection-scoped consent is reused across editors
 and tools. Changing the provider profile or disclosure requires new consent.
 
 Grove requests three distinct alternatives and accepts two or three after validation.
 The unchanged original stays visible. Click an alternative to replace only the
-current selection with native Undo, **Copy**, or **Dismiss**. Editing, disabling AI
+current selection and copy it in the same click, with native Undo. **Copy** alone
+does not edit; **Close** dismisses the card. Clipboard failure never rolls back a
+successful replacement or reports copy success. Editing, disabling AI
 or losing eligibility closes stale results. Humanize means natural conversational
 wording, not an AI-detection guarantee. Output can be wrong: structural validation
 does not establish factual or semantic equivalence. English is the supported contract;
@@ -106,7 +123,7 @@ sentence segmentation is not language detection or an automatic translation feat
 
 Settings → Writing → **AI writing tools** is independent of spelling and grammar.
 Site restrictions and Grove Off still win. Enabling a switch never generates text.
-AI needs a separately approved **Allow explicit sentence rewrites** permission in
+AI needs a separately approved **Allow AI writing tools** permission in
 Grove Connections; note access alone is insufficient. Missing configuration, permission
 or network does not disable local checks, which never fall back to AI.
 Website AI additionally requires browser-supplied document identity; hosts without
@@ -119,8 +136,10 @@ not execute work. Unknown acceptance offers status reconciliation, not automatic
 regeneration. Cancellation fences Grove output; it cannot recall a provider call
 already sent. If cancellation cannot be confirmed, server staging still expires.
 
-- **Capture:** write a quick Markdown note, choose its notebook and optionally
-  review a source link. Context-menu **Save selection**, **Save link** and **Save
+- **Capture:** write a Markdown note and choose its notebook. Save automatically
+  records the active ordinary page's URL/title as provenance, without source-link
+  controls or fetching page content. Authored note text stays unchanged; it is not
+  turned into a website quotation. Context-menu **Save selection**, **Save link** and **Save
   page link** prepare a session inbox; reviewing a capture never saves it. Replacing
   a nonempty draft requires confirmation. At most five inbox captures wait per window.
 - **Search:** find active notes, reveal the notebook filter when needed, load more
@@ -147,8 +166,11 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
 
 Capture opens directly to the note editor. Save outcome and newer unsaved edits
 remain visible; exact version/indexing metadata is available under **Save details**.
-The source link remains editable and reviewed before saving. No feature, privacy
-approval or uncertain-save safeguard is removed to simplify the panel.
+There are no source-link fields. Source metadata is read only during an explicit
+Save; context-menu captures keep their original event source. Unknown/failed-save
+retries retain the exact original provenance snapshot even after a tab change.
+Restricted/private pages produce no automatic source. Required consent and uncertain-
+save safeguards remain; automatic provenance is not automatic note capture.
 
 ### Turn Grove on or off
 
@@ -200,9 +222,12 @@ characters; capture timestamps are UTC ISO datetimes.
 
 Formatting escapes quoted external text and attribution as Markdown, while manual
 notes retain their authored Markdown. Link-only captures are supported. The shared
-6,000-character note limit includes quotes, title, source URL and timestamp; overflow
-is rejected, never truncated or split. A valid source can still contain sensitive
-query parameters: callers must show an editable review before disclosure.
+6,000-character limit includes the full formatted text for quoted context captures
+(quotes, title, URL and timestamp); overflow is rejected, never truncated or split.
+Authored notes stay unchanged, with automatic provenance stored separately.
+A valid source can still contain sensitive
+query parameters. Automatic Save includes the ordinary page URL; it does not inspect
+the page body or collect browsing history. Context/page lookup retain their own reviews.
 
 These helpers do not widen the general `remember` schema. Browser-specific endpoints
 are `POST /v1/browser/connect`, `POST /v1/browser/captures`,
@@ -231,13 +256,16 @@ is not physically erased by content edits or soft deletion.
 
 ### Writing work and temporary data
 
-`@lib/shared/writing-assistance` owns tool identities, one-sentence selection and
+`@lib/shared/writing-assistance` owns tool identities, word/sentence selection and
 strict request/output bounds: 2,000 UTF-16 units per sentence, up to three alternatives
 of at most 4,000 units each. Requests contain an operation UUID, editor-session UUID,
-`language: en`, explicit tool and selected sentence—no URL, surrounding draft or notes.
-The provider is asked to preserve meaning, names, numbers, negation and uncertainty,
-and to treat the sentence as data rather than instructions. Grove retrieves no extra
-context or tools for a rewrite. This is not a semantic-safety guarantee.
+`language: en`, explicit tool and selected text in the `sentence` field—no URL,
+surrounding draft or notes. Synonyms/opposites require one word of at most 80 units;
+their returned alternatives are also limited to 80 units. Other tools use one sentence.
+Except for requested opposite words, the provider is asked to preserve meaning,
+names, numbers, negation and uncertainty, and to treat the selection as data rather
+than instructions. Opposites deliberately reverse the word's meaning. Grove retrieves
+no extra context or tools for a rewrite. This is not a semantic-safety guarantee.
 
 The authenticated browser API adds:
 
@@ -302,7 +330,7 @@ Local persistent storage contains only device enablement/appearance preferences,
 public OAuth registration, destination IDs
 and at most ten opaque recovery receipts, pruned after seven days; never note bodies,
 page/draft URLs, access tokens, refresh tokens or PKCE verifiers. Writing preferences
-also retain explicitly approved site origins and personal dictionary words; AI work
+also retain explicit domain exceptions and personal dictionary words; AI work
 ownership stores only opaque IDs in trusted session storage. A missing receipt is not proof
 that an uncertain provider operation never happened; do not blindly create a new save.
 
@@ -325,12 +353,15 @@ storage writes, page traversal, messages or remote I/O. Runtime menus place its
 snapshot in the review inbox. Panel RPC accepts only this extension's exact panel
 URL/ID, validates bounded requests and fences account/connection changes. Website
 writing has a separate, bounded content-script protocol restricted to the verified
-extension ID, ordinary top-level non-private tab, granted origin and saved site
-choice. Content scripts cannot invoke panel capture/search/auth commands or receive
+extension ID, ordinary top-level non-private tab, native origin access and effective
+browser/domain settings. Content scripts cannot invoke panel capture/search/auth commands or receive
 tokens. No external-message listener, analytics, history, cookie, clipboard-read or
-`tabs` permission is included. `scripting` registers bundled writing code only for
-opted-in sites; HTTP(S) site host access is optional, never granted to all sites by
-default. The configured API/issuer host permissions remain exact.
+`tabs` permission is included. Bundled content scripts run on ordinary HTTP(S) tabs
+by default, guarded before field reads. Broad HTTP(S) host access is declared for
+local writing and may require native installation/update approval; users can withhold
+it in the browser. Network CSP still permits only the exact configured API/issuer;
+writing text is never sent by local checks. `scripting` attaches to already-open tabs
+on installation and removes legacy optional-site registrations.
 
 ## Build and verification
 
@@ -357,8 +388,9 @@ No runtime arbitrary-host setting or wildcard redirect is offered.
 Firefox host match patterns do not support ports. A custom-port Firefox build
 therefore requests only the configured HTTPS hostnames, deduplicated across API and
 issuer; exact ports remain enforced by `connect-src` and OAuth endpoint validation.
-Chrome/Edge retain the configured port in their permission patterns. Default
-production manifests are unchanged. Custom-origin acceptance must use the actual
+Chrome/Edge retain the configured port in their API/issuer permission patterns.
+Local writing also declares broad HTTP(S) access in every target, without widening
+network CSP. Custom-origin acceptance must use the actual
 Firefox network stack, not seeded tokens or intercepted fetch responses.
 
 Root lint/types/build, ordinary TypeScript tests and artifact tests cover the new
@@ -415,8 +447,8 @@ store-owned support fields need operator review before submission.
 | `activeTab`            | User-invoked current-page URL/title, never site scraping                            |
 | `contextMenus`         | Explicit selection/link/page review inbox                                           |
 | `clipboardWrite`       | Copy reviewed context or an explicitly chosen alternative; never read the clipboard |
-| `scripting`            | Bind bundled local writing code on explicitly permitted sites                       |
-| Optional HTTP(S) sites | User-approved long-form writing checks and explicit sentence tools                  |
+| `scripting`            | Attach bundled local checks to already-open normal tabs; inspect no excluded fields |
+| HTTP(S) hosts          | Default-on local writing, subject to native grants and browser/domain opt-outs      |
 | `sidePanel` (Chromium) | Native persistent panel                                                             |
 | Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                           |
 
@@ -425,7 +457,9 @@ and search terms for user-invoked transmission. There is no analytics or automat
 history collection. Operators must verify these declarations and corresponding
 Chrome/Edge disclosures against the final production package and privacy policy.
 
-Reviewer checklist: install the matching package; sign in with an operator-approved
+Reviewer checklist: install the matching package; check an eligible textarea while
+signed out; disable checks browser-wide and for a domain plus its subdomains;
+verify sensitive-field exclusions and correction copy/replace/Undo. Sign in with an operator-approved
 disposable identity; approve a narrow Personal/notebook read/write grant; create a
 note and review a selection/link capture; search/read it; explicitly look up its
 source URL; review/copy selected context; verify read-only/revoked access, unknown-save

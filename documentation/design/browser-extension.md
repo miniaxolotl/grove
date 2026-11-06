@@ -50,17 +50,21 @@ extension must not depend on their directory approval or modify their setup.
 ### Writing assistance — additional approved scope
 
 Keep the same three destinations. Bundled English dictionary spelling and basic
-deterministic grammar run quietly in Capture and opted-in long-form website editors.
+deterministic grammar run quietly in Capture and eligible long-form website editors
+by default, without sign-in. Browser-wide and domain/subdomain opt-outs take precedence.
 Review an underline in one anchored card, then apply a correction, Ignore or Add word;
 native Undo and the current draft must survive. Settings discloses rule, dictionary
 and site controls without scores, dashboards, upsells or setup. Global Off wins.
 
-Website access is optional and requested for a chosen site. Verify metadata before
+Website host access is declared at installation for default-on checking, subject to
+native grants; never bypass withheld browser access. Verify metadata before
 reading any field: exclude HTML inputs, short/sensitive fields and author opt-outs.
 Only the qualified textarea adapter currently ships; rich-text support is unfinished.
 Dictionary/rules use no network or AI. Explicit sentence tools use one selection-anchored
-**Use AI** menu: concise, verbose, rewrite and humanize, with multiple alternatives
-per chosen tool. Separate authorization/consent and Grove's durable workers with
+**Use AI** menu: Shorten, Expand, Rewrite and Humanize; word selections offer Synonyms
+and Opposite words instead of length tools. Multiple alternatives per chosen tool
+copy and replace the exact range on selection, with native Undo. Separate
+authorization/consent and Grove's durable workers with
 encrypted expiring staging are required; no automatic draft transmission or edits.
 The [current guide](../browser-extension.md#english-writing-checks) owns actual support,
 limits and verification; this design does not establish native-browser acceptance.

@@ -83,7 +83,11 @@ test("writing tools require separate permission and durable encrypted single-sen
   let gate: Promise<void> | undefined;
   const generation = {
     profile: "writing-fixture-v1",
-    async generate<T>() {
+    async generate<T>(
+      _schema?: unknown,
+      _instructions?: string,
+      _sources?: { content: string }[],
+    ) {
       calls++;
       await gate;
       return {
@@ -173,15 +177,58 @@ test("writing tools require separate permission and durable encrypted single-sen
       },
     );
     await t.test(
+      "word tools share durable authorization and only submit the selected word",
+      async () => {
+        const client = await makeClient();
+        await api.consent(client, { policy, accepted: true });
+        const original = generation.generate;
+        try {
+          generation.generate = async <T>(
+            _schema?: unknown,
+            _instructions?: string,
+            sources?: { content: string }[],
+          ) => {
+            assert.deepEqual(
+              sources?.map((source) => source.content),
+              ["bright"],
+            );
+            calls++;
+            return {
+              alternatives: _instructions?.includes("antonyms")
+                ? ["dim", "dull", "dark"]
+                : ["radiant", "luminous", "shining"],
+            } as T;
+          };
+          for (const tool of ["synonyms", "antonyms"]) {
+            const input = { ...request(tool), sentence: "bright" };
+            assert.equal((await api.request(client, input)).status, "queued");
+            await runTask(worker, handlers, { id: input.id });
+            const result = await api.get(client, input.id);
+            assert.equal(result.status, "completed");
+            assert.equal(result.result.tool, tool);
+            assert.equal(result.result.original, "bright");
+            await api.cancel(client, input.id);
+          }
+        } finally {
+          generation.generate = original;
+        }
+      },
+    );
+    await t.test(
       "acceptance commits encrypted staging and opaque work, replay does not regenerate",
       async () => {
         const client = await makeClient();
         await api.consent(client, { policy, accepted: true });
         const input = request();
+        const beforeAcceptance = calls;
         const queued = await api.request(client, input);
         assert.equal(queued.status, "queued");
         assert.equal(queued.result, null);
-        assert.equal(calls, 0, "HTTP acceptance must not call a model");
+        assert.equal(
+          calls,
+          beforeAcceptance,
+          "HTTP acceptance must not call a model",
+        );
         const row = await tenant(db, owner.accountId, (trx) =>
           trx("writing_requests").where({ id: input.id }).first(),
         );

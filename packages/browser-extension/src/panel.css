@@ -12,13 +12,13 @@
 }
 :root {
   color-scheme: light dark;
-  --ground: light-dark(#fafbfa, #171917);
-  --surface: light-dark(#fff, #202320);
+  --ground: light-dark(#f1f5ef, #181d19);
+  --surface: light-dark(#fff, #222922);
   --ink: light-dark(#181d19, #edf1ed);
   --muted: light-dark(#5e665f, #b2bcb3);
   --line: light-dark(#e4e9e4, #353b35);
   --control: light-dark(#a2aca3, #6e7c70);
-  --active: light-dark(#e9eee9, #343d35);
+  --active: light-dark(#e6eee3, #303b31);
   --negative: light-dark(#a62b31, #ff9fa4);
   --on-primary: light-dark(#fff, #181d19);
   --signal: light-dark(#315b43, #b0d0b8);
@@ -67,7 +67,7 @@ button,
   min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--control);
-  border-radius: 6px;
+  border-radius: 24px;
   background: var(--surface);
   text-decoration: none;
   cursor: pointer;
@@ -86,8 +86,8 @@ button:disabled {
   background: var(--active);
 }
 .primary {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--signal);
+  border-color: var(--signal);
   color: var(--on-primary);
 }
 a {
@@ -104,15 +104,25 @@ a:not([href]) {
 [hidden] {
   display: none !important;
 }
-/* A single narrow sheet: width = 20px + fluid content + 20px. No reserved empty rail. */
+/* One personal writing sheet: 16px + fluid composer + 16px, never a dashboard rail. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 .masthead {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  padding: 12px 20px;
+  background: transparent;
 }
 .masthead img {
   display: block;
@@ -120,7 +130,7 @@ a:not([href]) {
   height: auto;
 }
 main {
-  max-width: 680px;
+  max-width: 720px;
   width: 100%;
   min-height: 0;
   overflow-y: auto;
@@ -128,11 +138,11 @@ main {
   overscroll-behavior: contain;
   scrollbar-width: thin;
   margin: 0 auto;
-  padding: 24px 20px;
+  padding: 20px 16px;
 }
 h1 {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 400;
   line-height: 1.2;
   letter-spacing: -0.03em;
   margin: 0 0 20px;
@@ -162,7 +172,7 @@ p {
 }
 .title-row {
   min-height: 44px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 .title-row h1,
 .title-row h2 {
@@ -184,11 +194,11 @@ label {
   background: transparent;
 }
 .destination-field {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin: 0;
+  min-width: 0;
 }
 .destination-field label {
   margin: 0;
@@ -199,7 +209,7 @@ select,
 textarea {
   width: 100%;
   border: 1px solid var(--control);
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--surface);
   padding: 10px;
   min-height: 44px;
@@ -208,6 +218,49 @@ textarea {
   resize: vertical;
   line-height: 1.6;
   min-height: 160px;
+}
+#capture-form {
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+#note {
+  min-height: 120px;
+  height: clamp(120px, 25dvh, 240px);
+  resize: vertical;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  background: transparent;
+}
+#note:focus-visible {
+  outline-offset: 8px;
+}
+.composer-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+.composer-footer .actions {
+  flex-direction: column;
+  align-items: flex-end;
+  margin: 0;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.composer-footer select {
+  border: 0;
+  padding-inline: 0 22px;
+  background: transparent;
+  font-size: 13px;
+}
+.composer-footer #saved-link {
+  width: 100%;
+  font-size: 12px;
+  text-align: end;
 }
 input::placeholder,
 textarea::placeholder {
@@ -218,7 +271,7 @@ select {
 }
 #note-help {
   min-height: 28px;
-  margin: 8px 0 20px;
+  margin: 8px 0 16px;
   font-variant-numeric: tabular-nums;
 }
 #length {
@@ -279,7 +332,7 @@ select {
   margin-top: 20px;
 }
 .feedback {
-  min-height: 44px;
+  min-height: 36px;
   margin: 12px 0 0;
   font-size: 12px;
   line-height: 1.5;
@@ -293,8 +346,7 @@ select {
   margin: 0;
 }
 details {
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border: 0;
 }
 summary {
   cursor: pointer;
@@ -302,15 +354,10 @@ summary {
   padding: 12px 0;
   font-weight: 600;
 }
-#source-label {
-  font-weight: 400;
-  color: var(--muted);
-  font-size: 12px;
-}
 .search-modes {
   display: flex;
   gap: 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
   margin-bottom: 20px;
 }
 .search-modes button {
@@ -466,9 +513,11 @@ dd {
   overflow-wrap: anywhere;
 }
 .settings-section {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+  padding: 16px;
+  border: 0;
+  background: var(--surface);
+  border-radius: 16px;
 }
 .settings-section h2 {
   margin-top: 0;
@@ -488,9 +537,11 @@ nav {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  padding: 10px 12px;
+  margin: 0 12px 12px;
+  padding: 6px;
+  border-radius: 28px;
   background: var(--surface);
-  border-top: 1px solid var(--line);
+  border: 0;
 }
 nav button {
   border: 0;
@@ -512,7 +563,7 @@ dialog {
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--control);
-  border-radius: 8px;
+  border-radius: 20px;
   box-shadow: 0 12px 48px #0002;
 }
 dialog::backdrop {

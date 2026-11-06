@@ -1,6 +1,55 @@
 # Browser extension evidence
 
-## Explicit sentence tools — 6 November 2026
+## Personal writing sheet — 6 November 2026
+
+Installed unsigned development package, product `1.11.14`, redesign refinement on
+`feat/extension-writing-assistance` after `a6725ab9`. Chrome ZIP SHA-256:
+`3fab6e30c52e1532da420d3d5bb427cd4e895b973c741fee659b6e6f56f7fc6c`.
+Chromium `156.0.8078.4`, synthetic drafts/account and HTTP/provider fixtures. These
+are installed UI views, not production, live-model or branded-host qualification.
+
+| Capture                                                                                            | Settings                                                                             | Word choices                                                 | Sentence tools                                                                              |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| ![One writing sheet, with the newer draft preserved after retry](redesign-minimal-capture-390.png) | ![Quiet settings with writing controls disclosed](redesign-minimal-settings-390.png) | ![Four contextual word choices](redesign-word-tools-390.png) | ![Shorten, Expand, Rewrite and Humanize near the selection](redesign-writing-tools-390.png) |
+
+| Local correction                                                                             | Alternatives                                                                                                    | Short review                                                                          | Dark review                                                                    |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| ![Local spelling alternatives with Ignore and Add word](redesign-writing-correction-390.png) | ![Choosing an alternative copies and replaces; Copy alone does not edit](redesign-writing-alternatives-390.png) | ![Scrollable alternatives at 320 by 480](redesign-writing-alternatives-light-320.png) | ![Alternatives in dark appearance](redesign-writing-alternatives-dark-390.png) |
+
+[Narrow Capture, 320px](redesign-minimal-capture-320.png) ·
+[Wide Capture, 768px](redesign-minimal-capture-768.png).
+Standard captures are 390 × 844. The short review is 320 × 480; later actions
+remain reachable by scrolling inside the popover. The original selection remains
+visible, with no change to editor geometry.
+
+Both installed Chromium manifest profiles pass signed-out default-on checking
+without HTTP, browser-wide Off across navigation, parent/subdomain exceptions,
+local metadata exclusions, all six explicit tools, consent reuse, native Undo,
+copy-only and copy/replace, clipboard failure without losing the edit, pending
+focus and newer-edit/expiry guards. Save automatically records active-page
+provenance without quoting authored text; uncertain retry retains the exact request.
+320/390/768px overflow/axe and short/dark checks pass. Final warm local RPC p95:
+4.80/5.80 ms over 30 bounded samples/profile, not cold-start or universal latency.
+
+Direction: **editorial-greeting**, seed `1016700116`, with Grove's existing Space
+Grotesk/mark and a sage face. The narrow writing sheet adapts the personal-home
+composition rather than inventing a desktop dashboard grid. Capture answers “what
+do I want to keep?”, Search “which note do I need?”, Settings “where should writing
+help run?”. The source/save receipt and contextual word choices are the product's
+own elements. No external imagery or invented production data.
+
+Visual review: hierarchy 8/10, usability 8/10, identity 8/10. Final review repaired
+the saved-note link squeezing the notebook name at 320px; a real installed
+regression now requires the selected name to fit. Honest short drafts/empty search
+remain sparse, and expanded Settings scrolls independently of navigation. Source
+taste lint has zero failures; warnings are actual modal/popover shadows and
+ShadowRoot identifiers. The generic inspector cannot install this isolated origin;
+installed screenshots, geometry/focus assertions and axe substitute for it, not a
+claimed inspector pass. Native writing/permission prompts, rich editors and live
+semantic quality remain unqualified. Older captures below retain their original
+source and behavior; they do not describe the redesigned package.
+
+## Earlier explicit sentence tools — 6 November 2026
 
 Installed unsigned development package, product `1.11.14`, built from the writing
 increment after `c489ed36`. Chrome ZIP SHA-256:
@@ -24,7 +73,7 @@ light/short and dark states. Final warm bounded local-check RPC p95 was 3.70/5.1
 The provider fixture deliberately makes no live calls. Semantic equivalence, native
 Firefox/branded Chrome/Edge writing, real permission prompts/removal and production
 configuration/migration remain unqualified. Rich-text/contenteditable is unsupported.
-The [feature guide](../../../browser-extension.md#explicit-ai-sentence-tools) owns
+The [feature guide](../../../browser-extension.md#explicit-ai-writing-tools) owns
 authorization, encryption, expiry, configuration and rollout prerequisites.
 
 ## Local English writing — development evidence

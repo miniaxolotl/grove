@@ -7,6 +7,7 @@ import {
   type WritingSettings,
 } from "./core.ts";
 import { isWritingEditor } from "./editor.ts";
+import { copyWritingChoice } from "./clipboard.ts";
 import {
   WritingToolsController,
   type WritingToolTransport,
@@ -19,13 +20,13 @@ const style = `
 .text { white-space:pre-wrap; overflow-wrap:break-word; color:transparent; }
 mark { color:transparent; background:transparent; text-decoration-line:underline; text-decoration-style:wavy; text-decoration-color:#bf353b; text-underline-offset:3px; }
 mark.grammar { text-decoration-style:dotted; text-decoration-color:light-dark(#32684b,#9bceab); }
-.card { position:fixed; z-index:2147483647; margin:0; width:min(340px,calc(100vw - 24px)); max-height:min(420px,calc(100dvh - 24px)); overflow:auto; padding:14px; border:1px solid light-dark(#c5cec6,#59635b); border-radius:8px; background:light-dark(#fff,#202320); color:light-dark(#181d19,#edf1ed); box-shadow:0 8px 24px #0002; font:14px/1.5 system-ui,sans-serif; }
+.card { position:fixed; z-index:2147483647; margin:0; width:min(340px,calc(100vw - 24px)); max-height:min(420px,calc(100dvh - 24px)); overflow:auto; padding:14px; border:1px solid light-dark(#d6dfd3,#465446); border-radius:20px; background:light-dark(#fff,#222922); color:light-dark(#181d19,#edf1ed); box-shadow:0 12px 32px #0002; font:14px/1.5 system-ui,sans-serif; }
 header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 strong { font-weight:600; } p { margin:8px 0 12px; } .actions { display:flex; flex-wrap:wrap; gap:6px; }
 .replacements { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:40px; margin-bottom:8px; }
-button { font:inherit; color:inherit; min-height:40px; padding:8px 10px; border:1px solid light-dark(#a2aca3,#6e7c70); border-radius:6px; background:light-dark(#fff,#202320); cursor:pointer; overflow-wrap:anywhere; }
+button { font:inherit; color:inherit; min-height:40px; padding:8px 12px; border:0; border-radius:12px; background:transparent; cursor:pointer; overflow-wrap:anywhere; }
 button:hover { border-color:currentColor; } button:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
-.replacement { background:light-dark(#e9eee9,#343d35); } .close { border-color:transparent; } .original { overflow-wrap:anywhere; }
+.replacement { background:light-dark(#e6eee3,#303b31); } .close { border-color:transparent; } .original { overflow-wrap:anywhere; }
 @media (forced-colors:active) { mark { text-decoration-color:Mark; } .card { border:1px solid CanvasText; } }
 `;
 
@@ -59,6 +60,7 @@ export class WritingController {
       addWord: (word: string) => Promise<void>;
       status: (result: WritingResult | null, error?: string) => void;
       tools?: WritingToolTransport;
+      feedback?: (message: string) => void;
     },
   ) {
     this.host.dataset.groveWritingUi = "true";
@@ -179,6 +181,7 @@ export class WritingController {
         options.settings,
         options.tools,
         () => this.close(false),
+        options.feedback,
       );
   }
   private allowed() {
@@ -351,7 +354,9 @@ export class WritingController {
     button.type = "button";
     button.textContent = label;
     button.className = className;
-    button.addEventListener("click", run);
+    button.addEventListener("click", (event) => {
+      if (event.isTrusted) run();
+    });
     return button;
   }
   review(issue?: WritingIssue) {
@@ -367,6 +372,7 @@ export class WritingController {
     this.anchor = issue;
     const header = document.createElement("header"),
       title = document.createElement("strong");
+    header.setAttribute("role", "presentation");
     title.textContent = issue
       ? issue.rule === "spelling"
         ? "Spelling"
@@ -504,6 +510,7 @@ export class WritingController {
       this.close();
       return;
     }
+    copyWritingChoice(replacement, this.options.feedback);
     this.close();
     this.changed();
   }

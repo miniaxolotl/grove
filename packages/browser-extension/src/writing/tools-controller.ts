@@ -1,6 +1,7 @@
 import {
   selectWritingSentence,
   writingTools,
+  isWritingWord,
   unavailableWriting,
   type WritingAvailability,
   type WritingSelection,
@@ -10,6 +11,7 @@ import {
 } from "@lib/shared/writing-assistance";
 import { isWritingEditor } from "./editor.ts";
 import type { WritingSettings } from "./core.ts";
+import { copyWritingChoice } from "./clipboard.ts";
 
 export type WritingToolTransport = {
   availability: () => WritingAvailability;
@@ -20,13 +22,13 @@ export type WritingToolTransport = {
 };
 const css = `
 :host{all:initial;font:14px/1.5 system-ui,sans-serif;color-scheme:light dark}*{box-sizing:border-box}[hidden]{display:none!important}
-button{font:inherit;color:inherit;cursor:pointer;min-height:40px;border-radius:6px;border:1px solid light-dark(#a2aca3,#6e7c70);padding:8px 10px;background:light-dark(#fff,#202320)}
+button{font:inherit;color:inherit;cursor:pointer;min-height:40px;border-radius:12px;border:0;padding:9px 12px;background:transparent}button:hover{background:light-dark(#edf3eb,#303b31)}
 button:focus-visible,a:focus-visible{outline:2px solid currentColor;outline-offset:2px}button:disabled{cursor:default;opacity:.65}
-.trigger{position:fixed;z-index:2147483647;padding:4px 10px;min-height:32px;background:light-dark(#f3f6f3,#29322b);color:light-dark(#243f2e,#d8e7db)}
-.card{position:fixed;z-index:2147483647;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:12px;border:1px solid light-dark(#c5cec6,#59635b);border-radius:8px;background:light-dark(#fff,#202320);color:light-dark(#181d19,#edf1ed);box-shadow:0 8px 24px #0002}
+.trigger{position:fixed;z-index:2147483647;padding:4px 12px;min-height:32px;border-radius:20px;background:light-dark(#e6eee3,#303b31);color:light-dark(#243f2e,#d8e7db)}
+.card{position:fixed;z-index:2147483647;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:12px;border:1px solid light-dark(#d6dfd3,#465446);border-radius:20px;background:light-dark(#fff,#222922);color:light-dark(#181d19,#edf1ed);box-shadow:0 12px 32px #0002}
 header,.actions{display:flex;align-items:center;justify-content:space-between;gap:8px}header{margin-bottom:8px}.close{border:0}strong{font-weight:600}
-.menu{display:grid;gap:2px}.tool{text-align:start;border-color:transparent;padding:10px}.tool:hover{background:light-dark(#edf1ed,#303a32)}.description{display:block;font-size:12px;color:light-dark(#59635b,#b8c4ba)}
-p{margin:8px 0 12px}.original{max-height:96px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:light-dark(#f3f5f3,#29322b);padding:10px;border-radius:4px}.status{min-height:24px;margin:8px 0}.alternatives{display:grid;gap:10px}.alternative{text-align:start;white-space:pre-wrap;overflow-wrap:anywhere;width:100%}.actions{justify-content:flex-start;margin-top:8px}.copy{min-height:32px;padding:4px 8px}.footnote{font-size:12px;color:light-dark(#59635b,#b8c4ba)}
+.menu{display:grid;gap:2px}.tool{text-align:start;padding:10px 12px}.description{display:none}.tool[title]{cursor:pointer}
+p{margin:8px 0 12px}.original{max-height:80px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:light-dark(#f0f5ed,#303b31);padding:12px;border-radius:12px}.status{min-height:20px;margin:8px 0;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.alternatives{display:grid;gap:2px}.alternative{text-align:start;white-space:pre-wrap;overflow-wrap:anywhere;width:100%;font-size:15px}.actions{justify-content:flex-start;margin-top:8px}.copy{min-height:32px;padding:4px 8px;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.footnote{font-size:12px;color:light-dark(#59635b,#b8c4ba)}
 .geometry{position:fixed;visibility:hidden;pointer-events:none;white-space:pre-wrap;overflow-wrap:break-word}.alternative-row{display:flex;align-items:flex-start;gap:6px}.alternative-row .alternative{flex:1;min-width:0}.alternative-row .copy{flex:none;min-height:40px}
 `;
 
@@ -56,6 +58,7 @@ export class WritingToolsController {
     private settings: () => WritingSettings,
     private transport: WritingToolTransport,
     private closeOther: () => void,
+    private feedback?: (message: string) => void,
   ) {
     this.host.dataset.groveWritingUi = "true";
     this.host.dataset.groveWritingTools = "true";
@@ -170,11 +173,14 @@ export class WritingToolsController {
   }
   private allowed() {
     const settings = this.settings();
+    const availability = this.transport.availability();
     return (
       !this.events.signal.aborted &&
       !this.composing &&
       settings.enabled &&
       settings.aiRewrites &&
+      availability.available &&
+      availability.authorized &&
       isWritingEditor(this.editor)
     );
   }
@@ -291,20 +297,35 @@ export class WritingToolsController {
     this.closeOther();
     this.trigger.hidden = true;
     this.card.replaceChildren();
-    this.header("AI writing tools");
+    this.header(
+      isWritingWord(this.selection!.original) ? "Word choices" : "Rewrite",
+    );
     const availability =
       this.availability ?? this.transport.availability() ?? unavailableWriting;
     const menu = document.createElement("div");
     menu.className = "menu";
     menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", "Sentence tools");
-    for (const tool of writingTools) {
+    menu.setAttribute("aria-label", "Writing tools");
+    const word = isWritingWord(this.selection!.original);
+    const visibleTools = writingTools.filter((tool) =>
+      word
+        ? ["synonyms", "antonyms", "rewrite", "humanize"].includes(tool.id)
+        : !["synonyms", "antonyms"].includes(tool.id),
+    );
+    if (word)
+      visibleTools.sort(
+        (a, b) =>
+          ["synonyms", "antonyms", "rewrite", "humanize"].indexOf(a.id) -
+          ["synonyms", "antonyms", "rewrite", "humanize"].indexOf(b.id),
+      );
+    for (const tool of visibleTools) {
       const button = this.button(
         tool.label,
         () => this.choose(tool.id),
         "tool",
       );
       button.setAttribute("aria-label", tool.label);
+      button.title = tool.description;
       button.setAttribute("role", "menuitem");
       button.disabled = !availability.available || !availability.authorized;
       const description = document.createElement("span");
@@ -343,7 +364,7 @@ export class WritingToolsController {
     this.original();
     if (!availability.consented) {
       const notice = document.createElement("p");
-      notice.textContent = `${availability.provider ?? "Your configured AI provider"} Only this selected sentence is sent. Grove removes temporary input after completion and expires alternatives after 15 minutes; provider retention may differ.`;
+      notice.textContent = `${availability.provider ?? "Your configured AI provider"} Only your selection is sent. Temporary text expires after 15 minutes; provider retention may differ.`;
       this.card.append(notice);
       this.card.append(
         this.button("Generate alternatives", () => {
@@ -376,7 +397,7 @@ export class WritingToolsController {
     const dismiss = this.button("Cancel", () => this.close());
     dismiss.dataset.dismiss = "true";
     actions.append(
-      this.button("Other tools", () => {
+      this.button("Back", () => {
         this.stopWork();
         this.menu();
       }),
@@ -415,7 +436,7 @@ export class WritingToolsController {
       if (!this.current(epoch)) return;
       status.textContent = this.pendingId
         ? "The request may have been accepted. Check its status before trying again."
-        : "AI tools could not start. Your sentence is unchanged.";
+        : "AI tools could not start. Your text is unchanged.";
       if (this.pendingId)
         this.card.append(
           this.button("Check status", () => {
@@ -441,14 +462,20 @@ export class WritingToolsController {
       recovering: "Recovering an expired worker lease…",
       uncertain:
         "The provider outcome is uncertain. No automatic retry was sent.",
-      completed: "Choose an alternative",
-      failed:
-        "Alternatives could not be generated. Your sentence is unchanged.",
-      cancelled: "Cancelled in Grove. Your sentence is unchanged.",
-      expired: "These alternatives expired. Your sentence is unchanged.",
+      completed: "Choose to replace and copy",
+      failed: "Alternatives could not be generated. Your text is unchanged.",
+      cancelled: "Cancelled in Grove. Your text is unchanged.",
+      expired: "These alternatives expired. Your text is unchanged.",
     }[work.status];
     const dismiss =
       this.card.querySelector<HTMLButtonElement>("[data-dismiss]");
+    if (dismiss)
+      dismiss.hidden = ![
+        "queued",
+        "processing",
+        "backoff",
+        "recovering",
+      ].includes(work.status);
     if (dismiss)
       dismiss.textContent = [
         "queued",
@@ -532,7 +559,7 @@ export class WritingToolsController {
       const status = this.card.querySelector<HTMLElement>(".status");
       if (status)
         status.textContent =
-          "Status could not refresh. Your sentence is unchanged.";
+          "Status could not refresh. Your text is unchanged.";
       this.card.append(
         this.button("Retry status", () => {
           void this.poll(epoch);
@@ -559,6 +586,7 @@ export class WritingToolsController {
       this.invalidate();
       return;
     }
+    copyWritingChoice(text, this.feedback);
     this.invalidate();
   }
   private freshWork() {

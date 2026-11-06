@@ -39,7 +39,7 @@ export const writingTools = {
       );
       CREATE TABLE writing_requests (
         account_id uuid NOT NULL, id uuid NOT NULL, connection_id uuid NOT NULL, session_id uuid NOT NULL,
-        tool text NOT NULL CHECK(tool IN ('concise','verbose','rewrite','humanize')),
+        tool text NOT NULL CHECK(tool IN ('concise','verbose','rewrite','humanize','synonyms','antonyms')),
         fingerprint text NOT NULL, profile text NOT NULL, consent_version integer NOT NULL, epoch bigint NOT NULL,
         input_ciphertext text, result_ciphertext text,
         status text NOT NULL DEFAULT 'queued' CHECK(status IN

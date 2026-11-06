@@ -38,8 +38,13 @@ test("custom-port Firefox builds use supported hostname permissions and retain e
     assert.deepEqual(
       manifest.host_permissions,
       target === "firefox"
-        ? ["https://localhost/*"]
-        : ["https://localhost:4410/*", "https://localhost:4412/*"],
+        ? ["https://localhost/*", "http://*/*", "https://*/*"]
+        : [
+            "https://localhost:4410/*",
+            "https://localhost:4412/*",
+            "http://*/*",
+            "https://*/*",
+          ],
     );
     assert.ok(
       manifest.content_security_policy.extension_pages.includes(
@@ -119,20 +124,25 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     assert.deepEqual(manifest.host_permissions, [
       "https://api.usegrove.cloud/*",
       "https://clerk.usegrove.cloud/*",
+      "http://*/*",
+      "https://*/*",
     ]);
     assert.equal(manifest.incognito, "not_allowed");
     assert.ok(
-      !manifest.content_scripts &&
-        !manifest.web_accessible_resources &&
-        !manifest.externally_connectable,
+      !manifest.web_accessible_resources && !manifest.externally_connectable,
     );
     assert.ok(
       !manifest.permissions.includes("tabs") &&
         manifest.permissions.includes("scripting"),
     );
-    assert.deepEqual(manifest.optional_host_permissions, [
-      "http://*/*",
-      "https://*/*",
+    assert.equal(manifest.optional_host_permissions, undefined);
+    assert.deepEqual(manifest.content_scripts, [
+      {
+        matches: ["http://*/*", "https://*/*"],
+        js: ["content.js"],
+        run_at: "document_idle",
+        all_frames: false,
+      },
     ]);
     assert.ok(
       manifest.content_security_policy.extension_pages.includes(

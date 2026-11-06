@@ -131,12 +131,16 @@ if (!environment.groveWritingInstalled) {
         await refresh();
       },
       status,
+      feedback: (message) => {
+        badge.textContent = message;
+        badge.setAttribute("aria-live", "polite");
+        badge.hidden = false;
+      },
     });
     controller.refresh();
   }
   async function refresh() {
     const current = ++epoch;
-    detach();
     try {
       const next = await rpc<{
         settings: WritingSettings;
@@ -147,10 +151,14 @@ if (!environment.groveWritingInstalled) {
       settings = writingSettingsSchema.parse(next.settings);
       tools = next.tools ?? unavailableWriting;
       binding = next.binding ?? null;
-      if (settings.enabled) bind(document.activeElement);
+      if (!settings.enabled) detach();
+      else if (active) controller?.refresh();
+      else bind(document.activeElement);
     } catch {
-      if (current === epoch)
+      if (current === epoch) {
         settings = writingSettingsSchema.parse({ enabled: false });
+        detach();
+      }
     }
   }
   document.addEventListener("focusin", (event) => {
@@ -198,7 +206,11 @@ if (!environment.groveWritingInstalled) {
   };
   changes.observe(document.documentElement, observation);
   host.runtime.onMessage.addListener((message, sender) => {
-    if (sender.id === host.runtime.id && !sender.tab && (message as { kind?: string })?.kind === "writingToolsState") {
+    if (
+      sender.id === host.runtime.id &&
+      !sender.tab &&
+      (message as { kind?: string })?.kind === "writingToolsState"
+    ) {
       tools = (message as { tools: WritingAvailability }).tools;
       controller?.refreshTools();
       return false;

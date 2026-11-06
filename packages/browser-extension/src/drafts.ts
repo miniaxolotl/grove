@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { rememberSchema, uuidSchema } from "@lib/shared/contracts";
-import { formatWebCapture, webCaptureSchema } from "@lib/shared/web-capture";
+import {
+  formatWebCapture,
+  webCaptureSchema,
+  type WebCapture,
+} from "@lib/shared/web-capture";
 
 export const captureDraftLifetimeMs = 24 * 60 * 60 * 1000;
 const timestamp = z
@@ -168,6 +172,7 @@ export function prepareCaptureSave(
   scope: CaptureScope,
   operationId: string,
   now: number,
+  automaticSource?: WebCapture | null,
 ): CaptureDraft {
   const draft = activeDraft(value, scope, now);
   uuidSchema.parse(operationId);
@@ -189,7 +194,9 @@ export function prepareCaptureSave(
     content: formatWebCapture(draft),
     projectId: draft.projectId,
     capture: "explicit",
-    ...(draft.source ? { provenance: draft.source } : {}),
+    ...(draft.source || automaticSource
+      ? { provenance: draft.source ?? automaticSource }
+      : {}),
   });
   return { ...draft, updatedAt: now, save: { status: "saving", request } };
 }

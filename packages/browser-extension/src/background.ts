@@ -18,7 +18,11 @@ import {
   type MessageSender,
 } from "./webextension.ts";
 import { contextMenuCapture, openNativePanel } from "./platform.ts";
-import { WritingPreferencesStore } from "./writing/preferences.ts";
+import {
+  WritingPreferencesStore,
+  writingSettingsFor,
+  writingBrowserKey,
+} from "./writing/preferences.ts";
 import {
   effectiveWritingSettings,
   writingSettingsSchema,
@@ -28,7 +32,9 @@ const local = storageAdapter(host.storage.local),
   session = storageAdapter(host.storage.session);
 const oauth = new BrowserOAuth(config, local, session, host.identity);
 const client = new ExtensionClient(config, local, session, oauth);
-const writing = new WritingPreferencesStore(local, config.apiOrigin);
+const writing = new WritingPreferencesStore(local, config.apiOrigin, () =>
+  host.storage.local.get(null),
+);
 let english:
   | Promise<(typeof import("./writing/english.ts"))["englishChecker"]>
   | undefined;
@@ -129,6 +135,26 @@ async function dispatch(raw: unknown) {
   const message = request.parse(raw),
     id = message.windowId;
   if (message.kind === "preferences") return preferences();
+  if (message.kind === "writingState" || message.kind === "writingConfigure") {
+    const identity = (await session.get("identity")) as
+      | { accountId: string; connectionId: string }
+      | undefined;
+    if (
+      message.accountId &&
+      (message.accountId !== identity?.accountId ||
+        message.connectionId !== identity?.connectionId)
+    )
+      throw new Error("Account changed. Reopen Grove.");
+    if (message.kind === "writingState")
+      return writing.read(identity?.accountId);
+    const result = await writing.configure(
+      identity?.accountId,
+      message.payload,
+    );
+    await refreshWritingTabs();
+    await fenceWritingEffects(result);
+    return result;
+  }
   if (message.kind === "configure") {
     const changes = z
       .object({
@@ -143,6 +169,7 @@ async function dispatch(raw: unknown) {
     });
     await local.set("preferences", next);
     await menus();
+    await refreshWritingTabs();
     if (!next.enabled) await fenceWritingEffects();
     return next;
   }
@@ -163,17 +190,6 @@ async function dispatch(raw: unknown) {
       throw new Error("Account changed. Reopen Grove before continuing.");
   }
   switch (message.kind) {
-    case "writingState":
-      return writing.read(message.accountId!);
-    case "writingConfigure": {
-      const result = await writing.configure(
-        message.accountId!,
-        message.payload,
-      );
-      await syncWritingSites();
-      await fenceWritingEffects(result);
-      return result;
-    }
     case "state":
       return client.state(id);
     case "login":
@@ -196,7 +212,26 @@ async function dispatch(raw: unknown) {
     case "edit":
       return client.edit(id, edit.parse(message.payload));
     case "save":
-      return client.save(id);
+      return client.save(id, async () => {
+        const [tab] = await host.tabs.query({ active: true, windowId: id });
+        if (!tab?.url || tab.incognito !== false) return null;
+        try {
+          const url = new URL(tab.url);
+          if (
+            !["http:", "https:"].includes(url.protocol) ||
+            url.username ||
+            url.password
+          )
+            return null;
+          return webCaptureSchema.parse({
+            url: tab.url,
+            title: (tab.title ?? "").slice(0, 300),
+            capturedAt: new Date().toISOString(),
+          });
+        } catch {
+          return null;
+        }
+      });
     case "clear":
       return client.clear(id);
     case "notebooks":
@@ -351,24 +386,24 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
     | { accountId: string; connectionId: string }
     | undefined;
   const enabled = (await preferences()).enabled;
-  if (!current || !enabled) {
+  if (!enabled) {
     if (message.kind === "writingSiteState")
       return { settings: writingSettingsSchema.parse({ enabled: false }) };
     throw new Error("Writing assistance is paused.");
   }
-  const before = await writing.read(current.accountId),
-    site = before.sites.find((site) => site.origin === origin);
-  const settings = effectiveWritingSettings(
-    before.settings,
-    site?.restrictions,
-    enabled && site?.enabled === true,
-  );
+  const before = await writing.read(current?.accountId);
+  const settings = writingSettingsFor(before, origin, enabled);
   if (message.kind === "writingSiteState") {
     const identity = (await session.get("identity")) as {
       writingTools?: WritingAvailability;
     };
     let binding: string | null = null;
-    if (settings.enabled && settings.aiRewrites && sender.documentId) {
+    if (
+      current &&
+      settings.enabled &&
+      settings.aiRewrites &&
+      sender.documentId
+    ) {
       binding = crypto.randomUUID();
       await session.set(`writingBinding:${binding}`, {
         accountId: current.accountId,
@@ -395,11 +430,19 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
     return serial(async () => {
       if (
         ((await session.get("identity")) as typeof current)?.accountId !==
-          current.accountId ||
+          current?.accountId ||
         !(await preferences()).enabled
       )
         throw new Error("Account changed.");
-      await writing.configure(current.accountId, {
+      if (
+        !writingSettingsFor(
+          await writing.read(current?.accountId),
+          origin,
+          (await preferences()).enabled,
+        ).spelling
+      )
+        throw new Error("Spelling is off for this domain.");
+      await writing.configure(current?.accountId, {
         addWord: message.payload?.word,
       });
       await refreshWritingTabs();
@@ -407,12 +450,12 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
     });
   }
   const checker = await localChecker();
-  const after = await writing.read(current.accountId),
+  const after = await writing.read(current?.accountId),
     identity = (await session.get("identity")) as typeof current;
   if (
     before.version !== after.version ||
-    identity?.accountId !== current.accountId ||
-    identity?.connectionId !== current.connectionId ||
+    identity?.accountId !== current?.accountId ||
+    identity?.connectionId !== current?.connectionId ||
     !(await preferences()).enabled ||
     !(await host.permissions.contains({
       origins: [writingSitePattern(origin, config.target)],
@@ -455,7 +498,6 @@ async function fenceWritingEffects(
       !binding.active?.length
     )
       continue;
-    const site = state?.sites.find((site) => site.origin === binding.origin);
     if (removedPermissions) {
       if (
         !binding.origin ||
@@ -466,12 +508,14 @@ async function fenceWritingEffects(
         continue;
     } else if (
       state &&
-      effectiveWritingSettings(
-        state.settings,
-        site?.restrictions,
-        !binding.origin || site?.enabled === true,
+      (binding.origin
+        ? writingSettingsFor(state, binding.origin)
+        : state.settings
       ).enabled &&
-      effectiveWritingSettings(state.settings, site?.restrictions).aiRewrites
+      (binding.origin
+        ? writingSettingsFor(state, binding.origin)
+        : state.settings
+      ).aiRewrites
     )
       continue;
     for (const id of binding.active) {
@@ -546,24 +590,21 @@ async function aiWriting(raw: unknown, sender: MessageSender, panel: boolean) {
       origins: [writingSitePattern(origin, config.target)],
     }))
   )
-    throw new Error(
-      "Website writing session changed. Select the sentence again.",
-    );
+    throw new Error("Website writing session changed. Select your text again.");
   if (
     !binding ||
     binding.accountId !== identity.accountId ||
     binding.connectionId !== identity.connectionId
   )
-    throw new Error("Writing session expired. Select the sentence again.");
+    throw new Error("Writing session expired. Select your text again.");
   const current = await writing.read(identity.accountId);
-  const site = origin
-    ? current.sites.find((site) => site.origin === origin)
-    : undefined;
-  const settings = effectiveWritingSettings(
-    current.settings,
-    site?.restrictions,
-    (await preferences()).enabled && (!origin || site?.enabled === true),
-  );
+  const settings = origin
+    ? writingSettingsFor(current, origin, (await preferences()).enabled)
+    : effectiveWritingSettings(
+        current.settings,
+        {},
+        (await preferences()).enabled,
+      );
   const revoke =
     message.kind === "writingAIConsent" &&
     z.object({ accepted: z.boolean() }).parse(message.payload).accepted ===
@@ -682,7 +723,11 @@ async function refreshWritingTabs() {
   );
 }
 async function syncWritingSites() {
-  if (!host.scripting || !host.permissions) return;
+  await writing.read();
+  if (!host.scripting) {
+    await refreshWritingTabs();
+    return;
+  }
   const registered = (
     await host.scripting.getRegisteredContentScripts()
   ).filter((script) => script.id.startsWith("grove-writing-"));
@@ -690,31 +735,6 @@ async function syncWritingSites() {
     await host.scripting.unregisterContentScripts({
       ids: registered.map((script) => script.id),
     });
-  const identity = (await session.get("identity")) as
-    | { accountId: string }
-    | undefined;
-  if (identity && (await preferences()).enabled) {
-    const current = await writing.read(identity.accountId);
-    const sites = current.settings.enabled
-      ? current.sites
-          .filter((site) => site.enabled)
-          .sort((a, b) => a.origin.localeCompare(b.origin))
-      : [];
-    const scripts = [];
-    for (const [index, site] of sites.entries()) {
-      const pattern = writingSitePattern(site.origin, config.target);
-      if (await host.permissions.contains({ origins: [pattern] }))
-        scripts.push({
-          id: `grove-writing-${index}`,
-          matches: [pattern],
-          js: ["content.js"],
-          runAt: "document_idle" as const,
-          allFrames: false,
-          persistAcrossSessions: false,
-        });
-    }
-    if (scripts.length) await host.scripting.registerContentScripts(scripts);
-  }
   await refreshWritingTabs();
 }
 host.permissions?.onRemoved.addListener(() => {
@@ -753,7 +773,7 @@ host.storage.onChanged.addListener((changes, area) => {
     }).catch(() => {});
   }
   if (
-    (area === "local" && changes.preferences) ||
+    (area === "local" && (changes.preferences || changes[writingBrowserKey])) ||
     (area === "session" && identityChanged)
   )
     void serial(syncWritingSites).catch(() => {});
@@ -783,6 +803,19 @@ async function recordEntryError(id: number, message: string) {
   await session.set(`entryError:${id}`, message);
 }
 host.runtime.onInstalled.addListener(() => {
+  void serial(async () => {
+    await syncWritingSites();
+    for (const tab of await host.tabs.query({}))
+      if (
+        tab.id !== undefined &&
+        tab.incognito === false &&
+        tab.url &&
+        /^https?:\/\//.test(tab.url)
+      )
+        await host.scripting
+          ?.executeScript({ target: { tabId: tab.id }, files: ["content.js"] })
+          .catch(() => {});
+  }).catch(() => {});
   void serial(menus).catch(() =>
     recordEntryError(
       0,

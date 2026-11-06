@@ -87,6 +87,142 @@ for (const target of ["chrome", "edge"])
           `${target} privileged public API/issuer discovery passed (no credentials or mutations)`,
         );
       }
+      await worker.evaluate(() => {
+        globalThis.localOnlyRequests = 0;
+        globalThis.fetch = async () => {
+          globalThis.localOnlyRequests++;
+          throw new Error("Local checks must not contact a server");
+        };
+      });
+      const localPage = await context.newPage();
+      await localPage.route("https://**.writing-fixture.test/**", (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: '<!doctype html><html lang="en"><title>Local-only writing</title><body><label for="draft">Message</label><textarea id="draft" rows="8" style="width:95%;height:180px"></textarea></body></html>',
+        }),
+      );
+      await localPage.goto("https://notes.writing-fixture.test/form");
+      await localPage.locator("#draft").fill("This is a sentnce.");
+      await localPage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      await localPage.locator("#draft").press("Alt+Enter");
+      await localPage
+        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .click();
+      await localPage
+        .getByRole("button", { name: "sentence", exact: true })
+        .click();
+      assert.equal(
+        await localPage.locator("#draft").inputValue(),
+        "This is a sentence.",
+        "fresh install checks an unlisted website without signing in or site setup",
+      );
+      await worker.evaluate(async () => {
+        const stored = (await chrome.storage.local.get("writing-browser:en"))[
+          "writing-browser:en"
+        ];
+        await chrome.storage.local.set({
+          "writing-browser:en": {
+            ...stored,
+            version: stored.version + 1,
+            sites: [
+              {
+                domain: "writing-fixture.test",
+                enabled: false,
+                restrictions: {},
+              },
+            ],
+          },
+        });
+      });
+      await localPage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "detached" });
+      await localPage.goto("https://deep.notes.writing-fixture.test/form");
+      await localPage.locator("#draft").fill("This is a sentnce.");
+      await localPage
+        .locator("button[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      const domainState = await worker.evaluate(async () => {
+        const [tab] = (await chrome.tabs.query({})).filter((tab) =>
+          tab.url?.startsWith("https://deep.notes.writing-fixture.test/"),
+        );
+        return (
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            world: "ISOLATED",
+            func: () =>
+              chrome.runtime.sendMessage({ kind: "writingSiteState" }),
+          })
+        )[0].result;
+      });
+      assert.equal(
+        domainState.data.settings.enabled,
+        false,
+        "domain Off includes every subdomain",
+      );
+      assert.equal(
+        await localPage.locator("div[data-grove-writing-ui]").count(),
+        0,
+      );
+      await worker.evaluate(async () => {
+        const stored = (await chrome.storage.local.get("writing-browser:en"))[
+          "writing-browser:en"
+        ];
+        await chrome.storage.local.set({
+          "writing-browser:en": {
+            ...stored,
+            version: stored.version + 1,
+            sites: [],
+          },
+        });
+      });
+      await localPage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      await worker.evaluate(async () => {
+        const stored = (await chrome.storage.local.get("writing-browser:en"))[
+          "writing-browser:en"
+        ];
+        await chrome.storage.local.set({
+          "writing-browser:en": {
+            ...stored,
+            version: stored.version + 1,
+            settings: { ...stored.settings, enabled: false },
+          },
+        });
+      });
+      await localPage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "detached" });
+      await localPage.reload();
+      await localPage.locator("#draft").focus();
+      await localPage
+        .locator("button[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      assert.equal(
+        await localPage.locator("div[data-grove-writing-ui]").count(),
+        0,
+        "browser-wide writing Off survives navigation while signed out",
+      );
+      assert.equal(
+        await worker.evaluate(() => globalThis.localOnlyRequests),
+        0,
+      );
+      await worker.evaluate(async () => {
+        const stored = (await chrome.storage.local.get("writing-browser:en"))[
+          "writing-browser:en"
+        ];
+        await chrome.storage.local.set({
+          "writing-browser:en": {
+            ...stored,
+            version: stored.version + 1,
+            settings: { ...stored.settings, enabled: true },
+          },
+        });
+      });
+      await localPage.close();
       await worker.evaluate(
         async ({ accountId, connectionId }) => {
           const browser = globalThis.chrome;
@@ -115,6 +251,7 @@ for (const target of ["chrome", "edge"])
           });
           let uncertain = true;
           globalThis.fixtureRequests = [];
+          globalThis.fixtureCaptureRequests = [];
           globalThis.fetch = async (input, init) => {
             const path = new URL(String(input)).pathname;
             globalThis.fixtureRequests.push(path);
@@ -165,6 +302,8 @@ for (const target of ["chrome", "edge"])
                   "Hey, my name's Elias.",
                   "You can call me Elias.",
                 ],
+                synonyms: ["radiant", "luminous", "shining"],
+                antonyms: ["dim", "dull", "dark"],
               };
               const work = {
                 id: body.id,
@@ -206,6 +345,7 @@ for (const target of ["chrome", "edge"])
             } else if (path === "/v1/tools/notebooks")
               data = { items: [], nextCursor: null };
             else if (path === "/v1/browser/captures") {
+              globalThis.fixtureCaptureRequests.push(body);
               if (operations.has(body.operationId))
                 data = operations.get(body.operationId);
               else {
@@ -254,6 +394,15 @@ for (const target of ["chrome", "edge"])
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`chrome-extension://${extensionId}/panel.html`);
       await page.locator("#workspace").waitFor({ state: "visible" });
+      await page.evaluate(() => {
+        const write = globalThis.navigator.clipboard.writeText.bind(
+          globalThis.navigator.clipboard,
+        );
+        globalThis.navigator.clipboard.writeText = (text) => {
+          globalThis.lastWritingCopy = text;
+          return write(text);
+        };
+      });
       assert.deepEqual(
         await page.locator("#navigation button").allTextContents(),
         ["Capture", "Search", "Settings"],
@@ -339,6 +488,11 @@ for (const target of ["chrome", "edge"])
       }
       await page.getByRole("button", { name: "sentence", exact: true }).click();
       assert.equal(
+        await page.evaluate(() => globalThis.lastWritingCopy),
+        "sentence",
+        "correction choices copy and replace in one click",
+      );
+      assert.equal(
         await page.locator("#note").inputValue(),
         "This is a sentence.",
       );
@@ -388,20 +542,6 @@ for (const target of ["chrome", "edge"])
       );
       await page.locator("#note").fill("");
       const permittedSite = "https://api.usegrove.cloud";
-      const siteEnabled = await page.evaluate(
-        async ({ accountId, connectionId, origin }) => {
-          const window = await chrome.windows.getCurrent();
-          return chrome.runtime.sendMessage({
-            kind: "writingConfigure",
-            windowId: window.id,
-            accountId,
-            connectionId,
-            payload: { site: { origin, enabled: true } },
-          });
-        },
-        { accountId, connectionId, origin: permittedSite },
-      );
-      assert.equal(siteEnabled.ok, true);
       const sourcePage = await context.newPage();
       await sourcePage.route(`${permittedSite}/__writing_fixture`, (route) =>
         route.fulfill({
@@ -851,8 +991,8 @@ for (const target of ["chrome", "edge"])
       await sourcePage.close();
       await page.bringToFront();
       const toolCases = [
-        ["Make more concise", "I'm Elias."],
-        ["Make more verbose", "I go by the name Elias."],
+        ["Shorten", "I'm Elias."],
+        ["Expand", "I go by the name Elias."],
         ["Rewrite", "Elias is my name."],
         ["Humanize", "Hi, I'm Elias."],
       ];
@@ -870,7 +1010,7 @@ for (const target of ["chrome", "edge"])
           element.setSelectionRange(13, element.value.length);
         });
         await page.getByRole("button", { name: "Use AI", exact: true }).click();
-        const menu = page.getByRole("menu", { name: "Sentence tools" });
+        const menu = page.getByRole("menu", { name: "Writing tools" });
         assert.equal(
           await menu.getByRole("menuitem").count(),
           4,
@@ -886,7 +1026,7 @@ for (const target of ["chrome", "edge"])
           beforeMenu,
           "selection and menu opening never transmit the sentence",
         );
-        if (label === "Make more concise" && process.env.EXTENSION_SCREENSHOTS)
+        if (label === "Shorten" && process.env.EXTENSION_SCREENSHOTS)
           await page.screenshot({
             path: join(
               process.env.EXTENSION_SCREENSHOTS,
@@ -920,7 +1060,7 @@ for (const target of ["chrome", "edge"])
           original,
           "generated alternatives never automatically change text",
         );
-        if (label === "Make more concise" && process.env.EXTENSION_SCREENSHOTS)
+        if (label === "Shorten" && process.env.EXTENSION_SCREENSHOTS)
           await page.screenshot({
             path: join(
               process.env.EXTENSION_SCREENSHOTS,
@@ -928,7 +1068,7 @@ for (const target of ["chrome", "edge"])
             ),
             fullPage: true,
           });
-        if (label === "Make more concise") {
+        if (label === "Shorten") {
           for (const [width, height, colorScheme] of [
             [320, 480, "light"],
             [390, 844, "dark"],
@@ -990,6 +1130,11 @@ for (const target of ["chrome", "edge"])
           `Hello world! ${alternative}`,
           "only the selected sentence changes",
         );
+        assert.equal(
+          await page.evaluate(() => globalThis.lastWritingCopy),
+          alternative,
+          "choosing an alternative both copies and replaces",
+        );
         await page.locator("#note").press("Control+z");
         assert.equal(
           await page.locator("#note").inputValue(),
@@ -997,6 +1142,81 @@ for (const target of ["chrome", "edge"])
           "AI application preserves native Undo",
         );
       }
+      for (const [label, replacement] of [
+        ["Synonyms", "radiant"],
+        ["Opposite words", "dim"],
+      ]) {
+        await page.locator("#note").fill("A bright idea.");
+        await page.locator("#note").evaluate((element) => {
+          element.focus();
+          element.setSelectionRange(2, 8);
+        });
+        await page.getByRole("button", { name: "Use AI", exact: true }).click();
+        const wordMenu = page.getByRole("menu", { name: "Writing tools" });
+        assert.equal(
+          await wordMenu.getByRole("menuitem").count(),
+          4,
+          "word choices stay compact instead of adding a larger command menu",
+        );
+        if (label === "Synonyms" && process.env.EXTENSION_SCREENSHOTS)
+          await page.screenshot({
+            path: join(
+              process.env.EXTENSION_SCREENSHOTS,
+              `${target}-word-tools-390.png`,
+            ),
+            fullPage: true,
+          });
+        await wordMenu
+          .getByRole("menuitem", { name: label, exact: true })
+          .click();
+        await page
+          .getByRole("button", { name: replacement, exact: true })
+          .click();
+        assert.equal(
+          await page.locator("#note").inputValue(),
+          `A ${replacement} idea.`,
+        );
+        assert.equal(
+          await page.evaluate(() => globalThis.lastWritingCopy),
+          replacement,
+        );
+        await page.locator("#note").press("Control+z");
+        assert.equal(
+          await page.locator("#note").inputValue(),
+          "A bright idea.",
+        );
+      }
+      await page.evaluate(() => {
+        globalThis.workingClipboard = globalThis.navigator.clipboard.writeText;
+        globalThis.navigator.clipboard.writeText = () =>
+          Promise.reject(new Error("Synthetic clipboard failure"));
+      });
+      await page.locator("#note").fill("This is a sentnce.");
+      await page
+        .locator("#writing-review")
+        .filter({ hasText: "1 suggestion" })
+        .waitFor();
+      await page.locator("#note").press("Alt+Enter");
+      await page
+        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .click();
+      await page.getByRole("button", { name: "sentence", exact: true }).click();
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "This is a sentence.",
+      );
+      await page
+        .locator("#writing-hint")
+        .filter({ hasText: "Clipboard unavailable" })
+        .waitFor();
+      await page.locator("#note").press("Control+z");
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "This is a sentnce.",
+      );
+      await page.evaluate(() => {
+        globalThis.navigator.clipboard.writeText = globalThis.workingClipboard;
+      });
       await page.evaluate(async () => {
         const values = await chrome.storage.session.get(null);
         for (const [key, value] of Object.entries(values))
@@ -1018,7 +1238,7 @@ for (const target of ["chrome", "edge"])
         .getByRole("menuitem", { name: "Rewrite", exact: true })
         .click();
       await page
-        .getByText("These alternatives expired. Your sentence is unchanged.", {
+        .getByText("These alternatives expired. Your text is unchanged.", {
           exact: true,
         })
         .waitFor();
@@ -1031,7 +1251,7 @@ for (const target of ["chrome", "edge"])
         await page.locator("#note").inputValue(),
         "My name is Elias.",
       );
-      await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+      await page.getByRole("button", { name: "Close", exact: true }).click();
       await worker.evaluate(() => {
         globalThis.fixtureWritingExpired = false;
         globalThis.fixtureWritingProcessing = true;
@@ -1154,11 +1374,31 @@ for (const target of ["chrome", "edge"])
       await page
         .locator("#note")
         .fill("A source worth keeping. <script>not executable</script>");
-      await page.locator("#save").click();
+      const savedSourcePage = await context.newPage();
+      await savedSourcePage.route(
+        "https://source.writing-fixture.test/article",
+        (route) =>
+          route.fulfill({
+            contentType: "text/html",
+            body: "<!doctype html><html><title>Page worth keeping</title><body>Only the reviewed note is saved, not this body.</body></html>",
+          }),
+      );
+      await savedSourcePage.goto("https://source.writing-fixture.test/article");
+      await page
+        .locator("#capture-form")
+        .evaluate((form) => form.requestSubmit());
       await page
         .locator("#save-state")
         .filter({ hasText: "outcome is unknown" })
         .waitFor();
+      assert.equal(
+        await worker.evaluate(
+          () => globalThis.fixtureCaptureRequests[0].provenance.url,
+        ),
+        "https://source.writing-fixture.test/article",
+        "Save automatically snapshots the active ordinary page without source-link controls",
+      );
+      await savedSourcePage.close();
       assert.equal(
         await page.locator("#recovery-settings").evaluate((el) => el.hidden),
         false,
@@ -1197,6 +1437,16 @@ for (const target of ["chrome", "edge"])
         .locator("#save-state")
         .filter({ hasText: "Previous note saved. Newer draft is not saved." })
         .waitFor();
+      assert.deepEqual(
+        await worker.evaluate(() =>
+          globalThis.fixtureCaptureRequests.slice(0, 2),
+        ),
+        await worker.evaluate(() => [
+          globalThis.fixtureCaptureRequests[0],
+          globalThis.fixtureCaptureRequests[0],
+        ]),
+        "uncertain retry preserves the exact original page and request",
+      );
       assert.equal(
         await page.locator("#note").inputValue(),
         "A newer draft stays after retry.",
@@ -1490,6 +1740,28 @@ for (const target of ["chrome", "edge"])
             await page
               .locator(name === "search" ? "#all-notes" : "#this-page")
               .click();
+          if (name === "capture") {
+            const destination = await page
+              .locator("#destination")
+              .evaluate((element) => {
+                const style = globalThis.getComputedStyle(element);
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d");
+                context.font = style.font;
+                return {
+                  width: element.getBoundingClientRect().width,
+                  needed:
+                    context.measureText(element.selectedOptions[0].textContent)
+                      .width +
+                    parseFloat(style.paddingLeft) +
+                    parseFloat(style.paddingRight),
+                };
+              });
+            assert.ok(
+              destination.width >= destination.needed,
+              `selected notebook remains readable at ${width}px: ${JSON.stringify(destination)}`,
+            );
+          }
           assert.ok(
             await page.evaluate(
               () => document.documentElement.scrollWidth <= innerWidth,
@@ -1518,7 +1790,11 @@ for (const target of ["chrome", "edge"])
       }
       await page.setViewportSize({ width: 390, height: 480 });
       await page.locator('[data-nav="capture"]').click();
-      await page.locator("#source-details summary").click();
+      assert.equal(
+        await page.locator("#source-details").count(),
+        0,
+        "source links are saved automatically, not another composer control",
+      );
       await page.locator("#save").scrollIntoViewIfNeeded();
       const saveBox = await page.locator("#save").boundingBox();
       const navBox = await page.locator("#navigation").boundingBox();

@@ -172,9 +172,18 @@ export async function buildBrowserExtension({
               `${target === "firefox" ? `https://${new URL(host).hostname}` : host}/*`,
           ),
         ),
+        "http://*/*",
+        "https://*/*",
       ],
       incognito: "not_allowed",
-      optional_host_permissions: ["http://*/*", "https://*/*"],
+      content_scripts: [
+        {
+          matches: ["http://*/*", "https://*/*"],
+          js: ["content.js"],
+          run_at: "document_idle",
+          all_frames: false,
+        },
+      ],
       content_security_policy: {
         extension_pages: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src ${apiOrigin} ${issuer}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
       },

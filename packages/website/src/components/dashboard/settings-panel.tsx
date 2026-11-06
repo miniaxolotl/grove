@@ -44,8 +44,8 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
           </h2>
           <p className="settings-section-description">
             {section === "account"
-              ? "Manage your sign-in and what Grove remembers about you."
-              : "Keep a copy of your work or manage your account data."}
+              ? "Your plan, sign-in and personal details."
+              : "Import, export or manage your notes."}
           </p>
         </div>
         {section === "account" && (
@@ -57,7 +57,7 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
                 Preferences and details you want Grove to remember.
               </p>
               <Link className="text-button mt-4" href="/app/profile">
-                Edit what Grove knows about you
+                Edit personal details
               </Link>
             </section>
             <ConnectedAccounts />

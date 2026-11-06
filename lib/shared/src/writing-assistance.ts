@@ -4,15 +4,15 @@ import { z } from "zod";
 export const writingTools = [
   {
     id: "concise",
-    label: "Make more concise",
-    description: "Say the same thing in fewer words.",
+    label: "Shorten",
+    description: "Fewer words, same meaning.",
     instruction:
       "Remove unnecessary wording while preserving every important detail.",
   },
   {
     id: "verbose",
-    label: "Make more verbose",
-    description: "Express the same information more fully.",
+    label: "Expand",
+    description: "Express the same idea more fully.",
     instruction:
       "Express the same information more fully, without adding facts, examples, reasons or commitments.",
   },
@@ -30,14 +30,32 @@ export const writingTools = [
     instruction:
       "Make the wording natural and conversational without inventing a speaker's experiences, changing certainty or making any AI-detection claim.",
   },
+  {
+    id: "synonyms",
+    label: "Synonyms",
+    description: "Find a word with a similar meaning.",
+    instruction:
+      "Suggest three English synonyms for the selected word, preserving its grammatical form. Return only short words or phrases, not definitions or commentary. Do not invent synonyms for names.",
+  },
+  {
+    id: "antonyms",
+    label: "Opposite words",
+    description: "Explore the opposite meaning.",
+    instruction:
+      "Suggest three English antonyms for the selected word. These deliberately change its meaning. Return only short words or phrases, not definitions or commentary. Do not invent opposites for names or words with no clear opposite.",
+  },
 ] as const;
 export const writingToolSchema = z.enum([
   "concise",
   "verbose",
   "rewrite",
   "humanize",
+  "synonyms",
+  "antonyms",
 ]);
 export type WritingTool = z.infer<typeof writingToolSchema>;
+export const isWritingWord = (value: string) =>
+  /^[\p{L}\p{M}][\p{L}\p{M}'’-]{0,79}$/u.test(value);
 export const writingLimits = {
   sentence: 2000,
   alternative: 4000,
@@ -45,7 +63,7 @@ export const writingLimits = {
   lifetimeSeconds: 900,
   deadlineSeconds: 60,
 } as const;
-export const writingPolicy = "sentence-tools-v1";
+export const writingPolicy = "selection-tools-v2";
 export type WritingSelection = {
   language: "en";
   from: number;
@@ -99,7 +117,18 @@ export const writingRequestSchema = z
         "Select one English sentence.",
       ),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      ["synonyms", "antonyms"].includes(value.tool) &&
+      !isWritingWord(value.sentence)
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["sentence"],
+        message: "Select one word.",
+      });
+  });
 export type WritingRequest = z.infer<typeof writingRequestSchema>;
 export const writingAlternativesSchema = z
   .object({
@@ -121,6 +150,11 @@ export function validateWritingAlternatives(
   raw: unknown,
 ): WritingAlternatives {
   const result = writingAlternativesSchema.parse(raw);
+  if (
+    ["synonyms", "antonyms"].includes(request.tool) &&
+    result.alternatives.some((value) => value.length > 80)
+  )
+    throw new Error("writing_word_alternative_too_long");
   const normalize = (value: string) =>
     value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
   const original = normalize(request.sentence);

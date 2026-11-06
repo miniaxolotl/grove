@@ -1,17 +1,9 @@
 import type { Memory } from "@lib/shared/contracts";
 import { unavailableWriting } from "@lib/shared/writing-assistance";
-import {
-  normalizeWebUrl,
-  webCaptureSchema,
-  formatWebCapture,
-} from "@lib/shared/web-capture";
+import { normalizeWebUrl, formatWebCapture } from "@lib/shared/web-capture";
 import type { CaptureDraft } from "./drafts.ts";
 import type { ExtensionClient } from "./client.ts";
-import {
-  nativeBrowser as host,
-  extensionConfig,
-  writingSitePattern,
-} from "./webextension.ts";
+import { nativeBrowser as host, extensionConfig } from "./webextension.ts";
 import { WritingController } from "./writing/controller.ts";
 import {
   effectiveWritingSettings,
@@ -19,7 +11,10 @@ import {
   writingSettingsSchema,
   type WritingPatch,
 } from "./writing/core.ts";
-import type { WritingPreferences } from "./writing/preferences.ts";
+import {
+  writingBrowserKey,
+  type WritingPreferences,
+} from "./writing/preferences.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -68,6 +63,10 @@ const writingController = new WritingController(
       cancel: (id) => rpc("writingAICancel", id),
     },
     addWord: (word) => saveWriting({ addWord: word }),
+    feedback: (message) => {
+      $("writing-hint").textContent = message;
+      $("writing-hint").hidden = false;
+    },
     status: (result, error) => {
       const button = $<HTMLButtonElement>("writing-review");
       button.textContent = error
@@ -140,11 +139,11 @@ function paintWriting() {
   const sites = $("writing-sites");
   const siteRows = new Map(
     [...sites.querySelectorAll<HTMLDetailsElement>(":scope > details")].map(
-      (row) => [row.dataset.origin, row],
+      (row) => [row.dataset.domain, row],
     ),
   );
   for (const site of writingPreferences?.sites ?? []) {
-    const existing = siteRows.get(site.origin);
+    const existing = siteRows.get(site.domain);
     if (existing) {
       existing.querySelector<HTMLInputElement>(
         "[data-feature='enabled']",
@@ -153,14 +152,14 @@ function paintWriting() {
         existing.querySelector<HTMLInputElement>(
           `[data-feature='${key}']`,
         )!.checked = site.restrictions[key] !== false;
-      siteRows.delete(site.origin);
+      siteRows.delete(site.domain);
       continue;
     }
-    const origin = site.origin;
+    const domain = site.domain;
     const detail = document.createElement("details"),
       title = document.createElement("summary");
-    detail.dataset.origin = origin;
-    title.textContent = new URL(site.origin).host;
+    detail.dataset.domain = domain;
+    title.textContent = domain;
     detail.append(title);
     const makeToggle = (
       labelText: string,
@@ -190,12 +189,11 @@ function paintWriting() {
       detail.append(label);
     };
     makeToggle(
-      "Enable on this site",
+      "Check this domain",
       site.enabled,
       "enabled",
       async (enabled) => {
-        if (enabled) await requestWritingSite(origin);
-        await saveWriting({ site: { origin, enabled } });
+        await saveWriting({ site: { domain, enabled } });
       },
     );
     for (const key of ["spelling", "grammar", "aiRewrites"] as const)
@@ -210,23 +208,20 @@ function paintWriting() {
         (enabled) =>
           saveWriting({
             site: {
-              origin,
+              domain,
               enabled:
-                writingPreferences?.sites.find((site) => site.origin === origin)
-                  ?.enabled ?? false,
+                writingPreferences?.sites.find((site) => site.domain === domain)
+                  ?.enabled ?? true,
               restrictions: { [key]: enabled },
             },
           }),
       );
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.textContent = "Remove website access";
+    remove.textContent = "Remove exception";
     remove.addEventListener("click", () => {
       void action(async () => {
-        await saveWriting({ site: { origin, enabled: false } });
-        await host.permissions?.remove({
-          origins: [writingSitePattern(origin, extensionConfig.target)],
-        });
+        await saveWriting({ removeDomain: domain });
       });
     });
     detail.append(remove);
@@ -244,7 +239,8 @@ async function saveWriting(change: {
   patch?: WritingPatch;
   addWord?: string;
   removeWord?: string;
-  site?: { origin: string; enabled: boolean; restrictions?: WritingPatch };
+  site?: { domain: string; enabled: boolean; restrictions?: WritingPatch };
+  removeDomain?: string;
 }) {
   $("writing-settings-status").textContent = "Saving…";
   try {
@@ -259,18 +255,6 @@ async function saveWriting(change: {
   } finally {
     paintWriting();
   }
-}
-async function requestWritingSite(origin: string) {
-  if (!host.permissions)
-    throw new Error(
-      "Website writing permissions are unavailable in this browser.",
-    );
-  const origins = [writingSitePattern(origin, extensionConfig.target)];
-  if (
-    !(await host.permissions.contains({ origins })) &&
-    !(await host.permissions.request({ origins }))
-  )
-    throw new Error("Website access was not granted. No text was read.");
 }
 let searchMode: "search" | "page" = "search";
 let notebookCursor: string | null = null;
@@ -487,12 +471,7 @@ function paintDraft(draft: CaptureDraft, fields = true) {
     $("note").dataset.loaded = "true";
     $<HTMLTextAreaElement>("note").value = draft.text;
     $<HTMLSelectElement>("destination").value = draft.projectId ?? "";
-    $<HTMLInputElement>("source-url").value = draft.source?.url ?? "";
-    $<HTMLInputElement>("source-title").value = draft.source?.title ?? "";
   }
-  $("source-label").textContent = draft.source
-    ? new URL(draft.source.url).hostname
-    : "optional";
   const save = draft.save;
   let changedSinceSave = false;
   if (save?.status === "saved") {
@@ -500,8 +479,9 @@ function paintDraft(draft: CaptureDraft, fields = true) {
       changedSinceSave =
         save.request.content !== formatWebCapture(draft) ||
         save.request.projectId !== draft.projectId ||
-        JSON.stringify(save.request.provenance) !==
-          JSON.stringify(draft.source);
+        (!!draft.source &&
+          JSON.stringify(save.request.provenance) !==
+            JSON.stringify(draft.source));
     } catch {
       changedSinceSave = true;
     }
@@ -677,26 +657,12 @@ async function loadInbox() {
   existing.forEach((el) => el.remove());
 }
 async function replace(run: () => Promise<void>) {
-  if (
-    $<HTMLTextAreaElement>("note").value ||
-    $<HTMLInputElement>("source-url").value
-  ) {
+  if ($<HTMLTextAreaElement>("note").value || state?.draft?.source) {
     replaceAction = run;
     $<HTMLDialogElement>("confirm").showModal();
     return;
   }
   await run();
-}
-function source() {
-  const url = $<HTMLInputElement>("source-url").value.trim();
-  return url
-    ? webCaptureSchema.parse({
-        url,
-        title: $<HTMLInputElement>("source-title").value,
-        capturedAt:
-          state?.draft?.source?.capturedAt ?? new Date().toISOString(),
-      })
-    : null;
 }
 function emptyResults(kind: "search" | "page") {
   return {
@@ -865,12 +831,10 @@ $("capture-form").addEventListener("submit", (event) => {
   void action(async () => {
     await editTail;
     if (!state?.draft?.save || state.draft.save.status === "saved") {
-      const sourceValue = source();
       paintDraft(
         await rpc<CaptureDraft>("edit", {
           text: $<HTMLTextAreaElement>("note").value,
           projectId: $<HTMLSelectElement>("destination").value || null,
-          source: sourceValue,
         }),
         false,
       );
@@ -900,26 +864,6 @@ $("note").addEventListener("input", () => {
 $("destination").addEventListener("change", () =>
   persist({ projectId: $<HTMLSelectElement>("destination").value || null }),
 );
-for (const id of ["source-url", "source-title"])
-  $(id).addEventListener("change", () => {
-    try {
-      persist({ source: source() });
-    } catch (error) {
-      notice(error instanceof Error ? error.message : "Invalid source link");
-    }
-  });
-on("attach", async () => {
-  const capture = await rpc<CaptureDraft["source"]>("attach");
-  paintDraft(await rpc<CaptureDraft>("edit", { source: capture }), false);
-  $<HTMLInputElement>("source-url").value = capture!.url;
-  $<HTMLInputElement>("source-title").value = capture!.title;
-});
-on("remove-source", async () => {
-  await editTail;
-  paintDraft(await rpc<CaptureDraft>("edit", { source: null }), false);
-  $<HTMLInputElement>("source-url").value = "";
-  $<HTMLInputElement>("source-title").value = "";
-});
 on("new-note", async () =>
   replace(async () => {
     await editTail;
@@ -1008,20 +952,33 @@ function clearSessionView() {
   sessionEpoch++;
   view = "capture";
   state = undefined;
-  writingPreferences = undefined;
+  if (writingPreferences)
+    writingPreferences = {
+      ...writingPreferences,
+      settings: { ...writingPreferences.settings, words: [] },
+    };
+  const epoch = sessionEpoch;
+  void rpc<WritingPreferences>("writingState")
+    .then((next) => {
+      if (
+        epoch !== sessionEpoch ||
+        (writingPreferences && next.version < writingPreferences.version)
+      )
+        return;
+      writingPreferences = next;
+      paintWriting();
+    })
+    .catch(() => {
+      $("writing-settings-status").textContent =
+        "Writing settings couldn’t refresh.";
+    });
   paintWriting();
   clearRecall();
   $<HTMLTextAreaElement>("note").value = "";
   delete $("note").dataset.loaded;
   $("inbox-list").replaceChildren();
   $("pending-list").replaceChildren();
-  for (const id of [
-    "source-url",
-    "source-title",
-    "query",
-    "page-url",
-    "context-text",
-  ])
+  for (const id of ["query", "page-url", "context-text"])
     $<HTMLInputElement>(id).value = "";
   $("reader-content").textContent = "";
   $("reader-meta").textContent = "";
@@ -1043,10 +1000,8 @@ on("logout", async () => {
 host.storage.onChanged.addListener((changes, area) => {
   if (
     area === "local" &&
-    state &&
-    changes[
-      `writing:${extensionConfig.apiOrigin}:${state.identity.accountId}:en`
-    ]
+    (changes[writingBrowserKey] ||
+      Object.keys(changes).some((key) => key.startsWith("writing-words:")))
   ) {
     void action(async () => {
       writingPreferences = await rpc<WritingPreferences>("writingState");
@@ -1150,14 +1105,6 @@ on("writing-review", async () => {
   writingController.review();
 });
 on("writing-enable-site", async () => {
-  if (
-    !state ||
-    !preferences.enabled ||
-    !writingPreferences?.settings.enabled ||
-    !host.permissions ||
-    !host.scripting
-  )
-    throw new Error("Turn writing assistance on and connect Grove first.");
   const [tab] = await host.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url || tab.incognito !== false || tab.id === undefined)
     throw new Error("Open Grove beside an ordinary website.");
@@ -1168,11 +1115,16 @@ on("writing-enable-site", async () => {
     !["https:", "http:"].includes(url.protocol)
   )
     throw new Error("This page does not support writing checks.");
-  await requestWritingSite(url.origin);
-  await saveWriting({ site: { origin: url.origin, enabled: true } });
-  await host.scripting.executeScript({
-    target: { tabId: tab.id },
-    files: ["content.js"],
+  $<HTMLInputElement>("writing-domain").value = url.hostname.replace(/\.$/, "");
+  $<HTMLInputElement>("writing-domain").focus();
+});
+$("writing-domain-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  void action(async () => {
+    const input = $<HTMLInputElement>("writing-domain"),
+      domain = input.value;
+    await saveWriting({ site: { domain, enabled: false } });
+    if (input.value === domain) input.value = "";
   });
 });
 paintWriting();
@@ -1184,6 +1136,8 @@ $("theme").addEventListener("change", () => {
   );
 });
 async function connectView() {
+  writingPreferences = await rpc<WritingPreferences>("writingState");
+  paintWriting();
   try {
     await refresh();
   } catch (error) {

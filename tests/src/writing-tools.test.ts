@@ -15,7 +15,7 @@ test("selection tools have explicit identities and return multiple reviewed alte
   );
   assert.deepEqual(
     writing.writingTools.map((tool: { id: string }) => tool.id),
-    ["concise", "verbose", "rewrite", "humanize"],
+    ["concise", "verbose", "rewrite", "humanize", "synonyms", "antonyms"],
   );
   const text = "Hello world! My name is Elias.";
   const selection = writing.selectWritingSentence(text, 13, text.length);
@@ -75,6 +75,22 @@ test("selection tools have explicit identities and return multiple reviewed alte
       .label,
     "Humanize",
   );
+  for (const tool of ["synonyms", "antonyms"]) {
+    const word = { ...input, tool, sentence: "bright" };
+    assert.equal(writing.writingRequestSchema.safeParse(word).success, true);
+    assert.equal(
+      writing.writingRequestSchema.safeParse({
+        ...word,
+        sentence: "The room is bright.",
+      }).success,
+      false,
+    );
+    assert.throws(() =>
+      writing.validateWritingAlternatives(word, {
+        alternatives: ["x".repeat(81), "clear", "radiant"],
+      }),
+    );
+  }
 });
 
 test("writing configuration is optional, paired and isolated from other service keys", () => {

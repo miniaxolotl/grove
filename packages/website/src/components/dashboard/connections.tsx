@@ -78,7 +78,7 @@ export function Connections({ origin }: { origin: string }) {
     <>
       <h2 className="settings-section-heading">Connections</h2>
       <p className="settings-section-description">
-        Choose what each agent can read, remember, and forget.
+        Choose which notes each connection can read, save or delete.
       </p>
       <details className="connection-setup">
         <summary>
@@ -91,9 +91,8 @@ export function Connections({ origin }: { origin: string }) {
             <h2 className="font-editorial text-2xl">Connect an agent</h2>
           </div>
           <p className="mt-3 text-sm leading-7 text-muted">
-            Choose a web chat or coding agent, sign in with OAuth, and approve
-            its access. Web chats need no terminal. No key to copy; access can
-            be changed or revoked here.
+            Choose an app, sign in and approve its access. No terminal or API
+            key needed. You can change or revoke access here.
           </p>
           <div className="mt-4">
             <AgentSetup origin={origin || undefined} />
@@ -120,8 +119,7 @@ export function Connections({ origin }: { origin: string }) {
       </Disclosure>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs leading-6 text-muted">
-          Just signed in from your chat? Refresh to find its pending OAuth
-          client.
+          Just connected an app? Refresh to review its access.
         </p>
         <Button
           variant="secondary"
@@ -142,11 +140,9 @@ export function Connections({ origin }: { origin: string }) {
       ) : !items.length && !error ? (
         <div className="app-empty">
           <KeyRound size={28} className="mx-auto mb-4" strokeWidth={1.3} />
-          <h2 className="font-editorial text-3xl">
-            Your agents are welcome here.
-          </h2>
+          <h2 className="font-editorial text-3xl">No connections yet.</h2>
           <p className="mt-3 text-sm text-muted">
-            Connect an agent or create a named key to get started.
+            Connect an app to use your Grove notes there.
           </p>
         </div>
       ) : (
@@ -400,11 +396,12 @@ function GrantForm({
               checked={writingEnabled}
               onChange={(event) => setWritingEnabled(event.target.checked)}
             />
-            Allow explicit sentence rewrites
+            Allow AI writing tools
           </label>
           <p className="text-sm text-muted">
-            Separate from note access. The extension asks for AI consent before
-            sending a selected sentence; typing and local checks never use AI.
+            Separate from note access. AI runs only when you choose a writing
+            tool and consent to sending your selection. Local checks stay on
+            your device.
           </p>
         </fieldset>
       ) : null}

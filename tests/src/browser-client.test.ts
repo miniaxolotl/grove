@@ -89,9 +89,39 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
       "opening panel must not disclose current URL",
     );
     await client.edit(7, { text: "First capture" });
-    await assert.rejects(client.save(7));
+    let pageReads = 0;
+    const currentPage = async () => {
+      pageReads++;
+      return {
+        url: "https://source.example/first",
+        title: "Original page",
+        capturedAt: new Date().toISOString(),
+      };
+    };
+    await assert.rejects(client.save(7, currentPage));
     await client.edit(7, { text: "Newer edits" });
-    const result = await client.save(7);
+    const result = await client.save(7, async () => {
+      pageReads++;
+      return {
+        url: "https://other.example/",
+        title: "Other page",
+        capturedAt: new Date().toISOString(),
+      };
+    });
+    assert.equal(
+      pageReads,
+      1,
+      "retry must not re-read or change the original page snapshot",
+    );
+    assert.equal(
+      (writes[0] as { provenance: { url: string } }).provenance.url,
+      "https://source.example/first",
+    );
+    assert.equal(
+      (writes[0] as { content: string }).content,
+      "First capture",
+      "automatic provenance must not turn a personally written note into an external quotation",
+    );
     assert.deepEqual(writes[0], writes[1]);
     assert.equal(result.draft?.text, "Newer edits");
     assert.equal(result.draft?.save?.status, "saved");
