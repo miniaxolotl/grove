@@ -2,6 +2,8 @@ import {
   selectWritingSentence,
   writingTools,
   isWritingWord,
+  writingContextFor,
+  hasCurrentWritingConsent,
   unavailableWriting,
   type WritingAvailability,
   type WritingSelection,
@@ -30,6 +32,7 @@ header,.actions{display:flex;align-items:center;justify-content:space-between;ga
 .menu{display:grid;gap:2px}.tool{text-align:start;padding:10px 12px}.description{display:none}.tool[title]{cursor:pointer}
 p{margin:8px 0 12px}.original{max-height:80px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:light-dark(#f0f5ed,#303b31);padding:12px;border-radius:12px}.status{min-height:20px;margin:8px 0;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.alternatives{display:grid;gap:2px}.alternative{text-align:start;white-space:pre-wrap;overflow-wrap:anywhere;width:100%;font-size:15px}.actions{justify-content:flex-start;margin-top:8px}.copy{min-height:32px;padding:4px 8px;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.footnote{font-size:12px;color:light-dark(#59635b,#b8c4ba)}
 .geometry{position:fixed;visibility:hidden;pointer-events:none;white-space:pre-wrap;overflow-wrap:break-word}.alternative-row{display:flex;align-items:flex-start;gap:6px}.alternative-row .alternative{flex:1;min-width:0}.alternative-row .copy{flex:none;min-height:40px}
+.footnote{overflow-wrap:anywhere}
 `;
 
 /** Selection UI only; all AI execution belongs to authenticated durable server work. */
@@ -362,9 +365,10 @@ export class WritingToolsController {
     this.card.replaceChildren();
     this.header(writingTools.find((item) => item.id === tool)!.label);
     this.original();
-    if (!availability.consented) {
+    this.contextPreview(tool);
+    if (!hasCurrentWritingConsent(availability)) {
       const notice = document.createElement("p");
-      notice.textContent = `${availability.provider ?? "Your configured AI provider"} Only your selection is sent. Temporary text expires after 15 minutes; provider retention may differ.`;
+      notice.textContent = `${availability.provider ?? "Your configured AI provider"} Rewrites send your selection, bounded nearby sentence excerpts and its sentence/paragraph position. Word choices send only the selected word. Temporary text expires after 15 minutes; provider retention may differ.`;
       this.card.append(notice);
       this.card.append(
         this.button("Generate alternatives", () => {
@@ -379,6 +383,35 @@ export class WritingToolsController {
     }
     void this.generate(tool, false);
   }
+  private context(tool: WritingTool) {
+    return ["synonyms", "antonyms"].includes(tool)
+      ? null
+      : writingContextFor(this.snapshot, this.selection);
+  }
+  private contextPreview(tool: WritingTool) {
+    const context = this.context(tool);
+    if (!context) return;
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Context shared with AI";
+    details.className = "footnote";
+    details.append(summary);
+    for (const [label, value] of [
+      ["Previous sentence", context.previousSentence],
+      ["Before selection", context.sentenceBefore],
+      ["After selection", context.sentenceAfter],
+      ["Next sentence", context.nextSentence],
+    ]) {
+      if (!value) continue;
+      const text = document.createElement("p");
+      text.textContent = `${label} (excerpt): ${value}`;
+      details.append(text);
+    }
+    const position = document.createElement("p");
+    position.textContent = `Starts sentence: ${context.startsSentence ? "yes" : "no"}; ends sentence: ${context.endsSentence ? "yes" : "no"}. Starts paragraph: ${context.startsParagraph ? "yes" : "no"}; ends paragraph: ${context.endsParagraph ? "yes" : "no"}.`;
+    details.append(position);
+    this.card.append(details);
+  }
   private async generate(tool: WritingTool, consent: boolean) {
     const epoch = ++this.epoch;
     if (!this.current(epoch)) return;
@@ -389,6 +422,7 @@ export class WritingToolsController {
     this.card.replaceChildren();
     this.header(writingTools.find((item) => item.id === tool)!.label);
     this.original();
+    this.contextPreview(tool);
     this.card.append(status);
     const results = document.createElement("div");
     results.className = "work-results";
@@ -411,12 +445,14 @@ export class WritingToolsController {
     try {
       if (consent) this.availability = await this.transport.consent(true);
       if (!this.current(epoch)) return;
+      const context = this.context(tool);
       const input: WritingRequest = {
         id: crypto.randomUUID(),
         sessionId: this.sessionId,
         tool,
         language: "en",
         sentence: this.selection!.original,
+        ...(context ? { context } : {}),
       };
       this.pendingId = input.id;
       const work = await this.transport.request(input);

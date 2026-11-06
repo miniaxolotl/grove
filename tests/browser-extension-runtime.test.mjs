@@ -191,6 +191,7 @@ test("packaged background rejects outside senders, fences accounts and avoids re
     "search",
     "save",
     "attach",
+    "followSource",
     "context",
     "inbox",
     "reconcile",

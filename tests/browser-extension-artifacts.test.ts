@@ -121,6 +121,36 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     );
     assert.equal(manifest.manifest_version, 3);
     assert.equal(manifest.version, artifact.report.sourceVersion);
+    assert.deepEqual(
+      manifest.icons,
+      Object.fromEntries(
+        [96, 128, 300, 512].map((size) => [size, `icons/store-${size}.png`]),
+      ),
+      "listing icons must use the dedicated marketing-kit exports",
+    );
+    assert.equal(manifest.action.default_icon, "icons/store-128.png");
+    const iconSource = JSON.parse(
+      await readFile(
+        join(root, "packages/browser-extension/assets/icons/source.json"),
+        "utf8",
+      ),
+    );
+    for (const [name, expected] of Object.entries(iconSource.files)) {
+      const { sha256, size } = expected as { sha256: string; size?: number };
+      const bytes = files[`icons/${name}`];
+      assert.ok(bytes, `missing approved icon ${name}`);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), sha256);
+      if (size) {
+        const png = Buffer.from(bytes);
+        assert.deepEqual(
+          png.subarray(0, 8),
+          Buffer.from("89504e470d0a1a0a", "hex"),
+        );
+        assert.equal(png.readUInt32BE(16), size);
+        assert.equal(png.readUInt32BE(20), size);
+        assert.equal(png[25], 6, `${name} must retain its RGBA transparency`);
+      }
+    }
     assert.deepEqual(manifest.host_permissions, [
       "https://api.usegrove.cloud/*",
       "https://clerk.usegrove.cloud/*",
@@ -132,7 +162,7 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       !manifest.web_accessible_resources && !manifest.externally_connectable,
     );
     assert.ok(
-      !manifest.permissions.includes("tabs") &&
+      manifest.permissions.includes("tabs") &&
         manifest.permissions.includes("scripting"),
     );
     assert.equal(manifest.optional_host_permissions, undefined);
@@ -153,10 +183,20 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       !manifest.content_security_policy.extension_pages.includes("unsafe"),
     );
     if (target === "firefox") {
+      assert.deepEqual(
+        manifest.action.theme_icons,
+        [16, 20, 24, 32, 40, 48, 64, 96].map((size) => ({
+          light: `icons/light-${size}.png`,
+          dark: `icons/dark-${size}.png`,
+          size,
+        })),
+      );
+      assert.equal(manifest.sidebar_action.default_icon, "icons/store-128.png");
       assert.deepEqual(manifest.background, { scripts: ["background.js"] });
       assert.equal(manifest.sidebar_action.default_panel, "panel.html");
       assert.ok(manifest.browser_specific_settings.gecko.id);
     } else {
+      assert.equal(manifest.action.theme_icons, undefined);
       assert.equal(manifest.background.service_worker, "background.js");
       assert.equal(manifest.side_panel.default_path, "panel.html");
     }
@@ -167,7 +207,7 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       "panel.html",
       "panel.css",
       "wordmark.svg",
-      "icon.png",
+      "icons/store-128.png",
       "space-grotesk-400.woff2",
       "space-grotesk-OFL.txt",
       "GROVE-LICENSE.txt",
@@ -176,6 +216,11 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       assert.ok(files[required], required);
     const js = new TextDecoder().decode(files["background.js"]);
     assert.ok(!/node:|createRequire|process\.env|@sentry|posthog/.test(js));
+    const panel = new TextDecoder().decode(files["panel.js"]);
+    assert.ok(
+      !/\.(?:innerHTML|outerHTML)\s*=|insertAdjacentHTML\s*\(/.test(panel),
+      "the formatted reader must not bundle an HTML injection sink, even for entity decoding",
+    );
   }
   assert.equal(
     second.code,

@@ -42,15 +42,27 @@ and Personal/notebook scope you want in **Grove Connections**, then check approv
 Notebook discovery starts immediately; there is no setup wizard. Sign-in alone is
 not an approved grant. Revocation is enforced by the API on subsequent operations.
 
+### Listing and toolbar icons
+
+Packages bundle Grove's dedicated **Listing & toolbar icons**, with approved source
+hashes in [`assets/icons/source.json`](../packages/browser-extension/assets/icons/source.json).
+Listing PNGs are supplied at 96, 128, 300 and 512px. Firefox selects the transparent
+green/white toolbar Sprouts through native `theme_icons`; this follows the browser
+theme, independently of the panel's Appearance setting. Chrome/Edge toolbar buttons
+and the Firefox sidebar use the supplied green-backed mark as a contrast-safe
+fallback, without extra theme permissions. SVG masters are retained in the packages.
+These are bundled assets, not evidence of store publication.
+
 ## Use the panel
 
-Three main tabs keep the panel focused: **Capture**, **Search**, then **Settings**.
-Page lookup is inside Search; context actions appear only after selecting notes.
+Three tabs keep the panel focused: **Notes**, **Search**, then **Settings**.
+The panel uses a quiet sage frame, a paper-like editor and tonal note rows rather
+than dashboard chrome. Notebook and source controls share one **Details** disclosure.
 
 ### English writing checks
 
 Spelling and basic grammar run locally by default in eligible textareas across normal
-website tabs, even while signed out. Capture uses the same checker. Open an underline
+website tabs, even while signed out. Notes uses the same checker. Open an underline
 or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
 word**. Choosing a correction copies it and replaces only that range with native Undo,
 without changing an already-submitted save. Clipboard failure leaves the edit intact
@@ -111,6 +123,18 @@ First use shows the selection and configured provider disclosure with
 **Generate alternatives**; valid connection-scoped consent is reused across editors
 and tools. Changing the provider profile or disclosure requires new consent.
 
+Explicit rewrites also send bounded context from that same eligible editor:
+the previous/next sentence, surrounding fragments of the containing sentence, and
+whether the selection starts/ends its sentence or paragraph. Each excerpt is capped
+at 500 UTF-16 units, from a window of at most 6,000 units around the selection. No
+other field, page body, URL or notebook is read for this context. **Context shared
+with AI** shows the exact excerpts and position flags before first-use approval
+and during review. Selection/menu opening sends nothing. Synonyms and opposites
+still send only the selected word. Policy `rewrite-context-v3` requires fresh consent
+instead of silently reusing selection-only approval. The UI and trusted client both
+reject cached selection-only consent before context can leave the browser. Only the selection is replaced;
+surrounding sentences/paragraphs are reference, not output.
+
 Grove requests three distinct alternatives and accepts two or three after validation.
 The unchanged original stays visible. Click an alternative to replace only the
 current selection and copy it in the same click, with native Undo. **Copy** alone
@@ -136,38 +160,47 @@ not execute work. Unknown acceptance offers status reconciliation, not automatic
 regeneration. Cancellation fences Grove output; it cannot recall a provider call
 already sent. If cancellation cannot be confirmed, server staging still expires.
 
-- **Capture:** write a Markdown note and choose its notebook. Save automatically
-  records the active ordinary page's URL/title as provenance, without source-link
-  controls or fetching page content. Authored note text stays unchanged; it is not
-  turned into a website quotation. Context-menu **Save selection**, **Save link** and **Save
+- **Notes:** write a Markdown note. The current tab's URL, title and capture time
+  fill locally when the panel opens, and follow navigation until the note is edited.
+  Typing, changing the destination or starting a save
+  pins that note's page. Navigating or reopening the panel never replaces it.
+  **New note** resumes following the current tab. Choose the notebook under
+  **Details**. Source metadata is automatic, with no source-link fields or controls.
+  Authored text stays unchanged; external selections remain quoted. Context-menu
+  **Save selection**, **Save link** and **Save
   page link** prepare a session inbox; reviewing a capture never saves it. Replacing
   a nonempty draft requires confirmation. At most five inbox captures wait per window.
-- **Search:** find active notes, reveal the notebook filter when needed, load more
-  results, read exact source text and open canonical Grove note links. Text is never
-  executed as HTML. Unchanged result rows stay mounted during refresh; failed
-  refreshes retain the previous results and label them stale.
-- **Context:** select up to six notes, review the exact text/source links and confirm
+- **Search:** one bar searches active notes across every scope approved for this
+  connection. No notebook, page selector or submit button is needed. Input waits
+  250ms before searching, IME composition waits until committed, and clearing the
+  bar clears results without a request. Enter retries immediately. Old responses
+  cannot replace newer results, including after pause or sign-out. **Show more**
+  uses the server cursor for the same query; unchanged rows stay mounted. Failures
+  retain previous results, label them stale and offer **Retry search**.
+- **Read and copy:** opening a result rechecks access and renders its Markdown/GFM
+  document: headings, lists, checklists, tables, quotes, code and safe links.
+  **Copy note** rechecks its version before copying the original Markdown;
+  **Open in Grove** opens the full editor. HTML remains literal text, unsafe links
+  are inert and images/media never load automatically. PDF/Word originals are not
+  fetched or extracted in the extension; previously imported Markdown is readable.
+- **Copy notes:** select up to six notes, review the exact text/source links and confirm
   sharing before copying. The aggregate is limited to 6,000 characters. Copy rechecks
   access, lifecycle and versions; changed sources require a fresh review. Clipboard
   failure leaves the reviewed text available for manual copying. Nothing is inserted
   into another website or submitted to a model.
-- **Search → This page:** review an exact source URL and choose **Find notes**. Opening the
-  panel or changing tabs never discloses the current URL automatically. Matches are
-  authorized, active, unexpired captures in the chosen notebook; content edits
-  invalidate their page association. There is no full-library client-side scan.
 - **Settings**, last in navigation, shows access and privacy, with connection IDs and
   storage details behind disclosures. Unconfirmed saves show recovery actions; a
   confirmed receipt removes the corresponding pending item. Access management,
   notebook discovery, refresh and sign-out remain available. The last chosen
   destination is remembered per API/account; existing drafts take precedence.
   System/light/dark appearance saves automatically on this device. Enablement has
-  one home in the persistent header; Search modes reuse a single results/context
-  surface and renderer while keeping independent input/results state.
+  one home in the persistent header. Search has one result list and copy action.
 
-Capture opens directly to the note editor. Save outcome and newer unsaved edits
+Notes opens directly to the editor. Save outcome and newer unsaved edits
 remain visible; exact version/indexing metadata is available under **Save details**.
-There are no source-link fields. Source metadata is read only during an explicit
-Save; context-menu captures keep their original event source. Unknown/failed-save
+There are no source-link fields. Mounted approved panels follow source metadata
+locally until the first edit pins it; only explicit Save transmits it. Context-menu
+captures keep their original event source. Unknown/failed-save
 retries retain the exact original provenance snapshot even after a tab change.
 Restricted/private pages produce no automatic source. Required consent and uncertain-
 save safeguards remain; automatic provenance is not automatic note capture.
@@ -195,15 +228,18 @@ use Connections to revoke access and Sign out to clear a mounted session.
 The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
 their previous scroll position. Switches work with the keyboard and retain focus.
-Search and This page share one results list, status, pagination and context-review
-action; each keeps its own query/results state when switching views. Unchanged
-rows remain mounted during refresh. Context review appears only after selection,
+Search preserves its input/results when switching views. Unchanged rows remain
+mounted during refresh. Copy review appears only after selection,
 and still requires explicit consent and current-version/access checks before copy.
 
-Restricted/internal/store/file pages cannot be attached; private browsing is disabled.
-Manual notes and search do not need page access. `activeTab` may require opening the
-extension from the page's toolbar/context menu before **Use current page** can read
-its URL. Source URLs remain editable, and lookup/save is always a separate action.
+Internal/file pages cannot be attached; private browsing is disabled. An untouched
+draft clears its automatic source when a readable web URL is unavailable; edited
+drafts retain their pinned source. The owner-approved `tabs` permission reads
+active-tab URL/title across sites and may show a browsing-history warning on install
+or update. It does not grant document contents or history API access. Only mounted,
+enabled, approved panels follow their own window's active tab; no navigation listener
+collects browsing data in the background. Source values stay in scoped session
+storage and reach Grove only on explicit save, never from navigation or search.
 
 ## Implemented contracts
 
@@ -221,13 +257,15 @@ canonical hint, image or page is fetched. Titles are single-line, at most 300
 characters; capture timestamps are UTC ISO datetimes.
 
 Formatting escapes quoted external text and attribution as Markdown, while manual
-notes retain their authored Markdown. Link-only captures are supported. The shared
-6,000-character limit includes the full formatted text for quoted context captures
-(quotes, title, URL and timestamp); overflow is rejected, never truncated or split.
-Authored notes stay unchanged, with automatic provenance stored separately.
-A valid source can still contain sensitive
-query parameters. Automatic Save includes the ordinary page URL; it does not inspect
-the page body or collect browsing history. Context/page lookup retain their own reviews.
+notes retain their authored Markdown unchanged, with automatic provenance stored
+separately rather than appended to the body.
+Drafts distinguish authored text from context-menu excerpts; existing legacy source
+drafts keep their original quoted formatting and unresolved saves keep exact bytes.
+Link-only captures are supported. The shared
+6,000-character note limit includes attribution for quoted external captures; overflow is
+rejected, never truncated or split. A valid source can still contain sensitive query
+parameters. Its hostname is visible under Details before an explicit Save; following
+a tab never sends its metadata to Grove or fetches the page body.
 
 These helpers do not widen the general `remember` schema. Browser-specific endpoints
 are `POST /v1/browser/connect`, `POST /v1/browser/captures`,
@@ -259,13 +297,20 @@ is not physically erased by content edits or soft deletion.
 `@lib/shared/writing-assistance` owns tool identities, word/sentence selection and
 strict request/output bounds: 2,000 UTF-16 units per sentence, up to three alternatives
 of at most 4,000 units each. Requests contain an operation UUID, editor-session UUID,
-`language: en`, explicit tool and selected text in the `sentence` field—no URL,
-surrounding draft or notes. Synonyms/opposites require one word of at most 80 units;
+`language: en`, explicit tool and selected text in the `sentence` field. Optional
+rewrite `context` contains only four bounded excerpts plus sentence/paragraph
+start/end flags, never separate browser metadata or retrieved notes. Excerpts may
+contain anything the user typed, including a URL or private detail; review them
+before approval. Context shares encrypted staging, exact replay
+identity and expiry with the selection; opaque queue payloads remain unchanged.
+Synonyms/opposites require one word of at most 80 units and reject context;
 their returned alternatives are also limited to 80 units. Other tools use one sentence.
 Except for requested opposite words, the provider is asked to preserve meaning,
 names, numbers, negation and uncertainty, and to treat the selection as data rather
 than instructions. Opposites deliberately reverse the word's meaning. Grove retrieves
-no extra context or tools for a rewrite. This is not a semantic-safety guarantee.
+no external context or tools for a rewrite. The provider is told to use supplied
+editor excerpts only to fit the selection, never repeat or rewrite them. This is
+not a semantic-safety guarantee.
 
 The authenticated browser API adds:
 
@@ -313,6 +358,13 @@ storage. Closing a window removes its drafts/inbox; sign-out clears all session
 data and mounted private views across open panels. A browser restart requires
 sign-in again. Session storage is not an OS vault, and no offline library is kept.
 
+Draft source ownership is persisted as automatic or pinned. The first local edit
+fences late metadata before storage responds. Manual removal stays removed even if
+the editor is emptied. Legacy drafts are protected; only truly pristine legacy
+drafts can start following automatically. Repeated identical URL/title observations
+do not change capture time, extend expiry or churn storage. Inbox captures remain
+pinned to their original event snapshot rather than a later tab destination.
+
 `prepareCaptureSave` creates an independent local command snapshot with an
 operation UUID, formatted content, notebook and optional provenance. Runtime saves
 persist this snapshot before authorized HTTP I/O. While a save is unresolved, only
@@ -324,7 +376,7 @@ with note ID, version and indexing status. A completed operation cannot be repla
 by a stale failure; a later save requires a fresh UUID. Receipt validation is only
 local structural validation, not proof of server storage, access or indexing.
 Runtime receipts come from authenticated responses. Network/ambiguous failures show
-**unknown outcome**, not success; retry replays the original request without losing
+**Save not confirmed**, not success; retry replays the original request without losing
 newer edits. Settings can reconcile a scoped opaque receipt after session loss.
 Local persistent storage contains only device enablement/appearance preferences,
 public OAuth registration, destination IDs
@@ -355,8 +407,9 @@ URL/ID, validates bounded requests and fences account/connection changes. Websit
 writing has a separate, bounded content-script protocol restricted to the verified
 extension ID, ordinary top-level non-private tab, native origin access and effective
 browser/domain settings. Content scripts cannot invoke panel capture/search/auth commands or receive
-tokens. No external-message listener, analytics, history, cookie, clipboard-read or
-`tabs` permission is included. Bundled content scripts run on ordinary HTTP(S) tabs
+tokens. No external-message listener, analytics, history, cookie or clipboard-read
+permission is included. Approved `tabs` metadata access supports mounted-panel source
+following. Bundled content scripts run on ordinary HTTP(S) tabs
 by default, guarded before field reads. Broad HTTP(S) host access is declared for
 local writing and may require native installation/update approval; users can withhold
 it in the browser. Network CSP still permits only the exact configured API/issuer;
@@ -399,7 +452,7 @@ restrict the input graph to reviewed core/shared/Zod code, require no external
 imports and exercise exports in a sandbox without Node globals, DOM or fetch.
 Runtime/package checks also validate deterministic ZIPs/manifests/CSP, trusted
 messages, off-state request/menu enforcement and storage feedback. Installed Chromium journeys exercise the real
-package with synthetic HTTP/auth, native panel calls, retry, read/context/page
+package with synthetic HTTP/auth, native panel calls, retry, reading/copying,
 lookup, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
 keyboard-switch focus and 320/390/768px accessibility/overflow (including short
 windows and dark Settings). Set
@@ -440,17 +493,18 @@ AI summaries, chat extraction, Safari/mobile, offline search or signed availabil
 The product homepage is `https://usegrove.cloud`; legal/privacy declarations and
 store-owned support fields need operator review before submission.
 
-| Permission             | Purpose                                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| `identity`             | Native public-client OAuth sign-in                                                  |
-| `storage`              | Trusted session drafts/tokens; bounded public/opaque local state                    |
-| `activeTab`            | User-invoked current-page URL/title, never site scraping                            |
-| `contextMenus`         | Explicit selection/link/page review inbox                                           |
-| `clipboardWrite`       | Copy reviewed context or an explicitly chosen alternative; never read the clipboard |
-| `scripting`            | Attach bundled local checks to already-open normal tabs; inspect no excluded fields |
-| HTTP(S) hosts          | Default-on local writing, subject to native grants and browser/domain opt-outs      |
-| `sidePanel` (Chromium) | Native persistent panel                                                             |
-| Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                           |
+| Permission             | Purpose                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `identity`             | Native public-client OAuth sign-in                                                     |
+| `storage`              | Trusted session drafts/tokens; bounded public/opaque local state                       |
+| `activeTab`            | User-invoked current-page URL/title, never site scraping                               |
+| `tabs`                 | Local active-tab source following in mounted approved panels, never history collection |
+| `contextMenus`         | Explicit selection/link/page review inbox                                              |
+| `clipboardWrite`       | Copy reviewed context or an explicitly chosen alternative; never read the clipboard    |
+| `scripting`            | Attach bundled local checks to already-open normal tabs; inspect no excluded fields    |
+| HTTP(S) hosts          | Default-on local writing, subject to native grants and browser/domain opt-outs         |
+| `sidePanel` (Chromium) | Native persistent panel                                                                |
+| Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                              |
 
 Firefox declares authentication information, website content, browsing activity
 and search terms for user-invoked transmission. There is no analytics or automatic

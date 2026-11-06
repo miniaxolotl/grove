@@ -215,6 +215,80 @@ test("writing tools require separate permission and durable encrypted single-sen
       },
     );
     await t.test(
+      "rewrite context shares encrypted staging, replay identity and the selection-only output boundary",
+      async () => {
+        const client = await makeClient();
+        await assert.rejects(
+          () =>
+            api.consent(client, {
+              policy: "selection-tools-v2",
+              accepted: true,
+            }),
+          /changed|consent|review/i,
+        );
+        await api.consent(client, { policy, accepted: true });
+        const context = {
+          previousSentence: "Previous private context canary.",
+          nextSentence: "Next private context canary.",
+          sentenceBefore: "",
+          sentenceAfter: "",
+          startsSentence: true,
+          endsSentence: true,
+          startsParagraph: false,
+          endsParagraph: false,
+        };
+        const input = { ...request("rewrite"), context };
+        await api.request(client, input);
+        const row = await tenant(db, owner.accountId, (trx) =>
+          trx("writing_requests").where({ id: input.id }).first(),
+        );
+        const task = await tenant(db, owner.accountId, (trx) =>
+          trx("background_tasks").where({ id: input.id }).first(),
+        );
+        assert.ok(row.inputCiphertext);
+        assert.ok(
+          !JSON.stringify({ row, task }).includes("private context canary"),
+        );
+        assert.deepEqual(task.payload, { writingId: input.id });
+        await assert.rejects(
+          () =>
+            api.request(client, {
+              ...input,
+              context: { ...context, nextSentence: "Changed context." },
+            }),
+          /already used/i,
+        );
+        const original = generation.generate;
+        try {
+          generation.generate = async <T>(
+            _schema?: unknown,
+            instructions?: string,
+            sources?: { kind: string; content: string }[],
+          ) => {
+            assert.match(instructions!, /context.*untrusted/i);
+            assert.match(instructions!, /only.*selection|only.*selected/i);
+            assert.equal(sources?.[0].content, input.sentence);
+            assert.equal(sources?.[1].kind, "rewrite_context");
+            assert.deepEqual(JSON.parse(sources![1].content), context);
+            return original<T>();
+          };
+          await runTask(worker, handlers, { id: input.id });
+          const completed = await api.get(client, input.id);
+          assert.equal(completed.status, "completed");
+          assert.equal(completed.result.original, input.sentence);
+          assert.ok(
+            !JSON.stringify(completed).includes("private context canary"),
+          );
+          const stored = await tenant(db, owner.accountId, (trx) =>
+            trx("writing_requests").where({ id: input.id }).first(),
+          );
+          assert.equal(stored.inputCiphertext, null);
+        } finally {
+          generation.generate = original;
+        }
+      },
+    );
+    await t.test(
       "acceptance commits encrypted staging and opaque work, replay does not regenerate",
       async () => {
         const client = await makeClient();

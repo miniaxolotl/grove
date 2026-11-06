@@ -135,3 +135,132 @@ test("writing configuration is optional, paired and isolated from other service 
     notice,
   );
 });
+
+test("explicit rewrite context is bounded to adjacent sentences and selection position", async () => {
+  const writing = await import(path);
+  assert.equal(typeof writing.writingContextFor, "function");
+  const text =
+    "An earlier paragraph.\n\nFirst sentence. Keep this idea. Next sentence.\n\nA later paragraph.";
+  const selected = "Keep this idea.";
+  const from = text.indexOf(selected);
+  const selection = writing.selectWritingSentence(
+    text,
+    from,
+    from + selected.length,
+  );
+  assert.deepEqual(writing.writingContextFor(text, selection), {
+    previousSentence: "First sentence.",
+    nextSentence: "Next sentence.",
+    sentenceBefore: "",
+    sentenceAfter: "",
+    startsSentence: true,
+    endsSentence: true,
+    startsParagraph: false,
+    endsParagraph: false,
+  });
+  const wordFrom = text.indexOf("idea");
+  const word = writing.selectWritingSentence(text, wordFrom, wordFrom + 4);
+  assert.deepEqual(writing.writingContextFor(text, word), {
+    previousSentence: "First sentence.",
+    nextSentence: "Next sentence.",
+    sentenceBefore: "Keep this ",
+    sentenceAfter: ".",
+    startsSentence: false,
+    endsSentence: false,
+    startsParagraph: false,
+    endsParagraph: false,
+  });
+  const first = writing.writingContextFor(
+    text,
+    writing.selectWritingSentence(text, 0, 21),
+  );
+  assert.equal(first.previousSentence, "");
+  assert.equal(first.startsParagraph, true);
+  assert.equal(first.endsParagraph, true);
+  assert.equal(first.nextSentence, "First sentence.");
+  const long =
+    "x".repeat(20000) + ". Before. Target. After. " + "Y".repeat(20000);
+  const start = long.indexOf("Target.");
+  const context = writing.writingContextFor(
+    long,
+    writing.selectWritingSentence(long, start, start + 7),
+  );
+  assert.equal(context.previousSentence, "Before.");
+  assert.equal(context.nextSentence, "After.");
+  assert.ok(
+    Object.values(context).every(
+      (value) => typeof value !== "string" || value.length <= 500,
+    ),
+  );
+  assert.equal(
+    writing.writingContextFor("newer text", selection),
+    null,
+    "context never comes from a changed editor snapshot",
+  );
+  const edges = "First.\r\n\r\nLast.";
+  const last = writing.writingContextFor(
+    edges,
+    writing.selectWritingSentence(edges, edges.indexOf("Last."), edges.length),
+  );
+  assert.equal(last.startsParagraph, true);
+  assert.equal(last.endsParagraph, true);
+  assert.equal(last.previousSentence, "First.");
+  assert.equal(last.nextSentence, "");
+});
+
+test("context is strict, encrypted-request eligible, and never added to word-alternative tools", async () => {
+  const writing = await import(path);
+  const sentence = "Keep this idea.";
+  const context = writing.writingContextFor(
+    sentence,
+    writing.selectWritingSentence(sentence, 0, sentence.length),
+  );
+  const input = {
+    id: "00000000-0000-4000-a000-000000000003",
+    sessionId: "00000000-0000-4000-a000-000000000004",
+    language: "en",
+    tool: "rewrite",
+    sentence,
+    context,
+  };
+  assert.equal(writing.writingRequestSchema.safeParse(input).success, true);
+  for (const changed of [
+    { ...context, previousSentence: "x".repeat(501) },
+    { ...context, url: "https://private.example" },
+    { ...context, startsParagraph: "yes" },
+  ])
+    assert.equal(
+      writing.writingRequestSchema.safeParse({ ...input, context: changed })
+        .success,
+      false,
+    );
+  assert.equal(
+    writing.writingRequestSchema.safeParse({
+      ...input,
+      tool: "synonyms",
+      sentence: "bright",
+    }).success,
+    false,
+  );
+  assert.equal(
+    writing.writingPolicy,
+    "rewrite-context-v3",
+    "selection-only consent must not silently authorize surrounding text",
+  );
+  assert.equal(typeof writing.hasCurrentWritingConsent, "function");
+  const availability = {
+    available: true,
+    authorized: true,
+    consented: true,
+    policy: "selection-tools-v2:0000000000000000",
+    provider: "Fixture",
+  };
+  assert.equal(writing.hasCurrentWritingConsent(availability), false);
+  assert.equal(
+    writing.hasCurrentWritingConsent({
+      ...availability,
+      policy: `${writing.writingPolicy}:0000000000000000`,
+    }),
+    true,
+  );
+});

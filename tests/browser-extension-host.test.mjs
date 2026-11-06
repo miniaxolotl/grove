@@ -246,12 +246,14 @@ for (const target of ["chrome", "edge"])
             available: true,
             authorized: true,
             consented: writingConsented,
-            policy: "fixture-writing-policy",
+            policy: "rewrite-context-v3:0000000000000000",
             provider: "Synthetic writing provider; no live model transmission.",
           });
           let uncertain = true;
           globalThis.fixtureRequests = [];
           globalThis.fixtureCaptureRequests = [];
+          globalThis.fixtureWritingInputs = [];
+          globalThis.fixtureSearchQueries = [];
           globalThis.fetch = async (input, init) => {
             const path = new URL(String(input)).pathname;
             globalThis.fixtureRequests.push(path);
@@ -283,6 +285,7 @@ for (const target of ["chrome", "edge"])
               writingConsented = body.accepted;
               data = writingAvailability();
             } else if (path === "/v1/browser/writing/requests") {
+              globalThis.fixtureWritingInputs.push(body);
               if (!writingConsented)
                 throw new Error("Fixture requires explicit AI consent");
               const choices = {
@@ -376,7 +379,9 @@ for (const target of ["chrome", "edge"])
               path === "/v1/browser/pages"
             ) {
               if (path === "/v1/memories/search") {
+                globalThis.fixtureSearchQueries.push(body);
                 await globalThis.fixtureSearchGate;
+                if (body.query === "latest") await globalThis.fixtureLatestGate;
                 if (globalThis.fixtureSearchFailed)
                   throw new Error("Synthetic search is offline");
               }
@@ -405,7 +410,7 @@ for (const target of ["chrome", "edge"])
       });
       assert.deepEqual(
         await page.locator("#navigation button").allTextContents(),
-        ["Capture", "Search", "Settings"],
+        ["Notes", "Search", "Settings"],
       );
       assert.equal(await page.locator("#new-note").isVisible(), false);
       assert.equal(await page.locator("#save-details").isVisible(), false);
@@ -415,6 +420,7 @@ for (const target of ["chrome", "edge"])
           hasText: "Synthetic capture was rejected before the panel opened.",
         })
         .waitFor({ timeout: 3000 });
+      await page.locator("#dismiss-notice").click();
       await page.evaluate(async () => {
         const window = await globalThis.chrome.windows.getCurrent();
         globalThis.chrome.sidePanel.onOpened.addListener((info) => {
@@ -606,7 +612,7 @@ for (const target of ["chrome", "edge"])
         `,
         );
       });
-      const [sourceTab] = await worker.evaluate(async () =>
+      const [writingSourceTab] = await worker.evaluate(async () =>
         (await chrome.tabs.query({})).filter((tab) =>
           tab.url?.endsWith("/__writing_fixture"),
         ),
@@ -655,7 +661,7 @@ for (const target of ["chrome", "edge"])
               );
             },
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       await sourcePage.locator("#wrapped").focus();
       await sourcePage
@@ -679,7 +685,7 @@ for (const target of ["chrome", "edge"])
               labels: globalThis.labelBulkReads,
             }),
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       assert.deepEqual(
         privateAccess,
@@ -728,7 +734,7 @@ for (const target of ["chrome", "edge"])
               };
             },
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       await sourcePage.locator("#wrapped").fill("This is a sentnce.");
       await sourcePage.waitForFunction(
@@ -746,7 +752,7 @@ for (const target of ["chrome", "edge"])
               globalThis.releaseWritingResult();
             },
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       await sourcePage.locator("#wrapped").press("Alt+Enter");
       await sourcePage
@@ -778,7 +784,7 @@ for (const target of ["chrome", "edge"])
             world: "ISOLATED",
             func: () => globalThis.writingSuggestions,
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       assert.equal(
         alternativesWhileTyping,
@@ -798,7 +804,7 @@ for (const target of ["chrome", "edge"])
               });
             },
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       await sourcePage
         .locator("#wrapped")
@@ -823,7 +829,7 @@ for (const target of ["chrome", "edge"])
               globalThis.releaseSuggestions();
             },
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       await sourcePage.waitForFunction(
         () => document.documentElement.dataset.suggestionReleased === "true",
@@ -852,7 +858,7 @@ for (const target of ["chrome", "edge"])
               globalThis.releaseSuggestions();
             },
           }),
-        sourceTab.id,
+        writingSourceTab.id,
       );
       await sourcePage.waitForFunction(
         () => document.documentElement.dataset.suggestionReleased === "true",
@@ -968,6 +974,11 @@ for (const target of ["chrome", "edge"])
         .getByRole("menuitem", { name: "Rewrite", exact: true })
         .click();
       await sourcePage
+        .getByText(
+          /Rewrites send your selection, bounded nearby sentence excerpts/,
+        )
+        .waitFor();
+      await sourcePage
         .getByRole("button", { name: "Generate alternatives", exact: true })
         .click();
       await sourcePage
@@ -997,7 +1008,7 @@ for (const target of ["chrome", "edge"])
         ["Humanize", "Hi, I'm Elias."],
       ];
       for (const [label, alternative] of toolCases) {
-        const original = "Hello world! My name is Elias.";
+        const original = "Hello world! My name is Elias. Nice to meet you.";
         await page.locator("#note").fill(original);
         const beforeMenu = await worker.evaluate(
           () =>
@@ -1007,7 +1018,7 @@ for (const target of ["chrome", "edge"])
         );
         await page.locator("#note").evaluate((element) => {
           element.focus();
-          element.setSelectionRange(13, element.value.length);
+          element.setSelectionRange(13, 30);
         });
         await page.getByRole("button", { name: "Use AI", exact: true }).click();
         const menu = page.getByRole("menu", { name: "Writing tools" });
@@ -1050,6 +1061,44 @@ for (const target of ["chrome", "edge"])
           .getByRole("button", { name: alternative, exact: true })
           .waitFor();
         const dialog = page.getByRole("dialog", { name: "AI writing tools" });
+        const submitted = await worker.evaluate(() =>
+          globalThis.fixtureWritingInputs.at(-1),
+        );
+        assert.equal(submitted.sentence, "My name is Elias.");
+        assert.deepEqual(submitted.context, {
+          previousSentence: "Hello world!",
+          nextSentence: "Nice to meet you.",
+          sentenceBefore: "",
+          sentenceAfter: "",
+          startsSentence: true,
+          endsSentence: true,
+          startsParagraph: false,
+          endsParagraph: false,
+        });
+        await dialog
+          .getByText("Context shared with AI", { exact: true })
+          .click();
+        await dialog
+          .getByText("Previous sentence (excerpt): Hello world!", {
+            exact: true,
+          })
+          .waitFor();
+        await dialog
+          .getByText("Next sentence (excerpt): Nice to meet you.", {
+            exact: true,
+          })
+          .waitFor();
+        if (label === "Shorten" && process.env.EXTENSION_SCREENSHOTS)
+          await page.screenshot({
+            path: join(
+              process.env.EXTENSION_SCREENSHOTS,
+              `${target}-context-preview-390.png`,
+            ),
+            fullPage: true,
+          });
+        await dialog
+          .getByText("Context shared with AI", { exact: true })
+          .click();
         assert.equal(
           await dialog.locator(".alternative").count(),
           3,
@@ -1127,7 +1176,7 @@ for (const target of ["chrome", "edge"])
           .click();
         assert.equal(
           await page.locator("#note").inputValue(),
-          `Hello world! ${alternative}`,
+          `Hello world! ${alternative} Nice to meet you.`,
           "only the selected sentence changes",
         );
         assert.equal(
@@ -1172,6 +1221,13 @@ for (const target of ["chrome", "edge"])
         await page
           .getByRole("button", { name: replacement, exact: true })
           .click();
+        assert.equal(
+          await worker.evaluate(() =>
+            Object.hasOwn(globalThis.fixtureWritingInputs.at(-1), "context"),
+          ),
+          false,
+          "synonyms and opposites keep selection-only transmission",
+        );
         assert.equal(
           await page.locator("#note").inputValue(),
           `A ${replacement} idea.`,
@@ -1371,9 +1427,143 @@ for (const target of ["chrome", "edge"])
           "/v1/browser/pages",
         ),
       );
+      // Installed browser navigation, not fabricated tab messages. The panel stays
+      // mounted while its window's actual active tab navigates across origins.
+      await page.locator("#new-note").click();
+      await page.locator("#confirm-replace").click();
+      const readSource = () =>
+        page.evaluate(async () => {
+          const { id } = await globalThis.chrome.windows.getCurrent();
+          return (await globalThis.chrome.storage.session.get(`draft:${id}`))[
+            `draft:${id}`
+          ]?.source;
+        });
+      const waitSource = (key, value) =>
+        page.waitForFunction(
+          async ({ key, value }) => {
+            const { id } = await globalThis.chrome.windows.getCurrent();
+            return (
+              (await globalThis.chrome.storage.session.get(`draft:${id}`))[
+                `draft:${id}`
+              ]?.source?.[key] === value
+            );
+          },
+          { key, value },
+        );
+      await context.route("https://source.example/**", (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<title>First source</title><p>Source fixture</p>",
+        }),
+      );
+      await context.route("https://next.example/**", (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<title>Next source</title><p>Next fixture</p>",
+        }),
+      );
+      const sourceTab = await context.newPage();
+      await sourceTab.goto(
+        "https://source.example/article?utm_source=fixture&id=1",
+      );
+      await waitSource("url", "https://source.example/article?id=1");
+      assert.equal((await readSource()).title, "First source");
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-notes-auto-390.png`,
+          ),
+          fullPage: true,
+        });
+      }
+      const requestsBeforeNavigation = await worker.evaluate(
+        () => globalThis.fixtureRequests.length,
+      );
+      await sourceTab.goto("https://next.example/other");
+      await waitSource("title", "Next source");
+      assert.equal((await readSource()).url, "https://next.example/other");
+      await sourceTab.evaluate(() => {
+        document.title = "Updated source";
+      });
+      await waitSource("title", "Updated source");
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureRequests.length),
+        requestsBeforeNavigation,
+        "prefill and title changes never contact Grove",
+      );
+      await sourceTab.goto("about:blank");
+      await waitSource("url", undefined);
+      await sourceTab.goto("https://source.example/article");
+      await waitSource("title", "First source");
+      await worker.evaluate(() => {
+        const nativeQuery = globalThis.chrome.tabs.query.bind(
+          globalThis.chrome.tabs,
+        );
+        globalThis.fixtureTabsQueryStarted = new Promise((resolve) => {
+          globalThis.markTabsQueryStarted = resolve;
+        });
+        const gate = new Promise((resolve) => {
+          globalThis.releaseTabsQuery = () => {
+            globalThis.chrome.tabs.query = nativeQuery;
+            resolve();
+          };
+        });
+        globalThis.chrome.tabs.query = async (...args) => {
+          globalThis.markTabsQueryStarted();
+          await gate;
+          return nativeQuery(...args);
+        };
+      });
+      await sourceTab.goto("https://next.example/other");
+      await worker.evaluate(() => globalThis.fixtureTabsQueryStarted);
+      await page.locator("#note").fill("Pin this originating page");
+      await worker.evaluate(() => globalThis.releaseTabsQuery());
+      await page.locator("#new-note").waitFor({ state: "visible" });
+      assert.equal(
+        (await readSource()).url,
+        "https://source.example/article",
+        "late navigation metadata cannot replace the source visible at first edit",
+      );
+      await page.reload();
+      await page.locator("#workspace").waitFor({ state: "visible" });
+      assert.equal((await readSource()).url, "https://source.example/article");
+      await page.locator("#new-note").click();
+      await page.locator("#confirm-replace").click();
+      await sourceTab.bringToFront();
+      await waitSource("title", "Next source");
+      // Retained explicit source removal/legacy state stays pinned even without source controls.
+      await page.evaluate(
+        async ({ accountId, connectionId }) => {
+          const { id } = await globalThis.chrome.windows.getCurrent();
+          const result = await globalThis.chrome.runtime.sendMessage({
+            kind: "edit",
+            windowId: id,
+            accountId,
+            connectionId,
+            payload: { source: null },
+          });
+          if (!result.ok) throw new Error(result.error.message);
+        },
+        { accountId, connectionId },
+      );
+      await page.reload();
+      await page.locator("#workspace").waitFor({ state: "visible" });
+      await sourceTab.goto("https://source.example/article");
+      assert.equal(
+        await readSource(),
+        undefined,
+        "explicit removal stays pinned off",
+      );
+      await page.locator("#new-note").click();
+      await sourceTab.bringToFront();
+      await waitSource("title", "First source");
       await page
         .locator("#note")
-        .fill("A source worth keeping. <script>not executable</script>");
+        .fill(
+          "# Field notes\n\nA source worth keeping. <script>not executable</script>\n\n- [x] A useful task\n- **A clear idea**\n\n| Tool | Purpose |\n| --- | --- |\n| Grove | Keep thoughts |\n\n```js\nconst safe = true;\n```\n\n[Source](https://example.com/read)\n\n[Unsafe](javascript:alert(1))\n\n![No tracking](https://tracker.example/pixel.png)",
+        );
       const savedSourcePage = await context.newPage();
       await savedSourcePage.route(
         "https://source.writing-fixture.test/article",
@@ -1389,14 +1579,14 @@ for (const target of ["chrome", "edge"])
         .evaluate((form) => form.requestSubmit());
       await page
         .locator("#save-state")
-        .filter({ hasText: "outcome is unknown" })
+        .filter({ hasText: "Save not confirmed" })
         .waitFor();
       assert.equal(
         await worker.evaluate(
           () => globalThis.fixtureCaptureRequests[0].provenance.url,
         ),
-        "https://source.writing-fixture.test/article",
-        "Save automatically snapshots the active ordinary page without source-link controls",
+        "https://source.example/article",
+        "Save retains the originating page from the first edit, without source-link controls",
       );
       await savedSourcePage.close();
       assert.equal(
@@ -1429,13 +1619,16 @@ for (const target of ["chrome", "edge"])
       await page.locator("#workspace").waitFor({ state: "visible" });
       assert.match(
         await page.locator("#save-state").textContent(),
-        /outcome is unknown/,
+        /Save not confirmed/,
       );
       await page.locator("#note").fill("A newer draft stays after retry.");
       await page.locator("#save").click();
       await page
         .locator("#save-state")
-        .filter({ hasText: "Previous note saved. Newer draft is not saved." })
+        .filter({
+          hasText:
+            "Your earlier note is saved. These changes aren’t saved yet.",
+        })
         .waitFor();
       assert.deepEqual(
         await worker.evaluate(() =>
@@ -1477,9 +1670,17 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="search"]').click();
       assert.equal(await page.locator("#context-actions").isVisible(), false);
       await page.locator("#query").fill("source");
-      await page.locator('#search-form button[type="submit"]').click();
+      assert.equal(
+        await page.locator("#search-form button, #search-form select").count(),
+        0,
+      );
       await page.locator("#results .note-row").waitFor();
       assert.equal(await page.locator("#results .note-row").count(), 1);
+      assert.deepEqual(
+        await worker.evaluate(() => globalThis.fixtureSearchQueries.at(-1)),
+        { query: "source", status: "active", limit: 20, sort: "relevance" },
+        "omit projectId to search all granted scopes, not Personal only",
+      );
       await page.evaluate(() => {
         globalThis.retainedSearchRow =
           document.querySelector("#results .note-row");
@@ -1542,10 +1743,61 @@ for (const target of ["chrome", "edge"])
         .waitFor();
       await page.locator("#results .note-row button").click();
       await page.locator("#reader[open]").waitFor();
+      assert.equal(
+        await page.locator("#reader-content h2").textContent(),
+        "Field notes",
+      );
+      assert.equal(
+        await page
+          .locator("#reader-content table tbody td")
+          .first()
+          .textContent(),
+        "Grove",
+      );
+      assert.equal(
+        await page.locator("#reader-content pre code").textContent(),
+        "const safe = true;",
+      );
+      assert.equal(
+        await page.locator("#reader-content .reader-task input").isChecked(),
+        true,
+      );
+      assert.equal(
+        await page
+          .locator(
+            "#reader-content script, #reader-content img, #reader-content iframe, #reader-content a[href^='javascript:']",
+          )
+          .count(),
+        0,
+      );
+      assert.equal(
+        await page.locator("#reader-content a").first().getAttribute("rel"),
+        "noreferrer noopener",
+      );
+      const readerAudit = await new AxeBuilder({ page }).analyze();
+      assert.deepEqual(
+        readerAudit.violations.map((item) => item.id),
+        [],
+        "formatted reader accessibility",
+      );
       assert.match(
         await page.locator("#reader-content").textContent(),
         /<script>not executable<\/script>/,
       );
+      await page.locator("#copy-note").click();
+      await page
+        .locator("#reader-copy-state")
+        .filter({ hasText: /Copied|Could not copy/ })
+        .waitFor();
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-reader-390.png`,
+          ),
+          fullPage: true,
+        });
+      }
       await page.locator("#close-reader").click();
       const statusBeforeSelection = await page
         .locator("#results-status")
@@ -1611,35 +1863,56 @@ for (const target of ["chrome", "edge"])
         "A newer draft stays after retry.",
       );
       await page.locator('[data-nav="search"]').click();
-      const beforePageRequests = await worker.evaluate(
-        () => globalThis.fixtureRequests.length,
+      const beforeTyping = await worker.evaluate(
+        () => globalThis.fixtureSearchQueries.length,
       );
-      await page.locator("#this-page").click();
-      assert.equal(
-        await page.locator("#this-page").getAttribute("aria-pressed"),
-        "true",
-      );
-      assert.equal(
-        await worker.evaluate(() => globalThis.fixtureRequests.length),
-        beforePageRequests,
-        "changing search mode does not send the current page URL",
-      );
+      await page.locator("#query").pressSequentially("source", { delay: 15 });
       await page
-        .locator("#page-url")
-        .fill("https://example.com/article?utm_source=test");
-      await page.locator('#page-form button[type="submit"]').click();
-      await page.locator("#results .note-row").waitFor();
-      await page.locator('#results input[type="checkbox"]').check();
-      await page.locator("#review-context").click();
-      await page.locator("#context[open]").waitFor();
-      await page.locator("#close-context").click();
-      await page.locator("#all-notes").click();
-      await page.locator("#clear-selection").click();
-      await page.locator("#this-page").click();
+        .locator("#results-status")
+        .filter({ hasText: "1 note · checked" })
+        .waitFor();
       assert.equal(
-        await page.locator('#results input[type="checkbox"]').isChecked(),
-        false,
+        await worker.evaluate(() => globalThis.fixtureSearchQueries.length),
+        beforeTyping + 1,
+        "typing a word issues one debounced request",
       );
+      await worker.evaluate(() => {
+        globalThis.fixtureSearchGate = new Promise((resolve) => {
+          globalThis.releaseSearch = resolve;
+        });
+        globalThis.fixtureLatestGate = new Promise((resolve) => {
+          globalThis.releaseLatest = resolve;
+        });
+      });
+      await page.locator("#query").fill("obsolete");
+      await page
+        .locator("#results-status")
+        .filter({ hasText: "Finding notes" })
+        .waitFor();
+      await page.locator("#query").fill("latest");
+      await worker.evaluate(() => globalThis.releaseSearch());
+      await page.waitForFunction(() =>
+        document
+          .querySelector("#results-status")
+          .textContent.includes("Finding notes"),
+      );
+      assert.ok(
+        !(await page.locator("#results-status").textContent()).includes(
+          "checked",
+        ),
+        "obsolete results cannot mark a newer query complete",
+      );
+      await worker.evaluate(() => globalThis.releaseLatest());
+      await page
+        .locator("#results-status")
+        .filter({ hasText: "1 note · checked" })
+        .waitFor();
+      await page.locator("#query").fill("");
+      await page
+        .locator("#results-status")
+        .filter({ hasText: "Type to search" })
+        .waitFor();
+      assert.equal(await page.locator("#results .note-row").count(), 0);
       await page.locator('[data-nav="settings"]').click();
       assert.equal(await page.locator("#account-id").isVisible(), false);
       assert.equal(await page.locator("#recovery-settings").isVisible(), false);
@@ -1732,15 +2005,12 @@ for (const target of ["chrome", "edge"])
         });
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
-        for (const name of ["capture", "search", "page", "settings"]) {
-          await page
-            .locator(`[data-nav="${name === "page" ? "search" : name}"]`)
-            .click();
-          if (name === "search" || name === "page")
-            await page
-              .locator(name === "search" ? "#all-notes" : "#this-page")
-              .click();
+        for (const name of ["capture", "search", "settings"]) {
+          await page.locator(`[data-nav="${name}"]`).click();
           if (name === "capture") {
+            await page.locator("#note-details").evaluate((element) => {
+              element.open = true;
+            });
             const destination = await page
               .locator("#destination")
               .evaluate((element) => {
@@ -1761,6 +2031,9 @@ for (const target of ["chrome", "edge"])
               destination.width >= destination.needed,
               `selected notebook remains readable at ${width}px: ${JSON.stringify(destination)}`,
             );
+            await page.locator("#note-details").evaluate((element) => {
+              element.open = false;
+            });
           }
           assert.ok(
             await page.evaluate(

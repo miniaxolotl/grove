@@ -400,8 +400,8 @@ function GrantForm({
           </label>
           <p className="text-sm text-muted">
             Separate from note access. AI runs only when you choose a writing
-            tool and consent to sending your selection. Local checks stay on
-            your device.
+            tool and consent to sending your selection and bounded nearby
+            sentence context. Local checks stay on your device.
           </p>
         </fieldset>
       ) : null}

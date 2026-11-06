@@ -1,6 +1,52 @@
 # Browser extension evidence
 
-## Personal writing sheet — 6 November 2026
+## Context-aware writing with the current notebook — 6 November 2026
+
+Unsigned product `1.11.15`, combining the writing branch with development
+`37d4e0fd` (approved icons, coordinated version and personal notebook redesign).
+Chrome ZIP SHA-256:
+`e021ffed1bc6d938dbe707b75fd4783c250bc183ae2567482269b47bebb7f812`.
+Installed Chromium `156.0.8078.4`, synthetic account/text and HTTP/provider output.
+
+| Rewrite context                                                                                    | Narrow alternatives                                                                                    | Notes                                                                                                      | Parsed reader                                                                        |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| ![Previous and next sentences plus sentence and paragraph boundary flags](context-preview-390.png) | ![Context disclosure and alternatives scroll inside a short 320px panel](context-alternatives-320.png) | ![Current Notes surface with automatic source metadata and no source-link controls](context-notes-390.png) | ![Preserved safe Markdown reader with copy and open actions](context-reader-390.png) |
+
+Standard captures are 390 × 844; the narrow review is 320 × 480. The merged
+**Notes / Search / Settings**, all-granted-scope debounced search, safe GFM reader,
+approved icons and first-edit source pinning are preserved. Notebook selection
+and automatic source metadata share Details; source-link fields remain removed.
+Authored text stays unchanged with provenance separate; quoted external captures
+retain attribution and their full size limit. Exact uncertain-save identity remains.
+
+Explicit rewrites include up to 500 UTF-16 units each of previous/next sentence
+excerpts and containing-sentence fragments, plus start/end sentence/paragraph
+flags. The current same-editor snapshot supplies the context only after choosing
+a tool. **Context shared with AI** shows the exact bounded values; opening a menu
+does not transmit them. Fresh `rewrite-context-v3` consent is required. Word
+alternatives stay selection-only, and replacing a sentence leaves its neighbors
+unchanged with native Undo. Context uses existing encrypted temporary staging,
+expiry, cancellation and exact replay identity; no new queue or background service.
+
+Installed journeys cover both Chromium manifest profiles, source-navigation/edit
+races, context payload and preview, selected-only replacement, clipboard failure,
+Undo, domain opt-outs, debounced search and safe parsed reading. 320/390/768px,
+short/dark, focus, overflow and axe checks remain part of the same run. Native
+Firefox 159 smoke additionally checks install/sidebar/save/search/parsed reading
+and reviewed copying, not writing/AI semantics. Real provider quality, native
+writing prompts, branded Chrome and visible Edge-sidebar presentation remain
+unqualified. No production rollout or live model request is shown.
+
+The merged notebook keeps its approved Editorial greeting direction, seed
+`1378124550`, sage face, bundled Space Grotesk and Grove mark. Context disclosure
+is secondary to the selection and alternatives, not another always-open panel.
+Visual review retains hierarchy/usability/identity at 8/10; honest empty Notes
+and Search remain quiet. Source lint has zero failures; retained shadows belong
+to overlays. Installed measurements substitute for a generic inspector that
+cannot install the isolated extension origin; no generic-inspector pass is claimed.
+Earlier sections below describe their own historical packages, not this combined UI.
+
+## Earlier personal writing sheet — 6 November 2026
 
 Installed unsigned development package, product `1.11.14`, redesign refinement on
 `feat/extension-writing-assistance` after `a6725ab9`. Chrome ZIP SHA-256:
@@ -97,6 +143,91 @@ acceptance. These local-only captures do not qualify AI rewrites; current synthe
 AI evidence is above. Rich-text editors, native permission prompts, Firefox and
 branded-browser writing qualification remain unfinished. Older captures below
 show the earlier panel and do not establish writing-assistance acceptance.
+
+## Personal notebook redesign — 6 November 2026
+
+Runtime/build source `6bd2799e`, product `1.11.15`. These are actual installed
+unsigned-package screenshots with synthetic notes/auth/HTTP responses, not mockups
+or evidence of a new production release. Earlier sections below are historical.
+
+| Notes                                                                               | Global search                                                                          | Formatted reader                                                                                  | Settings                                                                         |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| ![A quiet paper editor with current-page details collapsed](notebook-notes-390.png) | ![One search bar, readable note titles and no scope controls](notebook-search-390.png) | ![Markdown headings, checklists, tables and code with copy/open actions](notebook-reader-390.png) | ![Simple appearance, connection and privacy settings](notebook-settings-390.png) |
+
+[Narrow Settings, 320px](notebook-settings-320.png) ·
+[Wide Notes, 768px](notebook-notes-768.png) ·
+[Dark Settings](notebook-settings-dark-390.png).
+
+The owner requested a radical, polished but noncorporate redesign. Direction:
+**Editorial greeting**, seed `1378124550`, preserving Grove's wordmark, approved
+icons and Space Grotesk. The face is a sage garden-like ground around a paper
+editor and tonal note rows. The desktop composition is adapted to a native narrow
+panel, not a dashboard grid. Notes answers “what do I want to keep?”, Search “where
+is that thought?”, and Settings “what can this browser access?”. Source and notebook
+fields share one Details disclosure; no redundant source/search mode or submit
+control remains. Copy terminology names the action instead of “review context”.
+
+Installed checks cover Chromium `156.0.8078.4` and actual Edge `155.0.4283.62`:
+real cross-origin tab navigation, title changes, unavailable-page clearing, a held
+metadata/first-keystroke race, reload, explicit source removal and New note. Local
+prefill makes no Grove requests. Search verifies one debounced request per word,
+all-scope request shape, late-response fencing, clearing, stale recovery and stable
+rows/focus. The reader parses GFM through the existing parser stack, renders through
+a DOM allowlist, and exercises copy, table/code/checklist output and unsafe content.
+There are no script/image/iframe elements or JavaScript links in the rendered fixture.
+
+The final run has zero axe violations or overflow at 280/320/390/768px, with
+additional reader, short-panel, pause, cross-panel and dark checks. Firefox `159.0`
+passes temporary install, native sidebar, save, automatic search, formatted reading
+and bulk-copy review. Web-ext reports zero errors/notices and one tokenizer false
+positive: upstream Markdown's `parse(...).document().write(...)` consumes tokens;
+it is not DOM `document.write`. The real DOM entity-decoder assignment was removed
+by selecting the upstream worker-safe decoder, with a packaged regression against
+HTML injection sinks. No warning or accessibility rule was disabled.
+
+Visual review at all three primary widths: consistent shared edges, readable type,
+one clear job per view and no ornamental controls. The final fixes give result
+titles their own hierarchy, remove raw Markdown syntax from snippets, share status
+space with selection actions and allow dismissing actual errors. Hierarchy 8/10,
+usability 8/10, identity 8/10; empty search and a blank editor intentionally remain
+quiet rather than inventing content. Sample “Field notes” and the malicious HTML/
+image examples are synthetic verification material, never customer data.
+
+Source taste lint reports zero failures; its one shadow warning is the actual modal.
+The generic URL inspector does not install this isolated extension; the installed
+browser measurements and screenshots are used instead. Branded Chrome, visible
+native Edge-sidebar presentation, live Clerk, physical-device/IME timing and store
+acceptance remain unqualified. Original PDF/Word files are not fetched/extracted;
+their already-imported Markdown is readable. Reproduce with the commands below.
+
+## Listing and toolbar icons — 6 November 2026
+
+Runtime/build source `d19d5c75`, product `1.11.14`. All 23 PNG/SVG files come
+byte-identically from the Marketing studio's **Listing & toolbar icons** set
+(`grove/extensions/icons`); hashes are retained in the extension's
+[`source.json`](../../../../packages/browser-extension/assets/icons/source.json).
+No general profile icon, recolouring or artwork regeneration is used.
+
+| Listing/fallback mark                                                                                                        | Firefox light toolbar                                                         | Firefox dark toolbar                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ![Approved white Sprout on its green-backed listing mark](../../../../packages/browser-extension/assets/icons/store-128.png) | ![Native Firefox light toolbar uses the green Sprout](firefox-icon-light.png) | ![Native Firefox dark toolbar uses the white Sprout](firefox-icon-dark.png) |
+
+Firefox `159.0` temporary installation is tested in a disposable profile with the
+real native toolbar pinned. Switching Firefox's built-in light/dark themes selects
+the expected packaged `dark-*`/`light-*` icon URLs respectively. These are unscaled
+crops of the actual browser toolbar, not marketing mockups. The same run passes
+native sidebar, capture, search and reviewed-context smoke with synthetic HTTP/auth.
+
+Chrome/Edge use the supplied backed mark, not Firefox-only `theme_icons` or a
+request-process theme observer. Installed Chromium `156.0.8078.4` and actual Edge
+`155.0.4283.62` package journeys pass. This does not newly qualify branded Chrome
+installation, visible native Edge-sidebar presentation, live Clerk or any store.
+Artifact checks verify every imported file's hash, square PNG dimensions, RGBA
+transparency, declared listing sizes, Firefox theme pairs and reproducible ZIPs.
+
+For native visual reproduction, install the Firefox ZIP temporarily, pin Grove's
+toolbar button, then switch Firefox's own light and dark themes. The panel's
+Appearance setting is independent. Existing package/native commands below apply.
 
 ## Minimal panel — 6 November 2026
 

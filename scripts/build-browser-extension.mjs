@@ -2,7 +2,7 @@ import { build } from "esbuild";
 import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath, URL } from "node:url";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { parseArgs, TextEncoder } from "node:util";
 import process from "node:process";
 import { createRequire } from "node:module";
@@ -75,12 +75,25 @@ export async function buildBrowserExtension({
     "panel.html": "packages/browser-extension/src/panel.html",
     "panel.css": "packages/browser-extension/src/panel.css",
     "wordmark.svg": "packages/website/public/brand/wordmark-primary.svg",
-    "icon.png": "packages/website/public/brand-kit/icons/icon-192.png",
     "space-grotesk-400.woff2":
       "packages/website/public/brand-kit/fonts/space-grotesk-400.woff2",
     "space-grotesk-600.woff2":
       "packages/website/public/brand-kit/fonts/space-grotesk-600.woff2",
   };
+  const iconDirectory = "packages/browser-extension/assets/icons";
+  const iconSource = JSON.parse(
+    await readFile(join(root, iconDirectory, "source.json"), "utf8"),
+  );
+  for (const name of [...Object.keys(iconSource.files), "source.json"])
+    assets[`icons/${name}`] = join(iconDirectory, name);
+  const listingIcons = Object.fromEntries(
+    [96, 128, 300, 512].map((size) => [size, `icons/store-${size}.png`]),
+  );
+  const themeIcons = [16, 20, 24, 32, 40, 48, 64, 96].map((size) => ({
+    light: `icons/light-${size}.png`,
+    dark: `icons/dark-${size}.png`,
+    size,
+  }));
   const packages = [];
   // Read the pinned data files, never bundle dictionary-en's Node fs loader.
   const dictionaryDirectory = resolve(
@@ -95,6 +108,9 @@ export async function buildBrowserExtension({
     const config = { apiOrigin, siteOrigin, issuer, target };
     const runtime = await build({
       absWorkingDir: root,
+      // Prefer upstream DOM-free entity decoding in both the panel and worker.
+      // The default browser decoder assigns innerHTML, which this reader avoids.
+      conditions: ["worker"],
       entryPoints: [
         "packages/browser-extension/src/background.ts",
         "packages/browser-extension/src/panel.ts",
@@ -146,8 +162,14 @@ export async function buildBrowserExtension({
       description:
         "Save reviewed notes and sources, search your Grove notebooks, and copy selected context.",
       homepage_url: siteOrigin,
-      icons: { 192: "icon.png" },
-      action: { default_title: "Open Grove", default_icon: "icon.png" },
+      icons: listingIcons,
+      action: {
+        default_title: "Open Grove",
+        // The supplied backed mark stays legible when Chromium's toolbar theme
+        // cannot be selected natively. Firefox uses its native glyph variants.
+        default_icon: "icons/store-128.png",
+        ...(target === "firefox" ? { theme_icons: themeIcons } : {}),
+      },
       commands: {
         _execute_action: {
           suggested_key: { default: "Alt+Shift+G" },
@@ -158,6 +180,7 @@ export async function buildBrowserExtension({
         "storage",
         "identity",
         "activeTab",
+        "tabs",
         "contextMenus",
         "clipboardWrite",
         "scripting",
@@ -193,7 +216,7 @@ export async function buildBrowserExtension({
             sidebar_action: {
               default_title: "Grove",
               default_panel: "panel.html",
-              default_icon: "icon.png",
+              default_icon: "icons/store-128.png",
             },
             browser_specific_settings: {
               gecko: {
@@ -260,6 +283,7 @@ export async function buildBrowserExtension({
     await mkdir(join(outdir, target), { recursive: true });
     const zipFiles = {};
     for (const name of Object.keys(files).sort()) {
+      await mkdir(join(outdir, target, dirname(name)), { recursive: true });
       await writeFile(join(outdir, target, name), files[name]);
       // ZIP encodes local wall-clock fields, not an instant. Keep them fixed in every TZ.
       zipFiles[name] = [files[name], { mtime: new Date(2000, 0, 1, 0, 0, 0) }];

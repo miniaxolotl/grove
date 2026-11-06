@@ -17,7 +17,7 @@ import {
   writingSitePattern,
   type MessageSender,
 } from "./webextension.ts";
-import { contextMenuCapture, openNativePanel } from "./platform.ts";
+import { contextMenuCapture, openNativePanel, tabSource } from "./platform.ts";
 import {
   WritingPreferencesStore,
   writingSettingsFor,
@@ -71,11 +71,11 @@ const request = z
       "clear",
       "notebooks",
       "search",
-      "pages",
       "read",
       "context",
       "reconcile",
       "attach",
+      "followSource",
       "inbox",
       "takeInbox",
       "writingState",
@@ -212,26 +212,7 @@ async function dispatch(raw: unknown) {
     case "edit":
       return client.edit(id, edit.parse(message.payload));
     case "save":
-      return client.save(id, async () => {
-        const [tab] = await host.tabs.query({ active: true, windowId: id });
-        if (!tab?.url || tab.incognito !== false) return null;
-        try {
-          const url = new URL(tab.url);
-          if (
-            !["http:", "https:"].includes(url.protocol) ||
-            url.username ||
-            url.password
-          )
-            return null;
-          return webCaptureSchema.parse({
-            url: tab.url,
-            title: (tab.title ?? "").slice(0, 300),
-            capturedAt: new Date().toISOString(),
-          });
-        } catch {
-          return null;
-        }
-      });
+      return client.save(id);
     case "clear":
       return client.clear(id);
     case "notebooks":
@@ -243,18 +224,6 @@ async function dispatch(raw: unknown) {
         z
           .object({
             query: z.string().max(1000),
-            projectId: z.uuid().nullable(),
-            cursor: z.string().max(2048).optional(),
-          })
-          .strict()
-          .parse(message.payload),
-      );
-    case "pages":
-      return client.pages(
-        z
-          .object({
-            url: z.string().max(4096),
-            projectId: z.uuid().nullable(),
             cursor: z.string().max(2048).optional(),
           })
           .strict()
@@ -276,18 +245,18 @@ async function dispatch(raw: unknown) {
       );
     case "reconcile":
       return client.reconcile(id, z.uuid().parse(message.payload));
+    case "followSource": {
+      const [tab] = await host.tabs.query({ active: true, windowId: id });
+      return client.followSource(id, tabSource(tab, Date.now()));
+    }
     case "attach": {
-      const tabs = await host.tabs.query({ active: true, windowId: id });
-      const tab = tabs[0];
-      if (!tab?.url || tab.incognito !== false)
+      const [tab] = await host.tabs.query({ active: true, windowId: id });
+      const source = tabSource(tab, Date.now());
+      if (!source)
         throw new Error(
           "Page access is unavailable. Use Grove from this page's context menu, or enter a source URL manually.",
         );
-      return webCaptureSchema.parse({
-        url: tab.url,
-        title: tab.title ?? "",
-        capturedAt: new Date().toISOString(),
-      });
+      return source;
     }
     case "inbox":
       return inbox(id);
@@ -297,7 +266,10 @@ async function dispatch(raw: unknown) {
         item = items.find((item) => item.id === key);
       if (!item) throw new Error("Capture expired or changed account.");
       await client.clear(id);
-      const draft = await client.edit(id, sourceInput.parse(item));
+      const draft = await client.edit(id, {
+        ...sourceInput.parse(item),
+        textOrigin: "quoted",
+      });
       await session.set(
         inboxKey(id),
         items.filter((item) => item.id !== key),

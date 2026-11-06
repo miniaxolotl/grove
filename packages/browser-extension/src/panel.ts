@@ -1,8 +1,9 @@
 import type { Memory } from "@lib/shared/contracts";
 import { unavailableWriting } from "@lib/shared/writing-assistance";
-import { normalizeWebUrl, formatWebCapture } from "@lib/shared/web-capture";
 import type { CaptureDraft } from "./drafts.ts";
+import { formatCaptureDraft } from "./drafts.ts";
 import type { ExtensionClient } from "./client.ts";
+import { renderNote, noteSummary } from "./reader.ts";
 import { nativeBrowser as host, extensionConfig } from "./webextension.ts";
 import { WritingController } from "./writing/controller.ts";
 import {
@@ -256,7 +257,12 @@ async function saveWriting(change: {
     paintWriting();
   }
 }
-let searchMode: "search" | "page" = "search";
+let searchRevision = 0;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+let composingSearch = false;
+let draftRevision = 0;
+let readerNote: Memory | undefined;
+let readerRevision = 0;
 let notebookCursor: string | null = null;
 const selected = new Map<string, { id: string; version: number }>();
 const renderedNotes = new WeakMap<HTMLElement, Memory>();
@@ -271,13 +277,13 @@ const approved = () =>
   state?.identity.capabilities.some((cap) =>
     ["memory:read", "memory:write"].includes(cap),
   ) ?? false;
-const recallView = (): "search" | "page" | undefined =>
-  view === "search" ? searchMode : undefined;
+const recallView = () => view === "search";
 function closeDialogs() {
   for (const dialog of document.querySelectorAll("dialog")) dialog.close();
 }
 function notice(message = "") {
   $("notice").textContent = message;
+  $("notice-area").hidden = !message;
 }
 async function rpc<T>(kind: string, payload?: unknown): Promise<T> {
   const epoch = sessionEpoch;
@@ -383,6 +389,11 @@ function paintPreferences(next: Preferences) {
   $<HTMLButtonElement>("notebooks-more").disabled = !next.enabled;
   if (turningOff) {
     sessionEpoch++;
+    cancelSearch();
+    if ($<HTMLInputElement>("query").value.trim()) {
+      resultState.status = "Search paused. Earlier results below.";
+      resultState.cursor = null;
+    }
     preparedContext = undefined;
     closeDialogs();
   }
@@ -413,21 +424,6 @@ async function configure(changes: Partial<Preferences>) {
       !focused.closest("[hidden]")
     )
       focused.focus({ preventScroll: true });
-  }
-}
-function showSearchMode(next: "search" | "page") {
-  searchMode = next;
-  $("note-search").hidden = next !== "search";
-  $("page-search").hidden = next !== "page";
-  $("all-notes").setAttribute("aria-pressed", String(next === "search"));
-  $("this-page").setAttribute("aria-pressed", String(next === "page"));
-  paintResults();
-}
-function paintNotebookFilters() {
-  for (const kind of ["search", "page"]) {
-    const select = $<HTMLSelectElement>(`${kind}-scope`);
-    $(`${kind}-scope-label`).textContent =
-      select.selectedOptions[0]?.textContent ?? "Choose notebook";
   }
 }
 function approvalUrl() {
@@ -463,42 +459,47 @@ function updateNotebooks(items: State["notebooks"]["items"], append = false) {
       select.value = value;
     });
   $("notebooks-more").hidden = !notebookCursor;
-  paintNotebookFilters();
 }
 function paintDraft(draft: CaptureDraft, fields = true) {
   if (state) state.draft = draft;
   if (fields) {
     $("note").dataset.loaded = "true";
+    $("writing-hint").textContent = "Markdown supported";
     $<HTMLTextAreaElement>("note").value = draft.text;
     $<HTMLSelectElement>("destination").value = draft.projectId ?? "";
   }
+  $("source-label").textContent = draft.source
+    ? new URL(draft.source.url).hostname
+    : "";
+  $("destination-name").textContent =
+    $<HTMLSelectElement>("destination").selectedOptions[0]?.textContent ??
+    "Personal";
   const save = draft.save;
   let changedSinceSave = false;
   if (save?.status === "saved") {
     try {
       changedSinceSave =
-        save.request.content !== formatWebCapture(draft) ||
+        save.request.content !== formatCaptureDraft(draft) ||
         save.request.projectId !== draft.projectId ||
-        (!!draft.source &&
-          JSON.stringify(save.request.provenance) !==
-            JSON.stringify(draft.source));
+        JSON.stringify(save.request.provenance) !==
+          JSON.stringify(draft.source);
     } catch {
       changedSinceSave = true;
     }
   }
   $("save-state").textContent = !save
-    ? "Draft kept in this session."
+    ? ""
     : save.status === "saved"
       ? changedSinceSave
-        ? "Previous note saved. Newer draft is not saved."
-        : `Saved in Grove.${save.receipt.indexing !== "ready" ? ` Search indexing: ${save.receipt.indexing}.` : ""}`
+        ? "Your earlier note is saved. These changes aren’t saved yet."
+        : "Saved."
       : save.status === "failed"
-        ? "Save rejected. Your draft is kept. Retry the original save."
+        ? "Couldn’t save. Your note is still here. Retry the earlier note."
         : save.status === "uncertain"
-          ? "Save outcome is unknown. Retry the original save; your newer draft is kept."
+          ? "Save not confirmed. Retry the earlier note safely; newer changes stay here."
           : "Saving…";
   $("save").textContent =
-    save && save.status !== "saved" ? "Retry original save" : "Save note";
+    save && save.status !== "saved" ? "Retry earlier note" : "Save note";
   $<HTMLButtonElement>("save").formNoValidate =
     !!save && save.status !== "saved";
   $<HTMLAnchorElement>("saved-link").hidden = save?.status !== "saved";
@@ -523,14 +524,14 @@ function paintDraft(draft: CaptureDraft, fields = true) {
 }
 function count() {
   $("new-note").hidden =
-    !$<HTMLTextAreaElement>("note").value && !state?.draft?.source;
+    !state?.draft || state.draft.sourceMode === "automatic";
   if (!$<HTMLTextAreaElement>("note").value.trim() && !state?.draft?.source) {
     $("length").textContent = "0 / 6,000";
     return;
   }
   try {
     $("length").textContent =
-      `${formatWebCapture({ text: $<HTMLTextAreaElement>("note").value, ...(state?.draft?.source ? { source: state.draft.source } : {}) }).length.toLocaleString()} / 6,000`;
+      `${formatCaptureDraft({ ...state?.draft, text: $<HTMLTextAreaElement>("note").value }).length.toLocaleString()} / 6,000`;
   } catch {
     $("length").textContent = "Over the 6,000 character limit";
   }
@@ -540,15 +541,52 @@ function persist(changes: {
   projectId?: string | null;
   source?: CaptureDraft["source"] | null;
 }) {
+  draftRevision++;
+  // Keep the source visible at the first keystroke even if a navigation RPC
+  // is already in flight. Only an explicit new note resumes source following.
+  const pinned = { source: state?.draft?.source ?? null, ...changes };
   editTail = editTail
     .catch(() => {})
     .then(async () => {
-      const draft = await rpc<CaptureDraft>("edit", changes);
+      const draft = await rpc<CaptureDraft>("edit", pinned);
       paintDraft(draft, false);
     });
   void editTail.catch((error) =>
     notice(`Draft was not stored: ${error.message}`),
   );
+}
+async function followSource() {
+  if (
+    !preferences.enabled ||
+    !approved() ||
+    !state?.draft ||
+    state.draft.sourceMode !== "automatic" ||
+    state.draft.save
+  )
+    return;
+  const revision = draftRevision;
+  const epoch = sessionEpoch;
+  editTail = editTail
+    .catch(() => {})
+    .then(async () => {
+      if (
+        revision !== draftRevision ||
+        epoch !== sessionEpoch ||
+        !preferences.enabled
+      )
+        return;
+      const draft = await rpc<CaptureDraft>("followSource");
+      if (
+        revision !== draftRevision ||
+        epoch !== sessionEpoch ||
+        !preferences.enabled
+      )
+        return;
+      // Only source fields change: never reset the note, caret, destination or scroll.
+      if (state) state.draft = draft;
+      paintDraft(draft, false);
+    });
+  await editTail;
 }
 async function refresh() {
   if (!preferences.enabled) return;
@@ -619,6 +657,7 @@ async function refresh() {
     pending.append(row);
   }
   paintPreferences(preferences);
+  await followSource();
   await loadInbox();
   writingPreferences = await rpc<WritingPreferences>("writingState");
   paintWriting();
@@ -641,7 +680,7 @@ async function loadInbox() {
     const p = document.createElement("p");
     p.textContent = item.text || item.source.title || item.source.url;
     const button = document.createElement("button");
-    button.textContent = "Review capture";
+    button.textContent = "Add to note";
     button.onclick = () => {
       void action(async () =>
         replace(async () => {
@@ -657,40 +696,42 @@ async function loadInbox() {
   existing.forEach((el) => el.remove());
 }
 async function replace(run: () => Promise<void>) {
-  if ($<HTMLTextAreaElement>("note").value || state?.draft?.source) {
+  if (
+    state?.draft?.sourceMode !== "automatic" &&
+    ($<HTMLTextAreaElement>("note").value || state?.draft?.source)
+  ) {
     replaceAction = run;
     $<HTMLDialogElement>("confirm").showModal();
     return;
   }
   await run();
 }
-function emptyResults(kind: "search" | "page") {
+function emptyResults() {
   return {
     cursor: null as string | null,
-    input: {} as unknown,
+    input: { query: "" },
     items: [] as Memory[],
-    status:
-      kind === "search"
-        ? "Search to find active notes."
-        : "Only active, unchanged source associations appear here.",
+    status: "Type to search your notes.",
   };
 }
-const resultState = {
-  search: emptyResults("search"),
-  page: emptyResults("page"),
-};
+let resultState = emptyResults();
 function clearRecall() {
+  cancelSearch();
   selected.clear();
   preparedContext = undefined;
-  resultState.search = emptyResults("search");
-  resultState.page = emptyResults("page");
+  resultState = emptyResults();
   $("results").replaceChildren();
   updateContextAction();
   closeDialogs();
 }
 function updateContextAction() {
   $("context-actions").hidden = !selected.size;
-  $("review-context").textContent = `Review context (${selected.size})`;
+  if (recallView())
+    $("results-status").textContent = selected.size
+      ? `${selected.size} selected${resultState.status.includes("stale") ? " · stale results" : ""}`
+      : resultState.status;
+  $("review-context").textContent =
+    `Copy ${selected.size === 1 ? "note" : `${selected.size} notes`}`;
   document.querySelectorAll<HTMLElement>(".note-row").forEach((row) => {
     row.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked =
       selected.has(row.dataset.id!);
@@ -705,9 +746,8 @@ function sameNote(previous: Memory | undefined, note: Memory) {
   );
 }
 function paintResults() {
-  const kind = recallView();
-  if (!kind) return;
-  const current = resultState[kind],
+  if (!recallView()) return;
+  const current = resultState,
     list = $("results");
   $("results-status").textContent = current.status;
   $("results-more").hidden = !current.cursor;
@@ -730,27 +770,56 @@ function paintResults() {
   existing.forEach((row) => row.remove());
   updateContextAction();
 }
-async function find(kind: "search" | "page", more = false) {
-  await editTail;
-  const current = resultState[kind];
+function cancelSearch() {
+  clearTimeout(searchTimer);
+  searchRevision++;
+}
+function scheduleSearch(immediate = false) {
+  cancelSearch();
+  if (composingSearch || !preferences.enabled || !approved()) return;
+  const revision = searchRevision;
+  const query = $<HTMLInputElement>("query").value.trim();
+  resultState.cursor = null;
+  $("search-retry").hidden = true;
+  if (!query) {
+    resultState = emptyResults();
+    selected.clear();
+    preparedContext = undefined;
+    paintResults();
+    return;
+  }
+  resultState.status = resultState.items.length
+    ? "Waiting to search… Previous results below."
+    : "Waiting to search…";
+  paintResults();
+  searchTimer = setTimeout(
+    () => void find(false, revision),
+    immediate ? 0 : 250,
+  );
+}
+async function find(more = false, revision = searchRevision) {
+  const epoch = sessionEpoch;
+  if (revision !== searchRevision || !preferences.enabled || !approved())
+    return;
+  const current = resultState;
   const input = more
     ? current.input
-    : kind === "search"
-      ? {
-          query: $<HTMLInputElement>("query").value,
-          projectId: $<HTMLSelectElement>("search-scope").value || null,
-        }
-      : {
-          url: normalizeWebUrl($<HTMLInputElement>("page-url").value),
-          projectId: $<HTMLSelectElement>("page-scope").value || null,
-        };
+    : { query: $<HTMLInputElement>("query").value.trim() };
+  if (!input.query) return;
   current.status = "Finding notes…";
-  if (recallView() === kind) paintResults();
+  $("search-retry").hidden = true;
+  $<HTMLButtonElement>("results-more").disabled = true;
+  paintResults();
+  const active = () =>
+    revision === searchRevision &&
+    epoch === sessionEpoch &&
+    preferences.enabled;
   try {
     const data = await rpc<{ items: Memory[]; nextCursor: string | null }>(
-      kind === "page" ? "pages" : "search",
+      "search",
       { ...(input as object), ...(more ? { cursor: current.cursor } : {}) },
     );
+    if (!active()) return;
     current.input = input;
     current.cursor = data.nextCursor;
     current.items = [
@@ -762,11 +831,15 @@ async function find(kind: "search" | "page", more = false) {
       ).values(),
     ];
     current.status = `${current.items.length} ${current.items.length === 1 ? "note" : "notes"}${data.nextCursor ? " · more available" : ""} · checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-  } catch (error) {
+  } catch {
+    if (!active()) return;
     current.status = "Could not refresh. Any previous results below are stale.";
-    throw error;
+    $("search-retry").hidden = false;
   } finally {
-    if (recallView() === kind) paintResults();
+    if (active()) {
+      $<HTMLButtonElement>("results-more").disabled = false;
+      paintResults();
+    }
   }
 }
 function noteRow(note: Memory) {
@@ -779,13 +852,13 @@ function noteRow(note: Memory) {
   checkbox.checked = selected.has(note.id);
   checkbox.setAttribute(
     "aria-label",
-    `Select note for context: ${note.content.slice(0, 70)}`,
+    `Select note to copy: ${note.content.slice(0, 70)}`,
   );
   checkbox.onchange = () => {
     if (checkbox.checked) {
       if (selected.size >= 6) {
         checkbox.checked = false;
-        notice("Choose at most six notes for context.");
+        notice("Choose up to six notes to copy together.");
         return;
       }
       selected.set(note.id, { id: note.id, version: note.version });
@@ -794,22 +867,41 @@ function noteRow(note: Memory) {
   };
   const body = document.createElement("div"),
     button = document.createElement("button"),
+    title = document.createElement("span"),
     excerpt = document.createElement("span"),
     meta = document.createElement("p");
+  const summary = noteSummary(note.content);
+  title.className = "note-title";
+  title.textContent = summary.title;
   excerpt.className = "excerpt";
-  excerpt.textContent = note.content;
-  button.append(excerpt);
+  excerpt.textContent = summary.excerpt;
+  excerpt.hidden = !summary.excerpt;
+  button.append(title, excerpt);
   button.onclick = () => {
+    const revision = ++readerRevision;
     void action(async () => {
-      const current = await rpc<Memory>("read", note.id);
-      $("reader-content").textContent = current.content;
-      $("reader-meta").textContent =
-        `Version ${current.version} · ${current.kind}`;
-      $<HTMLAnchorElement>("reader-link").href = noteUrl(note.id);
-      $<HTMLDialogElement>("reader").showModal();
+      button.setAttribute("aria-busy", "true");
+      try {
+        const current = await rpc<Memory>("read", note.id);
+        if (revision !== readerRevision) return;
+        readerNote = current;
+        $("reader-content").replaceChildren(
+          renderNote(current.content, noteUrl(current.id)),
+        );
+        $("reader-copy-state").textContent = "";
+        $("reader-meta").textContent =
+          `Updated ${new Date(current.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+        $<HTMLAnchorElement>("reader-link").href = noteUrl(note.id);
+        $<HTMLDialogElement>("reader").showModal();
+      } finally {
+        button.removeAttribute("aria-busy");
+      }
     });
   };
-  meta.textContent = new Date(note.updatedAt).toLocaleDateString();
+  meta.textContent = new Date(note.updatedAt).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
   body.append(button, meta);
   row.append(checkbox, body);
   return row;
@@ -817,15 +909,12 @@ function noteRow(note: Memory) {
 document
   .querySelectorAll<HTMLElement>("[data-nav]")
   .forEach((el) => el.addEventListener("click", () => show(el.dataset.nav!)));
-on("all-notes", async () => showSearchMode("search"));
-on("this-page", async () => showSearchMode("page"));
 on("clear-selection", async () => {
   selected.clear();
   updateContextAction();
-  $<HTMLInputElement>($("page-search").hidden ? "query" : "page-url").focus();
+  $<HTMLInputElement>("query").focus();
 });
-for (const kind of ["search", "page"])
-  $(`${kind}-scope`).addEventListener("change", paintNotebookFilters);
+on("dismiss-notice", async () => notice());
 $("capture-form").addEventListener("submit", (event) => {
   event.preventDefault();
   void action(async () => {
@@ -858,6 +947,7 @@ $("capture-form").addEventListener("submit", (event) => {
   });
 });
 $("note").addEventListener("input", () => {
+  $("writing-hint").textContent = "Markdown supported";
   count();
   persist({ text: $<HTMLTextAreaElement>("note").value });
 });
@@ -868,6 +958,8 @@ on("new-note", async () =>
   replace(async () => {
     await editTail;
     paintDraft(await rpc<CaptureDraft>("clear"));
+    draftRevision++;
+    await followSource();
   }),
 );
 on("cancel-replace", async () => {
@@ -880,20 +972,21 @@ on("confirm-replace", async () => {
   $<HTMLDialogElement>("confirm").close();
   await run?.();
 });
-for (const kind of ["search", "page"] as const) {
-  $(`${kind}-form`).addEventListener("submit", (event) => {
-    event.preventDefault();
-    void action(() => find(kind));
-  });
-}
-on("results-more", async () => {
-  const kind = recallView();
-  if (kind) await find(kind, true);
+$("search-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!composingSearch) scheduleSearch(true);
 });
-on("page-current", async () => {
-  const capture = await rpc<{ url: string }>("attach");
-  $<HTMLInputElement>("page-url").value = capture.url;
+$("query").addEventListener("input", () => scheduleSearch());
+$("query").addEventListener("compositionstart", () => {
+  composingSearch = true;
+  cancelSearch();
 });
+$("query").addEventListener("compositionend", () => {
+  composingSearch = false;
+  scheduleSearch();
+});
+on("search-retry", async () => scheduleSearch(true));
+on("results-more", () => find(true));
 on("review-context", async () => {
   preparedContext = await rpc("context", selections());
   $<HTMLTextAreaElement>("context-text").value = preparedContext!.text;
@@ -913,10 +1006,12 @@ on("copy", async () => {
     preparedContext.items,
   );
   if (fresh.text !== preparedContext.text)
-    throw new Error("Context changed. Close and review it again.");
+    throw new Error(
+      "A selected note changed. Close this and check the notes again.",
+    );
   try {
     await navigator.clipboard.writeText(fresh.text);
-    $("copy-state").textContent = "Copied reviewed context.";
+    $("copy-state").textContent = "Copied. Ready to paste.";
   } catch {
     $("copy-state").textContent =
       "Clipboard unavailable. Select the reviewed text above and copy it manually.";
@@ -926,6 +1021,24 @@ on("copy", async () => {
 });
 on("close-reader", async () => {
   $<HTMLDialogElement>("reader").close();
+});
+$("reader").addEventListener("close", () => {
+  readerNote = undefined;
+  readerRevision++;
+});
+on("copy-note", async () => {
+  if (!readerNote) return;
+  const note = readerNote;
+  const current = await rpc<Memory>("read", note.id);
+  if (current.version !== note.version || readerNote?.id !== note.id)
+    throw new Error("This note changed. Reopen it before copying.");
+  try {
+    await navigator.clipboard.writeText(current.content);
+    $("reader-copy-state").textContent = "Copied. Ready to paste.";
+  } catch {
+    $("reader-copy-state").textContent =
+      "Could not copy. Open in Grove to copy this note.";
+  }
 });
 on("close-context", async () => {
   $<HTMLDialogElement>("context").close();
@@ -973,17 +1086,19 @@ function clearSessionView() {
         "Writing settings couldn’t refresh.";
     });
   paintWriting();
+  readerNote = undefined;
+  readerRevision++;
   clearRecall();
   $<HTMLTextAreaElement>("note").value = "";
   delete $("note").dataset.loaded;
   $("inbox-list").replaceChildren();
   $("pending-list").replaceChildren();
-  for (const id of ["query", "page-url", "context-text"])
+  for (const id of ["query", "context-text"])
     $<HTMLInputElement>(id).value = "";
   $("reader-content").textContent = "";
   $("reader-meta").textContent = "";
   $("save-state").textContent = "";
-  showSearchMode("search");
+  $("search-retry").hidden = true;
   $("save-details").hidden = true;
   $("saved-link").hidden = true;
   $("inbox").hidden = true;
@@ -1036,6 +1151,20 @@ host.storage.onChanged.addListener((changes, area) => {
   }
   const entry = changes[`entryError:${windowId}`];
   if (entry?.newValue) notice(String(entry.newValue));
+});
+host.tabs.onActivated.addListener((info) => {
+  if (info.windowId === windowId)
+    void followSource().catch((error) => notice(error.message));
+});
+host.tabs.onUpdated.addListener((_id, changes, tab) => {
+  if (
+    tab.windowId === windowId &&
+    tab.active &&
+    (changes.url !== undefined ||
+      changes.title !== undefined ||
+      changes.status === "complete")
+  )
+    void followSource().catch((error) => notice(error.message));
 });
 $<HTMLAnchorElement>("home").href = extensionConfig.siteOrigin;
 $("api-origin").textContent = extensionConfig.apiOrigin;
@@ -1140,6 +1269,7 @@ async function connectView() {
   paintWriting();
   try {
     await refresh();
+    if (resultState.status.startsWith("Search paused")) scheduleSearch(true);
   } catch (error) {
     if (!state) {
       show(view);

@@ -1,0 +1,96 @@
+{
+  "source": "Marketing studio \u2014 Grove / Listing & toolbar icons",
+  "sourceDirectory": "grove/extensions/icons",
+  "identity": "Approved Grove Sprout",
+  "files": {
+    "dark-16.png": {
+      "sha256": "2a27d723b1e65f58e8c74dc11c0a9208634c515bd9f6788e36b23b31996bf8bc",
+      "size": 16
+    },
+    "dark-20.png": {
+      "sha256": "e06d63e042d179b7d319dc620740eefd82f66a786720df20124753e6d29e9f45",
+      "size": 20
+    },
+    "dark-24.png": {
+      "sha256": "4aa1069f352f0951c0a7bd288eadbffc4361b1f908800a5f812af6bc2c0f780d",
+      "size": 24
+    },
+    "dark-32.png": {
+      "sha256": "7c3600f470030e634429ec2631d35ef25f0050ec15a2f242153327d8cfb38c08",
+      "size": 32
+    },
+    "dark-40.png": {
+      "sha256": "4b53734adaa6a163362e7e72bd9ab1f463d9cd0eedaa137816fa35caff14f853",
+      "size": 40
+    },
+    "dark-48.png": {
+      "sha256": "14a2659973a27e2abcb054a0ff976be335ae4ad574e6439956cce14dfc993c0d",
+      "size": 48
+    },
+    "dark-64.png": {
+      "sha256": "1ace9a5156bdd456cc7a9d24a2ecf2c876ad1f34473b02bb6dd5e49fb4b6a07d",
+      "size": 64
+    },
+    "dark-96.png": {
+      "sha256": "01c90b2cc0260482dcb026971df77f1839b34fe0cc0440443c2ff4fdeac67130",
+      "size": 96
+    },
+    "dark.svg": {
+      "sha256": "3e365ef3e4bfba4fbe685d130c2baf4dc81d0351b16a9820d481f156cae9748f"
+    },
+    "light-16.png": {
+      "sha256": "8fa549ba586eb971019c1b6708e0b8cd3e946eef45cd044d7c318e9ddda7c0b1",
+      "size": 16
+    },
+    "light-20.png": {
+      "sha256": "c1ec56478c1119d3236777fc25df967dc478432a965883835fa7902fca12571e",
+      "size": 20
+    },
+    "light-24.png": {
+      "sha256": "70a9649fda754381a218d3e33f22cb043738b38f4ad95ef168ea1a700d7885f2",
+      "size": 24
+    },
+    "light-32.png": {
+      "sha256": "a797a8229e616d6101065de938fde001885d2122f7f06460abf56cf839d5d500",
+      "size": 32
+    },
+    "light-40.png": {
+      "sha256": "d95c25d51777c7e50f220c4ecafb9faa3a8c4c9e8586563bc7d70d2b6aad82af",
+      "size": 40
+    },
+    "light-48.png": {
+      "sha256": "c852aaba01349596ba878a5315d7ed292ac8be3ae40fc33e4d3856bcbc5a775f",
+      "size": 48
+    },
+    "light-64.png": {
+      "sha256": "acebfe12fadd2ea65b34e93e069eb7709ff81052ac09572414c7258754833244",
+      "size": 64
+    },
+    "light-96.png": {
+      "sha256": "52b8c18cbbdb4036241c8bc77a9b9871d8c981a87378677f6edda2e1333eef49",
+      "size": 96
+    },
+    "light.svg": {
+      "sha256": "fd5798b55050ae92360f04de7b6022e90c477935ba7f9f0d0699edc06d1c2041"
+    },
+    "store-128.png": {
+      "sha256": "152560ff669c75ad5598d57946f9b061fae9f2f93362d22a509648184255e33c",
+      "size": 128
+    },
+    "store-300.png": {
+      "sha256": "94adbe24e0bab89600d9e2847d893a434b7b493a177f7dc4bb24a9d41ad521fb",
+      "size": 300
+    },
+    "store-512.png": {
+      "sha256": "e9dd1fbf84623bbd9573dd36965b045b4a5ddd193e2c800dba83427b4d6a890a",
+      "size": 512
+    },
+    "store-96.png": {
+      "sha256": "9add86db5c4aad1bb70255dc5754b2aafe0bf41af298ce4979a5713b97cce7e8",
+      "size": 96
+    },
+    "store.svg": {
+      "sha256": "11f09ef59f8cffc0b8baaa0578e3e055760c3b4a341a0151c8812700daf03357"
+    }
+  }
+}
