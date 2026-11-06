@@ -754,3 +754,62 @@
     transition: none !important;
   }
 }
+/* Revision changes use source text, not injected markup; geometry stays within its review surface. */
+.revision-review {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.revision-diff-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.revision-diff-heading span,
+.revision-diff-legend {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+.revision-diff-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+.revision-diff {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-height: 28rem;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  line-height: 1.65;
+}
+.revision-review ins {
+  color: #185732;
+  background: #e5f4ea;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.revision-review del {
+  color: #842b29;
+  background: #faebea;
+  text-decoration: line-through;
+}
+.revision-complete {
+  min-width: 0;
+}
+.revision-complete summary {
+  cursor: pointer;
+  padding-block: 8px;
+}
+@media (forced-colors: active) {
+  .revision-review ins,
+  .revision-review del {
+    color: CanvasText;
+    background: Canvas;
+  }
+}

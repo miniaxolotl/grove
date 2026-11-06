@@ -8,6 +8,10 @@
   ],
   "rules": [
     {
+      "prefix": "packages/browser-extension/",
+      "jobs": ["website", "contracts", "contracts-quality"]
+    },
+    {
       "prefix": "packages/website/",
       "jobs": ["website", "website-quality"]
     },

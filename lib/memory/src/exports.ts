@@ -324,7 +324,17 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
           "r.accountId",
         );
       })
-      .select("r.memoryId", "r.version", "r.content", "r.source", "r.createdAt")
+      .select(
+        "r.memoryId",
+        "r.version",
+        "r.content",
+        "r.source",
+        "r.createdAt",
+        "r.document",
+        "r.change",
+        "r.actor",
+        "r.revisionGroup",
+      )
       .orderBy("r.memoryId")
       .orderBy("r.version")
       .limit(pageSize);
@@ -362,6 +372,11 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
       "expiresAt",
       "createdAt",
       "updatedAt",
+    );
+    q.select(
+      trx.raw(
+        "(SELECT provenance FROM web_captures wc WHERE wc.memory_id=memories.id AND wc.account_id=memories.account_id AND wc.active ORDER BY version DESC LIMIT 1) AS web_capture",
+      ),
     );
     if (projects) q.whereIn("projectId", projects);
   } else if (kind === "notebook") {

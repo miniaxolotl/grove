@@ -67,7 +67,14 @@ Read the exact current note before editing. Use its current ID/version and prese
 unrequested text, structure, task states, links, code and attachment references.
 Do not silently shorten the rest of a note to satisfy a concise-writing preference.
 
-`update_memory` is partial **by field**, not by passage. Omit unchanged metadata;
+For passage edits, read the exact source/version, call `preview_memory_patch` with
+bounded source splices, show its diff, then `apply_memory_patch` with the same
+arguments and review token. Preserve text outside the requested ranges. Do not
+silently fall back to replacement on conflicts or older servers. The
+[structured editing contract](structured-documents.md) owns offsets, review/retry,
+capability negotiation and limits.
+
+Legacy `update_memory.content` is partial **by field**, not by passage. Omit unchanged metadata;
 when supplying `content`, send the **complete intended note body**, not only the
 new paragraph. Legacy `remember` corrections replace metadata too. Keep the same
 operation ID and identical arguments for uncertain retries; review a version
@@ -118,7 +125,7 @@ claims of live-model scores or a new paid-model CI job.
 | Save a code example                 | Correct literal fencing; no extra document wrapper                      |
 | Request a detailed note             | Preserve requested depth; do not impose an arbitrary brevity cap        |
 | Import exact text                   | Preserve the original; no style rewrite of source evidence              |
-| Edit one paragraph                  | Complete resulting body, with unrelated content/metadata retained       |
+| Edit one paragraph                  | Reviewed source splices; unrelated content/metadata retained            |
 | Edit a note containing media        | Preserve exact existing references and authorization                    |
 | Ambiguous destination               | Clarify; no guessed UUID, cross-project search or new notebook          |
 | Organization request                | Only requested items; appropriate existing destinations/kinds           |

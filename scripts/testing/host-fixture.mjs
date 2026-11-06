@@ -12,6 +12,10 @@ export const exec = promisify(execFile);
 export const key = "grove-isolated-fixture-key";
 export const memoryId = "00000000-0000-4000-a000-000000000002";
 export const tools = [
+  "get_memory_document",
+  "preview_memory_patch",
+  "apply_memory_patch",
+  "compare_memory_revisions",
   "forget",
   "memories",
   "recall",
