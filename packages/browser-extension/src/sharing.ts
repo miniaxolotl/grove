@@ -5,7 +5,7 @@ import {
   type ShareState,
   type ShareDuration,
 } from "@lib/shared/sharing";
-import { renderNote } from "./reader.ts";
+import { noteSummary, renderNote } from "./reader.ts";
 import { userMessage } from "./messages.ts";
 
 /** One focused dialog; publishing is always a separate, explicit user action. */
@@ -33,6 +33,7 @@ export class ShareController {
     for (const [value, choice] of Object.entries(shareDurations))
       duration.add(new Option(choice.label, value));
     duration.value = "1w";
+    duration.addEventListener("change", () => this.paint());
     this.element("close-sharing").onclick = () => this.close();
     this.dialog.addEventListener("close", () => {
       this.epoch++;
@@ -85,27 +86,79 @@ export class ShareController {
     this.element("share-link-tools").hidden = !link;
     this.element("share-new").hidden =
       !!link || !this.state?.available || !this.state.canShare;
-    this.element("share-status").textContent = link
+    this.element("share-options").hidden =
+      !link && (!this.state?.available || !this.state.canShare);
+    this.element("share-existing-options").hidden = !link;
+    this.element("share-expiry").hidden = !!link;
+    const duration = this.element<HTMLSelectElement>("share-duration").value;
+    this.element("share-expiry-label").textContent = link
       ? this.state?.direct?.expiresAt
-        ? `Expires ${new Date(this.state.direct.expiresAt).toLocaleDateString()}.`
-        : "Link ready."
-      : this.state && !this.state.available
+        ? `Expires ${new Date(this.state.direct.expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+        : "No expiry"
+      : duration
+        ? shareDurations[duration as ShareDuration].label
+        : "No expiry";
+    this.element("share-status").textContent =
+      this.state && !this.state.available
         ? "Sharing isn’t available right now."
         : this.state && !this.state.canShare
           ? "This note can’t be shared right now."
           : "";
   }
+  private setBusy(busy: boolean) {
+    this.busy = busy;
+    for (const id of [
+      "create-share",
+      "copy-share",
+      "revoke-share",
+      "share-duration",
+    ])
+      this.element<HTMLButtonElement | HTMLSelectElement>(id).disabled = busy;
+  }
+  private problem(error: unknown, fallback: string) {
+    this.state = undefined;
+    this.paint();
+    this.element("share-status").textContent = userMessage(error, fallback);
+    this.element("share-approval").hidden = ![
+      "sharing_permission_required",
+      "forbidden",
+    ].includes((error as { code?: string } | null)?.code ?? "");
+    this.element("share-retry").hidden = false;
+  }
+  private focusAction(previous: Element | null) {
+    if (
+      !this.dialog.open ||
+      ![document.body, this.dialog, previous].includes(document.activeElement)
+    )
+      return;
+    const id = !this.element("share-retry").hidden
+      ? "share-retry"
+      : this.url()
+        ? "copy-share"
+        : !this.element("share-new").hidden
+          ? "create-share"
+          : "close-sharing";
+    this.element(id).focus({ preventScroll: true });
+  }
   async open(id: string) {
+    const fresh = id !== this.id || !this.dialog.open;
+    const previous = document.activeElement;
     this.id = id;
     const epoch = ++this.epoch;
     this.state = undefined;
     this.note = undefined;
-    this.busy = false;
+    this.setBusy(false);
+    if (fresh)
+      for (const id of ["share-note", "share-options"])
+        this.element<HTMLDetailsElement>(id).open = false;
     this.element("share-title").textContent = "Share note";
+    this.element("share-note-title").textContent = "Note";
     this.element("share-preview").replaceChildren();
+    this.element<HTMLInputElement>("share-link").value = "";
     this.element("share-status").textContent = "Opening…";
     this.element("share-new").hidden = true;
     this.element("share-link-tools").hidden = true;
+    this.element("share-options").hidden = true;
     this.element("share-approval").hidden = true;
     this.element("share-retry").hidden = true;
     this.element<HTMLAnchorElement>("share-approval").href =
@@ -116,6 +169,9 @@ export class ShareController {
       const note = await this.transport.rpc<Memory>("read", id);
       if (epoch !== this.epoch) return;
       this.note = note;
+      this.element("share-note-title").textContent = noteSummary(
+        note.content,
+      ).title;
       this.element("share-preview").replaceChildren(
         renderNote(note.content, this.transport.siteOrigin, document, true),
       );
@@ -134,15 +190,9 @@ export class ShareController {
       this.paint();
     } catch (error) {
       if (epoch !== this.epoch) return;
-      this.element("share-status").textContent = userMessage(
-        error,
-        "Couldn’t open sharing. Try again.",
-      );
-      this.element("share-approval").hidden = ![
-        "sharing_permission_required",
-        "forbidden",
-      ].includes((error as { code?: string }).code ?? "");
-      this.element("share-retry").hidden = false;
+      this.problem(error, "Couldn’t open sharing. Try again.");
+    } finally {
+      if (epoch === this.epoch) this.focusAction(previous);
     }
   }
   private async mutate(revoke: boolean) {
@@ -150,11 +200,10 @@ export class ShareController {
     const epoch = this.epoch,
       note = this.note,
       direct = this.state.direct;
-    this.busy = true;
+    this.setBusy(true);
     const button = this.element<HTMLButtonElement>(
       revoke ? "revoke-share" : "create-share",
     );
-    button.disabled = true;
     this.element("share-status").textContent = revoke
       ? "Turning off…"
       : "Creating link…";
@@ -182,35 +231,19 @@ export class ShareController {
       if (revoke) this.element("share-status").textContent = "Link turned off.";
     } catch (error) {
       if (epoch !== this.epoch) return;
-      this.element("share-status").textContent = userMessage(
-        error,
-        "Not confirmed. Check sharing before trying again.",
-      );
-      this.element("share-retry").hidden = false;
-      this.element("share-new").hidden = true;
-      this.element("share-link-tools").hidden = true;
+      this.problem(error, "Not confirmed. Check sharing before trying again.");
     } finally {
-      this.busy = false;
-      button.disabled = false;
-      if (
-        epoch === this.epoch &&
-        this.dialog.open &&
-        [document.body, this.dialog, button].includes(
-          document.activeElement as HTMLElement,
-        )
-      ) {
-        const next = !this.element("share-retry").hidden
-          ? "share-retry"
-          : this.url()
-            ? "copy-share"
-            : "create-share";
-        this.element(next).focus({ preventScroll: true });
+      if (epoch === this.epoch) {
+        this.setBusy(false);
+        this.focusAction(button);
       }
     }
   }
   private async copy() {
     if (!this.note || this.busy) return;
     const epoch = this.epoch;
+    this.setBusy(true);
+    this.element("share-status").textContent = "Checking link…";
     try {
       const state = await this.transport.rpc<ShareState>(
         "sharing",
@@ -219,30 +252,29 @@ export class ShareController {
       if (epoch !== this.epoch) return;
       this.state = state;
       this.paint();
+      const link = this.url();
+      if (!link) return;
+      try {
+        await navigator.clipboard.writeText(link);
+        if (epoch === this.epoch)
+          this.element("share-status").textContent = "Link copied.";
+      } catch {
+        if (epoch !== this.epoch) return;
+        this.element("share-status").textContent =
+          "Select the link to copy it.";
+        this.element<HTMLDetailsElement>("share-options").open = true;
+        const input = this.element<HTMLInputElement>("share-link");
+        input.focus();
+        input.select();
+      }
     } catch (error) {
       if (epoch !== this.epoch) return;
-      this.element("share-status").textContent = userMessage(
-        error,
-        "Couldn’t check sharing. Try again.",
-      );
-      this.element("share-link-tools").hidden = true;
-      this.element<HTMLInputElement>("share-link").value = "";
-      this.element("share-retry").hidden = false;
-      return;
-    }
-    const link = this.url();
-    if (!link) {
-      this.paint();
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(link);
-      this.element("share-status").textContent = "Link copied.";
-    } catch {
-      this.element("share-status").textContent = "Select the link to copy it.";
-      const input = this.element<HTMLInputElement>("share-link");
-      input.focus();
-      input.select();
+      this.problem(error, "Couldn’t check sharing. Try again.");
+    } finally {
+      if (epoch === this.epoch) {
+        this.setBusy(false);
+        this.focusAction(this.element("copy-share"));
+      }
     }
   }
 }

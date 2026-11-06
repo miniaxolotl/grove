@@ -85,12 +85,16 @@ publish content, even with every memory capability.
 ### Extension note links
 
 The browser extension offers Share from each Search result's action menu and reader,
-and Save & share from Notes. Opening the dialog does not publish. The saved note is
+and Save & share from Notes. The compact dialog uses the panel's existing note and
+Details-disclosure conventions: the note title expands its preview, and Link options
+holds expiry, the URL and Turn off link. Create link or Copy link is the single main
+action, with quiet in-place progress/recovery and Escape returning to the invoking
+note action. Opening the dialog does not publish. The saved note is
 reloaded before an explicit Create link, with the normal target/share version fences,
 expiry, replay and revocation behavior. Draft changes during saving block sharing
 that older snapshot. Existing links can be copied or turned off in place. A lost
 response offers Check sharing; it is not silently repeated. Clipboard failure selects
-the real link for manual copying and never reports success.
+the real link under the expanded options for manual copying and never reports success.
 
 An owning session must explicitly enable `sharingEnabled` for the OAuth connection;
 it defaults off and is separate from reading/saving and AI permission. Each request

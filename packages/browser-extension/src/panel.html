@@ -297,43 +297,62 @@
       </div>
       <p id="reader-copy-state" class="feedback" role="status"></p>
     </dialog>
-    <dialog id="sharing" aria-labelledby="share-title">
+    <dialog
+      id="sharing"
+      aria-labelledby="share-title"
+      aria-describedby="share-notice"
+    >
       <div class="title-row">
         <h2 id="share-title">Share note</h2>
-        <button id="close-sharing">Close</button>
+        <button id="close-sharing" aria-label="Close sharing">×</button>
       </div>
-      <p class="muted">
-        Anyone with the link can view this note and future saved changes.
+      <details id="share-note" class="share-disclosure">
+        <summary>
+          <span class="sr-only">Preview </span
+          ><span id="share-note-title">Note</span>
+        </summary>
+        <article
+          id="share-preview"
+          class="note-document"
+          tabindex="0"
+          aria-label="Note to share"
+        ></article>
+      </details>
+      <p id="share-notice" class="muted">
+        Anyone with the link can read this note and future changes.
       </p>
-      <article
-        id="share-preview"
-        class="note-document"
-        tabindex="0"
-        aria-label="Note to share"
-      ></article>
-      <div id="share-new" hidden>
-        <label for="share-duration">Link expires</label
-        ><select id="share-duration"></select
-        ><button id="create-share" class="primary">Create link</button>
-      </div>
-      <div id="share-link-tools" hidden>
-        <label for="share-link">Sharing link</label>
-        <div class="joined">
-          <input id="share-link" readonly type="text" /><button id="copy-share">
-            Copy link
-          </button>
+      <div id="share-controls">
+        <div id="share-new" hidden>
+          <button id="create-share" class="primary">Create link</button>
         </div>
-        <button id="revoke-share" class="quiet">Turn off link</button>
+        <div id="share-link-tools" hidden>
+          <button id="copy-share" class="primary">Copy link</button>
+        </div>
+        <details id="share-options" class="share-disclosure" hidden>
+          <summary>
+            <span>Link options</span
+            ><span id="share-expiry-label" class="muted"></span>
+          </summary>
+          <div id="share-expiry" class="field-stack">
+            <label for="share-duration">Link expires</label>
+            <select id="share-duration"></select>
+          </div>
+          <div id="share-existing-options" class="field-stack" hidden>
+            <label for="share-link">Sharing link</label>
+            <input id="share-link" readonly type="text" />
+            <button id="revoke-share" class="quiet">Turn off link</button>
+          </div>
+        </details>
+        <a
+          id="share-approval"
+          class="button"
+          hidden
+          target="_blank"
+          rel="noreferrer"
+          >Allow sharing in Grove</a
+        ><button id="share-retry" hidden>Check sharing</button>
       </div>
       <p id="share-status" class="feedback" role="status"></p>
-      <a
-        id="share-approval"
-        class="button"
-        hidden
-        target="_blank"
-        rel="noreferrer"
-        >Allow sharing in Grove</a
-      ><button id="share-retry" hidden>Check sharing</button>
     </dialog>
     <dialog id="confirm" aria-labelledby="confirm-title">
       <h2 id="confirm-title">Replace this draft?</h2>

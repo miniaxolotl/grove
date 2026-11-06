@@ -189,10 +189,13 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   fetched or extracted in the extension; previously imported Markdown is readable.
 - **Share:** choose Share from a result's menu or reader, or **Save & share** in Notes.
   A new note saves first; changed/uncertain drafts cannot publish an older snapshot.
-  The compact dialog rechecks the saved note, offers link expiry (initially one week), and creates a
-  public read-only link only after **Create link**. Copy rechecks current sharing
-  access; Copy and **Turn off link** reuse
-  the existing sharing lifecycle. Unknown outcomes offer **Check sharing**, not an
+  The compact dialog identifies the note without reopening a full reader. Its
+  title expands a saved-note preview; **Link options** holds expiry (initially one
+  week), the URL and **Turn off link**. **Create link** explicitly publishes; the
+  single main action then becomes **Copy link**, which rechecks current sharing
+  access. Clipboard failure expands the options and selects the real URL for
+  manual copying. Escape returns to the invoking note action. Unknown outcomes
+  offer **Check sharing**, not an
   automatic second publication. Sharing needs its own owner-approved **Allow sharing
   links for accessible notes** permission in Grove Connections; note access alone
   is insufficient. See [sharing](sharing.md#extension-note-links).

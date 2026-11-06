@@ -325,20 +325,23 @@ summary {
   padding: 12px 0;
   font-size: 13px;
 }
-#note-details > summary {
+#note-details > summary,
+.share-disclosure > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   list-style: none;
 }
-#note-details > summary::after {
+#note-details > summary::after,
+.share-disclosure > summary::after {
   content: "+";
   color: var(--muted);
   font-size: 18px;
   font-weight: 400;
 }
-#note-details[open] > summary::after {
+#note-details[open] > summary::after,
+.share-disclosure[open] > summary::after {
   content: "−";
 }
 .details-preview {
@@ -801,35 +804,85 @@ dialog .title-row button {
   accent-color: var(--signal);
   margin-top: 2px;
 }
-#share-preview {
-  min-height: 100px;
-  max-height: 160px;
-  overflow: auto;
-  padding: 12px;
-  background: var(--ground);
-  border-radius: 10px;
+#sharing {
+  max-width: 360px;
+  padding: 20px;
+  border: 0;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px #0002;
 }
-#create-share {
-  margin-top: 16px;
+#sharing::backdrop {
+  background: #15221929;
+}
+#sharing .title-row {
+  margin-bottom: 0;
+}
+#close-sharing {
+  width: 44px;
+  padding: 0;
+  font-size: 24px;
+}
+#share-note-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 500;
+}
+.share-disclosure > summary {
+  line-height: 20px;
+}
+#share-note > summary::after {
+  flex: none;
+}
+#share-preview {
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px 0;
+  font-size: 13px;
+}
+#share-preview > :first-child {
+  margin-top: 0;
+}
+#share-preview h2 {
+  font-size: 16px;
+}
+#share-notice {
+  margin: 4px 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+#create-share,
+#copy-share {
+  width: 100%;
+}
+#share-controls {
+  min-height: 92px;
+}
+#share-approval,
+#share-retry {
   width: 100%;
 }
 #share-status {
   min-height: 36px;
+  margin-top: 4px;
+  color: var(--muted);
 }
-#share-link-tools .joined {
-  display: flex;
+#share-options > summary {
+  margin-top: 4px;
   gap: 8px;
-  align-items: center;
 }
-#share-link-tools input {
-  min-width: 0;
+#share-expiry-label {
   flex: 1;
+  text-align: right;
+  font-size: 12px;
 }
-#share-link-tools button {
-  flex: none;
+#share-options input {
+  font-size: 12px;
 }
-#sharing .title-row {
-  margin-bottom: 12px;
+#revoke-share {
+  margin-top: 8px;
+  padding-inline: 0;
 }
 .result-heading {
   flex-wrap: wrap;

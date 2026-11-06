@@ -397,6 +397,8 @@ for (const target of ["chrome", "edge"])
               }
               data = { items: notes, nextCursor: null };
             } else if (path.endsWith("/share")) {
+              globalThis.fixtureSharingStarted?.();
+              await globalThis.fixtureSharingGate;
               const id = path.split("/")[3],
                 note = notes.find((note) => note.id === id);
               if (!note) throw new Error("Unknown note");
@@ -1882,6 +1884,49 @@ for (const target of ["chrome", "edge"])
           fullPage: true,
         });
       }
+      await worker.evaluate(() => {
+        globalThis.fixtureSharingGate = new Promise((resolve) => {
+          globalThis.releaseSharing = resolve;
+        });
+        globalThis.fixtureSharingReached = new Promise((resolve) => {
+          globalThis.fixtureSharingStarted = resolve;
+        });
+      });
+      await page.locator("#share-reader").click();
+      await worker.evaluate(() => globalThis.fixtureSharingReached);
+      const openingShareBox = await page.locator("#sharing").boundingBox();
+      assert.match(
+        await page.locator("#share-status").textContent(),
+        /Opening/,
+      );
+      await worker.evaluate(() => {
+        globalThis.releaseSharing();
+        globalThis.fixtureSharingStarted = undefined;
+      });
+      await page.locator("#create-share").waitFor({ state: "visible" });
+      assert.equal(
+        (await page.locator("#sharing").boundingBox()).height,
+        openingShareBox.height,
+        "opening sharing reserves its real action space",
+      );
+      assert.equal(
+        (await page.locator("#sharing").boundingBox()).y,
+        openingShareBox.y,
+        "loading does not recenter the surface",
+      );
+      await page.locator("#sharing").press("Escape");
+      assert.equal(
+        await page.locator("#reader").evaluate((element) => element.open),
+        true,
+        "sharing stays contextual to the reader",
+      );
+      assert.equal(
+        await page
+          .locator("#share-reader")
+          .evaluate((element) => element === document.activeElement),
+        true,
+        "Escape returns focus to the reader action",
+      );
       await page.locator("#close-reader").click();
       await page.locator("#results .note-menu summary").click();
       await page
@@ -1911,11 +1956,54 @@ for (const target of ["chrome", "edge"])
       await page.locator("#share-retry").click();
       await page.locator("#create-share").waitFor({ state: "visible" });
       assert.equal(
+        await page.locator("#share-preview").isVisible(),
+        false,
+        "sharing keeps the note preview behind its disclosure",
+      );
+      assert.equal(
+        await page.locator("#share-duration").isVisible(),
+        false,
+        "expiry is a secondary option",
+      );
+      assert.equal(
+        await page.locator("#share-note-title").textContent(),
+        "Field notes",
+      );
+      assert.equal(
+        await page.locator("#share-note").evaluate((element) => element.open),
+        false,
+      );
+      assert.equal(
+        await page
+          .locator("#share-options")
+          .evaluate((element) => element.open),
+        false,
+      );
+      assert.match(
+        await page.locator("#share-expiry-label").textContent(),
+        /1 week/,
+      );
+      assert.equal(await page.locator("#share-duration").inputValue(), "1w");
+      assert.ok(
+        (await page.locator("#sharing").boundingBox()).height < 365,
+        "sharing starts as a compact surface, not a second reader",
+      );
+      if (process.env.EXTENSION_SCREENSHOTS)
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-sharing-create-390.png`,
+          ),
+          fullPage: true,
+        });
+      assert.equal(
         await worker.evaluate(() => globalThis.fixtureShareWrites.length),
         0,
         "opening sharing never publishes",
       );
+      await page.locator("#share-options summary").click();
       await page.locator("#share-duration").selectOption("1d");
+      await page.locator("#share-options summary").click();
       await worker.evaluate(() => {
         globalThis.fixtureShareLost = true;
       });
@@ -1926,6 +2014,23 @@ for (const target of ["chrome", "edge"])
         .waitFor();
       await page.locator("#share-retry").click();
       await page.locator("#copy-share").waitFor({ state: "visible" });
+      assert.equal(
+        await page.locator("#share-link").isVisible(),
+        false,
+        "the URL does not compete with Copy link",
+      );
+      assert.equal(
+        await page.locator("#revoke-share").isVisible(),
+        false,
+        "turning off a link stays in options",
+      );
+      assert.equal(
+        await page
+          .locator("#copy-share")
+          .evaluate((element) => element === document.activeElement),
+        true,
+        "reconciliation moves focus from the hidden retry to Copy link",
+      );
       assert.equal(
         await worker.evaluate(() => globalThis.fixtureShareWrites.length),
         1,
@@ -1941,6 +2046,41 @@ for (const target of ["chrome", "edge"])
         .locator("#share-status")
         .filter({ hasText: /Link copied|Select the link/ })
         .waitFor();
+      const copyPosition = await page.locator("#copy-share").boundingBox();
+      await worker.evaluate(() => {
+        globalThis.fixtureSharingGate = new Promise((resolve) => {
+          globalThis.releaseSharing = resolve;
+        });
+        globalThis.fixtureSharingReached = new Promise((resolve) => {
+          globalThis.fixtureSharingStarted = resolve;
+        });
+      });
+      await page.locator("#copy-share").click();
+      await worker.evaluate(() => globalThis.fixtureSharingReached);
+      assert.equal(await page.locator("#copy-share").isDisabled(), true);
+      assert.match(
+        await page.locator("#share-status").textContent(),
+        /Checking link/,
+      );
+      assert.equal(
+        (await page.locator("#copy-share").boundingBox()).y,
+        copyPosition.y,
+        "pending feedback keeps the main action in place",
+      );
+      await worker.evaluate(() => {
+        globalThis.releaseSharing();
+        globalThis.fixtureSharingStarted = undefined;
+      });
+      await page
+        .locator("#share-status")
+        .filter({ hasText: /Link copied|Select the link/ })
+        .waitFor();
+      assert.equal(await page.locator("#copy-share").isDisabled(), false);
+      assert.equal(
+        (await page.locator("#copy-share").boundingBox()).y,
+        copyPosition.y,
+        "completed feedback does not shift the action",
+      );
       const shareAudit = await new AxeBuilder({ page }).analyze();
       assert.deepEqual(
         shareAudit.violations.map((item) => item.id),
@@ -1954,6 +2094,45 @@ for (const target of ["chrome", "edge"])
           ),
           fullPage: true,
         });
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme });
+        for (const width of [280, 320, 390, 768]) {
+          await page.setViewportSize({
+            width,
+            height: width === 320 ? 480 : 844,
+          });
+          assert.ok(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+          );
+          const box = await page.locator("#sharing").boundingBox();
+          assert.ok(box.width <= Math.min(360, width - 24) + 1);
+          assert.ok(
+            box.y >= 0 && box.y + box.height <= (width === 320 ? 480 : 844),
+            "compact sharing fits short panels",
+          );
+          const audit = await new AxeBuilder({ page }).analyze();
+          assert.deepEqual(
+            audit.violations.map((item) => item.id),
+            [],
+            `sharing accessibility ${colorScheme} ${width}`,
+          );
+          if (
+            process.env.EXTENSION_SCREENSHOTS &&
+            (width === 320 || width === 768)
+          )
+            await page.screenshot({
+              path: join(
+                process.env.EXTENSION_SCREENSHOTS,
+                `${target}-sharing-${colorScheme}-${width}.png`,
+              ),
+              fullPage: true,
+            });
+        }
+      }
+      await page.emulateMedia({ colorScheme: "light" });
+      await page.setViewportSize({ width: 390, height: 844 });
       await worker.evaluate(() => {
         globalThis.fixtureSharingAllowed = false;
       });
@@ -1995,6 +2174,41 @@ for (const target of ["chrome", "edge"])
           .evaluate((input) => input.selectionEnd - input.selectionStart),
         (await page.locator("#share-link").inputValue()).length,
       );
+      assert.equal(
+        await page
+          .locator("#share-options")
+          .evaluate((element) => element.open),
+        true,
+        "clipboard failure reveals manual copying in place",
+      );
+      assert.equal(
+        await page
+          .locator("#share-link")
+          .evaluate((element) => element === document.activeElement),
+        true,
+      );
+      await page.setViewportSize({ width: 320, height: 480 });
+      const manualCopyAudit = await new AxeBuilder({ page }).analyze();
+      assert.deepEqual(
+        manualCopyAudit.violations.map((item) => item.id),
+        [],
+        "expanded link options are keyboard accessible in a short panel",
+      );
+      if (process.env.EXTENSION_SCREENSHOTS)
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-sharing-options-320.png`,
+          ),
+          fullPage: true,
+        });
+      await page.locator("#share-note summary").click();
+      assert.equal(
+        await page.locator("#share-preview strong").textContent(),
+        "A clear idea",
+      );
+      await page.locator("#share-note summary").click();
+      await page.setViewportSize({ width: 390, height: 844 });
       await page.evaluate(() => {
         globalThis.navigator.clipboard.writeText =
           globalThis.shareClipboardWrite;

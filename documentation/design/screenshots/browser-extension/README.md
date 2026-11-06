@@ -1,6 +1,43 @@
 # Browser extension evidence
 
-## Streamlined panel — 6 November 2026
+## Compact note sharing — 6 November 2026
+
+Unsigned product `1.11.15`, refinement following `cc9e3129`; exact source/checks
+are in [PR #189](https://github.com/miniaxolotl/grove/pull/189). Chrome ZIP SHA-256:
+`9081b522d10788522fdfafaf954fcc3df32e8f412996145a7189b0da433d372b`.
+Actual installed Chromium `156.0.8078.4` with synthetic notes/auth/HTTP and fake
+sharing URLs, not a real publication or browser-store build.
+
+| Create link                                                                                      | Copy link                                                                                    | Link options                                                                                          | Short, dark panel                                                                          |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![One explicit publication action with a quiet one-week default](compact-sharing-create-390.png) | ![Copy is the main action; preview and options stay collapsed](compact-sharing-copy-390.png) | ![Clipboard failure reveals and selects the real link under options](compact-sharing-options-320.png) | ![Compact sharing integrated with the panel's dark surfaces](compact-sharing-dark-320.png) |
+
+Create/Copy are 390 × 844; Options/Dark are 320 × 480. The established Editorial
+greeting direction (`1378124550`), sage palette, type and note entry points stay.
+Sharing answers “Can I share this note?” in one compact native surface, using the
+same plus/minus disclosure pattern as Notes Details. The note title expands its
+safe preview. Expiry, URL and Turn off link sit under Link options. A lighter
+backdrop and smaller overlay shadow leave the surrounding note recognizable;
+there is no new route, wizard, decorative motion or automatic publication.
+
+Installed journeys check collapsed defaults, optional preview, one-week expiry,
+one primary action, initial/pending/completed geometry, manual clipboard recovery,
+reconciliation focus and Escape back to the reader. Light/dark 280/320/390/768px
+and short-panel overflow/axe checks run alongside existing scope/revocation,
+uncertain-publication and typing-during-save safeguards. Permission, version/replay,
+backend/queue and provider contracts are unchanged. Fixture success does not qualify
+live sharing, Firefox sharing, native grant/update prompts or branded browser UI.
+
+Visual review: hierarchy 8/10, usability 9/10, identity 8/10. The three changes from
+the previous gallery are a collapsed preview, one main Create/Copy action and
+quiet secondary link controls. A first accessibility pass caught a summary whose
+accessible name omitted its visible note title; its name now includes that title.
+The final layout reserves the real action/status area while opening and checking
+instead of recentering the dialog. Installed captures/geometry/axe are used because
+the generic inspector cannot install the isolated extension origin; no generic
+inspector pass is claimed. Source-lint shadow warnings belong to real overlays.
+
+## Earlier streamlined panel — 6 November 2026
 
 Unsigned product `1.11.15`, refinement following `3d9a07a6`; exact source and CI
 are recorded in [PR #189](https://github.com/miniaxolotl/grove/pull/189).
