@@ -64,7 +64,7 @@ button,
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--control);
   border-radius: 6px;
@@ -124,6 +124,7 @@ main {
   width: 100%;
   min-height: 0;
   overflow-y: auto;
+  scroll-padding-block: 16px;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   margin: 0 auto;
@@ -160,7 +161,8 @@ p {
   gap: 12px;
 }
 .title-row {
-  margin-bottom: 20px;
+  min-height: 44px;
+  margin-bottom: 16px;
 }
 .title-row h1,
 .title-row h2 {
@@ -174,6 +176,24 @@ label {
   font-weight: 600;
   margin: 16px 0 8px;
 }
+#capture-form > label:first-child {
+  margin-top: 0;
+}
+.quiet {
+  border-color: transparent;
+  background: transparent;
+}
+.destination-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.destination-field label {
+  margin: 0;
+  font-weight: 400;
+}
 input:not([type="checkbox"]),
 select,
 textarea {
@@ -182,7 +202,7 @@ textarea {
   border-radius: 6px;
   background: var(--surface);
   padding: 10px;
-  min-height: 40px;
+  min-height: 44px;
 }
 textarea {
   resize: vertical;
@@ -236,8 +256,55 @@ summary {
   color: var(--muted);
   font-size: 12px;
 }
+.search-modes {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.search-modes button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding-inline: 0;
+  color: var(--muted);
+}
+.search-modes button[aria-pressed="true"] {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+.notebook-filter {
+  border: 0;
+  margin-top: 8px;
+}
+.notebook-filter summary {
+  font-weight: 400;
+}
+.notebook-filter summary span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  margin-left: 6px;
+}
+.notebook-filter select {
+  margin-bottom: 12px;
+}
 .field-stack {
   padding-bottom: 12px;
+}
+.field-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.field-heading label {
+  margin: 0;
+}
+.field-heading button {
+  font-size: 12px;
+  padding-inline: 8px;
 }
 .joined {
   display: flex;
@@ -250,7 +317,8 @@ summary {
   flex: none;
 }
 .result-heading {
-  margin-top: 24px;
+  min-height: 44px;
+  margin-top: 16px;
 }
 .result-heading h2 {
   margin: 0;
@@ -258,6 +326,11 @@ summary {
 .result-heading button {
   font-size: 12px;
   padding: 6px 8px;
+}
+.context-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .results {
   display: grid;
@@ -279,7 +352,7 @@ summary {
 }
 .note-row button {
   border: none;
-  min-height: 0;
+  min-height: 44px;
   padding: 0;
   text-align: left;
   display: block;
@@ -301,12 +374,6 @@ summary {
   overflow-wrap: anywhere;
 }
 #results-more {
-  margin-top: 16px;
-}
-#page-current {
-  margin-top: 8px;
-}
-#page-form > .primary {
   margin-top: 16px;
 }
 .inbox-row {
@@ -347,9 +414,28 @@ dd {
   margin: 4px 0 0;
   overflow-wrap: anywhere;
 }
+.settings-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-section h2 {
+  margin-top: 0;
+}
+.settings-section details {
+  border: 0;
+  margin-top: 12px;
+}
+#save-details {
+  border: 0;
+}
+#save-details summary {
+  font-weight: 400;
+  color: var(--muted);
+}
 nav {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 10px 12px;
   background: var(--surface);
@@ -359,19 +445,8 @@ nav button {
   border: 0;
   background: transparent;
   padding: 8px 4px;
-  font-size: 12px;
+  font-size: 14px;
   min-height: 44px;
-  flex-direction: column;
-  gap: 5px;
-}
-nav svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 nav button[aria-current] {
   background: var(--active);
@@ -414,17 +489,12 @@ dialog::backdrop {
 #context-text {
   font-size: 12px;
 }
-#pending-list:empty::after {
-  content: "No unconfirmed saves.";
-  font-size: 12px;
-  color: var(--muted);
-}
 .switch {
   border: 0;
   background: transparent;
   gap: 8px;
   padding: 4px 0;
-  min-height: 36px;
+  min-height: 44px;
   flex: none;
   font-size: 12px;
 }
@@ -460,19 +530,12 @@ dialog::backdrop {
   background: transparent;
   cursor: wait;
 }
-.settings-section {
-  padding: 20px 0;
-  border-top: 1px solid var(--line);
-}
-.settings-section h2 {
-  margin: 0 0 16px;
-}
 .settings-section p {
   margin: 8px 0 12px;
 }
 .settings-section .actions {
   gap: 8px;
-  margin: 16px 0;
+  margin: 12px 0 0;
 }
 .settings-section .setting-help {
   margin-bottom: 0;
@@ -493,18 +556,8 @@ dialog::backdrop {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-#capture-form > label:first-child {
-  margin-top: 0;
-}
-#note {
-  border-color: var(--line);
-  min-height: 200px;
-}
 #save {
   min-width: 112px;
-}
-#save-state {
-  min-height: 54px;
 }
 #paused {
   padding: 12px 0;
@@ -547,7 +600,7 @@ nav button:disabled {
     padding: 20px 16px;
   }
   .masthead {
-    padding: 16px;
+    padding: 12px 16px;
   }
   .title-row {
     gap: 8px;
@@ -557,10 +610,6 @@ nav button:disabled {
   }
   .title-row button {
     padding: 6px 8px;
-  }
-  .result-heading {
-    align-items: start;
-    flex-direction: column;
   }
 }
 @media (prefers-reduced-motion: reduce) {

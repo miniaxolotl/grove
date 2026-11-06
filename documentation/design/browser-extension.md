@@ -7,7 +7,7 @@ requirements and deferred scope; it is not evidence of signed/store distribution
 live provider acceptance or permission to migrate, deploy or publish.
 
 The shared TypeScript runtime now provides capture, search/read, reviewed context,
-explicit exact-URL lookup and Settings. A separate **This page** view makes the
+explicit exact-URL lookup and Settings. Search's explicit **This page** mode makes the
 URL-disclosure consent boundary visible rather than running lookups on navigation.
 Browser-specific manifests, trusted session OAuth/storage and atomic provenance
 APIs implement the earlier core-only gaps below. The remaining release acceptance
@@ -27,8 +27,8 @@ tool. Ship one shared interface with native browser adapters, not three products
 | Copy context           | Select notes, preview the exact bounded text and source links, then copy. No model call, site-specific insertion or automatic prompt submission.                          |
 | Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.             |
 
-One sidebar has **Capture**, **Search** and explicit **This page** views; selected
-search results expose **Copy context**. **Settings is last** and contains account/connection,
+One sidebar has **Capture**, **Search** and **Settings**. Search offers an explicit
+**This page** mode; selected results expose **Copy context**. **Settings is last** and contains account/connection,
 destination, privacy, draft-clearing and shortcut information. Existing notebook
 management and full editing remain in Grove's web app.
 

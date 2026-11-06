@@ -44,27 +44,39 @@ not an approved grant. Revocation is enforced by the API on subsequent operation
 
 ## Use the panel
 
+Three main tabs keep the panel focused: **Capture**, **Search**, then **Settings**.
+Page lookup is inside Search; context actions appear only after selecting notes.
+
 - **Capture:** write a quick Markdown note, choose its notebook and optionally
   review a source link. Context-menu **Save selection**, **Save link** and **Save
   page link** prepare a session inbox; reviewing a capture never saves it. Replacing
   a nonempty draft requires confirmation. At most five inbox captures wait per window.
-- **Search:** search active notes in a notebook, load more results, read exact source
-  text and open canonical Grove note links. Text is never executed as HTML.
+- **Search:** find active notes, reveal the notebook filter when needed, load more
+  results, read exact source text and open canonical Grove note links. Text is never
+  executed as HTML. Unchanged result rows stay mounted during refresh; failed
+  refreshes retain the previous results and label them stale.
 - **Context:** select up to six notes, review the exact text/source links and confirm
   sharing before copying. The aggregate is limited to 6,000 characters. Copy rechecks
   access, lifecycle and versions; changed sources require a fresh review. Clipboard
   failure leaves the reviewed text available for manual copying. Nothing is inserted
   into another website or submitted to a model.
-- **This page:** review an exact source URL and choose **Find notes**. Opening the
+- **Search → This page:** review an exact source URL and choose **Find notes**. Opening the
   panel or changing tabs never discloses the current URL automatically. Matches are
   authorized, active, unexpired captures in the chosen notebook; content edits
   invalidate their page association. There is no full-library client-side scan.
-- **Settings**, last in navigation, contains Appearance, Account & access and
-  Privacy & storage, with Sign out at the end. Save recovery appears only when
-  there are unconfirmed receipts to check. Appearance can match the browser or stay light/dark;
-  it saves automatically on this device and updates other open panels. The last chosen
-  destination is remembered per API/account; existing drafts take precedence over
-  inferred defaults. Technical connection/shortcut details sit behind a disclosure.
+- **Settings**, last in navigation, shows access and privacy, with connection IDs and
+  storage details behind disclosures. Unconfirmed saves show recovery actions; a
+  confirmed receipt removes the corresponding pending item. Access management,
+  notebook discovery, refresh and sign-out remain available. The last chosen
+  destination is remembered per API/account; existing drafts take precedence.
+  System/light/dark appearance saves automatically on this device. Enablement has
+  one home in the persistent header; Search modes reuse a single results/context
+  surface and renderer while keeping independent input/results state.
+
+Capture opens directly to the note editor. Save outcome and newer unsaved edits
+remain visible; exact version/indexing metadata is available under **Save details**.
+The source link remains editable and reviewed before saving. No feature, privacy
+approval or uncertain-save safeguard is removed to simplify the panel.
 
 ### Turn Grove on or off
 
