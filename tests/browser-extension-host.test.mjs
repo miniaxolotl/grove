@@ -106,6 +106,7 @@ for (const target of ["chrome", "edge"])
             operations = new Map();
           let uncertain = true;
           globalThis.fixtureRequests = [];
+          globalThis.fixtureSearchQueries = [];
           globalThis.fetch = async (input, init) => {
             const path = new URL(String(input)).pathname;
             globalThis.fixtureRequests.push(path);
@@ -165,7 +166,9 @@ for (const target of ["chrome", "edge"])
               path === "/v1/browser/pages"
             ) {
               if (path === "/v1/memories/search") {
+                globalThis.fixtureSearchQueries.push(body);
                 await globalThis.fixtureSearchGate;
+                if (body.query === "latest") await globalThis.fixtureLatestGate;
                 if (globalThis.fixtureSearchFailed)
                   throw new Error("Synthetic search is offline");
               }
@@ -185,7 +188,7 @@ for (const target of ["chrome", "edge"])
       await page.locator("#workspace").waitFor({ state: "visible" });
       assert.deepEqual(
         await page.locator("#navigation button").allTextContents(),
-        ["Capture", "Search", "Settings"],
+        ["Notes", "Search", "Settings"],
       );
       assert.equal(await page.locator("#new-note").isVisible(), false);
       assert.equal(await page.locator("#save-details").isVisible(), false);
@@ -195,6 +198,7 @@ for (const target of ["chrome", "edge"])
           hasText: "Synthetic capture was rejected before the panel opened.",
         })
         .waitFor({ timeout: 3000 });
+      await page.locator("#dismiss-notice").click();
       await page.evaluate(async () => {
         const window = await globalThis.chrome.windows.getCurrent();
         globalThis.chrome.sidePanel.onOpened.addListener((info) => {
@@ -241,13 +245,133 @@ for (const target of ["chrome", "edge"])
           "/v1/browser/pages",
         ),
       );
+      // Installed browser navigation, not fabricated tab messages. The panel stays
+      // mounted while its window's actual active tab navigates across origins.
+      await context.route("https://source.example/**", (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<title>First source</title><p>Source fixture</p>",
+        }),
+      );
+      await context.route("https://next.example/**", (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<title>Next source</title><p>Next fixture</p>",
+        }),
+      );
+      const sourceTab = await context.newPage();
+      await sourceTab.goto(
+        "https://source.example/article?utm_source=fixture&id=1",
+      );
+      await page.waitForFunction(
+        () =>
+          document.querySelector("#source-url").value ===
+          "https://source.example/article?id=1",
+      );
+      assert.equal(
+        await page.locator("#source-title").inputValue(),
+        "First source",
+      );
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-notes-auto-390.png`,
+          ),
+          fullPage: true,
+        });
+      }
+      const requestsBeforeNavigation = await worker.evaluate(
+        () => globalThis.fixtureRequests.length,
+      );
+      await sourceTab.goto("https://next.example/other");
+      await page.waitForFunction(
+        () => document.querySelector("#source-title").value === "Next source",
+      );
+      assert.equal(
+        await page.locator("#source-url").inputValue(),
+        "https://next.example/other",
+      );
+      await sourceTab.evaluate(() => {
+        document.title = "Updated source";
+      });
+      await page.waitForFunction(
+        () =>
+          document.querySelector("#source-title").value === "Updated source",
+      );
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureRequests.length),
+        requestsBeforeNavigation,
+        "prefill and title changes never contact Grove",
+      );
+      await sourceTab.goto("about:blank");
+      await page.waitForFunction(
+        () => document.querySelector("#source-url").value === "",
+      );
+      await sourceTab.goto("https://source.example/article");
+      await page.waitForFunction(
+        () => document.querySelector("#source-title").value === "First source",
+      );
+      await worker.evaluate(() => {
+        const nativeQuery = globalThis.chrome.tabs.query.bind(
+          globalThis.chrome.tabs,
+        );
+        globalThis.fixtureTabsQueryStarted = new Promise((resolve) => {
+          globalThis.markTabsQueryStarted = resolve;
+        });
+        const gate = new Promise((resolve) => {
+          globalThis.releaseTabsQuery = () => {
+            globalThis.chrome.tabs.query = nativeQuery;
+            resolve();
+          };
+        });
+        globalThis.chrome.tabs.query = async (...args) => {
+          globalThis.markTabsQueryStarted();
+          await gate;
+          return nativeQuery(...args);
+        };
+      });
+      await sourceTab.goto("https://next.example/other");
+      await worker.evaluate(() => globalThis.fixtureTabsQueryStarted);
+      await page.locator("#note").fill("Pin this originating page");
+      await worker.evaluate(() => globalThis.releaseTabsQuery());
+      await page.locator("#new-note").waitFor({ state: "visible" });
+      assert.equal(
+        await page.locator("#source-url").inputValue(),
+        "https://source.example/article",
+        "late navigation metadata cannot replace the source visible at first edit",
+      );
+      await page.reload();
+      await page.locator("#workspace").waitFor({ state: "visible" });
+      assert.equal(
+        await page.locator("#source-url").inputValue(),
+        "https://source.example/article",
+      );
+      await page.locator("#new-note").click();
+      await page.locator("#confirm-replace").click();
+      await sourceTab.bringToFront();
+      await page.waitForFunction(
+        () => document.querySelector("#source-title").value === "Next source",
+      );
+      await page.locator("#source-details summary").click();
+      await page.locator("#remove-source").click();
+      await sourceTab.goto("https://source.example/article");
+      assert.equal(
+        await page.locator("#source-url").inputValue(),
+        "",
+        "explicit removal stays pinned off",
+      );
+      await page.locator("#source-details summary").click();
       await page
         .locator("#note")
-        .fill("A source worth keeping. <script>not executable</script>");
+        .fill(
+          "# Field notes\n\nA source worth keeping. <script>not executable</script>\n\n- [x] A useful task\n- **A clear idea**\n\n| Tool | Purpose |\n| --- | --- |\n| Grove | Keep thoughts |\n\n```js\nconst safe = true;\n```\n\n[Source](https://example.com/read)\n\n[Unsafe](javascript:alert(1))\n\n![No tracking](https://tracker.example/pixel.png)",
+        );
       await page.locator("#save").click();
       await page
         .locator("#save-state")
-        .filter({ hasText: "outcome is unknown" })
+        .filter({ hasText: "Save not confirmed" })
         .waitFor();
       assert.equal(
         await page.locator("#recovery-settings").evaluate((el) => el.hidden),
@@ -279,13 +403,16 @@ for (const target of ["chrome", "edge"])
       await page.locator("#workspace").waitFor({ state: "visible" });
       assert.match(
         await page.locator("#save-state").textContent(),
-        /outcome is unknown/,
+        /Save not confirmed/,
       );
       await page.locator("#note").fill("A newer draft stays after retry.");
       await page.locator("#save").click();
       await page
         .locator("#save-state")
-        .filter({ hasText: "Previous note saved. Newer draft is not saved." })
+        .filter({
+          hasText:
+            "Your earlier note is saved. These changes aren’t saved yet.",
+        })
         .waitFor();
       assert.equal(
         await page.locator("#note").inputValue(),
@@ -317,9 +444,17 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="search"]').click();
       assert.equal(await page.locator("#context-actions").isVisible(), false);
       await page.locator("#query").fill("source");
-      await page.locator('#search-form button[type="submit"]').click();
+      assert.equal(
+        await page.locator("#search-form button, #search-form select").count(),
+        0,
+      );
       await page.locator("#results .note-row").waitFor();
       assert.equal(await page.locator("#results .note-row").count(), 1);
+      assert.deepEqual(
+        await worker.evaluate(() => globalThis.fixtureSearchQueries.at(-1)),
+        { query: "source", status: "active", limit: 20, sort: "relevance" },
+        "omit projectId to search all granted scopes, not Personal only",
+      );
       await page.evaluate(() => {
         globalThis.retainedSearchRow =
           document.querySelector("#results .note-row");
@@ -382,10 +517,61 @@ for (const target of ["chrome", "edge"])
         .waitFor();
       await page.locator("#results .note-row button").click();
       await page.locator("#reader[open]").waitFor();
+      assert.equal(
+        await page.locator("#reader-content h2").textContent(),
+        "Field notes",
+      );
+      assert.equal(
+        await page
+          .locator("#reader-content table tbody td")
+          .first()
+          .textContent(),
+        "Grove",
+      );
+      assert.equal(
+        await page.locator("#reader-content pre code").textContent(),
+        "const safe = true;",
+      );
+      assert.equal(
+        await page.locator("#reader-content .reader-task input").isChecked(),
+        true,
+      );
+      assert.equal(
+        await page
+          .locator(
+            "#reader-content script, #reader-content img, #reader-content iframe, #reader-content a[href^='javascript:']",
+          )
+          .count(),
+        0,
+      );
+      assert.equal(
+        await page.locator("#reader-content a").first().getAttribute("rel"),
+        "noreferrer noopener",
+      );
+      const readerAudit = await new AxeBuilder({ page }).analyze();
+      assert.deepEqual(
+        readerAudit.violations.map((item) => item.id),
+        [],
+        "formatted reader accessibility",
+      );
       assert.match(
         await page.locator("#reader-content").textContent(),
         /<script>not executable<\/script>/,
       );
+      await page.locator("#copy-note").click();
+      await page
+        .locator("#reader-copy-state")
+        .filter({ hasText: /Copied|Could not copy/ })
+        .waitFor();
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-reader-390.png`,
+          ),
+          fullPage: true,
+        });
+      }
       await page.locator("#close-reader").click();
       const statusBeforeSelection = await page
         .locator("#results-status")
@@ -451,35 +637,56 @@ for (const target of ["chrome", "edge"])
         "A newer draft stays after retry.",
       );
       await page.locator('[data-nav="search"]').click();
-      const beforePageRequests = await worker.evaluate(
-        () => globalThis.fixtureRequests.length,
+      const beforeTyping = await worker.evaluate(
+        () => globalThis.fixtureSearchQueries.length,
       );
-      await page.locator("#this-page").click();
-      assert.equal(
-        await page.locator("#this-page").getAttribute("aria-pressed"),
-        "true",
-      );
-      assert.equal(
-        await worker.evaluate(() => globalThis.fixtureRequests.length),
-        beforePageRequests,
-        "changing search mode does not send the current page URL",
-      );
+      await page.locator("#query").pressSequentially("source", { delay: 15 });
       await page
-        .locator("#page-url")
-        .fill("https://example.com/article?utm_source=test");
-      await page.locator('#page-form button[type="submit"]').click();
-      await page.locator("#results .note-row").waitFor();
-      await page.locator('#results input[type="checkbox"]').check();
-      await page.locator("#review-context").click();
-      await page.locator("#context[open]").waitFor();
-      await page.locator("#close-context").click();
-      await page.locator("#all-notes").click();
-      await page.locator("#clear-selection").click();
-      await page.locator("#this-page").click();
+        .locator("#results-status")
+        .filter({ hasText: "1 note · checked" })
+        .waitFor();
       assert.equal(
-        await page.locator('#results input[type="checkbox"]').isChecked(),
-        false,
+        await worker.evaluate(() => globalThis.fixtureSearchQueries.length),
+        beforeTyping + 1,
+        "typing a word issues one debounced request",
       );
+      await worker.evaluate(() => {
+        globalThis.fixtureSearchGate = new Promise((resolve) => {
+          globalThis.releaseSearch = resolve;
+        });
+        globalThis.fixtureLatestGate = new Promise((resolve) => {
+          globalThis.releaseLatest = resolve;
+        });
+      });
+      await page.locator("#query").fill("obsolete");
+      await page
+        .locator("#results-status")
+        .filter({ hasText: "Finding notes" })
+        .waitFor();
+      await page.locator("#query").fill("latest");
+      await worker.evaluate(() => globalThis.releaseSearch());
+      await page.waitForFunction(() =>
+        document
+          .querySelector("#results-status")
+          .textContent.includes("Finding notes"),
+      );
+      assert.ok(
+        !(await page.locator("#results-status").textContent()).includes(
+          "checked",
+        ),
+        "obsolete results cannot mark a newer query complete",
+      );
+      await worker.evaluate(() => globalThis.releaseLatest());
+      await page
+        .locator("#results-status")
+        .filter({ hasText: "1 note · checked" })
+        .waitFor();
+      await page.locator("#query").fill("");
+      await page
+        .locator("#results-status")
+        .filter({ hasText: "Type to search" })
+        .waitFor();
+      assert.equal(await page.locator("#results .note-row").count(), 0);
       await page.locator('[data-nav="settings"]').click();
       assert.equal(await page.locator("#account-id").isVisible(), false);
       assert.equal(await page.locator("#recovery-settings").isVisible(), false);
@@ -493,14 +700,8 @@ for (const target of ["chrome", "edge"])
         });
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
-        for (const name of ["capture", "search", "page", "settings"]) {
-          await page
-            .locator(`[data-nav="${name === "page" ? "search" : name}"]`)
-            .click();
-          if (name === "search" || name === "page")
-            await page
-              .locator(name === "search" ? "#all-notes" : "#this-page")
-              .click();
+        for (const name of ["capture", "search", "settings"]) {
+          await page.locator(`[data-nav="${name}"]`).click();
           assert.ok(
             await page.evaluate(
               () => document.documentElement.scrollWidth <= innerWidth,

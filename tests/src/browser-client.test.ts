@@ -39,6 +39,7 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     write = true;
   const writes: unknown[] = [];
   const urls: string[] = [];
+  const searches: unknown[] = [];
   const previous = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const path = new URL(String(input)).pathname;
@@ -66,7 +67,10 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
       }
       data = note;
     } else if (path === `/v1/memories/${id}`) data = note;
-    else data = { items: [], nextCursor: null };
+    else if (path === "/v1/memories/search") {
+      searches.push(JSON.parse(String(init?.body)));
+      data = { items: [], nextCursor: null };
+    } else data = { items: [], nextCursor: null };
     return Response.json({ success: true, data });
   };
   try {
@@ -88,7 +92,22 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
       !urls.some((path) => path.includes("/pages")),
       "opening panel must not disclose current URL",
     );
+    const beforeSource = urls.length;
+    const source = {
+      url: "https://example.com/origin",
+      title: "Origin",
+      capturedAt: new Date().toISOString(),
+    };
+    const automatic = await client.followSource(7, source);
+    assert.deepEqual(automatic.source, source);
+    await client.followSource(7, source);
+    assert.equal(urls.length, beforeSource, "autofill is strictly local");
     await client.edit(7, { text: "First capture" });
+    assert.deepEqual(
+      (await client.followSource(7, null)).source,
+      source,
+      "typed draft retains originating page",
+    );
     await assert.rejects(client.save(7));
     await client.edit(7, { text: "Newer edits" });
     const result = await client.save(7);
@@ -100,6 +119,10 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     write = false;
     await assert.rejects(client.save(7));
     assert.equal(writes.length, 2);
+    await client.search({ query: "everywhere" });
+    assert.deepEqual(searches, [
+      { query: "everywhere", status: "active", limit: 20, sort: "relevance" },
+    ]);
     const context = await client.context([{ id, version: 1 }]);
     assert.match(context.text, /Original note/);
     assert.match(context.text, /https:\/\/grove\.example\/app\/memories\//);
@@ -107,6 +130,14 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     await assert.rejects(client.context([{ id, version: 1 }]), /changed/i);
     note.status = "archived";
     await assert.rejects(client.context([{ id, version: 2 }]), /unavailable/i);
+    session.delete("identity");
+    const beforeMissingIdentity = urls.length;
+    await assert.rejects(client.followSource(7, source));
+    assert.equal(
+      urls.length,
+      beforeMissingIdentity,
+      "metadata never bootstraps authentication or calls the API",
+    );
   } finally {
     globalThis.fetch = previous;
   }

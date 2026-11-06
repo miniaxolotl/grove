@@ -28,19 +28,18 @@
       <section id="paused" hidden aria-labelledby="paused-title">
         <h1 id="paused-title">Grove is off.</h1>
         <p class="muted">
-          Use the switch above to resume. Drafts and save recovery keep their
-          normal expiry rules.
+          Your notes are right where you left them. Turn Grove on to continue.
         </p>
       </section>
       <section id="welcome" hidden aria-labelledby="welcome-title">
-        <h1 id="welcome-title">Your Grove notes</h1>
-        <p>Save a note. Find what you need.</p>
+        <h1 id="welcome-title">A little room for your thoughts.</h1>
+        <p class="muted">Keep a thought. Find it when you need it.</p>
         <button id="login" class="primary">Sign in to Grove</button>
         <p class="muted">Choose notebook access after signing in.</p>
       </section>
       <section id="approval" hidden>
-        <h1>Approve access</h1>
-        <p>Choose which notebooks Grove may read and save to.</p>
+        <h1>Make yourself at home.</h1>
+        <p>Choose which notes this browser can read and save.</p>
         <a class="button primary approval-link" target="_blank" rel="noreferrer"
           >Open Connections</a
         ><button id="approved">Check access</button>
@@ -52,33 +51,37 @@
           aria-labelledby="capture-title"
         >
           <div class="title-row">
-            <h1 id="capture-title">Capture</h1>
+            <h1 id="capture-title">Notes</h1>
             <button id="new-note" class="quiet" hidden>New note</button>
           </div>
           <div id="inbox" hidden>
-            <h2>Ready to review</h2>
+            <h2>From your browser</h2>
             <div id="inbox-list"></div>
           </div>
           <form id="capture-form">
-            <label for="note">Note</label
+            <label for="note" class="sr-only">Write a note</label
             ><textarea
               id="note"
               rows="7"
               maxlength="6000"
-              placeholder="What do you want to keep?"
+              placeholder="A thought worth keeping…"
               aria-describedby="note-help"
             ></textarea>
             <div id="note-help" class="between muted small">
-              <span>Markdown supported</span><span id="length">0 / 6,000</span>
-            </div>
-            <div class="destination-field">
-              <label for="destination">Save to</label
-              ><select id="destination" class="notebook-select"></select>
+              <span id="length">0 / 6,000</span>
             </div>
             <details id="source-details">
-              <summary>Source link <span id="source-label"></span></summary>
+              <summary>
+                <span>Details</span
+                ><span class="details-preview"
+                  ><span id="destination-name">Personal</span
+                  ><span id="source-label"></span
+                ></span>
+              </summary>
               <div class="field-stack">
-                <label for="source-url">URL</label
+                <label for="destination">Notebook</label
+                ><select id="destination" class="notebook-select"></select>
+                <label for="source-url">Source link</label
                 ><input
                   id="source-url"
                   type="url"
@@ -87,13 +90,14 @@
                 /><label for="source-title">Page title</label
                 ><input id="source-title" maxlength="300" />
                 <div class="actions">
-                  <button id="attach" type="button">Use current page</button
+                  <button id="attach" type="button">Use current tab</button
                   ><button id="remove-source" type="button">
                     Remove source
                   </button>
                 </div>
                 <p class="muted small">
-                  Only this reviewed link is saved. No page content is fetched.
+                  Page details follow your tab until you start writing. Remove
+                  anything you don’t want to save.
                 </p>
               </div>
             </details>
@@ -105,11 +109,11 @@
             </div>
             <p id="save-state" class="feedback" role="status"></p>
             <details id="save-details" hidden>
-              <summary>Save details</summary>
+              <summary>About this save</summary>
               <dl class="field-stack">
                 <dt>Version</dt>
                 <dd id="save-version"></dd>
-                <dt>Search indexing</dt>
+                <dt>Search availability</dt>
                 <dd id="save-indexing"></dd>
               </dl>
             </details>
@@ -117,75 +121,30 @@
         </section>
         <section data-view="search" hidden aria-labelledby="search-title">
           <h1 id="search-title">Search</h1>
-          <div class="search-modes" role="group" aria-label="Find notes by">
-            <button id="all-notes" type="button" aria-pressed="true">
-              Notes
-            </button>
-            <button id="this-page" type="button" aria-pressed="false">
-              This page
-            </button>
-          </div>
-          <div id="note-search">
-            <form id="search-form">
-              <label for="query">Search notes</label>
-              <div class="joined">
-                <input
-                  id="query"
-                  type="search"
-                  maxlength="1000"
-                  placeholder="A decision, idea, or detail"
-                /><button type="submit" class="primary">Search</button>
-              </div>
-              <details class="notebook-filter">
-                <summary>
-                  Notebook <span id="search-scope-label">Personal</span>
-                </summary>
-                <label for="search-scope">Search in</label>
-                <select id="search-scope" class="notebook-select"></select>
-              </details>
-            </form>
-          </div>
-          <div id="page-search" hidden>
-            <form id="page-form">
-              <div class="field-heading">
-                <label for="page-url">Page URL</label>
-                <button id="page-current" type="button" class="quiet">
-                  Use current page
-                </button>
-              </div>
-              <input
-                id="page-url"
-                type="url"
-                required
-                maxlength="4096"
-                placeholder="https://"
-                aria-describedby="page-disclosure"
-              />
-              <details class="notebook-filter">
-                <summary>
-                  Notebook <span id="page-scope-label">Personal</span>
-                </summary>
-                <label for="page-scope">Search in</label>
-                <select id="page-scope" class="notebook-select"></select>
-              </details>
-              <p id="page-disclosure" class="muted small">
-                This link is sent only when you choose Find notes.
-              </p>
-              <button type="submit" class="primary">Find notes</button>
-            </form>
-          </div>
+          <form id="search-form" role="search">
+            <label for="query" class="sr-only">Search all your notes</label>
+            <input
+              id="query"
+              type="search"
+              maxlength="1000"
+              placeholder="Find a thought, a link, a detail…"
+              autocomplete="off"
+              aria-controls="results"
+            />
+          </form>
         </section>
         <section id="recall-results" hidden aria-labelledby="results-title">
           <div class="between result-heading">
-            <h2 id="results-title">Notes</h2>
+            <h2 id="results-title" class="sr-only">Your notes</h2>
+            <p id="results-status" class="feedback muted" role="status"></p>
             <div id="context-actions" class="context-actions" hidden>
-              <button id="clear-selection" class="quiet">Clear</button>
-              <button id="review-context">Review context (0)</button>
+              <button id="clear-selection" class="quiet">Deselect</button>
+              <button id="review-context">Copy notes</button>
             </div>
           </div>
-          <p id="results-status" class="feedback muted" role="status"></p>
+          <button id="search-retry" class="quiet" hidden>Retry search</button>
           <div id="results" class="results"></div>
-          <button id="results-more" hidden>Load more notes</button>
+          <button id="results-more" hidden>Show more</button>
         </section>
       </div>
       <section
@@ -210,7 +169,7 @@
           class="settings-section"
           aria-labelledby="connection-settings-title"
         >
-          <h2 id="connection-settings-title">Access</h2>
+          <h2 id="connection-settings-title">Your connection</h2>
           <p id="connection-help" class="muted small">
             Connect Grove to check notebook access.
           </p>
@@ -218,8 +177,8 @@
             <p id="capabilities" class="muted"></p>
             <div class="actions">
               <a class="button approval-link" target="_blank" rel="noreferrer"
-                >Manage access</a
-              ><button id="refresh" class="quiet">Refresh access</button>
+                >Choose notebook access</a
+              ><button id="refresh" class="quiet">Check connection</button>
             </div>
             <button id="notebooks-more" hidden>Load more notebooks</button>
             <details>
@@ -243,8 +202,8 @@
           hidden
           aria-labelledby="recovery-title"
         >
-          <h2 id="recovery-title">Unconfirmed saves</h2>
-          <p class="muted small">Check the outcome before saving again.</p>
+          <h2 id="recovery-title">Did that save?</h2>
+          <p class="muted small">Check here before trying again.</p>
           <div id="pending-list"></div>
           <p id="recovery-help" class="muted small" hidden>
             Turn Grove on and connect to check these saves. Nothing is retried
@@ -253,9 +212,9 @@
         </section>
         <section class="settings-section" aria-labelledby="privacy-title">
           <h2 id="privacy-title">Privacy</h2>
-          <p class="muted">No automatic capture or browsing history.</p>
+          <p class="muted">Nothing is saved until you choose Save note.</p>
           <details>
-            <summary>Storage and recovery</summary>
+            <summary>What stays in this browser</summary>
             <p class="muted small field-stack">
               Drafts and sign-in tokens stay in browser session storage. Drafts
               expire after 24 hours and are cleared when their window closes.
@@ -275,10 +234,15 @@
           <button id="logout">Sign out</button>
         </div>
       </section>
-      <p id="notice" class="feedback" role="status" aria-live="polite"></p>
+      <div id="notice-area" hidden>
+        <p id="notice" class="feedback" role="status" aria-live="polite"></p>
+        <button id="dismiss-notice" class="quiet" aria-label="Dismiss message">
+          ×
+        </button>
+      </div>
     </main>
     <nav id="navigation" aria-label="Grove" hidden>
-      <button data-nav="capture" aria-current="page">Capture</button
+      <button data-nav="capture" aria-current="page">Notes</button
       ><button data-nav="search">Search</button
       ><button data-nav="settings">Settings</button>
     </nav>
@@ -288,28 +252,38 @@
         <button id="close-reader">Close</button>
       </div>
       <p id="reader-meta" class="muted small"></p>
-      <pre id="reader-content" class="note-source"></pre>
-      <a id="reader-link" target="_blank" rel="noreferrer">Open in Grove</a>
+      <article id="reader-content" class="note-document"></article>
+      <div class="reader-tools actions">
+        <button id="copy-note">Copy note</button>
+        <a
+          id="reader-link"
+          class="button quiet"
+          target="_blank"
+          rel="noreferrer"
+          >Open in Grove</a
+        >
+      </div>
+      <p id="reader-copy-state" class="feedback" role="status"></p>
     </dialog>
     <dialog id="context" aria-labelledby="context-title">
       <div class="title-row">
-        <h2 id="context-title">Review context</h2>
+        <h2 id="context-title">Copy notes</h2>
         <button id="close-context">Close</button>
       </div>
       <p class="muted">
-        Private notes will leave Grove when you paste them elsewhere. Review the
-        exact text below.
+        Copy these notes with their source links. Check for anything private
+        before pasting into another app.
       </p>
       <textarea
         id="context-text"
         readonly
         rows="12"
-        aria-label="Context to copy"
+        aria-label="Notes to copy"
       ></textarea
       ><label class="check"
-        ><input id="copy-consent" type="checkbox" />I have reviewed this context
-        for sharing.</label
-      ><button id="copy" class="primary" disabled>Copy reviewed context</button>
+        ><input id="copy-consent" type="checkbox" />These notes are okay to
+        share.</label
+      ><button id="copy" class="primary" disabled>Copy notes</button>
       <p id="copy-state" class="feedback" role="status"></p>
     </dialog>
     <dialog id="confirm" aria-labelledby="confirm-title">

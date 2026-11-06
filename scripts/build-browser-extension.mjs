@@ -95,6 +95,9 @@ export async function buildBrowserExtension({
     const config = { apiOrigin, siteOrigin, issuer, target };
     const runtime = await build({
       absWorkingDir: root,
+      // Prefer upstream DOM-free entity decoding in both the panel and worker.
+      // The default browser decoder assigns innerHTML, which this reader avoids.
+      conditions: ["worker"],
       entryPoints: [
         "packages/browser-extension/src/background.ts",
         "packages/browser-extension/src/panel.ts",
@@ -148,6 +151,7 @@ export async function buildBrowserExtension({
         "storage",
         "identity",
         "activeTab",
+        "tabs",
         "contextMenus",
         "clipboardWrite",
         ...(target === "firefox" ? [] : ["sidePanel"]),

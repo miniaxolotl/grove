@@ -70,6 +70,8 @@ const draftSchema = z
     scope: scopeSchema,
     text: z.string().max(6000),
     source: webCaptureSchema.optional(),
+    sourceMode: z.enum(["automatic", "pinned"]).optional(),
+    textOrigin: z.enum(["authored", "quoted"]).optional(),
     projectId: uuidSchema.nullable(),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -87,6 +89,7 @@ export type CaptureDraft = z.infer<typeof draftSchema>;
 export type CaptureSaveOutcome = z.infer<typeof outcomeSchema>;
 const changesSchema = z
   .object({
+    textOrigin: z.enum(["authored", "quoted"]).optional(),
     text: z.string().max(6000).optional(),
     source: webCaptureSchema.nullable().optional(),
     projectId: uuidSchema.nullable().optional(),
@@ -107,6 +110,8 @@ export function createCaptureDraft(input: {
     text: input.text,
     projectId: input.projectId,
     ...(input.source ? { source: input.source } : {}),
+    sourceMode: input.text || input.source ? "pinned" : "automatic",
+    textOrigin: input.source ? "quoted" : "authored",
     createdAt: now,
     updatedAt: now,
     expiresAt: now + captureDraftLifetimeMs,
@@ -132,6 +137,16 @@ export function readCaptureDraft(
     draft.scope.connectionId !== owner.data.connectionId
   )
     return null;
+  // A pristine pre-autofill draft has no user data to replace. Other legacy
+  // ownership stays unknown/pinned, including an explicitly removed source.
+  if (
+    draft.sourceMode === undefined &&
+    !draft.text &&
+    !draft.source &&
+    !draft.save &&
+    draft.updatedAt === draft.createdAt
+  )
+    return { ...draft, sourceMode: "automatic", textOrigin: "authored" };
   return draft;
 }
 
@@ -154,12 +169,42 @@ export function editCaptureDraft(
 ): CaptureDraft {
   const draft = activeDraft(value, scope, now);
   const update = changesSchema.parse(changes);
-  const result = { ...draft, updatedAt: now };
+  const result = { ...draft, sourceMode: "pinned" as const, updatedAt: now };
   if (update.text !== undefined) result.text = update.text;
+  if (update.textOrigin !== undefined) result.textOrigin = update.textOrigin;
   if (update.projectId !== undefined) result.projectId = update.projectId;
   if (update.source === null) delete result.source;
   else if (update.source !== undefined) result.source = update.source;
   return draftSchema.parse(result);
+}
+
+/** Local metadata only. Legacy drafts with unknown ownership are never replaced. */
+export function followCaptureSource(
+  value: CaptureDraft,
+  scope: CaptureScope,
+  source: CaptureDraft["source"] | null,
+  now: number,
+): CaptureDraft {
+  const draft = activeDraft(value, scope, now);
+  if (draft.sourceMode !== "automatic" || draft.text || draft.save)
+    return value;
+  const next = source === null ? undefined : webCaptureSchema.parse(source);
+  if (draft.source?.url === next?.url && draft.source?.title === next?.title)
+    return value;
+  const result = { ...draft, updatedAt: now };
+  if (next) result.source = next;
+  else delete result.source;
+  return draftSchema.parse(result);
+}
+
+/** Preserve authored Markdown; web selections and legacy source drafts stay quoted. */
+export function formatCaptureDraft(
+  draft: Pick<CaptureDraft, "text" | "source" | "textOrigin">,
+) {
+  return formatWebCapture({
+    ...draft,
+    quoteText: draft.textOrigin === "authored" ? false : undefined,
+  });
 }
 
 /** Persist this draft before I/O. Unresolved saves may only replay identical arguments. */
@@ -186,7 +231,7 @@ export function prepareCaptureSave(
     throw new Error("A new save requires a new operation ID");
   const request = requestSchema.parse({
     operationId,
-    content: formatWebCapture(draft),
+    content: formatCaptureDraft(draft),
     projectId: draft.projectId,
     capture: "explicit",
     ...(draft.source ? { provenance: draft.source } : {}),

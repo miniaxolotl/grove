@@ -2,6 +2,42 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as platform from "../../packages/browser-extension/src/platform.ts";
 
+test("automatic tab metadata uses safe bounded snapshots without page access", () => {
+  const source = platform.tabSource(
+    {
+      incognito: false,
+      url: "https://example.com/path?utm_source=fixture&id=1",
+      title: " A\npage\t title ",
+    },
+    0,
+  );
+  assert.deepEqual(source, {
+    url: "https://example.com/path?id=1",
+    title: "A page title",
+    capturedAt: "1970-01-01T00:00:00.000Z",
+  });
+  for (const tab of [
+    undefined,
+    {},
+    { url: "https://example.com" },
+    { incognito: true, url: "https://example.com" },
+    ...[
+      "about:blank",
+      "chrome://settings",
+      "file:///private",
+      "https://user:secret@example.com",
+    ].map((url) => ({ url, incognito: false })),
+  ])
+    assert.equal(platform.tabSource(tab, 0), null);
+  assert.equal(
+    platform.tabSource(
+      { incognito: false, url: "https://example.com", title: "a".repeat(500) },
+      0,
+    )?.title.length,
+    300,
+  );
+});
+
 test("browser platform core uses explicit native adapters and user-triggered capture snapshots", async (t) => {
   assert.equal(typeof platform.browserProfile, "function");
   assert.equal(typeof platform.openNativePanel, "function");

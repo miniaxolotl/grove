@@ -157,9 +157,10 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
         !manifest.externally_connectable,
     );
     assert.ok(
-      !manifest.permissions.includes("tabs") &&
-        !manifest.permissions.includes("scripting"),
+      manifest.permissions.includes("tabs"),
+      "approved tab-metadata permission supports navigation without content access",
     );
+    assert.ok(!manifest.permissions.includes("scripting"));
     assert.ok(
       manifest.content_security_policy.extension_pages.includes(
         "object-src 'none'",
@@ -201,6 +202,11 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       assert.ok(files[required], required);
     const js = new TextDecoder().decode(files["background.js"]);
     assert.ok(!/node:|createRequire|process\.env|@sentry|posthog/.test(js));
+    const panel = new TextDecoder().decode(files["panel.js"]);
+    assert.ok(
+      !/\.(?:innerHTML|outerHTML)\s*=|insertAdjacentHTML\s*\(/.test(panel),
+      "the formatted reader must not bundle an HTML injection sink, even for entity decoding",
+    );
   }
   assert.equal(
     second.code,
