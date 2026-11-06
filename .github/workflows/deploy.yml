@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 60
     environment: production
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
     outputs:
@@ -167,6 +167,8 @@ jobs:
           echo "digest=$GROVE_IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
           jq -n --arg sha "$RELEASE_SOURCE_SHA" --arg tag "$RELEASE_TAG" --arg digest "$GROVE_IMAGE_DIGEST" \
             '{sha:$sha,tag:$tag,image:"ghcr.io/miniaxolotl/grove",digest:$digest}' > manifest.json
+      - name: Attach verified browser downloads to the source release
+        run: node scripts/release/assets.mjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ needs.candidate.outputs.tag }}-${{ github.run_attempt }}
