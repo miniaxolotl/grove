@@ -91,6 +91,14 @@ operation UUID, content, destination, `capture: explicit` and optional provenanc
 The note, structured revision, provenance, replay receipt and normal durable
 processing jobs commit atomically. Acceptance of a note is not completed indexing.
 
+Private API requests accept exact native `chrome-extension://<32-letter ID>` and
+UUID-shaped `moz-extension://<ID>` origins only after OAuth verification. A native
+origin is not identity proof: sessions and API keys cannot use this exception,
+unapproved grants cannot read/save, and revocation still denies access. Website
+origin restrictions and website CORS remain unchanged. The regression exercises
+both native schemes, malformed/foreign origins, sessions, keys and revoked grants
+against the real authentication and disposable PostgreSQL services.
+
 Migration `20261105_037_browser_capture` follows structured documents `036`. Its
 tenant-isolated `web_captures` table retains source history without changing note
 row shapes. A database trigger invalidates active associations when content changes,
