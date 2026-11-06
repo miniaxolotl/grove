@@ -2187,9 +2187,41 @@ for (const target of ["chrome", "edge"])
         });
       }
       await page.locator("#theme").selectOption("system");
+      // Hold the real resume RPC response so visibility cannot masquerade as
+      // completion on a fast local host (the CI failure saw the same pending state).
+      await otherPanel.evaluate(() => {
+        const runtime = globalThis.chrome.runtime;
+        const send = runtime.sendMessage.bind(runtime);
+        const gate = new Promise((resolve) => {
+          globalThis.releaseResume = resolve;
+        });
+        runtime.sendMessage = async (message) => {
+          const result = await send(message);
+          if (message.kind === "inbox") {
+            runtime.sendMessage = send;
+            await gate;
+          }
+          return result;
+        };
+      });
       await otherPanel.locator("#extension-toggle").focus();
       await otherPanel.locator("#extension-toggle").press("Space");
       await otherPanel.locator("#workspace").waitFor({ state: "visible" });
+      assert.equal(
+        await otherPanel.locator("#extension-toggle").getAttribute("aria-busy"),
+        "true",
+        "workspace visibility precedes completion of a slow resume",
+      );
+      assert.equal(
+        await otherPanel.locator("#extension-toggle").isDisabled(),
+        true,
+        "a pending resume cannot accept another toggle",
+      );
+      await otherPanel.evaluate(() => globalThis.releaseResume());
+      await otherPanel.waitForFunction(() => {
+        const toggle = document.querySelector("#extension-toggle");
+        return !toggle.disabled && !toggle.hasAttribute("aria-busy");
+      });
       assert.equal(
         await otherPanel.evaluate(() => document.activeElement.id),
         "extension-toggle",
