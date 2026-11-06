@@ -10,11 +10,34 @@
   <body>
     <header class="masthead">
       <a id="home" target="_blank" rel="noreferrer"
-        ><img src="wordmark.svg" alt="Grove" width="100" height="30" /></a
-      ><span id="connection-label">Private notes</span>
+        ><img src="wordmark.svg" alt="Grove" width="100" height="30"
+      /></a>
+      <div class="header-controls">
+        <span id="connection-label">Private notes</span>
+        <button
+          id="extension-toggle"
+          class="switch"
+          role="switch"
+          aria-checked="true"
+          aria-label="Grove enabled"
+          disabled
+        >
+          <span class="switch-track" aria-hidden="true"></span
+          ><span id="extension-status">On</span>
+        </button>
+      </div>
     </header>
     <main>
-      <section id="welcome" aria-labelledby="welcome-title">
+      <section id="paused" hidden aria-labelledby="paused-title">
+        <h1 id="paused-title">Grove is off.</h1>
+        <p>No captures, searches or requests.</p>
+        <button id="resume" class="primary">Turn Grove on</button>
+        <p class="muted small">
+          Drafts are kept under their normal expiry rules. Turning off does not
+          cancel a save already sent or revoke access.
+        </p>
+      </section>
+      <section id="welcome" hidden aria-labelledby="welcome-title">
         <h1 id="welcome-title">Your Grove notes</h1>
         <p>Save a note. Find what you need.</p>
         <button id="login" class="primary">Sign in to Grove</button>
@@ -176,10 +199,54 @@
             <button id="page-more" hidden>Load more notes</button>
           </div>
         </section>
-        <section data-view="settings" hidden aria-labelledby="settings-title">
-          <h1 id="settings-title">Settings</h1>
-          <section class="settings-section" aria-labelledby="access-title">
-            <h2 id="access-title">Access</h2>
+      </div>
+      <section
+        id="settings-view"
+        data-view="settings"
+        hidden
+        aria-labelledby="settings-title"
+      >
+        <h1 id="settings-title">Settings</h1>
+        <section
+          class="settings-section"
+          aria-labelledby="browser-settings-title"
+        >
+          <h2 id="browser-settings-title">Browser</h2>
+          <div class="setting-row">
+            <div>
+              <h3>Enable Grove</h3>
+              <p id="enable-help" class="muted small">
+                Capture and find notes when you need them.
+              </p>
+            </div>
+            <button
+              id="settings-toggle"
+              class="switch"
+              role="switch"
+              aria-label="Enable Grove"
+              aria-checked="true"
+              aria-describedby="enable-help"
+            >
+              <span class="switch-track" aria-hidden="true"></span
+              ><span class="toggle-status">On</span>
+            </button>
+          </div>
+          <label for="theme">Appearance</label>
+          <select id="theme">
+            <option value="system">Match browser</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </section>
+        <section
+          class="settings-section"
+          aria-labelledby="connection-settings-title"
+        >
+          <h2 id="connection-settings-title">Access</h2>
+          <p id="connection-help" class="muted small">
+            Turn Grove on and sign in to check your notebook access.
+          </p>
+          <div id="connection-settings" hidden>
             <p id="capabilities" class="muted"></p>
             <div class="actions">
               <a class="button approval-link" target="_blank" rel="noreferrer"
@@ -190,43 +257,52 @@
             <details>
               <summary>Connection details</summary>
               <dl class="field-stack">
+                <dt>Connection</dt>
+                <dd id="connection-state"></dd>
                 <dt>API</dt>
                 <dd id="api-origin"></dd>
                 <dt>Account ID</dt>
                 <dd id="account-id"></dd>
+                <dt>Browser panel</dt>
+                <dd id="browser-panel"></dd>
               </dl>
             </details>
-          </section>
-          <section
-            id="save-recovery"
-            class="settings-section"
-            hidden
-            aria-labelledby="recovery-title"
-          >
-            <h2 id="recovery-title">Unconfirmed saves</h2>
-            <p class="muted small">Check the outcome before saving again.</p>
-            <div id="pending-list"></div>
-          </section>
-          <section class="settings-section" aria-labelledby="privacy-title">
-            <h2 id="privacy-title">Privacy</h2>
-            <p class="muted">No automatic capture or browsing history.</p>
-            <details>
-              <summary>Storage and recovery</summary>
-              <p class="muted small field-stack">
-                Notes and sign-in tokens stay in browser session storage. Drafts
-                expire after 24 hours and are cleared when their window closes.
-                Unconfirmed saves keep an opaque recovery receipt for seven
-                days.
-              </p>
-              <p class="muted small">
-                Signing out clears session drafts and tokens, not your saved
-                Grove notes or the public registration and recovery receipts.
-              </p>
-            </details>
-          </section>
-          <button id="logout">Sign out</button>
+          </div>
         </section>
-      </div>
+        <section
+          id="save-recovery"
+          class="settings-section"
+          hidden
+          aria-labelledby="recovery-title"
+        >
+          <h2 id="recovery-title">Unconfirmed saves</h2>
+          <p class="muted small">Check the outcome before saving again.</p>
+          <div id="pending-list"></div>
+          <p id="recovery-help" class="muted small" hidden>
+            Turn Grove on and connect to check these saves. Nothing is retried
+            automatically.
+          </p>
+        </section>
+        <section class="settings-section" aria-labelledby="privacy-title">
+          <h2 id="privacy-title">Privacy</h2>
+          <p class="muted">No automatic capture or browsing history.</p>
+          <details>
+            <summary>Storage and recovery</summary>
+            <p class="muted small field-stack">
+              Notes and sign-in tokens stay in browser session storage. Drafts
+              expire after 24 hours and are cleared when their window closes.
+              Unconfirmed saves keep an opaque recovery receipt for seven days.
+            </p>
+            <p class="muted small">
+              Signing out clears session drafts and tokens, not your saved Grove
+              notes or the public registration and recovery receipts.
+            </p>
+          </details>
+        </section>
+        <div id="signout-settings" hidden>
+          <button id="logout">Sign out</button>
+        </div>
+      </section>
       <p id="notice" class="feedback" role="status" aria-live="polite"></p>
     </main>
     <nav id="navigation" aria-label="Grove" hidden>

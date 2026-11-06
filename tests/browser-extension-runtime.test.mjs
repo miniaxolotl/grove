@@ -9,6 +9,10 @@ test("packaged background rejects outside senders, fences accounts and avoids re
   const events = {},
     areas = { session: new Map(), local: new Map() };
   let writes = 0;
+  const menus = new Map();
+  let badge = "",
+    title = "",
+    opens = 0;
   const event = (name) => ({
     addListener(fn) {
       events[name] = fn;
@@ -48,11 +52,24 @@ test("packaged background rejects outside senders, fences accounts and avoids re
       onStartup: event("startup"),
     },
     identity: { getRedirectURL: () => "https://fixture.chromiumapp.org/" },
-    action: { onClicked: event("action") },
+    action: {
+      onClicked: event("action"),
+      async setBadgeText(value) {
+        badge = value.text;
+      },
+      async setTitle(value) {
+        title = value.title;
+      },
+      async setBadgeBackgroundColor() {},
+    },
     contextMenus: {
       onClicked: event("menu"),
-      async removeAll() {},
-      create() {},
+      async removeAll() {
+        menus.clear();
+      },
+      create(value) {
+        menus.set(value.id, value);
+      },
     },
     windows: { onRemoved: event("removed") },
     tabs: {
@@ -60,7 +77,11 @@ test("packaged background rejects outside senders, fences accounts and avoids re
         return [];
       },
     },
-    sidePanel: { async open() {} },
+    sidePanel: {
+      async open() {
+        opens++;
+      },
+    },
   };
   const context = createContext(
     {
@@ -138,4 +159,88 @@ test("packaged background rejects outside senders, fences accounts and avoids re
     { windowId: 1, incognito: true },
   );
   assert.equal(areas.session.get("inbox:1"), undefined);
+  const preferences = await send({ kind: "preferences", windowId: 1 });
+  assert.equal(preferences.ok, true);
+  assert.equal(preferences.data.enabled, true);
+  const accountId = "00000000-0000-4000-a000-000000000001",
+    connectionId = "00000000-0000-4000-a000-000000000002";
+  areas.session.set("identity", { accountId, connectionId });
+  areas.session.set("draft:1", { text: "Kept private draft" });
+  areas.local.set("pending", [{ operationId: "opaque-recovery" }]);
+  const disabled = await send({
+    kind: "configure",
+    windowId: 1,
+    payload: { enabled: false },
+  });
+  assert.equal(disabled.ok, true);
+  assert.equal(disabled.data.enabled, false);
+  assert.equal(areas.local.get("preferences").enabled, false);
+  assert.equal(menus.size, 0);
+  assert.equal(badge, "OFF");
+  assert.match(title, /off/i);
+  for (const kind of [
+    "state",
+    "login",
+    "search",
+    "save",
+    "attach",
+    "context",
+    "inbox",
+    "reconcile",
+  ]) {
+    const blocked = await send({ kind, windowId: 1, accountId, connectionId });
+    assert.equal(blocked.ok, false);
+    assert.match(blocked.error.message, /turned off/i);
+  }
+  events.menu(
+    {
+      menuItemId: "grove-capture-selection",
+      selectionText: "Must not capture",
+      pageUrl: "https://example.com",
+    },
+    { windowId: 1, incognito: false },
+  );
+  await send({ kind: "preferences", windowId: 1 });
+  assert.equal(areas.session.get("inbox:1"), undefined);
+  assert.equal(areas.session.get("draft:1").text, "Kept private draft");
+  assert.equal(areas.local.get("pending")[0].operationId, "opaque-recovery");
+  const beforeOpen = opens;
+  events.action({ windowId: 1, incognito: false });
+  assert.equal(
+    opens,
+    beforeOpen + 1,
+    "toolbar can always open the on/off control",
+  );
+  events.startup();
+  await send({ kind: "preferences", windowId: 1 });
+  assert.equal(menus.size, 0, "restart retains disabled native entry points");
+  const appearance = await send({
+    kind: "configure",
+    windowId: 1,
+    payload: { theme: "dark" },
+  });
+  assert.equal(
+    appearance.data.enabled,
+    false,
+    "changing appearance never re-enables Grove",
+  );
+  const enabled = await send({
+    kind: "configure",
+    windowId: 1,
+    payload: { enabled: true, theme: "dark" },
+  });
+  assert.equal(enabled.ok, true);
+  assert.equal(enabled.data.theme, "dark");
+  assert.equal(menus.size, 3);
+  assert.equal(badge, "");
+  assert.equal(
+    (
+      await send({
+        kind: "configure",
+        windowId: 1,
+        payload: { theme: "untrusted" },
+      })
+    ).ok,
+    false,
+  );
 });

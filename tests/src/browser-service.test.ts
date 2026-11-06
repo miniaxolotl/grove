@@ -12,7 +12,8 @@ import {
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { localArtifacts } from "../../packages/api/src/artifacts.ts";
 import { Authentication } from "../../packages/api/src/auth.ts";
-import { type Principal } from "@lib/shared/contracts";
+import { createApp } from "../../packages/api/src/app.ts";
+import { GroveError, type Principal } from "@lib/shared/contracts";
 
 const db = createDatabase(process.env.TEST_DATABASE_URL!);
 const service = new MemoryService(
@@ -39,6 +40,153 @@ before(async () => {
   );
 });
 after(() => db.destroy());
+
+test("native extension origins require verified OAuth and never bypass website, key, grant or revocation boundaries", async () => {
+  const clientId = randomUUID(),
+    pendingClientId = randomUUID();
+  const grant = {
+    name: "Native browser origin test",
+    capabilities: ["memory:read", "memory:write"] as (
+      | "memory:read"
+      | "memory:write"
+    )[],
+    personal: true,
+    allProjects: false,
+    projectIds: [],
+  };
+  const approved = await service.grant(a, grant, { clientId });
+  const key = await service.grant(a, grant, { key: true });
+  const authentication = new Authentication(db, {
+    async verify(token) {
+      if (token === "native-owner-session")
+        return {
+          subject: a.subject,
+          type: "session" as const,
+          sessionId: "native-test-session",
+        };
+      if (token === "native-oauth" || token === "native-pending")
+        return {
+          subject: a.subject,
+          type: "oauth" as const,
+          clientId: token === "native-oauth" ? clientId : pendingClientId,
+          issuedAt: Date.now(),
+          scopes: ["openid"],
+        };
+      throw new GroveError("unauthorized", "Invalid test token", 401);
+    },
+  });
+  const api = createApp({
+    memories: service,
+    auth: authentication,
+    origin: "https://api.grove.example",
+    siteUrl: "https://grove.example",
+    issuer: "https://issuer.grove.example",
+    webhookSecret: "fixture-only",
+    ready: async () => {},
+  });
+  const request = (
+    path: string,
+    origin: string,
+    token: string,
+    body: unknown = {},
+  ) =>
+    api.request(path, {
+      method: "POST",
+      headers: {
+        Origin: origin,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  const origins = [
+    `chrome-extension://${"a".repeat(32)}`,
+    "moz-extension://00000000-0000-4000-a000-000000000001",
+  ];
+  for (const origin of origins) {
+    const connected = await request(
+      "/v1/browser/connect",
+      origin,
+      "native-oauth",
+    );
+    assert.equal(
+      connected.status,
+      200,
+      `approved OAuth connects from ${origin}`,
+    );
+    assert.notEqual(
+      connected.headers.get("Access-Control-Allow-Origin"),
+      "*",
+      "website CORS must not become a wildcard",
+    );
+    const saved = await request(
+      "/v1/browser/captures",
+      origin,
+      "native-oauth",
+      {
+        operationId: randomUUID(),
+        content: "Native HTTP origin capture",
+        projectId: null,
+        capture: "explicit",
+      },
+    );
+    assert.equal(saved.status, 200);
+    assert.equal(
+      (await request("/v1/browser/connect", origin, "native-owner-session"))
+        .status,
+      403,
+    );
+    assert.equal(
+      (await request("/v1/browser/connect", origin, key.secret!)).status,
+      403,
+    );
+    assert.equal(
+      (await request("/v1/browser/connect", origin, "invalid-token")).status,
+      401,
+    );
+  }
+  for (const origin of [
+    "https://evil.example",
+    "null",
+    `chrome-extension://${"z".repeat(32)}`,
+    `chrome-extension://${"a".repeat(32)}/path`,
+    "moz-extension://invalid",
+  ])
+    assert.equal(
+      (await request("/v1/browser/connect", origin, "native-oauth")).status,
+      403,
+    );
+  assert.equal(
+    (
+      await request(
+        "/v1/browser/connect",
+        "https://grove.example",
+        "native-owner-session",
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request("/v1/browser/connect", origins[0], "native-pending")).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request("/v1/browser/captures", origins[0], "native-pending", {
+        operationId: randomUUID(),
+        content: "Must remain unapproved",
+        projectId: null,
+        capture: "explicit",
+      })
+    ).status,
+    403,
+  );
+  await service.revoke(a, approved.connection.id);
+  assert.equal(
+    (await request("/v1/browser/connect", origins[0], "native-oauth")).status,
+    403,
+  );
+});
 
 test("durable exports include source provenance without changing structured note bodies", async () => {
   const workerDb = createDatabase(process.env.TEST_WORKER_DATABASE_URL!);

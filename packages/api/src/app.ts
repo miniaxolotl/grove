@@ -417,9 +417,21 @@ export function createApp(deps: AppDependencies) {
     next: () => Promise<void>,
   ) => {
     const origin = c.req.header("origin");
-    if (origin && origin !== deps.siteUrl && origin !== deps.origin)
+    const foreignOrigin =
+      origin && origin !== deps.siteUrl && origin !== deps.origin;
+    const nativeExtensionOrigin =
+      origin &&
+      /^(?:chrome-extension:\/\/[a-p]{32}|moz-extension:\/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.test(
+        origin,
+      );
+    if (foreignOrigin && !nativeExtensionOrigin)
       throw new GroveError("forbidden", "Origin is not allowed", 403);
-    c.set("principal", await deps.auth.principal(c.req.raw));
+    const principal = await deps.auth.principal(c.req.raw);
+    // An extension Origin is not identity proof. Require verified OAuth; retain
+    // website-origin restrictions for sessions/keys and every connection grant.
+    if (foreignOrigin && principal.type !== "oauth")
+      throw new GroveError("forbidden", "Origin is not allowed", 403);
+    c.set("principal", principal);
     c.get("signal").throwIfAborted();
     await deps.models?.refresh();
     const sink = deps.telemetry?.forIdentity(

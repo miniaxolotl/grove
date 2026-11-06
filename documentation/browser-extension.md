@@ -63,11 +63,36 @@ Page lookup is inside Search; context actions appear only after selecting notes.
   confirmed receipt removes the corresponding pending item. Access management,
   notebook discovery, refresh and sign-out remain available. The last chosen
   destination is remembered per API/account; existing drafts take precedence.
+  Browser enablement and system/light/dark appearance remain available and save
+  automatically on this device.
 
 Capture opens directly to the note editor. Save outcome and newer unsaved edits
 remain visible; exact version/indexing metadata is available under **Save details**.
 The source link remains editable and reviewed before saving. No feature, privacy
 approval or uncertain-save safeguard is removed to simplify the panel.
+
+### Turn Grove on or off
+
+The header switch is always available; Settings has the same control. Turning Grove
+off persists on this device across panel reloads and browser restarts, removes its
+context-menu entries and adds an **OFF** toolbar badge. The toolbar/shortcut still
+opens the native panel so Grove can be turned on again. Off blocks extension API
+requests, sign-in/refresh, captures, search, reads, source attachment and context copy
+in the trusted background, not only through disabled buttons. Opening an off panel
+does not authenticate or contact Grove. Appearance and Settings remain available.
+
+Switching off waits for earlier serialized actions to settle; a save already sent
+is not cancelled, deleted or falsely labelled unsuccessful. Session drafts/tokens,
+capture inboxes and opaque recovery receipts retain their normal scope/expiry rules.
+No unknown save is automatically retried on resume. Changing appearance cannot
+enable Grove. Other mounted panels update immediately and close private review
+dialogs while off; the current draft is not replaced. Turning on rechecks access.
+This is a device pause, not grant revocation or the browser's add-on uninstall switch;
+use Connections to revoke access and Sign out to clear a mounted session.
+
+The panel uses a persistent header/navigation frame with a separately scrolling
+content area: controls cannot scroll beneath navigation, and view changes restore
+their previous scroll position. Switches work with the keyboard and retain focus.
 
 Restricted/internal/store/file pages cannot be attached; private browsing is disabled.
 Manual notes and search do not need page access. `activeTab` may require opening the
@@ -103,6 +128,14 @@ operation UUID, content, destination, `capture: explicit` and optional provenanc
 The note, structured revision, provenance, replay receipt and normal durable
 processing jobs commit atomically. Acceptance of a note is not completed indexing.
 
+Private API requests accept exact native `chrome-extension://<32-letter ID>` and
+UUID-shaped `moz-extension://<ID>` origins only after OAuth verification. A native
+origin is not identity proof: sessions and API keys cannot use this exception,
+unapproved grants cannot read/save, and revocation still denies access. Website
+origin restrictions and website CORS remain unchanged. The regression exercises
+both native schemes, malformed/foreign origins, sessions, keys and revoked grants
+against the real authentication and disposable PostgreSQL services.
+
 Migration `20261105_037_browser_capture` follows structured documents `036`. Its
 tenant-isolated `web_captures` table retains source history without changing note
 row shapes. A database trigger invalidates active associations when content changes,
@@ -136,7 +169,8 @@ local structural validation, not proof of server storage, access or indexing.
 Runtime receipts come from authenticated responses. Network/ambiguous failures show
 **unknown outcome**, not success; retry replays the original request without losing
 newer edits. Settings can reconcile a scoped opaque receipt after session loss.
-Local persistent storage contains only public OAuth registration, destination IDs
+Local persistent storage contains only device enablement/appearance preferences,
+public OAuth registration, destination IDs
 and at most ten opaque recovery receipts, pruned after seven days; never note bodies,
 URLs, access tokens, refresh tokens or PKCE verifiers. A missing receipt is not proof
 that an uncertain provider operation never happened; do not blindly create a new save.
@@ -182,14 +216,23 @@ API and issuer hosts. Self-hosted builds may set `--apiOrigin`, `--siteOrigin` a
 `--issuer` to exact HTTPS origins; rebuild manifests/CSP and qualify OAuth separately.
 No runtime arbitrary-host setting or wildcard redirect is offered.
 
+Firefox host match patterns do not support ports. A custom-port Firefox build
+therefore requests only the configured HTTPS hostnames, deduplicated across API and
+issuer; exact ports remain enforced by `connect-src` and OAuth endpoint validation.
+Chrome/Edge retain the configured port in their permission patterns. Default
+production manifests are unchanged. Custom-origin acceptance must use the actual
+Firefox network stack, not seeded tokens or intercepted fetch responses.
+
 Root lint/types/build, ordinary TypeScript tests and artifact tests cover the new
 core. Artifact checks rebuild in isolated directories, compare deterministic bytes,
 restrict the input graph to reviewed core/shared/Zod code, require no external
 imports and exercise exports in a sandbox without Node globals, DOM or fetch.
 Runtime/package checks also validate deterministic ZIPs/manifests/CSP, trusted
-messages and storage feedback. Installed Chromium journeys exercise the real
+messages, off-state request/menu enforcement and storage feedback. Installed Chromium journeys exercise the real
 package with synthetic HTTP/auth, native panel calls, retry, read/context/page
-lookup, cross-panel sign-out and 320/390/768px accessibility/overflow. Set
+lookup, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
+keyboard-switch focus and 320/390/768px accessibility/overflow (including short
+windows and dark Settings). Set
 `EXTENSION_EDGE_BINARY` to an actual Edge executable for its supplemental host run;
 that run checks API acceptance, not the unobserved Edge `onOpened` event.
 

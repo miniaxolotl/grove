@@ -254,6 +254,33 @@ for (const target of ["chrome", "edge"])
         false,
         "unknown saves keep a visible recovery section in Settings",
       );
+      const uncertainRequests = await worker.evaluate(
+        () => globalThis.fixtureRequests.length,
+      );
+      const uncertainReceipts = await worker.evaluate(() =>
+        globalThis.chrome.storage.local.get("pending"),
+      );
+      await page.locator("#extension-toggle").click();
+      await page.locator("#paused").waitFor({ state: "visible" });
+      await page.reload();
+      await page.locator("#paused").waitFor({ state: "visible" });
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureRequests.length),
+        uncertainRequests,
+      );
+      assert.deepEqual(
+        await worker.evaluate(() =>
+          globalThis.chrome.storage.local.get("pending"),
+        ),
+        uncertainReceipts,
+        "unknown saves retain their exact recovery receipt while off",
+      );
+      await page.locator("#resume").click();
+      await page.locator("#workspace").waitFor({ state: "visible" });
+      assert.match(
+        await page.locator("#save-state").textContent(),
+        /outcome is unknown/,
+      );
       await page.locator("#note").fill("A newer draft stays after retry.");
       await page.locator("#save").click();
       await page
@@ -393,7 +420,7 @@ for (const target of ["chrome", "edge"])
           .isChecked(),
         false,
       );
-      for (const width of [320, 390, 768]) {
+      for (const width of [280, 320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         assert.ok(
           await page.evaluate(
@@ -524,6 +551,124 @@ for (const target of ["chrome", "edge"])
       assert.equal(
         await otherPanel.locator("#note").inputValue(),
         "A newer draft stays after retry.",
+      );
+      await page.locator("#settings-toggle").click();
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector("#settings-toggle")
+            .getAttribute("aria-checked") === "false",
+      );
+      await otherPanel.locator("#paused").waitFor({ state: "visible" });
+      const pausedRequests = await worker.evaluate(
+        () => globalThis.fixtureRequests.length,
+      );
+      const pausedSession = await worker.evaluate(() =>
+        globalThis.chrome.storage.session.get(null),
+      );
+      await otherPanel.reload();
+      await otherPanel.locator("#paused").waitFor({ state: "visible" });
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureRequests.length),
+        pausedRequests,
+        "reopening while off does not contact Grove",
+      );
+      assert.deepEqual(
+        await worker.evaluate(() =>
+          globalThis.chrome.storage.session.get(null),
+        ),
+        pausedSession,
+      );
+      assert.equal(
+        await worker.evaluate(() => globalThis.chrome.action.getBadgeText({})),
+        "OFF",
+      );
+      for (const width of [280, 320, 390, 768]) {
+        await otherPanel.setViewportSize({ width, height: 600 });
+        const audit = await new AxeBuilder({ page: otherPanel }).analyze();
+        assert.deepEqual(
+          audit.violations.map((item) => item.id),
+          [],
+          `paused axe at ${width}`,
+        );
+        assert.ok(
+          await otherPanel.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
+      }
+      await page.locator("#theme").selectOption("dark");
+      await otherPanel.waitForFunction(
+        () => document.documentElement.dataset.theme === "dark",
+      );
+      const darkAudit = await new AxeBuilder({ page }).analyze();
+      assert.deepEqual(
+        darkAudit.violations.map((item) => item.id),
+        [],
+        "dark Settings accessibility",
+      );
+      for (const width of [280, 320, 390, 768]) {
+        await page.setViewportSize({ width, height: 600 });
+        const audit = await new AxeBuilder({ page }).analyze();
+        assert.deepEqual(
+          audit.violations.map((item) => item.id),
+          [],
+          `dark Settings at ${width}`,
+        );
+        assert.ok(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
+        await page.locator("#logout").scrollIntoViewIfNeeded();
+        assert.ok(
+          await page.locator("#logout").evaluate((element) => {
+            const box = element.getBoundingClientRect(),
+              nav = document.querySelector("nav").getBoundingClientRect();
+            return box.bottom <= nav.top;
+          }),
+          "scrollable Settings actions cannot hide beneath navigation",
+        );
+      }
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.locator("main").evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await otherPanel.setViewportSize({ width: 390, height: 844 });
+        await otherPanel.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-off-dark-390.png`,
+          ),
+          fullPage: true,
+        });
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-settings-dark-390.png`,
+          ),
+          fullPage: true,
+        });
+      }
+      await page.locator("#theme").selectOption("system");
+      await otherPanel.locator("#extension-toggle").focus();
+      await otherPanel.locator("#extension-toggle").press("Space");
+      await otherPanel.locator("#workspace").waitFor({ state: "visible" });
+      assert.equal(
+        await otherPanel.evaluate(() => document.activeElement.id),
+        "extension-toggle",
+        "keyboard toggle preserves focus through resume",
+      );
+      assert.equal(
+        await otherPanel.locator("#note").inputValue(),
+        "A newer draft stays after retry.",
+      );
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector("#settings-toggle")
+            .getAttribute("aria-checked") === "true",
       );
       await page.locator("#logout").click();
       await page.locator("#welcome").waitFor({ state: "visible" });
