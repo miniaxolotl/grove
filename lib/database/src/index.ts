@@ -121,6 +121,7 @@ export async function probeDatabase(db: Knex) {
   await db.raw(
     "SELECT document, change, actor, revision_group FROM memory_revisions LIMIT 0",
   );
+  await db.raw("SELECT provenance FROM web_captures LIMIT 0");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */

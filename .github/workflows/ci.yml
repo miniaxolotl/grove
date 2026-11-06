@@ -124,6 +124,7 @@ jobs:
           NEXT_PUBLIC_SENTRY_DSN: https://00000000000000000000000000000000@o0.ingest.us.sentry.io/1
       - run: node scripts/performance/website-bundles.mjs --check
       - run: pnpm --filter website exec playwright install --with-deps chromium
+      - run: pnpm build:extension && pnpm test:extension:browser
       - run: pnpm test:website
       - if: ${{ github.event_name != 'pull_request' && github.ref_protected && steps.browser-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -186,6 +187,14 @@ jobs:
       - run: pnpm test:db:setup
       - run: pnpm test
       - run: pnpm test:artifacts
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: grove-browser-extensions-${{ github.sha }}
+          path: |
+            packages/browser-extension/dist/grove-*.zip
+            packages/browser-extension/dist/packages.build.json
+          if-no-files-found: error
+          retention-days: 14
       - run: pnpm test:agents
       - name: Tear down disposable CI test services
         if: ${{ always() }}

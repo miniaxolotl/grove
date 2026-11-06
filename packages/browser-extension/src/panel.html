@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Grove</title>
+    <link rel="stylesheet" href="panel.css" />
+    <script src="panel.js" defer></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <a id="home" target="_blank" rel="noreferrer"
+        ><img src="wordmark.svg" alt="Grove" width="100" height="30"
+      /></a>
+      <button
+        id="extension-toggle"
+        class="switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Grove enabled"
+        disabled
+      >
+        <span class="switch-track" aria-hidden="true"></span
+        ><span id="extension-status">On</span>
+      </button>
+    </header>
+    <main>
+      <section id="paused" hidden aria-labelledby="paused-title">
+        <h1 id="paused-title">Grove is off.</h1>
+        <p class="muted">
+          Use the switch above to resume. Drafts and save recovery keep their
+          normal expiry rules.
+        </p>
+      </section>
+      <section id="welcome" hidden aria-labelledby="welcome-title">
+        <h1 id="welcome-title">Your notes, beside you.</h1>
+        <p>
+          Keep something worth remembering. Find the context you already have.
+        </p>
+        <button id="login" class="primary">Sign in to Grove</button>
+        <p class="muted">Choose notebook access in Grove after signing in.</p>
+      </section>
+      <section id="approval" hidden>
+        <h1>Choose your access</h1>
+        <p>Approve the notebooks this extension may read and save.</p>
+        <a class="button primary approval-link" target="_blank" rel="noreferrer"
+          >Open Connections</a
+        ><button id="approved">Check approval</button>
+      </section>
+      <div id="workspace" hidden>
+        <section
+          id="capture"
+          data-view="capture"
+          aria-labelledby="capture-title"
+        >
+          <div class="title-row">
+            <h1 id="capture-title">Keep a note</h1>
+            <button id="new-note">New note</button>
+          </div>
+          <div id="inbox" hidden>
+            <h2>Ready to review</h2>
+            <div id="inbox-list"></div>
+          </div>
+          <form id="capture-form">
+            <label for="destination">Save to</label
+            ><select id="destination" class="notebook-select"></select>
+            <label for="note">Note</label
+            ><textarea
+              id="note"
+              rows="9"
+              maxlength="6000"
+              placeholder="What is worth keeping?"
+              aria-describedby="note-help"
+            ></textarea>
+            <div id="note-help" class="between muted small">
+              <span>Markdown is welcome.</span
+              ><span id="length">0 / 6,000</span>
+            </div>
+            <details id="source-details">
+              <summary>Source link <span id="source-label"></span></summary>
+              <div class="field-stack">
+                <label for="source-url">URL</label
+                ><input
+                  id="source-url"
+                  type="url"
+                  maxlength="4096"
+                  placeholder="https://"
+                /><label for="source-title">Page title</label
+                ><input id="source-title" maxlength="300" />
+                <div class="actions">
+                  <button id="attach" type="button">Use current page</button
+                  ><button id="remove-source" type="button">
+                    Remove source
+                  </button>
+                </div>
+                <p class="muted small">
+                  Only this reviewed link is saved. Tracking parameters are
+                  removed; the page is never scraped.
+                </p>
+              </div>
+            </details>
+            <div class="actions">
+              <button id="save" type="submit" class="primary">Save note</button
+              ><a id="saved-link" hidden target="_blank" rel="noreferrer"
+                >Open saved note</a
+              >
+            </div>
+            <p id="save-state" class="feedback" role="status"></p>
+          </form>
+        </section>
+        <section data-view="search" hidden aria-labelledby="search-title">
+          <h1 id="search-title">Find your context</h1>
+          <form id="search-form">
+            <label for="query">Search notes</label>
+            <div class="joined">
+              <input
+                id="query"
+                type="search"
+                maxlength="1000"
+                placeholder="A decision, idea, or detail"
+              /><button type="submit">Search</button>
+            </div>
+            <label for="search-scope">Notebook</label
+            ><select id="search-scope" class="notebook-select"></select>
+          </form>
+        </section>
+        <section data-view="page" hidden aria-labelledby="page-title">
+          <h1 id="page-title">Saved on this page</h1>
+          <p class="muted">
+            Look up an exact source link. Nothing is sent until you choose Find
+            notes.
+          </p>
+          <form id="page-form">
+            <label for="page-url">Page URL</label
+            ><input
+              id="page-url"
+              type="url"
+              required
+              maxlength="4096"
+              placeholder="https://"
+            /><button id="page-current" type="button">Use current page</button
+            ><label for="page-scope">Notebook</label
+            ><select id="page-scope" class="notebook-select"></select
+            ><button type="submit" class="primary">Find notes</button>
+          </form>
+        </section>
+        <section id="recall-results" hidden aria-labelledby="results-title">
+          <div class="between result-heading">
+            <h2 id="results-title">Notes</h2>
+            <button id="review-context" hidden>Review context (0)</button>
+          </div>
+          <p id="results-status" class="feedback muted" role="status"></p>
+          <div id="results" class="results"></div>
+          <button id="results-more" hidden>Load more notes</button>
+        </section>
+      </div>
+      <section
+        id="settings-view"
+        data-view="settings"
+        hidden
+        aria-labelledby="settings-title"
+      >
+        <h1 id="settings-title">Settings</h1>
+        <section
+          class="settings-section"
+          aria-labelledby="browser-settings-title"
+        >
+          <h2 id="browser-settings-title">Appearance</h2>
+          <select id="theme" aria-labelledby="browser-settings-title">
+            <option value="system">Match browser</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+          <p class="muted small setting-help">
+            Saved automatically on this device.
+          </p>
+        </section>
+        <section
+          class="settings-section"
+          aria-labelledby="connection-settings-title"
+        >
+          <h2 id="connection-settings-title">Account & access</h2>
+          <p id="connection-help" class="muted small">
+            Connect Grove to check notebook access.
+          </p>
+          <div id="connection-settings" hidden>
+            <p id="connection-state"></p>
+            <p id="capabilities" class="muted small"></p>
+            <div class="actions">
+              <a class="button approval-link" target="_blank" rel="noreferrer"
+                >Manage access</a
+              ><button id="refresh">Refresh access</button>
+            </div>
+            <button id="notebooks-more" hidden>Load more notebooks</button>
+          </div>
+        </section>
+        <section
+          id="recovery-settings"
+          class="settings-section"
+          aria-labelledby="recovery-settings-title"
+        >
+          <h2 id="recovery-settings-title">Save recovery</h2>
+          <p class="muted small">
+            Check an unconfirmed save before repeating it.
+          </p>
+          <div id="pending-list"></div>
+          <p id="recovery-help" class="muted small" hidden>
+            Turn Grove on to check these receipts. Nothing retries
+            automatically.
+          </p>
+        </section>
+        <section
+          class="settings-section"
+          aria-labelledby="privacy-settings-title"
+        >
+          <h2 id="privacy-settings-title">Privacy & storage</h2>
+          <p class="muted small">
+            Drafts and sign-in tokens stay in this browser session. Drafts
+            expire after 24 hours or when their window closes. No automatic page
+            capture or analytics.
+          </p>
+          <details class="technical-details">
+            <summary>Storage & connection details</summary>
+            <p class="muted small">
+              Unconfirmed saves keep opaque receipts for seven days. Turning
+              Grove off does not cancel submitted saves or revoke access.
+            </p>
+            <dl>
+              <dt>Account ID</dt>
+              <dd id="account-id"></dd>
+              <dt>API</dt>
+              <dd id="api-origin"></dd>
+              <dt>Browser panel</dt>
+              <dd id="browser-panel"></dd>
+            </dl>
+          </details>
+        </section>
+        <footer id="signout-settings" class="settings-section" hidden>
+          <button id="logout">Sign out</button>
+          <p class="muted small">
+            Clears session drafts and tokens, not saved notes or recovery
+            receipts.
+          </p>
+        </footer>
+      </section>
+      <p id="notice" class="feedback" role="status" aria-live="polite"></p>
+    </main>
+    <nav id="navigation" aria-label="Grove" hidden>
+      <button data-nav="capture" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M14 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 3l5 5M10 14l1-5 7-7 5 5-7 7-6 1Z"
+          /></svg
+        >Capture</button
+      ><button data-nav="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 5 5" /></svg
+        >Search</button
+      ><button data-nav="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 9h18M7 6.5h.01M10 6.5h.01M8 13h8M8 16h5" /></svg
+        >This page</button
+      ><button data-nav="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="m9 3-1 3-3 1-2 3 2 2-1 3 2 3 3-1 3 2 3-2 3 1 2-3-1-3 2-2-2-3-3-1-1-3Z"
+          />
+          <circle cx="12" cy="11" r="3" /></svg
+        >Settings
+      </button>
+    </nav>
+    <dialog id="reader" aria-labelledby="reader-title">
+      <div class="title-row">
+        <h2 id="reader-title">Note</h2>
+        <button id="close-reader">Close</button>
+      </div>
+      <p id="reader-meta" class="muted small"></p>
+      <pre id="reader-content" class="note-source"></pre>
+      <a id="reader-link" target="_blank" rel="noreferrer">Open in Grove</a>
+    </dialog>
+    <dialog id="context" aria-labelledby="context-title">
+      <div class="title-row">
+        <h2 id="context-title">Review context</h2>
+        <button id="close-context">Close</button>
+      </div>
+      <p class="muted">
+        Private notes will leave Grove when you paste them elsewhere. Review the
+        exact text below.
+      </p>
+      <textarea
+        id="context-text"
+        readonly
+        rows="12"
+        aria-label="Context to copy"
+      ></textarea
+      ><label class="check"
+        ><input id="copy-consent" type="checkbox" />I have reviewed this context
+        for sharing.</label
+      ><button id="copy" class="primary" disabled>Copy reviewed context</button>
+      <p id="copy-state" class="feedback" role="status"></p>
+    </dialog>
+    <dialog id="confirm" aria-labelledby="confirm-title">
+      <h2 id="confirm-title">Replace this draft?</h2>
+      <p>Your current draft will be discarded. Saved notes are unchanged.</p>
+      <div class="actions">
+        <button id="cancel-replace">Keep draft</button
+        ><button id="confirm-replace" class="primary">Replace draft</button>
+      </div>
+    </dialog>
+  </body>
+</html>

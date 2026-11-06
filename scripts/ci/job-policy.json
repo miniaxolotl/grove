@@ -9,7 +9,7 @@
   "rules": [
     {
       "prefix": "packages/browser-extension/",
-      "jobs": ["contracts", "contracts-quality"]
+      "jobs": ["website", "contracts", "contracts-quality"]
     },
     {
       "prefix": "packages/website/",

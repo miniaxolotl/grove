@@ -58,6 +58,9 @@ importers:
       eslint:
         specifier: ~10.1.0
         version: 10.1.0(jiti@2.7.0)
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       prettier:
         specifier: ~3.8.1
         version: 3.8.3
@@ -283,9 +286,15 @@ importers:
 
   packages/browser-extension:
     dependencies:
+      '@lib/integration-core':
+        specifier: workspace:*
+        version: link:../../lib/integration-core
       '@lib/shared':
         specifier: workspace:*
         version: link:../../lib/shared
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.1
+        version: 1.32.1(zod@4.6.7)
       zod:
         specifier: 4.6.7
         version: 4.6.7

@@ -38,7 +38,7 @@ import {
   type MoveMemories,
   type NotebookList,
 } from "@lib/shared/memory-tools";
-import { rememberSchema } from "@lib/shared/contracts";
+import { rememberSchema, uuidSchema } from "@lib/shared/contracts";
 import { applySourceEdits } from "@lib/shared/document-edits";
 import { compareDocuments } from "@lib/shared/documents";
 import type { RevisionEdit } from "./revision-groups.ts";
@@ -219,6 +219,13 @@ export {
   UsageLimitError,
 } from "./billing-quotas.ts";
 export { SystemAdministration } from "./system-admin.ts";
+
+import {
+  browserCaptureRequestSchema,
+  browserPageRequestSchema,
+  type BrowserCaptureRequest,
+  type BrowserPageRequest,
+} from "@lib/shared/web-capture";
 
 export class MemoryService {
   beforeAccountDeletion?: (
@@ -596,6 +603,139 @@ export class MemoryService {
 
   async remember(principal: Principal, input: Remember) {
     return this.saveMemory(principal, input, false);
+  }
+
+  async captureWeb(principal: Principal, raw: BrowserCaptureRequest) {
+    const input = browserCaptureRequestSchema.parse(raw);
+    return this.access(
+      principal,
+      "memory:write",
+      async ({ trx, account, grant }) => {
+        this.scope(grant, input.projectId);
+        const receipt = await this.operation(
+          trx,
+          account.id,
+          input.operationId,
+          {
+            action: "browser_capture",
+            connectionId: principal.connectionId,
+            ...input,
+          },
+          async () => {
+            const note = await this.inTransaction(trx).remember(
+              principal,
+              rememberSchema.parse({
+                operationId: randomUUID(),
+                content: input.content,
+                projectId: input.projectId,
+                capture: "explicit",
+                source: { agent: "api" },
+              }),
+            );
+            if (input.provenance)
+              await trx("web_captures").insert({
+                accountId: account.id,
+                memoryId: note.id,
+                version: note.version,
+                provenance: JSON.stringify(input.provenance),
+                active: true,
+              });
+            return {
+              action: "browser_capture",
+              connectionId: principal.connectionId,
+              id: note.id,
+              version: note.version,
+            };
+          },
+        );
+        const note = await this.query(trx, grant).findById(receipt.id);
+        if (!note)
+          throw new GroveError(
+            "gone",
+            "This capture is no longer available",
+            410,
+          );
+        return this.present(trx, note);
+      },
+    );
+  }
+
+  async webCaptureStatus(principal: Principal, operationId: string) {
+    uuidSchema.parse(operationId);
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      const operation = await trx("memory_operations")
+        .where({ id: operationId })
+        .first();
+      const receipt = operation?.result;
+      if (
+        receipt?.action !== "browser_capture" ||
+        receipt.connectionId !== principal.connectionId
+      )
+        throw new GroveError("not_found", "Capture receipt not found", 404);
+      const note = await this.query(trx, grant).findById(receipt.id);
+      if (!note)
+        throw new GroveError(
+          "gone",
+          "This capture is no longer available",
+          410,
+        );
+      const current = await this.present(trx, note);
+      return {
+        status: "saved" as const,
+        noteId: note.id,
+        version: receipt.version as number,
+        indexing: current.indexing,
+      };
+    });
+  }
+
+  async pageCaptures(principal: Principal, raw: BrowserPageRequest) {
+    const input = browserPageRequestSchema.parse(raw);
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      this.scope(grant, input.projectId);
+      const binding = digest(
+        stable({
+          account: principal.accountId,
+          connection: principal.connectionId,
+          url: input.url,
+          projectId: input.projectId,
+          grant: grant
+            ? {
+                personal: grant.personal,
+                allProjects: grant.allProjects,
+                projectIds: grant.projectIds,
+                capabilities: grant.capabilities,
+              }
+            : null,
+        }),
+      );
+      const cursor = input.cursor
+        ? this.decodeCursor(input.cursor, binding)
+        : { after: "", ceiling: new Date().toISOString() };
+      const query = this.query(trx, grant)
+        .where({ projectId: input.projectId, status: "active" })
+        .whereRaw(
+          "EXISTS (SELECT 1 FROM web_captures wc WHERE wc.account_id=memories.account_id AND wc.memory_id=memories.id AND wc.active AND wc.provenance->>'url'=?)",
+          [input.url],
+        )
+        .whereRaw("(expires_at IS NULL OR expires_at>now())")
+        .where("createdAt", "<=", cursor.ceiling)
+        .orderBy("id")
+        .limit(21);
+      if (cursor.after) query.where("id", ">", cursor.after);
+      const rows = await query;
+      return {
+        items: await this.presentMany(trx, rows.slice(0, 20)),
+        nextCursor:
+          rows.length > 20
+            ? this.encodeCursor({
+                binding,
+                after: rows[19].id,
+                ceiling: cursor.ceiling,
+              })
+            : null,
+      };
+    });
   }
 
   async updateMemory(principal: Principal, input: MemoryUpdate) {

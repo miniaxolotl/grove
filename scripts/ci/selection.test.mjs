@@ -82,14 +82,14 @@ test("selection is conservative for empty/unknown paths and includes shared depe
   ])
     assert.deepEqual(classify(policy, paths), { website: true, server: true });
 });
-test("browser core selects TypeScript verification without pretending to be a website or server image", () => {
+test("installable extensions select packaged browser and TypeScript verification, not a server image", () => {
   const actual = JSON.parse(
     readFileSync(new URL("./job-policy.json", import.meta.url), "utf8"),
   );
   assert.deepEqual(
     classify(actual, ["packages/browser-extension/src/platform.ts"]),
     {
-      website: false,
+      website: true,
       "website-quality": false,
       contracts: true,
       "contracts-quality": true,

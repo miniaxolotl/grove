@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { webCaptureSchema } from "./web-capture";
 
 export const queueLanes = [
   "indexing",
@@ -57,6 +58,7 @@ export const importRecordSchema = z
     sourceId: z.string().min(1).max(200),
     content: z.string().min(1).max(6000),
     projectId: z.uuid().nullable().default(null),
+    webCapture: webCaptureSchema.optional(),
   })
   .strict();
 export const importRequestSchema = z

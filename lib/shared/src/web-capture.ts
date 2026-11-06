@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { rememberSchema } from "./contracts.ts";
+import { rememberSchema } from "./contracts";
 
 const trackingParameters = new Set([
   "utm_source",
@@ -52,8 +52,8 @@ export function normalizeWebUrl(input: string): string {
   return normalized;
 }
 
-// This is a proposed web-provenance value, not an extension of rememberSchema.
-// The capture service must later commit it atomically with its authorized note.
+// Browser-specific provenance, atomically committed by the authorized capture API.
+// It does not widen the general rememberSchema or claim the source is verified.
 export const webCaptureSchema = z
   .object({
     url: z
@@ -77,6 +77,25 @@ export const webCaptureSchema = z
   })
   .strict();
 export type WebCapture = z.infer<typeof webCaptureSchema>;
+
+export const browserCaptureRequestSchema = z
+  .object({
+    operationId: z.uuid(),
+    content: rememberSchema.shape.content,
+    projectId: z.uuid().nullable(),
+    capture: z.literal("explicit"),
+    provenance: webCaptureSchema.optional(),
+  })
+  .strict();
+export const browserPageRequestSchema = z
+  .object({
+    url: webCaptureSchema.shape.url,
+    projectId: z.uuid().nullable(),
+    cursor: z.string().max(2048).optional(),
+  })
+  .strict();
+export type BrowserCaptureRequest = z.infer<typeof browserCaptureRequestSchema>;
+export type BrowserPageRequest = z.input<typeof browserPageRequestSchema>;
 
 function escapeMarkdown(value: string): string {
   return value
