@@ -47,9 +47,16 @@ breaks, readable notebook demonstrations and signup-first actions. Footer top pa
 40px desktop / 32px phone, with the proportional approved signature at up to
 280px / 220px. Pricing stays sourced from shared limits and existing flags.
 The website owns its CSS/assets and does not import the sibling kit at runtime.
-The journal photograph comes from the marketing kit's existing master; its local
-WebP manifest retains source/output hashes, dimensions and licence. It is
-illustrative photography, not a customer's notebook.
+The feature index uses the approved earlier-draft editorial collage with an HTML
+caption. Its photography is illustrative, not a customer's notebook. Current
+editorial/share artwork and adaptive SVG plus light/dark ICO/PNG favicons are
+traced in `packages/website/public/marketing-kit.json`. Photography credits/source
+pages ship at `public/images/marketing/{CREDITS.md,source-manifest.json}` within
+the website package. Existing logo signatures, Apple touch icon and notebook
+examples remain. Favicons follow the browser colour scheme independently of the
+light page. `tests/marketing-kit.spec.ts` checks HTTP hashes, theme links and
+lazy-image loading.
+See the [current four-width review](design/screenshots/marketing-polish-20261106/README.md).
 Research: [Linear](https://linear.app), [Craft](https://www.craft.do),
 [Things](https://culturedcode.com/things/), [Retro](https://retro.app),
 [Raycast](https://www.raycast.com) and [Panic](https://panic.com).
@@ -105,7 +112,7 @@ production acceptance. Publication still follows protected release promotion.
 ## Public discovery
 
 Public routes use initial-HTML metadata, route-specific canonical/sharing URLs
-and approved 1200 × 628 social PNGs. `/llms.txt` exposes only public product facts
+and approved 1200 × 630 social PNGs. `/llms.txt` exposes only public product facts
 and documentation links and is advertised in the document head. It is an emerging
 supplement, not an AI-ingestion or citation guarantee. Preview/development and
 `SITE_NOINDEX=true` serve noindex, disallow-all robots rules and an empty sitemap.

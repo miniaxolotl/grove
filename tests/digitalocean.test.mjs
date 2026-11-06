@@ -104,6 +104,36 @@ test("initial spec isolates runtime secrets and never deploys the migration owne
   }
 });
 
+test("optional writing staging uses the same dedicated key and disclosure in API and worker", () => {
+  const key = "34".repeat(32),
+    notice = "Synthetic provider disclosure; no live transmission.";
+  const spec = createAppSpec({
+    ...env,
+    WRITING_STAGING_KEY: key,
+    WRITING_PROVIDER_NOTICE: notice,
+  });
+  for (const component of [spec.services[0], spec.workers[0]]) {
+    assert.deepEqual(
+      component.envs.find((item) => item.key === "WRITING_STAGING_KEY"),
+      {
+        key: "WRITING_STAGING_KEY",
+        value: key,
+        scope: "RUN_TIME",
+        type: "SECRET",
+      },
+    );
+    assert.equal(
+      component.envs.find((item) => item.key === "WRITING_PROVIDER_NOTICE")
+        ?.value,
+      notice,
+    );
+  }
+  assert.throws(
+    () => createAppSpec({ ...env, WRITING_STAGING_KEY: key }),
+    /WRITING_PROVIDER_NOTICE/,
+  );
+});
+
 test("provisioning rejects owner connections, insecure TLS and stale Clerk keys", () => {
   for (const [key, value] of [
     ["CLERK_SECRET_KEY", "sk_test_do_not_log"],

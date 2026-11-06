@@ -14,13 +14,13 @@ restore/model reset clears them and invalidates older processing generations.
 
 ## Capacity and recovery
 
-| Lane        | Worker capacity             | Work                                                |
-| ----------- | --------------------------- | --------------------------------------------------- |
-| indexing    | `INDEXING_CONCURRENCY=2`    | Embeddings                                          |
-| enrichment  | `AI_CONCURRENCY=4`          | Classification, organization, relationships, briefs |
-| email       | `EMAIL_CONCURRENCY=1`       | Transactional mail                                  |
-| maintenance | `MAINTENANCE_CONCURRENCY=1` | Account, retention and artifact cleanup             |
-| bulk        | `BULK_CONCURRENCY=1`        | Exports, imports, backfills and sync                |
+| Lane        | Worker capacity             | Work                                                                         |
+| ----------- | --------------------------- | ---------------------------------------------------------------------------- |
+| indexing    | `INDEXING_CONCURRENCY=2`    | Embeddings                                                                   |
+| enrichment  | `AI_CONCURRENCY=4`          | Classification, organization, relationships, briefs, explicit sentence tools |
+| email       | `EMAIL_CONCURRENCY=1`       | Transactional mail                                                           |
+| maintenance | `MAINTENANCE_CONCURRENCY=1` | Account, retention and artifact cleanup                                      |
+| bulk        | `BULK_CONCURRENCY=1`        | Exports, imports, backfills and sync                                         |
 
 `WORKER_LANES` selects comma-separated lanes for a replica; zero capacity disables
 an optional lane. Broker and polling consumers share each replica's capacity gates.
@@ -33,6 +33,12 @@ renew every 30 seconds and release on completion/failure/cancellation; expired
 leases recover after a crash. This does not expand provider-wide capacity.
 Bulk/maintenance allow one task per account/lane; email allows one per account.
 Least-recently-claimed accounts and bounded dispatch batches spread work fairly.
+
+Enrichment rotates between memory jobs and background writing tasks during database
+fallback and dispatches both sources through the same capacity pool. Both claim paths
+count their combined active account/lane leases; writing does not add a second provider
+budget. See [sentence tools](browser-extension.md#writing-work-and-temporary-data) for
+consent, encrypted retention, cancellation and uncertain-provider behavior.
 
 Claims have random fencing tokens and 120-second leases. Tasks and inference renew
 every 30 seconds. Business writes and checkpoints commit together. Model switches

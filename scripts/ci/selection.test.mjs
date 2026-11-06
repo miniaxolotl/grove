@@ -43,6 +43,7 @@ test("repository policy covers every workflow job and shared bundles", () => {
   assert.deepEqual(classify(actual, ["packages/website/src/page.tsx"]), {
     website: true,
     "website-quality": true,
+    extension: false,
     contracts: false,
     "contracts-quality": false,
     image: false,
@@ -52,6 +53,7 @@ test("repository policy covers every workflow job and shared bundles", () => {
     {
       website: false,
       "website-quality": false,
+      extension: false,
       contracts: true,
       "contracts-quality": true,
       image: true,
@@ -82,15 +84,16 @@ test("selection is conservative for empty/unknown paths and includes shared depe
   ])
     assert.deepEqual(classify(policy, paths), { website: true, server: true });
 });
-test("installable extensions select packaged browser and TypeScript verification, not a server image", () => {
+test("installable extensions select the extension lane and TypeScript verification, not website or a server image", () => {
   const actual = JSON.parse(
     readFileSync(new URL("./job-policy.json", import.meta.url), "utf8"),
   );
   assert.deepEqual(
     classify(actual, ["packages/browser-extension/src/platform.ts"]),
     {
-      website: true,
+      website: false,
       "website-quality": false,
+      extension: true,
       contracts: true,
       "contracts-quality": true,
       image: false,

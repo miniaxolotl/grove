@@ -75,6 +75,54 @@ export class Sharing {
     private options: { key?: string; siteUrl: string },
   ) {}
 
+  /** Publication is separately delegated; reading/saving alone never grants it. */
+  private access<T>(
+    principal: Principal,
+    target: ShareTarget | string,
+    run: (trx: Knex.Transaction, accountId: string) => Promise<T>,
+  ) {
+    return this.service.access(
+      principal,
+      principal.type === "session" ? "admin" : "self",
+      async ({ trx, account, grant }) => {
+        if (principal.type !== "session") {
+          const denied = () =>
+            new GroveError(
+              "forbidden",
+              "Approve sharing links for this connection first.",
+              403,
+            );
+          if (
+            principal.type !== "oauth" ||
+            !grant?.sharingEnabled ||
+            !principal.capabilities.includes("memory:read") ||
+            !grant.capabilities.includes("memory:read")
+          )
+            throw denied();
+          let scoped = target;
+          if (typeof scoped === "string") {
+            const row = await trx<ShareRow>("public_shares")
+              .where({ id: scoped })
+              .first();
+            if (!row) throw missing();
+            scoped = targetFor(row);
+          }
+          if (scoped.kind !== "note") throw denied();
+          const note = await this.target(trx, scoped);
+          if (
+            note.projectId === null
+              ? !grant.personal
+              : !(
+                  grant.allProjects || grant.projectIds.includes(note.projectId)
+                )
+          )
+            throw denied();
+        }
+        return run(trx, account.id);
+      },
+    );
+  }
+
   private key() {
     if (!this.options.key)
       throw new GroveError(
@@ -160,27 +208,31 @@ export class Sharing {
   private async state(
     trx: Knex.Transaction,
     target: ShareTarget,
+    includeInherited = true,
   ): Promise<ShareState> {
     const current = await this.target(trx, target);
     const direct = await this.direct(trx, target);
     const live = direct ? await active(trx, direct) : false;
-    const notebooks = await trx("projects").select("id", "parentId", "name");
+    const notebooks = includeInherited
+      ? await trx("projects").select("id", "parentId", "name")
+      : [];
     const ancestors = new Set<string>();
     let parent: string | null = current.projectId;
     while (parent && !ancestors.has(parent)) {
       ancestors.add(parent);
       parent = notebooks.find((p) => p.id === parent)?.parentId ?? null;
     }
-    const inherited = ancestors.size
-      ? await trx<ShareRow>("public_shares")
-          .whereIn("projectId", [...ancestors])
-          .whereNull("revokedAt")
-          .where((query) =>
-            query
-              .whereNull("expiresAt")
-              .orWhere("expiresAt", ">", trx.raw("clock_timestamp()")),
-          )
-      : [];
+    const inherited =
+      includeInherited && ancestors.size
+        ? await trx<ShareRow>("public_shares")
+            .whereIn("projectId", [...ancestors])
+            .whereNull("revokedAt")
+            .where((query) =>
+              query
+                .whereNull("expiresAt")
+                .orWhere("expiresAt", ">", trx.raw("clock_timestamp()")),
+            )
+        : [];
     return {
       available: !!this.options.key,
       canShare: current.eligible,
@@ -211,8 +263,8 @@ export class Sharing {
     };
   }
   get(principal: Principal, target: ShareTarget) {
-    return this.service.access(principal, "admin", ({ trx }) =>
-      this.state(trx, target),
+    return this.access(principal, target, (trx) =>
+      this.state(trx, target, principal.type === "session"),
     );
   }
   private async operation(
@@ -251,7 +303,7 @@ export class Sharing {
     return row;
   }
   enable(principal: Principal, target: ShareTarget, input: ShareEnable) {
-    return this.service.access(principal, "admin", async ({ trx, account }) => {
+    return this.access(principal, target, async (trx, accountId) => {
       this.key();
       const duration = input.duration ?? null;
       const current = await this.target(trx, target);
@@ -268,7 +320,7 @@ export class Sharing {
         );
       const row = await this.operation(
         trx,
-        account.id,
+        accountId,
         input,
         { action: "enable", ...target },
         async () => {
@@ -296,7 +348,7 @@ export class Sharing {
           }
           const identity = {
             id: existing?.id ?? randomUUID(),
-            accountId: account.id,
+            accountId,
           };
           const fields = {
             ...this.token(identity),
@@ -325,7 +377,7 @@ export class Sharing {
           )[0]!;
         },
       );
-      return this.state(trx, targetFor(row));
+      return this.state(trx, targetFor(row), principal.type === "session");
     });
   }
   change(
@@ -337,10 +389,10 @@ export class Sharing {
       duration?: ShareDuration | null;
     },
   ) {
-    return this.service.access(principal, "admin", async ({ trx, account }) => {
+    return this.access(principal, id, async (trx, accountId) => {
       const row = await this.operation(
         trx,
-        account.id,
+        accountId,
         input,
         { action, id },
         async () => {
@@ -410,7 +462,7 @@ export class Sharing {
           return updated;
         },
       );
-      return this.state(trx, targetFor(row));
+      return this.state(trx, targetFor(row), principal.type === "session");
     });
   }
   private sign(value: string) {

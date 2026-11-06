@@ -5,9 +5,13 @@ import { fileURLToPath, URL } from "node:url";
 import { resolve, join, dirname } from "node:path";
 import { parseArgs, TextEncoder } from "node:util";
 import process from "node:process";
+import { createRequire } from "node:module";
 import { zipSync } from "fflate";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const extensionRequire = createRequire(
+  new URL("../packages/browser-extension/package.json", import.meta.url),
+);
 
 function origin(value) {
   const url = new URL(value);
@@ -91,13 +95,26 @@ export async function buildBrowserExtension({
     size,
   }));
   const packages = [];
+  // Read the pinned data files, never bundle dictionary-en's Node fs loader.
+  const dictionaryDirectory = resolve(
+    extensionRequire.resolve("dictionary-en"),
+    "..",
+  );
+  const dictionary = {
+    aff: await readFile(join(dictionaryDirectory, "index.aff"), "utf8"),
+    dic: await readFile(join(dictionaryDirectory, "index.dic"), "utf8"),
+  };
   for (const target of report.targets) {
     const config = { apiOrigin, siteOrigin, issuer, target };
     const runtime = await build({
       absWorkingDir: root,
+      // Prefer upstream DOM-free entity decoding in both the panel and worker.
+      // The default browser decoder assigns innerHTML, which this reader avoids.
+      conditions: ["worker"],
       entryPoints: [
         "packages/browser-extension/src/background.ts",
         "packages/browser-extension/src/panel.ts",
+        "packages/browser-extension/src/content.ts",
       ],
       bundle: true,
       platform: "browser",
@@ -107,6 +124,21 @@ export async function buildBrowserExtension({
       legalComments: "none",
       sourcemap: false,
       metafile: true,
+      plugins: [
+        {
+          name: "bundled-english-dictionary",
+          setup(builder) {
+            builder.onResolve({ filter: /^grove:english$/ }, () => ({
+              path: "english",
+              namespace: "grove-dictionary",
+            }));
+            builder.onLoad(
+              { filter: /.*/, namespace: "grove-dictionary" },
+              () => ({ contents: JSON.stringify(dictionary), loader: "json" }),
+            );
+          },
+        },
+      ],
       define: { __GROVE_EXTENSION_CONFIG__: JSON.stringify(config) },
       write: false,
       outdir: "runtime",
@@ -148,8 +180,10 @@ export async function buildBrowserExtension({
         "storage",
         "identity",
         "activeTab",
+        "tabs",
         "contextMenus",
         "clipboardWrite",
+        "scripting",
         ...(target === "firefox" ? [] : ["sidePanel"]),
       ],
       // Firefox match patterns cannot contain a port. CSP and runtime validation
@@ -161,8 +195,18 @@ export async function buildBrowserExtension({
               `${target === "firefox" ? `https://${new URL(host).hostname}` : host}/*`,
           ),
         ),
+        "http://*/*",
+        "https://*/*",
       ],
       incognito: "not_allowed",
+      content_scripts: [
+        {
+          matches: ["http://*/*", "https://*/*"],
+          js: ["content.js"],
+          run_at: "document_idle",
+          all_frames: false,
+        },
+      ],
       content_security_policy: {
         extension_pages: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src ${apiOrigin} ${issuer}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
       },
@@ -210,7 +254,9 @@ export async function buildBrowserExtension({
           ),
       ),
     ].sort();
-    const notices = [];
+    const notices = [
+      `dictionary-en 4.0.0 — SCOWL-derived en_US dictionary (MIT AND BSD)\n\n${await readFile(join(dictionaryDirectory, "license"), "utf8")}`,
+    ];
     for (const directory of dependencies) {
       if (!directory) throw new Error("Unrecognized extension dependency path");
       const dependency = JSON.parse(

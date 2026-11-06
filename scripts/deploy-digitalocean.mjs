@@ -94,6 +94,24 @@ export function createAppSpec(env) {
     "CURSOR_SECRET is too short",
   );
   const publishableKey = required(env, "CLERK_PUBLISHABLE_KEY");
+  if (env.WRITING_STAGING_KEY || env.WRITING_PROVIDER_NOTICE) {
+    assert(
+      /^[0-9a-f]{64}$/i.test(env.WRITING_STAGING_KEY ?? ""),
+      "WRITING_STAGING_KEY must be a dedicated 32-byte hex key",
+    );
+    assert(
+      typeof env.WRITING_PROVIDER_NOTICE === "string" &&
+        env.WRITING_PROVIDER_NOTICE.trim().length >= 20 &&
+        env.WRITING_PROVIDER_NOTICE.length <= 1000,
+      "WRITING_PROVIDER_NOTICE must accurately describe the configured provider and its retention",
+    );
+    assert(
+      env.WRITING_STAGING_KEY !== env.SHARE_LINK_KEY &&
+        env.WRITING_STAGING_KEY !== env.MODEL_SETTINGS_KEY &&
+        env.WRITING_STAGING_KEY !== env.CURSOR_SECRET,
+      "WRITING_STAGING_KEY must not reuse another service key",
+    );
+  }
   if (env.SHARE_LINK_KEY)
     assert(
       /^[0-9a-f]{64}$/i.test(env.SHARE_LINK_KEY),
@@ -140,6 +158,21 @@ export function createAppSpec(env) {
         ([key, value]) => ({ key, value, scope: "RUN_TIME", type: "SECRET" }),
       ),
     ];
+    if (env.WRITING_STAGING_KEY)
+      component.envs.push(
+        {
+          key: "WRITING_STAGING_KEY",
+          value: env.WRITING_STAGING_KEY,
+          scope: "RUN_TIME",
+          type: "SECRET",
+        },
+        {
+          key: "WRITING_PROVIDER_NOTICE",
+          value: env.WRITING_PROVIDER_NOTICE,
+          scope: "RUN_TIME",
+          type: "GENERAL",
+        },
+      );
     if (env.GROVE_IMAGE_DIGEST)
       component.image.digest = imageDigest(env.GROVE_IMAGE_DIGEST);
     if (role === "grove_api" && env.SHARE_LINK_KEY)

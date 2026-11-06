@@ -60,7 +60,36 @@ export type ContextMenuCaptureEvent = {
   frameUrl?: string;
   pageUrl?: string;
 };
-export type CaptureTab = { url?: string; title?: string; incognito?: boolean };
+export type CaptureTab = {
+  id?: number;
+  windowId?: number;
+  active?: boolean;
+  url?: string;
+  title?: string;
+  incognito?: boolean;
+};
+
+/** Only active-tab metadata; never traverse the document or retain browsing history. */
+export function tabSource(
+  tab: CaptureTab | undefined,
+  now: number,
+): WebCapture | null {
+  if (!tab?.url || tab.incognito !== false) return null;
+  const parsed = webCaptureSchema.safeParse({
+    url: tab.url,
+    title: [...(tab.title ?? "")]
+      .map((character) => {
+        const code = character.codePointAt(0)!;
+        return code < 32 || code === 127 ? " " : character;
+      })
+      .join("")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .slice(0, 300),
+    capturedAt: new Date(now).toISOString(),
+  });
+  return parsed.success ? parsed.data : null;
+}
 
 /** Pure event snapshot: no page traversal, storage, browser messages or requests. */
 export function contextMenuCapture(
