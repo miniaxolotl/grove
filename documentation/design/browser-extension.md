@@ -1,9 +1,10 @@
 # Browser extension: first-release proposal
 
-**Draft, not implemented.** Chrome, Firefox and Microsoft Edge are the selected
-desktop launch browsers. The feature scope and technical choices below are
-recommendations for review, not claims of existing support or permission to
-configure providers, migrate data, deploy or publish extensions.
+**Release proposal; v1 is not implemented.** Chrome, Firefox and Microsoft Edge are
+the selected desktop launch browsers. An internal [developer core](../browser-extension.md)
+starts the implementation; it is not an installable or qualified extension. The
+remaining scope and technical choices below are recommendations, not claims of
+browser support or permission to configure providers, migrate, deploy or publish.
 
 ## Goal and release scope
 
@@ -54,19 +55,20 @@ Source owners: [shared contracts](../../lib/shared/src/contracts.ts),
 - API CORS currently names the website origin. Test privileged extension requests
   with exact API host permissions; do not add wildcard CORS or relax website JWT
   origin validation to make an extension work.
-- The existing build produces Node bundles. Share browser-safe schemas/helpers,
+- Native build targets produce Node bundles; the internal extension core has a
+  separate browser-only build. Final manifests/UI must use browser-safe imports,
   not the CLI bundle, native credential store or website's server modules.
 
 ## Architecture and safety requirements
 
 ### Shared application and browser adapters
 
-Proposed package: `packages/browser-extension`, with shared TypeScript application,
-API transport and UI plus thin adapters for panels, identity, context menus,
-commands, storage and clipboard. Reuse browser-safe code under `lib/` where it
-actually fits; do not pull server imports through a shared barrel. Choose the
-build tool in the feasibility milestone after comparing repository integration,
-MV3 output and reproducibility, rather than adding a framework by default.
+`packages/browser-extension` starts with a private TypeScript core and esbuild
+browser target, reusing the repository's toolchain without a new framework. The
+remaining application, API transport and UI need thin adapters for panels, identity,
+context menus, commands, storage and clipboard. Reuse browser-safe code under
+`lib/` where it actually fits; do not pull server imports through a shared barrel.
+MV3 packaging and native-host feasibility remain unqualified by a core-only build.
 
 Produce separate manifest/artifact variants from the same source:
 
@@ -191,10 +193,11 @@ Text already copied outside Grove cannot be recalled after revocation.
 
 ## Ordered implementation milestones
 
-Implement the entire feature in **one PR against `development`**, using atomic,
-incremental commits that group related changes. The milestones below are ordered
-commit groups and verification checkpoints, not separate or stacked PRs. This
-planning-only proposal does not start implementation or authorize publication.
+Implement the entire feature in **one implementation PR**, initially stacked on
+planning PR #179, then retargeted to `development` after its parent merges. Use
+atomic, incremental commits grouping related changes. The milestones below are
+ordered commit groups/checkpoints, not additional feature PRs. Development does
+not authorize provider changes, live migrations, deployment or publication.
 
 Keep each commit coherent and reviewable: related contracts/tests, a browser
 adapter, one user-facing capability, or its focused documentation. Develop
@@ -269,9 +272,10 @@ operator decisions. No extension listing or website install claim before availab
 
 Implementation screenshots belong in `documentation/design/screenshots/browser-extension/`
 with synthetic content, browser/build provenance and acceptance limits; embed only
-relevant previews in PRs, at most four per row. This prose-only draft needs none.
+relevant previews in PRs, at most four per row. The core-only increment has no UI
+and needs no screenshots.
 
-## Decisions to settle before implementation
+## Remaining product and qualification decisions
 
 1. Approve or adjust the five-feature v1 boundary; Chrome/Firefox/Edge are selected.
 2. P0: choose build tooling, concrete browser/OS support, OAuth redirects and safe

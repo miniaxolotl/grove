@@ -23,6 +23,8 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
 
 - [Tools, authentication and API](server.md) · [agent note-writing contract](agent-note-writing.md)
   · [structured notes and revision diffs](structured-documents.md)
+- [Browser extension developer core](browser-extension.md) — internal groundwork;
+  no installable extension yet.
 - [Models and preferences](models.md) · [relationships](relationships.md)
   · [AI caching](ai-caching.md) · [background jobs](jobs.md)
   · [broker and account email](background-services.md)

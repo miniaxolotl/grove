@@ -1,0 +1,10 @@
+{
+  "name": "@monorepo/browser-extension",
+  "private": true,
+  "type": "module",
+  "description": "Internal browser-extension core; not a store distributable",
+  "dependencies": {
+    "@lib/shared": "workspace:*",
+    "zod": "~4.1.8"
+  }
+}

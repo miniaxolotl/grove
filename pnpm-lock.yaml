@@ -281,6 +281,15 @@ importers:
         specifier: workspace:*
         version: link:../../lib/telemetry
 
+  packages/browser-extension:
+    dependencies:
+      '@lib/shared':
+        specifier: workspace:*
+        version: link:../../lib/shared
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+
   packages/grove-claude-plugin: {}
 
   packages/grove-codex-plugin: {}
