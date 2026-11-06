@@ -2,7 +2,7 @@
 
 ## Minimal panel — 6 November 2026
 
-Runtime source `0811d788` reconciles #185 with later #184 at `783aa580`, product `1.11.14`.
+Runtime source `9f8f5ef5` refines #185 after reconciling later #184 at `783aa580`, product `1.11.14`.
 These are actual installed-package views in Chromium `156.0.8078.4`, using the
 existing synthetic HTTP/auth fixture, not marketing mocks or live accounts.
 
@@ -19,6 +19,10 @@ version details are disclosed on demand. Settings no longer repeats empty recove
 sections or exposes technical IDs by default. Context review appears only after a
 selection, including selections from page matches. No feature or consent gate is
 removed. The source link remains editable, never fetched or disclosed on tab change.
+The final refinement keeps page URLs full-width with the current-page action beside
+the label and the disclosure associated with the input. Controls have a consistent
+44px minimum height; navigation labels are 14px. Settings uses tighter section
+spacing and a quieter Refresh access action, without another toggle or new controls.
 
 Installed-package checks exercise both Chromium manifests at 320/390/768px across
 Capture, both Search modes and Settings, with zero axe violations/overflow and at
