@@ -459,6 +459,7 @@ export class WritingController {
         load();
       }
       actions.append(
+        this.button("All issues", () => this.review(), "close"),
         this.button("Ignore", () => {
           this.ignored.set(
             `${issue.rule}:${issue.from}:${issue.original}`,

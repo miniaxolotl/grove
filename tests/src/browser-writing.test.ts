@@ -101,6 +101,15 @@ test("English writing core is local, language-scoped and conservative about edit
       "This is a SQL query.",
     ])
       assert.ok(!rules(text).includes("articles"), text);
+    for (const text of [
+      "We bought an apples.",
+      "We had a ideas.",
+      "He ate a bananas.",
+    ])
+      assert.ok(
+        !rules(text).includes("articles"),
+        `${text}: the article is not the real error, so abstain`,
+      );
   });
   await t.test(
     "delimiters distinguish structural pairs from apostrophes and protected syntax",
@@ -132,6 +141,241 @@ test("English writing core is local, language-scoped and conservative about edit
           ),
           text,
         );
+    },
+  );
+  await t.test(
+    "wordy phrases, verb agreement and acronym plurals are bounded and switchable",
+    () => {
+      const issue = (text: string, rule: string) =>
+        check(text).issues.find((i: { rule: string }) => i.rule === rule);
+      for (const [text, rule, replacement] of [
+        ["We reviewed all of the notes.", "redundancy", "all the"],
+        ["All of these notes are kept.", "redundancy", "All these"],
+        ["In order to help, we stayed.", "redundancy", "To"],
+        [
+          "It rained due to the fact that it was November.",
+          "redundancy",
+          "because",
+        ],
+        ["In the event that it rains, wait.", "redundancy", "If"],
+        [
+          "We stayed in spite of the fact that it rained.",
+          "redundancy",
+          "although",
+        ],
+        ["It checks on a daily basis.", "redundancy", "daily"],
+        ["Reports come on a weekly basis.", "redundancy", "weekly"],
+        ["They met in close proximity.", "redundancy", "proximity"],
+        ["Sleep is absolutely essential.", "redundancy", "essential"],
+        ["The work is completely finished.", "redundancy", "finished"],
+        ["Learn the basic fundamentals.", "redundancy", "fundamentals"],
+        ["Settings will revert back.", "redundancy", "revert"],
+        ["Please return back soon.", "redundancy", "return"],
+        ["Do not repeat again.", "redundancy", "repeat"],
+      ] as const) {
+        assert.ok(issue(text, rule), text);
+        assert.deepEqual(issue(text, rule)!.replacements, [replacement], text);
+      }
+      for (const text of [
+        "All of them arrived.",
+        "All of us stayed.",
+        "The legend of the lake is old.",
+        "The order of service is printed.",
+        "They know each other on a first-name basis.",
+      ])
+        assert.ok(!issue(text, "redundancy"), text);
+      assert.ok(
+        !check("In order to help, we stayed.", {
+          grammar: false,
+        }).issues.some((i: { rule: string }) => i.rule === "redundancy"),
+      );
+      assert.ok(
+        !check("In order to help, we stayed.", {
+          rules: { ...settings.rules, redundancy: false },
+        }).issues.some((i: { rule: string }) => i.rule === "redundancy"),
+      );
+
+      for (const [text, original, replacement] of [
+        ["They was late.", "was", "were"],
+        ["We is ready.", "is", "are"],
+        ["I has a note.", "has", "have"],
+        ["He have the note.", "have", "has"],
+        ["She are walking.", "are", "is"],
+        ["It were raining.", "were", "was"],
+        ["You was there.", "was", "were"],
+        ["We should of checked.", "of", "have"],
+        ["They could of waited.", "of", "have"],
+        ["I would of noticed.", "of", "have"],
+        ["He don't know the answer.", "don't", "doesn't"],
+        ["She don't agree.", "don't", "doesn't"],
+        ["They doesn't care.", "doesn't", "don't"],
+        ["We doesn't wait.", "doesn't", "don't"],
+      ] as const) {
+        const found = issue(text, "agreement");
+        assert.ok(found, text);
+        assert.equal(found.original, original, text);
+        assert.deepEqual(found.replacements, [replacement], text);
+      }
+      for (const text of [
+        "They were late.",
+        "We are ready.",
+        "I have a note.",
+        "He has the note.",
+        "He doesn't know.",
+        "They don't care.",
+        "I don't know.",
+        "If I were you, I would wait.",
+        "Was I late?",
+        "Are they coming?",
+        "The band was late.",
+        "We should have checked.",
+        "The order of the day was read.",
+      ])
+        assert.ok(!issue(text, "agreement"), text);
+      assert.ok(
+        !check("They was late.", {
+          rules: { ...settings.rules, agreement: false },
+        }).issues.some((i: { rule: string }) => i.rule === "agreement"),
+      );
+
+      const plural = issue("The PR's are open.", "plurals");
+      assert.ok(plural);
+      assert.equal(plural.original, "PR's");
+      assert.deepEqual(plural.replacements, ["PRs"]);
+      assert.ok(issue("Three API's were rotated.", "plurals"));
+      const decade = issue("The 1990's were loud.", "plurals");
+      assert.ok(decade);
+      assert.equal(decade.original, "1990's");
+      assert.deepEqual(decade.replacements, ["1990s"]);
+      for (const text of [
+        "The PR's title is clear.",
+        "The PR is open.",
+        "The PRs are open.",
+        "The IDs were rotated.",
+        "The 1990s were loud.",
+      ])
+        assert.ok(!issue(text, "plurals"), text);
+      assert.ok(
+        !rules("The PRs are open.").includes("spelling"),
+        "acronym plurals are not spelling mistakes",
+      );
+      assert.ok(
+        !check("The PR's are open.", {
+          rules: { ...settings.rules, plurals: false },
+        }).issues.some((i: { rule: string }) => i.rule === "plurals"),
+      );
+    },
+  );
+  await t.test(
+    "spelling alternatives follow the original word's capitalization",
+    () => {
+      assert.ok(checker.suggest("sentnce").includes("sentence"));
+      assert.ok(checker.suggest("Sentnce").includes("Sentence"));
+      assert.ok(checker.suggest("SENTNCE").includes("SENTENCE"));
+      for (const [word, phrase] of [
+        ["alot", "a lot"],
+        ["Alot", "A lot"],
+        ["noone", "no one"],
+        ["eachother", "each other"],
+        ["incase", "in case"],
+        ["aswell", "as well"],
+        ["ofcourse", "of course"],
+        ["everytime", "every time"],
+      ] as const) {
+        assert.ok(
+          rules(`We waited ${word.toLowerCase()} today.`).includes("spelling"),
+          word,
+        );
+        assert.ok(checker.suggest(word).includes(phrase), word);
+      }
+    },
+  );
+  await t.test(
+    "confused words, eggcorns and ordinal suffixes stay bounded and switchable",
+    () => {
+      const issue = (text: string, rule: string) =>
+        check(text).issues.find((i: { rule: string }) => i.rule === rule);
+      for (const [text, original, replacement] of [
+        ["Its a good idea.", "Its", "It’s"],
+        ["its the best note", "its", "it’s"],
+        ["Its an apple.", "Its", "It’s"],
+        ["Their is a note.", "Their", "There"],
+        ["their are notes", "their", "there"],
+        ["Their was a delay.", "Their", "There"],
+        ["I'm suppose to leave.", "suppose to", "supposed to"],
+        ["We use to go there.", "use to", "used to"],
+        ["He use to call.", "use to", "used to"],
+        ["Between you and I, it worked.", "I", "me"],
+        ["A gift from my mother and I.", "I", "me"],
+      ] as const) {
+        const found = issue(text, "confusion");
+        assert.ok(found, text);
+        assert.equal(found.original, original, text);
+        assert.deepEqual(found.replacements, [replacement], text);
+      }
+      for (const text of [
+        "Its handle is loose.",
+        "It's a good idea.",
+        "Their notes are kept.",
+        "I appreciate their being here.",
+        "We are supposed to leave.",
+        "I didn't use to like tea.",
+        "Did you use to live here?",
+        "The use to which it was put.",
+        "I use it to write.",
+        "You and I are ready.",
+        "Between you and me, it worked.",
+        "They gave it to Sarah and me.",
+      ])
+        assert.ok(!issue(text, "confusion"), text);
+      for (const [text, replacement] of [
+        ["Weather or not we go depends.", "Whether or not"],
+        ["for all intensive purposes", "for all intents and purposes"],
+        ["It gave me piece of mind.", "peace of mind"],
+        ["He was given free reign.", "free rein"],
+        ["We waited with baited breath.", "bated breath"],
+        ["a deep-seeded fear", "deep-seated"],
+        ["He is an escape goat.", "scapegoat"],
+        ["They peaked my interest.", "piqued my interest"],
+        ["This will wet your appetite.", "whet your appetite"],
+        ["They extract revenge.", "exact revenge"],
+        ["By in large, it worked.", "By and large"],
+      ] as const) {
+        const found = issue(text, "confusion");
+        assert.ok(found, text);
+        assert.equal(found.replacements[0], replacement, text);
+      }
+      assert.ok(
+        !issue("I gave him a piece of my mind.", "confusion"),
+        "a piece of my mind is correct",
+      );
+      for (const [text, replacement] of [
+        ["We came in 22th place.", "22nd"],
+        ["It was the 23st attempt.", "23rd"],
+        ["Her 21th birthday", "21st"],
+      ] as const) {
+        const found = issue(text, "confusion");
+        assert.ok(found, text);
+        assert.equal(found.replacements[0], replacement, text);
+      }
+      for (const text of [
+        "The 11th hour.",
+        "a 12th note",
+        "the 13th row",
+        "21st place",
+        "the 4th of July",
+      ])
+        assert.ok(!issue(text, "confusion"), text);
+      assert.ok(
+        !check("Its a good idea.", {
+          rules: { ...settings.rules, confusion: false },
+        }).issues.some((i: { rule: string }) => i.rule === "confusion"),
+      );
+      assert.ok(
+        !check("Its a good idea.", { grammar: false }).issues.some(
+          (i: { rule: string }) => i.rule === "confusion",
+        ),
+      );
     },
   );
   await t.test(

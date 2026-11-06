@@ -64,7 +64,8 @@ than dashboard chrome. Notebook and source controls share one **Details** disclo
 Spelling and basic grammar run locally by default in eligible textareas across normal
 website tabs, even while signed out. Notes uses the same checker. Open an underline
 or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
-word**. Choosing a correction copies it and replaces only that range with native Undo,
+word**; **All issues** returns from one issue to the full list without rechecking.
+Choosing a correction copies it and replaces only that range with native Undo,
 without changing an already-submitted save. Clipboard failure leaves the edit intact
 and reports that copying was unavailable. Applying a correction updates only
 the current draft, never an already-submitted save. Saving does not wait for checks.
@@ -80,9 +81,26 @@ They do not contain draft text or check results. Turning Grove off overrides the
 The bundled `dictionary-en` 4.0.0 data is SCOWL-derived **American English**, with
 `nspell` 2.1.5 for affix-aware lookup. Their MIT/BSD notices are included in the ZIP.
 There is no dictionary download, external spelling service or AI request. Basic rules
-cover brackets/quotes, **a/an** sound exceptions, repeated words, spacing and obvious
-capitalization. They are not a complete grammar/style analysis. Unknown names can be
+cover brackets/quotes, **a/an** sound exceptions, repeated words, spacing, obvious
+capitalization (including the start of a new line or list item), unambiguous wordy
+phrases (**all of the** → **all the**, **in order to** → **to**, **due to the fact
+that** → **because**, **in the event that** → **if**, **in spite of the fact that** →
+**although**, **on a daily basis** → **daily**, **close proximity** → **proximity**,
+**revert back** → **revert**), declarative pronoun verb agreement plus **should of** →
+**should have** and **he don't** → **he doesn't**, and plural acronyms before a plural
+verb (**PR's are** → **PRs are**) or in decades (**1990's** → **1990s**). Confused-word
+checks cover **its a** → **it's a**, **their is** → **there is**, **suppose to** →
+**supposed to**, **I use to** → **I used to** (never after _didn't_), preposition +
+**and I** → **and me**, ordinal suffixes (**22th** → **22nd**), common eggcorns
+(**weather or not**, **free reign**, **baited breath**, **escape goat**) and two-word
+spelling fixes (**alot** → **a lot**, **noone** → **no one**, **eachother** →
+**each other**). Spelling alternatives follow the original word's capitalization, and
+plural acronyms such as **PRs** are not flagged as misspellings. An article before a
+plural-looking noun (**an apples**) abstains: the article is not the real error.
+These are not a complete grammar/style analysis. Unknown names can be
 added to the dictionary; ambiguous rules abstain rather than guess a replacement.
+Possessive acronyms (**the PR's title**), inverted questions, soft-wrapped lines,
+much/many and less/fewer are deliberately left alone.
 Future UI translations and proofing languages remain separate; only English ships.
 
 There is no per-site setup. Writing → **Check writing everywhere** pauses local

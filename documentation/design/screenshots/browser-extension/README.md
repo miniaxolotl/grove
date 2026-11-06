@@ -1,5 +1,38 @@
 # Browser extension evidence
 
+## Richer local proofing — 6 November 2026
+
+Unsigned product `1.11.15`, refinement following `0d628aeb`; exact source/checks are
+in [PR #189](https://github.com/miniaxolotl/grove/pull/189). Chrome ZIP SHA-256:
+`7db496198f1bf5e647df0b76c7a87409f5baf62f0acabee627079fbafa2c1b67`. Installed
+Chromium `156.0.8078.4` with synthetic text and no provider or network calls.
+
+![A grammar card naming the subject/verb mismatch, the original word, one replacement and All issues/Ignore](writing-agreement-card-390.png)
+
+The in-page card names the problem in words, shows the original wording and one
+reviewed replacement, and offers **All issues** to return to the whole list without
+rechecking, **Ignore**, and **Add word** for names. Corrections replace only the
+selected range with native Undo; nothing is applied automatically.
+
+Local English rules now cover, each with its own switch under Settings → Writing:
+wordy phrases, verb agreement, acronym plurals and confused words alongside the
+earlier bracket/quote, a/an, repetition, spacing and capitalization rules. New
+checks include **all of the** → **all the**, **PR's are** → **PRs are**,
+**1990's** → **1990s**, **They was** → **They were**, **he don't** → **he doesn't**,
+**should of** → **should have**, **its a** → **it's a**, **their is** → **there is**,
+**suppose to** → **supposed to**, **use to** → **used to** (never after _didn't_),
+preposition + **and I** → **and me**, **22th** → **22nd**, common eggcorns
+(**weather or not**, **free reign**, **baited breath**, **escape goat**) and
+two-word spelling fixes (**alot** → **a lot**, **noone** → **no one**). Spelling
+alternatives follow the original word's capitalization. An article before a
+plural-looking noun abstains rather than suggesting a worse article.
+
+The card capture is the real suggestion popup in a synthetic fixture page, cropped
+to the card. Deliberately not checked: much/many, less/fewer, this/these with a
+noun, noun–verb number agreement, comma splices, passive voice and hyphenation,
+which need parsing or countability a bounded local checker cannot do safely.
+Fixture success does not qualify live models, Firefox writing or branded browsers.
+
 ## Compact note sharing — 6 November 2026
 
 Unsigned product `1.11.15`, refinement following `cc9e3129`; exact source/checks

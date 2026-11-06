@@ -944,6 +944,77 @@ for (const target of ["chrome", "edge"])
         0,
         "late alternatives must not revive an ignored or previously opened issue",
       );
+      await sourcePage
+        .getByRole("button", { name: "All issues", exact: true })
+        .click();
+      await sourcePage
+        .getByRole("button", { name: "zorbler — Spelling", exact: true })
+        .waitFor();
+      await sourcePage.keyboard.press("Escape");
+      await sourcePage.locator("#wrapped").fill("They was late.");
+      await sourcePage.locator("#wrapped").press("Alt+Enter");
+      await sourcePage
+        .getByRole("button", { name: "was — Grammar", exact: true })
+        .click();
+      await sourcePage
+        .getByRole("dialog", { name: "Writing suggestions" })
+        .getByText("Use the verb form that matches the subject.", {
+          exact: true,
+        })
+        .waitFor();
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await sourcePage.setViewportSize({ width: 390, height: 844 });
+        await sourcePage.evaluate(
+          () =>
+            new Promise((resolve) =>
+              globalThis.requestAnimationFrame(() =>
+                globalThis.requestAnimationFrame(resolve),
+              ),
+            ),
+        );
+        const card = await sourcePage.evaluate(() => {
+          const element = document
+            .querySelector("div[data-grove-writing-ui]")
+            ?.shadowRoot?.querySelector(".card");
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          return {
+            x: Math.max(0, rect.left),
+            y: Math.max(0, rect.top),
+            width: Math.min(
+              globalThis.innerWidth - Math.max(0, rect.left),
+              rect.width,
+            ),
+            height: Math.min(
+              globalThis.innerHeight - Math.max(0, rect.top),
+              rect.height,
+            ),
+          };
+        });
+        assert.ok(card, "the writing suggestion card must be visible");
+        await sourcePage.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-writing-agreement-390.png`,
+          ),
+          clip: card,
+        });
+        await sourcePage.setViewportSize({ width: 1280, height: 720 });
+      }
+      await sourcePage
+        .getByRole("button", { name: "were", exact: true })
+        .click();
+      assert.equal(
+        await sourcePage.locator("#wrapped").inputValue(),
+        "They were late.",
+        "a grammar correction applies to the selected range",
+      );
+      await sourcePage.locator("#wrapped").press("Control+z");
+      assert.equal(
+        await sourcePage.locator("#wrapped").inputValue(),
+        "They was late.",
+        "native Undo still restores the original wording",
+      );
       await sourcePage.keyboard.press("Escape");
       await sourcePage
         .locator("#wrapped")

@@ -1226,6 +1226,10 @@ const ruleNames: Record<(typeof writingRules)[number], string> = {
   repetition: "Repeated words",
   spacing: "Spacing and punctuation",
   capitalization: "Capitalization",
+  redundancy: "Wordy phrases",
+  agreement: "Verb agreement",
+  plurals: "Acronym plurals",
+  confusion: "Confused words",
 };
 function writingControlId(key: string) {
   return `writing-${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
