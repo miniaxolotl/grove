@@ -202,7 +202,7 @@ textarea {
   border-radius: 6px;
   background: var(--surface);
   padding: 10px;
-  min-height: 40px;
+  min-height: 44px;
 }
 textarea {
   resize: vertical;
@@ -293,6 +293,19 @@ summary {
 .field-stack {
   padding-bottom: 12px;
 }
+.field-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.field-heading label {
+  margin: 0;
+}
+.field-heading button {
+  font-size: 12px;
+  padding-inline: 8px;
+}
 .joined {
   display: flex;
   gap: 8px;
@@ -305,7 +318,7 @@ summary {
 }
 .result-heading {
   min-height: 44px;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 .result-heading h2 {
   margin: 0;
@@ -402,8 +415,8 @@ dd {
   overflow-wrap: anywhere;
 }
 .settings-section {
-  margin-bottom: 24px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
 .settings-section h2 {
@@ -432,7 +445,7 @@ nav button {
   border: 0;
   background: transparent;
   padding: 8px 4px;
-  font-size: 12px;
+  font-size: 14px;
   min-height: 44px;
 }
 nav button[aria-current] {
@@ -522,7 +535,7 @@ dialog::backdrop {
 }
 .settings-section .actions {
   gap: 8px;
-  margin: 16px 0;
+  margin: 12px 0 0;
 }
 .settings-section .setting-help {
   margin-bottom: 0;
@@ -587,7 +600,7 @@ nav button:disabled {
     padding: 20px 16px;
   }
   .masthead {
-    padding: 16px;
+    padding: 12px 16px;
   }
   .title-row {
     gap: 8px;

@@ -147,18 +147,20 @@
           </div>
           <div id="page-search" hidden>
             <form id="page-form">
-              <label for="page-url">Page URL</label>
-              <div class="joined">
-                <input
-                  id="page-url"
-                  type="url"
-                  required
-                  maxlength="4096"
-                  placeholder="https://"
-                /><button id="page-current" type="button">
+              <div class="field-heading">
+                <label for="page-url">Page URL</label>
+                <button id="page-current" type="button" class="quiet">
                   Use current page
                 </button>
               </div>
+              <input
+                id="page-url"
+                type="url"
+                required
+                maxlength="4096"
+                placeholder="https://"
+                aria-describedby="page-disclosure"
+              />
               <details class="notebook-filter">
                 <summary>
                   Notebook <span id="page-scope-label">Personal</span>
@@ -166,7 +168,7 @@
                 <label for="page-scope">Search in</label>
                 <select id="page-scope" class="notebook-select"></select>
               </details>
-              <p class="muted small">
+              <p id="page-disclosure" class="muted small">
                 This link is sent only when you choose Find notes.
               </p>
               <button type="submit" class="primary">Find notes</button>
@@ -217,7 +219,7 @@
             <div class="actions">
               <a class="button approval-link" target="_blank" rel="noreferrer"
                 >Manage access</a
-              ><button id="refresh">Refresh access</button>
+              ><button id="refresh" class="quiet">Refresh access</button>
             </div>
             <button id="notebooks-more" hidden>Load more notebooks</button>
             <details>
@@ -255,7 +257,7 @@
           <details>
             <summary>Storage and recovery</summary>
             <p class="muted small field-stack">
-              Notes and sign-in tokens stay in browser session storage. Drafts
+              Drafts and sign-in tokens stay in browser session storage. Drafts
               expire after 24 hours and are cleared when their window closes.
               Unconfirmed saves keep an opaque recovery receipt for seven days.
             </p>
