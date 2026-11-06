@@ -2,7 +2,7 @@
 
 ## Minimal panel — 6 November 2026
 
-Runtime source `0d262332` (stacked on #184 at `c717987b`), product `1.11.14`.
+Runtime source `0811d788` reconciles #185 with later #184 at `783aa580`, product `1.11.14`.
 These are actual installed-package views in Chromium `156.0.8078.4`, using the
 existing synthetic HTTP/auth fixture, not marketing mocks or live accounts.
 
@@ -30,9 +30,15 @@ visible until confirmed, and sign-out clears another mounted panel. Native Firef
 159.0 also passes temporary-install/sidebar/capture/search/context smoke with
 synthetic HTTP/auth. This is not live OAuth or branded Chrome/Edge qualification.
 
-The parent's on/off, light/dark/system appearance, keyboard focus and cross-panel
+The latest parent's single header switch, shared recall surface/keyed renderer,
+native-Origin admission, custom-port Firefox permissions, scoped resets and save
+recovery are retained rather than replaced by the older child. Notes and This page
+keep independent input/cursor/results state within the one result surface. The
+parent's light/dark/system appearance, keyboard focus and cross-panel
 preference changes are preserved. Additional paused/dark checks cover 280px as well;
 opening a paused panel makes no Grove requests and retains unknown-save receipts.
+The reconciled supplemental host run also uses actual Edge `155.0.4283.62`; native
+panel API acceptance is not asserted as visible Edge-sidebar qualification.
 
 Visual review retains the existing achromatic-ledger direction (seed 1300687580),
 Grove's Space Grotesk and actual wordmark; no new direction or redraw.
