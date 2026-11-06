@@ -90,16 +90,26 @@ export async function runTask(
     id?: string;
     lane?: QueueLane;
     accountLimit?: number;
+    providerLimit?: number;
     signal?: AbortSignal;
     heartbeatMs?: number;
   } = {},
 ): Promise<boolean> {
-  const task = camelRows<ClaimedTask>(
-    await db.raw("SELECT * FROM grove_claim_task(?::uuid,?,?)", [
+  const claim = (trx: Knex | Knex.Transaction) =>
+    trx.raw("SELECT * FROM grove_claim_task(?::uuid,?,?)", [
       options.id ?? null,
       options.lane ?? null,
       options.accountLimit ?? 1,
-    ]),
+    ]);
+  const task = camelRows<ClaimedTask>(
+    options.providerLimit === undefined
+      ? await claim(db)
+      : await db.transaction(async (trx) => {
+          await trx.raw("SELECT set_config('grove.provider_limit',?,true)", [
+            String(Math.max(1, Math.min(options.providerLimit!, 128))),
+          ]);
+          return claim(trx);
+        }),
   )[0];
   if (!task) return false;
   const heartbeatStop = new AbortController();

@@ -1,5 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { DocumentImports } from "@lib/memory";
+import { WritingTools } from "@lib/memory";
+import { writingRequestSchema } from "@lib/shared/writing-assistance";
 import { ConversationDocuments } from "@lib/memory";
 import { memoryUpdateSchema } from "@lib/shared/memory-tools";
 import {
@@ -138,6 +140,8 @@ export type AppDependencies = {
   ready: () => Promise<void>;
   telemetry?: Pick<Reporter, "forIdentity" | "operation">;
   shareLinkKey?: string;
+  writingStagingKey?: string;
+  writingProviderNotice?: string;
   capacity?: Partial<ApiCapacity>;
 };
 type Environment = {
@@ -152,6 +156,11 @@ type Environment = {
 
 export function createApp(deps: AppDependencies) {
   const app = new Hono<Environment>();
+  const writing = new WritingTools(
+    deps.memories,
+    deps.writingStagingKey,
+    deps.writingProviderNotice,
+  );
   const speech = new SpeechJobs(
     deps.memories,
     deps.speech ?? {},
@@ -1350,7 +1359,12 @@ export function createApp(deps: AppDependencies) {
     approval.hash = `connection-${principal.connectionId}`;
     return c.json({
       success: true,
-      data: { ...identity, siteUrl: deps.siteUrl, approvalUrl: approval.href },
+      data: {
+        ...identity,
+        writingTools: await writing.describe(principal),
+        siteUrl: deps.siteUrl,
+        approvalUrl: approval.href,
+      },
     });
   });
   app.post("/v1/browser/captures", async (c) =>
@@ -1362,6 +1376,54 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/browser/writing/consent", async (c) =>
+    c.json({
+      success: true,
+      data: await writing.consent(
+        c.get("principal"),
+        await body(
+          c,
+          z
+            .object({
+              policy: z.string().min(1).max(100),
+              accepted: z.boolean(),
+            })
+            .strict(),
+        ),
+      ),
+    }),
+  );
+  app.post("/v1/browser/writing/requests", async (c) =>
+    c.json(
+      {
+        success: true,
+        data: await writing.request(
+          c.get("principal"),
+          await body(c, writingRequestSchema),
+        ),
+      },
+      202,
+    ),
+  );
+  app.get("/v1/browser/writing/requests/:id", async (c) =>
+    c.json({
+      success: true,
+      data: await writing.get(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    }),
+  );
+  app.post("/v1/browser/writing/requests/:id/cancel", async (c) => {
+    await body(c, z.object({}).strict());
+    return c.json({
+      success: true,
+      data: await writing.cancel(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+      ),
+    });
+  });
   app.get("/v1/browser/captures/:id", async (c) =>
     c.json({
       success: true,

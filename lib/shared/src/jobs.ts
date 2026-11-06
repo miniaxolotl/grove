@@ -22,6 +22,7 @@ export const taskKinds = [
   "conversation_document",
   "speech_transcribe",
   "speech_synthesize",
+  "sentence_rewrite",
 ] as const;
 export type TaskKind = (typeof taskKinds)[number];
 export type TaskStatus =

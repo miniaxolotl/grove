@@ -25,7 +25,7 @@ export function PreferencesPanel() {
         </p>
         {unavailable && (
           <p className="settings-note">
-            You can save choices for unavailable features, too.
+            Unavailable features keep your saved preferences.
           </p>
         )}
         {editor.value ? (
@@ -43,8 +43,8 @@ export function PreferencesPanel() {
               onChange={editor.edit}
             />
             <p className="text-xs leading-6 text-muted">
-              Connected agents only use the notebooks and permissions you’ve
-              approved. Changes take effect when you save.
+              Save to apply changes. Connected apps still need your notebook
+              permissions.
             </p>
             <SettingsSaveRow
               label="Save preferences"

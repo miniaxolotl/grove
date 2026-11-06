@@ -201,6 +201,8 @@ export function followCaptureSource(
 export function formatCaptureDraft(
   draft: Pick<CaptureDraft, "text" | "source" | "textOrigin">,
 ) {
+  if (draft.textOrigin === "authored" && draft.text.trim())
+    return formatWebCapture({ text: draft.text });
   return formatWebCapture({
     ...draft,
     quoteText: draft.textOrigin === "authored" ? false : undefined,

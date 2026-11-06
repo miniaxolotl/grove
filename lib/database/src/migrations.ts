@@ -1,6 +1,8 @@
 import type { Knex } from "knex";
 import { structuredDocuments } from "./structured-document-migration.ts";
 import { browserCapture } from "./browser-capture-migration.ts";
+import { writingTools } from "./writing-migration.ts";
+import { nativeSharing } from "./native-sharing-migration.ts";
 import { actionUsage } from "./action-usage-migration.ts";
 import { notebookOrder } from "./notebook-order-migration.ts";
 import { aiCache } from "./ai-cache-migration.ts";
@@ -275,6 +277,8 @@ export const migrations = [
   notebookOrder,
   structuredDocuments,
   browserCapture,
+  writingTools,
+  nativeSharing,
 ];
 
 export const migrationSource: Knex.MigrationSource<

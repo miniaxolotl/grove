@@ -2,6 +2,7 @@ import { tenant, type Knex } from "@lib/database";
 import { TaskError, taskTransaction, type TaskHandler } from "./task-runner.ts";
 import { expireDocumentDrafts } from "./document-imports.ts";
 import { expireConversationDocuments } from "./conversation-documents.ts";
+import { expireWriting } from "./writing-jobs.ts";
 
 const batchSize = 100;
 async function pruneCache(trx: Knex.Transaction, expiredOnly: boolean) {
@@ -139,6 +140,7 @@ export function cleanupHandlers(
       signal.throwIfAborted();
       await expireDocumentDrafts(trx);
       await expireConversationDocuments(trx);
+      const writingExpired = await expireWriting(trx);
       const expired = await trx("memories")
         .where("purgeAt", "<=", trx.fn.now())
         .select("id")
@@ -165,10 +167,12 @@ export function cleanupHandlers(
         await trx("rate_buckets").whereIn("minute", buckets).delete();
       const cache = await pruneCache(trx, true);
       return {
-        processed: Number(task.processed) + expired.length + cache,
+        processed:
+          Number(task.processed) + expired.length + cache + writingExpired,
         complete:
           expired.length < batchSize &&
           buckets.length < batchSize &&
+          writingExpired < batchSize &&
           cache < batchSize,
       };
     });

@@ -283,12 +283,41 @@ const serverSchema = z.object({
   RESEND_API_KEY: z.string().startsWith("re_").optional(),
   EMAIL_FROM: z.string().email().default("notifications@mail.usegrove.cloud"),
   CURSOR_SECRET: z.string().min(32),
+  WRITING_STAGING_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i)
+    .optional(),
+  WRITING_PROVIDER_NOTICE: z.string().trim().min(20).max(1000).optional(),
   SHARE_LINK_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/i)
     .optional(),
 });
 export const serverEnvironmentSchema = serverSchema.superRefine((env, ctx) => {
+  if (env.WRITING_STAGING_KEY && !env.WRITING_PROVIDER_NOTICE)
+    ctx.addIssue({
+      code: "custom",
+      path: ["WRITING_PROVIDER_NOTICE"],
+      message: "WRITING_PROVIDER_NOTICE is required for AI writing consent",
+    });
+  if (env.WRITING_PROVIDER_NOTICE && !env.WRITING_STAGING_KEY)
+    ctx.addIssue({
+      code: "custom",
+      path: ["WRITING_STAGING_KEY"],
+      message:
+        "WRITING_STAGING_KEY is required for encrypted AI writing staging",
+    });
+  if (
+    env.WRITING_STAGING_KEY &&
+    [env.CURSOR_SECRET, env.SHARE_LINK_KEY, env.MODEL_SETTINGS_KEY].includes(
+      env.WRITING_STAGING_KEY,
+    )
+  )
+    ctx.addIssue({
+      code: "custom",
+      path: ["WRITING_STAGING_KEY"],
+      message: "Use a dedicated writing staging key, not another service key",
+    });
   for (const tier of ["FREE", "PRO"] as const) {
     const path = `BILLING_${tier}_SYNTHESIS_MONTHLY_CHARACTERS` as const;
     if (env[path] !== undefined)
