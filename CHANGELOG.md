@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.11.15](https://github.com/miniaxolotl/grove/compare/v1.11.14...v1.11.15) (2026-11-06)
+
+
+### Features
+
+* **extension:** add installable browser packages ([#184](https://github.com/miniaxolotl/grove/issues/184)) ([7f7a032](https://github.com/miniaxolotl/grove/commit/7f7a03246f893b3c72847a285581db3298b64192))
+* **extension:** build Chrome, Firefox and Edge integration ([#180](https://github.com/miniaxolotl/grove/issues/180)) ([c2661ab](https://github.com/miniaxolotl/grove/commit/c2661ab564b59a46af2999a89b66921b11f17d7a))
+* **extension:** streamline capture and search ([#185](https://github.com/miniaxolotl/grove/issues/185)) ([fb31cba](https://github.com/miniaxolotl/grove/commit/fb31cba71434b62ff8db3d2a3491e6ed3ffb37bd))
+* **notes:** add structured document patch and diff core ([#176](https://github.com/miniaxolotl/grove/issues/176)) ([a67629e](https://github.com/miniaxolotl/grove/commit/a67629e4da3b8ecfea33adc00d07c57fb640ebcd))
+* **notes:** integrate atomic passage editing and revision review ([de1abb8](https://github.com/miniaxolotl/grove/commit/de1abb8406593ea12018bb68385dd553115c0066))
+
+
+### Bug Fixes
+
+* **extension:** use approved listing and toolbar icons ([#186](https://github.com/miniaxolotl/grove/issues/186)) ([60e8377](https://github.com/miniaxolotl/grove/commit/60e837738d7b934693caa979a0b1d7302bd4005e))
+
 ## [1.11.14](https://github.com/miniaxolotl/grove/compare/v1.11.13...v1.11.14) (2026-11-05)
 
 
