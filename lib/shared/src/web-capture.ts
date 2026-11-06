@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { rememberSchema } from "./contracts.ts";
+import { rememberSchema } from "./contracts";
 
 const trackingParameters = new Set([
   "utm_source",

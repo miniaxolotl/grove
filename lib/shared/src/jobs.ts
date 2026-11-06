@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { webCaptureSchema } from "./web-capture.ts";
+import { webCaptureSchema } from "./web-capture";
 
 export const queueLanes = [
   "indexing",
