@@ -42,6 +42,17 @@ and Personal/notebook scope you want in **Grove Connections**, then check approv
 Notebook discovery starts immediately; there is no setup wizard. Sign-in alone is
 not an approved grant. Revocation is enforced by the API on subsequent operations.
 
+### Listing and toolbar icons
+
+Packages bundle Grove's dedicated **Listing & toolbar icons**, with approved source
+hashes in [`assets/icons/source.json`](../packages/browser-extension/assets/icons/source.json).
+Listing PNGs are supplied at 96, 128, 300 and 512px. Firefox selects the transparent
+green/white toolbar Sprouts through native `theme_icons`; this follows the browser
+theme, independently of the panel's Appearance setting. Chrome/Edge toolbar buttons
+and the Firefox sidebar use the supplied green-backed mark as a contrast-safe
+fallback, without extra theme permissions. SVG masters are retained in the packages.
+These are bundled assets, not evidence of store publication.
+
 ## Use the panel
 
 Three main tabs keep the panel focused: **Capture**, **Search**, then **Settings**.

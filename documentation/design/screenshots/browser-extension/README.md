@@ -1,5 +1,34 @@
 # Browser extension evidence
 
+## Listing and toolbar icons — 6 November 2026
+
+Runtime/build source `d19d5c75`, product `1.11.14`. All 23 PNG/SVG files come
+byte-identically from the Marketing studio's **Listing & toolbar icons** set
+(`grove/extensions/icons`); hashes are retained in the extension's
+[`source.json`](../../../../packages/browser-extension/assets/icons/source.json).
+No general profile icon, recolouring or artwork regeneration is used.
+
+| Listing/fallback mark                                                                                                        | Firefox light toolbar                                                         | Firefox dark toolbar                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ![Approved white Sprout on its green-backed listing mark](../../../../packages/browser-extension/assets/icons/store-128.png) | ![Native Firefox light toolbar uses the green Sprout](firefox-icon-light.png) | ![Native Firefox dark toolbar uses the white Sprout](firefox-icon-dark.png) |
+
+Firefox `159.0` temporary installation is tested in a disposable profile with the
+real native toolbar pinned. Switching Firefox's built-in light/dark themes selects
+the expected packaged `dark-*`/`light-*` icon URLs respectively. These are unscaled
+crops of the actual browser toolbar, not marketing mockups. The same run passes
+native sidebar, capture, search and reviewed-context smoke with synthetic HTTP/auth.
+
+Chrome/Edge use the supplied backed mark, not Firefox-only `theme_icons` or a
+request-process theme observer. Installed Chromium `156.0.8078.4` and actual Edge
+`155.0.4283.62` package journeys pass. This does not newly qualify branded Chrome
+installation, visible native Edge-sidebar presentation, live Clerk or any store.
+Artifact checks verify every imported file's hash, square PNG dimensions, RGBA
+transparency, declared listing sizes, Firefox theme pairs and reproducible ZIPs.
+
+For native visual reproduction, install the Firefox ZIP temporarily, pin Grove's
+toolbar button, then switch Firefox's own light and dark themes. The panel's
+Appearance setting is independent. Existing package/native commands below apply.
+
 ## Minimal panel — 6 November 2026
 
 Runtime source `9f8f5ef5` refines #185 after reconciling later #184 at `783aa580`, product `1.11.14`.
