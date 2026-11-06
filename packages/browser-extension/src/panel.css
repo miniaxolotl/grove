@@ -217,8 +217,59 @@ select {
   padding-right: 28px;
 }
 #note-help {
+  min-height: 28px;
   margin: 8px 0 20px;
   font-variant-numeric: tabular-nums;
+}
+#length {
+  margin-inline-start: auto;
+}
+.writing-review {
+  min-height: 28px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.writing-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0;
+  font-weight: 400;
+}
+.writing-option input {
+  flex: none;
+  width: 32px;
+  height: 20px;
+  accent-color: var(--ink);
+}
+#writing-rules {
+  padding-inline-start: 12px;
+}
+#writing-controls p {
+  margin: 8px 0;
+}
+#writing-settings > summary {
+  font-size: 16px;
+  font-weight: 600;
+}
+#writing-settings > summary span {
+  margin-inline-start: 8px;
+  font-weight: 400;
+}
+#writing-settings-status {
+  min-height: 20px;
+}
+#writing-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 12px;
+}
+#writing-words button {
+  min-height: 36px;
 }
 .actions {
   display: flex;

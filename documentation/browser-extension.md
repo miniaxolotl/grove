@@ -47,6 +47,49 @@ not an approved grant. Revocation is enforced by the API on subsequent operation
 Three main tabs keep the panel focused: **Capture**, **Search**, then **Settings**.
 Page lookup is inside Search; context actions appear only after selecting notes.
 
+### English writing checks
+
+Capture checks spelling and basic grammar locally while you write. Open an underline
+or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
+word**. Applying a correction uses the editor's native Undo history and updates only
+the current draft, never an already-submitted save. Saving does not wait for checks.
+
+Settings → **Writing** contains independent spelling/grammar switches, an Advanced
+disclosure for individual rules, automatic checking and highlights, and a personal
+dictionary. Parent switches preserve individual choices. Preferences and personal
+words are stored on this device, scoped to the API/account and English language.
+They do not contain draft text or check results. Turning Grove off overrides them.
+
+The bundled `dictionary-en` 4.0.0 data is SCOWL-derived **American English**, with
+`nspell` 2.1.5 for affix-aware lookup. Their MIT/BSD notices are included in the ZIP.
+There is no dictionary download, external spelling service or AI request. Basic rules
+cover brackets/quotes, **a/an** sound exceptions, repeated words, spacing and obvious
+capitalization. They are not a complete grammar/style analysis. Unknown names can be
+added to the dictionary; ambiguous rules abstain rather than guess a replacement.
+Future UI translations and proofing languages remain separate; only English ships.
+
+Under Writing → **Websites**, choose **Enable on this site** from the native panel
+beside a website and approve its native permission prompt. Returning visits reuse
+that choice. Only eligible multiline textareas are currently bound. HTML inputs,
+passwords, usernames, search/subject/title fields, readonly/hidden/code fields and
+author opt-outs are excluded before reading their contents. Verification/identity/
+address labels and explicit single-line ARIA semantics also exclude a field. Label
+inspection is bounded, follows static accessible labels and skips nested editors;
+ambiguous or excessive metadata stays unbound. Rich-text/contenteditable
+editors are not yet supported by the installed adapter. Site restrictions cannot
+override a globally disabled feature. Removing website access stops binding.
+
+Checks cover a bounded 6,000 UTF-16-unit window and expose partial coverage for longer
+text; results never replace newer typing. Keystrokes coalesce, dictionary work runs
+in the extension background rather than the editor thread, spelling alternatives
+are generated only on review, and highlight movement coalesces per animation frame.
+Warm latency is a regression measurement, not a universal responsiveness guarantee.
+Run `pnpm test:writing` and the installed browser journeys to reproduce the focused
+rules, bounds, source/Undo, permission and excluded-field checks.
+
+On-demand AI sentence rewriting is still pending implementation; local checking never
+silently falls back to AI. No model/provider setup is required for local checks.
+
 - **Capture:** write a quick Markdown note, choose its notebook and optionally
   review a source link. Context-menu **Save selection**, **Save link** and **Save
   page link** prepare a session inbox; reviewing a capture never saves it. Replacing
@@ -204,9 +247,14 @@ It does not attribute a parent page title to a frame, a changed tab title to an 
 page, or the containing page title to a link target. It performs no browser reads,
 storage writes, page traversal, messages or remote I/O. Runtime menus place its
 snapshot in the review inbox. Panel RPC accepts only this extension's exact panel
-URL/ID, validates bounded requests and fences account/connection changes. No content
-script, external-message listener, analytics, history, cookie, clipboard-read,
-`tabs`, `scripting` or all-sites host permission is included.
+URL/ID, validates bounded requests and fences account/connection changes. Website
+writing has a separate, bounded content-script protocol restricted to the verified
+extension ID, ordinary top-level non-private tab, granted origin and saved site
+choice. Content scripts cannot invoke panel capture/search/auth commands or receive
+tokens. No external-message listener, analytics, history, cookie, clipboard-read or
+`tabs` permission is included. `scripting` registers bundled writing code only for
+opted-in sites; HTTP(S) site host access is optional, never granted to all sites by
+default. The configured API/issuer host permissions remain exact.
 
 ## Build and verification
 
@@ -284,6 +332,8 @@ store-owned support fields need operator review before submission.
 | `activeTab`            | User-invoked current-page URL/title, never site scraping         |
 | `contextMenus`         | Explicit selection/link/page review inbox                        |
 | `clipboardWrite`       | Copy only the reviewed context, never read the clipboard         |
+| `scripting`            | Bind bundled local writing code on explicitly permitted sites    |
+| Optional HTTP(S) sites | User-approved site origins for local long-form writing checks    |
 | `sidePanel` (Chromium) | Native persistent panel                                          |
 | Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange        |
 

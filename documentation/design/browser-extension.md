@@ -47,6 +47,23 @@ history ingestion, research-tab bundles, new-tab replacement, Safari and mobile.
 Existing hosted ChatGPT/Claude connections remain a separate integration; this
 extension must not depend on their directory approval or modify their setup.
 
+### Writing assistance — additional approved scope
+
+Keep the same three destinations. Bundled English dictionary spelling and basic
+deterministic grammar run quietly in Capture and opted-in long-form website editors.
+Review an underline in one anchored card, then apply a correction, Ignore or Add word;
+native Undo and the current draft must survive. Settings discloses rule, dictionary
+and site controls without scores, dashboards, upsells or setup. Global Off wins.
+
+Website access is optional and requested for a chosen site. Verify metadata before
+reading any field: exclude HTML inputs, short/sensitive fields and author opt-outs.
+Only the qualified textarea adapter currently ships; rich-text support is unfinished.
+Dictionary/rules use no network or AI. Explicit multiple-alternative sentence rewriting
+is approved but not implemented; it needs separate authorization/consent and Grove's
+durable workers with encrypted expiring staging, never automatic draft transmission.
+The [current guide](../browser-extension.md#english-writing-checks) owns actual support,
+limits and verification; this design does not establish native-browser acceptance.
+
 ## Shared design constraints
 
 Source owners: [shared contracts](../../lib/shared/src/contracts.ts),
@@ -102,9 +119,11 @@ engine similarity is not evidence of Edge acceptance.
 Use the smallest proven permission set: storage, identity, context menus,
 native panel permission where required, `activeTab`, and only required Grove/auth
 hosts. Declare shortcuts through manifest commands, not an invented permission.
-Add `scripting` only if a bounded user-triggered capture needs it. Avoid
-`tabs`, history, cookies, clipboard-read, persistent content scripts and
-`<all_urls>` unless a separate reviewed requirement justifies them. Request any
+`scripting` and optional HTTP(S) hosts support the approved site-writing boundary:
+register bundled scripts only on enabled, natively permitted sites. Keep website
+writing RPC separate from panel authority and never expose auth tokens to pages.
+Avoid `tabs`, history, cookies, clipboard-read, mandatory all-site access and remote
+executable code. Request any
 additional access at its point of use. Capture restrictions must not block manual
 notes or library search. File/internal/store pages get a clear unsupported-source
 state. Keep private-browsing access out of v1.
@@ -202,8 +221,9 @@ Copy is an explicit disclosure of private text to the clipboard. Re-fetch select
 notes and recheck current versions/access before showing the final copy preview;
 removed or changed sources require review. Include note text and
 canonical Grove links with a visible size budget. Never include auth tokens
-or public capability links automatically. Never read the clipboard or inject into
-another website. Clipboard denial offers selectable plain text, not a false success.
+or public capability links automatically. Context copy never reads the clipboard or
+inserts into another website; explicitly accepted writing corrections have their own
+site permission/editor boundary. Clipboard denial offers selectable plain text, not a false success.
 Text already copied outside Grove cannot be recalled after revocation.
 
 ## Release qualification gates

@@ -128,8 +128,12 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     );
     assert.ok(
       !manifest.permissions.includes("tabs") &&
-        !manifest.permissions.includes("scripting"),
+        manifest.permissions.includes("scripting"),
     );
+    assert.deepEqual(manifest.optional_host_permissions, [
+      "http://*/*",
+      "https://*/*",
+    ]);
     assert.ok(
       manifest.content_security_policy.extension_pages.includes(
         "object-src 'none'",
@@ -149,6 +153,7 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     for (const required of [
       "background.js",
       "panel.js",
+      "content.js",
       "panel.html",
       "panel.css",
       "wordmark.svg",

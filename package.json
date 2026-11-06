@@ -36,6 +36,7 @@
     "build": "node scripts/build.mjs",
     "build:extension": "node scripts/build-browser-extension.mjs",
     "test:extension": "tsx --test tests/src/browser-capture.test.ts tests/src/browser-drafts.test.ts tests/src/browser-platform.test.ts tests/src/browser-oauth.test.ts tests/src/browser-client.test.ts",
+    "test:writing": "tsx --test tests/src/browser-writing.test.ts",
     "test:extension:service": "tsx --test tests/src/browser-service.test.ts",
     "test:extension:browser": "node --test --test-concurrency=1 tests/browser-extension-host.test.mjs",
     "start": "pnpm --filter @miniaxolotl/grove-server start",

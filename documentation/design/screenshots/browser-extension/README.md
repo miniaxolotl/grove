@@ -1,5 +1,26 @@
 # Browser extension evidence
 
+## Local English writing — development evidence
+
+Installed Chromium `156.0.8078.4`, synthetic account/drafts and HTTP fixtures,
+390 × 844 viewport. Chrome-package ZIP SHA-256:
+`ba33b0076b6b9be30de7edd37ce2f33d9f2ad0570b794c4d83af96b2e8ee3695`
+(product `1.11.14`, writing-assistance development source, not a published release).
+
+| One-click correction                                                                                | Disclosed writing settings                                                                                      |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| ![Anchored spelling correction without a separate writing panel](chrome-writing-correction-390.png) | ![Independent spelling and grammar controls with secondary settings disclosed](chrome-writing-settings-390.png) |
+
+The installed journeys cover native correction/Undo, delayed-result rejection,
+focus retained when alternatives arrive, bounded long-draft mirrors, metadata-only
+exclusions instrumented in the actual isolated extension world, site disable and
+stable settings controls. Warm local RPC p95 was 3.70/3.90 ms over 30 bounded
+6,000-unit samples in Chrome/Edge manifest profiles; both used Chromium, not actual
+branded Edge. This is synthetic warm latency, not cold-start or universal frame-time
+acceptance. AI rewrites, rich-text editors, native permission prompts, Firefox and
+branded-browser writing qualification remain unfinished. Older captures below
+show the earlier panel and do not establish writing-assistance acceptance.
+
 ## Minimal panel — 6 November 2026
 
 Runtime source `9f8f5ef5` refines #185 after reconciling later #184 at `783aa580`, product `1.11.14`.

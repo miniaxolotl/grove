@@ -69,7 +69,15 @@
               aria-describedby="note-help"
             ></textarea>
             <div id="note-help" class="between muted small">
-              <span>Markdown supported</span><span id="length">0 / 6,000</span>
+              <button
+                id="writing-review"
+                type="button"
+                class="quiet writing-review"
+                aria-label="Check writing"
+              >
+                Check writing</button
+              ><span id="writing-hint">Markdown supported</span
+              ><span id="length">0 / 6,000</span>
             </div>
             <div class="destination-field">
               <label for="destination">Save to</label
@@ -205,6 +213,75 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+        </section>
+        <section class="settings-section" aria-label="Writing settings">
+          <details id="writing-settings">
+            <summary>
+              Writing <span class="muted small">English · on this device</span>
+            </summary>
+            <div id="writing-controls" class="field-stack">
+              <label class="writing-option"
+                ><span>Writing assistance</span
+                ><input id="writing-enabled" type="checkbox" role="switch"
+              /></label>
+              <label class="writing-option"
+                ><span>Spelling</span
+                ><input id="writing-spelling" type="checkbox" role="switch"
+              /></label>
+              <label class="writing-option"
+                ><span>Basic grammar</span
+                ><input id="writing-grammar" type="checkbox" role="switch"
+              /></label>
+              <p class="muted small">
+                Spelling and basic grammar stay on this device.
+              </p>
+              <details>
+                <summary>Advanced</summary>
+                <label class="writing-option"
+                  ><span>Check as I type</span
+                  ><input id="writing-automatic" type="checkbox" role="switch"
+                /></label>
+                <label class="writing-option"
+                  ><span>Inline highlights</span
+                  ><input id="writing-highlights" type="checkbox" role="switch"
+                /></label>
+                <div id="writing-rules"></div>
+              </details>
+              <details>
+                <summary>Personal dictionary</summary>
+                <form id="writing-word-form">
+                  <label for="writing-word">Add an English word</label>
+                  <div class="joined">
+                    <input
+                      id="writing-word"
+                      maxlength="80"
+                      autocomplete="off"
+                    /><button type="submit">Add word</button>
+                  </div>
+                </form>
+                <div id="writing-words"></div>
+                <button id="writing-words-more" type="button" hidden>
+                  Show more words
+                </button>
+              </details>
+              <details>
+                <summary>Websites</summary>
+                <button id="writing-enable-site" type="button">
+                  Enable on this site
+                </button>
+                <p class="muted small">
+                  Only long-form text boxes. No passwords, usernames or search
+                  fields.
+                </p>
+                <div id="writing-sites"></div>
+              </details>
+              <p
+                id="writing-settings-status"
+                class="small muted"
+                role="status"
+              ></p>
+            </div>
+          </details>
         </section>
         <section
           class="settings-section"

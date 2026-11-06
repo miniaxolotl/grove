@@ -6,7 +6,19 @@ import {
 } from "@lib/shared/web-capture";
 import type { CaptureDraft } from "./drafts.ts";
 import type { ExtensionClient } from "./client.ts";
-import { nativeBrowser as host, extensionConfig } from "./webextension.ts";
+import {
+  nativeBrowser as host,
+  extensionConfig,
+  writingSitePattern,
+} from "./webextension.ts";
+import { WritingController } from "./writing/controller.ts";
+import {
+  effectiveWritingSettings,
+  writingRules,
+  writingSettingsSchema,
+  type WritingPatch,
+} from "./writing/core.ts";
+import type { WritingPreferences } from "./writing/preferences.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -23,6 +35,220 @@ let sessionEpoch = 0;
 type Preferences = { enabled: boolean; theme: "system" | "light" | "dark" };
 let preferences: Preferences = { enabled: true, theme: "system" };
 let configuring = false;
+let writingPreferences: WritingPreferences | undefined;
+let visibleWords = 10;
+const writingController = new WritingController(
+  $<HTMLTextAreaElement>("note"),
+  {
+    settings: () =>
+      effectiveWritingSettings(
+        writingPreferences?.settings ??
+          writingSettingsSchema.parse({ enabled: false }),
+        {},
+        preferences.enabled && !!state && approved(),
+      ),
+    check: (text) => rpc("writingCheck", { text }),
+    suggest: (word) => rpc("writingSuggest", { word }),
+    addWord: (word) => saveWriting({ addWord: word }),
+    status: (result, error) => {
+      const button = $<HTMLButtonElement>("writing-review");
+      button.textContent = error
+        ? "Retry writing checks"
+        : result?.issues.length
+          ? `${result.issues.length} suggestion${result.issues.length === 1 ? "" : "s"}`
+          : "Check writing";
+      button.title =
+        error ??
+        (result && !result.complete
+          ? "Text after 6,000 characters is unchecked."
+          : "Spelling and basic grammar · Alt+Enter");
+      button.hidden =
+        !error &&
+        !result?.issues.length &&
+        (writingPreferences?.settings.automatic ?? true);
+      $("writing-hint").hidden = !button.hidden;
+    },
+  },
+);
+function paintWriting() {
+  const settings = writingPreferences?.settings;
+  for (const key of [
+    "enabled",
+    "spelling",
+    "grammar",
+    "automatic",
+    "highlights",
+  ] as const) {
+    const input = $<HTMLInputElement>(`writing-${key}`);
+    input.checked = settings?.[key] ?? false;
+    input.disabled = !settings;
+  }
+  for (const rule of writingRules) {
+    const input = $<HTMLInputElement>(`writing-rule-${rule}`);
+    if (input) {
+      input.checked = settings?.rules[rule] ?? false;
+      input.disabled = !settings;
+    }
+  }
+  const words = $("writing-words");
+  const wordRows = new Map(
+    [...words.querySelectorAll<HTMLButtonElement>("button")].map((button) => [
+      button.dataset.word,
+      button,
+    ]),
+  );
+  for (const word of settings?.words.slice(0, visibleWords) ?? []) {
+    if (wordRows.has(word)) {
+      wordRows.delete(word);
+      continue;
+    }
+    const button = document.createElement("button");
+    button.dataset.word = word;
+    button.type = "button";
+    button.textContent = word;
+    button.setAttribute(
+      "aria-label",
+      `Remove ${word} from personal dictionary`,
+    );
+    button.addEventListener("click", () => {
+      void action(() => saveWriting({ removeWord: word }));
+    });
+    words.append(button);
+  }
+  for (const button of wordRows.values()) button.remove();
+  $("writing-words-more").hidden =
+    (settings?.words.length ?? 0) <= visibleWords;
+  const sites = $("writing-sites");
+  const siteRows = new Map(
+    [...sites.querySelectorAll<HTMLDetailsElement>(":scope > details")].map(
+      (row) => [row.dataset.origin, row],
+    ),
+  );
+  for (const site of writingPreferences?.sites ?? []) {
+    const existing = siteRows.get(site.origin);
+    if (existing) {
+      existing.querySelector<HTMLInputElement>(
+        "[data-feature='enabled']",
+      )!.checked = site.enabled;
+      for (const key of ["spelling", "grammar"] as const)
+        existing.querySelector<HTMLInputElement>(
+          `[data-feature='${key}']`,
+        )!.checked = site.restrictions[key] !== false;
+      siteRows.delete(site.origin);
+      continue;
+    }
+    const origin = site.origin;
+    const detail = document.createElement("details"),
+      title = document.createElement("summary");
+    detail.dataset.origin = origin;
+    title.textContent = new URL(site.origin).host;
+    detail.append(title);
+    const makeToggle = (
+      labelText: string,
+      checked: boolean,
+      key: string,
+      run: (checked: boolean) => Promise<void>,
+    ) => {
+      const label = document.createElement("label");
+      label.className = "writing-option";
+      const text = document.createElement("span");
+      text.textContent = labelText;
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = checked;
+      input.dataset.feature = key;
+      input.setAttribute("role", "switch");
+      input.addEventListener("change", () => {
+        void action(async () => {
+          try {
+            await run(input.checked);
+          } finally {
+            paintWriting();
+          }
+        });
+      });
+      label.append(text, input);
+      detail.append(label);
+    };
+    makeToggle(
+      "Enable on this site",
+      site.enabled,
+      "enabled",
+      async (enabled) => {
+        if (enabled) await requestWritingSite(origin);
+        await saveWriting({ site: { origin, enabled } });
+      },
+    );
+    for (const key of ["spelling", "grammar"] as const)
+      makeToggle(
+        key === "spelling" ? "Allow spelling" : "Allow grammar",
+        site.restrictions[key] !== false,
+        key,
+        (enabled) =>
+          saveWriting({
+            site: {
+              origin,
+              enabled:
+                writingPreferences?.sites.find((site) => site.origin === origin)
+                  ?.enabled ?? false,
+              restrictions: { [key]: enabled },
+            },
+          }),
+      );
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Remove website access";
+    remove.addEventListener("click", () => {
+      void action(async () => {
+        await saveWriting({ site: { origin, enabled: false } });
+        await host.permissions?.remove({
+          origins: [writingSitePattern(origin, extensionConfig.target)],
+        });
+      });
+    });
+    detail.append(remove);
+    sites.append(detail);
+  }
+  for (const row of siteRows.values()) row.remove();
+  $<HTMLButtonElement>("writing-review").disabled =
+    !settings ||
+    !preferences.enabled ||
+    !settings.enabled ||
+    (!settings.spelling && !settings.grammar);
+  writingController.refresh();
+}
+async function saveWriting(change: {
+  patch?: WritingPatch;
+  addWord?: string;
+  removeWord?: string;
+  site?: { origin: string; enabled: boolean; restrictions?: WritingPatch };
+}) {
+  $("writing-settings-status").textContent = "Saving…";
+  try {
+    writingPreferences = await rpc<WritingPreferences>(
+      "writingConfigure",
+      change,
+    );
+    $("writing-settings-status").textContent = "Saved on this device.";
+  } catch (error) {
+    $("writing-settings-status").textContent = "Not saved. Try again.";
+    throw error;
+  } finally {
+    paintWriting();
+  }
+}
+async function requestWritingSite(origin: string) {
+  if (!host.permissions)
+    throw new Error(
+      "Website writing permissions are unavailable in this browser.",
+    );
+  const origins = [writingSitePattern(origin, extensionConfig.target)];
+  if (
+    !(await host.permissions.contains({ origins })) &&
+    !(await host.permissions.request({ origins }))
+  )
+    throw new Error("Website access was not granted. No text was read.");
+}
 let searchMode: "search" | "page" = "search";
 let notebookCursor: string | null = null;
 const selected = new Map<string, { id: string; version: number }>();
@@ -125,6 +351,7 @@ function show(next: string) {
   $("recall-results").hidden = !recallView();
   if (recallView()) paintResults();
   if (switched) main.scrollTop = scrollPositions.get(next) ?? 0;
+  writingController.refresh();
 }
 function paintPreferences(next: Preferences) {
   const turningOff = preferences.enabled && !next.enabled;
@@ -153,6 +380,7 @@ function paintPreferences(next: Preferences) {
     closeDialogs();
   }
   show(view);
+  if (writingPreferences) paintWriting();
 }
 async function configure(changes: Partial<Preferences>) {
   const focused = document.activeElement as HTMLElement | null;
@@ -288,6 +516,7 @@ function paintDraft(draft: CaptureDraft, fields = true) {
   $("save-indexing").textContent =
     save?.status === "saved" ? save.receipt.indexing : "";
   count();
+  if (fields) writingController.refresh();
 }
 function count() {
   $("new-note").hidden =
@@ -388,6 +617,8 @@ async function refresh() {
   }
   paintPreferences(preferences);
   await loadInbox();
+  writingPreferences = await rpc<WritingPreferences>("writingState");
+  paintWriting();
 }
 async function loadInbox() {
   const items = await rpc<Inbox[]>("inbox");
@@ -754,6 +985,8 @@ function clearSessionView() {
   sessionEpoch++;
   view = "capture";
   state = undefined;
+  writingPreferences = undefined;
+  paintWriting();
   clearRecall();
   $<HTMLTextAreaElement>("note").value = "";
   delete $("note").dataset.loaded;
@@ -785,6 +1018,18 @@ on("logout", async () => {
   clearSessionView();
 });
 host.storage.onChanged.addListener((changes, area) => {
+  if (
+    area === "local" &&
+    state &&
+    changes[
+      `writing:${extensionConfig.apiOrigin}:${state.identity.accountId}:en`
+    ]
+  ) {
+    void action(async () => {
+      writingPreferences = await rpc<WritingPreferences>("writingState");
+      paintWriting();
+    });
+  }
   if (area === "local" && changes.preferences?.newValue) {
     const wasEnabled = preferences.enabled;
     paintPreferences(changes.preferences.newValue as Preferences);
@@ -817,6 +1062,89 @@ $("browser-panel").textContent =
     ? "Firefox sidebar · Alt+Shift+G"
     : `${extensionConfig.target === "edge" ? "Edge" : "Chrome"} side panel · Alt+Shift+G`;
 on("extension-toggle", () => configure({ enabled: !preferences.enabled }));
+const ruleNames: Record<(typeof writingRules)[number], string> = {
+  brackets: "Matching brackets",
+  quotes: "Matching quotes",
+  articles: "A or an",
+  repetition: "Repeated words",
+  spacing: "Spacing and punctuation",
+  capitalization: "Capitalization",
+};
+for (const rule of writingRules) {
+  const label = document.createElement("label");
+  label.className = "writing-option";
+  const name = document.createElement("span");
+  name.textContent = ruleNames[rule];
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.id = `writing-rule-${rule}`;
+  input.setAttribute("role", "switch");
+  input.addEventListener("change", () => {
+    void action(() =>
+      saveWriting({ patch: { rules: { [rule]: input.checked } } }),
+    );
+  });
+  label.append(name, input);
+  $("writing-rules").append(label);
+}
+for (const key of [
+  "enabled",
+  "spelling",
+  "grammar",
+  "automatic",
+  "highlights",
+] as const)
+  $(`writing-${key}`).addEventListener("change", () => {
+    void action(() =>
+      saveWriting({
+        patch: { [key]: $<HTMLInputElement>(`writing-${key}`).checked },
+      }),
+    );
+  });
+$("writing-word-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  void action(async () => {
+    const input = $<HTMLInputElement>("writing-word");
+    const word = input.value.trim();
+    await saveWriting({ addWord: word });
+    if (input.value.trim() === word) input.value = "";
+  });
+});
+on("writing-words-more", async () => {
+  visibleWords += 20;
+  paintWriting();
+});
+on("writing-review", async () => {
+  await writingController.check();
+  writingController.review();
+});
+on("writing-enable-site", async () => {
+  if (
+    !state ||
+    !preferences.enabled ||
+    !writingPreferences?.settings.enabled ||
+    !host.permissions ||
+    !host.scripting
+  )
+    throw new Error("Turn writing assistance on and connect Grove first.");
+  const [tab] = await host.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url || tab.incognito !== false || tab.id === undefined)
+    throw new Error("Open Grove beside an ordinary website.");
+  const url = new URL(tab.url);
+  if (
+    url.username ||
+    url.password ||
+    !["https:", "http:"].includes(url.protocol)
+  )
+    throw new Error("This page does not support writing checks.");
+  await requestWritingSite(url.origin);
+  await saveWriting({ site: { origin: url.origin, enabled: true } });
+  await host.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ["content.js"],
+  });
+});
+paintWriting();
 $("theme").addEventListener("change", () => {
   void action(() =>
     configure({

@@ -1,4 +1,4 @@
-/* global URL, Headers, Response, crypto, document, innerWidth, console, fetch, AbortSignal */
+/* global URL, Headers, Response, crypto, document, innerWidth, console, fetch, AbortSignal, chrome, performance, HTMLTextAreaElement, Node */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -236,6 +236,503 @@ for (const target of ["chrome", "edge"])
         .locator("#native-panel-probe")
         .evaluate((element) => element.remove());
       assert.equal(await page.locator("#note").inputValue(), "");
+      const requestsBeforeWriting = await worker.evaluate(
+        () => globalThis.fixtureRequests.length,
+      );
+      await page.locator("#note").fill("This is a sentnce.");
+      await page
+        .locator("#writing-review")
+        .filter({ hasText: "1 suggestion" })
+        .waitFor();
+      await page.locator("#note").press("Alt+Enter");
+      await page
+        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .waitFor();
+      await page.keyboard.press("Escape");
+      await page.locator("#writing-review").click();
+      await page
+        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "sentence", exact: true })
+        .waitFor();
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-writing-correction-390.png`,
+          ),
+          fullPage: true,
+        });
+      }
+      await page.getByRole("button", { name: "sentence", exact: true }).click();
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "This is a sentence.",
+      );
+      await page.locator("#note").press("Control+z");
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "This is a sentnce.",
+        "corrections must preserve native Undo",
+      );
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureRequests.length),
+        requestsBeforeWriting,
+        "typing, checking, correction and Undo must not call the server/model",
+      );
+      const writingTimings = await page.evaluate(
+        async ({ accountId, connectionId }) => {
+          const window = await chrome.windows.getCurrent(),
+            times = [];
+          for (let i = 0; i < 30; i++) {
+            const start = performance.now();
+            const result = await chrome.runtime.sendMessage({
+              kind: "writingCheck",
+              windowId: window.id,
+              accountId,
+              connectionId,
+              payload: {
+                text: "This zorbler has a flibber and a quaxler. "
+                  .repeat(150)
+                  .slice(0, 6000),
+              },
+            });
+            if (!result.ok || result.data.issues.length > 50)
+              throw new Error("Local check did not complete within its bounds");
+            times.push(performance.now() - start);
+          }
+          times.sort((a, b) => a - b);
+          return { p95: times[28], max: times[29] };
+        },
+        { accountId, connectionId },
+      );
+      console.info(
+        `${target} local writing roundtrip p95 ${writingTimings.p95.toFixed(2)}ms; max ${writingTimings.max.toFixed(2)}ms`,
+      );
+      assert.ok(
+        writingTimings.p95 < 150,
+        "installed warm local-check latency regression; this is not a universal frame-time guarantee",
+      );
+      await page.locator("#note").fill("");
+      const permittedSite = "https://api.usegrove.cloud";
+      const siteEnabled = await page.evaluate(
+        async ({ accountId, connectionId, origin }) => {
+          const window = await chrome.windows.getCurrent();
+          return chrome.runtime.sendMessage({
+            kind: "writingConfigure",
+            windowId: window.id,
+            accountId,
+            connectionId,
+            payload: { site: { origin, enabled: true } },
+          });
+        },
+        { accountId, connectionId, origin: permittedSite },
+      );
+      assert.equal(siteEnabled.ok, true);
+      const sourcePage = await context.newPage();
+      await sourcePage.route(`${permittedSite}/__writing_fixture`, (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: `<!doctype html><html lang="en"><title>Synthetic writing fixture</title><body style="font:16px system-ui;padding:24px"><h1>Writing fixture</h1><label for="body">Message</label><textarea id="body" rows="8" style="display:block;width:100%;max-width:600px;box-sizing:border-box;font:16px/1.6 system-ui"></textarea><label for="username">Username</label><input id="username" autocomplete="username"><label for="password">Password</label><input id="password" type="password"><label for="fake-user">Username</label><textarea id="fake-user" name="username" rows="6">PRIVATE_FIELD_CANARY</textarea><script>globalThis.excludedReads=0; for (const id of ["username","password","fake-user"]) Object.defineProperty(document.getElementById(id),"value",{get(){globalThis.excludedReads++;return "PRIVATE_FIELD_CANARY";},configurable:true});</script></body></html>`,
+        }),
+      );
+      await sourcePage.goto(`${permittedSite}/__writing_fixture`);
+      await sourcePage.locator("#body").fill("This is a sentnce.");
+      await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      await sourcePage.locator("#body").press("Alt+Enter");
+      await sourcePage
+        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .click();
+      await sourcePage
+        .getByRole("button", { name: "sentence", exact: true })
+        .click();
+      assert.equal(
+        await sourcePage.locator("#body").inputValue(),
+        "This is a sentence.",
+      );
+      await sourcePage.locator("#body").press("Control+z");
+      assert.equal(
+        await sourcePage.locator("#body").inputValue(),
+        "This is a sentnce.",
+      );
+      for (const id of ["username", "password", "fake-user"]) {
+        await sourcePage.locator(`#${id}`).focus();
+        assert.equal(
+          await sourcePage.locator("div[data-grove-writing-ui]").count(),
+          0,
+          `${id} must have no writing controller`,
+        );
+      }
+      assert.equal(
+        await sourcePage.evaluate(() => globalThis.excludedReads),
+        0,
+        "excluded fields must not be read even when rendered as a tall textarea",
+      );
+      await sourcePage.locator("#body").focus();
+      await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      await sourcePage
+        .locator("#body")
+        .evaluate((element) =>
+          element.setAttribute("autocomplete", "username"),
+        );
+      await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "detached" });
+      await sourcePage.evaluate(() => {
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          `
+          <label id="wrapped-label">Message <textarea id="wrapped" rows="6">Username</textarea></label>
+          <span id="security-label">Verification code</span><textarea id="security-field" rows="6" aria-labelledby="security-label">PRIVATE_FIELD_CANARY</textarea>
+          <label>Name <textarea id="identity-field" rows="6">PRIVATE_FIELD_CANARY</textarea></label>
+          <label>Message <textarea id="single-line" rows="6" aria-multiline="false">PRIVATE_FIELD_CANARY</textarea></label>
+        `,
+        );
+      });
+      const [sourceTab] = await worker.evaluate(async () =>
+        (await chrome.tabs.query({})).filter((tab) =>
+          tab.url?.endsWith("/__writing_fixture"),
+        ),
+      );
+      // Page-world getters cannot observe isolated-world content scripts. Instrument
+      // the actual extension world, without adding any test hook to shipped code.
+      await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => {
+              globalThis.privateReads = 0;
+              globalThis.labelBulkReads = 0;
+              const value = Object.getOwnPropertyDescriptor(
+                HTMLTextAreaElement.prototype,
+                "value",
+              );
+              for (const id of [
+                "security-field",
+                "identity-field",
+                "single-line",
+              ]) {
+                Object.defineProperty(document.getElementById(id), "value", {
+                  get() {
+                    globalThis.privateReads++;
+                    return value.get.call(this);
+                  },
+                  configurable: true,
+                });
+              }
+              const text = Object.getOwnPropertyDescriptor(
+                Node.prototype,
+                "textContent",
+              );
+              Object.defineProperty(
+                document.getElementById("wrapped-label"),
+                "textContent",
+                {
+                  get() {
+                    globalThis.labelBulkReads++;
+                    return text.get.call(this);
+                  },
+                  configurable: true,
+                },
+              );
+            },
+          }),
+        sourceTab.id,
+      );
+      await sourcePage.locator("#wrapped").focus();
+      await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      for (const id of ["security-field", "identity-field", "single-line"]) {
+        await sourcePage.locator(`#${id}`).focus();
+        assert.equal(
+          await sourcePage.locator("div[data-grove-writing-ui]").count(),
+          0,
+          `${id} must be excluded from metadata alone`,
+        );
+      }
+      const [{ result: privateAccess }] = await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => ({
+              values: globalThis.privateReads,
+              labels: globalThis.labelBulkReads,
+            }),
+          }),
+        sourceTab.id,
+      );
+      assert.deepEqual(
+        privateAccess,
+        { values: 0, labels: 0 },
+        "eligibility must not read values or bulk label content, including nested editables",
+      );
+      await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => {
+              const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+              globalThis.writingChecks = 0;
+              globalThis.writingSuggestions = 0;
+              globalThis.holdWritingResults = true;
+              globalThis.writingResultGate = new Promise((resolve) => {
+                globalThis.releaseWritingResult = resolve;
+              });
+              chrome.runtime.sendMessage = async (message, ...rest) => {
+                if (message.kind === "writingSiteCheck")
+                  globalThis.writingChecks++;
+                if (message.kind === "writingSiteSuggest")
+                  globalThis.writingSuggestions++;
+                const response = await send(message, ...rest);
+                if (
+                  message.kind === "writingSiteCheck" &&
+                  globalThis.holdWritingResults
+                ) {
+                  document.documentElement.dataset.writingHeld = "true";
+                  await globalThis.writingResultGate;
+                }
+                if (
+                  message.kind === "writingSiteSuggest" &&
+                  message.payload.word === "sentnce" &&
+                  globalThis.holdSuggestions
+                ) {
+                  document.documentElement.dataset.suggestionsHeld = "true";
+                  await globalThis.suggestionGate;
+                  globalThis.requestAnimationFrame(() => {
+                    document.documentElement.dataset.suggestionReleased =
+                      "true";
+                  });
+                }
+                return response;
+              };
+            },
+          }),
+        sourceTab.id,
+      );
+      await sourcePage.locator("#wrapped").fill("This is a sentnce.");
+      await sourcePage.waitForFunction(
+        () => document.documentElement.dataset.writingHeld === "true",
+      );
+      await sourcePage.locator("#wrapped").fill("This sentence is correct.");
+      const stableEditor = await sourcePage.locator("#wrapped").boundingBox();
+      await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => {
+              globalThis.holdWritingResults = false;
+              globalThis.releaseWritingResult();
+            },
+          }),
+        sourceTab.id,
+      );
+      await sourcePage.locator("#wrapped").press("Alt+Enter");
+      await sourcePage
+        .getByRole("dialog", { name: "Writing suggestions" })
+        .getByText("No issues found by spelling and basic grammar checks.", {
+          exact: true,
+        })
+        .waitFor();
+      assert.equal(
+        await sourcePage
+          .getByRole("button", { name: "sentnce — Spelling", exact: true })
+          .count(),
+        0,
+        "late results must not revive an old typo",
+      );
+      assert.equal(
+        await sourcePage.locator("#wrapped").inputValue(),
+        "This sentence is correct.",
+      );
+      assert.deepEqual(
+        await sourcePage.locator("#wrapped").boundingBox(),
+        stableEditor,
+        "checking and review must not shift/remount the editor",
+      );
+      const [{ result: alternativesWhileTyping }] = await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => globalThis.writingSuggestions,
+          }),
+        sourceTab.id,
+      );
+      assert.equal(
+        alternativesWhileTyping,
+        0,
+        "typing and issue-list review must not generate spelling candidates",
+      );
+      await sourcePage.keyboard.press("Escape");
+      await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => {
+              globalThis.holdSuggestions = true;
+              globalThis.suggestionGate = new Promise((resolve) => {
+                globalThis.releaseSuggestions = resolve;
+              });
+            },
+          }),
+        sourceTab.id,
+      );
+      await sourcePage
+        .locator("#wrapped")
+        .fill("This is a sentnce with a zorbler.");
+      await sourcePage.locator("#wrapped").press("Alt+Enter");
+      await sourcePage
+        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .click();
+      await sourcePage.waitForFunction(
+        () => document.documentElement.dataset.suggestionsHeld === "true",
+      );
+      await sourcePage
+        .getByRole("button", { name: "Ignore", exact: true })
+        .focus();
+      await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => {
+              globalThis.holdSuggestions = false;
+              globalThis.releaseSuggestions();
+            },
+          }),
+        sourceTab.id,
+      );
+      await sourcePage.waitForFunction(
+        () => document.documentElement.dataset.suggestionReleased === "true",
+      );
+      assert.equal(
+        await sourcePage
+          .locator("div[data-grove-writing-ui]")
+          .evaluate((element) => element.shadowRoot.activeElement?.textContent),
+        "Ignore",
+        "alternatives arriving must not replace the focused action or steal keyboard focus",
+      );
+      await sourcePage
+        .getByRole("button", { name: "Ignore", exact: true })
+        .click();
+      await sourcePage.locator("#wrapped").press("Alt+Enter");
+      await sourcePage
+        .getByRole("button", { name: "zorbler — Spelling", exact: true })
+        .click();
+      await worker.evaluate(
+        async (tabId) =>
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "ISOLATED",
+            func: () => {
+              globalThis.holdSuggestions = false;
+              globalThis.releaseSuggestions();
+            },
+          }),
+        sourceTab.id,
+      );
+      await sourcePage.waitForFunction(
+        () => document.documentElement.dataset.suggestionReleased === "true",
+      );
+      await sourcePage
+        .getByRole("dialog", { name: "Writing suggestions" })
+        .getByText("zorbler", { exact: true })
+        .waitFor();
+      assert.equal(
+        await sourcePage
+          .getByRole("dialog", { name: "Writing suggestions" })
+          .getByText("sentnce", { exact: true })
+          .count(),
+        0,
+        "late alternatives must not revive an ignored or previously opened issue",
+      );
+      await sourcePage.keyboard.press("Escape");
+      await sourcePage
+        .locator("#wrapped")
+        .fill("This is a sentnce. ".repeat(10000));
+      await sourcePage.locator("#wrapped").press("Alt+Enter");
+      await sourcePage
+        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .first()
+        .waitFor();
+      const mirroredLength = await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .evaluate(
+          (element) =>
+            element.shadowRoot.querySelector(".text").textContent.length,
+        );
+      assert.ok(
+        mirroredLength <= 6001,
+        `only checked text may be mirrored, not the full long editor (${mirroredLength})`,
+      );
+      await sourcePage.keyboard.press("Escape");
+      // A metadata-only label edit immediately detaches the previously valid field.
+      await sourcePage
+        .locator("#wrapped")
+        .evaluate((element) =>
+          element.setAttribute("aria-labelledby", "security-label"),
+        );
+      await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "detached" });
+      await sourcePage
+        .locator("#body")
+        .evaluate((element) => element.removeAttribute("autocomplete"));
+      await sourcePage.locator("#body").focus();
+      await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "attached" });
+      const disabledSite = await page.evaluate(
+        async ({ accountId, connectionId, origin }) => {
+          const window = await chrome.windows.getCurrent();
+          return chrome.runtime.sendMessage({
+            kind: "writingConfigure",
+            windowId: window.id,
+            accountId,
+            connectionId,
+            payload: { site: { origin, enabled: false } },
+          });
+        },
+        { accountId, connectionId, origin: permittedSite },
+      );
+      assert.equal(disabledSite.ok, true);
+      await sourcePage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "detached" });
+      const registeredSites = await worker.evaluate(() =>
+        chrome.scripting.getRegisteredContentScripts(),
+      );
+      assert.equal(
+        registeredSites.filter((script) =>
+          script.id.startsWith("grove-writing-"),
+        ).length,
+        0,
+        "disabling the only site must also remove future registration",
+      );
+      const allStorage = await worker.evaluate(async () => ({
+        local: await chrome.storage.local.get(null),
+        session: await chrome.storage.session.get(null),
+      }));
+      assert.ok(!JSON.stringify(allStorage).includes("PRIVATE_FIELD_CANARY"));
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureRequests.length),
+        requestsBeforeWriting,
+        "website checking must not use HTTP/model requests",
+      );
+      await sourcePage.close();
+      await page.bringToFront();
       assert.ok(
         !(await worker.evaluate(() => globalThis.fixtureRequests)).includes(
           "/v1/browser/pages",
@@ -483,6 +980,85 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="settings"]').click();
       assert.equal(await page.locator("#account-id").isVisible(), false);
       assert.equal(await page.locator("#recovery-settings").isVisible(), false);
+      await page.locator("#writing-settings > summary").click();
+      const websites = page
+        .locator("#writing-controls > details")
+        .filter({ has: page.locator("#writing-sites") });
+      await websites.locator(":scope > summary").click();
+      const siteRow = page.locator("#writing-sites > details").first();
+      await siteRow.locator(":scope > summary").click();
+      const siteSpelling = siteRow.locator("[data-feature='spelling']");
+      await siteSpelling.focus();
+      await page.evaluate(() => {
+        globalThis.retainedSiteControl = document.activeElement;
+      });
+      await siteSpelling.press("Space");
+      await page
+        .locator("#writing-settings-status")
+        .filter({ hasText: "Saved on this device." })
+        .waitFor();
+      assert.ok(
+        await page.evaluate(
+          () =>
+            document.activeElement === globalThis.retainedSiteControl &&
+            document.activeElement.isConnected,
+        ),
+        "saving site restrictions must retain the actual focused control",
+      );
+      assert.equal(
+        await siteRow.evaluate((element) => element.open),
+        true,
+        "site disclosure stays open after saving",
+      );
+      await siteSpelling.press("Space");
+      await page
+        .locator("#writing-settings-status")
+        .filter({ hasText: "Saved on this device." })
+        .waitFor();
+      await page.locator("#writing-spelling").uncheck();
+      await page
+        .locator("#writing-settings-status")
+        .filter({ hasText: "Saved on this device." })
+        .waitFor();
+      const spellingOff = await page.evaluate(
+        async ({ accountId, connectionId }) => {
+          const window = await chrome.windows.getCurrent();
+          return chrome.runtime.sendMessage({
+            kind: "writingCheck",
+            windowId: window.id,
+            accountId,
+            connectionId,
+            payload: { text: "This is a sentnce and a apple." },
+          });
+        },
+        { accountId, connectionId },
+      );
+      assert.equal(spellingOff.ok, true);
+      assert.ok(
+        spellingOff.data.issues.every((issue) => issue.rule !== "spelling"),
+      );
+      assert.ok(
+        spellingOff.data.issues.some((issue) => issue.rule === "articles"),
+        "disabling spelling must leave grammar running",
+      );
+      await page.locator("#writing-spelling").check();
+      await page
+        .locator("#writing-settings-status")
+        .filter({ hasText: "Saved on this device." })
+        .waitFor();
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await websites.locator(":scope > summary").click();
+        await page.locator("#writing-settings").scrollIntoViewIfNeeded();
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-writing-settings-390.png`,
+          ),
+          fullPage: true,
+        });
+      }
+      await page.locator("#writing-settings > summary").click();
       if (process.env.EXTENSION_SCREENSHOTS)
         await page.screenshot({
           path: join(
