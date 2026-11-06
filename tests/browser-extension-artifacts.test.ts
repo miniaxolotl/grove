@@ -14,6 +14,44 @@ import { unzipSync } from "fflate";
 const root = resolve(import.meta.dirname, "..");
 const exec = promisify(execFile);
 
+test("custom-port Firefox builds use supported hostname permissions and retain exact-port CSP and runtime hosts", async () => {
+  const directory = await mkdtemp(
+    join(process.env.CI ? tmpdir() : "/tmp/opencode", "grove-browser-ports-"),
+  );
+  await exec(
+    process.execPath,
+    [
+      join(root, "scripts/build-browser-extension.mjs"),
+      "--outdir",
+      directory,
+      "--apiOrigin",
+      "https://localhost:4410",
+      "--issuer",
+      "https://localhost:4412",
+    ],
+    { cwd: root },
+  );
+  for (const target of ["chrome", "firefox", "edge"]) {
+    const manifest = JSON.parse(
+      await readFile(join(directory, target, "manifest.json"), "utf8"),
+    );
+    assert.deepEqual(
+      manifest.host_permissions,
+      target === "firefox"
+        ? ["https://localhost/*"]
+        : ["https://localhost:4410/*", "https://localhost:4412/*"],
+    );
+    assert.ok(
+      manifest.content_security_policy.extension_pages.includes(
+        "connect-src https://localhost:4410 https://localhost:4412;",
+      ),
+    );
+    assert.ok(
+      !manifest.content_security_policy.extension_pages.includes("localhost:*"),
+    );
+  }
+});
+
 test("browser packages preserve the isolated core, reproducible ZIPs, licenses and restricted manifests", async () => {
   const script = join(root, "scripts/build-browser-extension.mjs");
   assert.ok(existsSync(script), "the browser-only build must exist");

@@ -133,9 +133,16 @@ export async function buildBrowserExtension({
         "clipboardWrite",
         ...(target === "firefox" ? [] : ["sidePanel"]),
       ],
-      host_permissions: [...new Set([apiOrigin, issuer])].map(
-        (host) => `${host}/*`,
-      ),
+      // Firefox match patterns cannot contain a port. CSP and runtime validation
+      // still restrict every request to the exact configured HTTPS origins.
+      host_permissions: [
+        ...new Set(
+          [apiOrigin, issuer].map(
+            (host) =>
+              `${target === "firefox" ? `https://${new URL(host).hostname}` : host}/*`,
+          ),
+        ),
+      ],
       incognito: "not_allowed",
       content_security_policy: {
         extension_pages: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src ${apiOrigin} ${issuer}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,

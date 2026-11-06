@@ -178,6 +178,13 @@ API and issuer hosts. Self-hosted builds may set `--apiOrigin`, `--siteOrigin` a
 `--issuer` to exact HTTPS origins; rebuild manifests/CSP and qualify OAuth separately.
 No runtime arbitrary-host setting or wildcard redirect is offered.
 
+Firefox host match patterns do not support ports. A custom-port Firefox build
+therefore requests only the configured HTTPS hostnames, deduplicated across API and
+issuer; exact ports remain enforced by `connect-src` and OAuth endpoint validation.
+Chrome/Edge retain the configured port in their permission patterns. Default
+production manifests are unchanged. Custom-origin acceptance must use the actual
+Firefox network stack, not seeded tokens or intercepted fetch responses.
+
 Root lint/types/build, ordinary TypeScript tests and artifact tests cover the new
 core. Artifact checks rebuild in isolated directories, compare deterministic bytes,
 restrict the input graph to reviewed core/shared/Zod code, require no external
