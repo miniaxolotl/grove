@@ -53,9 +53,34 @@ not an approved grant. Revocation is enforced by the API on subsequent operation
   panel or changing tabs never discloses the current URL automatically. Matches are
   authorized, active, unexpired captures in the chosen notebook; content edits
   invalidate their page association. There is no full-library client-side scan.
-- **Settings**, last in navigation, shows account/access, notebook discovery, privacy,
-  recovery receipts, access refresh and sign-out. The last chosen destination is
-  remembered per API/account; existing drafts take precedence over inferred defaults.
+- **Settings**, last in navigation, groups Browser, Account & access, Save recovery,
+  Privacy & storage and Sign out. Appearance can match the browser or stay light/dark;
+  it saves automatically on this device and updates other open panels. The last chosen
+  destination is remembered per API/account; existing drafts take precedence over
+  inferred defaults. Technical connection/shortcut details sit behind a disclosure.
+
+### Turn Grove on or off
+
+The header switch is always available; Settings has the same control. Turning Grove
+off persists on this device across panel reloads and browser restarts, removes its
+context-menu entries and adds an **OFF** toolbar badge. The toolbar/shortcut still
+opens the native panel so Grove can be turned on again. Off blocks extension API
+requests, sign-in/refresh, captures, search, reads, source attachment and context copy
+in the trusted background, not only through disabled buttons. Opening an off panel
+does not authenticate or contact Grove. Appearance and Settings remain available.
+
+Switching off waits for earlier serialized actions to settle; a save already sent
+is not cancelled, deleted or falsely labelled unsuccessful. Session drafts/tokens,
+capture inboxes and opaque recovery receipts retain their normal scope/expiry rules.
+No unknown save is automatically retried on resume. Changing appearance cannot
+enable Grove. Other mounted panels update immediately and close private review
+dialogs while off; the current draft is not replaced. Turning on rechecks access.
+This is a device pause, not grant revocation or the browser's add-on uninstall switch;
+use Connections to revoke access and Sign out to clear a mounted session.
+
+The panel uses a persistent header/navigation frame with a separately scrolling
+content area: controls cannot scroll beneath navigation, and view changes restore
+their previous scroll position. Switches work with the keyboard and retain focus.
 
 Restricted/internal/store/file pages cannot be attached; private browsing is disabled.
 Manual notes and search do not need page access. `activeTab` may require opening the
@@ -132,7 +157,8 @@ local structural validation, not proof of server storage, access or indexing.
 Runtime receipts come from authenticated responses. Network/ambiguous failures show
 **unknown outcome**, not success; retry replays the original request without losing
 newer edits. Settings can reconcile a scoped opaque receipt after session loss.
-Local persistent storage contains only public OAuth registration, destination IDs
+Local persistent storage contains only device enablement/appearance preferences,
+public OAuth registration, destination IDs
 and at most ten opaque recovery receipts, pruned after seven days; never note bodies,
 URLs, access tokens, refresh tokens or PKCE verifiers. A missing receipt is not proof
 that an uncertain provider operation never happened; do not blindly create a new save.
@@ -190,9 +216,11 @@ core. Artifact checks rebuild in isolated directories, compare deterministic byt
 restrict the input graph to reviewed core/shared/Zod code, require no external
 imports and exercise exports in a sandbox without Node globals, DOM or fetch.
 Runtime/package checks also validate deterministic ZIPs/manifests/CSP, trusted
-messages and storage feedback. Installed Chromium journeys exercise the real
+messages, off-state request/menu enforcement and storage feedback. Installed Chromium journeys exercise the real
 package with synthetic HTTP/auth, native panel calls, retry, read/context/page
-lookup, cross-panel sign-out and 320/390/768px accessibility/overflow. Set
+lookup, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
+keyboard-switch focus and 320/390/768px accessibility/overflow (including short
+windows and dark Settings). Set
 `EXTENSION_EDGE_BINARY` to an actual Edge executable for its supplemental host run;
 that run checks API acceptance, not the unobserved Edge `onOpened` event.
 

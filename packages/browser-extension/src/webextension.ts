@@ -36,6 +36,9 @@ export type BrowserHost = NativePanelHost & {
   };
   action: {
     onClicked: Event<(tab: CaptureTab & { windowId?: number }) => void>;
+    setBadgeText(options: { text: string }): Promise<void>;
+    setBadgeBackgroundColor(options: { color: string }): Promise<void>;
+    setTitle(options: { title: string }): Promise<void>;
   };
   contextMenus: {
     create(options: {

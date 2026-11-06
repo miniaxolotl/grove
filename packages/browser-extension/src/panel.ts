@@ -20,8 +20,12 @@ let state: State | undefined,
   windowId = 0,
   view = "capture";
 let sessionEpoch = 0;
+type Preferences = { enabled: boolean; theme: "system" | "light" | "dark" };
+let preferences: Preferences = { enabled: true, theme: "system" };
+let configuring = false;
 let notebookCursor: string | null = null;
 const selected = new Map<string, { id: string; version: number }>();
+const scrollPositions = new Map<string, number>();
 let preparedContext:
   | { text: string; items: { id: string; version: number }[] }
   | undefined;
@@ -54,11 +58,14 @@ async function rpc<T>(kind: string, payload?: unknown): Promise<T> {
       result?.error?.message ??
         "Grove is unavailable. Reopen the panel and try again.",
     );
-  if (epoch !== sessionEpoch && kind !== "logout")
+  if (
+    epoch !== sessionEpoch &&
+    !["logout", "configure", "preferences"].includes(kind)
+  )
     throw new Error("Connection changed. Reopen Grove before continuing.");
   if (
     scope &&
-    !["state", "login", "logout"].includes(kind) &&
+    !["state", "login", "logout", "configure", "preferences"].includes(kind) &&
     (scope.accountId !== state?.identity.accountId ||
       scope.connectionId !== state?.identity.connectionId)
   )
@@ -79,6 +86,9 @@ function on(id: string, run: () => Promise<void>) {
   });
 }
 function show(next: string) {
+  const main = document.querySelector("main")!;
+  const switched = next !== view;
+  if (switched) scrollPositions.set(view, main.scrollTop);
   view = next;
   document
     .querySelectorAll<HTMLElement>("[data-view]")
@@ -87,6 +97,91 @@ function show(next: string) {
     if (el.dataset.nav === next) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   });
+  const approved = state?.identity.capabilities.some((cap) =>
+    ["memory:read", "memory:write"].includes(cap),
+  );
+  $("workspace").hidden =
+    !preferences.enabled || !approved || next === "settings";
+  $("welcome").hidden = !preferences.enabled || !!state || next === "settings";
+  $("approval").hidden =
+    !preferences.enabled || !state || !!approved || next === "settings";
+  $("paused").hidden = preferences.enabled || next === "settings";
+  $("navigation").hidden = false;
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-nav]")
+    .forEach((button) => {
+      button.disabled =
+        button.dataset.nav !== "settings" &&
+        (!preferences.enabled || !approved);
+    });
+  if (switched) main.scrollTop = scrollPositions.get(next) ?? 0;
+}
+function paintPreferences(next: Preferences) {
+  const turningOff = preferences.enabled && !next.enabled;
+  preferences = next;
+  document.documentElement.dataset.theme = next.theme;
+  $<HTMLSelectElement>("theme").value = next.theme;
+  for (const id of ["extension-toggle", "settings-toggle"]) {
+    const button = $<HTMLButtonElement>(id);
+    button.setAttribute("aria-checked", String(next.enabled));
+    button.querySelector("span:last-child")!.textContent = next.enabled
+      ? "On"
+      : "Off";
+  }
+  $("connection-label").textContent = !next.enabled
+    ? "Turned off"
+    : state
+      ? "Connected to Grove"
+      : "Private notes";
+  $("enable-help").textContent = next.enabled
+    ? "Capture and find notes when you need them."
+    : "Off. No captures, searches or requests.";
+  $("pending-list").hidden = !next.enabled || !state;
+  $("recovery-help").hidden = next.enabled && !!state;
+  if (state)
+    $("connection-state").textContent = !next.enabled
+      ? "Paused · sign-in retained"
+      : state.identity.capabilities.some((cap) =>
+            ["memory:read", "memory:write"].includes(cap),
+          )
+        ? "Connected to Grove"
+        : "Awaiting your approval";
+  $<HTMLButtonElement>("refresh").disabled = !next.enabled;
+  $<HTMLButtonElement>("notebooks-more").disabled = !next.enabled;
+  if (turningOff) {
+    sessionEpoch++;
+    preparedContext = undefined;
+    for (const dialog of document.querySelectorAll("dialog")) dialog.close();
+  }
+  show(view);
+}
+async function configure(changes: Partial<Preferences>) {
+  const focused = document.activeElement as HTMLElement | null;
+  configuring = true;
+  for (const id of ["extension-toggle", "settings-toggle", "resume", "theme"])
+    $<HTMLButtonElement>(id).disabled = true;
+  $("extension-toggle").setAttribute("aria-busy", "true");
+  if (changes.enabled === false)
+    $("enable-help").textContent =
+      "Finishing the current action before turning off…";
+  try {
+    await editTail;
+    const previous = preferences.enabled;
+    paintPreferences(await rpc<Preferences>("configure", changes));
+    if (!previous && preferences.enabled) await connectView();
+  } finally {
+    configuring = false;
+    $("extension-toggle").removeAttribute("aria-busy");
+    paintPreferences(preferences);
+    for (const id of ["extension-toggle", "settings-toggle", "resume", "theme"])
+      $<HTMLButtonElement>(id).disabled = false;
+    if (
+      document.activeElement === document.body &&
+      focused?.isConnected &&
+      !focused.closest("[hidden]")
+    )
+      focused.focus({ preventScroll: true });
+  }
 }
 function approvalUrl() {
   return `${extensionConfig.siteOrigin}/app/connections#connection-${state!.identity.connectionId}`;
@@ -193,6 +288,7 @@ function persist(changes: {
   );
 }
 async function refresh() {
+  if (!preferences.enabled) return;
   await editTail;
   const next = await rpc<State>("state");
   const changed =
@@ -229,8 +325,23 @@ async function refresh() {
     !state.identity.capabilities.includes("memory:write");
   $("api-origin").textContent = extensionConfig.apiOrigin;
   $("account-id").textContent = state.identity.accountId;
+  $("connection-state").textContent = approved
+    ? "Connected to Grove"
+    : "Awaiting your approval";
   $("capabilities").textContent =
-    state.identity.capabilities.join(", ") || "Awaiting approval";
+    state.identity.capabilities
+      .map(
+        (cap) =>
+          ({
+            "memory:read": "Read notes",
+            "memory:write": "Save notes",
+            "memory:delete": "Delete notes",
+          })[cap] ?? cap,
+      )
+      .join(" · ") || "Awaiting approval";
+  $("connection-help").hidden = true;
+  $("connection-settings").hidden = false;
+  $("signout-settings").hidden = false;
   const pending = $("pending-list");
   pending.replaceChildren();
   for (const item of state.pending) {
@@ -259,7 +370,7 @@ async function refresh() {
     row.append(label, check);
     pending.append(row);
   }
-  show(view);
+  paintPreferences(preferences);
   await loadInbox();
 }
 async function loadInbox() {
@@ -552,6 +663,7 @@ on("notebooks-more", async () => {
 });
 function clearSessionView() {
   sessionEpoch++;
+  view = "capture";
   state = undefined;
   selected.clear();
   preparedContext = undefined;
@@ -581,6 +693,13 @@ function clearSessionView() {
   $("review-context").textContent = "Review context (0)";
   $("saved-link").hidden = true;
   $("inbox").hidden = true;
+  $("connection-settings").hidden = true;
+  $("connection-help").hidden = false;
+  $("signout-settings").hidden = true;
+  $("account-id").textContent = "";
+  $("connection-state").textContent = "";
+  $("capabilities").textContent = "";
+  paintPreferences(preferences);
 }
 on("logout", async () => {
   await editTail;
@@ -588,6 +707,13 @@ on("logout", async () => {
   clearSessionView();
 });
 host.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.preferences?.newValue) {
+    const wasEnabled = preferences.enabled;
+    paintPreferences(changes.preferences.newValue as Preferences);
+    if (!wasEnabled && preferences.enabled && !configuring)
+      void action(connectView);
+    return;
+  }
   if (area !== "session") return;
   const identity = changes.identity?.newValue as State["identity"] | undefined;
   if (
@@ -601,25 +727,46 @@ host.storage.onChanged.addListener((changes, area) => {
     if (identity) void action(refresh);
     return;
   }
-  if (changes[`inbox:${windowId}`] && state) void action(loadInbox);
+  if (changes[`inbox:${windowId}`] && state && preferences.enabled)
+    void action(loadInbox);
   const entry = changes[`entryError:${windowId}`];
   if (entry?.newValue) notice(String(entry.newValue));
 });
 $<HTMLAnchorElement>("home").href = extensionConfig.siteOrigin;
-void action(async () => {
-  const window = await host.windows.getCurrent();
-  if (window.id === undefined) throw new Error("Browser window unavailable");
-  windowId = window.id;
+$("api-origin").textContent = extensionConfig.apiOrigin;
+$("browser-panel").textContent =
+  extensionConfig.target === "firefox"
+    ? "Firefox sidebar · Alt+Shift+G"
+    : `${extensionConfig.target === "edge" ? "Edge" : "Chrome"} side panel · Alt+Shift+G`;
+for (const id of ["extension-toggle", "settings-toggle"])
+  on(id, () => configure({ enabled: !preferences.enabled }));
+on("resume", () => configure({ enabled: true }));
+$("theme").addEventListener("change", () => {
+  void action(() =>
+    configure({
+      theme: $<HTMLSelectElement>("theme").value as Preferences["theme"],
+    }),
+  );
+});
+async function connectView() {
   try {
     await refresh();
   } catch (error) {
     if (!state) {
-      $("welcome").hidden = false;
+      show(view);
       notice(
         error instanceof Error ? error.message : "Sign in to connect Grove.",
       );
     } else throw error;
   }
+}
+void action(async () => {
+  const window = await host.windows.getCurrent();
+  if (window.id === undefined) throw new Error("Browser window unavailable");
+  windowId = window.id;
+  paintPreferences(await rpc<Preferences>("preferences"));
+  $<HTMLButtonElement>("extension-toggle").disabled = false;
+  if (preferences.enabled) await connectView();
   const key = `entryError:${windowId}`;
   const [entry, globalEntry] = await Promise.all([
     host.storage.session.get(key),

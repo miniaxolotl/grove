@@ -32,6 +32,13 @@ search results expose **Copy context**. **Settings is last** and contains accoun
 destination, privacy, draft-clearing and shortcut information. Existing notebook
 management and full editing remain in Grove's web app.
 
+The implemented device switch is visible in the header and Browser settings. Off
+must block trusted-background activity, not merely hide the composer, retain exact
+unknown-save recovery and allow re-enabling from the toolbar. Appearance follows
+browser light/dark mode by default with an explicit device override. A persistent
+header/navigation frame encloses independently scrolling views; Settings groups
+browser preferences, access, recovery and privacy without extra onboarding.
+
 Defer full articles, attachments, generated summaries/filing, chat scraping,
 AI-chat takeaway extraction, append/edit existing notes, semantic page matching,
 history ingestion, research-tab bundles, new-tab replacement, Safari and mobile.

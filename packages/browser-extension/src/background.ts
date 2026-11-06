@@ -18,9 +18,21 @@ const client = new ExtensionClient(config, local, session, oauth);
 const ready =
   host.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" }) ??
   Promise.resolve();
+const preferenceSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    theme: z.enum(["system", "light", "dark"]).default("system"),
+  })
+  .strict();
+let enabled = false;
+async function preferences() {
+  return preferenceSchema.parse((await local.get("preferences")) ?? {});
+}
 const request = z
   .object({
     kind: z.enum([
+      "preferences",
+      "configure",
       "state",
       "login",
       "logout",
@@ -90,6 +102,25 @@ async function inbox(id: number) {
 async function dispatch(raw: unknown) {
   const message = request.parse(raw),
     id = message.windowId;
+  if (message.kind === "preferences") return preferences();
+  if (message.kind === "configure") {
+    const changes = z
+      .object({
+        enabled: z.boolean().optional(),
+        theme: z.enum(["system", "light", "dark"]).optional(),
+      })
+      .strict()
+      .parse(message.payload);
+    const next = preferenceSchema.parse({
+      ...(await preferences()),
+      ...changes,
+    });
+    await local.set("preferences", next);
+    await menus();
+    return next;
+  }
+  if (!(await preferences()).enabled && message.kind !== "logout")
+    throw new Error("Grove is turned off. Turn it on to continue.");
   if (!["state", "login", "inbox"].includes(message.kind)) {
     const current = (await session.get("identity")) as
       | { accountId: string; connectionId: string }
@@ -210,7 +241,14 @@ host.runtime.onMessage.addListener((message, sender, respond) => {
   return true;
 });
 async function menus() {
+  enabled = (await preferences()).enabled;
   await host.contextMenus.removeAll();
+  await host.action.setBadgeText({ text: enabled ? "" : "OFF" });
+  await host.action.setBadgeBackgroundColor({ color: "#5e625e" });
+  await host.action.setTitle({
+    title: enabled ? "Open Grove" : "Grove is off — open to turn on",
+  });
+  if (!enabled) return;
   for (const [id, title, contexts] of [
     ["grove-capture-selection", "Save selection to Grove", ["selection"]],
     ["grove-capture-link", "Save link to Grove", ["link"]],
@@ -261,7 +299,7 @@ host.action.onClicked.addListener((tab) => {
 });
 host.contextMenus.onClicked.addListener((event, tab) => {
   const id = tab?.windowId;
-  if (id === undefined || tab?.incognito !== false) return;
+  if (!enabled || id === undefined || tab?.incognito !== false) return;
   // Open before any promise/network work so native gesture attribution survives.
   try {
     void openNativePanel(config.target, host, id).catch(() =>
@@ -277,6 +315,7 @@ host.contextMenus.onClicked.addListener((event, tab) => {
     );
   }
   void serial(async () => {
+    if (!(await preferences()).enabled) return;
     const capture =
       event.menuItemId === "grove-capture-page"
         ? {
@@ -322,3 +361,10 @@ host.windows.onRemoved.addListener((id) => {
     ]);
   });
 });
+// Restore persisted controls whenever an MV3 worker/event page is resumed.
+void serial(menus).catch(() =>
+  recordEntryError(
+    0,
+    "Browser controls could not be updated. Reopen Grove to check its state.",
+  ),
+);

@@ -10,11 +10,38 @@
   <body>
     <header class="masthead">
       <a id="home" target="_blank" rel="noreferrer"
-        ><img src="wordmark.svg" alt="Grove" width="100" height="30" /></a
-      ><span id="connection-label">Private notes</span>
+        ><img src="wordmark.svg" alt="Grove" width="100" height="30"
+      /></a>
+      <div class="header-controls">
+        <span id="connection-label">Private notes</span>
+        <button
+          id="extension-toggle"
+          class="switch"
+          role="switch"
+          aria-checked="true"
+          aria-label="Grove enabled"
+          disabled
+        >
+          <span class="switch-track" aria-hidden="true"></span
+          ><span id="extension-status">On</span>
+        </button>
+      </div>
     </header>
     <main>
-      <section id="welcome" aria-labelledby="welcome-title">
+      <section id="paused" hidden aria-labelledby="paused-title">
+        <h1 id="paused-title">Grove is off.</h1>
+        <p>Ready when you are.</p>
+        <p class="muted">
+          No captures, searches or requests. Your session drafts and save
+          recovery are kept under their normal expiry rules.
+        </p>
+        <button id="resume" class="primary">Turn Grove on</button>
+        <p class="muted small">
+          Turning off does not cancel a save already sent to Grove or revoke
+          your connection.
+        </p>
+      </section>
+      <section id="welcome" hidden aria-labelledby="welcome-title">
         <h1 id="welcome-title">Your notes, beside you.</h1>
         <p>
           Keep something worth remembering. Find the context you already have.
@@ -146,55 +173,158 @@
           <div id="page-results" class="results"></div>
           <button id="page-more" hidden>Load more notes</button>
         </section>
-        <section data-view="settings" hidden aria-labelledby="settings-title">
-          <h1 id="settings-title">Settings</h1>
-          <h2>Connection</h2>
-          <dl>
-            <dt>API</dt>
-            <dd id="api-origin"></dd>
-            <dt>Account</dt>
-            <dd id="account-id"></dd>
-            <dt>Access</dt>
-            <dd id="capabilities"></dd>
-          </dl>
-          <div class="actions">
-            <a class="button approval-link" target="_blank" rel="noreferrer"
-              >Manage access</a
-            ><button id="refresh">Refresh access</button>
+      </div>
+      <section
+        id="settings-view"
+        data-view="settings"
+        hidden
+        aria-labelledby="settings-title"
+      >
+        <h1 id="settings-title">Settings</h1>
+        <p class="view-description muted">
+          Make Grove feel at home in your browser.
+        </p>
+        <section
+          class="settings-section"
+          aria-labelledby="browser-settings-title"
+        >
+          <h2 id="browser-settings-title">Browser</h2>
+          <div class="setting-row">
+            <div>
+              <h3>Enable Grove</h3>
+              <p id="enable-help" class="muted small">
+                Capture and find notes when you need them.
+              </p>
+            </div>
+            <button
+              id="settings-toggle"
+              class="switch"
+              role="switch"
+              aria-label="Enable Grove"
+              aria-checked="true"
+              aria-describedby="enable-help"
+            >
+              <span class="switch-track" aria-hidden="true"></span
+              ><span class="toggle-status">On</span>
+            </button>
           </div>
-          <h2>Notebooks</h2>
-          <p class="muted">
-            The last destination you choose is remembered on this device.
-            Notebook access is controlled in Connections.
+          <label for="theme">Appearance</label>
+          <select id="theme">
+            <option value="system">Match browser</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+          <p class="muted small setting-help">
+            Saved automatically on this device.
           </p>
-          <button id="notebooks-more" hidden>Load more notebooks</button>
-          <h2>Save recovery</h2>
+        </section>
+        <section
+          class="settings-section"
+          aria-labelledby="connection-settings-title"
+        >
+          <h2 id="connection-settings-title">Account & access</h2>
+          <p id="connection-help" class="muted small">
+            Turn Grove on and sign in to check your notebook access.
+          </p>
+          <div id="connection-settings" hidden>
+            <dl>
+              <dt>Connection</dt>
+              <dd id="connection-state"></dd>
+              <dt>Access</dt>
+              <dd id="capabilities"></dd>
+            </dl>
+            <div class="actions">
+              <a class="button approval-link" target="_blank" rel="noreferrer"
+                >Manage access</a
+              ><button id="refresh">Refresh access</button>
+            </div>
+            <h3>Notebooks</h3>
+            <p class="muted">
+              The last destination you choose is remembered on this device.
+              Notebook access is controlled in Connections.
+            </p>
+            <button id="notebooks-more" hidden>Load more notebooks</button>
+          </div>
+        </section>
+        <section
+          class="settings-section"
+          aria-labelledby="recovery-settings-title"
+        >
+          <h2 id="recovery-settings-title">Save recovery</h2>
           <p class="muted small">
             Unconfirmed saves keep an opaque receipt for seven days. Check a
             receipt before repeating a save after a restart.
           </p>
           <div id="pending-list"></div>
-          <h2>Privacy on this device</h2>
+          <p id="recovery-help" class="muted small" hidden>
+            Turn Grove on and connect to check your scoped receipts. No save is
+            retried automatically.
+          </p>
+        </section>
+        <section
+          class="settings-section"
+          aria-labelledby="privacy-settings-title"
+        >
+          <h2 id="privacy-settings-title">Privacy & storage</h2>
           <p class="muted small">
             Notes and sign-in tokens stay in browser session storage. Drafts
             expire after 24 hours and are cleared when their window closes.
             Nothing runs on websites; no browsing history, analytics, or
             automatic capture.
           </p>
+          <details class="technical-details">
+            <summary>Connection details</summary>
+            <dl>
+              <dt>Account ID</dt>
+              <dd id="account-id"></dd>
+              <dt>API</dt>
+              <dd id="api-origin"></dd>
+              <dt>Browser panel</dt>
+              <dd id="browser-panel"></dd>
+            </dl>
+          </details>
+        </section>
+        <section
+          id="signout-settings"
+          class="settings-section"
+          hidden
+          aria-labelledby="signout-title"
+        >
+          <h2 id="signout-title">Sign out</h2>
           <p class="muted small">
             Signing out clears session drafts and tokens, not your saved Grove
             notes or the public registration and recovery receipts.
           </p>
           <button id="logout">Sign out</button>
         </section>
-      </div>
+      </section>
       <p id="notice" class="feedback" role="status" aria-live="polite"></p>
     </main>
     <nav id="navigation" aria-label="Grove" hidden>
-      <button data-nav="capture" aria-current="page">Capture</button
-      ><button data-nav="search">Search</button
-      ><button data-nav="page">This page</button
-      ><button data-nav="settings">Settings</button>
+      <button data-nav="capture" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M14 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 3l5 5M10 14l1-5 7-7 5 5-7 7-6 1Z"
+          /></svg
+        >Capture</button
+      ><button data-nav="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 5 5" /></svg
+        >Search</button
+      ><button data-nav="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 9h18M7 6.5h.01M10 6.5h.01M8 13h8M8 16h5" /></svg
+        >This page</button
+      ><button data-nav="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="m9 3-1 3-3 1-2 3 2 2-1 3 2 3 3-1 3 2 3-2 3 1 2-3-1-3 2-2-2-3-3-1-1-3Z"
+          />
+          <circle cx="12" cy="11" r="3" /></svg
+        >Settings
+      </button>
     </nav>
     <dialog id="reader" aria-labelledby="reader-title">
       <div class="title-row">
