@@ -82,6 +82,22 @@ independent exact-source validation. A source tag, green PR or documentation cha
 does not authorize deployment, database/provider changes or store submission.
 Secrets belong in Doppler and private ignored `secrets.md`, never PRs or artifacts.
 
+### Release downloads
+
+Protected production Deploy attaches the admitted source's Chrome, Edge and Firefox
+ZIPs and updates an owned **Downloads** section after coordinated publication and
+image verification. Browser packages remain unsigned local-install builds, not
+store releases or proof that the compatible server is deployed. CLI and plugin
+installation remains through npm and their supported integrations; raw package
+tarballs are not additional downloads.
+
+`packages.build.json`, `downloads.json` and `SHA256SUMS` retain build identity and
+integrity. The uploader checks versions, ZIP inventories and hashes before writing,
+reuses same-byte assets, rejects conflicts without overwriting, and reconciles an
+uncertain upload before continuing. It preserves authored release notes and
+unrelated assets; malformed owned-section markers stop the operation. Rerun the
+same current Deploy after a partial failure, never move tags or use `--clobber`.
+
 Verification lives in `scripts/release/release-policy.test.mjs` (real upstream
 version/update fixtures), `release-intent.test.mjs` and `release-workflow.test.mjs`.
 Use the upstream strategy rather than duplicating version calculations. Common
