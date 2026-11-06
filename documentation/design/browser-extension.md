@@ -6,9 +6,11 @@ local installation, rollout and verification. This design retains the release
 requirements and deferred scope; it is not evidence of signed/store distribution,
 live provider acceptance or permission to migrate, deploy or publish.
 
-The shared TypeScript runtime now provides capture, search/read, reviewed context,
-explicit exact-URL lookup and Settings. Search's explicit **This page** mode makes the
-URL-disclosure consent boundary visible rather than running lookups on navigation.
+The shared TypeScript runtime provides Notes, global Search, formatted reading,
+explicit copying and Settings. Local source prefill follows an untouched draft;
+navigation never discloses its URL remotely. Search has one debounced bar with no
+scope selector. The [current guide](../browser-extension.md#use-the-panel) owns
+the latest behavior; earlier first-release proposals below are historical design scope.
 Browser-specific manifests, trusted session OAuth/storage and atomic provenance
 APIs implement the earlier core-only gaps below. The remaining release acceptance
 checklist is intentionally stricter than fixture/unsigned-package success.
@@ -27,8 +29,8 @@ tool. Ship one shared interface with native browser adapters, not three products
 | Copy context           | Select notes, preview the exact bounded text and source links, then copy. No model call, site-specific insertion or automatic prompt submission.                          |
 | Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.             |
 
-One sidebar has **Capture**, **Search** and **Settings**. Search offers an explicit
-**This page** mode; selected results expose **Copy context**. **Settings is last** and contains account/connection,
+One sidebar has **Notes**, **Search** and **Settings**. Search spans all granted
+notebooks; selected results expose **Copy notes**. **Settings is last** and contains account/connection,
 destination, privacy, draft-clearing and shortcut information. Existing notebook
 management and full editing remain in Grove's web app.
 
@@ -38,8 +40,10 @@ unknown-save recovery and allow re-enabling from the toolbar. Appearance follows
 browser light/dark mode by default with an explicit device override. A persistent
 header/navigation frame encloses independently scrolling views; Settings groups
 appearance, access and privacy without extra onboarding. Recovery controls appear
-only for unconfirmed saves. Search and This page retain distinct disclosure forms
-but reuse one results/context surface and renderer, not duplicate lists/actions.
+only for unconfirmed saves. Notes keeps notebook/source controls in one Details
+disclosure; Search has one result list, with no filters or competing modes. A
+readable Markdown document replaces the old plain-source reader. Direct Copy note
+and Open in Grove actions serve the selected note; bulk copying retains consent.
 
 Defer full articles, attachments, generated summaries/filing, chat scraping,
 AI-chat takeaway extraction, append/edit existing notes, semantic page matching,
@@ -100,10 +104,10 @@ browser versions and supported desktop operating systems after testing; Chromium
 engine similarity is not evidence of Edge acceptance.
 
 Use the smallest proven permission set: storage, identity, context menus,
-native panel permission where required, `activeTab`, and only required Grove/auth
+native panel permission where required, `activeTab`, approved `tabs` metadata access, and only required Grove/auth
 hosts. Declare shortcuts through manifest commands, not an invented permission.
 Add `scripting` only if a bounded user-triggered capture needs it. Avoid
-`tabs`, history, cookies, clipboard-read, persistent content scripts and
+history, cookies, clipboard-read, persistent content scripts and
 `<all_urls>` unless a separate reviewed requirement justifies them. Request any
 additional access at its point of use. Capture restrictions must not block manual
 notes or library search. File/internal/store pages get a clear unsupported-source

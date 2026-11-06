@@ -55,36 +55,45 @@ These are bundled assets, not evidence of store publication.
 
 ## Use the panel
 
-Three main tabs keep the panel focused: **Capture**, **Search**, then **Settings**.
-Page lookup is inside Search; context actions appear only after selecting notes.
+Three tabs keep the panel focused: **Notes**, **Search**, then **Settings**.
+The panel uses a quiet sage frame, a paper-like editor and tonal note rows rather
+than dashboard chrome. Notebook and source controls share one **Details** disclosure.
 
-- **Capture:** write a quick Markdown note, choose its notebook and optionally
-  review a source link. Context-menu **Save selection**, **Save link** and **Save
+- **Notes:** write a Markdown note. The current tab's URL, title and capture time
+  fill locally when the panel opens, and follow navigation until the note is edited.
+  Typing, changing the destination, editing/removing a source or starting a save
+  pins that note's page. Navigating or reopening the panel never replaces it.
+  **New note** resumes following the current tab. Review or remove the source and
+  choose the destination under **Details** before saving. Context-menu **Save selection**, **Save link** and **Save
   page link** prepare a session inbox; reviewing a capture never saves it. Replacing
   a nonempty draft requires confirmation. At most five inbox captures wait per window.
-- **Search:** find active notes, reveal the notebook filter when needed, load more
-  results, read exact source text and open canonical Grove note links. Text is never
-  executed as HTML. Unchanged result rows stay mounted during refresh; failed
-  refreshes retain the previous results and label them stale.
-- **Context:** select up to six notes, review the exact text/source links and confirm
+- **Search:** one bar searches active notes across every scope approved for this
+  connection. No notebook, page selector or submit button is needed. Input waits
+  250ms before searching, IME composition waits until committed, and clearing the
+  bar clears results without a request. Enter retries immediately. Old responses
+  cannot replace newer results, including after pause or sign-out. **Show more**
+  uses the server cursor for the same query; unchanged rows stay mounted. Failures
+  retain previous results, label them stale and offer **Retry search**.
+- **Read and copy:** opening a result rechecks access and renders its Markdown/GFM
+  document: headings, lists, checklists, tables, quotes, code and safe links.
+  **Copy note** rechecks its version before copying the original Markdown;
+  **Open in Grove** opens the full editor. HTML remains literal text, unsafe links
+  are inert and images/media never load automatically. PDF/Word originals are not
+  fetched or extracted in the extension; previously imported Markdown is readable.
+- **Copy notes:** select up to six notes, review the exact text/source links and confirm
   sharing before copying. The aggregate is limited to 6,000 characters. Copy rechecks
   access, lifecycle and versions; changed sources require a fresh review. Clipboard
   failure leaves the reviewed text available for manual copying. Nothing is inserted
   into another website or submitted to a model.
-- **Search → This page:** review an exact source URL and choose **Find notes**. Opening the
-  panel or changing tabs never discloses the current URL automatically. Matches are
-  authorized, active, unexpired captures in the chosen notebook; content edits
-  invalidate their page association. There is no full-library client-side scan.
 - **Settings**, last in navigation, shows access and privacy, with connection IDs and
   storage details behind disclosures. Unconfirmed saves show recovery actions; a
   confirmed receipt removes the corresponding pending item. Access management,
   notebook discovery, refresh and sign-out remain available. The last chosen
   destination is remembered per API/account; existing drafts take precedence.
   System/light/dark appearance saves automatically on this device. Enablement has
-  one home in the persistent header; Search modes reuse a single results/context
-  surface and renderer while keeping independent input/results state.
+  one home in the persistent header. Search has one result list and copy action.
 
-Capture opens directly to the note editor. Save outcome and newer unsaved edits
+Notes opens directly to the editor. Save outcome and newer unsaved edits
 remain visible; exact version/indexing metadata is available under **Save details**.
 The source link remains editable and reviewed before saving. No feature, privacy
 approval or uncertain-save safeguard is removed to simplify the panel.
@@ -112,15 +121,18 @@ use Connections to revoke access and Sign out to clear a mounted session.
 The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
 their previous scroll position. Switches work with the keyboard and retain focus.
-Search and This page share one results list, status, pagination and context-review
-action; each keeps its own query/results state when switching views. Unchanged
-rows remain mounted during refresh. Context review appears only after selection,
+Search preserves its input/results when switching views. Unchanged rows remain
+mounted during refresh. Copy review appears only after selection,
 and still requires explicit consent and current-version/access checks before copy.
 
-Restricted/internal/store/file pages cannot be attached; private browsing is disabled.
-Manual notes and search do not need page access. `activeTab` may require opening the
-extension from the page's toolbar/context menu before **Use current page** can read
-its URL. Source URLs remain editable, and lookup/save is always a separate action.
+Internal/file pages cannot be attached; private browsing is disabled. An untouched
+draft clears its automatic source when a readable web URL is unavailable; edited
+drafts retain their pinned source. The owner-approved `tabs` permission reads
+active-tab URL/title across sites and may show a browsing-history warning on install
+or update. It does not grant document contents or history API access. Only mounted,
+enabled, approved panels follow their own window's active tab; no navigation listener
+collects browsing data in the background. Source values stay in scoped session
+storage and reach Grove only on explicit save, never from navigation or search.
 
 ## Implemented contracts
 
@@ -138,7 +150,10 @@ canonical hint, image or page is fetched. Titles are single-line, at most 300
 characters; capture timestamps are UTC ISO datetimes.
 
 Formatting escapes quoted external text and attribution as Markdown, while manual
-notes retain their authored Markdown. Link-only captures are supported. The shared
+notes retain their authored Markdown, including when their source was prefilled.
+Drafts distinguish authored text from context-menu excerpts; existing legacy source
+drafts keep their original quoted formatting and unresolved saves keep exact bytes.
+Link-only captures are supported. The shared
 6,000-character note limit includes quotes, title, source URL and timestamp; overflow
 is rejected, never truncated or split. A valid source can still contain sensitive
 query parameters: callers must show an editable review before disclosure.
@@ -179,6 +194,13 @@ storage. Closing a window removes its drafts/inbox; sign-out clears all session
 data and mounted private views across open panels. A browser restart requires
 sign-in again. Session storage is not an OS vault, and no offline library is kept.
 
+Draft source ownership is persisted as automatic or pinned. The first local edit
+fences late metadata before storage responds. Manual removal stays removed even if
+the editor is emptied. Legacy drafts are protected; only truly pristine legacy
+drafts can start following automatically. Repeated identical URL/title observations
+do not change capture time, extend expiry or churn storage. Inbox captures remain
+pinned to their original event snapshot rather than a later tab destination.
+
 `prepareCaptureSave` creates an independent local command snapshot with an
 operation UUID, formatted content, notebook and optional provenance. Runtime saves
 persist this snapshot before authorized HTTP I/O. While a save is unresolved, only
@@ -190,7 +212,7 @@ with note ID, version and indexing status. A completed operation cannot be repla
 by a stale failure; a later save requires a fresh UUID. Receipt validation is only
 local structural validation, not proof of server storage, access or indexing.
 Runtime receipts come from authenticated responses. Network/ambiguous failures show
-**unknown outcome**, not success; retry replays the original request without losing
+**Save not confirmed**, not success; retry replays the original request without losing
 newer edits. Settings can reconcile a scoped opaque receipt after session loss.
 Local persistent storage contains only device enablement/appearance preferences,
 public OAuth registration, destination IDs
