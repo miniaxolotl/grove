@@ -53,16 +53,16 @@ main view at all three widths. Earlier captures below remain historical evidence
 
 ## Local acceptance and presentation — 6 November 2026
 
-Runtime/build source: `b7e06cff`, product
+Runtime/build source: `44aa5131`, product
 version `1.11.14`. Images come from the actual installed unsigned packages,
 not a marketing mock or the website. The panel captures use synthetic notes and
 HTTP/auth responses. The Firefox native capture uses a labelled local OAuth issuer
 and the real Grove API, disposable PostgreSQL and worker. Neither is live Clerk
 qualification or a production account/provider grant.
 
-| Capture and safe retry                                                                                  | Search and literal source text                                                                    | Organized Settings                                                      | Off, dark appearance                                                             |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| ![Capture preserves the newer unsaved draft after confirming the original save](chrome-capture-390.png) | ![Selected search result displays script markup as literal text, never HTML](edge-search-390.png) | ![Browser preferences and scoped account access](edge-settings-390.png) | ![Persistent device pause with an accessible on switch](chrome-off-dark-390.png) |
+| Capture and safe retry                                                                                            | Search and literal source text                                                                       | Organized Settings                                                                               | Off, dark appearance                                                                     |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| ![A single composer preserves the newer unsaved draft after confirming the original save](chrome-capture-390.png) | ![The shared recall surface displays script markup as literal text, never HTML](edge-search-390.png) | ![Compact appearance, access and privacy settings with one header switch](edge-settings-390.png) | ![Persistent device pause controlled by the same header switch](chrome-off-dark-390.png) |
 
 | Dark Settings                                                                       | Native Firefox beside a local source                                                              |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -88,8 +88,9 @@ sidebar through a real WebDriver gesture and checks capture/search/context.
 ## Observations and limits
 
 - Panel screenshots use 390 × 844 CSS-pixel viewports. The header and navigation
-  stay outside the independently scrolling content area; Settings continues below
-  the visible Browser/access groups. Tests scroll to Sign out at 280/320/390/768px
+  stay outside the independently scrolling content area. The streamlined Settings
+  fits appearance, access, privacy and Sign out at 390px without duplicated enable
+  controls or empty recovery sections. Tests reach Sign out at 280/320/390/768px
   in a 600px-tall window and check that it is above, not behind, navigation.
   Firefox's native screenshot is a 1100 × 850 browser-window capture with a narrow
   sidebar and local source, not evidence of mobile extension support.
@@ -144,8 +145,12 @@ The source citation and exact save receipt are the product-specific elements;
 editing and disclosure, rather than decoration, lead the screen. The repeated
 left/right edges, restrained borders and reserved feedback area keep the narrow
 panel legible. Sparse search results remain honest rather than adding fake notes.
-Settings groups related controls, keeps technical IDs behind disclosure and
-scrolls inside the browser frame instead of shrinking privacy text or hiding controls.
+Settings groups related controls, keeps technical IDs/retention details behind
+disclosure and shows recovery only for pending receipts. The sole on/off switch
+stays in the header; repeated connection status, resume buttons and composer panels
+are removed. Search and This page retain their distinct consent forms but use one
+results/status/pagination/context surface and keyed row renderer. Per-view results
+and selection survive switching; unchanged rows are reused through refresh.
 
 App-source taste lint reports zero failures; its one shadow warning is the real
 modal overlay, not a resting card. The generic URL inspector cannot install an
@@ -153,8 +158,8 @@ extension or reach its isolated extension origin; installed-host screenshots,
 overflow measurements and axe are used instead. Final image review: hierarchy 8/10,
 usability 8/10, identity 8/10. The question is “what can I keep or find beside this
 page?”; the composer and source/receipt remain the signature, not decorative data.
-The top issues found and repaired were ungrouped Settings, no visible device state
-and fixed navigation obscuring short-window actions. The same achromatic-ledger
+The top issues found and repaired were repeated enablement controls, an overlong
+Settings page and duplicate recall/result surfaces. The same achromatic-ledger
 direction/seed is retained, with no redraw or external imagery. Remaining work is
 native/live acceptance, stronger all-host recovery/IME qualification and owner review,
 not a claim of award-level polish.

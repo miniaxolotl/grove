@@ -8,6 +8,12 @@ listings. Source behavior and installation are described here; the
 
 ## Install and connect
 
+Install only against a compatible deployed API, including migration `037` after
+`036` and the native OAuth-origin admission rule below. Default-origin CI packages
+point at production; passing source CI does not deploy that server. An older API
+rejects extension requests with **Origin is not allowed**, regardless of whether
+the package is signed. Use a custom-origin build for an isolated local stack.
+
 Use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
@@ -63,8 +69,9 @@ Page lookup is inside Search; context actions appear only after selecting notes.
   confirmed receipt removes the corresponding pending item. Access management,
   notebook discovery, refresh and sign-out remain available. The last chosen
   destination is remembered per API/account; existing drafts take precedence.
-  Browser enablement and system/light/dark appearance remain available and save
-  automatically on this device.
+  System/light/dark appearance saves automatically on this device. Enablement has
+  one home in the persistent header; Search modes reuse a single results/context
+  surface and renderer while keeping independent input/results state.
 
 Capture opens directly to the note editor. Save outcome and newer unsaved edits
 remain visible; exact version/indexing metadata is available under **Save details**.
@@ -73,7 +80,8 @@ approval or uncertain-save safeguard is removed to simplify the panel.
 
 ### Turn Grove on or off
 
-The header switch is always available; Settings has the same control. Turning Grove
+The single header switch is always available, including in Settings and while off.
+There is no second enable/resume control to keep in sync. Turning Grove
 off persists on this device across panel reloads and browser restarts, removes its
 context-menu entries and adds an **OFF** toolbar badge. The toolbar/shortcut still
 opens the native panel so Grove can be turned on again. Off blocks extension API
@@ -93,6 +101,10 @@ use Connections to revoke access and Sign out to clear a mounted session.
 The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
 their previous scroll position. Switches work with the keyboard and retain focus.
+Search and This page share one results list, status, pagination and context-review
+action; each keeps its own query/results state when switching views. Unchanged
+rows remain mounted during refresh. Context review appears only after selection,
+and still requires explicit consent and current-version/access checks before copy.
 
 Restricted/internal/store/file pages cannot be attached; private browsing is disabled.
 Manual notes and search do not need page access. `activeTab` may require opening the

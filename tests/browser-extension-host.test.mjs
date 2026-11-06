@@ -250,7 +250,7 @@ for (const target of ["chrome", "edge"])
         .filter({ hasText: "outcome is unknown" })
         .waitFor();
       assert.equal(
-        await page.locator("#save-recovery").evaluate((el) => el.hidden),
+        await page.locator("#recovery-settings").evaluate((el) => el.hidden),
         false,
         "unknown saves keep a visible recovery section in Settings",
       );
@@ -275,7 +275,7 @@ for (const target of ["chrome", "edge"])
         uncertainReceipts,
         "unknown saves retain their exact recovery receipt while off",
       );
-      await page.locator("#resume").click();
+      await page.locator("#extension-toggle").click();
       await page.locator("#workspace").waitFor({ state: "visible" });
       assert.match(
         await page.locator("#save-state").textContent(),
@@ -318,12 +318,11 @@ for (const target of ["chrome", "edge"])
       assert.equal(await page.locator("#context-actions").isVisible(), false);
       await page.locator("#query").fill("source");
       await page.locator('#search-form button[type="submit"]').click();
-      await page.locator("#search-results .note-row").waitFor();
-      assert.equal(await page.locator("#search-results .note-row").count(), 1);
+      await page.locator("#results .note-row").waitFor();
+      assert.equal(await page.locator("#results .note-row").count(), 1);
       await page.evaluate(() => {
-        globalThis.retainedSearchRow = document.querySelector(
-          "#search-results .note-row",
-        );
+        globalThis.retainedSearchRow =
+          document.querySelector("#results .note-row");
       });
       await worker.evaluate(() => {
         globalThis.fixtureSearchGate = new Promise((resolve) => {
@@ -332,14 +331,14 @@ for (const target of ["chrome", "edge"])
       });
       await page.locator("#query").press("Enter");
       await page
-        .locator("#search-status")
+        .locator("#results-status")
         .filter({ hasText: "Finding notes" })
         .waitFor();
       assert.equal(
         await page.evaluate(
           () =>
             globalThis.retainedSearchRow ===
-            document.querySelector("#search-results .note-row"),
+            document.querySelector("#results .note-row"),
         ),
         true,
       );
@@ -351,14 +350,14 @@ for (const target of ["chrome", "edge"])
       );
       await worker.evaluate(() => globalThis.releaseSearch());
       await page
-        .locator("#search-status")
+        .locator("#results-status")
         .filter({ hasText: "1 note · checked" })
         .waitFor();
       assert.equal(
         await page.evaluate(
           () =>
             globalThis.retainedSearchRow ===
-            document.querySelector("#search-results .note-row"),
+            document.querySelector("#results .note-row"),
         ),
         true,
         "unchanged results keep their mounted row after refresh",
@@ -368,20 +367,20 @@ for (const target of ["chrome", "edge"])
       });
       await page.locator("#query").press("Enter");
       await page
-        .locator("#search-status")
+        .locator("#results-status")
         .filter({ hasText: "stale" })
         .waitFor();
-      assert.equal(await page.locator("#search-results .note-row").count(), 1);
+      assert.equal(await page.locator("#results .note-row").count(), 1);
       assert.equal(await page.locator("#query").inputValue(), "source");
       await worker.evaluate(() => {
         globalThis.fixtureSearchFailed = false;
       });
       await page.locator("#query").press("Enter");
       await page
-        .locator("#search-status")
+        .locator("#results-status")
         .filter({ hasText: "1 note · checked" })
         .waitFor();
-      await page.locator("#search-results .note-row button").click();
+      await page.locator("#results .note-row button").click();
       await page.locator("#reader[open]").waitFor();
       assert.match(
         await page.locator("#reader-content").textContent(),
@@ -389,12 +388,12 @@ for (const target of ["chrome", "edge"])
       );
       await page.locator("#close-reader").click();
       const statusBeforeSelection = await page
-        .locator("#search-status")
+        .locator("#results-status")
         .boundingBox();
-      await page.locator('#search-results input[type="checkbox"]').check();
+      await page.locator('#results input[type="checkbox"]').check();
       assert.equal(await page.locator("#context-actions").isVisible(), true);
       assert.equal(
-        (await page.locator("#search-status").boundingBox()).y,
+        (await page.locator("#results-status").boundingBox()).y,
         statusBeforeSelection.y,
         "context actions use reserved space instead of shifting results",
       );
@@ -415,9 +414,7 @@ for (const target of ["chrome", "edge"])
       await page.locator("#clear-selection").click();
       assert.equal(await page.locator("#context-actions").isVisible(), false);
       assert.equal(
-        await page
-          .locator('#search-results input[type="checkbox"]')
-          .isChecked(),
+        await page.locator('#results input[type="checkbox"]').isChecked(),
         false,
       );
       for (const width of [280, 320, 390, 768]) {
@@ -471,8 +468,8 @@ for (const target of ["chrome", "edge"])
         .locator("#page-url")
         .fill("https://example.com/article?utm_source=test");
       await page.locator('#page-form button[type="submit"]').click();
-      await page.locator("#page-results .note-row").waitFor();
-      await page.locator('#page-results input[type="checkbox"]').check();
+      await page.locator("#results .note-row").waitFor();
+      await page.locator('#results input[type="checkbox"]').check();
       await page.locator("#review-context").click();
       await page.locator("#context[open]").waitFor();
       await page.locator("#close-context").click();
@@ -480,12 +477,12 @@ for (const target of ["chrome", "edge"])
       await page.locator("#clear-selection").click();
       await page.locator("#this-page").click();
       assert.equal(
-        await page.locator('#page-results input[type="checkbox"]').isChecked(),
+        await page.locator('#results input[type="checkbox"]').isChecked(),
         false,
       );
       await page.locator('[data-nav="settings"]').click();
       assert.equal(await page.locator("#account-id").isVisible(), false);
-      assert.equal(await page.locator("#save-recovery").isVisible(), false);
+      assert.equal(await page.locator("#recovery-settings").isVisible(), false);
       if (process.env.EXTENSION_SCREENSHOTS)
         await page.screenshot({
           path: join(
@@ -552,11 +549,11 @@ for (const target of ["chrome", "edge"])
         await otherPanel.locator("#note").inputValue(),
         "A newer draft stays after retry.",
       );
-      await page.locator("#settings-toggle").click();
+      await page.locator("#extension-toggle").click();
       await page.waitForFunction(
         () =>
           document
-            .querySelector("#settings-toggle")
+            .querySelector("#extension-toggle")
             .getAttribute("aria-checked") === "false",
       );
       await otherPanel.locator("#paused").waitFor({ state: "visible" });
@@ -667,7 +664,7 @@ for (const target of ["chrome", "edge"])
       await page.waitForFunction(
         () =>
           document
-            .querySelector("#settings-toggle")
+            .querySelector("#extension-toggle")
             .getAttribute("aria-checked") === "true",
       );
       await page.locator("#logout").click();

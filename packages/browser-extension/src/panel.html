@@ -12,29 +12,24 @@
       <a id="home" target="_blank" rel="noreferrer"
         ><img src="wordmark.svg" alt="Grove" width="100" height="30"
       /></a>
-      <div class="header-controls">
-        <span id="connection-label">Private notes</span>
-        <button
-          id="extension-toggle"
-          class="switch"
-          role="switch"
-          aria-checked="true"
-          aria-label="Grove enabled"
-          disabled
-        >
-          <span class="switch-track" aria-hidden="true"></span
-          ><span id="extension-status">On</span>
-        </button>
-      </div>
+      <button
+        id="extension-toggle"
+        class="switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Grove enabled"
+        disabled
+      >
+        <span class="switch-track" aria-hidden="true"></span
+        ><span id="extension-status">On</span>
+      </button>
     </header>
     <main>
       <section id="paused" hidden aria-labelledby="paused-title">
         <h1 id="paused-title">Grove is off.</h1>
-        <p>No captures, searches or requests.</p>
-        <button id="resume" class="primary">Turn Grove on</button>
-        <p class="muted small">
-          Drafts are kept under their normal expiry rules. Turning off does not
-          cancel a save already sent or revoke access.
+        <p class="muted">
+          Use the switch above to resume. Drafts and save recovery keep their
+          normal expiry rules.
         </p>
       </section>
       <section id="welcome" hidden aria-labelledby="welcome-title">
@@ -177,27 +172,18 @@
               <button type="submit" class="primary">Find notes</button>
             </form>
           </div>
+        </section>
+        <section id="recall-results" hidden aria-labelledby="results-title">
           <div class="between result-heading">
-            <h2>Notes</h2>
+            <h2 id="results-title">Notes</h2>
             <div id="context-actions" class="context-actions" hidden>
               <button id="clear-selection" class="quiet">Clear</button>
               <button id="review-context">Review context (0)</button>
             </div>
           </div>
-          <div id="note-matches">
-            <p id="search-status" class="feedback muted" role="status">
-              Search your saved notes.
-            </p>
-            <div id="search-results" class="results"></div>
-            <button id="search-more" hidden>Load more notes</button>
-          </div>
-          <div id="page-matches" hidden>
-            <p id="page-status" class="feedback muted" role="status">
-              Find notes saved with this link.
-            </p>
-            <div id="page-results" class="results"></div>
-            <button id="page-more" hidden>Load more notes</button>
-          </div>
+          <p id="results-status" class="feedback muted" role="status"></p>
+          <div id="results" class="results"></div>
+          <button id="results-more" hidden>Load more notes</button>
         </section>
       </div>
       <section
@@ -211,28 +197,8 @@
           class="settings-section"
           aria-labelledby="browser-settings-title"
         >
-          <h2 id="browser-settings-title">Browser</h2>
-          <div class="setting-row">
-            <div>
-              <h3>Enable Grove</h3>
-              <p id="enable-help" class="muted small">
-                Capture and find notes when you need them.
-              </p>
-            </div>
-            <button
-              id="settings-toggle"
-              class="switch"
-              role="switch"
-              aria-label="Enable Grove"
-              aria-checked="true"
-              aria-describedby="enable-help"
-            >
-              <span class="switch-track" aria-hidden="true"></span
-              ><span class="toggle-status">On</span>
-            </button>
-          </div>
-          <label for="theme">Appearance</label>
-          <select id="theme">
+          <h2 id="browser-settings-title">Appearance</h2>
+          <select id="theme" aria-labelledby="browser-settings-title">
             <option value="system">Match browser</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
@@ -244,7 +210,7 @@
         >
           <h2 id="connection-settings-title">Access</h2>
           <p id="connection-help" class="muted small">
-            Turn Grove on and sign in to check your notebook access.
+            Connect Grove to check notebook access.
           </p>
           <div id="connection-settings" hidden>
             <p id="capabilities" class="muted"></p>
@@ -270,7 +236,7 @@
           </div>
         </section>
         <section
-          id="save-recovery"
+          id="recovery-settings"
           class="settings-section"
           hidden
           aria-labelledby="recovery-title"
@@ -292,6 +258,10 @@
               Notes and sign-in tokens stay in browser session storage. Drafts
               expire after 24 hours and are cleared when their window closes.
               Unconfirmed saves keep an opaque recovery receipt for seven days.
+            </p>
+            <p class="muted small">
+              Turning Grove off does not cancel submitted saves or revoke
+              access.
             </p>
             <p class="muted small">
               Signing out clears session drafts and tokens, not your saved Grove

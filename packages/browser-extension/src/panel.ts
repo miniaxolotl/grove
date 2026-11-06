@@ -23,8 +23,10 @@ let sessionEpoch = 0;
 type Preferences = { enabled: boolean; theme: "system" | "light" | "dark" };
 let preferences: Preferences = { enabled: true, theme: "system" };
 let configuring = false;
+let searchMode: "search" | "page" = "search";
 let notebookCursor: string | null = null;
 const selected = new Map<string, { id: string; version: number }>();
+const renderedNotes = new WeakMap<HTMLElement, Memory>();
 const scrollPositions = new Map<string, number>();
 let preparedContext:
   | { text: string; items: { id: string; version: number }[] }
@@ -32,6 +34,15 @@ let preparedContext:
 let editTail: Promise<unknown> = Promise.resolve(),
   replaceAction: (() => Promise<void>) | undefined;
 const selections = () => [...selected.values()];
+const approved = () =>
+  state?.identity.capabilities.some((cap) =>
+    ["memory:read", "memory:write"].includes(cap),
+  ) ?? false;
+const recallView = (): "search" | "page" | undefined =>
+  view === "search" ? searchMode : undefined;
+function closeDialogs() {
+  for (const dialog of document.querySelectorAll("dialog")) dialog.close();
+}
 function notice(message = "") {
   $("notice").textContent = message;
 }
@@ -97,14 +108,11 @@ function show(next: string) {
     if (el.dataset.nav === next) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   });
-  const approved = state?.identity.capabilities.some((cap) =>
-    ["memory:read", "memory:write"].includes(cap),
-  );
   $("workspace").hidden =
-    !preferences.enabled || !approved || next === "settings";
+    !preferences.enabled || !approved() || next === "settings";
   $("welcome").hidden = !preferences.enabled || !!state || next === "settings";
   $("approval").hidden =
-    !preferences.enabled || !state || !!approved || next === "settings";
+    !preferences.enabled || !state || approved() || next === "settings";
   $("paused").hidden = preferences.enabled || next === "settings";
   $("navigation").hidden = false;
   document
@@ -112,8 +120,10 @@ function show(next: string) {
     .forEach((button) => {
       button.disabled =
         button.dataset.nav !== "settings" &&
-        (!preferences.enabled || !approved);
+        (!preferences.enabled || !approved());
     });
+  $("recall-results").hidden = !recallView();
+  if (recallView()) paintResults();
   if (switched) main.scrollTop = scrollPositions.get(next) ?? 0;
 }
 function paintPreferences(next: Preferences) {
@@ -121,29 +131,18 @@ function paintPreferences(next: Preferences) {
   preferences = next;
   document.documentElement.dataset.theme = next.theme;
   $<HTMLSelectElement>("theme").value = next.theme;
-  for (const id of ["extension-toggle", "settings-toggle"]) {
-    const button = $<HTMLButtonElement>(id);
-    button.setAttribute("aria-checked", String(next.enabled));
-    button.querySelector("span:last-child")!.textContent = next.enabled
-      ? "On"
-      : "Off";
-  }
-  $("connection-label").textContent = !next.enabled
-    ? "Turned off"
-    : state
-      ? "Connected to Grove"
-      : "Private notes";
-  $("enable-help").textContent = next.enabled
-    ? "Capture and find notes when you need them."
-    : "Off. No captures, searches or requests.";
+  $("extension-toggle").setAttribute("aria-checked", String(next.enabled));
+  $("extension-status").textContent = next.enabled ? "On" : "Off";
   $("pending-list").hidden = !next.enabled || !state;
   $("recovery-help").hidden = next.enabled && !!state;
+  $("recovery-settings").hidden = !state?.pending.length;
+  $("connection-help").hidden = !!state;
+  $("connection-settings").hidden = !state;
+  $("signout-settings").hidden = !state;
   if (state)
     $("connection-state").textContent = !next.enabled
       ? "Paused · sign-in retained"
-      : state.identity.capabilities.some((cap) =>
-            ["memory:read", "memory:write"].includes(cap),
-          )
+      : approved()
         ? "Connected to Grove"
         : "Awaiting your approval";
   $<HTMLButtonElement>("refresh").disabled = !next.enabled;
@@ -151,19 +150,17 @@ function paintPreferences(next: Preferences) {
   if (turningOff) {
     sessionEpoch++;
     preparedContext = undefined;
-    for (const dialog of document.querySelectorAll("dialog")) dialog.close();
+    closeDialogs();
   }
   show(view);
 }
 async function configure(changes: Partial<Preferences>) {
   const focused = document.activeElement as HTMLElement | null;
   configuring = true;
-  for (const id of ["extension-toggle", "settings-toggle", "resume", "theme"])
+  for (const id of ["extension-toggle", "theme"])
     $<HTMLButtonElement>(id).disabled = true;
   $("extension-toggle").setAttribute("aria-busy", "true");
-  if (changes.enabled === false)
-    $("enable-help").textContent =
-      "Finishing the current action before turning off…";
+  if (changes.enabled === false) $("extension-status").textContent = "…";
   try {
     await editTail;
     const previous = preferences.enabled;
@@ -173,7 +170,7 @@ async function configure(changes: Partial<Preferences>) {
     configuring = false;
     $("extension-toggle").removeAttribute("aria-busy");
     paintPreferences(preferences);
-    for (const id of ["extension-toggle", "settings-toggle", "resume", "theme"])
+    for (const id of ["extension-toggle", "theme"])
       $<HTMLButtonElement>(id).disabled = false;
     if (
       document.activeElement === document.body &&
@@ -184,20 +181,12 @@ async function configure(changes: Partial<Preferences>) {
   }
 }
 function showSearchMode(next: "search" | "page") {
+  searchMode = next;
   $("note-search").hidden = next !== "search";
-  $("note-matches").hidden = next !== "search";
   $("page-search").hidden = next !== "page";
-  $("page-matches").hidden = next !== "page";
   $("all-notes").setAttribute("aria-pressed", String(next === "search"));
   $("this-page").setAttribute("aria-pressed", String(next === "page"));
-}
-function paintSelection() {
-  $("context-actions").hidden = selected.size === 0;
-  $("review-context").textContent = `Review context (${selected.size})`;
-  document.querySelectorAll<HTMLElement>(".note-row").forEach((row) => {
-    row.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked =
-      selected.has(row.dataset.id!);
-  });
+  paintResults();
 }
 function paintNotebookFilters() {
   for (const kind of ["search", "page"]) {
@@ -291,7 +280,7 @@ function paintDraft(draft: CaptureDraft, fields = true) {
     for (const row of [...$("pending-list").children])
       if ((row as HTMLElement).dataset.operationId === save.request.operationId)
         row.remove();
-    $("save-recovery").hidden = !state.pending.length;
+    $("recovery-settings").hidden = !state.pending.length;
   }
   $("save-details").hidden = save?.status !== "saved";
   $("save-version").textContent =
@@ -338,26 +327,14 @@ async function refresh() {
     (next.identity.accountId !== state.identity.accountId ||
       next.identity.connectionId !== state.identity.connectionId);
   if (changed) {
-    selected.clear();
-    paintSelection();
-    $("search-results").replaceChildren();
-    $("page-results").replaceChildren();
-    for (const dialog of document.querySelectorAll("dialog")) dialog.close();
+    clearRecall();
   }
   state = next;
   notebookCursor = next.notebooks.nextCursor;
-  $("welcome").hidden = true;
-  const approved = state.identity.capabilities.some((cap) =>
-    ["memory:read", "memory:write"].includes(cap),
-  );
-  $("approval").hidden = approved;
-  $("workspace").hidden = !approved;
-  $("navigation").hidden = !approved;
   for (const link of document.querySelectorAll<HTMLAnchorElement>(
     ".approval-link",
   ))
     link.href = approvalUrl();
-  $("connection-label").textContent = "Connected to Grove";
   updateNotebooks(next.notebooks.items);
   if (state.draft)
     paintDraft(
@@ -366,11 +343,7 @@ async function refresh() {
     );
   $<HTMLButtonElement>("save").disabled =
     !state.identity.capabilities.includes("memory:write");
-  $("api-origin").textContent = extensionConfig.apiOrigin;
   $("account-id").textContent = state.identity.accountId;
-  $("connection-state").textContent = approved
-    ? "Connected to Grove"
-    : "Awaiting your approval";
   $("capabilities").textContent =
     state.identity.capabilities
       .map(
@@ -384,10 +357,6 @@ async function refresh() {
           )[cap] ?? cap,
       )
       .join(" · ") || "Awaiting approval";
-  $("save-recovery").hidden = !state.pending.length;
-  $("connection-help").hidden = true;
-  $("connection-settings").hidden = false;
-  $("signout-settings").hidden = false;
   const pending = $("pending-list");
   pending.replaceChildren();
   for (const item of state.pending) {
@@ -475,10 +444,72 @@ function source() {
       })
     : null;
 }
+function emptyResults(kind: "search" | "page") {
+  return {
+    cursor: null as string | null,
+    input: {} as unknown,
+    items: [] as Memory[],
+    status:
+      kind === "search"
+        ? "Search to find active notes."
+        : "Only active, unchanged source associations appear here.",
+  };
+}
 const resultState = {
-  search: { cursor: null as string | null, input: {} as unknown },
-  page: { cursor: null as string | null, input: {} as unknown },
+  search: emptyResults("search"),
+  page: emptyResults("page"),
 };
+function clearRecall() {
+  selected.clear();
+  preparedContext = undefined;
+  resultState.search = emptyResults("search");
+  resultState.page = emptyResults("page");
+  $("results").replaceChildren();
+  updateContextAction();
+  closeDialogs();
+}
+function updateContextAction() {
+  $("context-actions").hidden = !selected.size;
+  $("review-context").textContent = `Review context (${selected.size})`;
+  document.querySelectorAll<HTMLElement>(".note-row").forEach((row) => {
+    row.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked =
+      selected.has(row.dataset.id!);
+  });
+}
+function sameNote(previous: Memory | undefined, note: Memory) {
+  return (
+    previous?.version === note.version &&
+    previous.content === note.content &&
+    previous.kind === note.kind &&
+    previous.updatedAt === note.updatedAt
+  );
+}
+function paintResults() {
+  const kind = recallView();
+  if (!kind) return;
+  const current = resultState[kind],
+    list = $("results");
+  $("results-status").textContent = current.status;
+  $("results-more").hidden = !current.cursor;
+  const existing = new Map(
+    [...list.children].map((el) => [
+      (el as HTMLElement).dataset.id,
+      el as HTMLElement,
+    ]),
+  );
+  current.items.forEach((note, index) => {
+    let row = existing.get(note.id);
+    if (!row || !sameNote(renderedNotes.get(row), note)) {
+      row?.remove();
+      row = noteRow(note);
+    }
+    if (list.children[index] !== row)
+      list.insertBefore(row, list.children[index] ?? null);
+    existing.delete(note.id);
+  });
+  existing.forEach((row) => row.remove());
+  updateContextAction();
+}
 async function find(kind: "search" | "page", more = false) {
   await editTail;
   const current = resultState[kind];
@@ -493,8 +524,8 @@ async function find(kind: "search" | "page", more = false) {
           url: normalizeWebUrl($<HTMLInputElement>("page-url").value),
           projectId: $<HTMLSelectElement>("page-scope").value || null,
         };
-  const status = $(`${kind}-status`);
-  status.textContent = "Finding notes…";
+  current.status = "Finding notes…";
+  if (recallView() === kind) paintResults();
   try {
     const data = await rpc<{ items: Memory[]; nextCursor: string | null }>(
       kind === "page" ? "pages" : "search",
@@ -502,40 +533,27 @@ async function find(kind: "search" | "page", more = false) {
     );
     current.input = input;
     current.cursor = data.nextCursor;
-    const list = $(`${kind}-results`);
-    if (!more) {
-      const ids = new Set(data.items.map((note) => note.id));
-      for (const row of [...list.children])
-        if (!ids.has((row as HTMLElement).dataset.id!)) row.remove();
-    }
-    let previous: HTMLElement | undefined;
-    for (const note of data.items) {
-      const row = appendNote(list, note);
-      if (!more) {
-        const before = previous
-          ? previous.nextElementSibling
-          : list.firstElementChild;
-        if (before !== row) list.insertBefore(row, before);
-        previous = row;
-      }
-    }
-    status.textContent = `${list.childElementCount} ${list.childElementCount === 1 ? "note" : "notes"}${data.nextCursor ? " · more available" : ""} · checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-    $(`${kind}-more`).hidden = !data.nextCursor;
+    current.items = [
+      ...new Map(
+        [...(more ? current.items : []), ...data.items].map((note) => [
+          note.id,
+          note,
+        ]),
+      ).values(),
+    ];
+    current.status = `${current.items.length} ${current.items.length === 1 ? "note" : "notes"}${data.nextCursor ? " · more available" : ""} · checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   } catch (error) {
-    status.textContent =
-      "Could not refresh. Any previous results below are stale.";
+    current.status = "Could not refresh. Any previous results below are stale.";
     throw error;
+  } finally {
+    if (recallView() === kind) paintResults();
   }
 }
-function appendNote(list: HTMLElement, note: Memory) {
-  const existing = [...list.children].find(
-    (el) => (el as HTMLElement).dataset.id === note.id,
-  ) as HTMLElement | undefined;
-  if (existing?.dataset.version === String(note.version)) return existing;
+function noteRow(note: Memory) {
   const row = document.createElement("article");
   row.className = "note-row";
   row.dataset.id = note.id;
-  row.dataset.version = String(note.version);
+  renderedNotes.set(row, note);
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.checked = selected.has(note.id);
@@ -552,7 +570,7 @@ function appendNote(list: HTMLElement, note: Memory) {
       }
       selected.set(note.id, { id: note.id, version: note.version });
     } else selected.delete(note.id);
-    paintSelection();
+    updateContextAction();
   };
   const body = document.createElement("div"),
     button = document.createElement("button"),
@@ -574,8 +592,6 @@ function appendNote(list: HTMLElement, note: Memory) {
   meta.textContent = new Date(note.updatedAt).toLocaleDateString();
   body.append(button, meta);
   row.append(checkbox, body);
-  if (existing) existing.replaceWith(row);
-  else list.append(row);
   return row;
 }
 document
@@ -585,7 +601,7 @@ on("all-notes", async () => showSearchMode("search"));
 on("this-page", async () => showSearchMode("page"));
 on("clear-selection", async () => {
   selected.clear();
-  paintSelection();
+  updateContextAction();
   $<HTMLInputElement>($("page-search").hidden ? "query" : "page-url").focus();
 });
 for (const kind of ["search", "page"])
@@ -671,8 +687,11 @@ for (const kind of ["search", "page"] as const) {
     event.preventDefault();
     void action(() => find(kind));
   });
-  on(`${kind}-more`, () => find(kind, true));
 }
+on("results-more", async () => {
+  const kind = recallView();
+  if (kind) await find(kind, true);
+});
 on("page-current", async () => {
   const capture = await rpc<{ url: string }>("attach");
   $<HTMLInputElement>("page-url").value = capture.url;
@@ -735,18 +754,9 @@ function clearSessionView() {
   sessionEpoch++;
   view = "capture";
   state = undefined;
-  selected.clear();
-  preparedContext = undefined;
-  for (const dialog of document.querySelectorAll("dialog")) dialog.close();
-  $("workspace").hidden = true;
-  $("approval").hidden = true;
-  $("navigation").hidden = true;
-  $("welcome").hidden = false;
-  $("connection-label").textContent = "Private notes";
+  clearRecall();
   $<HTMLTextAreaElement>("note").value = "";
   delete $("note").dataset.loaded;
-  $("search-results").replaceChildren();
-  $("page-results").replaceChildren();
   $("inbox-list").replaceChildren();
   $("pending-list").replaceChildren();
   for (const id of [
@@ -760,16 +770,10 @@ function clearSessionView() {
   $("reader-content").textContent = "";
   $("reader-meta").textContent = "";
   $("save-state").textContent = "";
-  paintSelection();
-  view = "capture";
   showSearchMode("search");
-  show(view);
   $("save-details").hidden = true;
   $("saved-link").hidden = true;
   $("inbox").hidden = true;
-  $("connection-settings").hidden = true;
-  $("connection-help").hidden = false;
-  $("signout-settings").hidden = true;
   $("account-id").textContent = "";
   $("connection-state").textContent = "";
   $("capabilities").textContent = "";
@@ -812,9 +816,7 @@ $("browser-panel").textContent =
   extensionConfig.target === "firefox"
     ? "Firefox sidebar · Alt+Shift+G"
     : `${extensionConfig.target === "edge" ? "Edge" : "Chrome"} side panel · Alt+Shift+G`;
-for (const id of ["extension-toggle", "settings-toggle"])
-  on(id, () => configure({ enabled: !preferences.enabled }));
-on("resume", () => configure({ enabled: true }));
+on("extension-toggle", () => configure({ enabled: !preferences.enabled }));
 $("theme").addEventListener("change", () => {
   void action(() =>
     configure({
