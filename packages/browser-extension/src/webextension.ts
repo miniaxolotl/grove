@@ -60,6 +60,14 @@ export type BrowserHost = NativePanelHost & {
     onRemoved: Event<(id: number) => void>;
   };
   tabs: {
+    onActivated: Event<(info: { tabId: number; windowId: number }) => void>;
+    onUpdated: Event<
+      (
+        tabId: number,
+        changes: { url?: string; title?: string; status?: string },
+        tab: CaptureTab,
+      ) => void
+    >;
     query(options: {
       active: boolean;
       windowId: number;

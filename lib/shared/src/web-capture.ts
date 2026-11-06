@@ -109,18 +109,22 @@ function escapeMarkdown(value: string): string {
 export function formatWebCapture(input: {
   text: string;
   source?: WebCapture;
+  quoteText?: boolean;
 }): string {
   const text = input.text.trim();
   let content = text;
   if (input.source) {
     const source = webCaptureSchema.parse(input.source);
-    const quote = text
-      ? text
-          .replace(/\r\n?/g, "\n")
-          .split("\n")
-          .map((line) => (line ? `> ${escapeMarkdown(line)}` : ">"))
-          .join("\n")
-      : "";
+    const quote =
+      input.quoteText === false
+        ? text
+        : text
+          ? text
+              .replace(/\r\n?/g, "\n")
+              .split("\n")
+              .map((line) => (line ? `> ${escapeMarkdown(line)}` : ">"))
+              .join("\n")
+          : "";
     const link = source.url.replaceAll("(", "%28").replaceAll(")", "%29");
     const title = escapeMarkdown(source.title || new URL(source.url).hostname);
     content = [

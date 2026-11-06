@@ -1,5 +1,61 @@
 # Browser extension evidence
 
+## Personal notebook redesign — 6 November 2026
+
+Runtime/build source `6bd2799e`, product `1.11.15`. These are actual installed
+unsigned-package screenshots with synthetic notes/auth/HTTP responses, not mockups
+or evidence of a new production release. Earlier sections below are historical.
+
+| Notes                                                                               | Global search                                                                          | Formatted reader                                                                                  | Settings                                                                         |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| ![A quiet paper editor with current-page details collapsed](notebook-notes-390.png) | ![One search bar, readable note titles and no scope controls](notebook-search-390.png) | ![Markdown headings, checklists, tables and code with copy/open actions](notebook-reader-390.png) | ![Simple appearance, connection and privacy settings](notebook-settings-390.png) |
+
+[Narrow Settings, 320px](notebook-settings-320.png) ·
+[Wide Notes, 768px](notebook-notes-768.png) ·
+[Dark Settings](notebook-settings-dark-390.png).
+
+The owner requested a radical, polished but noncorporate redesign. Direction:
+**Editorial greeting**, seed `1378124550`, preserving Grove's wordmark, approved
+icons and Space Grotesk. The face is a sage garden-like ground around a paper
+editor and tonal note rows. The desktop composition is adapted to a native narrow
+panel, not a dashboard grid. Notes answers “what do I want to keep?”, Search “where
+is that thought?”, and Settings “what can this browser access?”. Source and notebook
+fields share one Details disclosure; no redundant source/search mode or submit
+control remains. Copy terminology names the action instead of “review context”.
+
+Installed checks cover Chromium `156.0.8078.4` and actual Edge `155.0.4283.62`:
+real cross-origin tab navigation, title changes, unavailable-page clearing, a held
+metadata/first-keystroke race, reload, explicit source removal and New note. Local
+prefill makes no Grove requests. Search verifies one debounced request per word,
+all-scope request shape, late-response fencing, clearing, stale recovery and stable
+rows/focus. The reader parses GFM through the existing parser stack, renders through
+a DOM allowlist, and exercises copy, table/code/checklist output and unsafe content.
+There are no script/image/iframe elements or JavaScript links in the rendered fixture.
+
+The final run has zero axe violations or overflow at 280/320/390/768px, with
+additional reader, short-panel, pause, cross-panel and dark checks. Firefox `159.0`
+passes temporary install, native sidebar, save, automatic search, formatted reading
+and bulk-copy review. Web-ext reports zero errors/notices and one tokenizer false
+positive: upstream Markdown's `parse(...).document().write(...)` consumes tokens;
+it is not DOM `document.write`. The real DOM entity-decoder assignment was removed
+by selecting the upstream worker-safe decoder, with a packaged regression against
+HTML injection sinks. No warning or accessibility rule was disabled.
+
+Visual review at all three primary widths: consistent shared edges, readable type,
+one clear job per view and no ornamental controls. The final fixes give result
+titles their own hierarchy, remove raw Markdown syntax from snippets, share status
+space with selection actions and allow dismissing actual errors. Hierarchy 8/10,
+usability 8/10, identity 8/10; empty search and a blank editor intentionally remain
+quiet rather than inventing content. Sample “Field notes” and the malicious HTML/
+image examples are synthetic verification material, never customer data.
+
+Source taste lint reports zero failures; its one shadow warning is the actual modal.
+The generic URL inspector does not install this isolated extension; the installed
+browser measurements and screenshots are used instead. Branded Chrome, visible
+native Edge-sidebar presentation, live Clerk, physical-device/IME timing and store
+acceptance remain unqualified. Original PDF/Word files are not fetched/extracted;
+their already-imported Markdown is readable. Reproduce with the commands below.
+
 ## Listing and toolbar icons — 6 November 2026
 
 Runtime/build source `d19d5c75`, product `1.11.14`. All 23 PNG/SVG files come

@@ -115,10 +115,16 @@ try:
     ''')
     call("WebDriver:Refresh")
     wait_for('!document.getElementById("workspace").hidden')
-    script('document.getElementById("note").value="A native Firefox note";document.getElementById("note").dispatchEvent(new Event("input",{bubbles:true}));document.getElementById("capture-form").requestSubmit();')
-    wait_for('document.getElementById("save-state").textContent.includes("Saved in Grove")')
-    script('document.querySelector("[data-nav=search]").click();document.getElementById("search-form").requestSubmit();')
-    assert wait_for('document.querySelector(".note-row .excerpt")?.textContent') == "A native Firefox note"
+    script('document.getElementById("note").value="# Native Firefox note\\n\\n- **Readable**";document.getElementById("note").dispatchEvent(new Event("input",{bubbles:true}));document.getElementById("capture-form").requestSubmit();')
+    wait_for('document.getElementById("save-state").textContent.includes("Saved.")')
+    script('document.querySelector("[data-nav=search]").click();document.getElementById("query").value="native Firefox";document.getElementById("query").dispatchEvent(new Event("input",{bubbles:true}));')
+    assert wait_for('document.querySelector(".note-row .note-title")?.textContent') == "Native Firefox note"
+    assert script('return document.querySelector(".note-row .excerpt").textContent;') == "Readable"
+    script('document.querySelector(".note-row button").click();')
+    wait_for('document.getElementById("reader").open')
+    assert script('return document.querySelector("#reader-content h2").textContent;') == "Native Firefox note"
+    assert script('return document.querySelector("#reader-content strong").textContent;') == "Readable"
+    script('document.getElementById("close-reader").click();')
     script('document.querySelector(".note-row input").click();document.getElementById("review-context").click();')
     wait_for('document.getElementById("context").open&&document.getElementById("context-text").value.includes("Grove source:")')
     # A real WebDriver click supplies the gesture for the native Firefox API.
