@@ -3345,7 +3345,7 @@ test("note search shares the palette shell through notebook filtering, errors an
     project.id,
   );
   await input.fill("launch");
-  const retry = dialog.getByRole("button", { name: "Try loading again" });
+  const retry = dialog.getByRole("button", { name: "Try again", exact: true });
   await expect(retry).toBeVisible();
   const bounds = await dialog.boundingBox();
   failed = false;
@@ -6206,7 +6206,9 @@ for (const width of [1440, 390, 320]) {
         "Search is temporarily unavailable.",
       );
       fail = false;
-      await page.getByRole("button", { name: "Try loading again" }).click();
+      await page
+        .getByRole("button", { name: "Try again", exact: true })
+        .click();
       await expect(status).toHaveText("1 note found");
       expect(await input.boundingBox()).toEqual(field);
       await page.screenshot({

@@ -95,6 +95,32 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link
+          rel="icon"
+          href="/favicons/favicon-colour.ico"
+          type="image/x-icon"
+          media="(prefers-color-scheme: light)"
+        />
+        <link
+          rel="icon"
+          href="/favicons/favicon-white.ico"
+          type="image/x-icon"
+          media="(prefers-color-scheme: dark)"
+        />
+        <link
+          rel="icon"
+          href="/favicons/favicon-colour-32.png"
+          type="image/png"
+          sizes="32x32"
+          media="(prefers-color-scheme: light)"
+        />
+        <link
+          rel="icon"
+          href="/favicons/favicon-white-32.png"
+          type="image/png"
+          sizes="32x32"
+          media="(prefers-color-scheme: dark)"
+        />
+        <link
           rel="alternate"
           type="text/plain"
           href="/llms.txt"

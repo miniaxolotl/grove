@@ -209,6 +209,15 @@
   object-fit: cover;
   border-radius: 8px;
 }
+.notebook-home .feature-photo {
+  min-width: 0;
+  margin: 0;
+}
+.notebook-home .feature-photo figcaption {
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
 .notebook-home #features .feature-list {
   grid-template-columns: 1fr;
   gap: 32px;

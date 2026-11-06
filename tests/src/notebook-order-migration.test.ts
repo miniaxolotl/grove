@@ -62,12 +62,17 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
     const currentAccounts = await admin("accounts").orderBy("id");
     assert.deepEqual(
       currentAccounts.map(
-        ({ exportVersion: _version, notebookOrderVersion: _order, ...row }) =>
-          row,
+        ({
+          exportVersion: _version,
+          notebookOrderVersion: _order,
+          sentenceRewritesEnabled: _writing,
+          ...row
+        }) => row,
       ),
       accounts.map(({ exportVersion: _version, ...row }) => row),
     );
     assert(currentAccounts.every((a) => a.notebookOrderVersion === "0"));
+    assert(currentAccounts.every((a) => a.sentenceRewritesEnabled === true));
     assert.equal(
       Number(currentAccounts.find((a) => a.id === accountId)!.exportVersion),
       Number(accounts.find((a) => a.id === accountId)!.exportVersion) + 3,

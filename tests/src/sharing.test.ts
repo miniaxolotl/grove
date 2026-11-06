@@ -5,6 +5,7 @@ import { createDatabase, tenant } from "@lib/database";
 import { MemoryService, Sharing, sessionPrincipal } from "@lib/memory";
 import {
   GroveError,
+  grantSchema,
   rememberSchema,
   type Principal,
 } from "@lib/shared/contracts";
@@ -148,6 +149,147 @@ test("owner-only management keeps tokens encrypted, stable and retry-safe", asyn
   });
   assert.notEqual(secret(on), secret(first));
   assert.equal((await sharing.read(secret(on))).note!.content, note.content);
+});
+
+test("native note sharing requires an explicit current grant and never exposes other notebook links", async () => {
+  const project = await notebook("Private source notebook");
+  const other = await notebook("Outside browser access");
+  const note = await save(
+    alice,
+    "# A note to share\n\nOnly this note.",
+    project.id,
+  );
+  const target = { kind: "note", id: note.id } as const;
+  await enable({ kind: "notebook", id: project.id });
+  const grant = grantSchema.parse({
+    name: "Browser",
+    capabilities: ["memory:read"],
+    personal: false,
+    projectIds: [project.id],
+    sharingEnabled: false,
+  });
+  const { connection } = await service.grant(alice, grant, {
+    clientId: `browser-${randomUUID()}`,
+  });
+  const browser: Principal = {
+    ...alice,
+    type: "oauth",
+    connectionId: connection.id,
+    clientId: connection.clientId!,
+    issuedAt: Date.now(),
+  };
+  const input = shareEnableSchema.parse({
+    operationId: randomUUID(),
+    expectedVersion: 0,
+    expectedTargetVersion: note.version,
+    duration: "1d",
+  });
+  await assert.rejects(sharing.get(browser, target), { code: "forbidden" });
+  await assert.rejects(sharing.enable(browser, target, input), {
+    code: "forbidden",
+  });
+  await service.grant(
+    alice,
+    { ...grant, sharingEnabled: true },
+    { id: connection.id },
+  );
+  assert.deepEqual(
+    (await sharing.get(browser, target)).inherited,
+    [],
+    "native note scope never discloses covering notebook IDs/names",
+  );
+  const shared = await sharing.enable(browser, target, input);
+  const app = createApp({
+    memories: service,
+    shareLinkKey: "ab".repeat(32),
+    auth: { principal: async () => browser },
+    origin: "https://api.example.test",
+    siteUrl: "https://grove.example.test",
+    issuer: "https://clerk.example.test",
+    webhookSecret: "unused",
+    ready: async () => {},
+  });
+  const headers = {
+    authorization: "Bearer scoped-browser-fixture",
+    origin: `chrome-extension://${"a".repeat(32)}`,
+    "content-type": "application/json",
+  };
+  const response = await app.request(`/v1/memories/${note.id}/share`, {
+    headers,
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).data.inherited, []);
+  assert.equal(
+    (
+      await app.request(`/v1/memories/${note.id}/share`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(input),
+      })
+    ).status,
+    200,
+    "existing native-origin HTTP routes preserve explicit scoped publication",
+  );
+  assert.equal(
+    (await app.request(`/v1/projects/${project.id}/share`, { headers })).status,
+    403,
+  );
+  assert.equal((await sharing.read(secret(shared))).note!.id, note.id);
+  assert.deepEqual(await sharing.enable(browser, target, input), shared);
+  await assert.rejects(
+    sharing.get(browser, { kind: "notebook", id: project.id }),
+    { code: "forbidden" },
+  );
+  await assert.rejects(sharing.get({ ...browser, type: "key" }, target), {
+    code: "forbidden",
+  });
+  const outside = await save(alice, "Outside note", other.id);
+  await assert.rejects(sharing.get(browser, { kind: "note", id: outside.id }), {
+    code: "forbidden",
+  });
+  const revoked = await sharing.change(browser, shared.direct!.id, "revoke", {
+    operationId: randomUUID(),
+    expectedVersion: shared.direct!.version,
+  });
+  assert.equal(revoked.direct!.active, false);
+  const renewed = await sharing.enable(browser, target, {
+    ...input,
+    operationId: randomUUID(),
+    expectedVersion: revoked.direct!.version,
+  });
+  await service.grant(
+    alice,
+    { ...grant, sharingEnabled: false },
+    { id: connection.id },
+  );
+  await assert.rejects(sharing.get(browser, target), { code: "forbidden" });
+  await assert.rejects(sharing.enable(browser, target, input), {
+    code: "forbidden",
+  });
+  await assert.rejects(
+    sharing.change(browser, renewed.direct!.id, "revoke", {
+      operationId: randomUUID(),
+      expectedVersion: renewed.direct!.version,
+    }),
+    { code: "forbidden" },
+  );
+  await service.grant(
+    alice,
+    { ...grant, sharingEnabled: true, projectIds: [other.id] },
+    { id: connection.id },
+  );
+  await assert.rejects(
+    sharing.change(browser, renewed.direct!.id, "revoke", {
+      operationId: randomUUID(),
+      expectedVersion: renewed.direct!.version,
+    }),
+    { code: "forbidden" },
+  );
+  assert.equal(
+    (await sharing.read(secret(renewed))).note!.id,
+    note.id,
+    "removing connection permission does not falsely claim public-link revocation",
+  );
 });
 
 test("timed links use server deadlines for all six durations and retries never extend them", async () => {

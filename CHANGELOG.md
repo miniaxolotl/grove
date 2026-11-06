@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.11.16](https://github.com/miniaxolotl/grove/compare/v1.11.15...v1.11.16) (2026-11-06)
+
+
+### Features
+
+* **extension:** redesign notes and simplify search ([#190](https://github.com/miniaxolotl/grove/issues/190)) ([37d4e0f](https://github.com/miniaxolotl/grove/commit/37d4e0fd18bf522b7e929b11068e5742e2a924d6))
+* **extension:** streamline writing, notes, sharing and proofing ([#189](https://github.com/miniaxolotl/grove/issues/189)) ([9c626dc](https://github.com/miniaxolotl/grove/commit/9c626dcd44a9bf8b7462560cc47dc53a0051bb92))
+* **website:** integrate note-history artwork and adaptive favicons ([7b3d8c3](https://github.com/miniaxolotl/grove/commit/7b3d8c381e128db4a70b9010fe33542c13b24bb4))
+* **website:** polish note-history artwork and favicons ([0070c34](https://github.com/miniaxolotl/grove/commit/0070c3431dbb3f3b7b19169ea247db69c8bae148))
+
 ## [1.11.15](https://github.com/miniaxolotl/grove/compare/v1.11.14...v1.11.15) (2026-11-06)
 
 
