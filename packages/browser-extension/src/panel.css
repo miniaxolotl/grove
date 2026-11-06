@@ -90,9 +90,6 @@ button:disabled {
   border-color: var(--ink);
   color: var(--on-primary);
 }
-.primary:disabled {
-  color: var(--muted);
-}
 a {
   color: inherit;
   text-underline-offset: 3px;
@@ -121,15 +118,6 @@ a:not([href]) {
   display: block;
   width: 94px;
   height: auto;
-}
-.header-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-#connection-label {
-  font-size: 12px;
-  color: var(--muted);
 }
 main {
   max-width: 680px;
@@ -312,11 +300,7 @@ summary {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.result-footer {
-  font-size: 12px;
-}
-#search-more,
-#page-more {
+#results-more {
   margin-top: 16px;
 }
 #page-current {
@@ -444,6 +428,10 @@ dialog::backdrop {
   flex: none;
   font-size: 12px;
 }
+#extension-status {
+  min-width: 20px;
+  text-align: left;
+}
 .switch-track {
   display: block;
   width: 32px;
@@ -479,12 +467,6 @@ dialog::backdrop {
 .settings-section h2 {
   margin: 0 0 16px;
 }
-h3 {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 20px 0 8px;
-  line-height: 1.5;
-}
 .settings-section p {
   margin: 8px 0 12px;
 }
@@ -494,24 +476,6 @@ h3 {
 }
 .settings-section .setting-help {
   margin-bottom: 0;
-}
-.setting-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: start;
-}
-.setting-row h3 {
-  margin: 0;
-}
-.setting-row p {
-  margin: 4px 0 0;
-}
-.setting-row .switch {
-  min-width: 62px;
-}
-.view-description {
-  margin: -8px 0 24px;
 }
 .technical-details {
   border: 0;
@@ -528,12 +492,6 @@ h3 {
 #account-id {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-}
-#capture-form {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 16px;
 }
 #capture-form > label:first-child {
   margin-top: 0;
@@ -554,27 +512,15 @@ h3 {
 #paused h1 {
   margin-bottom: 16px;
 }
-#paused > p:first-of-type {
-  font-weight: 600;
-}
 #welcome > .primary {
   margin: 8px 0;
-}
-body:has(#welcome:not([hidden])) #connection-label {
-  display: none;
 }
 nav button:disabled {
   background: transparent;
 }
 @media (max-width: 480px) {
-  #connection-label {
-    display: none;
-  }
   .masthead {
     padding-block: 12px;
-  }
-  #capture-form {
-    padding: 14px;
   }
 }
 @media (prefers-color-scheme: dark) {

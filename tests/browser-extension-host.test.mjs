@@ -259,7 +259,7 @@ for (const target of ["chrome", "edge"])
         uncertainReceipts,
         "unknown saves retain their exact recovery receipt while off",
       );
-      await page.locator("#resume").click();
+      await page.locator("#extension-toggle").click();
       await page.locator("#workspace").waitFor({ state: "visible" });
       assert.match(
         await page.locator("#save-state").textContent(),
@@ -293,16 +293,16 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="search"]').click();
       await page.locator("#query").fill("source");
       await page.locator('#search-form button[type="submit"]').click();
-      await page.locator("#search-results .note-row").waitFor();
-      assert.equal(await page.locator("#search-results .note-row").count(), 1);
-      await page.locator("#search-results .note-row button").click();
+      await page.locator("#results .note-row").waitFor();
+      assert.equal(await page.locator("#results .note-row").count(), 1);
+      await page.locator("#results .note-row button").click();
       await page.locator("#reader[open]").waitFor();
       assert.match(
         await page.locator("#reader-content").textContent(),
         /<script>not executable<\/script>/,
       );
       await page.locator("#close-reader").click();
-      await page.locator('#search-results input[type="checkbox"]').check();
+      await page.locator('#results input[type="checkbox"]').check();
       await page.locator("#review-context").click();
       await page.locator("#context[open]").waitFor();
       assert.equal(await page.locator("#copy").isDisabled(), true);
@@ -355,7 +355,7 @@ for (const target of ["chrome", "edge"])
         .locator("#page-url")
         .fill("https://example.com/article?utm_source=test");
       await page.locator('#page-form button[type="submit"]').click();
-      await page.locator("#page-results .note-row").waitFor();
+      await page.locator("#results .note-row").waitFor();
       await page.locator('[data-nav="settings"]').click();
       if (process.env.EXTENSION_SCREENSHOTS)
         await page.screenshot({
@@ -372,11 +372,11 @@ for (const target of ["chrome", "edge"])
         await otherPanel.locator("#note").inputValue(),
         "A newer draft stays after retry.",
       );
-      await page.locator("#settings-toggle").click();
+      await page.locator("#extension-toggle").click();
       await page.waitForFunction(
         () =>
           document
-            .querySelector("#settings-toggle")
+            .querySelector("#extension-toggle")
             .getAttribute("aria-checked") === "false",
       );
       await otherPanel.locator("#paused").waitFor({ state: "visible" });
@@ -487,7 +487,7 @@ for (const target of ["chrome", "edge"])
       await page.waitForFunction(
         () =>
           document
-            .querySelector("#settings-toggle")
+            .querySelector("#extension-toggle")
             .getAttribute("aria-checked") === "true",
       );
       await page.locator("#logout").click();

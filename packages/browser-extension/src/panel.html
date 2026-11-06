@@ -12,33 +12,24 @@
       <a id="home" target="_blank" rel="noreferrer"
         ><img src="wordmark.svg" alt="Grove" width="100" height="30"
       /></a>
-      <div class="header-controls">
-        <span id="connection-label">Private notes</span>
-        <button
-          id="extension-toggle"
-          class="switch"
-          role="switch"
-          aria-checked="true"
-          aria-label="Grove enabled"
-          disabled
-        >
-          <span class="switch-track" aria-hidden="true"></span
-          ><span id="extension-status">On</span>
-        </button>
-      </div>
+      <button
+        id="extension-toggle"
+        class="switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Grove enabled"
+        disabled
+      >
+        <span class="switch-track" aria-hidden="true"></span
+        ><span id="extension-status">On</span>
+      </button>
     </header>
     <main>
       <section id="paused" hidden aria-labelledby="paused-title">
         <h1 id="paused-title">Grove is off.</h1>
-        <p>Ready when you are.</p>
         <p class="muted">
-          No captures, searches or requests. Your session drafts and save
-          recovery are kept under their normal expiry rules.
-        </p>
-        <button id="resume" class="primary">Turn Grove on</button>
-        <p class="muted small">
-          Turning off does not cancel a save already sent to Grove or revoke
-          your connection.
+          Use the switch above to resume. Drafts and save recovery keep their
+          normal expiry rules.
         </p>
       </section>
       <section id="welcome" hidden aria-labelledby="welcome-title">
@@ -47,17 +38,11 @@
           Keep something worth remembering. Find the context you already have.
         </p>
         <button id="login" class="primary">Sign in to Grove</button>
-        <p class="muted">
-          Sign in in your browser. Then choose what this extension may read and
-          save in Grove Connections.
-        </p>
+        <p class="muted">Choose notebook access in Grove after signing in.</p>
       </section>
       <section id="approval" hidden>
         <h1>Choose your access</h1>
-        <p>
-          Grove is connected. Approve reading and saving for the notebooks you
-          want to use.
-        </p>
+        <p>Approve the notebooks this extension may read and save.</p>
         <a class="button primary approval-link" target="_blank" rel="noreferrer"
           >Open Connections</a
         ><button id="approved">Check approval</button>
@@ -138,15 +123,6 @@
             <label for="search-scope">Notebook</label
             ><select id="search-scope" class="notebook-select"></select>
           </form>
-          <div class="between result-heading">
-            <h2>Notes</h2>
-            <button id="review-context">Review context (0)</button>
-          </div>
-          <p id="search-status" class="feedback muted" role="status">
-            Search to find active notes.
-          </p>
-          <div id="search-results" class="results"></div>
-          <button id="search-more" hidden>Load more notes</button>
         </section>
         <section data-view="page" hidden aria-labelledby="page-title">
           <h1 id="page-title">Saved on this page</h1>
@@ -167,11 +143,15 @@
             ><select id="page-scope" class="notebook-select"></select
             ><button type="submit" class="primary">Find notes</button>
           </form>
-          <p id="page-status" class="feedback muted" role="status">
-            Only active, unchanged source associations appear here.
-          </p>
-          <div id="page-results" class="results"></div>
-          <button id="page-more" hidden>Load more notes</button>
+        </section>
+        <section id="recall-results" hidden aria-labelledby="results-title">
+          <div class="between result-heading">
+            <h2 id="results-title">Notes</h2>
+            <button id="review-context" hidden>Review context (0)</button>
+          </div>
+          <p id="results-status" class="feedback muted" role="status"></p>
+          <div id="results" class="results"></div>
+          <button id="results-more" hidden>Load more notes</button>
         </section>
       </div>
       <section
@@ -181,35 +161,12 @@
         aria-labelledby="settings-title"
       >
         <h1 id="settings-title">Settings</h1>
-        <p class="view-description muted">
-          Make Grove feel at home in your browser.
-        </p>
         <section
           class="settings-section"
           aria-labelledby="browser-settings-title"
         >
-          <h2 id="browser-settings-title">Browser</h2>
-          <div class="setting-row">
-            <div>
-              <h3>Enable Grove</h3>
-              <p id="enable-help" class="muted small">
-                Capture and find notes when you need them.
-              </p>
-            </div>
-            <button
-              id="settings-toggle"
-              class="switch"
-              role="switch"
-              aria-label="Enable Grove"
-              aria-checked="true"
-              aria-describedby="enable-help"
-            >
-              <span class="switch-track" aria-hidden="true"></span
-              ><span class="toggle-status">On</span>
-            </button>
-          </div>
-          <label for="theme">Appearance</label>
-          <select id="theme">
+          <h2 id="browser-settings-title">Appearance</h2>
+          <select id="theme" aria-labelledby="browser-settings-title">
             <option value="system">Match browser</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
@@ -224,41 +181,32 @@
         >
           <h2 id="connection-settings-title">Account & access</h2>
           <p id="connection-help" class="muted small">
-            Turn Grove on and sign in to check your notebook access.
+            Connect Grove to check notebook access.
           </p>
           <div id="connection-settings" hidden>
-            <dl>
-              <dt>Connection</dt>
-              <dd id="connection-state"></dd>
-              <dt>Access</dt>
-              <dd id="capabilities"></dd>
-            </dl>
+            <p id="connection-state"></p>
+            <p id="capabilities" class="muted small"></p>
             <div class="actions">
               <a class="button approval-link" target="_blank" rel="noreferrer"
                 >Manage access</a
               ><button id="refresh">Refresh access</button>
             </div>
-            <h3>Notebooks</h3>
-            <p class="muted">
-              The last destination you choose is remembered on this device.
-              Notebook access is controlled in Connections.
-            </p>
             <button id="notebooks-more" hidden>Load more notebooks</button>
           </div>
         </section>
         <section
+          id="recovery-settings"
           class="settings-section"
           aria-labelledby="recovery-settings-title"
         >
           <h2 id="recovery-settings-title">Save recovery</h2>
           <p class="muted small">
-            Unconfirmed saves keep an opaque receipt for seven days. Check a
-            receipt before repeating a save after a restart.
+            Check an unconfirmed save before repeating it.
           </p>
           <div id="pending-list"></div>
           <p id="recovery-help" class="muted small" hidden>
-            Turn Grove on and connect to check your scoped receipts. No save is
-            retried automatically.
+            Turn Grove on to check these receipts. Nothing retries
+            automatically.
           </p>
         </section>
         <section
@@ -267,13 +215,16 @@
         >
           <h2 id="privacy-settings-title">Privacy & storage</h2>
           <p class="muted small">
-            Notes and sign-in tokens stay in browser session storage. Drafts
-            expire after 24 hours and are cleared when their window closes.
-            Nothing runs on websites; no browsing history, analytics, or
-            automatic capture.
+            Drafts and sign-in tokens stay in this browser session. Drafts
+            expire after 24 hours or when their window closes. No automatic page
+            capture or analytics.
           </p>
           <details class="technical-details">
-            <summary>Connection details</summary>
+            <summary>Storage & connection details</summary>
+            <p class="muted small">
+              Unconfirmed saves keep opaque receipts for seven days. Turning
+              Grove off does not cancel submitted saves or revoke access.
+            </p>
             <dl>
               <dt>Account ID</dt>
               <dd id="account-id"></dd>
@@ -284,19 +235,13 @@
             </dl>
           </details>
         </section>
-        <section
-          id="signout-settings"
-          class="settings-section"
-          hidden
-          aria-labelledby="signout-title"
-        >
-          <h2 id="signout-title">Sign out</h2>
-          <p class="muted small">
-            Signing out clears session drafts and tokens, not your saved Grove
-            notes or the public registration and recovery receipts.
-          </p>
+        <footer id="signout-settings" class="settings-section" hidden>
           <button id="logout">Sign out</button>
-        </section>
+          <p class="muted small">
+            Clears session drafts and tokens, not saved notes or recovery
+            receipts.
+          </p>
+        </footer>
       </section>
       <p id="notice" class="feedback" role="status" aria-live="polite"></p>
     </main>

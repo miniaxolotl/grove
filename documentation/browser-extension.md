@@ -53,15 +53,17 @@ not an approved grant. Revocation is enforced by the API on subsequent operation
   panel or changing tabs never discloses the current URL automatically. Matches are
   authorized, active, unexpired captures in the chosen notebook; content edits
   invalidate their page association. There is no full-library client-side scan.
-- **Settings**, last in navigation, groups Browser, Account & access, Save recovery,
-  Privacy & storage and Sign out. Appearance can match the browser or stay light/dark;
+- **Settings**, last in navigation, contains Appearance, Account & access and
+  Privacy & storage, with Sign out at the end. Save recovery appears only when
+  there are unconfirmed receipts to check. Appearance can match the browser or stay light/dark;
   it saves automatically on this device and updates other open panels. The last chosen
   destination is remembered per API/account; existing drafts take precedence over
   inferred defaults. Technical connection/shortcut details sit behind a disclosure.
 
 ### Turn Grove on or off
 
-The header switch is always available; Settings has the same control. Turning Grove
+The single header switch is always available, including in Settings and while off.
+There is no second enable/resume control to keep in sync. Turning Grove
 off persists on this device across panel reloads and browser restarts, removes its
 context-menu entries and adds an **OFF** toolbar badge. The toolbar/shortcut still
 opens the native panel so Grove can be turned on again. Off blocks extension API
@@ -81,6 +83,10 @@ use Connections to revoke access and Sign out to clear a mounted session.
 The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
 their previous scroll position. Switches work with the keyboard and retain focus.
+Search and This page share one results list, status, pagination and context-review
+action; each keeps its own query/results state when switching views. Unchanged
+rows remain mounted during refresh. Context review appears only after selection,
+and still requires explicit consent and current-version/access checks before copy.
 
 Restricted/internal/store/file pages cannot be attached; private browsing is disabled.
 Manual notes and search do not need page access. `activeTab` may require opening the
