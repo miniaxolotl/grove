@@ -18,6 +18,7 @@ import {
   Download,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
+import { sourceEditsBetween } from "@lib/shared/document-edits";
 import {
   DashboardApiError,
   errorMessage,
@@ -185,8 +186,9 @@ export function MemoryEditor({
     input?: Record<string, unknown>;
   } | null>(draft?.pending ?? null);
   const saveImmediately = useRef(false);
+  const editSession = useRef<string | null>(null);
   const dirty = base
-    ? content.trim() !== base.content.trim() ||
+    ? content !== base.content ||
       kind !== base.kind ||
       projectId !== (base.projectId ?? "") ||
       autoKind !== (base.autoKind ?? false) ||
@@ -355,7 +357,7 @@ export function MemoryEditor({
         // route change or navigation away and back before the request completed.
         if (draftKey && drafts) {
           const stillDirty =
-            next.content.trim() !== saved.content.trim() ||
+            next.content !== saved.content ||
             next.kind !== saved.kind ||
             next.autoKind !== (saved.autoKind ?? false) ||
             next.projectId !== (saved.projectId ?? "") ||
@@ -441,26 +443,44 @@ export function MemoryEditor({
   useEffect(() => {
     onLockChange?.(mediaBusy || busy || dirty || !!latest);
   }, [onLockChange, mediaBusy, busy, dirty, latest]);
-  function persist() {
+  function persist(automatic = false) {
+    if (!editSession.current || !automatic)
+      editSession.current = crypto.randomUUID();
     if (mediaBusy) return;
     // Retrying an uncertain save must use its original payload even if newer
     // local edits are empty or exceed the save limit.
     if (saveDisabled && !(pending.current?.input && !busy && !latest)) return;
-    if (!pending.current?.input || pending.current.input.content === content)
+    if (!pending.current?.input || submitted.current?.content === content)
       saveImmediately.current = false;
     setDialogBusy(!autoSave);
     setError("");
     if (kind === "handoff" && !task.current)
       task.current = `task-${crypto.randomUUID()}`;
     const input = pending.current?.input ?? {
-      content,
+      ...(base
+        ? (() => {
+            const edits = sourceEditsBetween(base.content, content);
+            return edits.length ? { edits } : {};
+          })()
+        : { content }),
       kind,
       retentionDays: retention === "permanent" ? null : Number(retention),
       autoKind: kind !== "handoff" && autoKind,
       projectId: projectId || null,
-      ...(kind === "handoff" ? { taskId: task.current } : {}),
+      ...(kind === "handoff"
+        ? { taskId: task.current }
+        : base
+          ? { taskId: null }
+          : {}),
       source: base?.source ?? { agent: "website" },
-      ...(base ? { id: base.id, expectedVersion: base.version } : {}),
+      ...(base
+        ? {
+            id: base.id,
+            expectedVersion: base.version,
+            editSession: editSession.current,
+            checkpoint: !automatic,
+          }
+        : {}),
     };
     const fingerprint = JSON.stringify(input);
     if (pending.current?.fingerprint !== fingerprint) {
@@ -490,7 +510,7 @@ export function MemoryEditor({
         submitted: submitted.current,
       });
   }
-  const autosave = useEffectEvent(persist);
+  const autosave = useEffectEvent(() => persist(true));
   const openExport = () =>
     noteExport.open({
       key: draftKey ?? (base ? `note:${base.id}` : "new:compact"),

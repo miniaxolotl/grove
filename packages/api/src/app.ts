@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { DocumentImports } from "@lib/memory";
 import { ConversationDocuments } from "@lib/memory";
+import { memoryUpdateSchema } from "@lib/shared/memory-tools";
 import {
   documentAcceptanceSchema,
   documentConversionSchema,
@@ -1468,15 +1469,34 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
-  app.post("/v1/memories", async (c) =>
-    c.json({
+  app.post("/v1/memories", async (c) => {
+    const input = await mutation(
+      c,
+      z.union([rememberSchema, memoryUpdateSchema]),
+    );
+    return c.json({
       success: true,
-      data: await service.remember(
-        c.get("principal"),
-        await mutation(c, rememberSchema),
-      ),
-    }),
-  );
+      data:
+        "edits" in input || !("content" in input)
+          ? await service.updateMemory(
+              c.get("principal"),
+              input as import("@lib/shared/memory-tools").MemoryUpdate,
+            )
+          : await service.remember(
+              c.get("principal"),
+              input as import("@lib/shared/contracts").Remember,
+            ),
+    });
+  });
+  app.post("/v1/memories/:id/edit", async (c) => {
+    const input = await mutation(c, memoryUpdateSchema);
+    if (input.id !== uuidSchema.parse(c.req.param("id")))
+      throw new GroveError("invalid_request", "Memory ID mismatch");
+    return c.json({
+      success: true,
+      data: await service.updateMemory(c.get("principal"), input),
+    });
+  });
   app.patch("/v1/memories/:id", async (c) => {
     const input = await mutation(c, rememberSchema);
     if (input.id !== uuidSchema.parse(c.req.param("id")))

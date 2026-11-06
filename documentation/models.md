@@ -1,5 +1,10 @@
 # Models and organized memory
 
+The [5 November AI investigation](evaluations/ai-services-2026-11-05.md) records
+fresh bounded live-model/research checks, exact-cache reuse and durable edit-job
+coalescing. It also identifies the pre-index retrieval gap and unverified speech/
+production UI coverage; configured provider presence is not acceptance.
+
 Configured Cloud also applies separate [Free/Pro user-action allowances](billing.md#library-and-user-actions).
 One fresh Ask reply can make several generation calls but consumes one reply action;
 its internal retrieval does not additionally consume an agent recall action.
