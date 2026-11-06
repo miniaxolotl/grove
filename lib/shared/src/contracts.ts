@@ -181,6 +181,7 @@ export const grantSchema = z
     allProjects: z.boolean().default(false),
     projectIds: z.array(uuidSchema).max(100).default([]),
     expiresAt: z.iso.datetime().optional(),
+    writingEnabled: z.boolean().optional(),
   })
   .strict();
 export const connectionSchema = grantSchema.extend({

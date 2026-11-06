@@ -126,6 +126,7 @@ export {
   conversationDocumentHandlers,
 } from "./conversation-documents.ts";
 export { SpeechJobs, speechHandlers, configureSpeech } from "./speech.ts";
+export { WritingTools, writingHandlers } from "./writing-jobs.ts";
 export { exportHandlers, type ArtifactStore } from "./exports.ts";
 export {
   importHandlers,
@@ -2615,6 +2616,7 @@ export class MemoryService {
           connection.revokedAt,
           connection.authorizedAfter,
           connection.setup ?? null,
+          connection.writingEnabled ?? false,
         ]),
       )
       .digest("hex");

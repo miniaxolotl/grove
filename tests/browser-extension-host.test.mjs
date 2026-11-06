@@ -104,6 +104,15 @@ for (const target of ["chrome", "edge"])
           });
           const notes = [],
             operations = new Map();
+          const writingOperations = new Map();
+          let writingConsented = false;
+          const writingAvailability = () => ({
+            available: true,
+            authorized: true,
+            consented: writingConsented,
+            policy: "fixture-writing-policy",
+            provider: "Synthetic writing provider; no live model transmission.",
+          });
           let uncertain = true;
           globalThis.fixtureRequests = [];
           globalThis.fetch = async (input, init) => {
@@ -130,9 +139,71 @@ for (const target of ["chrome", "edge"])
                 accountId,
                 connectionId,
                 capabilities: ["memory:read", "memory:write"],
+                writingTools: writingAvailability(),
                 grant: { personal: true, allProjects: false, projectIds: [] },
               };
-            else if (path === "/v1/tools/notebooks")
+            else if (path === "/v1/browser/writing/consent") {
+              writingConsented = body.accepted;
+              data = writingAvailability();
+            } else if (path === "/v1/browser/writing/requests") {
+              if (!writingConsented)
+                throw new Error("Fixture requires explicit AI consent");
+              const choices = {
+                concise: ["I'm Elias.", "I am Elias.", "My name's Elias."],
+                verbose: [
+                  "I go by the name Elias.",
+                  "The name I use is Elias.",
+                  "I am known by the name Elias.",
+                ],
+                rewrite: [
+                  "Elias is my name.",
+                  "I'm called Elias.",
+                  "My name's Elias.",
+                ],
+                humanize: [
+                  "Hi, I'm Elias.",
+                  "Hey, my name's Elias.",
+                  "You can call me Elias.",
+                ],
+              };
+              const work = {
+                id: body.id,
+                tool: body.tool,
+                status: "queued",
+                expiresAt: new Date(Date.now() + 900000).toISOString(),
+                result: {
+                  language: "en",
+                  tool: body.tool,
+                  original: body.sentence,
+                  alternatives: choices[body.tool],
+                },
+              };
+              writingOperations.set(body.id, work);
+              data = { ...work, result: null };
+            } else if (path.startsWith("/v1/browser/writing/requests/")) {
+              const parts = path.split("/"),
+                id = parts[5];
+              if (path.endsWith("/cancel")) {
+                writingOperations.delete(id);
+                data = { id, status: "cancelled" };
+              } else {
+                const work = writingOperations.get(id);
+                if (!work) throw new Error("Unknown writing fixture request");
+                data = globalThis.fixtureWritingProcessing
+                  ? { ...work, status: "processing", result: null }
+                  : {
+                      ...work,
+                      status: "completed",
+                      ...(globalThis.fixtureWritingExpired
+                        ? {
+                            expiresAt: new Date(
+                              Date.now() - 1000,
+                            ).toISOString(),
+                          }
+                        : {}),
+                    };
+              }
+            } else if (path === "/v1/tools/notebooks")
               data = { items: [], nextCursor: null };
             else if (path === "/v1/browser/captures") {
               if (operations.has(body.operationId))
@@ -731,8 +802,350 @@ for (const target of ["chrome", "edge"])
         requestsBeforeWriting,
         "website checking must not use HTTP/model requests",
       );
+      const siteAIEnabled = await page.evaluate(
+        async ({ accountId, connectionId, origin }) => {
+          const window = await chrome.windows.getCurrent();
+          return chrome.runtime.sendMessage({
+            kind: "writingConfigure",
+            windowId: window.id,
+            accountId,
+            connectionId,
+            payload: { site: { origin, enabled: true } },
+          });
+        },
+        { accountId, connectionId, origin: permittedSite },
+      );
+      assert.equal(siteAIEnabled.ok, true);
+      await sourcePage.locator("#body").fill("My name is Elias.");
+      await sourcePage.locator("#body").evaluate((element) => {
+        element.focus();
+        element.setSelectionRange(0, element.value.length);
+      });
+      await sourcePage
+        .getByRole("button", { name: "Use AI", exact: true })
+        .click();
+      await sourcePage
+        .getByRole("menuitem", { name: "Rewrite", exact: true })
+        .click();
+      await sourcePage
+        .getByRole("button", { name: "Generate alternatives", exact: true })
+        .click();
+      await sourcePage
+        .getByRole("button", { name: "Elias is my name.", exact: true })
+        .click();
+      assert.equal(
+        await sourcePage.locator("#body").inputValue(),
+        "Elias is my name.",
+      );
+      await sourcePage.locator("#body").press("Control+z");
+      assert.equal(
+        await sourcePage.locator("#body").inputValue(),
+        "My name is Elias.",
+      );
+      await sourcePage.locator("#fake-user").focus();
+      assert.equal(
+        await sourcePage.locator("[data-grove-writing-tools]").count(),
+        0,
+        "excluded fields must have no AI selection controller",
+      );
       await sourcePage.close();
       await page.bringToFront();
+      const toolCases = [
+        ["Make more concise", "I'm Elias."],
+        ["Make more verbose", "I go by the name Elias."],
+        ["Rewrite", "Elias is my name."],
+        ["Humanize", "Hi, I'm Elias."],
+      ];
+      for (const [label, alternative] of toolCases) {
+        const original = "Hello world! My name is Elias.";
+        await page.locator("#note").fill(original);
+        const beforeMenu = await worker.evaluate(
+          () =>
+            globalThis.fixtureRequests.filter((path) =>
+              path.startsWith("/v1/browser/writing/"),
+            ).length,
+        );
+        await page.locator("#note").evaluate((element) => {
+          element.focus();
+          element.setSelectionRange(13, element.value.length);
+        });
+        await page.getByRole("button", { name: "Use AI", exact: true }).click();
+        const menu = page.getByRole("menu", { name: "Sentence tools" });
+        assert.equal(
+          await menu.getByRole("menuitem").count(),
+          4,
+          "all registered sentence tools are available in one menu",
+        );
+        assert.equal(
+          await worker.evaluate(
+            () =>
+              globalThis.fixtureRequests.filter((path) =>
+                path.startsWith("/v1/browser/writing/"),
+              ).length,
+          ),
+          beforeMenu,
+          "selection and menu opening never transmit the sentence",
+        );
+        if (label === "Make more concise" && process.env.EXTENSION_SCREENSHOTS)
+          await page.screenshot({
+            path: join(
+              process.env.EXTENSION_SCREENSHOTS,
+              `${target}-writing-tools-390.png`,
+            ),
+            fullPage: true,
+          });
+        await menu
+          .getByRole("menuitem", { name: new RegExp(`^${label}`) })
+          .click();
+        const consent = page.getByRole("button", {
+          name: "Generate alternatives",
+          exact: true,
+        });
+        assert.equal(
+          await consent.count(),
+          0,
+          "valid connection-scoped AI consent does not prompt again for each tool or editor",
+        );
+        await page
+          .getByRole("button", { name: alternative, exact: true })
+          .waitFor();
+        const dialog = page.getByRole("dialog", { name: "AI writing tools" });
+        assert.equal(
+          await dialog.locator(".alternative").count(),
+          3,
+          "each tool returns multiple distinct alternatives",
+        );
+        assert.equal(
+          await page.locator("#note").inputValue(),
+          original,
+          "generated alternatives never automatically change text",
+        );
+        if (label === "Make more concise" && process.env.EXTENSION_SCREENSHOTS)
+          await page.screenshot({
+            path: join(
+              process.env.EXTENSION_SCREENSHOTS,
+              `${target}-writing-alternatives-390.png`,
+            ),
+            fullPage: true,
+          });
+        if (label === "Make more concise") {
+          for (const [width, height, colorScheme] of [
+            [320, 480, "light"],
+            [390, 844, "dark"],
+          ]) {
+            await page.setViewportSize({ width, height });
+            await page.emulateMedia({ colorScheme });
+            await page.evaluate(
+              () =>
+                new Promise((resolve) =>
+                  globalThis.requestAnimationFrame(() =>
+                    globalThis.requestAnimationFrame(resolve),
+                  ),
+                ),
+            );
+            const bounds = await dialog.boundingBox();
+            assert.ok(
+              bounds.x >= 0 &&
+                bounds.y >= 0 &&
+                bounds.x + bounds.width <= width &&
+                bounds.y + bounds.height <= height,
+              "AI review stays inside narrow/short and dark viewports",
+            );
+            assert.deepEqual(
+              (
+                await new AxeBuilder({ page })
+                  .include("[data-grove-writing-tools]")
+                  .analyze()
+              ).violations,
+              [],
+              `AI review axe at ${width} ${colorScheme}`,
+            );
+            if (process.env.EXTENSION_SCREENSHOTS)
+              await page.screenshot({
+                path: join(
+                  process.env.EXTENSION_SCREENSHOTS,
+                  `${target}-writing-alternatives-${colorScheme}-${width}.png`,
+                ),
+                fullPage: true,
+              });
+          }
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.emulateMedia({ colorScheme: "light" });
+          await dialog
+            .getByRole("button", { name: "Copy", exact: true })
+            .first()
+            .click();
+          await dialog.getByText("Copied", { exact: true }).waitFor();
+          assert.equal(
+            await page.locator("#note").inputValue(),
+            original,
+            "copy never replaces the sentence",
+          );
+        }
+        await page
+          .getByRole("button", { name: alternative, exact: true })
+          .click();
+        assert.equal(
+          await page.locator("#note").inputValue(),
+          `Hello world! ${alternative}`,
+          "only the selected sentence changes",
+        );
+        await page.locator("#note").press("Control+z");
+        assert.equal(
+          await page.locator("#note").inputValue(),
+          original,
+          "AI application preserves native Undo",
+        );
+      }
+      await page.evaluate(async () => {
+        const values = await chrome.storage.session.get(null);
+        for (const [key, value] of Object.entries(values))
+          if (key.startsWith("writingPanel:")) {
+            value.createdAt = Date.now() - 900001;
+            await chrome.storage.session.set({ [key]: value });
+          }
+      });
+      await worker.evaluate(() => {
+        globalThis.fixtureWritingExpired = true;
+      });
+      await page.locator("#note").fill("My name is Elias.");
+      await page.locator("#note").evaluate((element) => {
+        element.focus();
+        element.setSelectionRange(0, element.value.length);
+      });
+      await page.getByRole("button", { name: "Use AI", exact: true }).click();
+      await page
+        .getByRole("menuitem", { name: "Rewrite", exact: true })
+        .click();
+      await page
+        .getByText("These alternatives expired. Your sentence is unchanged.", {
+          exact: true,
+        })
+        .waitFor();
+      assert.equal(
+        await page.locator(".alternative").count(),
+        0,
+        "expired alternatives cannot be applied or copied from an old review",
+      );
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "My name is Elias.",
+      );
+      await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+      await worker.evaluate(() => {
+        globalThis.fixtureWritingExpired = false;
+        globalThis.fixtureWritingProcessing = true;
+      });
+      await page.locator("#note").fill("My name is Elias.");
+      await page.locator("#note").evaluate((element) => {
+        element.focus();
+        element.setSelectionRange(0, element.value.length);
+      });
+      await page.getByRole("button", { name: "Use AI", exact: true }).click();
+      await page
+        .getByRole("menuitem", { name: "Rewrite", exact: true })
+        .click();
+      const queuedDialog = page.getByRole("dialog", {
+        name: "AI writing tools",
+      });
+      await queuedDialog.getByText("Queued", { exact: true }).waitFor();
+      const unchangedEditorBox = await page.locator("#note").boundingBox();
+      await queuedDialog
+        .getByRole("button", { name: "Cancel", exact: true })
+        .focus();
+      await queuedDialog
+        .getByRole("button", { name: "Cancel", exact: true })
+        .evaluate((button) => {
+          globalThis.retainedAIAction = button;
+        });
+      await queuedDialog
+        .getByText("Generating alternatives…", { exact: true })
+        .waitFor();
+      assert.ok(
+        await page.evaluate(
+          () =>
+            document.querySelector("[data-grove-writing-tools]").shadowRoot
+              .activeElement === globalThis.retainedAIAction &&
+            globalThis.retainedAIAction.isConnected,
+        ),
+        "durable status updates must preserve the actual focused action",
+      );
+      assert.deepEqual(
+        await page.locator("#note").boundingBox(),
+        unchangedEditorBox,
+        "pending AI work never shifts the editor",
+      );
+      await page.locator("#note").fill("A newer sentence stays here.");
+      await page.waitForFunction(async () => {
+        const values = await chrome.storage.session.get(null);
+        return Object.entries(values)
+          .filter(
+            ([key]) =>
+              key.startsWith("writingBinding:") ||
+              key.startsWith("writingPanel:"),
+          )
+          .every(([, value]) => !value.active?.length);
+      });
+      await worker.evaluate(() => {
+        globalThis.fixtureWritingProcessing = false;
+      });
+      assert.equal(
+        await page
+          .getByRole("dialog", { name: "AI writing tools" })
+          .isVisible(),
+        false,
+      );
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "A newer sentence stays here.",
+      );
+      const beforeAIToggle = await worker.evaluate(
+        () =>
+          globalThis.fixtureRequests.filter(
+            (path) => path === "/v1/browser/writing/requests",
+          ).length,
+      );
+      await page.locator('[data-nav="settings"]').click();
+      await page.locator("#writing-settings > summary").click();
+      await page.locator("#writing-ai-rewrites").uncheck();
+      await page
+        .locator("#writing-settings-status")
+        .filter({ hasText: "Saved on this device." })
+        .waitFor();
+      await page.locator('[data-nav="capture"]').click();
+      await page.locator("#note").fill("This is a sentnce.");
+      await page
+        .locator("#writing-review")
+        .filter({ hasText: "1 suggestion" })
+        .waitFor();
+      await page.locator("#note").evaluate((element) => {
+        element.focus();
+        element.setSelectionRange(0, element.value.length);
+      });
+      await page.locator("#note").press("Alt+Enter");
+      assert.equal(
+        await page.getByRole("button", { name: "Use AI", exact: true }).count(),
+        0,
+        "AI Off removes selection actions without disabling local checks",
+      );
+      await page.locator('[data-nav="settings"]').click();
+      await page.locator("#writing-ai-rewrites").check();
+      await page
+        .locator("#writing-settings-status")
+        .filter({ hasText: "Saved on this device." })
+        .waitFor();
+      await page.locator("#writing-settings > summary").click();
+      await page.locator('[data-nav="capture"]').click();
+      assert.equal(
+        await worker.evaluate(
+          () =>
+            globalThis.fixtureRequests.filter(
+              (path) => path === "/v1/browser/writing/requests",
+            ).length,
+        ),
+        beforeAIToggle,
+        "AI enablement never generates alternatives on its own",
+      );
       assert.ok(
         !(await worker.evaluate(() => globalThis.fixtureRequests)).includes(
           "/v1/browser/pages",

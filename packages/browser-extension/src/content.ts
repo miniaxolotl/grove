@@ -6,6 +6,10 @@ import {
 } from "./writing/core.ts";
 import { isWritingEditor } from "./writing/editor.ts";
 import { WritingController } from "./writing/controller.ts";
+import {
+  unavailableWriting,
+  type WritingAvailability,
+} from "@lib/shared/writing-assistance";
 
 // Isolated-world flag prevents duplicate controllers after explicit re-injection.
 const environment = globalThis as typeof globalThis & {
@@ -17,6 +21,8 @@ if (!environment.groveWritingInstalled) {
   let controller: WritingController | undefined,
     active: HTMLTextAreaElement | undefined;
   let epoch = 0;
+  let tools = unavailableWriting,
+    binding: string | null = null;
   const badge = document.createElement("button");
   badge.type = "button";
   badge.hidden = true;
@@ -41,6 +47,7 @@ if (!environment.groveWritingInstalled) {
     const result = (await host.runtime.sendMessage({
       kind,
       ...(payload ? { payload } : {}),
+      ...(kind.startsWith("writingAI") && binding ? { binding } : {}),
     })) as { ok: boolean; data: T; error?: { message?: string } };
     if (!result?.ok)
       throw new Error(
@@ -106,6 +113,19 @@ if (!environment.groveWritingInstalled) {
         return { ...result, complete: result.complete && text.length <= 6000 };
       },
       suggest: (word) => rpc("writingSiteSuggest", { word }),
+      tools: {
+        availability: () => (binding ? tools : unavailableWriting),
+        consent: async (accepted) => {
+          tools = await rpc<WritingAvailability>("writingAIConsent", {
+            policy: tools.policy,
+            accepted,
+          });
+          return tools;
+        },
+        request: (input) => rpc("writingAIRequest", input),
+        get: (id) => rpc("writingAIGet", id),
+        cancel: (id) => rpc("writingAICancel", id),
+      },
       addWord: async (word) => {
         await rpc("writingSiteAddWord", { word });
         await refresh();
@@ -118,9 +138,15 @@ if (!environment.groveWritingInstalled) {
     const current = ++epoch;
     detach();
     try {
-      const next = await rpc<{ settings: WritingSettings }>("writingSiteState");
+      const next = await rpc<{
+        settings: WritingSettings;
+        tools?: WritingAvailability;
+        binding?: string | null;
+      }>("writingSiteState");
       if (current !== epoch) return;
       settings = writingSettingsSchema.parse(next.settings);
+      tools = next.tools ?? unavailableWriting;
+      binding = next.binding ?? null;
       if (settings.enabled) bind(document.activeElement);
     } catch {
       if (current === epoch)
@@ -172,6 +198,11 @@ if (!environment.groveWritingInstalled) {
   };
   changes.observe(document.documentElement, observation);
   host.runtime.onMessage.addListener((message, sender) => {
+    if (sender.id === host.runtime.id && !sender.tab && (message as { kind?: string })?.kind === "writingToolsState") {
+      tools = (message as { tools: WritingAvailability }).tools;
+      controller?.refreshTools();
+      return false;
+    }
     if (
       sender.id === host.runtime.id &&
       !sender.tab &&

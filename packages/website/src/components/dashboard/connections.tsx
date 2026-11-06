@@ -298,6 +298,9 @@ function GrantForm({
   const [personal, setPersonal] = useState(
     creating || (connection?.personal ?? true),
   );
+  const [writingEnabled, setWritingEnabled] = useState(
+    connection?.writingEnabled ?? false,
+  );
   const [allProjects, setAllProjects] = useState(
     creating || (connection?.allProjects ?? false),
   );
@@ -326,6 +329,7 @@ function GrantForm({
               personal,
               allProjects,
               projectIds,
+              ...(connection?.clientId ? { writingEnabled } : {}),
               ...(connection?.state ? { expectedState: connection.state } : {}),
               ...(expiry
                 ? { expiresAt: new Date(`${expiry}T23:59:59Z`).toISOString() }
@@ -387,6 +391,23 @@ function GrantForm({
           ))}
         </div>
       </fieldset>
+      {connection?.clientId ? (
+        <fieldset className="space-y-3">
+          <legend className="mb-3 text-xs font-medium">AI writing tools</legend>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={writingEnabled}
+              onChange={(event) => setWritingEnabled(event.target.checked)}
+            />
+            Allow explicit sentence rewrites
+          </label>
+          <p className="text-sm text-muted">
+            Separate from note access. The extension asks for AI consent before
+            sending a selected sentence; typing and local checks never use AI.
+          </p>
+        </fieldset>
+      ) : null}
       <fieldset className="space-y-3">
         <legend className="mb-3 text-xs font-medium">Memory scope</legend>
         <label className="check">

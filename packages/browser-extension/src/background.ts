@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  writingRequestSchema,
+  unavailableWriting,
+  type WritingAvailability,
+} from "@lib/shared/writing-assistance";
 import { GroveError } from "@lib/shared/contracts";
 import { webCaptureSchema } from "@lib/shared/web-capture";
 import { BrowserOAuth } from "./oauth.ts";
@@ -138,6 +143,7 @@ async function dispatch(raw: unknown) {
     });
     await local.set("preferences", next);
     await menus();
+    if (!next.enabled) await fenceWritingEffects();
     return next;
   }
   if (
@@ -165,16 +171,28 @@ async function dispatch(raw: unknown) {
         message.payload,
       );
       await syncWritingSites();
+      await fenceWritingEffects(result);
       return result;
     }
     case "state":
       return client.state(id);
     case "login":
       return client.login(id);
-    case "logout":
+    case "logout": {
+      let cancellationUncertain = false;
+      try {
+        await fenceWritingEffects();
+      } catch {
+        cancellationUncertain = true;
+      }
       await client.logout();
       await host.storage.session.clear();
+      if (cancellationUncertain)
+        throw new Error(
+          "Signed out locally. Server cancellation could not be confirmed; pending AI requests expire after 15 minutes and cannot restore this signed-out session.",
+        );
       return true;
+    }
     case "edit":
       return client.edit(id, edit.parse(message.payload));
     case "save":
@@ -345,12 +363,31 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
     site?.restrictions,
     enabled && site?.enabled === true,
   );
-  if (message.kind === "writingSiteState")
+  if (message.kind === "writingSiteState") {
+    const identity = (await session.get("identity")) as {
+      writingTools?: WritingAvailability;
+    };
+    let binding: string | null = null;
+    if (settings.enabled && settings.aiRewrites && sender.documentId) {
+      binding = crypto.randomUUID();
+      await session.set(`writingBinding:${binding}`, {
+        accountId: current.accountId,
+        connectionId: current.connectionId,
+        origin,
+        tabId: sender.tab!.id,
+        documentId: sender.documentId,
+        ids: [],
+        createdAt: Date.now(),
+      });
+    }
     return {
+      binding,
+      tools: identity?.writingTools ?? unavailableWriting,
       settings: settings.enabled
         ? settings
         : writingSettingsSchema.parse({ enabled: false }),
     };
+  }
   if (!settings.enabled)
     throw new Error("Writing assistance is off for this site.");
   if (message.kind === "writingSiteAddWord") {
@@ -388,6 +425,216 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
       : [];
   return checker.check(message.payload?.text ?? "", settings);
 }
+type WritingBinding = {
+  accountId: string;
+  connectionId: string;
+  origin?: string;
+  tabId?: number;
+  documentId?: string;
+  ids: string[];
+  active?: string[];
+  createdAt: number;
+};
+async function fenceWritingEffects(
+  state?: Awaited<ReturnType<typeof writing.read>>,
+  removedPermissions = false,
+) {
+  const identity = (await session.get("identity")) as
+    | { accountId: string; connectionId: string }
+    | undefined;
+  if (!identity) return;
+  const entries = Object.entries(await host.storage.session.get(null)).filter(
+    ([key]) =>
+      key.startsWith("writingBinding:") || key.startsWith("writingPanel:"),
+  );
+  for (const [key, raw] of entries) {
+    const binding = raw as WritingBinding;
+    if (
+      binding.accountId !== identity.accountId ||
+      binding.connectionId !== identity.connectionId ||
+      !binding.active?.length
+    )
+      continue;
+    const site = state?.sites.find((site) => site.origin === binding.origin);
+    if (removedPermissions) {
+      if (
+        !binding.origin ||
+        (await host.permissions?.contains({
+          origins: [writingSitePattern(binding.origin, config.target)],
+        }))
+      )
+        continue;
+    } else if (
+      state &&
+      effectiveWritingSettings(
+        state.settings,
+        site?.restrictions,
+        !binding.origin || site?.enabled === true,
+      ).enabled &&
+      effectiveWritingSettings(state.settings, site?.restrictions).aiRewrites
+    )
+      continue;
+    for (const id of binding.active) {
+      try {
+        await client.cancelWriting(id);
+      } catch {
+        throw new Error(
+          "AI tools are paused here, but server cancellation could not be confirmed. Pending requests expire after 15 minutes; reopen Grove to reconcile them.",
+        );
+      }
+    }
+    binding.active = [];
+    await session.set(key, binding);
+  }
+}
+async function aiWriting(raw: unknown, sender: MessageSender, panel: boolean) {
+  await ready;
+  const message = z
+    .object({
+      kind: z.enum([
+        "writingAIConsent",
+        "writingAIRequest",
+        "writingAIGet",
+        "writingAICancel",
+      ]),
+      windowId: z.number().int().nonnegative().optional(),
+      accountId: z.uuid().optional(),
+      connectionId: z.uuid().optional(),
+      binding: z.uuid().optional(),
+      payload: z.unknown(),
+    })
+    .strict()
+    .parse(raw);
+  const identity = (await session.get("identity")) as
+    | {
+        accountId: string;
+        connectionId: string;
+        writingTools?: WritingAvailability;
+      }
+    | undefined;
+  if (!identity)
+    throw new Error("Connect Grove before using AI writing tools.");
+  const origin = panel
+    ? undefined
+    : writingSenderOrigin(sender, host.runtime.id);
+  const key = panel
+    ? `writingPanel:${message.windowId}:${identity.connectionId}`
+    : `writingBinding:${message.binding}`;
+  let binding = (await session.get(key)) as WritingBinding | undefined;
+  if (panel) {
+    if (
+      message.windowId === undefined ||
+      message.accountId !== identity.accountId ||
+      message.connectionId !== identity.connectionId
+    )
+      throw new Error("Account changed.");
+    binding ??= {
+      accountId: identity.accountId,
+      connectionId: identity.connectionId,
+      ids: [],
+      createdAt: Date.now(),
+    };
+  } else if (
+    !origin ||
+    !sender.documentId ||
+    !binding ||
+    binding.origin !== origin ||
+    binding.tabId !== sender.tab?.id ||
+    binding.documentId !== sender.documentId ||
+    !host.permissions ||
+    !(await host.permissions.contains({
+      origins: [writingSitePattern(origin, config.target)],
+    }))
+  )
+    throw new Error(
+      "Website writing session changed. Select the sentence again.",
+    );
+  if (
+    !binding ||
+    binding.accountId !== identity.accountId ||
+    binding.connectionId !== identity.connectionId
+  )
+    throw new Error("Writing session expired. Select the sentence again.");
+  const current = await writing.read(identity.accountId);
+  const site = origin
+    ? current.sites.find((site) => site.origin === origin)
+    : undefined;
+  const settings = effectiveWritingSettings(
+    current.settings,
+    site?.restrictions,
+    (await preferences()).enabled && (!origin || site?.enabled === true),
+  );
+  const revoke =
+    message.kind === "writingAIConsent" &&
+    z.object({ accepted: z.boolean() }).parse(message.payload).accepted ===
+      false;
+  if (!settings.enabled || !settings.aiRewrites) {
+    if (message.kind !== "writingAICancel" && !revoke)
+      throw new Error("AI writing tools are off.");
+  }
+  if (message.kind === "writingAIConsent") {
+    const input = z
+      .object({ policy: z.string().max(100), accepted: z.boolean() })
+      .strict()
+      .parse(message.payload);
+    return client.writingConsent(input.policy, input.accepted);
+  }
+  if (message.kind === "writingAIRequest") {
+    const input = writingRequestSchema.parse(message.payload);
+    if (Date.now() - binding.createdAt > 900000) {
+      // Server-side work has reached its fixed expiry. A fresh explicit request
+      // renews opaque ownership in the same authenticated document, not old text.
+      binding = { ...binding, ids: [], active: [], createdAt: Date.now() };
+    }
+    if (!binding.ids.includes(input.id)) {
+      while (binding.ids.length >= 20) {
+        const finished = binding.ids.findIndex(
+          (id) => !binding?.active?.includes(id),
+        );
+        if (finished < 0) break;
+        binding.ids.splice(finished, 1);
+      }
+      if (binding.ids.length >= 20)
+        throw new Error(
+          "Wait for pending writing requests before generating more alternatives.",
+        );
+      // Persist only opaque ownership before remote acceptance; an uncertain POST
+      // remains reconcilable through this exact ID, never a blind new request.
+      binding.ids.push(input.id);
+      await session.set(key, binding);
+    }
+    binding.active = [...new Set([...(binding.active ?? []), input.id])];
+    await session.set(key, binding);
+    const work = await client.writingRequest(input);
+    if (
+      !["queued", "processing", "backoff", "recovering"].includes(work.status)
+    ) {
+      binding.active = binding.active.filter((id) => id !== input.id);
+      await session.set(key, binding);
+    }
+    return work;
+  }
+  const id = z.uuid().parse(message.payload);
+  if (!binding.ids.includes(id))
+    throw new Error("This request belongs to another writing session.");
+  const work =
+    message.kind === "writingAICancel"
+      ? await client.cancelWriting(id)
+      : await client.writingWork(id);
+  if (
+    message.kind === "writingAICancel" ||
+    (work &&
+      typeof work === "object" &&
+      "status" in work &&
+      !["queued", "processing", "backoff", "recovering"].includes(
+        String(work.status),
+      ))
+  ) {
+    binding.active = binding.active?.filter((active) => active !== id);
+    await session.set(key, binding);
+  }
+  return work;
+}
 host.runtime.onMessage.addListener((message, sender, respond) => {
   const panel = trustedPanel(sender, host.runtime);
   if (!panel && !writingSenderOrigin(sender, host.runtime.id)) return false;
@@ -395,11 +642,13 @@ host.runtime.onMessage.addListener((message, sender, respond) => {
   // do not hold the capture/auth/settings state-transition queue while awaiting load.
   const kind = (message as { kind?: string })?.kind;
   void (
-    !panel
-      ? websiteWriting(message, sender)
-      : kind === "writingCheck" || kind === "writingSuggest"
-        ? localWriting(message)
-        : serial(() => dispatch(message))
+    typeof kind === "string" && kind.startsWith("writingAI")
+      ? aiWriting(message, sender, panel)
+      : !panel
+        ? websiteWriting(message, sender)
+        : kind === "writingCheck" || kind === "writingSuggest"
+          ? localWriting(message)
+          : serial(() => dispatch(message))
   ).then(
     (data) => respond({ ok: true, data }),
     (error) =>
@@ -469,12 +718,43 @@ async function syncWritingSites() {
   await refreshWritingTabs();
 }
 host.permissions?.onRemoved.addListener(() => {
-  void serial(syncWritingSites).catch(() => {});
+  void serial(async () => {
+    await fenceWritingEffects(undefined, true);
+    await syncWritingSites();
+  }).catch(() => {});
 });
 host.storage.onChanged.addListener((changes, area) => {
+  const before = changes.identity?.oldValue as
+    | { accountId?: string; connectionId?: string }
+    | undefined;
+  const after = changes.identity?.newValue as typeof before;
+  const identityChanged =
+    !!changes.identity &&
+    (before?.accountId !== after?.accountId ||
+      before?.connectionId !== after?.connectionId);
+  if (area === "session" && changes.identity && !identityChanged) {
+    const tools =
+      (
+        changes.identity.newValue as
+          | { writingTools?: WritingAvailability }
+          | undefined
+      )?.writingTools ?? unavailableWriting;
+    void serial(async () => {
+      const tabs = await host.tabs.query({});
+      await Promise.all(
+        tabs
+          .filter((tab) => tab.id !== undefined)
+          .map((tab) =>
+            host.tabs
+              .sendMessage?.(tab.id!, { kind: "writingToolsState", tools })
+              .catch(() => {}),
+          ),
+      );
+    }).catch(() => {});
+  }
   if (
     (area === "local" && changes.preferences) ||
-    (area === "session" && changes.identity)
+    (area === "session" && identityChanged)
   )
     void serial(syncWritingSites).catch(() => {});
 });

@@ -58,9 +58,10 @@ and site controls without scores, dashboards, upsells or setup. Global Off wins.
 Website access is optional and requested for a chosen site. Verify metadata before
 reading any field: exclude HTML inputs, short/sensitive fields and author opt-outs.
 Only the qualified textarea adapter currently ships; rich-text support is unfinished.
-Dictionary/rules use no network or AI. Explicit multiple-alternative sentence rewriting
-is approved but not implemented; it needs separate authorization/consent and Grove's
-durable workers with encrypted expiring staging, never automatic draft transmission.
+Dictionary/rules use no network or AI. Explicit sentence tools use one selection-anchored
+**Use AI** menu: concise, verbose, rewrite and humanize, with multiple alternatives
+per chosen tool. Separate authorization/consent and Grove's durable workers with
+encrypted expiring staging are required; no automatic draft transmission or edits.
 The [current guide](../browser-extension.md#english-writing-checks) owns actual support,
 limits and verification; this design does not establish native-browser acceptance.
 

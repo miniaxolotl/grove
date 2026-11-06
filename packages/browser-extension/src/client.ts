@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  writingAvailabilitySchema,
+  type WritingAvailability,
+  type WritingRequest,
+  type WritingWork,
+} from "@lib/shared/writing-assistance";
 import { ApiClient } from "@lib/integration-core";
 import { GroveError, memorySchema, type Memory } from "@lib/shared/contracts";
 import { formatWebCapture, type WebCapture } from "@lib/shared/web-capture";
@@ -17,6 +23,7 @@ const identitySchema = z.object({
   accountId: z.uuid(),
   connectionId: z.uuid(),
   capabilities: z.array(z.string()),
+  writingTools: writingAvailabilitySchema.optional(),
   grant: z.object({
     personal: z.boolean(),
     allProjects: z.boolean(),
@@ -171,6 +178,32 @@ export class ExtensionClient {
   async login(windowId: number) {
     await this.oauth.signIn();
     return this.state(windowId);
+  }
+  async writingConsent(
+    policy: string,
+    accepted: boolean,
+  ): Promise<WritingAvailability> {
+    const result = writingAvailabilitySchema.parse(
+      await this.api.request("/v1/browser/writing/consent", {
+        body: { policy, accepted },
+      }),
+    );
+    const current = await this.identity(false);
+    await this.session.set("identity", { ...current, writingTools: result });
+    return result;
+  }
+  async writingRequest(input: WritingRequest): Promise<WritingWork> {
+    return this.api.request("/v1/browser/writing/requests", { body: input });
+  }
+  async writingWork(id: string): Promise<WritingWork> {
+    return this.api.request(`/v1/browser/writing/requests/${id}`);
+  }
+  async cancelWriting(
+    id: string,
+  ): Promise<{ id: string; status: "cancelled" }> {
+    return this.api.request(`/v1/browser/writing/requests/${id}/cancel`, {
+      body: {},
+    });
   }
   async logout() {
     await this.oauth.invalidateCredentials("tokens");

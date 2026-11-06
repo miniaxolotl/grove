@@ -87,8 +87,37 @@ Warm latency is a regression measurement, not a universal responsiveness guarant
 Run `pnpm test:writing` and the installed browser journeys to reproduce the focused
 rules, bounds, source/Undo, permission and excluded-field checks.
 
-On-demand AI sentence rewriting is still pending implementation; local checking never
-silently falls back to AI. No model/provider setup is required for local checks.
+### Explicit AI sentence tools
+
+Select one sentence, then choose **Use AI** (or **Alt+Enter** with a selection).
+The compact menu offers **Make more concise**, **Make more verbose**, **Rewrite**
+and **Humanize**. Only the chosen tool runs. Selection and opening the menu send
+nothing. First use shows the sentence and configured provider disclosure with
+**Generate alternatives**; valid connection-scoped consent is reused across editors
+and tools. Changing the provider profile or disclosure requires new consent.
+
+Grove requests three distinct alternatives and accepts two or three after validation.
+The unchanged original stays visible. Click an alternative to replace only the
+current selection with native Undo, **Copy**, or **Dismiss**. Editing, disabling AI
+or losing eligibility closes stale results. Humanize means natural conversational
+wording, not an AI-detection guarantee. Output can be wrong: structural validation
+does not establish factual or semantic equivalence. English is the supported contract;
+sentence segmentation is not language detection or an automatic translation feature.
+
+Settings → Writing → **AI writing tools** is independent of spelling and grammar.
+Site restrictions and Grove Off still win. Enabling a switch never generates text.
+AI needs a separately approved **Allow explicit sentence rewrites** permission in
+Grove Connections; note access alone is insufficient. Missing configuration, permission
+or network does not disable local checks, which never fall back to AI.
+Website AI additionally requires browser-supplied document identity; hosts without
+it keep AI unavailable rather than reuse another document's authority.
+
+Requests persist before HTTP **202** acceptance; Grove's existing enrichment workers
+perform generation. The UI reads durable queued, processing, backoff, expired-lease
+recovery, uncertain, failed and completed states. Polling only reads status; it does
+not execute work. Unknown acceptance offers status reconciliation, not automatic
+regeneration. Cancellation fences Grove output; it cannot recall a provider call
+already sent. If cancellation cannot be confirmed, server staging still expires.
 
 - **Capture:** write a quick Markdown note, choose its notebook and optionally
   review a source link. Context-menu **Save selection**, **Save link** and **Save
@@ -200,6 +229,51 @@ account, connection and grant. Exports include active provenance; queued imports
 validate it and use the existing scoped/idempotent worker. Retained authored data
 is not physically erased by content edits or soft deletion.
 
+### Writing work and temporary data
+
+`@lib/shared/writing-assistance` owns tool identities, one-sentence selection and
+strict request/output bounds: 2,000 UTF-16 units per sentence, up to three alternatives
+of at most 4,000 units each. Requests contain an operation UUID, editor-session UUID,
+`language: en`, explicit tool and selected sentence—no URL, surrounding draft or notes.
+The provider is asked to preserve meaning, names, numbers, negation and uncertainty,
+and to treat the sentence as data rather than instructions. Grove retrieves no extra
+context or tools for a rewrite. This is not a semantic-safety guarantee.
+
+The authenticated browser API adds:
+
+- `POST /v1/browser/writing/consent`: accept/revoke the current disclosure policy.
+- `POST /v1/browser/writing/requests`: commit encrypted staging and durable work;
+  return **202**, not provider completion.
+- `GET /v1/browser/writing/requests/:id`: read scoped current state/alternatives.
+- `POST /v1/browser/writing/requests/:id/cancel`: retain an opaque cancellation receipt
+  even before acceptance, preventing a delayed POST from recreating cancelled work.
+
+Migration `20261106_038_writing_tools` follows `037`. Forced-RLS consent, request and
+cancellation tables are scoped to the account/connection. `writing_enabled` defaults
+false on connections, independently of note permissions. Grant/lifecycle changes
+invalidate consent, erase temporary text and fence late writes. Workers recheck the
+profile, disclosure, consent version, processing epoch, account/connection and lease
+before provider dispatch and publication. Exact replay does not regenerate output;
+provider-started attempts become uncertain after interruption/reclaim, never automatic
+provider retries. Writing tasks and memory jobs share enrichment admission across replicas.
+
+Selected text/results use AES-256-GCM with tenant/work-bound authenticated data.
+Input is cleared after completion; results and unfinished input expire 15 minutes
+after acceptance. Reads enforce expiry immediately; existing retention workers clear
+expired ciphertext in bounded batches even without another user request. Cleanup may
+lag the deadline while workers are unavailable. Cancellation/failure clears scratch;
+opaque work/replay/cancellation metadata and usage accounting remain. These are not
+notes, revisions, exports or a saved rewrite history. Provider retention is separate
+and must be accurately disclosed; cancelling cannot erase already-transmitted content.
+
+API and worker need the same dedicated `WRITING_STAGING_KEY` (32-byte hex, not another
+service key), an accurate `WRITING_PROVIDER_NOTICE` (20–1,000 characters), and the
+existing generation provider. Both optional writing variables must be set together;
+leave both unset for local-only checking. The extension never receives this key or
+provider credentials. Key rotation makes previous scratch unreadable; do not present
+configuration alone as live-provider acceptance. Use the normal deployment process;
+this guide authorizes no production configuration or migration execution.
+
 ### Draft and save snapshots
 
 `createCaptureDraft`, `readCaptureDraft` and `editCaptureDraft` are the shared draft
@@ -227,7 +301,9 @@ newer edits. Settings can reconcile a scoped opaque receipt after session loss.
 Local persistent storage contains only device enablement/appearance preferences,
 public OAuth registration, destination IDs
 and at most ten opaque recovery receipts, pruned after seven days; never note bodies,
-URLs, access tokens, refresh tokens or PKCE verifiers. A missing receipt is not proof
+page/draft URLs, access tokens, refresh tokens or PKCE verifiers. Writing preferences
+also retain explicitly approved site origins and personal dictionary words; AI work
+ownership stores only opaque IDs in trusted session storage. A missing receipt is not proof
 that an uncertain provider operation never happened; do not blindly create a new save.
 
 ### Native browser adapters
@@ -262,6 +338,8 @@ default. The configured API/issuer host permissions remain exact.
 pnpm build:extension
 pnpm test:extension
 pnpm test:extension:service # disposable real API/worker PostgreSQL roles
+pnpm test:writing
+pnpm test:writing:service # also needs disposable migration URL; TEST_AMQP_URL enables broker checks
 pnpm --filter website exec playwright install chromium
 pnpm test:extension:browser
 pnpm build
@@ -306,13 +384,18 @@ states the exact host/source and remaining limits.
 
 ## Rollout and acceptance boundaries
 
-Apply migration `037` as an explicit forward-only owner operation after `036`,
+Apply migrations `037` and `038` as explicit forward-only owner operations after `036`,
 deploy the compatible API/worker, then distribute a matching extension. Source CI
-does not do this rollout. Existing stores/provider registration and production
+does not do this rollout. Configure optional AI staging/disclosure only after reviewing
+the actual generation provider and retention; keep connection writing permission off
+until explicitly approved. Local checking needs neither provider nor writing secrets.
+Existing stores/provider registration and production
 schema are not modified by build or tests. Store identities/signing, real native
 OAuth consent/redirect/refresh, authenticated cross-origin production requests, supported
 OS/browser-version matrices, suspension/restart recovery and actual first-use timing
-still need release acceptance. In particular, a Chromium fixture is not branded
+still need release acceptance. Writing also needs live-model meaning/quality review
+and native writing/permission-removal qualification; synthetic alternatives do not
+establish these. In particular, a Chromium fixture is not branded
 Chrome acceptance, and Edge method acceptance is not visible-sidebar qualification.
 Do not advertise signed/store availability or a proven under-one-minute setup.
 
@@ -325,17 +408,17 @@ AI summaries, chat extraction, Safari/mobile, offline search or signed availabil
 The product homepage is `https://usegrove.cloud`; legal/privacy declarations and
 store-owned support fields need operator review before submission.
 
-| Permission             | Purpose                                                          |
-| ---------------------- | ---------------------------------------------------------------- |
-| `identity`             | Native public-client OAuth sign-in                               |
-| `storage`              | Trusted session drafts/tokens; bounded public/opaque local state |
-| `activeTab`            | User-invoked current-page URL/title, never site scraping         |
-| `contextMenus`         | Explicit selection/link/page review inbox                        |
-| `clipboardWrite`       | Copy only the reviewed context, never read the clipboard         |
-| `scripting`            | Bind bundled local writing code on explicitly permitted sites    |
-| Optional HTTP(S) sites | User-approved site origins for local long-form writing checks    |
-| `sidePanel` (Chromium) | Native persistent panel                                          |
-| Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange        |
+| Permission             | Purpose                                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `identity`             | Native public-client OAuth sign-in                                                  |
+| `storage`              | Trusted session drafts/tokens; bounded public/opaque local state                    |
+| `activeTab`            | User-invoked current-page URL/title, never site scraping                            |
+| `contextMenus`         | Explicit selection/link/page review inbox                                           |
+| `clipboardWrite`       | Copy reviewed context or an explicitly chosen alternative; never read the clipboard |
+| `scripting`            | Bind bundled local writing code on explicitly permitted sites                       |
+| Optional HTTP(S) sites | User-approved long-form writing checks and explicit sentence tools                  |
+| `sidePanel` (Chromium) | Native persistent panel                                                             |
+| Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                           |
 
 Firefox declares authentication information, website content, browsing activity
 and search terms for user-invoked transmission. There is no analytics or automatic

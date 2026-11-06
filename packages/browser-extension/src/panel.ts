@@ -1,4 +1,5 @@
 import type { Memory } from "@lib/shared/contracts";
+import { unavailableWriting } from "@lib/shared/writing-assistance";
 import {
   normalizeWebUrl,
   webCaptureSchema,
@@ -49,6 +50,23 @@ const writingController = new WritingController(
       ),
     check: (text) => rpc("writingCheck", { text }),
     suggest: (word) => rpc("writingSuggest", { word }),
+    tools: {
+      availability: () => state?.identity.writingTools ?? unavailableWriting,
+      consent: async (accepted) => {
+        const result = await rpc<
+          import("@lib/shared/writing-assistance").WritingAvailability
+        >("writingAIConsent", {
+          policy:
+            state?.identity.writingTools?.policy ?? unavailableWriting.policy,
+          accepted,
+        });
+        if (state) state.identity.writingTools = result;
+        return result;
+      },
+      request: (input) => rpc("writingAIRequest", input),
+      get: (id) => rpc("writingAIGet", id),
+      cancel: (id) => rpc("writingAICancel", id),
+    },
     addWord: (word) => saveWriting({ addWord: word }),
     status: (result, error) => {
       const button = $<HTMLButtonElement>("writing-review");
@@ -76,10 +94,11 @@ function paintWriting() {
     "enabled",
     "spelling",
     "grammar",
+    "aiRewrites",
     "automatic",
     "highlights",
   ] as const) {
-    const input = $<HTMLInputElement>(`writing-${key}`);
+    const input = $<HTMLInputElement>(writingControlId(key));
     input.checked = settings?.[key] ?? false;
     input.disabled = !settings;
   }
@@ -130,7 +149,7 @@ function paintWriting() {
       existing.querySelector<HTMLInputElement>(
         "[data-feature='enabled']",
       )!.checked = site.enabled;
-      for (const key of ["spelling", "grammar"] as const)
+      for (const key of ["spelling", "grammar", "aiRewrites"] as const)
         existing.querySelector<HTMLInputElement>(
           `[data-feature='${key}']`,
         )!.checked = site.restrictions[key] !== false;
@@ -179,9 +198,13 @@ function paintWriting() {
         await saveWriting({ site: { origin, enabled } });
       },
     );
-    for (const key of ["spelling", "grammar"] as const)
+    for (const key of ["spelling", "grammar", "aiRewrites"] as const)
       makeToggle(
-        key === "spelling" ? "Allow spelling" : "Allow grammar",
+        key === "spelling"
+          ? "Allow spelling"
+          : key === "grammar"
+            ? "Allow grammar"
+            : "Allow AI writing tools",
         site.restrictions[key] !== false,
         key,
         (enabled) =>
@@ -1052,6 +1075,10 @@ host.storage.onChanged.addListener((changes, area) => {
   }
   if (changes[`inbox:${windowId}`] && state && preferences.enabled)
     void action(loadInbox);
+  if (changes.identity && identity && state) {
+    state.identity.writingTools = identity.writingTools;
+    writingController.refreshTools();
+  }
   const entry = changes[`entryError:${windowId}`];
   if (entry?.newValue) notice(String(entry.newValue));
 });
@@ -1070,6 +1097,9 @@ const ruleNames: Record<(typeof writingRules)[number], string> = {
   spacing: "Spacing and punctuation",
   capitalization: "Capitalization",
 };
+function writingControlId(key: string) {
+  return `writing-${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
+}
 for (const rule of writingRules) {
   const label = document.createElement("label");
   label.className = "writing-option";
@@ -1091,13 +1121,14 @@ for (const key of [
   "enabled",
   "spelling",
   "grammar",
+  "aiRewrites",
   "automatic",
   "highlights",
 ] as const)
-  $(`writing-${key}`).addEventListener("change", () => {
+  $(writingControlId(key)).addEventListener("change", () => {
     void action(() =>
       saveWriting({
-        patch: { [key]: $<HTMLInputElement>(`writing-${key}`).checked },
+        patch: { [key]: $<HTMLInputElement>(writingControlId(key)).checked },
       }),
     );
   });

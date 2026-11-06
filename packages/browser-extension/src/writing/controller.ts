@@ -7,6 +7,10 @@ import {
   type WritingSettings,
 } from "./core.ts";
 import { isWritingEditor } from "./editor.ts";
+import {
+  WritingToolsController,
+  type WritingToolTransport,
+} from "./tools-controller.ts";
 
 const style = `
 :host { all: initial; font: 14px/1.5 system-ui,sans-serif; color-scheme:light dark; }
@@ -45,6 +49,7 @@ export class WritingController {
   private events = new AbortController();
   private observer: MutationObserver;
   private resize: ResizeObserver;
+  private tools: WritingToolsController | undefined;
   constructor(
     private editor: HTMLTextAreaElement,
     private options: {
@@ -53,6 +58,7 @@ export class WritingController {
       suggest: (word: string) => Promise<string[]>;
       addWord: (word: string) => Promise<void>;
       status: (result: WritingResult | null, error?: string) => void;
+      tools?: WritingToolTransport;
     },
   ) {
     this.host.dataset.groveWritingUi = "true";
@@ -111,7 +117,14 @@ export class WritingController {
     editor.addEventListener(
       "keydown",
       (event) => {
-        if (event.altKey && event.key === "Enter" && !event.isComposing) {
+        if (
+          event.altKey &&
+          event.key === "Enter" &&
+          !event.isComposing &&
+          (editor.selectionStart === editor.selectionEnd ||
+            !options.tools ||
+            !options.settings().aiRewrites)
+        ) {
           event.preventDefault();
           this.review();
         }
@@ -160,6 +173,13 @@ export class WritingController {
     this.observer.observe(editor, { attributes: true });
     this.resize = new ResizeObserver(() => this.schedulePosition());
     this.resize.observe(editor);
+    if (options.tools)
+      this.tools = new WritingToolsController(
+        editor,
+        options.settings,
+        options.tools,
+        () => this.close(false),
+      );
   }
   private allowed() {
     return this.options.settings().enabled && isWritingEditor(this.editor);
@@ -203,7 +223,11 @@ export class WritingController {
       }, 350);
   }
   refresh() {
+    this.tools?.refresh();
     this.changed();
+  }
+  refreshTools() {
+    this.tools?.refresh();
   }
   async check() {
     this.invalidate();
@@ -331,6 +355,7 @@ export class WritingController {
     return button;
   }
   review(issue?: WritingIssue) {
+    this.tools?.close(false);
     if (!this.allowed()) return;
     if (!this.result || this.snapshot !== this.editor.value) {
       void this.check().then(() => {
@@ -489,6 +514,7 @@ export class WritingController {
       this.editor.focus({ preventScroll: true });
   }
   destroy() {
+    this.tools?.destroy();
     this.invalidate();
     this.events.abort();
     if (this.frame !== undefined) cancelAnimationFrame(this.frame);

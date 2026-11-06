@@ -1,5 +1,32 @@
 # Browser extension evidence
 
+## Explicit sentence tools — 6 November 2026
+
+Installed unsigned development package, product `1.11.14`, built from the writing
+increment after `c489ed36`. Chrome ZIP SHA-256:
+`1550dade9413ec30ea8455fb6e995216f07c682c86caee74db0d98279884f344`.
+Chromium `156.0.8078.4`, synthetic account/sentences and HTTP/model output fixtures;
+these are actual installed UI views, not live-model quality evidence.
+
+| Selection menu                                                                   | Reviewed alternatives                                                                            | Short, narrow review                                                                | Dark review                                                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| ![Four explicit sentence tools near the selection](chrome-writing-tools-390.png) | ![Three alternatives with explicit apply, copy and dismiss](chrome-writing-alternatives-390.png) | ![Scrollable alternatives at 320 by 480](chrome-writing-alternatives-light-320.png) | ![Alternatives in dark appearance](chrome-writing-alternatives-dark-390.png) |
+
+Standard views are 390 × 844; the short view is 320 × 480 and scrolls within the
+popover to reach later alternatives/actions. The selection remains visible; the
+popover does not change editor geometry. Both Chromium manifest profiles pass the
+four-tool/native-Undo, first-use consent, cross-editor consent reuse, copy-without-edit,
+pending-focus, newer-edit cancellation, expired-output, aged-session renewal and
+independent AI-Off journeys. Focused AI review axe checks have zero violations in
+light/short and dark states. Final warm bounded local-check RPC p95 was 3.70/5.10 ms
+(30 samples/profile), not a cold-start or universal latency guarantee.
+
+The provider fixture deliberately makes no live calls. Semantic equivalence, native
+Firefox/branded Chrome/Edge writing, real permission prompts/removal and production
+configuration/migration remain unqualified. Rich-text/contenteditable is unsupported.
+The [feature guide](../../../browser-extension.md#explicit-ai-sentence-tools) owns
+authorization, encryption, expiry, configuration and rollout prerequisites.
+
 ## Local English writing — development evidence
 
 Installed Chromium `156.0.8078.4`, synthetic account/drafts and HTTP fixtures,
@@ -17,7 +44,8 @@ exclusions instrumented in the actual isolated extension world, site disable and
 stable settings controls. Warm local RPC p95 was 3.70/3.90 ms over 30 bounded
 6,000-unit samples in Chrome/Edge manifest profiles; both used Chromium, not actual
 branded Edge. This is synthetic warm latency, not cold-start or universal frame-time
-acceptance. AI rewrites, rich-text editors, native permission prompts, Firefox and
+acceptance. These local-only captures do not qualify AI rewrites; current synthetic
+AI evidence is above. Rich-text editors, native permission prompts, Firefox and
 branded-browser writing qualification remain unfinished. Older captures below
 show the earlier panel and do not establish writing-assistance acceptance.
 
