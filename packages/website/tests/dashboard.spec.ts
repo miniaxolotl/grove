@@ -2,6 +2,7 @@ import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
+import { applySourceEdits } from "@lib/shared/document-edits";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const sample: Memory = {
@@ -57,6 +58,12 @@ async function fixture(
       const saved = {
         ...sample,
         ...body,
+        content: body.edits
+          ? applySourceEdits(
+              memories.find((m) => m.id === body.id)!.content,
+              body.edits,
+            )
+          : body.content,
         id: body.id ?? crypto.randomUUID(),
         version: body.expectedVersion ? body.expectedVersion + 1 : 1,
         indexing: "pending",
@@ -133,6 +140,8 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(page.locator(".note-save-status")).toHaveText("Saved");
   await page.getByRole("button", { name: "History", exact: true }).click();
+  await expect(page.locator(".revision-diff")).toBeVisible();
+  await page.getByText("Full versions", { exact: true }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Note actions" }).click();

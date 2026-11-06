@@ -1,6 +1,7 @@
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
+import { applySourceEdits } from "@lib/shared/document-edits";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const project = {
@@ -36,7 +37,14 @@ async function fixture(page: Page) {
     const input = route.request().postDataJSON();
     if (path === "/memories") {
       state.writes.push(input);
-      state.note = { ...state.note, ...input, version: state.note.version + 1 };
+      state.note = {
+        ...state.note,
+        ...input,
+        content: input.edits
+          ? applySourceEdits(state.note.content, input.edits)
+          : (input.content ?? state.note.content),
+        version: state.note.version + 1,
+      };
     } else state.reads.push(path);
     const data =
       path === "/projects"
@@ -263,7 +271,7 @@ test("held background revalidation keeps content and dirty conflict bases intact
   await started.promise;
   await expect(editor).toHaveText("Local draft remains mine");
   release.resolve();
-  await expect(page.locator(".revision-compare")).toBeVisible();
+  await expect(page.locator(".revision-diff")).toBeVisible();
   await expect(editor).toHaveText("Local draft remains mine");
   expect(state.writes).toHaveLength(0);
 });
@@ -416,7 +424,7 @@ test("a successful replay returning a later agent edit requires explicit review 
   await expect(editor).toHaveText("My original uncertain save");
   await navigate(page, "/app/settings");
   await navigate(page, `/app/memories/${note.id}?mode=edit`);
-  await expect(page.locator(".revision-compare")).toBeVisible();
+  await expect(page.locator(".revision-diff")).toBeVisible();
   await expect(editor).toHaveText("My original uncertain save");
   expect(state.writes).toHaveLength(1);
   expect(state.writes[0].expectedVersion).toBe(1);

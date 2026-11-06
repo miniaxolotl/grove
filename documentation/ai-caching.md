@@ -62,6 +62,10 @@ preferences transactionally. A deleted job or disable/re-enable during inference
 cannot leave behind a reusable artifact from that invalidated operation.
 Existing edit coalescing and affected-subtree notebook summary reuse are preserved;
 self-hosted/flag-off processing is not given a new Cloud-only debounce delay.
+Guarded [passage saves](structured-documents.md#reducing-writes-and-inference)
+defer pending note enrichment by five seconds in either edition; identical partial
+saves avoid revisions and invalidation. The [dated investigation](evaluations/ai-services-2026-11-05.md)
+records actual worker completion, live exact-cache reuse and batching tradeoffs.
 
 ## Refresh and source safety
 
