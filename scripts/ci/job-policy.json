@@ -2,6 +2,7 @@
   "jobs": [
     "website",
     "website-quality",
+    "extension",
     "contracts",
     "contracts-quality",
     "image"
@@ -9,7 +10,7 @@
   "rules": [
     {
       "prefix": "packages/browser-extension/",
-      "jobs": ["website", "contracts", "contracts-quality"]
+      "jobs": ["extension", "contracts", "contracts-quality"]
     },
     {
       "prefix": "packages/website/",
@@ -24,6 +25,7 @@
       "jobs": [
         "website",
         "website-quality",
+        "extension",
         "contracts",
         "contracts-quality",
         "image"
