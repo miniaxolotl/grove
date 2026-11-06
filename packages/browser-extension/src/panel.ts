@@ -88,6 +88,29 @@ function show(next: string) {
     else el.removeAttribute("aria-current");
   });
 }
+function showSearchMode(next: "search" | "page") {
+  $("note-search").hidden = next !== "search";
+  $("note-matches").hidden = next !== "search";
+  $("page-search").hidden = next !== "page";
+  $("page-matches").hidden = next !== "page";
+  $("all-notes").setAttribute("aria-pressed", String(next === "search"));
+  $("this-page").setAttribute("aria-pressed", String(next === "page"));
+}
+function paintSelection() {
+  $("context-actions").hidden = selected.size === 0;
+  $("review-context").textContent = `Review context (${selected.size})`;
+  document.querySelectorAll<HTMLElement>(".note-row").forEach((row) => {
+    row.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked =
+      selected.has(row.dataset.id!);
+  });
+}
+function paintNotebookFilters() {
+  for (const kind of ["search", "page"]) {
+    const select = $<HTMLSelectElement>(`${kind}-scope`);
+    $(`${kind}-scope-label`).textContent =
+      select.selectedOptions[0]?.textContent ?? "Choose notebook";
+  }
+}
 function approvalUrl() {
   return `${extensionConfig.siteOrigin}/app/connections#connection-${state!.identity.connectionId}`;
 }
@@ -121,6 +144,7 @@ function updateNotebooks(items: State["notebooks"]["items"], append = false) {
       select.value = value;
     });
   $("notebooks-more").hidden = !notebookCursor;
+  paintNotebookFilters();
 }
 function paintDraft(draft: CaptureDraft, fields = true) {
   if (state) state.draft = draft;
@@ -148,14 +172,16 @@ function paintDraft(draft: CaptureDraft, fields = true) {
     }
   }
   $("save-state").textContent = !save
-    ? "Draft stays in this browser session."
+    ? "Draft kept in this session."
     : save.status === "saved"
-      ? `${changedSinceSave ? "Previous note saved. Newer draft is not saved." : "Saved in Grove."} Version ${save.receipt.version}. Search indexing: ${save.receipt.indexing}.`
+      ? changedSinceSave
+        ? "Previous note saved. Newer draft is not saved."
+        : `Saved in Grove.${save.receipt.indexing !== "ready" ? ` Search indexing: ${save.receipt.indexing}.` : ""}`
       : save.status === "failed"
-        ? "Save was rejected. Your draft is kept; retry repeats the reviewed request."
+        ? "Save rejected. Your draft is kept. Retry the original save."
         : save.status === "uncertain"
-          ? "Save outcome is unknown. Retry safely repeats the same request; newer edits stay in your draft."
-          : "Saving the reviewed note…";
+          ? "Save outcome is unknown. Retry the original save; your newer draft is kept."
+          : "Saving…";
   $("save").textContent =
     save && save.status !== "saved" ? "Retry original save" : "Save note";
   $<HTMLButtonElement>("save").formNoValidate =
@@ -163,9 +189,25 @@ function paintDraft(draft: CaptureDraft, fields = true) {
   $<HTMLAnchorElement>("saved-link").hidden = save?.status !== "saved";
   if (save?.status === "saved")
     $<HTMLAnchorElement>("saved-link").href = noteUrl(save.receipt.noteId);
+  if (save?.status === "saved" && state) {
+    state.pending = state.pending.filter(
+      (item) => item.operationId !== save.request.operationId,
+    );
+    for (const row of [...$("pending-list").children])
+      if ((row as HTMLElement).dataset.operationId === save.request.operationId)
+        row.remove();
+    $("save-recovery").hidden = !state.pending.length;
+  }
+  $("save-details").hidden = save?.status !== "saved";
+  $("save-version").textContent =
+    save?.status === "saved" ? String(save.receipt.version) : "";
+  $("save-indexing").textContent =
+    save?.status === "saved" ? save.receipt.indexing : "";
   count();
 }
 function count() {
+  $("new-note").hidden =
+    !$<HTMLTextAreaElement>("note").value && !state?.draft?.source;
   if (!$<HTMLTextAreaElement>("note").value.trim() && !state?.draft?.source) {
     $("length").textContent = "0 / 6,000";
     return;
@@ -201,6 +243,7 @@ async function refresh() {
       next.identity.connectionId !== state.identity.connectionId);
   if (changed) {
     selected.clear();
+    paintSelection();
     $("search-results").replaceChildren();
     $("page-results").replaceChildren();
     for (const dialog of document.querySelectorAll("dialog")) dialog.close();
@@ -230,12 +273,25 @@ async function refresh() {
   $("api-origin").textContent = extensionConfig.apiOrigin;
   $("account-id").textContent = state.identity.accountId;
   $("capabilities").textContent =
-    state.identity.capabilities.join(", ") || "Awaiting approval";
+    state.identity.capabilities
+      .map(
+        (cap) =>
+          (
+            ({
+              "memory:read": "Read notes",
+              "memory:write": "Save notes",
+              "memory:delete": "Delete notes",
+            }) as Record<string, string>
+          )[cap] ?? cap,
+      )
+      .join(" · ") || "Awaiting approval";
+  $("save-recovery").hidden = !state.pending.length;
   const pending = $("pending-list");
   pending.replaceChildren();
   for (const item of state.pending) {
     const row = document.createElement("div");
     row.className = "pending-row";
+    row.dataset.operationId = item.operationId;
     const label = document.createElement("span");
     label.textContent = `Unconfirmed · ${new Date(item.createdAt).toLocaleDateString()}`;
     const check = document.createElement("button");
@@ -336,8 +392,7 @@ async function find(kind: "search" | "page", more = false) {
           projectId: $<HTMLSelectElement>("page-scope").value || null,
         };
   const status = $(`${kind}-status`);
-  status.textContent =
-    "Finding notes… Existing results are kept until this search completes.";
+  status.textContent = "Finding notes…";
   try {
     const data = await rpc<{ items: Memory[]; nextCursor: string | null }>(
       kind === "page" ? "pages" : "search",
@@ -347,10 +402,22 @@ async function find(kind: "search" | "page", more = false) {
     current.cursor = data.nextCursor;
     const list = $(`${kind}-results`);
     if (!more) {
-      list.replaceChildren();
+      const ids = new Set(data.items.map((note) => note.id));
+      for (const row of [...list.children])
+        if (!ids.has((row as HTMLElement).dataset.id!)) row.remove();
     }
-    for (const note of data.items) appendNote(list, note);
-    status.textContent = `${list.childElementCount} notes shown${data.nextCursor ? " · more available" : ""} · checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    let previous: HTMLElement | undefined;
+    for (const note of data.items) {
+      const row = appendNote(list, note);
+      if (!more) {
+        const before = previous
+          ? previous.nextElementSibling
+          : list.firstElementChild;
+        if (before !== row) list.insertBefore(row, before);
+        previous = row;
+      }
+    }
+    status.textContent = `${list.childElementCount} ${list.childElementCount === 1 ? "note" : "notes"}${data.nextCursor ? " · more available" : ""} · checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
     $(`${kind}-more`).hidden = !data.nextCursor;
   } catch (error) {
     status.textContent =
@@ -359,13 +426,14 @@ async function find(kind: "search" | "page", more = false) {
   }
 }
 function appendNote(list: HTMLElement, note: Memory) {
-  if (
-    [...list.children].some((el) => (el as HTMLElement).dataset.id === note.id)
-  )
-    return;
+  const existing = [...list.children].find(
+    (el) => (el as HTMLElement).dataset.id === note.id,
+  ) as HTMLElement | undefined;
+  if (existing?.dataset.version === String(note.version)) return existing;
   const row = document.createElement("article");
   row.className = "note-row";
   row.dataset.id = note.id;
+  row.dataset.version = String(note.version);
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.checked = selected.has(note.id);
@@ -382,7 +450,7 @@ function appendNote(list: HTMLElement, note: Memory) {
       }
       selected.set(note.id, { id: note.id, version: note.version });
     } else selected.delete(note.id);
-    $("review-context").textContent = `Review context (${selected.size})`;
+    paintSelection();
   };
   const body = document.createElement("div"),
     button = document.createElement("button"),
@@ -401,14 +469,25 @@ function appendNote(list: HTMLElement, note: Memory) {
       $<HTMLDialogElement>("reader").showModal();
     });
   };
-  meta.textContent = `${note.kind} · version ${note.version} · ${new Date(note.updatedAt).toLocaleDateString()}`;
+  meta.textContent = new Date(note.updatedAt).toLocaleDateString();
   body.append(button, meta);
   row.append(checkbox, body);
-  list.append(row);
+  if (existing) existing.replaceWith(row);
+  else list.append(row);
+  return row;
 }
 document
   .querySelectorAll<HTMLElement>("[data-nav]")
   .forEach((el) => el.addEventListener("click", () => show(el.dataset.nav!)));
+on("all-notes", async () => showSearchMode("search"));
+on("this-page", async () => showSearchMode("page"));
+on("clear-selection", async () => {
+  selected.clear();
+  paintSelection();
+  $<HTMLInputElement>($("page-search").hidden ? "query" : "page-url").focus();
+});
+for (const kind of ["search", "page"])
+  $(`${kind}-scope`).addEventListener("change", paintNotebookFilters);
 $("capture-form").addEventListener("submit", (event) => {
   event.preventDefault();
   void action(async () => {
@@ -426,7 +505,7 @@ $("capture-form").addEventListener("submit", (event) => {
     }
     const button = $<HTMLButtonElement>("save");
     button.disabled = true;
-    $("save-state").textContent = "Saving the reviewed note…";
+    $("save-state").textContent = "Saving…";
     try {
       const result = await rpc<{ draft: CaptureDraft }>("save");
       paintDraft(result.draft, false);
@@ -578,7 +657,11 @@ function clearSessionView() {
   $("reader-content").textContent = "";
   $("reader-meta").textContent = "";
   $("save-state").textContent = "";
-  $("review-context").textContent = "Review context (0)";
+  paintSelection();
+  view = "capture";
+  showSearchMode("search");
+  show(view);
+  $("save-details").hidden = true;
   $("saved-link").hidden = true;
   $("inbox").hidden = true;
 }

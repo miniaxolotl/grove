@@ -15,25 +15,17 @@
     </header>
     <main>
       <section id="welcome" aria-labelledby="welcome-title">
-        <h1 id="welcome-title">Your notes, beside you.</h1>
-        <p>
-          Keep something worth remembering. Find the context you already have.
-        </p>
+        <h1 id="welcome-title">Your Grove notes</h1>
+        <p>Save a note. Find what you need.</p>
         <button id="login" class="primary">Sign in to Grove</button>
-        <p class="muted">
-          Sign in in your browser. Then choose what this extension may read and
-          save in Grove Connections.
-        </p>
+        <p class="muted">Choose notebook access after signing in.</p>
       </section>
       <section id="approval" hidden>
-        <h1>Choose your access</h1>
-        <p>
-          Grove is connected. Approve reading and saving for the notebooks you
-          want to use.
-        </p>
+        <h1>Approve access</h1>
+        <p>Choose which notebooks Grove may read and save to.</p>
         <a class="button primary approval-link" target="_blank" rel="noreferrer"
           >Open Connections</a
-        ><button id="approved">Check approval</button>
+        ><button id="approved">Check access</button>
       </section>
       <div id="workspace" hidden>
         <section
@@ -42,27 +34,28 @@
           aria-labelledby="capture-title"
         >
           <div class="title-row">
-            <h1 id="capture-title">Keep a note</h1>
-            <button id="new-note">New note</button>
+            <h1 id="capture-title">Capture</h1>
+            <button id="new-note" class="quiet" hidden>New note</button>
           </div>
           <div id="inbox" hidden>
             <h2>Ready to review</h2>
             <div id="inbox-list"></div>
           </div>
           <form id="capture-form">
-            <label for="destination">Save to</label
-            ><select id="destination" class="notebook-select"></select>
             <label for="note">Note</label
             ><textarea
               id="note"
-              rows="9"
+              rows="7"
               maxlength="6000"
-              placeholder="What is worth keeping?"
+              placeholder="What do you want to keep?"
               aria-describedby="note-help"
             ></textarea>
             <div id="note-help" class="between muted small">
-              <span>Markdown is welcome.</span
-              ><span id="length">0 / 6,000</span>
+              <span>Markdown supported</span><span id="length">0 / 6,000</span>
+            </div>
+            <div class="destination-field">
+              <label for="destination">Save to</label
+              ><select id="destination" class="notebook-select"></select>
             </div>
             <details id="source-details">
               <summary>Source link <span id="source-label"></span></summary>
@@ -82,8 +75,7 @@
                   </button>
                 </div>
                 <p class="muted small">
-                  Only this reviewed link is saved. Tracking parameters are
-                  removed; the page is never scraped.
+                  Only this reviewed link is saved. No page content is fetched.
                 </p>
               </div>
             </details>
@@ -94,97 +86,144 @@
               >
             </div>
             <p id="save-state" class="feedback" role="status"></p>
+            <details id="save-details" hidden>
+              <summary>Save details</summary>
+              <dl class="field-stack">
+                <dt>Version</dt>
+                <dd id="save-version"></dd>
+                <dt>Search indexing</dt>
+                <dd id="save-indexing"></dd>
+              </dl>
+            </details>
           </form>
         </section>
         <section data-view="search" hidden aria-labelledby="search-title">
-          <h1 id="search-title">Find your context</h1>
-          <form id="search-form">
-            <label for="query">Search notes</label>
-            <div class="joined">
-              <input
-                id="query"
-                type="search"
-                maxlength="1000"
-                placeholder="A decision, idea, or detail"
-              /><button type="submit">Search</button>
-            </div>
-            <label for="search-scope">Notebook</label
-            ><select id="search-scope" class="notebook-select"></select>
-          </form>
+          <h1 id="search-title">Search</h1>
+          <div class="search-modes" role="group" aria-label="Find notes by">
+            <button id="all-notes" type="button" aria-pressed="true">
+              All notes
+            </button>
+            <button id="this-page" type="button" aria-pressed="false">
+              This page
+            </button>
+          </div>
+          <div id="note-search">
+            <form id="search-form">
+              <label for="query">Search notes</label>
+              <div class="joined">
+                <input
+                  id="query"
+                  type="search"
+                  maxlength="1000"
+                  placeholder="A decision, idea, or detail"
+                /><button type="submit" class="primary">Search</button>
+              </div>
+              <details class="notebook-filter">
+                <summary>
+                  Notebook <span id="search-scope-label">Personal</span>
+                </summary>
+                <label for="search-scope">Search in</label>
+                <select id="search-scope" class="notebook-select"></select>
+              </details>
+            </form>
+          </div>
+          <div id="page-search" hidden>
+            <form id="page-form">
+              <label for="page-url">Page URL</label>
+              <div class="joined">
+                <input
+                  id="page-url"
+                  type="url"
+                  required
+                  maxlength="4096"
+                  placeholder="https://"
+                /><button id="page-current" type="button">
+                  Use current page
+                </button>
+              </div>
+              <details class="notebook-filter">
+                <summary>
+                  Notebook <span id="page-scope-label">Personal</span>
+                </summary>
+                <label for="page-scope">Search in</label>
+                <select id="page-scope" class="notebook-select"></select>
+              </details>
+              <p class="muted small">
+                This link is sent only when you choose Find notes.
+              </p>
+              <button type="submit" class="primary">Find notes</button>
+            </form>
+          </div>
           <div class="between result-heading">
             <h2>Notes</h2>
-            <button id="review-context">Review context (0)</button>
+            <div id="context-actions" class="context-actions" hidden>
+              <button id="clear-selection" class="quiet">Clear</button>
+              <button id="review-context">Review context (0)</button>
+            </div>
           </div>
-          <p id="search-status" class="feedback muted" role="status">
-            Search to find active notes.
-          </p>
-          <div id="search-results" class="results"></div>
-          <button id="search-more" hidden>Load more notes</button>
-        </section>
-        <section data-view="page" hidden aria-labelledby="page-title">
-          <h1 id="page-title">Saved on this page</h1>
-          <p class="muted">
-            Look up an exact source link. Nothing is sent until you choose Find
-            notes.
-          </p>
-          <form id="page-form">
-            <label for="page-url">Page URL</label
-            ><input
-              id="page-url"
-              type="url"
-              required
-              maxlength="4096"
-              placeholder="https://"
-            /><button id="page-current" type="button">Use current page</button
-            ><label for="page-scope">Notebook</label
-            ><select id="page-scope" class="notebook-select"></select
-            ><button type="submit" class="primary">Find notes</button>
-          </form>
-          <p id="page-status" class="feedback muted" role="status">
-            Only active, unchanged source associations appear here.
-          </p>
-          <div id="page-results" class="results"></div>
-          <button id="page-more" hidden>Load more notes</button>
+          <div id="note-matches">
+            <p id="search-status" class="feedback muted" role="status">
+              Search your saved notes.
+            </p>
+            <div id="search-results" class="results"></div>
+            <button id="search-more" hidden>Load more notes</button>
+          </div>
+          <div id="page-matches" hidden>
+            <p id="page-status" class="feedback muted" role="status">
+              Find notes saved with this link.
+            </p>
+            <div id="page-results" class="results"></div>
+            <button id="page-more" hidden>Load more notes</button>
+          </div>
         </section>
         <section data-view="settings" hidden aria-labelledby="settings-title">
           <h1 id="settings-title">Settings</h1>
-          <h2>Connection</h2>
-          <dl>
-            <dt>API</dt>
-            <dd id="api-origin"></dd>
-            <dt>Account</dt>
-            <dd id="account-id"></dd>
-            <dt>Access</dt>
-            <dd id="capabilities"></dd>
-          </dl>
-          <div class="actions">
-            <a class="button approval-link" target="_blank" rel="noreferrer"
-              >Manage access</a
-            ><button id="refresh">Refresh access</button>
-          </div>
-          <h2>Notebooks</h2>
-          <p class="muted">
-            The last destination you choose is remembered on this device.
-            Notebook access is controlled in Connections.
-          </p>
-          <button id="notebooks-more" hidden>Load more notebooks</button>
-          <h2>Save recovery</h2>
-          <p class="muted small">
-            Unconfirmed saves keep an opaque receipt for seven days. Check a
-            receipt before repeating a save after a restart.
-          </p>
-          <div id="pending-list"></div>
-          <h2>Privacy on this device</h2>
-          <p class="muted small">
-            Notes and sign-in tokens stay in browser session storage. Drafts
-            expire after 24 hours and are cleared when their window closes.
-            Nothing runs on websites; no browsing history, analytics, or
-            automatic capture.
-          </p>
-          <p class="muted small">
-            Signing out clears session drafts and tokens, not your saved Grove
-            notes or the public registration and recovery receipts.
-          </p>
+          <section class="settings-section" aria-labelledby="access-title">
+            <h2 id="access-title">Access</h2>
+            <p id="capabilities" class="muted"></p>
+            <div class="actions">
+              <a class="button approval-link" target="_blank" rel="noreferrer"
+                >Manage access</a
+              ><button id="refresh">Refresh access</button>
+            </div>
+            <button id="notebooks-more" hidden>Load more notebooks</button>
+            <details>
+              <summary>Connection details</summary>
+              <dl class="field-stack">
+                <dt>API</dt>
+                <dd id="api-origin"></dd>
+                <dt>Account ID</dt>
+                <dd id="account-id"></dd>
+              </dl>
+            </details>
+          </section>
+          <section
+            id="save-recovery"
+            class="settings-section"
+            hidden
+            aria-labelledby="recovery-title"
+          >
+            <h2 id="recovery-title">Unconfirmed saves</h2>
+            <p class="muted small">Check the outcome before saving again.</p>
+            <div id="pending-list"></div>
+          </section>
+          <section class="settings-section" aria-labelledby="privacy-title">
+            <h2 id="privacy-title">Privacy</h2>
+            <p class="muted">No automatic capture or browsing history.</p>
+            <details>
+              <summary>Storage and recovery</summary>
+              <p class="muted small field-stack">
+                Notes and sign-in tokens stay in browser session storage. Drafts
+                expire after 24 hours and are cleared when their window closes.
+                Unconfirmed saves keep an opaque recovery receipt for seven
+                days.
+              </p>
+              <p class="muted small">
+                Signing out clears session drafts and tokens, not your saved
+                Grove notes or the public registration and recovery receipts.
+              </p>
+            </details>
+          </section>
           <button id="logout">Sign out</button>
         </section>
       </div>
@@ -193,7 +232,6 @@
     <nav id="navigation" aria-label="Grove" hidden>
       <button data-nav="capture" aria-current="page">Capture</button
       ><button data-nav="search">Search</button
-      ><button data-nav="page">This page</button
       ><button data-nav="settings">Settings</button>
     </nav>
     <dialog id="reader" aria-labelledby="reader-title">

@@ -163,9 +163,14 @@ for (const target of ["chrome", "edge"])
             } else if (
               path === "/v1/memories/search" ||
               path === "/v1/browser/pages"
-            )
+            ) {
+              if (path === "/v1/memories/search") {
+                await globalThis.fixtureSearchGate;
+                if (globalThis.fixtureSearchFailed)
+                  throw new Error("Synthetic search is offline");
+              }
               data = { items: notes, nextCursor: null };
-            else if (path.startsWith("/v1/memories/"))
+            } else if (path.startsWith("/v1/memories/"))
               data = notes.find((note) => path.endsWith(note.id));
             else throw new Error(`Unexpected fixture request ${path}`);
             return Response.json({ success: true, data });
@@ -178,6 +183,12 @@ for (const target of ["chrome", "edge"])
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`chrome-extension://${extensionId}/panel.html`);
       await page.locator("#workspace").waitFor({ state: "visible" });
+      assert.deepEqual(
+        await page.locator("#navigation button").allTextContents(),
+        ["Capture", "Search", "Settings"],
+      );
+      assert.equal(await page.locator("#new-note").isVisible(), false);
+      assert.equal(await page.locator("#save-details").isVisible(), false);
       await page
         .locator("#notice")
         .filter({
@@ -238,6 +249,11 @@ for (const target of ["chrome", "edge"])
         .locator("#save-state")
         .filter({ hasText: "outcome is unknown" })
         .waitFor();
+      assert.equal(
+        await page.locator("#save-recovery").evaluate((el) => el.hidden),
+        false,
+        "unknown saves keep a visible recovery section in Settings",
+      );
       await page.locator("#note").fill("A newer draft stays after retry.");
       await page.locator("#save").click();
       await page
@@ -248,6 +264,14 @@ for (const target of ["chrome", "edge"])
         await page.locator("#note").inputValue(),
         "A newer draft stays after retry.",
       );
+      assert.equal(await page.locator("#save-version").isVisible(), false);
+      await page.locator("#save-details summary").click();
+      assert.equal(await page.locator("#save-version").textContent(), "1");
+      assert.equal(
+        await page.locator("#save-indexing").textContent(),
+        "pending",
+      );
+      await page.locator("#save-details summary").click();
       if (process.env.EXTENSION_SCREENSHOTS) {
         await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
         await page.screenshot({
@@ -264,10 +288,72 @@ for (const target of ["chrome", "edge"])
       assert.ok(!JSON.stringify(persisted).includes("worth keeping"));
       assert.ok(!JSON.stringify(persisted).includes("fixture-token"));
       await page.locator('[data-nav="search"]').click();
+      assert.equal(await page.locator("#context-actions").isVisible(), false);
       await page.locator("#query").fill("source");
       await page.locator('#search-form button[type="submit"]').click();
       await page.locator("#search-results .note-row").waitFor();
       assert.equal(await page.locator("#search-results .note-row").count(), 1);
+      await page.evaluate(() => {
+        globalThis.retainedSearchRow = document.querySelector(
+          "#search-results .note-row",
+        );
+      });
+      await worker.evaluate(() => {
+        globalThis.fixtureSearchGate = new Promise((resolve) => {
+          globalThis.releaseSearch = resolve;
+        });
+      });
+      await page.locator("#query").press("Enter");
+      await page
+        .locator("#search-status")
+        .filter({ hasText: "Finding notes" })
+        .waitFor();
+      assert.equal(
+        await page.evaluate(
+          () =>
+            globalThis.retainedSearchRow ===
+            document.querySelector("#search-results .note-row"),
+        ),
+        true,
+      );
+      assert.equal(
+        await page
+          .locator("#query")
+          .evaluate((el) => el === document.activeElement),
+        true,
+      );
+      await worker.evaluate(() => globalThis.releaseSearch());
+      await page
+        .locator("#search-status")
+        .filter({ hasText: "1 note · checked" })
+        .waitFor();
+      assert.equal(
+        await page.evaluate(
+          () =>
+            globalThis.retainedSearchRow ===
+            document.querySelector("#search-results .note-row"),
+        ),
+        true,
+        "unchanged results keep their mounted row after refresh",
+      );
+      await worker.evaluate(() => {
+        globalThis.fixtureSearchFailed = true;
+      });
+      await page.locator("#query").press("Enter");
+      await page
+        .locator("#search-status")
+        .filter({ hasText: "stale" })
+        .waitFor();
+      assert.equal(await page.locator("#search-results .note-row").count(), 1);
+      assert.equal(await page.locator("#query").inputValue(), "source");
+      await worker.evaluate(() => {
+        globalThis.fixtureSearchFailed = false;
+      });
+      await page.locator("#query").press("Enter");
+      await page
+        .locator("#search-status")
+        .filter({ hasText: "1 note · checked" })
+        .waitFor();
       await page.locator("#search-results .note-row button").click();
       await page.locator("#reader[open]").waitFor();
       assert.match(
@@ -275,7 +361,16 @@ for (const target of ["chrome", "edge"])
         /<script>not executable<\/script>/,
       );
       await page.locator("#close-reader").click();
+      const statusBeforeSelection = await page
+        .locator("#search-status")
+        .boundingBox();
       await page.locator('#search-results input[type="checkbox"]').check();
+      assert.equal(await page.locator("#context-actions").isVisible(), true);
+      assert.equal(
+        (await page.locator("#search-status").boundingBox()).y,
+        statusBeforeSelection.y,
+        "context actions use reserved space instead of shifting results",
+      );
       await page.locator("#review-context").click();
       await page.locator("#context[open]").waitFor();
       assert.equal(await page.locator("#copy").isDisabled(), true);
@@ -290,6 +385,14 @@ for (const target of ["chrome", "edge"])
         .filter({ hasText: /Copied|Clipboard unavailable/ })
         .waitFor();
       await page.locator("#close-context").click();
+      await page.locator("#clear-selection").click();
+      assert.equal(await page.locator("#context-actions").isVisible(), false);
+      assert.equal(
+        await page
+          .locator('#search-results input[type="checkbox"]')
+          .isChecked(),
+        false,
+      );
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         assert.ok(
@@ -323,13 +426,39 @@ for (const target of ["chrome", "edge"])
         await page.locator("#note").inputValue(),
         "A newer draft stays after retry.",
       );
-      await page.locator('[data-nav="page"]').click();
+      await page.locator('[data-nav="search"]').click();
+      const beforePageRequests = await worker.evaluate(
+        () => globalThis.fixtureRequests.length,
+      );
+      await page.locator("#this-page").click();
+      assert.equal(
+        await page.locator("#this-page").getAttribute("aria-pressed"),
+        "true",
+      );
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureRequests.length),
+        beforePageRequests,
+        "changing search mode does not send the current page URL",
+      );
       await page
         .locator("#page-url")
         .fill("https://example.com/article?utm_source=test");
       await page.locator('#page-form button[type="submit"]').click();
       await page.locator("#page-results .note-row").waitFor();
+      await page.locator('#page-results input[type="checkbox"]').check();
+      await page.locator("#review-context").click();
+      await page.locator("#context[open]").waitFor();
+      await page.locator("#close-context").click();
+      await page.locator("#all-notes").click();
+      await page.locator("#clear-selection").click();
+      await page.locator("#this-page").click();
+      assert.equal(
+        await page.locator('#page-results input[type="checkbox"]').isChecked(),
+        false,
+      );
       await page.locator('[data-nav="settings"]').click();
+      assert.equal(await page.locator("#account-id").isVisible(), false);
+      assert.equal(await page.locator("#save-recovery").isVisible(), false);
       if (process.env.EXTENSION_SCREENSHOTS)
         await page.screenshot({
           path: join(
@@ -338,6 +467,57 @@ for (const target of ["chrome", "edge"])
           ),
           fullPage: true,
         });
+      for (const width of [320, 390, 768]) {
+        await page.setViewportSize({ width, height: 844 });
+        for (const name of ["capture", "search", "page", "settings"]) {
+          await page
+            .locator(`[data-nav="${name === "page" ? "search" : name}"]`)
+            .click();
+          if (name === "search" || name === "page")
+            await page
+              .locator(name === "search" ? "#all-notes" : "#this-page")
+              .click();
+          assert.ok(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+            `${name} overflow at ${width}`,
+          );
+          assert.ok(
+            (await page.locator(".primary:visible").count()) <= 1,
+            `${name} has one primary action at most`,
+          );
+          const audit = await new AxeBuilder({ page }).analyze();
+          assert.deepEqual(
+            audit.violations.map((item) => item.id),
+            [],
+            `${name} axe at ${width}`,
+          );
+          if (process.env.EXTENSION_SCREENSHOTS)
+            await page.screenshot({
+              path: join(
+                process.env.EXTENSION_SCREENSHOTS,
+                `${target}-minimal-${name}-${width}.png`,
+              ),
+              fullPage: true,
+            });
+        }
+      }
+      await page.setViewportSize({ width: 390, height: 480 });
+      await page.locator('[data-nav="capture"]').click();
+      await page.locator("#source-details summary").click();
+      await page.locator("#save").scrollIntoViewIfNeeded();
+      const saveBox = await page.locator("#save").boundingBox();
+      const navBox = await page.locator("#navigation").boundingBox();
+      assert.ok(
+        saveBox.y >= 0 && saveBox.y + saveBox.height <= navBox.y,
+        "Save stays reachable above navigation in a short panel",
+      );
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "A newer draft stays after retry.",
+      );
+      await page.locator('[data-nav="settings"]').click();
       const otherPanel = await context.newPage();
       await otherPanel.goto(`chrome-extension://${extensionId}/panel.html`);
       await otherPanel.locator("#workspace").waitFor({ state: "visible" });
