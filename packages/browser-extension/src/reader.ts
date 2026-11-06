@@ -22,8 +22,13 @@ export function renderNote(
   source: string,
   siteOrigin: string,
   dom: Document = document,
+  preview = false,
 ) {
   const root = parseNoteMarkdown(source);
+  if (preview)
+    root.children = root.children
+      .filter((node) => node.type !== "html" && node.type !== "definition")
+      .slice(0, 3);
   const definitions = new Map(
     root.children
       .filter((node) => node.type === "definition")
@@ -45,8 +50,11 @@ export function renderNote(
       case "root":
         return fragment();
       case "text":
-      case "html":
         return dom.createTextNode(node.value);
+      case "html":
+        return preview
+          ? dom.createDocumentFragment()
+          : dom.createTextNode(node.value);
       case "paragraph":
         return element("p");
       case "heading":
@@ -80,7 +88,11 @@ export function renderNote(
       }
       case "listItem": {
         const item = element("li");
-        if (node.checked != null) {
+        if (node.checked != null && preview) {
+          (item.querySelector("p") ?? item).prepend(
+            dom.createTextNode(node.checked ? "Done: " : "To do: "),
+          );
+        } else if (node.checked != null) {
           const mark = dom.createElement("input");
           mark.type = "checkbox";
           mark.disabled = true;
@@ -96,6 +108,7 @@ export function renderNote(
       }
       case "link":
       case "linkReference": {
+        if (preview) return fragment();
         const target =
           node.type === "link"
             ? node.url
@@ -141,7 +154,7 @@ export function renderNote(
         table.append(head, body);
         const wrapper = dom.createElement("div");
         wrapper.className = "reader-table";
-        wrapper.tabIndex = 0;
+        if (!preview) wrapper.tabIndex = 0;
         wrapper.setAttribute("role", "region");
         wrapper.setAttribute("aria-label", "Note table");
         wrapper.append(table);

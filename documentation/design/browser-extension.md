@@ -21,17 +21,17 @@ Make Grove useful without leaving the current page: capture a useful detail,
 retrieve existing knowledge and explicitly carry selected context into another
 tool. Ship one shared interface with native browser adapters, not three products.
 
-| Proposed v1 feature    | Release boundary                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Search and read        | Search authorized notes, choose a notebook, read a note and open its canonical Grove page. Preserve existing lexical fallback and pagination.                             |
-| Quick note             | Toolbar/keyboard entry into a short composer; optionally attach the current page. Remember the last permitted destination, visibly.                                       |
-| Save selection or link | Context-menu capture into an editable preview containing the selected text, safe URL, page title and capture time. Save only after confirmation. No full-page extraction. |
-| Copy context           | Select notes, preview the exact bounded text and source links, then copy. No model call, site-specific insertion or automatic prompt submission.                          |
-| Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.             |
+| Proposed v1 feature    | Release boundary                                                                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search and read        | Search authorized notes, choose a notebook, read a note and open its canonical Grove page. Preserve existing lexical fallback and pagination.                                 |
+| Quick note             | Toolbar/keyboard entry into a short composer; optionally attach the current page. Remember the last permitted destination, visibly.                                           |
+| Save selection or link | Context-menu capture into an editable preview containing the selected text, safe URL, page title and capture time. Save only after confirmation. No full-page extraction.     |
+| Note actions           | One Open/Copy/Share menu per formatted result. No bulk selection, site-specific insertion or automatic submission. Public links require separate permission and confirmation. |
+| Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.                 |
 
 One sidebar has **Notes**, **Search** and **Settings**. Search spans all granted
-notebooks; selected results expose **Copy notes**. **Settings is last** and contains account/connection,
-destination, privacy, draft-clearing and shortcut information. Existing notebook
+notebooks with formatted previews and a per-note action menu. **Settings is last**
+with appearance, writing, account access and a short privacy summary. Existing notebook
 management and full editing remain in Grove's web app.
 
 The implemented device switch has one home: the persistent header. Off
@@ -43,7 +43,7 @@ appearance, access and privacy without extra onboarding. Recovery controls appea
 only for unconfirmed saves. Notes keeps notebook selection and automatic source metadata in one Details
 disclosure; Search has one result list, with no filters or competing modes. A
 readable Markdown document replaces the old plain-source reader. Direct Copy note
-and Open in Grove actions serve the selected note; bulk copying retains consent.
+and Share actions serve one saved note at a time; there are no bulk search actions.
 
 Defer full articles, attachments, generated summaries/filing, chat scraping,
 AI-chat takeaway extraction, append/edit existing notes, semantic page matching,
@@ -70,10 +70,14 @@ and Opposite words instead of length tools. Multiple alternatives per chosen too
 copy and replace the exact range on selection, with native Undo. Separate
 authorization/consent and Grove's durable workers with encrypted expiring staging
 are required. Explicit rewrites include bounded previous/next sentence excerpts,
-containing-sentence fragments and sentence/paragraph position, shown under Context
-shared with AI. Fresh context-aware consent is required; word alternatives stay
+containing-sentence fragments and sentence/paragraph position. The result UI leads
+with alternatives, not request diagnostics. Fresh context-aware consent is required; word alternatives stay
 selection-only. Context is reference, never replaced text. No automatic draft
-transmission or edits.
+transmission or edits. Search previews use safe Markdown with one Open/Copy/Share
+menu per note, no checkboxes or bulk copy. Notes and Search share the same focused
+public-link dialog; publication needs separate connection approval and explicit
+confirmation. Settings uses short labels and generic recovery messages, never
+account IDs, server addresses or storage/worker internals.
 The [current guide](../browser-extension.md#english-writing-checks) owns actual support,
 limits and verification; this design does not establish native-browser acceptance.
 
@@ -162,7 +166,7 @@ never content scripts, page messages, synchronized storage, URLs or diagnostics.
 P0 must settle local token protection, refresh-token persistence and cleanup; browser
 storage is not an OS secret vault. Sign-out/account changes clear visible notes,
 drafts, tokens and selections before another account can use the panel. Remote
-revocation/grant changes are checked before further reads, writes or context copy;
+revocation/grant changes are checked before further reads, writes, copying or sharing;
 do not offer cached offline library reads.
 
 ### Capture and exact page lookup

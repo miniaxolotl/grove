@@ -72,7 +72,9 @@ const request = z
       "notebooks",
       "search",
       "read",
-      "context",
+      "sharing",
+      "publish",
+      "unshare",
       "reconcile",
       "attach",
       "followSource",
@@ -231,18 +233,32 @@ async function dispatch(raw: unknown) {
       );
     case "read":
       return client.read(z.uuid().parse(message.payload));
-    case "context":
-      return client.context(
-        z
-          .array(
-            z
-              .object({ id: z.uuid(), version: z.number().int().positive() })
-              .strict(),
-          )
-          .min(1)
-          .max(6)
-          .parse(message.payload),
-      );
+    case "sharing":
+      return client.sharing(z.uuid().parse(message.payload));
+    case "publish": {
+      const input = z
+        .object({
+          id: z.uuid(),
+          expectedVersion: z.number().int().min(0),
+          expectedTargetVersion: z.number().int().positive(),
+          duration: z.enum(["1h", "4h", "1d", "1w", "2w", "1mo"]).nullable(),
+        })
+        .strict()
+        .parse(message.payload);
+      const { id: noteId, ...settings } = input;
+      return client.publish(noteId, { ...settings, includeDescendants: false });
+    }
+    case "unshare": {
+      const input = z
+        .object({
+          id: z.uuid(),
+          shareId: z.uuid(),
+          expectedVersion: z.number().int().positive(),
+        })
+        .strict()
+        .parse(message.payload);
+      return client.unshare(input.id, input.shareId, input.expectedVersion);
+    }
     case "reconcile":
       return client.reconcile(id, z.uuid().parse(message.payload));
     case "followSource": {

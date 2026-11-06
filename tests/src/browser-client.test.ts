@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as clientModule from "../../packages/browser-extension/src/client.ts";
+import { userMessage } from "../../packages/browser-extension/src/messages.ts";
 
 test("extension controller preserves reviewed drafts, retries, grants and context versions", async () => {
   assert.equal(typeof clientModule.ExtensionClient, "function");
@@ -183,13 +184,11 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     assert.deepEqual(searches, [
       { query: "everywhere", status: "active", limit: 20, sort: "relevance" },
     ]);
-    const context = await client.context([{ id, version: 1 }]);
-    assert.match(context.text, /Original note/);
-    assert.match(context.text, /https:\/\/grove\.example\/app\/memories\//);
+    assert.equal((await client.read(id)).content, "Original note");
     note.version = 2;
-    await assert.rejects(client.context([{ id, version: 1 }]), /changed/i);
+    assert.equal((await client.read(id)).version, 2);
     note.status = "archived";
-    await assert.rejects(client.context([{ id, version: 2 }]), /unavailable/i);
+    await assert.rejects(client.read(id), /unavailable/i);
     session.delete("identity");
     const beforeMissingIdentity = urls.length;
     await assert.rejects(client.followSource(7, source));
@@ -201,4 +200,128 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
   } finally {
     globalThis.fetch = previous;
   }
+});
+
+test("extension sharing checks approval, preserves uncertain operation IDs and never shares a draft", async () => {
+  const memory = new Map<string, unknown>();
+  const store = {
+    get: async (key: string) => memory.get(key),
+    set: async (key: string, value: unknown) => {
+      memory.set(key, structuredClone(value));
+    },
+    remove: async (key: string) => {
+      memory.delete(key);
+    },
+  };
+  const id = "00000000-0000-4000-a000-000000000003";
+  const calls: { path: string; method: string; body: unknown }[] = [];
+  let allowed = false,
+    lost = true;
+  const previous = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const path = new URL(String(url)).pathname;
+    calls.push({
+      path,
+      method: init?.method ?? "GET",
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    if (path === "/v1/browser/connect")
+      return Response.json({
+        success: true,
+        data: {
+          accountId: "00000000-0000-4000-a000-000000000001",
+          connectionId: "00000000-0000-4000-a000-000000000002",
+          capabilities: ["memory:read"],
+          grant: {
+            personal: true,
+            allProjects: false,
+            projectIds: [],
+            sharingEnabled: allowed,
+          },
+        },
+      });
+    if (init?.method === "POST" && lost) {
+      lost = false;
+      throw new Error("Response lost after acceptance");
+    }
+    return Response.json({
+      success: true,
+      data: {
+        available: true,
+        canShare: true,
+        target: { kind: "note", id, name: "Saved note", version: 1 },
+        direct: null,
+        inherited: [],
+      },
+    });
+  };
+  try {
+    const client = new clientModule.ExtensionClient(
+      {
+        apiOrigin: "https://api.grove.example",
+        siteOrigin: "https://grove.example",
+      },
+      store,
+      store,
+      {
+        bearer: async () => "fixture-token",
+        signIn: async () => "fixture-token",
+        invalidateCredentials: async () => {},
+      },
+    );
+    assert.equal(typeof client.sharing, "function");
+    await assert.rejects(client.sharing(id), /sharing/i);
+    assert.ok(!calls.some((call) => call.path.endsWith("/share")));
+    allowed = true;
+    await client.sharing(id);
+    const input = {
+      expectedVersion: 0,
+      expectedTargetVersion: 1,
+      includeDescendants: false,
+      duration: "1d" as const,
+    };
+    await assert.rejects(client.publish(id, input));
+    await client.publish(id, input);
+    const writes = calls.filter(
+      (call) => call.path.endsWith("/share") && call.method === "POST",
+    );
+    assert.equal(writes.length, 2);
+    assert.deepEqual(
+      writes[0].body,
+      writes[1].body,
+      "a lost response reuses the exact persisted publication request",
+    );
+    assert.ok(
+      !JSON.stringify(writes).includes("content"),
+      "only an already saved note is shared",
+    );
+    await assert.rejects(client.sharing("not-a-note-id"));
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+
+test("extension messages never reveal backend, validation or provider details", () => {
+  const privateDetail =
+    "postgres://private-host token=secret provider=internal-model account=private-id";
+  for (const code of [
+    "unavailable",
+    "invalid_request",
+    "timeout",
+    "sharing_permission_required",
+    "forbidden",
+    "version_conflict",
+    "sharing_unavailable",
+  ])
+    assert.ok(
+      !userMessage({ code, message: privateDetail }).includes(privateDetail),
+    );
+  assert.equal(
+    userMessage({ code: "sharing_permission_required" }),
+    "Allow sharing links in Grove first.",
+  );
+  assert.equal(
+    userMessage(new Error(privateDetail)),
+    "Couldn’t finish. Try again.",
+  );
 });

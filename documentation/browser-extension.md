@@ -8,8 +8,8 @@ listings. Source behavior and installation are described here; the
 
 ## Install and connect
 
-Install only against a compatible deployed API, including migration `037` after
-`036` and the native OAuth-origin admission rule below. Default-origin CI packages
+Install only against a compatible deployed API, including migrations `037`–`039`
+after `036` and the native OAuth-origin admission rule below. Default-origin CI packages
 point at production; passing source CI does not deploy that server. An older API
 rejects extension requests with **Origin is not allowed**, regardless of whether
 the package is signed. Use a custom-origin build for an isolated local stack.
@@ -127,16 +127,17 @@ Explicit rewrites also send bounded context from that same eligible editor:
 the previous/next sentence, surrounding fragments of the containing sentence, and
 whether the selection starts/ends its sentence or paragraph. Each excerpt is capped
 at 500 UTF-16 units, from a window of at most 6,000 units around the selection. No
-other field, page body, URL or notebook is read for this context. **Context shared
-with AI** shows the exact excerpts and position flags before first-use approval
-and during review. Selection/menu opening sends nothing. Synonyms and opposites
+other field, page body, URL or notebook is read for this context. First-use consent
+briefly explains that AI uses the selection and nearby text; the result card shows
+alternatives, not request excerpts or position flags. Selection/menu opening sends
+nothing. Synonyms and opposites
 still send only the selected word. Policy `rewrite-context-v3` requires fresh consent
 instead of silently reusing selection-only approval. The UI and trusted client both
 reject cached selection-only consent before context can leave the browser. Only the selection is replaced;
 surrounding sentences/paragraphs are reference, not output.
 
 Grove requests three distinct alternatives and accepts two or three after validation.
-The unchanged original stays visible. Click an alternative to replace only the
+The editor remains unchanged until a choice is made. Click an alternative to replace only the
 current selection and copy it in the same click, with native Undo. **Copy** alone
 does not edit; **Close** dismisses the card. Clipboard failure never rolls back a
 successful replacement or reports copy success. Editing, disabling AI
@@ -176,20 +177,28 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   bar clears results without a request. Enter retries immediately. Old responses
   cannot replace newer results, including after pause or sign-out. **Show more**
   uses the server cursor for the same query; unchanged rows stay mounted. Failures
-  retain previous results, label them stale and offer **Retry search**.
+  retain previous results, label them stale and offer **Retry search**. Results
+  show bounded, noninteractive Markdown previews, omitting raw HTML. Each has one **Note actions**
+  menu with **Open**, **Copy** and **Share**; there are no selection checkboxes or
+  bulk actions. Arrow keys, Escape and outside clicks work without moving the list.
 - **Read and copy:** opening a result rechecks access and renders its Markdown/GFM
   document: headings, lists, checklists, tables, quotes, code and safe links.
   **Copy note** rechecks its version before copying the original Markdown;
   **Open in Grove** opens the full editor. HTML remains literal text, unsafe links
   are inert and images/media never load automatically. PDF/Word originals are not
   fetched or extracted in the extension; previously imported Markdown is readable.
-- **Copy notes:** select up to six notes, review the exact text/source links and confirm
-  sharing before copying. The aggregate is limited to 6,000 characters. Copy rechecks
-  access, lifecycle and versions; changed sources require a fresh review. Clipboard
-  failure leaves the reviewed text available for manual copying. Nothing is inserted
-  into another website or submitted to a model.
-- **Settings**, last in navigation, shows access and privacy, with connection IDs and
-  storage details behind disclosures. Unconfirmed saves show recovery actions; a
+- **Share:** choose Share from a result's menu or reader, or **Save & share** in Notes.
+  A new note saves first; changed/uncertain drafts cannot publish an older snapshot.
+  The compact dialog rechecks the saved note, offers link expiry (initially one week), and creates a
+  public read-only link only after **Create link**. Copy rechecks current sharing
+  access; Copy and **Turn off link** reuse
+  the existing sharing lifecycle. Unknown outcomes offer **Check sharing**, not an
+  automatic second publication. Sharing needs its own owner-approved **Allow sharing
+  links for accessible notes** permission in Grove Connections; note access alone
+  is insufficient. See [sharing](sharing.md#extension-note-links).
+- **Settings**, last in navigation, provides appearance, writing options, account
+  access and a short privacy summary. IDs, backend addresses, storage/worker details
+  and raw provider/validation errors are not shown. Unconfirmed saves show recovery actions; a
   confirmed receipt removes the corresponding pending item. Access management,
   notebook discovery, refresh and sign-out remain available. The last chosen
   destination is remembered per API/account; existing drafts take precedence.
@@ -197,7 +206,7 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   one home in the persistent header. Search has one result list and copy action.
 
 Notes opens directly to the editor. Save outcome and newer unsaved edits
-remain visible; exact version/indexing metadata is available under **Save details**.
+remain visible without version/indexing diagnostics.
 There are no source-link fields. Mounted approved panels follow source metadata
 locally until the first edit pins it; only explicit Save transmits it. Context-menu
 captures keep their original event source. Unknown/failed-save
@@ -212,7 +221,7 @@ There is no second enable/resume control to keep in sync. Turning Grove
 off persists on this device across panel reloads and browser restarts, removes its
 context-menu entries and adds an **OFF** toolbar badge. The toolbar/shortcut still
 opens the native panel so Grove can be turned on again. Off blocks extension API
-requests, sign-in/refresh, captures, search, reads, source attachment and context copy
+requests, sign-in/refresh, captures, search, reads, source attachment and sharing
 in the trusted background, not only through disabled buttons. Opening an off panel
 does not authenticate or contact Grove. Appearance and Settings remain available.
 
@@ -229,8 +238,9 @@ The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
 their previous scroll position. Switches work with the keyboard and retain focus.
 Search preserves its input/results when switching views. Unchanged rows remain
-mounted during refresh. Copy review appears only after selection,
-and still requires explicit consent and current-version/access checks before copy.
+mounted during refresh. Per-note actions recheck access and saved versions; a
+focused action menu returns focus to its trigger, and sharing never publishes
+just because its dialog opened.
 
 Internal/file pages cannot be attached; private browsing is disabled. An untouched
 draft clears its automatic source when a readable web URL is unavailable; edited
@@ -300,8 +310,8 @@ of at most 4,000 units each. Requests contain an operation UUID, editor-session 
 `language: en`, explicit tool and selected text in the `sentence` field. Optional
 rewrite `context` contains only four bounded excerpts plus sentence/paragraph
 start/end flags, never separate browser metadata or retrieved notes. Excerpts may
-contain anything the user typed, including a URL or private detail; review them
-before approval. Context shares encrypted staging, exact replay
+contain anything the user typed, including a URL or private detail. First-use
+approval explicitly covers nearby text. Context shares encrypted staging, exact replay
 identity and expiry with the selection; opaque queue payloads remain unchanged.
 Synonyms/opposites require one word of at most 80 units and reject context;
 their returned alternatives are also limited to 80 units. Other tools use one sentence.
@@ -453,7 +463,7 @@ imports and exercise exports in a sandbox without Node globals, DOM or fetch.
 Runtime/package checks also validate deterministic ZIPs/manifests/CSP, trusted
 messages, off-state request/menu enforcement and storage feedback. Installed Chromium journeys exercise the real
 package with synthetic HTTP/auth, native panel calls, retry, reading/copying,
-lookup, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
+sharing, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
 keyboard-switch focus and 320/390/768px accessibility/overflow (including short
 windows and dark Settings). Set
 `EXTENSION_EDGE_BINARY` to an actual Edge executable for its supplemental host run;
@@ -461,7 +471,7 @@ that run checks API acceptance, not the unobserved Edge `onOpened` event.
 
 `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 python scripts/testing/browser-extension-firefox.py`
 uses an isolated native Firefox profile and temporary add-on to check installation,
-native sidebar, capture, search and context with synthetic HTTP/auth. This variable
+native sidebar, capture, formatted search and reader/copy with synthetic HTTP/auth. This variable
 permits test automation of that disposable browser only, not application privilege.
 Firefox packaging can also be checked with `pnpm dlx web-ext@10.8.0 lint --source-dir
 packages/browser-extension/dist/firefox`. [Visual evidence](design/screenshots/browser-extension/README.md)
@@ -469,11 +479,13 @@ states the exact host/source and remaining limits.
 
 ## Rollout and acceptance boundaries
 
-Apply migrations `037` and `038` as explicit forward-only owner operations after `036`,
+Apply migrations `037`–`039` as explicit forward-only owner operations after `036`,
 deploy the compatible API/worker, then distribute a matching extension. Source CI
 does not do this rollout. Configure optional AI staging/disclosure only after reviewing
 the actual generation provider and retention; keep connection writing permission off
-until explicitly approved. Local checking needs neither provider nor writing secrets.
+until explicitly approved. Sharing permission likewise defaults off and needs
+separate owner approval; reading alone never authorizes publication. Local checking
+needs neither provider nor writing secrets.
 Existing stores/provider registration and production
 schema are not modified by build or tests. Store identities/signing, real native
 OAuth consent/redirect/refresh, authenticated cross-origin production requests, supported
@@ -487,24 +499,24 @@ Do not advertise signed/store availability or a proven under-one-minute setup.
 ### Offline store/reviewer handoff
 
 The package name is **Grove — private notes**. Suggested listing summary:
-“Save reviewed notes and sources, search your Grove notebooks, and copy selected
-context.” List only the five panel features above; do not promise full-page import,
+“Save notes and sources, search your Grove notebooks, and share a thought.”
+List only documented panel features; do not promise full-page import,
 AI summaries, chat extraction, Safari/mobile, offline search or signed availability.
 The product homepage is `https://usegrove.cloud`; legal/privacy declarations and
 store-owned support fields need operator review before submission.
 
-| Permission             | Purpose                                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| `identity`             | Native public-client OAuth sign-in                                                     |
-| `storage`              | Trusted session drafts/tokens; bounded public/opaque local state                       |
-| `activeTab`            | User-invoked current-page URL/title, never site scraping                               |
-| `tabs`                 | Local active-tab source following in mounted approved panels, never history collection |
-| `contextMenus`         | Explicit selection/link/page review inbox                                              |
-| `clipboardWrite`       | Copy reviewed context or an explicitly chosen alternative; never read the clipboard    |
-| `scripting`            | Attach bundled local checks to already-open normal tabs; inspect no excluded fields    |
-| HTTP(S) hosts          | Default-on local writing, subject to native grants and browser/domain opt-outs         |
-| `sidePanel` (Chromium) | Native persistent panel                                                                |
-| Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                              |
+| Permission             | Purpose                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| `identity`             | Native public-client OAuth sign-in                                                      |
+| `storage`              | Trusted session drafts/tokens; bounded public/opaque local state                        |
+| `activeTab`            | User-invoked current-page URL/title, never site scraping                                |
+| `tabs`                 | Local active-tab source following in mounted approved panels, never history collection  |
+| `contextMenus`         | Explicit selection/link/page review inbox                                               |
+| `clipboardWrite`       | Copy one note, a sharing link or a chosen writing alternative; never read the clipboard |
+| `scripting`            | Attach bundled local checks to already-open normal tabs; inspect no excluded fields     |
+| HTTP(S) hosts          | Default-on local writing, subject to native grants and browser/domain opt-outs          |
+| `sidePanel` (Chromium) | Native persistent panel                                                                 |
+| Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                               |
 
 Firefox declares authentication information, website content, browsing activity
 and search terms for user-invoked transmission. There is no analytics or automatic
@@ -515,8 +527,9 @@ Reviewer checklist: install the matching package; check an eligible textarea whi
 signed out; disable checks browser-wide and for a domain plus its subdomains;
 verify sensitive-field exclusions and correction copy/replace/Undo. Sign in with an operator-approved
 disposable identity; approve a narrow Personal/notebook read/write grant; create a
-note and review a selection/link capture; search/read it; explicitly look up its
-source URL; review/copy selected context; verify read-only/revoked access, unknown-save
+note and review a selection/link capture; search/read/copy it with its result menu;
+approve sharing separately and create/copy/revoke a disposable note link; verify
+read-only/revoked access, unknown-save
 recovery and sign-out across panels. Reopen after a browser restart and sign in
 again, reconciling any opaque receipts before repeating a save. Never put reviewer
 credentials in the package, repository, PR or local plans. Store submission,

@@ -50,9 +50,7 @@ if (!environment.groveWritingInstalled) {
       ...(kind.startsWith("writingAI") && binding ? { binding } : {}),
     })) as { ok: boolean; data: T; error?: { message?: string } };
     if (!result?.ok)
-      throw new Error(
-        result?.error?.message ?? "Writing checks are unavailable.",
-      );
+      throw new Error("Writing checks aren’t available. Try again.");
     return result.data;
   }
   function detach() {

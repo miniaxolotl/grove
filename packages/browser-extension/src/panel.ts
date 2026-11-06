@@ -3,7 +3,9 @@ import { unavailableWriting } from "@lib/shared/writing-assistance";
 import type { CaptureDraft } from "./drafts.ts";
 import { formatCaptureDraft } from "./drafts.ts";
 import type { ExtensionClient } from "./client.ts";
-import { renderNote, noteSummary } from "./reader.ts";
+import { renderNote } from "./reader.ts";
+import { ShareController } from "./sharing.ts";
+import { userMessage } from "./messages.ts";
 import { nativeBrowser as host, extensionConfig } from "./webextension.ts";
 import { WritingController } from "./writing/controller.ts";
 import {
@@ -75,11 +77,11 @@ const writingController = new WritingController(
         : result?.issues.length
           ? `${result.issues.length} suggestion${result.issues.length === 1 ? "" : "s"}`
           : "Check writing";
-      button.title =
-        error ??
-        (result && !result.complete
+      button.title = error
+        ? "Writing checks are unavailable. Try again."
+        : result && !result.complete
           ? "Text after 6,000 characters is unchecked."
-          : "Spelling and basic grammar · Alt+Enter");
+          : "Spelling and basic grammar · Alt+Enter";
       button.hidden =
         !error &&
         !result?.issues.length &&
@@ -263,21 +265,22 @@ let composingSearch = false;
 let draftRevision = 0;
 let readerNote: Memory | undefined;
 let readerRevision = 0;
+let savingCapture = false;
 let notebookCursor: string | null = null;
-const selected = new Map<string, { id: string; version: number }>();
 const renderedNotes = new WeakMap<HTMLElement, Memory>();
 const scrollPositions = new Map<string, number>();
-let preparedContext:
-  | { text: string; items: { id: string; version: number }[] }
-  | undefined;
 let editTail: Promise<unknown> = Promise.resolve(),
   replaceAction: (() => Promise<void>) | undefined;
-const selections = () => [...selected.values()];
 const approved = () =>
   state?.identity.capabilities.some((cap) =>
     ["memory:read", "memory:write"].includes(cap),
   ) ?? false;
 const recallView = () => view === "search";
+const sharing = new ShareController({
+  rpc,
+  siteOrigin: extensionConfig.siteOrigin,
+  approvalUrl,
+});
 function closeDialogs() {
   for (const dialog of document.querySelectorAll("dialog")) dialog.close();
 }
@@ -304,10 +307,9 @@ async function rpc<T>(kind: string, payload?: unknown): Promise<T> {
     error?: { message: string; code: string; status: number };
   };
   if (!result?.ok)
-    throw new Error(
-      result?.error?.message ??
-        "Grove is unavailable. Reopen the panel and try again.",
-    );
+    throw Object.assign(new Error(userMessage(result?.error)), {
+      code: result?.error?.code,
+    });
   if (
     epoch !== sessionEpoch &&
     !["logout", "configure", "preferences"].includes(kind)
@@ -327,7 +329,7 @@ async function action(run: () => Promise<void>) {
     notice();
     await run();
   } catch (error) {
-    notice(error instanceof Error ? error.message : "Grove is unavailable.");
+    notice(userMessage(error));
   }
 }
 function on(id: string, run: () => Promise<void>) {
@@ -338,6 +340,12 @@ function on(id: string, run: () => Promise<void>) {
 function show(next: string) {
   const main = document.querySelector("main")!;
   const switched = next !== view;
+  if (switched)
+    document
+      .querySelectorAll<HTMLDetailsElement>(".note-menu[open]")
+      .forEach((menu) => {
+        menu.open = false;
+      });
   if (switched) scrollPositions.set(view, main.scrollTop);
   view = next;
   document
@@ -381,9 +389,9 @@ function paintPreferences(next: Preferences) {
   $("signout-settings").hidden = !state;
   if (state)
     $("connection-state").textContent = !next.enabled
-      ? "Paused · sign-in retained"
+      ? "Paused"
       : approved()
-        ? "Connected to Grove"
+        ? "Signed in"
         : "Awaiting your approval";
   $<HTMLButtonElement>("refresh").disabled = !next.enabled;
   $<HTMLButtonElement>("notebooks-more").disabled = !next.enabled;
@@ -394,7 +402,6 @@ function paintPreferences(next: Preferences) {
       resultState.status = "Search paused. Earlier results below.";
       resultState.cursor = null;
     }
-    preparedContext = undefined;
     closeDialogs();
   }
   show(view);
@@ -464,7 +471,7 @@ function paintDraft(draft: CaptureDraft, fields = true) {
   if (state) state.draft = draft;
   if (fields) {
     $("note").dataset.loaded = "true";
-    $("writing-hint").textContent = "Markdown supported";
+    $("writing-hint").textContent = "";
     $<HTMLTextAreaElement>("note").value = draft.text;
     $<HTMLSelectElement>("destination").value = draft.projectId ?? "";
   }
@@ -514,15 +521,21 @@ function paintDraft(draft: CaptureDraft, fields = true) {
         row.remove();
     $("recovery-settings").hidden = !state.pending.length;
   }
-  $("save-details").hidden = save?.status !== "saved";
-  $("save-version").textContent =
-    save?.status === "saved" ? String(save.receipt.version) : "";
-  $("save-indexing").textContent =
-    save?.status === "saved" ? save.receipt.indexing : "";
+  $("share-draft").textContent =
+    save?.status === "saved" && !changedSinceSave ? "Share" : "Save & share";
+  $<HTMLButtonElement>("share-draft").disabled =
+    !!save && save.status !== "saved";
   count();
   if (fields) writingController.refresh();
 }
 function count() {
+  const share = $<HTMLButtonElement>("share-draft");
+  share.disabled =
+    savingCapture ||
+    !state?.identity.capabilities.includes("memory:write") ||
+    !state.identity.capabilities.includes("memory:read") ||
+    (!!state.draft?.save && state.draft.save.status !== "saved") ||
+    (!$<HTMLTextAreaElement>("note").value.trim() && !state.draft?.source);
   $("new-note").hidden =
     !state?.draft || state.draft.sourceMode === "automatic";
   if (!$<HTMLTextAreaElement>("note").value.trim() && !state?.draft?.source) {
@@ -551,8 +564,8 @@ function persist(changes: {
       const draft = await rpc<CaptureDraft>("edit", pinned);
       paintDraft(draft, false);
     });
-  void editTail.catch((error) =>
-    notice(`Draft was not stored: ${error.message}`),
+  void editTail.catch(() =>
+    notice("Couldn’t keep this draft. Leave it open and try again."),
   );
 }
 async function followSource() {
@@ -613,20 +626,6 @@ async function refresh() {
     );
   $<HTMLButtonElement>("save").disabled =
     !state.identity.capabilities.includes("memory:write");
-  $("account-id").textContent = state.identity.accountId;
-  $("capabilities").textContent =
-    state.identity.capabilities
-      .map(
-        (cap) =>
-          (
-            ({
-              "memory:read": "Read notes",
-              "memory:write": "Save notes",
-              "memory:delete": "Delete notes",
-            }) as Record<string, string>
-          )[cap] ?? cap,
-      )
-      .join(" · ") || "Awaiting approval";
   const pending = $("pending-list");
   pending.replaceChildren();
   for (const item of state.pending) {
@@ -643,7 +642,7 @@ async function refresh() {
           "reconcile",
           item.operationId,
         );
-        label.textContent = `Saved · version ${saved.version}`;
+        label.textContent = "Saved.";
         check.remove();
         const link = document.createElement("a");
         link.href = noteUrl(saved.noteId);
@@ -717,25 +716,9 @@ function emptyResults() {
 let resultState = emptyResults();
 function clearRecall() {
   cancelSearch();
-  selected.clear();
-  preparedContext = undefined;
   resultState = emptyResults();
   $("results").replaceChildren();
-  updateContextAction();
   closeDialogs();
-}
-function updateContextAction() {
-  $("context-actions").hidden = !selected.size;
-  if (recallView())
-    $("results-status").textContent = selected.size
-      ? `${selected.size} selected${resultState.status.includes("stale") ? " · stale results" : ""}`
-      : resultState.status;
-  $("review-context").textContent =
-    `Copy ${selected.size === 1 ? "note" : `${selected.size} notes`}`;
-  document.querySelectorAll<HTMLElement>(".note-row").forEach((row) => {
-    row.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked =
-      selected.has(row.dataset.id!);
-  });
 }
 function sameNote(previous: Memory | undefined, note: Memory) {
   return (
@@ -768,7 +751,6 @@ function paintResults() {
     existing.delete(note.id);
   });
   existing.forEach((row) => row.remove());
-  updateContextAction();
 }
 function cancelSearch() {
   clearTimeout(searchTimer);
@@ -783,8 +765,6 @@ function scheduleSearch(immediate = false) {
   $("search-retry").hidden = true;
   if (!query) {
     resultState = emptyResults();
-    selected.clear();
-    preparedContext = undefined;
     paintResults();
     return;
   }
@@ -847,36 +827,19 @@ function noteRow(note: Memory) {
   row.className = "note-row";
   row.dataset.id = note.id;
   renderedNotes.set(row, note);
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.checked = selected.has(note.id);
-  checkbox.setAttribute(
-    "aria-label",
-    `Select note to copy: ${note.content.slice(0, 70)}`,
-  );
-  checkbox.onchange = () => {
-    if (checkbox.checked) {
-      if (selected.size >= 6) {
-        checkbox.checked = false;
-        notice("Choose up to six notes to copy together.");
-        return;
-      }
-      selected.set(note.id, { id: note.id, version: note.version });
-    } else selected.delete(note.id);
-    updateContextAction();
-  };
   const body = document.createElement("div"),
     button = document.createElement("button"),
-    title = document.createElement("span"),
-    excerpt = document.createElement("span"),
+    preview = document.createElement("div"),
+    actions = document.createElement("div"),
     meta = document.createElement("p");
-  const summary = noteSummary(note.content);
-  title.className = "note-title";
-  title.textContent = summary.title;
-  excerpt.className = "excerpt";
-  excerpt.textContent = summary.excerpt;
-  excerpt.hidden = !summary.excerpt;
-  button.append(title, excerpt);
+  preview.className = "note-document note-preview";
+  preview.append(
+    renderNote(note.content.slice(0, 1600), noteUrl(note.id), document, true),
+  );
+  actions.className = "note-actions";
+  actions.setAttribute("role", "menu");
+  button.textContent = "Open";
+  button.className = "quiet open-note";
   button.onclick = () => {
     const revision = ++readerRevision;
     void action(async () => {
@@ -902,22 +865,121 @@ function noteRow(note: Memory) {
     month: "short",
     day: "numeric",
   });
-  body.append(button, meta);
-  row.append(checkbox, body);
+  const copy = document.createElement("button"),
+    share = document.createElement("button"),
+    feedback = document.createElement("p");
+  copy.textContent = "Copy";
+  copy.className = "quiet";
+  copy.onclick = () => {
+    void action(async () => {
+      const current = await rpc<Memory>("read", note.id);
+      if (current.version !== note.version) {
+        feedback.textContent = "Note changed. Refresh to copy.";
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(current.content);
+        feedback.textContent = "Copied.";
+      } catch {
+        feedback.textContent = "Couldn’t copy. Open the note to try again.";
+      }
+    });
+  };
+  share.textContent = "Share";
+  share.className = "quiet";
+  share.onclick = () => {
+    void sharing.open(note.id);
+  };
+  feedback.className = "row-feedback";
+  feedback.setAttribute("role", "status");
+  actions.append(button, copy, share);
+  const menu = document.createElement("details"),
+    trigger = document.createElement("summary"),
+    footer = document.createElement("div");
+  menu.className = "note-menu";
+  trigger.textContent = "•••";
+  trigger.setAttribute("role", "button");
+  trigger.setAttribute("aria-label", "Note actions");
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+  for (const action of [button, copy, share]) {
+    action.setAttribute("role", "menuitem");
+    action.addEventListener(
+      "click",
+      () => {
+        menu.open = false;
+        trigger.focus({ preventScroll: true });
+      },
+      { capture: true },
+    );
+  }
+  menu.append(trigger, actions);
+  menu.addEventListener("toggle", () => {
+    trigger.setAttribute("aria-expanded", String(menu.open));
+    if (!menu.open) return;
+    document
+      .querySelectorAll<HTMLDetailsElement>(".note-menu[open]")
+      .forEach((other) => {
+        if (other !== menu) other.open = false;
+      });
+    const rect = trigger.getBoundingClientRect();
+    actions.style.top = rect.top < actions.offsetHeight + 16 ? "100%" : "auto";
+    actions.style.bottom =
+      rect.top < actions.offsetHeight + 16 ? "auto" : "100%";
+  });
+  menu.addEventListener("keydown", (event) => {
+    const items = [button, copy, share];
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      menu.open = false;
+      trigger.focus({ preventScroll: true });
+    } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+      event.preventDefault();
+      menu.open = true;
+      items[
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? 2
+            : index < 0
+              ? event.key === "ArrowUp"
+                ? 2
+                : 0
+              : (index + (event.key === "ArrowUp" ? -1 : 1) + items.length) %
+                items.length
+      ].focus({ preventScroll: true });
+    }
+  });
+  menu.addEventListener("focusout", (event) => {
+    if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
+  });
+  footer.className = "note-footer";
+  footer.append(meta, menu);
+  body.append(preview, footer, feedback);
+  row.append(body);
   return row;
 }
 document
   .querySelectorAll<HTMLElement>("[data-nav]")
   .forEach((el) => el.addEventListener("click", () => show(el.dataset.nav!)));
-on("clear-selection", async () => {
-  selected.clear();
-  updateContextAction();
-  $<HTMLInputElement>("query").focus();
+document.addEventListener("pointerdown", (event) => {
+  document
+    .querySelectorAll<HTMLDetailsElement>(".note-menu[open]")
+    .forEach((menu) => {
+      if (!menu.contains(event.target as Node)) menu.open = false;
+    });
 });
 on("dismiss-notice", async () => notice());
 $("capture-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  void action(async () => {
+  void action(saveCapture);
+});
+async function saveCapture() {
+  if (savingCapture) throw new Error("Wait for the save to finish.");
+  savingCapture = true;
+  $<HTMLButtonElement>("share-draft").disabled = true;
+  try {
     await editTail;
     if (!state?.draft?.save || state.draft.save.status === "saved") {
       paintDraft(
@@ -944,10 +1006,36 @@ $("capture-form").addEventListener("submit", (event) => {
     } finally {
       button.disabled = !state?.identity.capabilities.includes("memory:write");
     }
-  });
+  } finally {
+    savingCapture = false;
+    if (state?.draft) paintDraft(state.draft, false);
+  }
+}
+on("share-draft", async () => {
+  await editTail;
+  if (state?.draft?.save && state.draft.save.status !== "saved") {
+    notice("Check the earlier save before sharing.");
+    return;
+  }
+  await saveCapture();
+  const draft = state?.draft;
+  if (
+    draft?.save?.status !== "saved" ||
+    draft.save.request.content !==
+      formatCaptureDraft({
+        ...draft,
+        text: $<HTMLTextAreaElement>("note").value,
+      }) ||
+    draft.save.request.projectId !==
+      ($<HTMLSelectElement>("destination").value || null)
+  ) {
+    notice("Save your changes before sharing.");
+    return;
+  }
+  await sharing.open(draft.save.receipt.noteId);
 });
 $("note").addEventListener("input", () => {
-  $("writing-hint").textContent = "Markdown supported";
+  $("writing-hint").textContent = "";
   count();
   persist({ text: $<HTMLTextAreaElement>("note").value });
 });
@@ -987,38 +1075,6 @@ $("query").addEventListener("compositionend", () => {
 });
 on("search-retry", async () => scheduleSearch(true));
 on("results-more", () => find(true));
-on("review-context", async () => {
-  preparedContext = await rpc("context", selections());
-  $<HTMLTextAreaElement>("context-text").value = preparedContext!.text;
-  $<HTMLInputElement>("copy-consent").checked = false;
-  $<HTMLButtonElement>("copy").disabled = true;
-  $("copy-state").textContent = "";
-  $<HTMLDialogElement>("context").showModal();
-});
-$("copy-consent").addEventListener("change", () => {
-  $<HTMLButtonElement>("copy").disabled =
-    !$<HTMLInputElement>("copy-consent").checked;
-});
-on("copy", async () => {
-  if (!preparedContext || !$<HTMLInputElement>("copy-consent").checked) return;
-  const fresh = await rpc<typeof preparedContext>(
-    "context",
-    preparedContext.items,
-  );
-  if (fresh.text !== preparedContext.text)
-    throw new Error(
-      "A selected note changed. Close this and check the notes again.",
-    );
-  try {
-    await navigator.clipboard.writeText(fresh.text);
-    $("copy-state").textContent = "Copied. Ready to paste.";
-  } catch {
-    $("copy-state").textContent =
-      "Clipboard unavailable. Select the reviewed text above and copy it manually.";
-    $<HTMLTextAreaElement>("context-text").focus();
-    $<HTMLTextAreaElement>("context-text").select();
-  }
-});
 on("close-reader", async () => {
   $<HTMLDialogElement>("reader").close();
 });
@@ -1040,9 +1096,8 @@ on("copy-note", async () => {
       "Could not copy. Open in Grove to copy this note.";
   }
 });
-on("close-context", async () => {
-  $<HTMLDialogElement>("context").close();
-  preparedContext = undefined;
+on("share-reader", async () => {
+  if (readerNote) await sharing.open(readerNote.id);
 });
 on("login", async () => {
   const button = $<HTMLButtonElement>("login");
@@ -1093,18 +1148,14 @@ function clearSessionView() {
   delete $("note").dataset.loaded;
   $("inbox-list").replaceChildren();
   $("pending-list").replaceChildren();
-  for (const id of ["query", "context-text"])
-    $<HTMLInputElement>(id).value = "";
+  for (const id of ["query"]) $<HTMLInputElement>(id).value = "";
   $("reader-content").textContent = "";
   $("reader-meta").textContent = "";
   $("save-state").textContent = "";
   $("search-retry").hidden = true;
-  $("save-details").hidden = true;
   $("saved-link").hidden = true;
   $("inbox").hidden = true;
-  $("account-id").textContent = "";
   $("connection-state").textContent = "";
-  $("capabilities").textContent = "";
   paintPreferences(preferences);
 }
 on("logout", async () => {
@@ -1150,11 +1201,11 @@ host.storage.onChanged.addListener((changes, area) => {
     writingController.refreshTools();
   }
   const entry = changes[`entryError:${windowId}`];
-  if (entry?.newValue) notice(String(entry.newValue));
+  if (entry?.newValue) notice("Couldn’t prepare that note. Try again.");
 });
 host.tabs.onActivated.addListener((info) => {
   if (info.windowId === windowId)
-    void followSource().catch((error) => notice(error.message));
+    void followSource().catch(() => notice("Couldn’t update page details."));
 });
 host.tabs.onUpdated.addListener((_id, changes, tab) => {
   if (
@@ -1164,14 +1215,9 @@ host.tabs.onUpdated.addListener((_id, changes, tab) => {
       changes.title !== undefined ||
       changes.status === "complete")
   )
-    void followSource().catch((error) => notice(error.message));
+    void followSource().catch(() => notice("Couldn’t update page details."));
 });
 $<HTMLAnchorElement>("home").href = extensionConfig.siteOrigin;
-$("api-origin").textContent = extensionConfig.apiOrigin;
-$("browser-panel").textContent =
-  extensionConfig.target === "firefox"
-    ? "Firefox sidebar · Alt+Shift+G"
-    : `${extensionConfig.target === "edge" ? "Edge" : "Chrome"} side panel · Alt+Shift+G`;
 on("extension-toggle", () => configure({ enabled: !preferences.enabled }));
 const ruleNames: Record<(typeof writingRules)[number], string> = {
   brackets: "Matching brackets",
@@ -1273,9 +1319,7 @@ async function connectView() {
   } catch (error) {
     if (!state) {
       show(view);
-      notice(
-        error instanceof Error ? error.message : "Sign in to connect Grove.",
-      );
+      notice(userMessage(error, "Sign in to connect Grove."));
     } else throw error;
   }
 }
@@ -1293,7 +1337,7 @@ void action(async () => {
   ]);
   const error = entry[key] ?? globalEntry["entryError:0"];
   if (typeof error === "string") {
-    notice(error);
+    notice("Couldn’t prepare that note. Try again.");
     await host.storage.session.remove(
       entry[key] !== undefined ? key : "entryError:0",
     );

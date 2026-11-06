@@ -78,8 +78,34 @@ See the [reader screenshots](design/screenshots/shared-readers/README.md).
 
 ## API contract
 
-Management requires the owning **website session**; API keys and OAuth grants
-cannot publish content, even with every memory capability.
+Management requires the owning **website session**, except for explicitly delegated
+single-note sharing described below. API keys and ordinary OAuth grants cannot
+publish content, even with every memory capability.
+
+### Extension note links
+
+The browser extension offers Share from each Search result's action menu and reader,
+and Save & share from Notes. Opening the dialog does not publish. The saved note is
+reloaded before an explicit Create link, with the normal target/share version fences,
+expiry, replay and revocation behavior. Draft changes during saving block sharing
+that older snapshot. Existing links can be copied or turned off in place. A lost
+response offers Check sharing; it is not silently repeated. Clipboard failure selects
+the real link for manual copying and never reports success.
+
+An owning session must explicitly enable `sharingEnabled` for the OAuth connection;
+it defaults off and is separate from reading/saving and AI permission. Each request
+rechecks live connection authorization, `memory:read`, account lifecycle and the
+note's exact current personal/notebook scope in the same transaction. Native grants
+can manage only direct note links, never notebook links or inherited notebook
+metadata. Removing permission/scope stops further management; it does not revoke
+already-public links. Owners can always revoke those in Grove. API keys remain denied.
+
+Forward migration `20261106_039_native_note_sharing` adds only the default-off
+connection flag after `038`; existing connections, retained link secrets and RLS
+are preserved. Apply it before compatible API/worker rollout. No new OAuth scope,
+background service or sharing key is introduced. Link management is a bounded atomic
+database operation, not remote/background work. Real sharing/provider acceptance
+still requires separate rollout verification.
 
 | Route                                                     | Purpose / request                                                                                                                                             |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -75,7 +75,7 @@
                 aria-label="Check writing"
               >
                 Check writing</button
-              ><span id="writing-hint" role="status">Markdown supported</span
+              ><span id="writing-hint" role="status" hidden></span
               ><span id="length">0 / 6,000</span>
             </div>
             <details id="note-details">
@@ -93,20 +93,13 @@
             </details>
             <div class="actions">
               <button id="save" type="submit" class="primary">Save note</button
+              ><button id="share-draft" type="button" class="quiet">
+                Save &amp; share</button
               ><a id="saved-link" hidden target="_blank" rel="noreferrer"
                 >Open saved note</a
               >
             </div>
             <p id="save-state" class="feedback" role="status"></p>
-            <details id="save-details" hidden>
-              <summary>About this save</summary>
-              <dl class="field-stack">
-                <dt>Version</dt>
-                <dd id="save-version"></dd>
-                <dt>Search availability</dt>
-                <dd id="save-indexing"></dd>
-              </dl>
-            </details>
           </form>
         </section>
         <section data-view="search" hidden aria-labelledby="search-title">
@@ -127,10 +120,6 @@
           <div class="between result-heading">
             <h2 id="results-title" class="sr-only">Your notes</h2>
             <p id="results-status" class="feedback muted" role="status"></p>
-            <div id="context-actions" class="context-actions" hidden>
-              <button id="clear-selection" class="quiet">Deselect</button>
-              <button id="review-context">Copy notes</button>
-            </div>
           </div>
           <button id="search-retry" class="quiet" hidden>Retry search</button>
           <div id="results" class="results"></div>
@@ -171,18 +160,13 @@
                 ><span>Basic grammar</span
                 ><input id="writing-grammar" type="checkbox" role="switch"
               /></label>
-              <p class="muted small">Local checks. No sign-in needed.</p>
               <label class="writing-option"
                 ><span>AI writing tools</span
                 ><input id="writing-ai-rewrites" type="checkbox" role="switch"
               /></label>
-              <p class="muted small">
-                Rewrites use your selection and nearby sentence excerpts. Word
-                choices send only the selected word. Nothing is sent until you
-                choose a tool and approve AI use.
-              </p>
+              <p class="muted small">AI runs only when you choose it.</p>
               <details>
-                <summary>Advanced</summary>
+                <summary>More writing options</summary>
                 <label class="writing-option"
                   ><span>Check as I type</span
                   ><input id="writing-automatic" type="checkbox" role="switch"
@@ -211,7 +195,7 @@
                 </button>
               </details>
               <details>
-                <summary>Domain exceptions</summary>
+                <summary>Skipped websites</summary>
                 <form id="writing-domain-form">
                   <label for="writing-domain">Domain to skip</label>
                   <div class="joined">
@@ -227,9 +211,7 @@
                     Use current domain
                   </button>
                 </form>
-                <p class="muted small">
-                  Includes all subdomains. Sensitive fields are always excluded.
-                </p>
+                <p class="muted small">Also skips subdomains.</p>
                 <div id="writing-sites"></div>
               </details>
               <p
@@ -244,31 +226,18 @@
           class="settings-section"
           aria-labelledby="connection-settings-title"
         >
-          <h2 id="connection-settings-title">Your connection</h2>
+          <h2 id="connection-settings-title">Account</h2>
           <p id="connection-help" class="muted small">
             Sign in to save and find your notes.
           </p>
           <div id="connection-settings" hidden>
-            <p id="capabilities" class="muted"></p>
+            <p id="connection-state" class="muted"></p>
             <div class="actions">
               <a class="button approval-link" target="_blank" rel="noreferrer"
-                >Choose notebook access</a
-              ><button id="refresh" class="quiet">Check connection</button>
+                >Manage access</a
+              ><button id="refresh" class="quiet">Refresh</button>
             </div>
             <button id="notebooks-more" hidden>Load more notebooks</button>
-            <details>
-              <summary>Connection details</summary>
-              <dl class="field-stack">
-                <dt>Connection</dt>
-                <dd id="connection-state"></dd>
-                <dt>API</dt>
-                <dd id="api-origin"></dd>
-                <dt>Account ID</dt>
-                <dd id="account-id"></dd>
-                <dt>Browser panel</dt>
-                <dd id="browser-panel"></dd>
-              </dl>
-            </details>
           </div>
         </section>
         <section
@@ -288,25 +257,9 @@
         <section class="settings-section" aria-labelledby="privacy-title">
           <h2 id="privacy-title">Privacy</h2>
           <p class="muted">
-            Local checks stay on this device. Page links are added only when you
-            save.
+            Spelling and grammar stay on your device. You choose what to save or
+            share.
           </p>
-          <details>
-            <summary>What stays in this browser</summary>
-            <p class="muted small field-stack">
-              Drafts and sign-in tokens stay in browser session storage. Drafts
-              expire after 24 hours and are cleared when their window closes.
-              Unconfirmed saves keep an opaque recovery receipt for seven days.
-            </p>
-            <p class="muted small">
-              Turning Grove off does not cancel submitted saves or revoke
-              access.
-            </p>
-            <p class="muted small">
-              Signing out clears session drafts and tokens, not your saved Grove
-              notes or the public registration and recovery receipts.
-            </p>
-          </details>
         </section>
         <div id="signout-settings" hidden>
           <button id="logout">Sign out</button>
@@ -333,6 +286,7 @@
       <article id="reader-content" class="note-document"></article>
       <div class="reader-tools actions">
         <button id="copy-note">Copy note</button>
+        <button id="share-reader">Share</button>
         <a
           id="reader-link"
           class="button quiet"
@@ -343,26 +297,43 @@
       </div>
       <p id="reader-copy-state" class="feedback" role="status"></p>
     </dialog>
-    <dialog id="context" aria-labelledby="context-title">
+    <dialog id="sharing" aria-labelledby="share-title">
       <div class="title-row">
-        <h2 id="context-title">Copy notes</h2>
-        <button id="close-context">Close</button>
+        <h2 id="share-title">Share note</h2>
+        <button id="close-sharing">Close</button>
       </div>
       <p class="muted">
-        Copy these notes with their source links. Check for anything private
-        before pasting into another app.
+        Anyone with the link can view this note and future saved changes.
       </p>
-      <textarea
-        id="context-text"
-        readonly
-        rows="12"
-        aria-label="Notes to copy"
-      ></textarea
-      ><label class="check"
-        ><input id="copy-consent" type="checkbox" />These notes are okay to
-        share.</label
-      ><button id="copy" class="primary" disabled>Copy notes</button>
-      <p id="copy-state" class="feedback" role="status"></p>
+      <article
+        id="share-preview"
+        class="note-document"
+        tabindex="0"
+        aria-label="Note to share"
+      ></article>
+      <div id="share-new" hidden>
+        <label for="share-duration">Link expires</label
+        ><select id="share-duration"></select
+        ><button id="create-share" class="primary">Create link</button>
+      </div>
+      <div id="share-link-tools" hidden>
+        <label for="share-link">Sharing link</label>
+        <div class="joined">
+          <input id="share-link" readonly type="text" /><button id="copy-share">
+            Copy link
+          </button>
+        </div>
+        <button id="revoke-share" class="quiet">Turn off link</button>
+      </div>
+      <p id="share-status" class="feedback" role="status"></p>
+      <a
+        id="share-approval"
+        class="button"
+        hidden
+        target="_blank"
+        rel="noreferrer"
+        >Allow sharing in Grove</a
+      ><button id="share-retry" hidden>Check sharing</button>
     </dialog>
     <dialog id="confirm" aria-labelledby="confirm-title">
       <h2 id="confirm-title">Replace this draft?</h2>

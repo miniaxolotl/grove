@@ -33,6 +33,7 @@ header,.actions{display:flex;align-items:center;justify-content:space-between;ga
 p{margin:8px 0 12px}.original{max-height:80px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:light-dark(#f0f5ed,#303b31);padding:12px;border-radius:12px}.status{min-height:20px;margin:8px 0;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.alternatives{display:grid;gap:2px}.alternative{text-align:start;white-space:pre-wrap;overflow-wrap:anywhere;width:100%;font-size:15px}.actions{justify-content:flex-start;margin-top:8px}.copy{min-height:32px;padding:4px 8px;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.footnote{font-size:12px;color:light-dark(#59635b,#b8c4ba)}
 .geometry{position:fixed;visibility:hidden;pointer-events:none;white-space:pre-wrap;overflow-wrap:break-word}.alternative-row{display:flex;align-items:flex-start;gap:6px}.alternative-row .alternative{flex:1;min-width:0}.alternative-row .copy{flex:none;min-height:40px}
 .footnote{overflow-wrap:anywhere}
+.status:empty{display:none}
 `;
 
 /** Selection UI only; all AI execution belongs to authenticated durable server work. */
@@ -342,8 +343,8 @@ export class WritingToolsController {
       const reason = document.createElement("p");
       reason.className = "footnote";
       reason.textContent = !availability.available
-        ? "AI tools are not configured on this server. Local spelling and grammar still work."
-        : "Approve AI writing tools for this connection in Grove Connections, then refresh Grove.";
+        ? "AI tools aren’t available right now."
+        : "Allow AI writing tools in Grove to use these options.";
       this.card.append(reason);
     }
     this.card.hidden = false;
@@ -364,12 +365,22 @@ export class WritingToolsController {
     const availability = this.availability ?? this.transport.availability();
     this.card.replaceChildren();
     this.header(writingTools.find((item) => item.id === tool)!.label);
-    this.original();
-    this.contextPreview(tool);
     if (!hasCurrentWritingConsent(availability)) {
+      this.original();
       const notice = document.createElement("p");
-      notice.textContent = `${availability.provider ?? "Your configured AI provider"} Rewrites send your selection, bounded nearby sentence excerpts and its sentence/paragraph position. Word choices send only the selected word. Temporary text expires after 15 minutes; provider retention may differ.`;
+      notice.textContent =
+        "AI uses your selection and nearby text to suggest alternatives.";
       this.card.append(notice);
+      if (availability.provider) {
+        const privacy = document.createElement("details"),
+          summary = document.createElement("summary"),
+          text = document.createElement("p");
+        privacy.className = "footnote";
+        summary.textContent = "Privacy";
+        text.textContent = availability.provider;
+        privacy.append(summary, text);
+        this.card.append(privacy);
+      }
       this.card.append(
         this.button("Generate alternatives", () => {
           void this.generate(tool, true);
@@ -388,41 +399,15 @@ export class WritingToolsController {
       ? null
       : writingContextFor(this.snapshot, this.selection);
   }
-  private contextPreview(tool: WritingTool) {
-    const context = this.context(tool);
-    if (!context) return;
-    const details = document.createElement("details");
-    const summary = document.createElement("summary");
-    summary.textContent = "Context shared with AI";
-    details.className = "footnote";
-    details.append(summary);
-    for (const [label, value] of [
-      ["Previous sentence", context.previousSentence],
-      ["Before selection", context.sentenceBefore],
-      ["After selection", context.sentenceAfter],
-      ["Next sentence", context.nextSentence],
-    ]) {
-      if (!value) continue;
-      const text = document.createElement("p");
-      text.textContent = `${label} (excerpt): ${value}`;
-      details.append(text);
-    }
-    const position = document.createElement("p");
-    position.textContent = `Starts sentence: ${context.startsSentence ? "yes" : "no"}; ends sentence: ${context.endsSentence ? "yes" : "no"}. Starts paragraph: ${context.startsParagraph ? "yes" : "no"}; ends paragraph: ${context.endsParagraph ? "yes" : "no"}.`;
-    details.append(position);
-    this.card.append(details);
-  }
   private async generate(tool: WritingTool, consent: boolean) {
     const epoch = ++this.epoch;
     if (!this.current(epoch)) return;
     const status = document.createElement("p");
     status.className = "status";
     status.setAttribute("role", "status");
-    status.textContent = consent ? "Saving consent…" : "Submitting…";
+    status.textContent = "Finding alternatives…";
     this.card.replaceChildren();
     this.header(writingTools.find((item) => item.id === tool)!.label);
-    this.original();
-    this.contextPreview(tool);
     this.card.append(status);
     const results = document.createElement("div");
     results.className = "work-results";
@@ -471,8 +456,8 @@ export class WritingToolsController {
     } catch {
       if (!this.current(epoch)) return;
       status.textContent = this.pendingId
-        ? "The request may have been accepted. Check its status before trying again."
-        : "AI tools could not start. Your text is unchanged.";
+        ? "Not confirmed. Check status before trying again."
+        : "Couldn’t start. Your text is unchanged.";
       if (this.pendingId)
         this.card.append(
           this.button("Check status", () => {
@@ -495,12 +480,11 @@ export class WritingToolsController {
       queued: "Queued",
       processing: "Generating alternatives…",
       backoff: "Waiting to retry",
-      recovering: "Recovering an expired worker lease…",
-      uncertain:
-        "The provider outcome is uncertain. No automatic retry was sent.",
-      completed: "Choose to replace and copy",
-      failed: "Alternatives could not be generated. Your text is unchanged.",
-      cancelled: "Cancelled in Grove. Your text is unchanged.",
+      recovering: "Reconnecting…",
+      uncertain: "Not confirmed. Check status before trying again.",
+      completed: "",
+      failed: "Couldn’t find alternatives. Try again.",
+      cancelled: "Cancelled. Your text is unchanged.",
       expired: "These alternatives expired. Your text is unchanged.",
     }[work.status];
     const dismiss =

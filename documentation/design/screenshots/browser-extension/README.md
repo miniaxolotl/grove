@@ -1,6 +1,47 @@
 # Browser extension evidence
 
-## Context-aware writing with the current notebook — 6 November 2026
+## Streamlined panel — 6 November 2026
+
+Unsigned product `1.11.15`, refinement following `3d9a07a6`; exact source and CI
+are recorded in [PR #189](https://github.com/miniaxolotl/grove/pull/189).
+Chrome ZIP SHA-256:
+`103b4764613477b89e3bb83a4e08aeb85a7c58b0406ecaf44111a2adae0e1214`.
+Installed Chromium `156.0.8078.4`, synthetic notes/auth/provider responses and fake
+sharing URLs only. No live note was published.
+
+| Writing alternatives                                                                     | Formatted Search and note menu                                                                            | Sharing                                                                       | Settings                                                                               |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| ![Compact alternatives without request-context diagnostics](streamlined-writing-390.png) | ![Formatted note with one Open, Copy, Share menu and no selection checkboxes](streamlined-search-390.png) | ![Read-only link with Copy and Turn off actions](streamlined-sharing-390.png) | ![Short Settings without backend or account identifiers](streamlined-settings-320.png) |
+
+![Notes after saving, with Share beside the save action](streamlined-notes-390.png)
+
+Standard views are 390 × 844; Settings is 320 × 844. Keep the existing Editorial
+greeting direction, seed `1378124550`, sage surfaces and bundled Space Grotesk/Grove
+mark. No new imagery, decorative motion, dashboard chrome or fictitious metrics.
+Settings stays last; equal gutters and smaller editor/dialog padding free space.
+Writing leads with alternatives, not original/context diagnostics. Search uses
+bounded safe Markdown previews and one keyboard-accessible menu per result; bulk
+selection/copy is removed entirely. Notes/Search share one focused public-link
+dialog with explicit permission, saved-version review and publication confirmation.
+
+Installed checks cover mounted search rows/scroll/input, arrows/Escape/menu focus,
+copy/replace/Undo, clipboard failure, first-edit source pinning, exact save retries,
+public-link uncertainty/reconciliation/revocation, permission removal before link
+copy, and typing during Save & share. 280/320/390/768px, short/dark and axe checks
+remain part of the installed journeys. Real PostgreSQL tests cover default-off
+sharing permission, scoped native HTTP, retained 038→039 upgrade and RLS. Firefox
+159 smoke checks native install/sidebar, formatted search and reader/copy, not
+Firefox writing or sharing qualification. Live model quality, real browser grant/
+update prompts, branded Chrome and visible Edge-sidebar presentation remain separate.
+
+Visual review: hierarchy/usability/identity 8/10. Empty AI status space was removed;
+preview HTML is omitted and checklist labels stay on the task's line. The sharing
+preview's scrolling region is named and keyboard-focusable. No source-lint failures;
+retained shadows belong to overlays. Installed screenshots/geometry/axe substitute
+for the generic inspector, which cannot install this isolated extension origin;
+no generic-inspector pass is claimed. Earlier sections retain historical packages.
+
+## Earlier context-aware writing with the notebook — 6 November 2026
 
 Unsigned product `1.11.15`, combining the writing branch with development
 `37d4e0fd` (approved icons, coordinated version and personal notebook redesign).

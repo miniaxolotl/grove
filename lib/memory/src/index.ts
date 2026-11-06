@@ -590,6 +590,7 @@ export class MemoryService {
             personal: grant.personal,
             allProjects: grant.allProjects,
             projectIds: grant.projectIds,
+            sharingEnabled: grant.sharingEnabled ?? false,
           }
         : null,
       apiVersion: 1,
@@ -2617,6 +2618,7 @@ export class MemoryService {
           connection.authorizedAfter,
           connection.setup ?? null,
           connection.writingEnabled ?? false,
+          connection.sharingEnabled ?? false,
         ]),
       )
       .digest("hex");

@@ -254,6 +254,9 @@ for (const target of ["chrome", "edge"])
           globalThis.fixtureCaptureRequests = [];
           globalThis.fixtureWritingInputs = [];
           globalThis.fixtureSearchQueries = [];
+          globalThis.fixtureSharingAllowed = true;
+          globalThis.fixtureShareWrites = [];
+          const shares = new Map();
           globalThis.fetch = async (input, init) => {
             const path = new URL(String(input)).pathname;
             globalThis.fixtureRequests.push(path);
@@ -279,7 +282,12 @@ for (const target of ["chrome", "edge"])
                 connectionId,
                 capabilities: ["memory:read", "memory:write"],
                 writingTools: writingAvailability(),
-                grant: { personal: true, allProjects: false, projectIds: [] },
+                grant: {
+                  personal: true,
+                  allProjects: false,
+                  projectIds: [],
+                  sharingEnabled: globalThis.fixtureSharingAllowed,
+                },
               };
             else if (path === "/v1/browser/writing/consent") {
               writingConsented = body.accepted;
@@ -374,6 +382,8 @@ for (const target of ["chrome", "edge"])
                 uncertain = false;
                 throw new Error("Fixture connection lost after commit");
               }
+              globalThis.fixtureCaptureStarted?.();
+              await globalThis.fixtureCaptureGate;
             } else if (
               path === "/v1/memories/search" ||
               path === "/v1/browser/pages"
@@ -386,6 +396,63 @@ for (const target of ["chrome", "edge"])
                   throw new Error("Synthetic search is offline");
               }
               data = { items: notes, nextCursor: null };
+            } else if (path.endsWith("/share")) {
+              const id = path.split("/")[3],
+                note = notes.find((note) => note.id === id);
+              if (!note) throw new Error("Unknown note");
+              if (init?.method === "POST") {
+                globalThis.fixtureShareWrites.push(body);
+                shares.set(id, {
+                  id: crypto.randomUUID(),
+                  version: 1,
+                  active: true,
+                  includeDescendants: false,
+                  duration: body.duration,
+                  expiresAt: null,
+                  url: `https://usegrove.cloud/s/gsh_${"A".repeat(43)}`,
+                });
+                if (globalThis.fixtureShareLost) {
+                  globalThis.fixtureShareLost = false;
+                  throw new Error("Fixture sharing response lost after commit");
+                }
+              }
+              data = {
+                available: true,
+                canShare: true,
+                target: {
+                  kind: "note",
+                  id,
+                  name: "Field notes",
+                  version: note.version,
+                },
+                direct: shares.get(id) ?? null,
+                inherited: [],
+              };
+            } else if (
+              path.startsWith("/v1/shares/") &&
+              init?.method === "DELETE"
+            ) {
+              const [id, direct] = [...shares.entries()].find(([, share]) =>
+                path.endsWith(share.id),
+              );
+              shares.set(id, {
+                ...direct,
+                active: false,
+                url: null,
+                version: direct.version + 1,
+              });
+              data = {
+                available: true,
+                canShare: true,
+                target: {
+                  kind: "note",
+                  id,
+                  name: "Field notes",
+                  version: notes.find((note) => note.id === id).version,
+                },
+                direct: shares.get(id),
+                inherited: [],
+              };
             } else if (path.startsWith("/v1/memories/"))
               data = notes.find((note) => path.endsWith(note.id));
             else throw new Error(`Unexpected fixture request ${path}`);
@@ -413,11 +480,11 @@ for (const target of ["chrome", "edge"])
         ["Notes", "Search", "Settings"],
       );
       assert.equal(await page.locator("#new-note").isVisible(), false);
-      assert.equal(await page.locator("#save-details").isVisible(), false);
+      assert.equal(await page.locator("#save-details").count(), 0);
       await page
         .locator("#notice")
         .filter({
-          hasText: "Synthetic capture was rejected before the panel opened.",
+          hasText: "Couldn’t prepare that note. Try again.",
         })
         .waitFor({ timeout: 3000 });
       await page.locator("#dismiss-notice").click();
@@ -975,7 +1042,7 @@ for (const target of ["chrome", "edge"])
         .click();
       await sourcePage
         .getByText(
-          /Rewrites send your selection, bounded nearby sentence excerpts/,
+          /AI uses your selection and nearby text to suggest alternatives/,
         )
         .waitFor();
       await sourcePage
@@ -1075,19 +1142,13 @@ for (const target of ["chrome", "edge"])
           startsParagraph: false,
           endsParagraph: false,
         });
-        await dialog
-          .getByText("Context shared with AI", { exact: true })
-          .click();
-        await dialog
-          .getByText("Previous sentence (excerpt): Hello world!", {
-            exact: true,
-          })
-          .waitFor();
-        await dialog
-          .getByText("Next sentence (excerpt): Nice to meet you.", {
-            exact: true,
-          })
-          .waitFor();
+        assert.equal(
+          await dialog
+            .getByText("Context shared with AI", { exact: true })
+            .count(),
+          0,
+          "review shows alternatives, not request internals",
+        );
         if (label === "Shorten" && process.env.EXTENSION_SCREENSHOTS)
           await page.screenshot({
             path: join(
@@ -1096,9 +1157,6 @@ for (const target of ["chrome", "edge"])
             ),
             fullPage: true,
           });
-        await dialog
-          .getByText("Context shared with AI", { exact: true })
-          .click();
         assert.equal(
           await dialog.locator(".alternative").count(),
           3,
@@ -1644,14 +1702,13 @@ for (const target of ["chrome", "edge"])
         await page.locator("#note").inputValue(),
         "A newer draft stays after retry.",
       );
-      assert.equal(await page.locator("#save-version").isVisible(), false);
-      await page.locator("#save-details summary").click();
-      assert.equal(await page.locator("#save-version").textContent(), "1");
       assert.equal(
-        await page.locator("#save-indexing").textContent(),
-        "pending",
+        await page
+          .locator("#save-version, #save-indexing, #save-details")
+          .count(),
+        0,
+        "save feedback omits backend metadata",
       );
-      await page.locator("#save-details summary").click();
       if (process.env.EXTENSION_SCREENSHOTS) {
         await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
         await page.screenshot({
@@ -1668,7 +1725,10 @@ for (const target of ["chrome", "edge"])
       assert.ok(!JSON.stringify(persisted).includes("worth keeping"));
       assert.ok(!JSON.stringify(persisted).includes("fixture-token"));
       await page.locator('[data-nav="search"]').click();
-      assert.equal(await page.locator("#context-actions").isVisible(), false);
+      assert.equal(
+        await page.locator("#context-actions, #select-notes").count(),
+        0,
+      );
       await page.locator("#query").fill("source");
       assert.equal(
         await page.locator("#search-form button, #search-form select").count(),
@@ -1741,7 +1801,31 @@ for (const target of ["chrome", "edge"])
         .locator("#results-status")
         .filter({ hasText: "1 note · checked" })
         .waitFor();
-      await page.locator("#results .note-row button").click();
+      assert.equal(
+        await page
+          .locator("#results input[data-note-selection]:visible")
+          .count(),
+        0,
+        "selection is opt-in, not permanent search chrome",
+      );
+      assert.equal(
+        await page.locator("#results .note-preview h2").textContent(),
+        "Field notes",
+      );
+      assert.equal(
+        await page.locator("#results .note-preview strong").textContent(),
+        "A clear idea",
+      );
+      assert.equal(
+        await page
+          .locator(
+            "#results .note-preview script, #results .note-preview img, #results .note-preview a",
+          )
+          .count(),
+        0,
+      );
+      await page.locator("#results .note-menu summary").click();
+      await page.locator("#results .open-note").click();
       await page.locator("#reader[open]").waitFor();
       assert.equal(
         await page.locator("#reader-content h2").textContent(),
@@ -1799,35 +1883,176 @@ for (const target of ["chrome", "edge"])
         });
       }
       await page.locator("#close-reader").click();
-      const statusBeforeSelection = await page
-        .locator("#results-status")
-        .boundingBox();
-      await page.locator('#results input[type="checkbox"]').check();
-      assert.equal(await page.locator("#context-actions").isVisible(), true);
-      assert.equal(
-        (await page.locator("#results-status").boundingBox()).y,
-        statusBeforeSelection.y,
-        "context actions use reserved space instead of shifting results",
-      );
-      await page.locator("#review-context").click();
-      await page.locator("#context[open]").waitFor();
-      assert.equal(await page.locator("#copy").isDisabled(), true);
-      assert.match(
-        await page.locator("#context-text").inputValue(),
-        /Grove source: https:\/\/usegrove.cloud\/app\/memories\//,
-      );
-      await page.locator("#copy-consent").check();
-      await page.locator("#copy").click();
+      await page.locator("#results .note-menu summary").click();
       await page
-        .locator("#copy-state")
-        .filter({ hasText: /Copied|Clipboard unavailable/ })
+        .locator("#results .note-actions")
+        .getByRole("menuitem", { name: "Copy", exact: true })
+        .click();
+      await page
+        .locator("#results .row-feedback")
+        .filter({ hasText: /Copied|Couldn’t copy/ })
         .waitFor();
-      await page.locator("#close-context").click();
-      await page.locator("#clear-selection").click();
-      assert.equal(await page.locator("#context-actions").isVisible(), false);
+      await worker.evaluate(() => {
+        globalThis.fixtureSharingAllowed = false;
+      });
+      await page.locator("#results .note-menu summary").click();
+      await page
+        .locator("#results .note-actions")
+        .getByRole("menuitem", { name: "Share", exact: true })
+        .click();
+      await page.locator("#share-approval").waitFor({ state: "visible" });
       assert.equal(
-        await page.locator('#results input[type="checkbox"]').isChecked(),
-        false,
+        await worker.evaluate(() => globalThis.fixtureShareWrites.length),
+        0,
+      );
+      await worker.evaluate(() => {
+        globalThis.fixtureSharingAllowed = true;
+      });
+      await page.locator("#share-retry").click();
+      await page.locator("#create-share").waitFor({ state: "visible" });
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureShareWrites.length),
+        0,
+        "opening sharing never publishes",
+      );
+      await page.locator("#share-duration").selectOption("1d");
+      await worker.evaluate(() => {
+        globalThis.fixtureShareLost = true;
+      });
+      await page.locator("#create-share").click();
+      await page
+        .locator("#share-status")
+        .filter({ hasText: "Not confirmed" })
+        .waitFor();
+      await page.locator("#share-retry").click();
+      await page.locator("#copy-share").waitFor({ state: "visible" });
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureShareWrites.length),
+        1,
+        "uncertain link creation is checked, not blindly repeated",
+      );
+      assert.equal(
+        (await worker.evaluate(() => globalThis.fixtureShareWrites[0]))
+          .duration,
+        "1d",
+      );
+      await page.locator("#copy-share").click();
+      await page
+        .locator("#share-status")
+        .filter({ hasText: /Link copied|Select the link/ })
+        .waitFor();
+      const shareAudit = await new AxeBuilder({ page }).analyze();
+      assert.deepEqual(
+        shareAudit.violations.map((item) => item.id),
+        [],
+      );
+      if (process.env.EXTENSION_SCREENSHOTS)
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-sharing-390.png`,
+          ),
+          fullPage: true,
+        });
+      await worker.evaluate(() => {
+        globalThis.fixtureSharingAllowed = false;
+      });
+      await page.evaluate(() => {
+        globalThis.lastWritingCopy =
+          "unchanged after sharing permission revoked";
+      });
+      await page.locator("#copy-share").click();
+      await page
+        .locator("#share-status")
+        .filter({ hasText: "Allow sharing links in Grove first." })
+        .waitFor();
+      assert.equal(
+        await page.evaluate(() => globalThis.lastWritingCopy),
+        "unchanged after sharing permission revoked",
+        "copying a public link rechecks publication access",
+      );
+      assert.equal(await page.locator("#share-link").inputValue(), "");
+      await worker.evaluate(() => {
+        globalThis.fixtureSharingAllowed = true;
+      });
+      await page.locator("#share-retry").click();
+      await page.locator("#copy-share").waitFor({ state: "visible" });
+      await page.evaluate(() => {
+        globalThis.shareClipboardWrite =
+          globalThis.navigator.clipboard.writeText;
+        globalThis.navigator.clipboard.writeText = async () => {
+          throw new Error("Synthetic clipboard denial");
+        };
+      });
+      await page.locator("#copy-share").click();
+      await page
+        .locator("#share-status")
+        .filter({ hasText: "Select the link" })
+        .waitFor();
+      assert.equal(
+        await page
+          .locator("#share-link")
+          .evaluate((input) => input.selectionEnd - input.selectionStart),
+        (await page.locator("#share-link").inputValue()).length,
+      );
+      await page.evaluate(() => {
+        globalThis.navigator.clipboard.writeText =
+          globalThis.shareClipboardWrite;
+      });
+      await page.locator("#revoke-share").click();
+      await page
+        .locator("#share-status")
+        .filter({ hasText: "Link turned off" })
+        .waitFor();
+      assert.equal(await page.locator("#share-link").inputValue(), "");
+      await page.locator("#close-sharing").click();
+      assert.equal(
+        await page
+          .locator(
+            '#results input[type="checkbox"], #select-notes, #context-actions, #context',
+          )
+          .count(),
+        0,
+        "bulk actions are absent",
+      );
+      const noteMenu = page.locator("#results .note-menu");
+      await noteMenu.locator("summary").focus();
+      await noteMenu.locator("summary").press("ArrowUp");
+      assert.equal(
+        await noteMenu
+          .getByRole("menuitem", { name: "Share", exact: true })
+          .evaluate((element) => element === document.activeElement),
+        true,
+      );
+      await noteMenu.press("Escape");
+      await noteMenu.locator("summary").press("ArrowDown");
+      if (process.env.EXTENSION_SCREENSHOTS)
+        await page.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-result-menu-390.png`,
+          ),
+          fullPage: true,
+        });
+      assert.equal(
+        await noteMenu
+          .locator(".open-note")
+          .evaluate((element) => element === document.activeElement),
+        true,
+      );
+      await noteMenu.locator(".open-note").press("ArrowDown");
+      assert.equal(
+        await noteMenu
+          .getByRole("menuitem", { name: "Copy", exact: true })
+          .evaluate((element) => element === document.activeElement),
+        true,
+      );
+      await noteMenu.press("Escape");
+      assert.equal(
+        await noteMenu
+          .locator("summary")
+          .evaluate((element) => element === document.activeElement),
+        true,
       );
       for (const width of [280, 320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
@@ -2231,6 +2456,61 @@ for (const target of ["chrome", "edge"])
         await otherPanel.locator("#note").inputValue(),
         "A newer draft stays after retry.",
       );
+      await otherPanel
+        .locator("#note")
+        .fill("# Shared from Notes\n\nA newly saved thought.");
+      await worker.evaluate(() => {
+        globalThis.fixtureCaptureGate = new Promise((resolve) => {
+          globalThis.releaseCapture = resolve;
+        });
+        globalThis.fixtureCaptureReached = new Promise((resolve) => {
+          globalThis.fixtureCaptureStarted = resolve;
+        });
+      });
+      await otherPanel.locator("#share-draft").click();
+      await worker.evaluate(() => globalThis.fixtureCaptureReached);
+      await otherPanel
+        .locator("#note")
+        .fill("# Shared from Notes\n\nA newer thought typed while saving.");
+      await worker.evaluate(() => {
+        globalThis.releaseCapture();
+        globalThis.fixtureCaptureStarted = undefined;
+      });
+      await otherPanel
+        .locator("#notice")
+        .filter({ hasText: "Save your changes before sharing." })
+        .waitFor();
+      assert.equal(
+        await otherPanel.locator("#sharing[open]").count(),
+        0,
+        "typing during Save & share cannot publish an earlier snapshot",
+      );
+      await otherPanel.locator("#share-draft").click();
+      await otherPanel.locator("#create-share").waitFor({ state: "visible" });
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureShareWrites.length),
+        1,
+        "Save & share saves but still waits for publication confirmation",
+      );
+      assert.match(
+        await otherPanel.locator("#share-preview").textContent(),
+        /Shared from Notes/,
+      );
+      await otherPanel.locator("#create-share").click();
+      await otherPanel.locator("#copy-share").waitFor({ state: "visible" });
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureShareWrites.length),
+        2,
+      );
+      await otherPanel.locator("#close-sharing").click();
+      if (process.env.EXTENSION_SCREENSHOTS)
+        await otherPanel.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-saved-notes-390.png`,
+          ),
+          fullPage: true,
+        });
       await page.waitForFunction(
         () =>
           document

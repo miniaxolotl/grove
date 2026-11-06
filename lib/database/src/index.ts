@@ -123,7 +123,9 @@ export async function probeDatabase(db: Knex) {
   );
   await db.raw("SELECT provenance FROM web_captures LIMIT 0");
   await db.raw("SELECT sentence_rewrites_enabled FROM accounts LIMIT 0");
-  await db.raw("SELECT writing_enabled FROM connections LIMIT 0");
+  await db.raw(
+    "SELECT writing_enabled, sharing_enabled FROM connections LIMIT 0",
+  );
   await db.raw(
     "SELECT input_ciphertext, result_ciphertext FROM writing_requests LIMIT 0",
   );

@@ -297,6 +297,9 @@ function GrantForm({
   const [writingEnabled, setWritingEnabled] = useState(
     connection?.writingEnabled ?? false,
   );
+  const [sharingEnabled, setSharingEnabled] = useState(
+    connection?.sharingEnabled ?? false,
+  );
   const [allProjects, setAllProjects] = useState(
     creating || (connection?.allProjects ?? false),
   );
@@ -325,7 +328,9 @@ function GrantForm({
               personal,
               allProjects,
               projectIds,
-              ...(connection?.clientId ? { writingEnabled } : {}),
+              ...(connection?.clientId
+                ? { writingEnabled, sharingEnabled }
+                : {}),
               ...(connection?.state ? { expectedState: connection.state } : {}),
               ...(expiry
                 ? { expiresAt: new Date(`${expiry}T23:59:59Z`).toISOString() }
@@ -402,6 +407,23 @@ function GrantForm({
             Separate from note access. AI runs only when you choose a writing
             tool and consent to sending your selection and bounded nearby
             sentence context. Local checks stay on your device.
+          </p>
+        </fieldset>
+      ) : null}
+      {connection?.clientId ? (
+        <fieldset className="space-y-3">
+          <legend className="mb-3 text-xs font-medium">Sharing links</legend>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={sharingEnabled}
+              onChange={(event) => setSharingEnabled(event.target.checked)}
+            />
+            Allow sharing links for accessible notes
+          </label>
+          <p className="text-sm text-muted">
+            Anyone with a link can view the shared note. Links are created only
+            when you choose Share.
           </p>
         </fieldset>
       ) : null}
