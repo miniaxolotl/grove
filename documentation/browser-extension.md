@@ -8,6 +8,12 @@ listings. Source behavior and installation are described here; the
 
 ## Install and connect
 
+Install only against a compatible deployed API, including migration `037` after
+`036` and the native OAuth-origin admission rule below. Default-origin CI packages
+point at production; passing source CI does not deploy that server. An older API
+rejects extension requests with **Origin is not allowed**, regardless of whether
+the package is signed. Use a custom-origin build for an isolated local stack.
+
 Use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
