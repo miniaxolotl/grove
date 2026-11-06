@@ -39,7 +39,9 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
 ## Proposed designs
 
 - [Structured documents, targeted edits and revision diffs](design/structured-documents.md)
-  — implementation proposal, not available functionality.
+  — architecture and implementation rationale; see the current contract above.
+- [Browser extension first-release proposal](design/browser-extension.md) — draft
+  scope and implementation gates for Chrome, Firefox and Edge; not implemented.
 
 ## Maintain the source of truth
 
