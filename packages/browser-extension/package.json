@@ -4,9 +4,14 @@
   "type": "module",
   "description": "Grove browser extension for Chrome, Firefox and Edge",
   "dependencies": {
-    "@lib/shared": "workspace:*",
     "@lib/integration-core": "workspace:*",
+    "@lib/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
+    "dictionary-en": "4.0.0",
+    "nspell": "2.1.5",
     "zod": "~4.1.8"
+  },
+  "devDependencies": {
+    "@types/nspell": "^2.1.6"
   }
 }

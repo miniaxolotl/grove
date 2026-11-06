@@ -12,7 +12,7 @@ const now = Date.parse("2026-11-05T20:00:00.000Z");
 
 test("authored notes keep Markdown when a page is attached; external selections stay quoted", () => {
   const source = {
-    url: "https://example.com",
+    url: "https://example.com/",
     title: "Source",
     capturedAt: new Date(now).toISOString(),
   };
@@ -35,12 +35,12 @@ test("authored notes keep Markdown when a page is attached; external selections 
     operationId,
     now + 3,
   );
-  assert.ok(
-    saved.save!.request.content.startsWith(
-      "# My heading\n\n**My idea**\n\nSource:",
-    ),
-    "user-authored Markdown must not be escaped as a third-party excerpt",
+  assert.equal(
+    saved.save!.request.content,
+    "# My heading\n\n**My idea**",
+    "authored Markdown stays unchanged, with automatic source metadata stored separately",
   );
+  assert.deepEqual(saved.save!.request.provenance, source);
   const selected = drafts.createCaptureDraft({
     scope,
     text: "# External heading",
@@ -407,7 +407,7 @@ test("browser draft core isolates accounts and preserves exact uncertain save id
       const oversized = drafts.editCaptureDraft(
         initial(),
         scope,
-        { text: "a".repeat(6000), source },
+        { text: "a".repeat(6000), source, textOrigin: "quoted" },
         now + 1,
       );
       assert.throws(

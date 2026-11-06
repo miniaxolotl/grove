@@ -143,8 +143,8 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 70px;
-  padding: 12px 24px;
+  min-height: 60px;
+  padding: 8px clamp(16px, 4vw, 24px);
 }
 #home {
   display: flex;
@@ -166,7 +166,7 @@ main {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  padding: 8px 24px 24px;
+  padding: 12px clamp(16px, 4vw, 24px) 24px;
   scroll-padding: 16px;
 }
 main > section,
@@ -200,7 +200,7 @@ h2 {
 }
 .title-row {
   min-height: 44px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 .title-row h1,
 .title-row h2 {
@@ -249,8 +249,8 @@ textarea::placeholder {
   opacity: 1;
 }
 #note {
-  min-height: clamp(200px, 38vh, 360px);
-  padding: 22px;
+  min-height: clamp(160px, 34dvh, 320px);
+  padding: 16px;
   border: 0;
   border-radius: var(--radius);
   font-size: 16px;
@@ -259,10 +259,62 @@ textarea::placeholder {
   outline-offset: 2px;
 }
 #note-help {
-  justify-content: flex-end;
-  font-size: 11px;
-  margin: 8px 4px 12px;
+  min-height: 28px;
+  margin: 8px 0 16px;
   font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#length {
+  margin-inline-start: auto;
+}
+.writing-review {
+  min-height: 28px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.writing-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0;
+  font-weight: 400;
+}
+.writing-option input {
+  flex: none;
+  width: 32px;
+  height: 20px;
+  min-height: 20px;
+  accent-color: var(--ink);
+}
+#writing-rules {
+  padding-inline-start: 12px;
+}
+#writing-controls p {
+  margin: 8px 0;
+}
+#writing-settings > summary {
+  font-size: 16px;
+  font-weight: 600;
+}
+#writing-settings > summary span {
+  margin-inline-start: 8px;
+  font-weight: 400;
+}
+#writing-settings-status {
+  min-height: 20px;
+}
+#writing-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 12px;
+}
+#writing-words button {
+  min-height: 36px;
 }
 details {
   border: 0;
@@ -273,20 +325,23 @@ summary {
   padding: 12px 0;
   font-size: 13px;
 }
-#source-details > summary {
+#note-details > summary,
+.share-disclosure > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   list-style: none;
 }
-#source-details > summary::after {
+#note-details > summary::after,
+.share-disclosure > summary::after {
   content: "+";
   color: var(--muted);
   font-size: 18px;
   font-weight: 400;
 }
-#source-details[open] > summary::after {
+#note-details[open] > summary::after,
+.share-disclosure[open] > summary::after {
   content: "−";
 }
 .details-preview {
@@ -372,16 +427,6 @@ summary {
   min-height: 44px;
   margin: 12px 0 8px;
 }
-.context-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.context-actions button {
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: 12px;
-}
 #results-status {
   margin: 0;
   min-height: 36px;
@@ -394,49 +439,88 @@ summary {
 }
 .note-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
-  padding: 18px;
+  padding: 16px;
   border-radius: var(--radius);
   background: var(--surface);
 }
-.note-row > input {
-  width: 17px;
-  min-height: 17px;
-  height: 17px;
-  margin: 5px 0 0;
-  accent-color: var(--signal);
+.note-actions {
+  position: absolute;
+  right: 0;
+  min-width: 136px;
+  display: grid;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px #0002;
+  z-index: 2;
 }
-.note-row button {
-  display: block;
-  padding: 0;
+.note-actions button {
+  justify-content: flex-start;
   width: 100%;
-  min-height: 44px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  text-align: left;
-  font-weight: 400;
-}
-.note-row .excerpt {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  line-height: 1.65;
+  padding: 8px 12px;
   font-size: 13px;
-  margin-top: 6px;
 }
-.note-title {
-  display: block;
-  font-size: 15px;
-  font-weight: 600;
+.note-menu {
+  position: relative;
+}
+.note-menu summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 18px;
+}
+.note-menu summary::-webkit-details-marker {
+  display: none;
+}
+.note-menu summary:hover,
+.note-menu[open] summary {
+  background: var(--raised);
+}
+.note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.note-footer p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+.note-preview {
+  max-height: 180px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 14px;
 }
-.note-row p {
+.note-preview > :first-child {
+  margin-top: 0;
+}
+.note-row .note-preview h2,
+.note-row .note-preview h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+.note-preview p,
+.note-preview ul,
+.note-preview ol {
+  margin: 0 0 10px;
+}
+.note-row .row-feedback {
+  min-height: 18px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.note-row > div > p:not(.row-feedback) {
   font-size: 11px;
   color: var(--muted);
   margin: 10px 0 0;
@@ -464,7 +548,7 @@ summary {
   font-size: 12px;
 }
 .settings-section {
-  padding: 20px 0;
+  padding: 16px 0;
   border-bottom: 1px solid var(--line);
 }
 .settings-section:first-of-type {
@@ -520,7 +604,7 @@ nav {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  padding: 10px 20px 16px;
+  padding: 8px clamp(12px, 3vw, 20px);
   background: var(--ground);
 }
 nav button {
@@ -579,7 +663,7 @@ dialog {
   max-width: 640px;
   max-height: calc(100% - 32px);
   overflow: auto;
-  padding: 24px;
+  padding: clamp(16px, 4vw, 24px);
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--line);
@@ -720,8 +804,89 @@ dialog .title-row button {
   accent-color: var(--signal);
   margin-top: 2px;
 }
-#context-text {
+#sharing {
+  max-width: 360px;
+  padding: 20px;
+  border: 0;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px #0002;
+}
+#sharing::backdrop {
+  background: #15221929;
+}
+#sharing .title-row {
+  margin-bottom: 0;
+}
+#close-sharing {
+  width: 44px;
+  padding: 0;
+  font-size: 24px;
+}
+#share-note-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 500;
+}
+.share-disclosure > summary {
+  line-height: 20px;
+}
+#share-note > summary::after {
+  flex: none;
+}
+#share-preview {
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px 0;
+  font-size: 13px;
+}
+#share-preview > :first-child {
+  margin-top: 0;
+}
+#share-preview h2 {
+  font-size: 16px;
+}
+#share-notice {
+  margin: 4px 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+#create-share,
+#copy-share {
+  width: 100%;
+}
+#share-controls {
+  min-height: 92px;
+}
+#share-approval,
+#share-retry {
+  width: 100%;
+}
+#share-status {
+  min-height: 36px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+#share-options > summary {
+  margin-top: 4px;
+  gap: 8px;
+}
+#share-expiry-label {
+  flex: 1;
+  text-align: right;
   font-size: 12px;
+}
+#share-options input {
+  font-size: 12px;
+}
+#revoke-share {
+  margin-top: 8px;
+  padding-inline: 0;
+}
+.result-heading {
+  flex-wrap: wrap;
+  gap: 4px;
 }
 .sr-only {
   position: absolute;

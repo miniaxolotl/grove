@@ -5,6 +5,7 @@ import { camelRows } from "@lib/database";
 import { deliverEmail } from "./mail.ts";
 import { JobBroker, type JobEnvelope } from "./broker.ts";
 import { WorkerPool } from "./worker-pool.ts";
+import { createLaneExecutor, laneSources } from "./worker-routing.ts";
 import { closeTelemetry, telemetry } from "@lib/telemetry";
 import { withTelemetry } from "@lib/telemetry/context";
 import {
@@ -17,6 +18,7 @@ import {
   runTask,
   providerProfiles,
   speechHandlers,
+  writingHandlers,
   type TaskHandler,
 } from "@lib/memory";
 import { queueLanes, type QueueLane, type TaskKind } from "@lib/shared/jobs";
@@ -58,6 +60,12 @@ const recipient = async (subject: string) => {
   );
 };
 const handlers: Partial<Record<TaskKind, TaskHandler>> = {
+  ...writingHandlers(
+    runtime.memories,
+    runtime.env.WRITING_STAGING_KEY,
+    runtime.db,
+    runtime.env.WRITING_PROVIDER_NOTICE,
+  ),
   ...speechHandlers(
     runtime.memories,
     runtime.speech,
@@ -109,24 +117,30 @@ for (const lane of queueLanes)
 const pools = Object.fromEntries(
   queueLanes.map((lane) => [lane, new WorkerPool(capacities[lane])]),
 ) as Record<QueueLane, WorkerPool>;
-const execute = (lane: QueueLane, id?: string) =>
-  withTelemetry(reporter, async () => {
-    if (lane === "email")
-      return mail ? deliverEmail(runtime.db, mail, recipient, id) : false;
-    if (lane === "indexing" || lane === "enrichment")
-      return runtime.memories.runJob(id, {
-        lane,
-        accountLimit: runtime.env.JOB_ACCOUNT_CONCURRENCY,
-        providerLimit: runtime.env.JOB_PROVIDER_CONCURRENCY,
-        signal: workStop.signal,
-      });
-    return runTask(runtime.db, handlers, {
+const route = createLaneExecutor({
+  email: async (_lane, id) =>
+    mail ? deliverEmail(runtime.db, mail, recipient, id) : false,
+  memory: (lane, id) =>
+    runtime.memories.runJob(id, {
+      lane,
+      accountLimit: runtime.env.JOB_ACCOUNT_CONCURRENCY,
+      providerLimit: runtime.env.JOB_PROVIDER_CONCURRENCY,
+      signal: workStop.signal,
+    }),
+  task: (lane, id) =>
+    runTask(runtime.db, handlers, {
       id,
       lane,
-      accountLimit: 1,
+      accountLimit:
+        lane === "enrichment" ? runtime.env.JOB_ACCOUNT_CONCURRENCY : 1,
+      ...(lane === "enrichment"
+        ? { providerLimit: runtime.env.JOB_PROVIDER_CONCURRENCY }
+        : {}),
       signal: workStop.signal,
-    });
-  });
+    }),
+});
+const execute = (lane: QueueLane, id?: string, kind?: JobEnvelope["kind"]) =>
+  withTelemetry(reporter, () => route(lane, id, kind));
 const run = async (job: JobEnvelope, lane?: QueueLane) => {
   if (controller.signal.aborted) return;
   if (!lane) {
@@ -134,13 +148,15 @@ const run = async (job: JobEnvelope, lane?: QueueLane) => {
     // lane is redispatched from PostgreSQL to its current queue.
     if (job.kind === "email") lane = "email";
     else {
-      for (const candidate of ["indexing", "enrichment"] as const)
-        if (await pools[candidate].run(() => execute(candidate, job.id)))
+      for (const candidate of queueLanes)
+        if (
+          await pools[candidate].run(() => execute(candidate, job.id, job.kind))
+        )
           return;
       return;
     }
   }
-  await pools[lane].run(() => execute(lane!, job.id));
+  await pools[lane].run(() => execute(lane!, job.id, job.kind));
 };
 const broker = runtime.env.AMQP_URL
   ? new JobBroker(
@@ -180,37 +196,33 @@ const dispatch = loop("dispatch_retry", async () => {
   let count = 0;
   try {
     for (const lane of queueLanes.filter((lane) => capacities[lane] > 0)) {
-      const source =
-        lane === "email"
-          ? "email"
-          : lane === "bulk" || lane === "maintenance"
-            ? "task"
-            : "memory";
-      const jobs = camelRows<JobEnvelope & { dispatchId: string }>(
-        await runtime.db.raw(
-          "SELECT * FROM grove_dispatch_claim(?,?,?::text[],?)",
-          [source, lane, providerProfiles(runtime.memories.providers), 32],
-        ),
-      );
-      for (let offset = 0; offset < jobs.length; offset += 4) {
-        const outcomes = await Promise.allSettled(
-          jobs.slice(offset, offset + 4).map(async (job) => {
-            let confirmed = false;
-            try {
-              await broker.publish({ id: job.id, kind: job.kind }, lane);
-              confirmed = true;
-            } finally {
-              await runtime.db.raw(
-                "SELECT grove_dispatch_finish(?,?::uuid,?::uuid,?)",
-                [job.kind, job.id, job.dispatchId, confirmed],
-              );
-            }
-          }),
+      for (const source of laneSources(lane)) {
+        const jobs = camelRows<JobEnvelope & { dispatchId: string }>(
+          await runtime.db.raw(
+            "SELECT * FROM grove_dispatch_claim(?,?,?::text[],?)",
+            [source, lane, providerProfiles(runtime.memories.providers), 32],
+          ),
         );
-        if (outcomes.some((result) => result.status === "rejected"))
-          throw new Error("broker_retry");
+        for (let offset = 0; offset < jobs.length; offset += 4) {
+          const outcomes = await Promise.allSettled(
+            jobs.slice(offset, offset + 4).map(async (job) => {
+              let confirmed = false;
+              try {
+                await broker.publish({ id: job.id, kind: job.kind }, lane);
+                confirmed = true;
+              } finally {
+                await runtime.db.raw(
+                  "SELECT grove_dispatch_finish(?,?::uuid,?::uuid,?)",
+                  [job.kind, job.id, job.dispatchId, confirmed],
+                );
+              }
+            }),
+          );
+          if (outcomes.some((result) => result.status === "rejected"))
+            throw new Error("broker_retry");
+        }
+        count += jobs.length;
       }
-      count += jobs.length;
     }
   } catch (error) {
     await broker.disconnect();

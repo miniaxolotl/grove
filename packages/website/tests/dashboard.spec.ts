@@ -216,7 +216,7 @@ for (const path of [
       page.getByText(/Loading (memories|projects|connections|preferences)/),
     ).toHaveCount(0);
     unavailable = false;
-    await page.getByRole("button", { name: "Try loading again" }).click();
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
     await expect(page.getByRole("alert")).toHaveCount(0);
     if (path === "/app")
       await expect(
