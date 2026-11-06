@@ -1,4 +1,52 @@
-# Browser extension evidence — 5 November 2026
+# Browser extension evidence
+
+## Minimal panel — 6 November 2026
+
+Runtime source `f731ed86` (stacked on #184 at `aeeff000`), product `1.11.14`.
+These are actual installed-package views in Chromium `156.0.8078.4`, using the
+existing synthetic HTTP/auth fixture, not marketing mocks or live accounts.
+
+| Capture                                                                                | Search                                                                        | Contextual page lookup                                                             | Settings                                                                        |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| ![Editor-first capture with the newer draft kept after retry](minimal-capture-390.png) | ![Search with secondary notebook filtering collapsed](minimal-search-390.png) | ![Page lookup inside Search, only after an explicit request](minimal-page-320.png) | ![Access and privacy, without exposed connection IDs](minimal-settings-390.png) |
+
+[Wide capture view, 768px](minimal-capture-768.png).
+
+Compared with the initial package below: main destinations reduce from four to
+three; the note editor precedes notebook selection; technical account/API and save
+version details are disclosed on demand. Settings no longer repeats empty recovery
+sections or exposes technical IDs by default. Context review appears only after a
+selection, including selections from page matches. No feature or consent gate is
+removed. The source link remains editable, never fetched or disclosed on tab change.
+
+Installed-package checks exercise both Chromium manifests at320/390/768px across
+Capture, both Search modes and Settings, with zero axe violations/overflow and at
+most one primary action per view. At390×480, Save remains reachable above the fixed
+navigation with source details expanded. Held/failed search preserves inputs and
+existing results; unchanged rows retain identity after refresh; selection controls
+do not shift results. Exact retry preserves the newer draft, pending recovery stays
+visible until confirmed, and sign-out clears another mounted panel. Native Firefox
+159.0 also passes temporary-install/sidebar/capture/search/context smoke with
+synthetic HTTP/auth. This is not live OAuth or branded Chrome/Edge qualification.
+
+Visual review retains the existing achromatic-ledger direction (seed1300687580),
+Grove's Space Grotesk and actual wordmark; no new palette/type/theme or redraw.
+Capture answers “what should I keep?”, Search “which note do I need?”, Settings
+“what can this connection access?”. Review at all three widths: hierarchy8/10,
+usability8/10, identity8/10. The deliberate empty space is an honest short note or
+small result set, not fabricated content. The main remaining limits are the
+native/live acceptance gates below and owner feedback, not additional decoration.
+
+App-source taste lint reports zero failures; the retained shadow warning is the
+real modal overlay. The generic URL inspector cannot install/reach this isolated
+extension origin; installed-host screenshots, overflow/focus checks and axe are
+used instead, not reported as a passing generic inspector run.
+
+Reproduce with the commands below, directing `EXTENSION_SCREENSHOTS` to a separate
+output directory. The additional `*-minimal-<view>-<width>.png` captures cover every
+main view at all three widths. Earlier captures below remain historical evidence.
+
+## Initial unsigned package — 5 November 2026
 
 Runtime/build source: `f43240253fe9dfd8aa94bd71e263236e8144e279`, product
 version `1.11.14`. Images come from the actual installed unsigned packages,
