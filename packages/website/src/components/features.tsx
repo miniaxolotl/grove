@@ -32,15 +32,19 @@ export function Features() {
             what to share.
           </p>
         </div>
-        <div className="feature-photo" data-reveal>
+        <figure className="feature-photo" data-reveal>
           <Image
-            src="/images/kit/grove-journal.webp"
-            alt="An open handwritten journal by a window"
-            width={640}
-            height={960}
+            src="/images/marketing/editorial.webp"
+            alt="Editorial notebook illustration showing an earlier draft beside a person writing by a window."
+            width={1600}
+            height={1000}
             sizes="(max-width: 767px) calc(100vw - 40px), 40vw"
           />
-        </div>
+          <figcaption>
+            Illustrative note history. Your earlier drafts stay within reach.{" "}
+            <a href="/images/marketing/CREDITS.md">Photo credits</a>.
+          </figcaption>
+        </figure>
         <dl className="feature-list" data-stagger>
           {features.map(([title, description]) => (
             <div className="feature-row" key={title} data-reveal>

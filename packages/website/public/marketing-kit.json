@@ -1,0 +1,118 @@
+{
+  "brand": "grove",
+  "kit": "Bramble Labs approved marketing kit, 6 November 2026",
+  "assets": [
+    {
+      "source": "identity-library/grove/favicons/favicon.svg",
+      "file": "src/app/icon.svg",
+      "role": "adaptive transparent symbol",
+      "sha256": "adaaf1bf0191b462d4459bd59440da8d1cd5d98842f1285b7670ba80ee3f9771",
+      "bytes": 1038
+    },
+    {
+      "source": "identity-library/grove/favicons/favicon.ico",
+      "file": "src/app/favicon.ico",
+      "role": "legacy favicon",
+      "sha256": "80899dea331cc87a006d3c59e97541c8ed13697e349f3216c9501624929063ec",
+      "bytes": 5530
+    },
+    {
+      "source": "identity-library/grove/favicons/favicon-colour.ico",
+      "file": "public/favicons/favicon-colour.ico",
+      "role": "browser-theme fallback",
+      "sha256": "80899dea331cc87a006d3c59e97541c8ed13697e349f3216c9501624929063ec",
+      "bytes": 5530
+    },
+    {
+      "source": "identity-library/grove/favicons/favicon-white.ico",
+      "file": "public/favicons/favicon-white.ico",
+      "role": "browser-theme fallback",
+      "sha256": "6226daf0102ca6573b46a574ac407448a38b6f48750cea74dcf07fcbf22c1bf2",
+      "bytes": 4266
+    },
+    {
+      "source": "identity-library/grove/favicons/favicon-colour-32.png",
+      "file": "public/favicons/favicon-colour-32.png",
+      "role": "browser-theme fallback",
+      "sha256": "d08bdc87902b1dbc93a3d8d0b36aeb21cb6b21bd97099831d007d6d2c8bc1986",
+      "bytes": 539
+    },
+    {
+      "source": "identity-library/grove/favicons/favicon-white-32.png",
+      "file": "public/favicons/favicon-white-32.png",
+      "role": "browser-theme fallback",
+      "sha256": "2f5302d735fae13070b1ec54e90011c2da63515b1efdff47aab416f84c36bfe4",
+      "bytes": 396
+    },
+    {
+      "source": "grove/website-graphics/story.webp",
+      "file": "public/images/marketing/editorial.webp",
+      "role": "below-fold editorial illustration",
+      "sha256": "049e1c79fd322be000baa182b374f1c48fadbe218d05c017c957b101aee5e5fd",
+      "bytes": 69602
+    },
+    {
+      "source": "grove/website-graphics/share.png",
+      "file": "public/images/marketing/share.png",
+      "role": "social link preview",
+      "sha256": "ed872c40fcdd6e25ecc3f6b42dc555cab8389be5726d0b17b7bebc46c47148ce",
+      "bytes": 510157
+    }
+  ],
+  "sources": [
+    {
+      "brand": "grove",
+      "id": "writing-page",
+      "source": "https://unsplash.com/photos/a-person-writing-on-a-notebook-next-to-a-keyboard-UDY1fa6UHCw",
+      "image": "https://images.unsplash.com/photo-1634245481966-3775f824a445",
+      "photographer": "Kelly Sikkema",
+      "alt": "Hands drawing in a grid notebook beside a keyboard.",
+      "file": "_source/assets/website-graphics/writing-page.jpg",
+      "download": "https://images.unsplash.com/photo-1634245481966-3775f824a445?fm=jpg&w=3200&q=95&fit=max",
+      "license": "https://unsplash.com/license",
+      "acquired": "2026-11-04",
+      "width": 3200,
+      "height": 2186,
+      "bytes": 1181886,
+      "sha256": "13fa0be9c79dadd7c25520ea8d128c0980d64100c5d94384f1bd6d1e24946ab8"
+    },
+    {
+      "id": "grove-travel-journal",
+      "file": "_source/assets/photos/grove-travel-journal.jpg",
+      "alt": "An open notebook, a map and a camera.",
+      "image": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+      "source": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+      "photographer": "Dariusz Sankowski",
+      "license": "https://unsplash.com/license",
+      "bytes": 1915601,
+      "sha256": "b11c435bcd8cfdf48654a20517ac7f8c13a44bf6df7d42ec4d8ef83b381454e9",
+      "acquisition": "Reused from the credited local photo library"
+    },
+    {
+      "id": "grove-map-writing",
+      "file": "_source/assets/photos/grove-map-writing.jpg",
+      "alt": "A pencil and travel notes on a map.",
+      "image": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+      "source": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+      "photographer": "Glenn Carstens-Peters",
+      "license": "https://unsplash.com/license",
+      "bytes": 2390051,
+      "sha256": "21eb3cadbe4eae5ce5f80a97fee0a9c4f0880af1be41f52dc088bafe28461106",
+      "acquisition": "Reused from the credited local photo library"
+    },
+    {
+      "id": "grove-journal",
+      "file": "_source/assets/photos/grove-journal.jpg",
+      "alt": "A person writing in a notebook beside a window.",
+      "image": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+      "source": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+      "photographer": "Jessica Mangano",
+      "license": "https://unsplash.com/license",
+      "bytes": 1075908,
+      "sha256": "595e96ca5d738e62cff0ca733674163af0d233cd5009c6f04c2be49ee0d80ade",
+      "acquisition": "Reused from the credited local photo library"
+    }
+  ],
+  "websiteGraphicsAllowed": true,
+  "boundary": "Licensed editorial illustrations, not customer proof or native capture; no kit website graphics for Burrow"
+}

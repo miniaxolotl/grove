@@ -1,0 +1,1003 @@
+{
+  "brand": "grove",
+  "name": "Grove",
+  "sources": [
+    {
+      "brand": "grove",
+      "id": "writing-page",
+      "source": "https://unsplash.com/photos/a-person-writing-on-a-notebook-next-to-a-keyboard-UDY1fa6UHCw",
+      "image": "https://images.unsplash.com/photo-1634245481966-3775f824a445",
+      "photographer": "Kelly Sikkema",
+      "alt": "Hands drawing in a grid notebook beside a keyboard.",
+      "file": "_source/assets/website-graphics/writing-page.jpg",
+      "download": "https://images.unsplash.com/photo-1634245481966-3775f824a445?fm=jpg&w=3200&q=95&fit=max",
+      "license": "https://unsplash.com/license",
+      "acquired": "2026-11-04",
+      "width": 3200,
+      "height": 2186,
+      "bytes": 1181886,
+      "sha256": "13fa0be9c79dadd7c25520ea8d128c0980d64100c5d94384f1bd6d1e24946ab8"
+    },
+    {
+      "id": "grove-travel-journal",
+      "file": "_source/assets/photos/grove-travel-journal.jpg",
+      "alt": "An open notebook, a map and a camera.",
+      "image": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+      "source": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+      "photographer": "Dariusz Sankowski",
+      "license": "https://unsplash.com/license",
+      "bytes": 1915601,
+      "sha256": "b11c435bcd8cfdf48654a20517ac7f8c13a44bf6df7d42ec4d8ef83b381454e9",
+      "acquisition": "Reused from the credited local photo library"
+    },
+    {
+      "id": "grove-map-writing",
+      "file": "_source/assets/photos/grove-map-writing.jpg",
+      "alt": "A pencil and travel notes on a map.",
+      "image": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+      "source": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+      "photographer": "Glenn Carstens-Peters",
+      "license": "https://unsplash.com/license",
+      "bytes": 2390051,
+      "sha256": "21eb3cadbe4eae5ce5f80a97fee0a9c4f0880af1be41f52dc088bafe28461106",
+      "acquisition": "Reused from the credited local photo library"
+    },
+    {
+      "id": "grove-journal",
+      "file": "_source/assets/photos/grove-journal.jpg",
+      "alt": "A person writing in a notebook beside a window.",
+      "image": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+      "source": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+      "photographer": "Jessica Mangano",
+      "license": "https://unsplash.com/license",
+      "bytes": 1075908,
+      "sha256": "595e96ca5d738e62cff0ca733674163af0d233cd5009c6f04c2be49ee0d80ade",
+      "acquisition": "Reused from the credited local photo library"
+    }
+  ],
+  "assets": [
+    {
+      "id": "grove/website-graphics/hero.png",
+      "file": "grove/website-graphics/hero.png",
+      "svg": "grove/website-graphics/hero.svg",
+      "webp": "grove/website-graphics/hero.webp",
+      "mobile": "grove/website-graphics/hero-mobile.webp",
+      "mobileAlt": "Grove: Keep the thought. Find it later., composed for mobile. Hands drawing in a grid notebook beside a keyboard. A pencil and travel notes on a map.",
+      "mobileLabels": [
+        {
+          "text": "Weekend by the coast",
+          "font": "space-grotesk-500",
+          "size": 48,
+          "x1": 118.79511525833101,
+          "y1": 372.28954290354676,
+          "x2": 620.3867740178694,
+          "y2": 441.5991543017162
+        },
+        {
+          "text": "Take the Friday evening train.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 124.62738427526992,
+          "y1": 461.37456848741544,
+          "x2": 572.6200943172522,
+          "y2": 514.4307072439906
+        },
+        {
+          "text": "Walk the shoreline on Saturday.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 127.54955062210183,
+          "y1": 509.05714379460983,
+          "x2": 609.3450838889421,
+          "y2": 564.3449131161592
+        },
+        {
+          "text": "Pack the camera and a notebook.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 131.60758295585,
+          "y1": 557.8748844383075,
+          "x2": 641.6953980796438,
+          "y2": 608.0725370476555
+        }
+      ],
+      "responsive": [
+        {
+          "file": "grove/website-graphics/hero-640.webp",
+          "width": 640,
+          "height": 400
+        },
+        {
+          "file": "grove/website-graphics/hero-1280.webp",
+          "width": 1280,
+          "height": 800
+        },
+        {
+          "file": "grove/website-graphics/hero-1920.webp",
+          "width": 1920,
+          "height": 1200
+        }
+      ],
+      "brand": "grove",
+      "type": "websites",
+      "slug": "hero",
+      "concept": "Keep the thought. Find it later.",
+      "kind": "Hero visual",
+      "title": "Grove · Keep the thought. Find it later.",
+      "description": "Write private notes, organize them in notebooks and search by what you remember.",
+      "placement": "Beside the hero headline. Keep website text in HTML, outside the image.",
+      "copy": {
+        "headline": "Keep the thought. Find it later.",
+        "description": "Write private notes, organize them in notebooks and search by what you remember.",
+        "action": "Create your account",
+        "destination": "https://usegrove.cloud/sign-up",
+        "availability": "Available"
+      },
+      "alt": "Grove: Keep the thought. Find it later. Hands drawing in a grid notebook beside a keyboard. An open notebook, a map and a camera.",
+      "width": 1920,
+      "height": 1200,
+      "format": "PNG",
+      "status": "Website artwork · editorial illustration",
+      "thumbnail": "grove/website-graphics/hero-preview.jpg",
+      "browse": "website-graphics/index.html#grove-hero",
+      "sources": [
+        {
+          "brand": "grove",
+          "id": "writing-page",
+          "source": "https://unsplash.com/photos/a-person-writing-on-a-notebook-next-to-a-keyboard-UDY1fa6UHCw",
+          "image": "https://images.unsplash.com/photo-1634245481966-3775f824a445",
+          "photographer": "Kelly Sikkema",
+          "alt": "Hands drawing in a grid notebook beside a keyboard.",
+          "file": "_source/assets/website-graphics/writing-page.jpg",
+          "download": "https://images.unsplash.com/photo-1634245481966-3775f824a445?fm=jpg&w=3200&q=95&fit=max",
+          "license": "https://unsplash.com/license",
+          "acquired": "2026-11-04",
+          "width": 3200,
+          "height": 2186,
+          "bytes": 1181886,
+          "sha256": "13fa0be9c79dadd7c25520ea8d128c0980d64100c5d94384f1bd6d1e24946ab8"
+        },
+        {
+          "id": "grove-travel-journal",
+          "file": "_source/assets/photos/grove-travel-journal.jpg",
+          "alt": "An open notebook, a map and a camera.",
+          "image": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+          "source": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+          "photographer": "Dariusz Sankowski",
+          "license": "https://unsplash.com/license",
+          "bytes": 1915601,
+          "sha256": "b11c435bcd8cfdf48654a20517ac7f8c13a44bf6df7d42ec4d8ef83b381454e9",
+          "acquisition": "Reused from the credited local photo library"
+        },
+        {
+          "id": "grove-map-writing",
+          "file": "_source/assets/photos/grove-map-writing.jpg",
+          "alt": "A pencil and travel notes on a map.",
+          "image": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+          "source": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+          "photographer": "Glenn Carstens-Peters",
+          "license": "https://unsplash.com/license",
+          "bytes": 2390051,
+          "sha256": "21eb3cadbe4eae5ce5f80a97fee0a9c4f0880af1be41f52dc088bafe28461106",
+          "acquisition": "Reused from the credited local photo library"
+        }
+      ],
+      "background": "#faf9f3",
+      "companions": [
+        "grove/website-graphics/hero.svg",
+        "grove/website-graphics/hero.png",
+        "grove/website-graphics/hero.webp",
+        "grove/website-graphics/hero-preview.jpg",
+        "grove/website-graphics/hero-640.webp",
+        "grove/website-graphics/hero-1280.webp",
+        "grove/website-graphics/hero-1920.webp",
+        "grove/website-graphics/hero-mobile.svg",
+        "grove/website-graphics/hero-mobile.png",
+        "grove/website-graphics/hero-mobile.webp",
+        "grove/website-graphics/COPY.md",
+        "grove/website-graphics/copy.json"
+      ],
+      "bytes": 1609469,
+      "sha256": "6a68d9fb8be547cc506210ad6784bb7fc8d2aaa941b0e7d1e6d69078f238f26e",
+      "labels": [
+        {
+          "text": "Weekend by the coast",
+          "font": "space-grotesk-500",
+          "size": 52.8,
+          "x1": 998.4806964736545,
+          "y1": 200.52413812751988,
+          "x2": 1550.2315211091468,
+          "y2": 276.7647106655063
+        },
+        {
+          "text": "Take the Friday evening train.",
+          "font": "space-grotesk-400",
+          "size": 36,
+          "x1": 1008.0765979047832,
+          "y1": 332.82063479600174,
+          "x2": 1496.795917950582,
+          "y2": 390.7000588940837
+        },
+        {
+          "text": "Walk the shoreline on Saturday.",
+          "font": "space-grotesk-400",
+          "size": 36,
+          "x1": 1011.6754908849081,
+          "y1": 392.68177074955884,
+          "x2": 1537.270618085097,
+          "y2": 452.99570091852166
+        },
+        {
+          "text": "Pack the camera and a notebook.",
+          "font": "space-grotesk-400",
+          "size": 36,
+          "x1": 1016.5135103962143,
+          "y1": 453.7812688883922,
+          "x2": 1572.972945076716,
+          "y2": 508.54234446222637
+        }
+      ]
+    },
+    {
+      "id": "grove/website-graphics/feature.png",
+      "file": "grove/website-graphics/feature.png",
+      "svg": "grove/website-graphics/feature.svg",
+      "webp": "grove/website-graphics/feature.webp",
+      "mobile": null,
+      "mobileAlt": null,
+      "mobileLabels": [],
+      "responsive": [],
+      "brand": "grove",
+      "type": "websites",
+      "slug": "feature",
+      "concept": "Remember the idea, not the wording.",
+      "kind": "Section graphic",
+      "title": "Grove · Remember the idea, not the wording.",
+      "description": "Search by meaning to find a note even when you can’t remember the exact phrase.",
+      "placement": "Supporting editorial visual for a feature or about section.",
+      "copy": {
+        "headline": "Remember the idea, not the wording.",
+        "description": "Search by meaning to find a note even when you can’t remember the exact phrase.",
+        "action": "Create your account",
+        "destination": "https://usegrove.cloud/sign-up",
+        "availability": "Available"
+      },
+      "alt": "Grove: Remember the idea, not the wording. A pencil and travel notes on a map.",
+      "width": 1600,
+      "height": 1000,
+      "format": "PNG",
+      "status": "Website artwork · editorial illustration",
+      "thumbnail": "grove/website-graphics/feature-preview.jpg",
+      "browse": "website-graphics/index.html#grove-feature",
+      "sources": [
+        {
+          "id": "grove-map-writing",
+          "file": "_source/assets/photos/grove-map-writing.jpg",
+          "alt": "A pencil and travel notes on a map.",
+          "image": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+          "source": "https://images.unsplash.com/photo-1499591934245-40b55745b905",
+          "photographer": "Glenn Carstens-Peters",
+          "license": "https://unsplash.com/license",
+          "bytes": 2390051,
+          "sha256": "21eb3cadbe4eae5ce5f80a97fee0a9c4f0880af1be41f52dc088bafe28461106",
+          "acquisition": "Reused from the credited local photo library"
+        }
+      ],
+      "background": "#faf9f3",
+      "companions": [
+        "grove/website-graphics/feature.svg",
+        "grove/website-graphics/feature.png",
+        "grove/website-graphics/feature.webp",
+        "grove/website-graphics/feature-preview.jpg",
+        "grove/website-graphics/COPY.md",
+        "grove/website-graphics/copy.json"
+      ],
+      "bytes": 810031,
+      "sha256": "1b2cdc785c4d55ffc880a7915f25949a85c302c27b36b8c2bf2ec0e6412fad18",
+      "labels": [
+        {
+          "text": "Search your notes",
+          "font": "space-grotesk-400",
+          "size": 27,
+          "x1": 131.296,
+          "y1": 113.72200000000001,
+          "x2": 359.95899999999995,
+          "y2": 138.4
+        },
+        {
+          "text": "somewhere near the sea",
+          "font": "space-grotesk-500",
+          "size": 59,
+          "x1": 132.714,
+          "y1": 165.7,
+          "x2": 801.8919999999999,
+          "y2": 207.826
+        },
+        {
+          "text": "Weekend by the coast",
+          "font": "space-grotesk-500",
+          "size": 48,
+          "x1": 140.60935421261402,
+          "y1": 401.891748443441,
+          "x2": 642.2010129721523,
+          "y2": 471.2013598416103
+        },
+        {
+          "text": "Take the Friday evening train.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 146.44162322955293,
+          "y1": 490.9767740273096,
+          "x2": 594.4343332715353,
+          "y2": 544.0329127838847
+        },
+        {
+          "text": "Walk the shoreline on Saturday.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 149.36378957638485,
+          "y1": 538.659349334504,
+          "x2": 631.1593228432251,
+          "y2": 593.9471186560534
+        },
+        {
+          "text": "Pack the camera and a notebook.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 153.42182191013302,
+          "y1": 587.4770899782017,
+          "x2": 663.5096370339269,
+          "y2": 637.6747425875496
+        },
+        {
+          "text": "Found by meaning.",
+          "font": "space-grotesk-500",
+          "size": 38,
+          "x1": 132.774,
+          "y1": 886.4,
+          "x2": 466.6039999999999,
+          "y2": 920.6
+        }
+      ]
+    },
+    {
+      "id": "grove/website-graphics/detail.png",
+      "file": "grove/website-graphics/detail.png",
+      "svg": "grove/website-graphics/detail.svg",
+      "webp": "grove/website-graphics/detail.webp",
+      "mobile": null,
+      "mobileAlt": null,
+      "mobileLabels": [],
+      "responsive": [],
+      "brand": "grove",
+      "type": "websites",
+      "slug": "detail",
+      "concept": "Give each project its own notebook.",
+      "kind": "Detail graphic",
+      "title": "Grove · Give each project its own notebook.",
+      "description": "Keep research, plans and personal notes in notebooks you can browse and search.",
+      "placement": "A focused product concept beside a short feature explanation.",
+      "copy": {
+        "headline": "Give each project its own notebook.",
+        "description": "Keep research, plans and personal notes in notebooks you can browse and search.",
+        "action": "Create your account",
+        "destination": "https://usegrove.cloud/sign-up",
+        "availability": "Available"
+      },
+      "alt": "Grove: Give each project its own notebook. An open notebook, a map and a camera. Hands drawing in a grid notebook beside a keyboard. A person writing in a notebook beside a window.",
+      "width": 1600,
+      "height": 1000,
+      "format": "PNG",
+      "status": "Website artwork · editorial illustration",
+      "thumbnail": "grove/website-graphics/detail-preview.jpg",
+      "browse": "website-graphics/index.html#grove-detail",
+      "sources": [
+        {
+          "id": "grove-travel-journal",
+          "file": "_source/assets/photos/grove-travel-journal.jpg",
+          "alt": "An open notebook, a map and a camera.",
+          "image": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+          "source": "https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81",
+          "photographer": "Dariusz Sankowski",
+          "license": "https://unsplash.com/license",
+          "bytes": 1915601,
+          "sha256": "b11c435bcd8cfdf48654a20517ac7f8c13a44bf6df7d42ec4d8ef83b381454e9",
+          "acquisition": "Reused from the credited local photo library"
+        },
+        {
+          "brand": "grove",
+          "id": "writing-page",
+          "source": "https://unsplash.com/photos/a-person-writing-on-a-notebook-next-to-a-keyboard-UDY1fa6UHCw",
+          "image": "https://images.unsplash.com/photo-1634245481966-3775f824a445",
+          "photographer": "Kelly Sikkema",
+          "alt": "Hands drawing in a grid notebook beside a keyboard.",
+          "file": "_source/assets/website-graphics/writing-page.jpg",
+          "download": "https://images.unsplash.com/photo-1634245481966-3775f824a445?fm=jpg&w=3200&q=95&fit=max",
+          "license": "https://unsplash.com/license",
+          "acquired": "2026-11-04",
+          "width": 3200,
+          "height": 2186,
+          "bytes": 1181886,
+          "sha256": "13fa0be9c79dadd7c25520ea8d128c0980d64100c5d94384f1bd6d1e24946ab8"
+        },
+        {
+          "id": "grove-journal",
+          "file": "_source/assets/photos/grove-journal.jpg",
+          "alt": "A person writing in a notebook beside a window.",
+          "image": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+          "source": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+          "photographer": "Jessica Mangano",
+          "license": "https://unsplash.com/license",
+          "bytes": 1075908,
+          "sha256": "595e96ca5d738e62cff0ca733674163af0d233cd5009c6f04c2be49ee0d80ade",
+          "acquisition": "Reused from the credited local photo library"
+        }
+      ],
+      "background": "#faf9f3",
+      "companions": [
+        "grove/website-graphics/detail.svg",
+        "grove/website-graphics/detail.png",
+        "grove/website-graphics/detail.webp",
+        "grove/website-graphics/detail-preview.jpg",
+        "grove/website-graphics/COPY.md",
+        "grove/website-graphics/copy.json"
+      ],
+      "bytes": 918906,
+      "sha256": "d0e22e8eaa275ea12521c16bd679ebbe51d9fbb5a67bf7c7198c3cd6b7d58912",
+      "labels": [
+        {
+          "text": "Travel plans",
+          "font": "space-grotesk-500",
+          "size": 48,
+          "x1": 118.40183414339718,
+          "y1": 203.88320763769553,
+          "x2": 381.07943544383767,
+          "y2": 273.9804701264755
+        },
+        {
+          "text": "Routes, stays and places.",
+          "font": "space-grotesk-400",
+          "size": 30.407,
+          "x1": 130.84813003246938,
+          "y1": 281.22982604068267,
+          "x2": 488.4083055380292,
+          "y2": 345.7269895685358
+        },
+        {
+          "text": "Work projects",
+          "font": "space-grotesk-500",
+          "size": 48,
+          "x1": 618.5840000000001,
+          "y1": 170.39999999999998,
+          "x2": 926.552,
+          "y2": 213.60000000000002
+        },
+        {
+          "text": "Research and decisions.",
+          "font": "space-grotesk-400",
+          "size": 32.038,
+          "x1": 621.563058677759,
+          "y1": 257.57323656960796,
+          "x2": 978.7288846800602,
+          "y2": 280.4485352686078
+        },
+        {
+          "text": "Journal",
+          "font": "space-grotesk-500",
+          "size": 48,
+          "x1": 1116.9327127683441,
+          "y1": 193.0657660310526,
+          "x2": 1283.441667248265,
+          "y2": 244.27429139547417
+        },
+        {
+          "text": "Thoughts from today.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 1109.525533794065,
+          "y1": 279.2134765831886,
+          "x2": 1445.9092341194535,
+          "y2": 343.77983284356594
+        }
+      ]
+    },
+    {
+      "id": "grove/website-graphics/story.png",
+      "file": "grove/website-graphics/story.png",
+      "svg": "grove/website-graphics/story.svg",
+      "webp": "grove/website-graphics/story.webp",
+      "mobile": null,
+      "mobileAlt": null,
+      "mobileLabels": [],
+      "responsive": [],
+      "brand": "grove",
+      "type": "websites",
+      "slug": "story",
+      "concept": "The earlier draft is still there.",
+      "kind": "Story graphic",
+      "title": "Grove · The earlier draft is still there.",
+      "description": "Return to previous versions of a note when an edit takes you in the wrong direction.",
+      "placement": "A distinct editorial composition for a product story or use case.",
+      "copy": {
+        "headline": "The earlier draft is still there.",
+        "description": "Return to previous versions of a note when an edit takes you in the wrong direction.",
+        "action": "Create your account",
+        "destination": "https://usegrove.cloud/sign-up",
+        "availability": "Available"
+      },
+      "alt": "Grove: The earlier draft is still there. A person writing in a notebook beside a window.",
+      "width": 1600,
+      "height": 1000,
+      "format": "PNG",
+      "status": "Website artwork · editorial illustration",
+      "thumbnail": "grove/website-graphics/story-preview.jpg",
+      "browse": "website-graphics/index.html#grove-story",
+      "sources": [
+        {
+          "id": "grove-journal",
+          "file": "_source/assets/photos/grove-journal.jpg",
+          "alt": "A person writing in a notebook beside a window.",
+          "image": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+          "source": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+          "photographer": "Jessica Mangano",
+          "license": "https://unsplash.com/license",
+          "bytes": 1075908,
+          "sha256": "595e96ca5d738e62cff0ca733674163af0d233cd5009c6f04c2be49ee0d80ade",
+          "acquisition": "Reused from the credited local photo library"
+        }
+      ],
+      "background": "#faf9f3",
+      "companions": [
+        "grove/website-graphics/story.svg",
+        "grove/website-graphics/story.png",
+        "grove/website-graphics/story.webp",
+        "grove/website-graphics/story-preview.jpg",
+        "grove/website-graphics/COPY.md",
+        "grove/website-graphics/copy.json"
+      ],
+      "bytes": 1089559,
+      "sha256": "e16f90b08e5243764d9d5c360f0208d84d3262faf530741ac0ba7a8b04173905",
+      "labels": [
+        {
+          "text": "Earlier version",
+          "font": "space-grotesk-500",
+          "size": 48,
+          "x1": 689.7304440809866,
+          "y1": 163.13464981400637,
+          "x2": 996.4815947785575,
+          "y2": 213.34182620276033
+        },
+        {
+          "text": "Take the Saturday morning train.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 693.6211651794124,
+          "y1": 238.97786803829146,
+          "x2": 1193.0475028823444,
+          "y2": 295.18962866731
+        },
+        {
+          "text": "Walk the shoreline in the afternoon.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 696.5916899498128,
+          "y1": 287.0028759527773,
+          "x2": 1240.524058635974,
+          "y2": 338.9742464551549
+        },
+        {
+          "text": "Book a room near the harbour.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 699.5380355084291,
+          "y1": 341.2365253015447,
+          "x2": 1161.0505128026907,
+          "y2": 388.8884523273234
+        },
+        {
+          "text": "Current version",
+          "font": "space-grotesk-500",
+          "size": 48,
+          "x1": 699.5927310039125,
+          "y1": 581.2947231855054,
+          "x2": 1038.3991088664493,
+          "y2": 633.8510787225882
+        },
+        {
+          "text": "Take the Friday evening train.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 695.555606794064,
+          "y1": 668.360393314148,
+          "x2": 1143.5483168360465,
+          "y2": 721.4165320707232
+        },
+        {
+          "text": "Keep Saturday for the shoreline.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 694.6854120382026,
+          "y1": 717.922038794289,
+          "x2": 1186.663970670935,
+          "y2": 773.7434778616478
+        },
+        {
+          "text": "Book a room near the harbour.",
+          "font": "space-grotesk-400",
+          "size": 33,
+          "x1": 691.3023447621268,
+          "y1": 768.2578885207258,
+          "x2": 1152.8148220563887,
+          "y2": 815.9098155465045
+        }
+      ]
+    },
+    {
+      "id": "grove/website-graphics/banner.png",
+      "file": "grove/website-graphics/banner.png",
+      "svg": "grove/website-graphics/banner.svg",
+      "webp": "grove/website-graphics/banner.webp",
+      "mobile": null,
+      "mobileAlt": null,
+      "mobileLabels": [],
+      "responsive": [],
+      "brand": "grove",
+      "type": "websites",
+      "slug": "banner",
+      "concept": "Make room for your next idea.",
+      "kind": "Wide banner",
+      "title": "Grove · Make room for your next idea.",
+      "description": "Start a private notebook for the plans and thoughts you want to keep.",
+      "placement": "A panoramic section break. Keep headings outside this image.",
+      "copy": {
+        "headline": "Make room for your next idea.",
+        "description": "Start a private notebook for the plans and thoughts you want to keep.",
+        "action": "Create your account",
+        "destination": "https://usegrove.cloud/sign-up",
+        "availability": "Available"
+      },
+      "alt": "Grove: Make room for your next idea. Hands drawing in a grid notebook beside a keyboard.",
+      "width": 1920,
+      "height": 720,
+      "format": "PNG",
+      "status": "Website artwork · editorial illustration",
+      "thumbnail": "grove/website-graphics/banner-preview.jpg",
+      "browse": "website-graphics/index.html#grove-banner",
+      "sources": [
+        {
+          "brand": "grove",
+          "id": "writing-page",
+          "source": "https://unsplash.com/photos/a-person-writing-on-a-notebook-next-to-a-keyboard-UDY1fa6UHCw",
+          "image": "https://images.unsplash.com/photo-1634245481966-3775f824a445",
+          "photographer": "Kelly Sikkema",
+          "alt": "Hands drawing in a grid notebook beside a keyboard.",
+          "file": "_source/assets/website-graphics/writing-page.jpg",
+          "download": "https://images.unsplash.com/photo-1634245481966-3775f824a445?fm=jpg&w=3200&q=95&fit=max",
+          "license": "https://unsplash.com/license",
+          "acquired": "2026-11-04",
+          "width": 3200,
+          "height": 2186,
+          "bytes": 1181886,
+          "sha256": "13fa0be9c79dadd7c25520ea8d128c0980d64100c5d94384f1bd6d1e24946ab8"
+        }
+      ],
+      "background": "#faf9f3",
+      "companions": [
+        "grove/website-graphics/banner.svg",
+        "grove/website-graphics/banner.png",
+        "grove/website-graphics/banner.webp",
+        "grove/website-graphics/banner-preview.jpg",
+        "grove/website-graphics/COPY.md",
+        "grove/website-graphics/copy.json"
+      ],
+      "bytes": 1302141,
+      "sha256": "196780bfb49ccdfedb8e45376b713ac9c5c985a40d772782cd2aec134fb4e959",
+      "labels": [
+        {
+          "text": "Next project",
+          "font": "space-grotesk-500",
+          "size": 67.2,
+          "x1": 1122.0848994826647,
+          "y1": 157.4361470193336,
+          "x2": 1509.4740502307993,
+          "y2": 251.11699298928647
+        },
+        {
+          "text": "Ideas worth exploring.",
+          "font": "space-grotesk-400",
+          "size": 37.199999999999996,
+          "x1": 1132.3323838049344,
+          "y1": 269.45423923153675,
+          "x2": 1514.0988184997454,
+          "y2": 335.9517832053147
+        }
+      ]
+    },
+    {
+      "id": "grove/website-graphics/share.png",
+      "file": "grove/website-graphics/share.png",
+      "svg": "grove/website-graphics/share.svg",
+      "webp": "grove/website-graphics/share.webp",
+      "mobile": null,
+      "mobileAlt": null,
+      "mobileLabels": [],
+      "responsive": [],
+      "brand": "grove",
+      "type": "websites",
+      "slug": "share",
+      "concept": "Find that note again.",
+      "kind": "Share image",
+      "title": "Grove · Find that note again.",
+      "description": "Search your private notes by meaning. Even when the exact words escape you.",
+      "placement": "Open Graph / social link preview. Benefit-led headline, supporting detail and next action.",
+      "copy": {
+        "headline": "Find that note again.",
+        "description": "Search your private notes by meaning. Even when the exact words escape you.",
+        "action": "Create your account",
+        "destination": "https://usegrove.cloud/sign-up",
+        "availability": "Available"
+      },
+      "alt": "Grove: Find that note again. A person writing in a notebook beside a window.",
+      "width": 1200,
+      "height": 630,
+      "format": "PNG",
+      "status": "Website artwork · editorial illustration",
+      "thumbnail": "grove/website-graphics/share-preview.jpg",
+      "browse": "website-graphics/index.html#grove-share",
+      "sources": [
+        {
+          "id": "grove-journal",
+          "file": "_source/assets/photos/grove-journal.jpg",
+          "alt": "A person writing in a notebook beside a window.",
+          "image": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+          "source": "https://images.unsplash.com/photo-1681396059172-7532b1ef8b47",
+          "photographer": "Jessica Mangano",
+          "license": "https://unsplash.com/license",
+          "bytes": 1075908,
+          "sha256": "595e96ca5d738e62cff0ca733674163af0d233cd5009c6f04c2be49ee0d80ade",
+          "acquisition": "Reused from the credited local photo library"
+        }
+      ],
+      "background": "#faf9f3",
+      "companions": [
+        "grove/website-graphics/share.svg",
+        "grove/website-graphics/share.png",
+        "grove/website-graphics/share.webp",
+        "grove/website-graphics/share-preview.jpg",
+        "grove/website-graphics/COPY.md",
+        "grove/website-graphics/copy.json"
+      ],
+      "bytes": 510157,
+      "sha256": "ed872c40fcdd6e25ecc3f6b42dc555cab8389be5726d0b17b7bebc46c47148ce",
+      "labels": [
+        {
+          "text": "Find that",
+          "font": "space-grotesk-500",
+          "size": 86,
+          "x1": 62.278,
+          "y1": 205.8,
+          "x2": 416.254,
+          "y2": 267.204
+        },
+        {
+          "text": "note again.",
+          "font": "space-grotesk-500",
+          "size": 86,
+          "x1": 62.536,
+          "y1": 291.8,
+          "x2": 501.824,
+          "y2": 369.2
+        },
+        {
+          "text": "Search your private notes by meaning.",
+          "font": "space-grotesk-400",
+          "size": 27,
+          "x1": 61.296,
+          "y1": 403.722,
+          "x2": 544.2180000000001,
+          "y2": 428.4
+        },
+        {
+          "text": "Even when the exact words escape you.",
+          "font": "space-grotesk-400",
+          "size": 27,
+          "x1": 62.16,
+          "y1": 442.1,
+          "x2": 565.0890000000002,
+          "y2": 466.4
+        },
+        {
+          "text": "Create your account",
+          "font": "space-grotesk-500",
+          "size": 29,
+          "x1": 61.595,
+          "y1": 539.294,
+          "x2": 337.5590000000001,
+          "y2": 565.8
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "file": "grove/website-graphics/hero.svg",
+      "bytes": 2463900,
+      "sha256": "34ee4bea2be96cbf427cbd6975aff06f2cac8241b729741dd05039c741767877"
+    },
+    {
+      "file": "grove/website-graphics/hero.png",
+      "bytes": 1609469,
+      "sha256": "6a68d9fb8be547cc506210ad6784bb7fc8d2aaa941b0e7d1e6d69078f238f26e"
+    },
+    {
+      "file": "grove/website-graphics/hero.webp",
+      "bytes": 130266,
+      "sha256": "79dc50cd88f66361bde6cba38725ba38ae097587bb0984ad980156b6da561cf9"
+    },
+    {
+      "file": "grove/website-graphics/hero-preview.jpg",
+      "bytes": 50541,
+      "sha256": "138257d810365f8a99e66279e237100758bfa29d034702c21ddaf0ad0ab679b7"
+    },
+    {
+      "file": "grove/website-graphics/hero-640.webp",
+      "bytes": 24620,
+      "sha256": "df4977fe277a6147ec0f6cf378ae733dbce6fcf792d236c71898212d553e4d9a"
+    },
+    {
+      "file": "grove/website-graphics/hero-1280.webp",
+      "bytes": 64882,
+      "sha256": "b5d409c691fac48eb5410fc0b2b4fead5004b9ce458e4383ab62b7936812d729"
+    },
+    {
+      "file": "grove/website-graphics/hero-1920.webp",
+      "bytes": 117174,
+      "sha256": "ea6c5c626cd788888ef72e2f63ecff805ac8af66bd38f6d18c6e9fed015c68e2"
+    },
+    {
+      "file": "grove/website-graphics/hero-mobile.svg",
+      "bytes": 2504955,
+      "sha256": "7d36b8ec2059a6049df3bcbeeff712f7d4663700048df2c961609ca4170efad1"
+    },
+    {
+      "file": "grove/website-graphics/hero-mobile.png",
+      "bytes": 1186612,
+      "sha256": "73b47929183ac1dcae33afb8a8740e0bd94d6e8d63f3f8931630b1326fd30700"
+    },
+    {
+      "file": "grove/website-graphics/hero-mobile.webp",
+      "bytes": 87478,
+      "sha256": "ef7ab609099802ef1dcbcbe34a37d566a71f53735c5041700352023a81e9c4e3"
+    },
+    {
+      "file": "grove/website-graphics/feature.svg",
+      "bytes": 1565452,
+      "sha256": "5d58adbe35a7059f36b0d82ad04b86995b4c4774b6be75deb9442729f115fbca"
+    },
+    {
+      "file": "grove/website-graphics/feature.png",
+      "bytes": 810031,
+      "sha256": "1b2cdc785c4d55ffc880a7915f25949a85c302c27b36b8c2bf2ec0e6412fad18"
+    },
+    {
+      "file": "grove/website-graphics/feature.webp",
+      "bytes": 69734,
+      "sha256": "5da2ef83beebe900519ac46db15ab03da232464b194763df9057d79312ab57df"
+    },
+    {
+      "file": "grove/website-graphics/feature-preview.jpg",
+      "bytes": 40114,
+      "sha256": "f160e71972e9906dda6e1ba42a9dbd29c0a114fcb271b3594f848cbf42787ce1"
+    },
+    {
+      "file": "grove/website-graphics/detail.svg",
+      "bytes": 3961928,
+      "sha256": "78748e8bf3671c5455146a89abbc068063af58892e13c7111301aa0c661a4295"
+    },
+    {
+      "file": "grove/website-graphics/detail.png",
+      "bytes": 918906,
+      "sha256": "d0e22e8eaa275ea12521c16bd679ebbe51d9fbb5a67bf7c7198c3cd6b7d58912"
+    },
+    {
+      "file": "grove/website-graphics/detail.webp",
+      "bytes": 77728,
+      "sha256": "7142638738642e2e471f65ce75f2ca310d59f69368533375ad001382dabb9ebc"
+    },
+    {
+      "file": "grove/website-graphics/detail-preview.jpg",
+      "bytes": 42558,
+      "sha256": "cf4b21dfe0a9fd45a0ff3e7b15d67062ef371d7a9716183c01fa96ef792af594"
+    },
+    {
+      "file": "grove/website-graphics/story.svg",
+      "bytes": 1606053,
+      "sha256": "fc165e21faadf8feb6c6f83fd029adf62a208e63006981d725cbff27b0612aed"
+    },
+    {
+      "file": "grove/website-graphics/story.png",
+      "bytes": 1089559,
+      "sha256": "e16f90b08e5243764d9d5c360f0208d84d3262faf530741ac0ba7a8b04173905"
+    },
+    {
+      "file": "grove/website-graphics/story.webp",
+      "bytes": 69602,
+      "sha256": "049e1c79fd322be000baa182b374f1c48fadbe218d05c017c957b101aee5e5fd"
+    },
+    {
+      "file": "grove/website-graphics/story-preview.jpg",
+      "bytes": 41549,
+      "sha256": "13fda6bc62c218c5486e6fc4eec674c9ac370c65d6082f9b9cf31827b8182e70"
+    },
+    {
+      "file": "grove/website-graphics/banner.svg",
+      "bytes": 992249,
+      "sha256": "fb49ca1b482cfcf02522d4f1737ea885013329378d62ae5635f9ec1678610f79"
+    },
+    {
+      "file": "grove/website-graphics/banner.png",
+      "bytes": 1302141,
+      "sha256": "196780bfb49ccdfedb8e45376b713ac9c5c985a40d772782cd2aec134fb4e959"
+    },
+    {
+      "file": "grove/website-graphics/banner.webp",
+      "bytes": 80128,
+      "sha256": "0d044f5bf009d3a61f07d19e18044f3bac1369ffde034fdcc87eede7c7d10349"
+    },
+    {
+      "file": "grove/website-graphics/banner-preview.jpg",
+      "bytes": 30058,
+      "sha256": "8edbf45032e4ab68081ab8d70b4079705647a2d7ecdc6aac509bf2a8445df089"
+    },
+    {
+      "file": "grove/website-graphics/share.svg",
+      "bytes": 1559639,
+      "sha256": "fe3f21ae8c4355b0469ed5d97e7a117c4bfad7b94f239cd00f37f030cc786855"
+    },
+    {
+      "file": "grove/website-graphics/share.png",
+      "bytes": 510157,
+      "sha256": "ed872c40fcdd6e25ecc3f6b42dc555cab8389be5726d0b17b7bebc46c47148ce"
+    },
+    {
+      "file": "grove/website-graphics/share.webp",
+      "bytes": 39040,
+      "sha256": "86d2a016d1fe7b62ae44e7e8e81a19031fbde35864199de646a61996612063b9"
+    },
+    {
+      "file": "grove/website-graphics/share-preview.jpg",
+      "bytes": 38256,
+      "sha256": "473c6534506b067d077267e0588f8646a56b1cff90952e17b4ee6ac8411262e3"
+    },
+    {
+      "file": "grove/website-graphics/contact-sheet.jpg",
+      "bytes": 251971,
+      "sha256": "9ceb9c2866f6354f40285ea9fdadabec5c11b21aa8b7a8dd7a304361b7d8a2e8"
+    },
+    {
+      "file": "grove/website-graphics/CREDITS.md",
+      "bytes": 1555,
+      "sha256": "4fe0fead9956194ac9ef9526f973418bfde64811ed8d26cc69e6c1bdebb070a0"
+    },
+    {
+      "file": "grove/website-graphics/usage.html.txt",
+      "bytes": 750,
+      "sha256": "5f935048528c8743496475de63e31c3f366564a318f0f88b53b58ed38699fef7"
+    },
+    {
+      "file": "grove/website-graphics/copy.json",
+      "bytes": 1904,
+      "sha256": "e7fd34b5749e84189755c78ec30e4ba685924349e7385720f43d49c74f8dca1a"
+    },
+    {
+      "file": "grove/website-graphics/COPY.md",
+      "bytes": 1888,
+      "sha256": "2c5ec9d5ef7630eadf9372105358a4f5f47bb50496cea1545bf659329dffbfe3"
+    },
+    {
+      "file": "grove/website-graphics/README.md",
+      "bytes": 2146,
+      "sha256": "065ef74cdb7fb5288c4be84f76e554ba281d09246cd4e24a6e6c1f4c537cd1f1"
+    }
+  ]
+}

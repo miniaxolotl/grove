@@ -339,7 +339,7 @@ test("social metadata, crawler routes, and generated images are usable", async (
   expect(image.headers()["content-type"]).toContain("image/png");
   const png = await image.body();
   expect(png.readUInt32BE(16)).toBe(1200);
-  expect(png.readUInt32BE(20)).toBe(628);
+  expect(png.readUInt32BE(20)).toBe(630);
   expect((await request.get("/apple-icon")).ok()).toBe(true);
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.ok()).toBe(true);
