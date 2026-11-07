@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Brief, Enrichment } from "./models.ts";
-import { noteContentDescription } from "@lib/shared/note-writing";
+import { noteContentDescription } from "./note-writing.ts";
+import { NOTE_CONTENT_MAX } from "./limits.ts";
 
 export const capabilities = [
   "memory:read",
@@ -53,7 +54,7 @@ export const rememberSchema = z
       .string()
       .trim()
       .min(1)
-      .max(6000)
+      .max(NOTE_CONTENT_MAX)
       .describe(noteContentDescription),
     capture: captureSchema,
     archived: z.boolean().default(false),
@@ -127,7 +128,7 @@ export const recallSchema = z
     includePersonal: z.boolean().default(true),
     taskId: z.string().max(128).optional(),
     limit: z.number().int().min(1).max(12).default(8),
-    maxCharacters: z.number().int().min(256).max(6000).default(6000),
+    maxCharacters: z.number().int().min(256).max(NOTE_CONTENT_MAX).default(NOTE_CONTENT_MAX),
   })
   .strict();
 export const versionSchema = z

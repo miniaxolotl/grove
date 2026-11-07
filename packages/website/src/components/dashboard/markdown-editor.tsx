@@ -69,6 +69,7 @@ import { useWorkspaceCommands } from "./workspace-commands";
 import { workspaceCommand } from "@/lib/workspace-commands";
 import { NoteContextMenu } from "./note-context-menu";
 import { englishMessages } from "@lib/shared/writing-settings";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { writingField } from "@/lib/writing/proofing";import {
   useWritingProofing,
   WritingIssueCard,
@@ -195,7 +196,7 @@ export function MarkdownEditor({
       const markdown = await upload(file, controller.signal);
       if (controller.signal.aborted || !view.current) return;
       const editor = view.current;
-      if (editor.state.doc.length + markdown.length + 2 > 6000)
+      if (editor.state.doc.length + markdown.length + 2 > NOTE_CONTENT_MAX)
         throw new Error(
           "The image uploaded, but the note is full. Shorten it and retry to insert the image.",
         );
@@ -257,7 +258,7 @@ export function MarkdownEditor({
     const end = value.slice(0, to).replace(/\r\n?/g, "\n").length;
     const target = value.slice(0, destination).replace(/\r\n?/g, "\n").length;
     if (target >= start && target <= end) return;
-    if (editor.state.doc.length + 4 > 6000) {
+    if (editor.state.doc.length + 4 > NOTE_CONTENT_MAX) {
       setUploadError("Shorten the note before moving the image.");
       return;
     }
@@ -350,7 +351,7 @@ export function MarkdownEditor({
     undo: false,
     redo: false,
   });
-  const limit = value.length > 6000;
+  const limit = value.length > NOTE_CONTENT_MAX;
   const headings = useMemo(() => noteHeadings(documentValue), [documentValue]);
   const previewHeadings = useMemo(
     () => (value === documentValue ? headings : noteHeadings(value)),
@@ -762,7 +763,7 @@ export function MarkdownEditor({
                               if (!editor || editor.state.readOnly) return;
                               if (
                                 editor.state.doc.length + text.length + 2 >
-                                6000
+                                NOTE_CONTENT_MAX
                               ) {
                                 setUploadError(
                                   "Shorten the note before inserting the transcript.",
