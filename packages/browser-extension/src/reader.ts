@@ -1,5 +1,4 @@
 import { parseNoteMarkdown, type MarkdownNode } from "@lib/shared/markdown";
-import { noteTitle } from "@lib/shared/search";
 
 export function noteSummary(source: string) {
   const text = (node: MarkdownNode): string => {
@@ -11,12 +10,10 @@ export function noteSummary(source: string) {
   const blocks = parseNoteMarkdown(source)
     .children.map((node) => text(node).replace(/\s+/g, " ").trim())
     .filter(Boolean);
-  const firstBlock = blocks.shift() ?? "";
-  const title = noteTitle(source) || firstBlock || "Untitled note";
-  const rest = firstBlock && firstBlock !== title ? [firstBlock, ...blocks] : blocks;
+  const first = blocks.shift() ?? "Untitled note";
   return {
-    title: title.slice(0, 90),
-    excerpt: [title.slice(90), ...rest].filter(Boolean).join(" "),
+    title: first.slice(0, 90),
+    excerpt: [first.slice(90), ...blocks].filter(Boolean).join(" "),
   };
 }
 

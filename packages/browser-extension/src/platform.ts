@@ -119,7 +119,7 @@ export function contextMenuCapture(
       event.selectionText.length > NOTE_CONTENT_MAX
     )
       throw new Error(
-        `Selection must contain 1–${NOTE_CONTENT_MAX.toLocaleString()} characters`,
+        `Selection must contain 1–${NOTE_CONTENT_MAX} characters`,
       );
     text = event.selectionText;
   }

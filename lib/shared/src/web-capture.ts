@@ -138,8 +138,6 @@ export function formatWebCapture(input: {
   }
   if (!content) throw new Error("Capture is empty");
   if (!rememberSchema.shape.content.safeParse(content).success)
-    throw new Error(
-      `Capture exceeds the ${NOTE_CONTENT_MAX.toLocaleString()}-character note limit`,
-    );
+    throw new Error(`Capture exceeds the ${NOTE_CONTENT_MAX}-character note limit`);
   return content;
 }
