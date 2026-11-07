@@ -80,6 +80,12 @@ export class SystemAdministration {
             "Keep at least one active system administrator",
             409,
           );
+        if (code === "GA007")
+          throw new GroveError(
+            "trial_not_consumed",
+            "This account never used a trial",
+            404,
+          );
         throw error;
       });
   }
@@ -200,8 +206,9 @@ export class SystemAdministration {
   /**
    * Restore trial eligibility. Never creates, changes, or cancels a Stripe
    * subscription; it only deletes the single-use consumption record so the
-   * account can start one new trial. Writes go through the guarded SQL
-   * function because runtime has no direct audit access, like other admins.
+   * account can start one new trial. The guarded SQL function does the work
+   * because FORCE-RLS tenant rows are invisible to the admin's own tenant
+   * context; GA007 reports an unused trial.
    */
   trialReset(
     principal: Principal,
@@ -210,22 +217,17 @@ export class SystemAdministration {
     return this.access(principal, async (trx) => {
       await trx.raw("SELECT grove_admin_accounts(ARRAY[]::text[])");
       const input = adminTrialResetSchema.parse(raw);
-      const existing = await trx("billing_trials")
-        .where({ accountId: input.accountId })
-        .first();
-      if (!existing)
-        throw new GroveError(
-          "trial_not_consumed",
-          "This account never used a trial",
-          404,
-        );
       const {
         rows: [result],
       } = await trx.raw(
         "SELECT grove_admin_trial_reset(?::uuid,?::uuid,?) AS result",
         [input.accountId, input.operationId, input.reason],
       );
-      if (!(result?.result as { eligible?: unknown } | null)?.eligible)
+      const value = result?.result as {
+        accountId?: unknown;
+        eligible?: unknown;
+      } | null;
+      if (value?.eligible !== true || value?.accountId !== input.accountId)
         throw new GroveError(
           "trial_not_consumed",
           "This account never used a trial",
