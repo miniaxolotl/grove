@@ -2,10 +2,13 @@
 
 Grove Cloud starts on **Free**. **Pro** increases AI allowances through a Stripe
 subscription; it does not sell a prepaid credit balance. Pro starts at
-**$19.99 USD/month** for new monthly subscriptions.
+**$19.99 USD/month** for new monthly subscriptions or **$159 USD/year** for new
+yearly subscriptions. Both billing periods include the same monthly allowances,
+which reset on the first of each UTC calendar month regardless of billing period.
 The Vercel number flag `billing-pro-monthly-usd` controls the displayed amount and
-the amount charged for new monthly subscriptions. No yearly price is offered in
-the configured Cloud launch.
+the amount charged for new monthly subscriptions; `billing-pro-yearly-usd`
+(default $159) does the same for yearly subscriptions. Yearly checkout stays
+hidden until its flag is configured, and it never affects the monthly offer.
 
 The server validates whole-cent USD amounts between 1 and 10,000 dollars, resolves
 an immutable Stripe Price under the configured Grove Pro product, and refuses an
@@ -317,9 +320,11 @@ the generation/research/audio configuration or installation-wide spending contro
   `units` explicitly identifies requests, calls and milliseconds; both speech meters
   display hours. Old responses without duration metadata retain character display
   for read aloud rather than being mislabelled as hours. Deploy API before website.
-- `POST /v1/billing/checkout`: `{ "interval": "month", "expectedAmount": 500 }`;
-  returns a Stripe-hosted URL. Flag-disabled requests are rejected. The legacy
-  fixed-price path additionally supports a configured yearly interval.
+- `POST /v1/billing/checkout`: `{ "interval": "month", "expectedAmount": 1999 }`
+  or `{ "interval": "year", "expectedAmount": 15900 }`; amounts are whole cents
+  and returns a Stripe-hosted URL. Flag-disabled requests are rejected. Checkout
+  resolves the flag-driven price for monthly or yearly; the legacy fixed-price
+  path additionally supports a configured yearly interval.
 - `POST /v1/billing/portal`: opens the existing customer's configured portal.
   Ownership, account/session availability and the flag are always checked.
 - `POST /v1/webhooks/stripe`: raw signed events; no Clerk session is required.
@@ -347,7 +352,10 @@ cutover. Keep the forward schema and provider records on rollback.
 
 Keep `billing-enabled` false initially, configure the portal/webhook and price in
 one Stripe mode, then use an approved internal cohort and disposable identities.
-Verify Checkout completion → canonical Pro, stale quotes, signed webhook replay/
+Create both numeric flag variants (`billing-pro-monthly-usd` and
+`billing-pro-yearly-usd`) before offering yearly checkout; the API hides yearly
+until its variant evaluates to a valid amount. Verify Checkout completion →
+canonical Pro for each interval, stale quotes, signed webhook replay/
 reordering, lost Checkout responses followed by expiry or payment, cancellation,
 resubscription, past-due downgrade, deletion cancellation and second-account denial.
 Flag-off hides billing and ordinary plan enforcement; it does **not** stop renewals,
