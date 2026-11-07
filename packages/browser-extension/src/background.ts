@@ -6,6 +6,7 @@ import {
 } from "@lib/shared/writing-assistance";
 import { GroveError } from "@lib/shared/contracts";
 import { webCaptureSchema } from "@lib/shared/web-capture";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { BrowserOAuth } from "./oauth.ts";
 import { ExtensionClient } from "./client.ts";
 import {
@@ -92,12 +93,12 @@ const request = z
   })
   .strict();
 const sourceInput = z.object({
-  text: z.string().max(6000),
+  text: z.string().max(NOTE_CONTENT_MAX),
   source: webCaptureSchema,
 });
 const edit = z
   .object({
-    text: z.string().max(6000).optional(),
+    text: z.string().max(NOTE_CONTENT_MAX).optional(),
     projectId: z.uuid().nullable().optional(),
     source: webCaptureSchema.nullable().optional(),
   })
@@ -114,7 +115,7 @@ async function inbox(id: number) {
   const schema = z.array(
     z.object({
       id: z.uuid(),
-      text: z.string().max(6000),
+      text: z.string().max(NOTE_CONTENT_MAX),
       source: webCaptureSchema,
       createdAt: z.number(),
       accountId: z.uuid().nullable(),
@@ -308,7 +309,7 @@ async function localWriting(raw: unknown) {
       connectionId: z.uuid(),
       payload: z
         .object({
-          text: z.string().max(6000).optional(),
+          text: z.string().max(NOTE_CONTENT_MAX).optional(),
           word: z.string().max(24).optional(),
         })
         .strict(),
@@ -366,7 +367,7 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
       ]),
       payload: z
         .object({
-          text: z.string().max(6000).optional(),
+          text: z.string().max(NOTE_CONTENT_MAX).optional(),
           word: z.string().max(80).optional(),
         })
         .strict()

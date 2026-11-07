@@ -14,6 +14,7 @@ import {
 import { isWritingEditor } from "./editor.ts";
 import type { WritingSettings } from "./core.ts";
 import { copyText, copyWritingChoice } from "./clipboard.ts";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 export type WritingToolTransport = {
   availability: () => WritingAvailability;
@@ -237,7 +238,7 @@ export class WritingToolsController {
     let anchor: DOMRect = rect;
     // Layout only the bounded prefix needed to locate the selected sentence. Never
     // mirror a whole long-form editor merely to position its contextual menu.
-    if (this.selection && this.selection.to <= 6000) {
+    if (this.selection && this.selection.to <= NOTE_CONTENT_MAX) {
       const computed = getComputedStyle(this.editor);
       Object.assign(this.geometry.style, {
         left: `${rect.left + this.editor.clientLeft - this.editor.scrollLeft}px`,

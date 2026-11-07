@@ -579,6 +579,15 @@ and search terms for user-invoked transmission. There is no analytics or automat
 history collection. Operators must verify these declarations and corresponding
 Chrome/Edge disclosures against the final production package and privacy policy.
 
+## Shared implementation notes
+
+Webapp, extension, API and worker share `@lib/shared` as the single source for
+note limits (`NOTE_CONTENT_MAX`), Markdown parsing (`parseNoteMarkdown`), note
+titles (`noteTitle`/`sharedNoteTitle`), share durations and public share URL
+validation (`parsePublicShareUrl`). Do not re-implement these in package code;
+`tests/src/shared-drift.test.ts` fails on direct `mdast-util-from-markdown`
+imports in the webapp or hardcoded `6000` bounds.
+
 Reviewer checklist: install the matching package; check an eligible textarea while
 signed out; disable checks browser-wide and for a domain plus its subdomains;
 verify sensitive-field exclusions and correction copy/replace/Undo. Sign in with an operator-approved
