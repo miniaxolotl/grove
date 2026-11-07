@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { rememberSchema, uuidSchema } from "@lib/shared/contracts";
 import { formatWebCapture, webCaptureSchema } from "@lib/shared/web-capture";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 export const captureDraftLifetimeMs = 24 * 60 * 60 * 1000;
 const timestamp = z
@@ -68,7 +69,7 @@ const draftSchema = z
   .object({
     schemaVersion: z.literal(1),
     scope: scopeSchema,
-    text: z.string().max(6000),
+    text: z.string().max(NOTE_CONTENT_MAX),
     source: webCaptureSchema.optional(),
     sourceMode: z.enum(["automatic", "pinned"]).optional(),
     textOrigin: z.enum(["authored", "quoted"]).optional(),
@@ -90,7 +91,7 @@ export type CaptureSaveOutcome = z.infer<typeof outcomeSchema>;
 const changesSchema = z
   .object({
     textOrigin: z.enum(["authored", "quoted"]).optional(),
-    text: z.string().max(6000).optional(),
+    text: z.string().max(NOTE_CONTENT_MAX).optional(),
     source: webCaptureSchema.nullable().optional(),
     projectId: uuidSchema.nullable().optional(),
   })

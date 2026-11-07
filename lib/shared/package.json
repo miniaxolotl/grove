@@ -41,7 +41,8 @@
     "./conversation-history": "./src/conversation-history.ts",
     "./relationships": "./src/relationships.ts",
     "./sharing": "./src/sharing.ts",
-    "./share-durations": "./src/share-durations.ts"
+    "./share-durations": "./src/share-durations.ts",
+    "./limits": "./src/limits.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",

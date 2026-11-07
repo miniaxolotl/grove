@@ -1,7 +1,5 @@
 import { noteExportTitle } from "./note-export";
-import { fromMarkdown } from "mdast-util-from-markdown";
-import { gfmFromMarkdown } from "mdast-util-gfm";
-import { gfm } from "micromark-extension-gfm";
+import { parseNoteMarkdown } from "@lib/shared/markdown";
 import { mediaReferenceId } from "@lib/shared/media";
 import { mediaSource } from "./media-path";
 import type { Nodes } from "mdast";
@@ -16,10 +14,7 @@ export async function createNotePdf(
     return Promise.reject(new Error("Document too large"));
   // The parser's browser entity decoder needs the DOM. Only the small AST parse
   // runs here; font loading, layout and PDF serialization run in the worker.
-  const root = fromMarkdown(content, {
-    extensions: [gfm()],
-    mdastExtensions: [gfmFromMarkdown()],
-  });
+  const root = parseNoteMarkdown(content, { maxCharacters: 100_000 });
   const images: Record<string, string> = {};
   const definitions = new Map<string, string>(),
     identifiers = new Set<string>();

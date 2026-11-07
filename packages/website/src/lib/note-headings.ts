@@ -1,6 +1,4 @@
-import { fromMarkdown } from "mdast-util-from-markdown";
-import { gfm } from "micromark-extension-gfm";
-import { gfmFromMarkdown } from "mdast-util-gfm";
+import { parseNoteMarkdown } from "@lib/shared/markdown";
 import type { Nodes } from "mdast";
 
 export type NoteHeading = {
@@ -22,10 +20,7 @@ function text(node: Nodes): string {
 
 /** One CommonMark/GFM model for source positions, rendering and navigation. */
 export function noteHeadings(source: string): NoteHeading[] {
-  const tree = fromMarkdown(source, {
-    extensions: [gfm()],
-    mdastExtensions: [gfmFromMarkdown()],
-  });
+  const tree = parseNoteMarkdown(source);
   const headings: NoteHeading[] = [];
   const used = new Set<string>();
   function visit(node: Nodes) {
