@@ -76,6 +76,14 @@ export const adminSupportSchema = z
   })
   .strict();
 export type AdminSupportChange = z.infer<typeof adminSupportSchema>;
+export const adminTrialResetSchema = z
+  .object({
+    accountId: uuidSchema,
+    operationId: uuidSchema,
+    reason: z.string().trim().min(3).max(300),
+  })
+  .strict();
+export type AdminTrialReset = z.infer<typeof adminTrialResetSchema>;
 export const adminDetailsSchema = z.object({ accountId: uuidSchema }).strict();
 export const adminBrowseSchema = z
   .object({ after: uuidSchema.optional() })

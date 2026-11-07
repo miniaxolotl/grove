@@ -110,6 +110,7 @@ export type BrowserHost = NativePanelHost & {
   storage: {
     session: StorageArea;
     local: StorageArea;
+    sync?: StorageArea;
     onChanged: Event<
       (
         changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
