@@ -160,7 +160,7 @@ export async function buildBrowserExtension({
       name: "Grove — private notes",
       version: pkg.version,
       description:
-        "Save reviewed notes and sources, search your Grove notebooks, and copy selected context.",
+        "Check spelling and grammar, rewrite with AI, and take notes in your browser.",
       homepage_url: siteOrigin,
       icons: listingIcons,
       action: {
