@@ -2,7 +2,11 @@ import "server-only";
 import { auth } from "@clerk/nextjs/server";
 import { flag, dedupe } from "flags/next";
 import { vercelAdapter } from "@flags-sdk/vercel";
-import { billingFlagKey, billingPriceFlagKey } from "@lib/shared/billing";
+import {
+  billingFlagKey,
+  billingPriceFlagKey,
+  billingPriceYearlyFlagKey,
+} from "@lib/shared/billing";
 import { miniMaxTtsFlagKey } from "@lib/shared/speech-voices";
 
 const identify = dedupe(async () => {
@@ -22,6 +26,13 @@ export const billingMonthlyUsd = flag<number, { user?: { id: string } }>({
   key: billingPriceFlagKey,
   description: "Monthly USD price for new Grove Pro subscriptions",
   defaultValue: 19.99,
+  identify,
+  adapter: vercelAdapter,
+});
+export const billingYearlyUsd = flag<number, { user?: { id: string } }>({
+  key: billingPriceYearlyFlagKey,
+  description: "Yearly USD price for new Grove Pro subscriptions",
+  defaultValue: 159,
   identify,
   adapter: vercelAdapter,
 });

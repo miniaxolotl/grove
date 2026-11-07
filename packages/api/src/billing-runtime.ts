@@ -5,12 +5,13 @@ import { configureBillingQuotas, type MemoryService } from "@lib/memory";
 import {
   billingFlagKey,
   billingPriceFlagKey,
+  billingPriceYearlyFlagKey,
   resourceLimits,
   type ResourceLimits,
   type PlanLimits,
 } from "@lib/shared/billing";
 import { Billing } from "./billing.ts";
-import { MonthlyPricing } from "./billing-pricing.ts";
+import { MonthlyPricing, YearlyPricing } from "./billing-pricing.ts";
 
 export function createBilling(env: ServerEnvironment, service: MemoryService) {
   if (!env.BILLING_CONFIGURED) return null;
@@ -79,17 +80,30 @@ export function createBilling(env: ServerEnvironment, service: MemoryService) {
     proResources: resources("PRO"),
     portalConfigurationId: env.STRIPE_PORTAL_CONFIGURATION_ID,
     pricing: env.STRIPE_PRO_PRODUCT_ID
-      ? new MonthlyPricing(
-          stripe,
-          env.STRIPE_PRO_PRODUCT_ID,
-          async (subject) => {
-            const result = await client.evaluate<
-              number | null,
-              { user: { id: string } }
-            >(billingPriceFlagKey, null, { user: { id: subject } });
-            return result.value;
-          },
-        )
+      ? {
+          month: new MonthlyPricing(
+            stripe,
+            env.STRIPE_PRO_PRODUCT_ID,
+            async (subject) => {
+              const result = await client.evaluate<
+                number | null,
+                { user: { id: string } }
+              >(billingPriceFlagKey, null, { user: { id: subject } });
+              return result.value;
+            },
+          ),
+          year: new YearlyPricing(
+            stripe,
+            env.STRIPE_PRO_PRODUCT_ID,
+            async (subject) => {
+              const result = await client.evaluate<
+                number | null,
+                { user: { id: string } }
+              >(billingPriceYearlyFlagKey, null, { user: { id: subject } });
+              return result.value;
+            },
+          ),
+        }
       : undefined,
   });
   service.beforeAccountDeletion = (trx, accountId) =>

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
-import type { MonthlyPricing } from "./billing-pricing.ts";
+import type { FlagPricing } from "./billing-pricing.ts";
 import { tenant, type Knex } from "@lib/database";
 import {
   billingEntitlement,
@@ -23,7 +23,7 @@ type Options = {
   webhookSecret: string;
   siteUrl: string;
   prices: Partial<Record<"month" | "year", string>>;
-  pricing?: MonthlyPricing;
+  pricing?: Partial<Record<"month" | "year", FlagPricing>>;
   portalConfigurationId?: string;
   enabled: (subject: string) => Promise<boolean>;
   proLimits?: PlanLimits;
@@ -160,6 +160,31 @@ export class Billing {
     return price;
   }
 
+  /**
+   * Monthly flag pricing is required; yearly is optional so an unset yearly
+   * variant never breaks the billing page. Checkout still resolves (and
+   * rejects invalid quotes) per interval.
+   */
+  private async flagQuotes(subject: string) {
+    const pricing = this.options.pricing!;
+    const monthly = await pricing.month?.quote(subject);
+    if (!monthly)
+      throw new GroveError(
+        "billing_price_missing",
+        "This subscription option is unavailable",
+        400,
+      );
+    const quotes = [monthly];
+    if (pricing.year) {
+      try {
+        quotes.push(await pricing.year.quote(subject));
+      } catch {
+        /* yearly stays hidden until its flag is configured */
+      }
+    }
+    return quotes;
+  }
+
   /** Refresh under the customer row lock. Event arrival order never determines access. */
   private async sync(
     trx: Knex.Transaction,
@@ -271,7 +296,7 @@ export class Billing {
       },
     );
     const prices = this.options.pricing
-      ? [await this.options.pricing.quote(principal.subject)]
+      ? await this.flagQuotes(principal.subject)
       : enabled
         ? await Promise.all(
             (Object.keys(this.options.prices) as ("month" | "year")[]).map(
@@ -313,14 +338,17 @@ export class Billing {
         .onConflict("accountId")
         .ignore();
     });
-    if (this.options.pricing && interval !== "month")
+    if (this.options.pricing && !this.options.pricing[interval])
       throw new GroveError(
         "billing_price_missing",
         "This subscription option is unavailable",
         400,
       );
-    const price = this.options.pricing
-      ? await this.options.pricing.resolve(principal.subject, expectedAmount)
+    const price = this.options.pricing?.[interval]
+      ? await this.options.pricing[interval].resolve(
+          principal.subject,
+          expectedAmount,
+        )
       : await this.price(interval);
     // Persist the selected price before the remote write: lost responses must reuse
     // both the idempotency key and its original request parameters.
