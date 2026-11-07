@@ -509,6 +509,15 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/admin/accounts/trial-reset", async (c) =>
+    c.json({
+      success: true,
+      data: await admin.administration.trialReset(
+        c.get("principal"),
+        await c.req.json(),
+      ),
+    }),
+  );
   app.get("/v1/admin/audit", async (c) =>
     c.json({
       success: true,
@@ -552,6 +561,23 @@ export function createApp(deps: AppDependencies) {
   app.post("/v1/billing/portal", async (c) =>
     c.json({ success: true, data: await billing().portal(c.get("principal")) }),
   );
+  app.post("/v1/billing/trial", async (c) => {
+    const input = z
+      .object({
+        interval: z.enum(["month", "year"]),
+        expectedAmount: z.number().int().positive().optional(),
+      })
+      .strict()
+      .parse(await c.req.json());
+    return c.json({
+      success: true,
+      data: await billing().startTrial(
+        c.get("principal"),
+        input.interval,
+        input.expectedAmount,
+      ),
+    });
+  });
   const body = async <T>(
     c: import("hono").Context<Environment>,
     schema: z.ZodType<T>,

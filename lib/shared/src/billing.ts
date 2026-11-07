@@ -1,6 +1,13 @@
 export const billingFlagKey = "billing-enabled";
 export const billingPriceFlagKey = "billing-pro-monthly-usd";
 export const billingPriceYearlyFlagKey = "billing-pro-yearly-usd";
+/** Anonymous (no-account) grace: local-only extension use before signup nudge. */
+export const anonymousGraceDays = 14;
+/** Single-use Pro trial length once an account starts it. */
+export const trialDurationDays = 7;
+export type TrialState =
+  | { eligible: true; consumedAt: null }
+  | { eligible: false; consumedAt: string; resetAt: string | null };
 /** Effective access, not a claim that an administrator grant cancels a purchase. */
 export type AccountPlan = {
   tier: "free" | "pro" | "unlimited";
@@ -108,6 +115,7 @@ export type BillingStatus = {
   } | null;
   usage: BillingUsage | null;
   prices: { interval: "month" | "year"; amount: number; currency: string }[];
+  trial: TrialState | null;
 };
 /** Owner-only on-demand breakdown; never contacts the payment provider. */
 export type AccountPlanUsage = {

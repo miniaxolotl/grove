@@ -5,7 +5,9 @@ import { tenant, type Knex } from "@lib/database";
 import {
   billingEntitlement,
   billingUsage,
+  consumeTrial,
   resourceUsage,
+  trialState,
   type MemoryService,
 } from "@lib/memory";
 import { GroveError, type Principal } from "@lib/shared/contracts";
@@ -13,9 +15,11 @@ import {
   billingLimits,
   billingUnits,
   resourceLimits,
+  trialDurationDays,
   type ResourceLimits,
   type BillingStatus,
   type PlanLimits,
+  type TrialState,
 } from "@lib/shared/billing";
 
 type Options = {
@@ -71,13 +75,20 @@ export class Billing {
     accountId: string,
     customerId: string,
     priceId: string,
+    trialDays?: number,
   ): Stripe.Checkout.SessionCreateParams {
     return {
       mode: "subscription",
       customer: customerId,
       client_reference_id: accountId,
       line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: { metadata: { groveAccountId: accountId } },
+      subscription_data: {
+        metadata: { groveAccountId: accountId },
+        ...(trialDays ? { trial_period_days: trialDays } : {}),
+      },
+      // Card-required trials must always collect a payment method; ordinary
+      // checkout keeps Stripe's default behavior.
+      ...(trialDays ? { payment_method_collection: "always" as const } : {}),
       success_url: `${this.options.siteUrl}/app/settings/billing?checkout=success`,
       cancel_url: `${this.options.siteUrl}/app/settings/billing?checkout=canceled`,
     };
@@ -91,12 +102,18 @@ export class Billing {
       checkoutPrice: string;
       checkoutOperation: string;
     },
+    trialDays?: number,
   ) {
     const id =
       row.checkoutId ??
       (
         await this.options.stripe.checkout.sessions.create(
-          this.checkoutParameters(accountId, row.customerId, row.checkoutPrice),
+          this.checkoutParameters(
+            accountId,
+            row.customerId,
+            row.checkoutPrice,
+            trialDays,
+          ),
           { idempotencyKey: `grove-checkout-${row.checkoutOperation}` },
         )
       ).id;
@@ -238,6 +255,16 @@ export class Billing {
           "cancelAtPeriodEnd",
         ]);
     }
+    // Keep the consumption record pointed at the live trial so admins can
+    // see which subscription used it. Never creates consumption: only an
+    // explicit trial start does.
+    const trialing = subscriptions.data.find((s) => s.status === "trialing");
+    if (trialing) {
+      await trx("billing_trials")
+        .where({ accountId })
+        .whereNull("subscriptionId")
+        .update({ subscriptionId: trialing.id });
+    }
     // A provider-side removal cannot leave an old local entitlement active.
     await trx("billing_subscriptions")
       .where({ accountId, customerId })
@@ -286,6 +313,15 @@ export class Billing {
                 periodEnd: new Date(subscription.periodEnd).toISOString(),
               }
             : null,
+          trial: await trialState(trx, principal.accountId).then((state) =>
+            state.eligible
+              ? ({ eligible: true, consumedAt: null } as TrialState)
+              : ({
+                  eligible: false,
+                  consumedAt: state.consumedAt,
+                  resetAt: state.resetAt,
+                } as TrialState),
+          ),
           usage: await billingUsage(this.service.db, trx, principal.accountId),
           resources: await resourceUsage(
             this.service.db,
@@ -457,6 +493,177 @@ export class Billing {
       },
     );
     return result ?? this.checkout(principal, interval, expectedAmount);
+  }
+
+  /**
+   * Card-required 7-day Pro trial. Single use per account: consumption is
+   * recorded when the trial checkout is created (same row lock that fences
+   * concurrent checkouts) and only an admin reset restores eligibility.
+   * Abandoned/expired trial checkouts still count as used.
+   */
+  async startTrial(
+    principal: Principal,
+    interval: "month" | "year",
+    expectedAmount?: number,
+  ): Promise<{ url: string }> {
+    await this.service.access(principal, "admin", async ({ account, trx }) => {
+      if (!(await this.options.enabled(account.clerkSubject)))
+        throw new GroveError(
+          "billing_disabled",
+          "Subscriptions are not available yet",
+          404,
+        );
+      const state = await trialState(trx, principal.accountId);
+      if (!state.eligible)
+        throw new GroveError(
+          "trial_already_used",
+          "This account already used its Pro trial",
+          409,
+        );
+      await trx("billing_customers")
+        .insert({ accountId: principal.accountId })
+        .onConflict("accountId")
+        .ignore();
+    });
+    if (this.options.pricing && !this.options.pricing[interval])
+      throw new GroveError(
+        "billing_price_missing",
+        "This subscription option is unavailable",
+        400,
+      );
+    const price = this.options.pricing?.[interval]
+      ? await this.options.pricing[interval].resolve(
+          principal.subject,
+          expectedAmount,
+        )
+      : await this.price(interval);
+    await this.service.access(principal, "admin", async ({ trx }) => {
+      const row = await trx("billing_customers")
+        .where({ accountId: principal.accountId })
+        .forUpdate()
+        .first();
+      if (row.checkoutPrice && row.checkoutPrice !== price.id) {
+        const previous = row.customerId
+          ? await this.checkoutSession(principal.accountId, row)
+          : null;
+        const subscriptions =
+          previous?.status === "complete"
+            ? await this.sync(trx, principal.accountId, row.customerId)
+            : [];
+        if (previous && !replaceableCheckout(previous, subscriptions))
+          throw new GroveError(
+            "checkout_pending",
+            "Finish or let your existing checkout expire before starting a trial",
+            409,
+          );
+        await trx("billing_customers")
+          .where({ accountId: principal.accountId })
+          .update({
+            checkoutId: null,
+            checkoutPrice: price.id,
+            checkoutOperation: randomUUID(),
+          });
+      }
+      if (!row.checkoutPrice)
+        await trx("billing_customers")
+          .where({ accountId: principal.accountId })
+          .update({ checkoutPrice: price.id });
+    });
+    await this.service.access(principal, "admin", async ({ trx }) => {
+      const row = await trx("billing_customers")
+        .where({ accountId: principal.accountId })
+        .forUpdate()
+        .first();
+      if (!row.customerId) {
+        const customer = await this.options.stripe.customers.create(
+          { metadata: { groveAccountId: principal.accountId } },
+          { idempotencyKey: `grove-customer-${principal.accountId}` },
+        );
+        await trx("billing_customers")
+          .where({ accountId: principal.accountId })
+          .update({ customerId: customer.id });
+      }
+    });
+    const result = await this.service.access(
+      principal,
+      "admin",
+      async ({ trx, account }) => {
+        if (!(await this.options.enabled(account.clerkSubject)))
+          throw new GroveError(
+            "billing_disabled",
+            "Subscriptions are not available yet",
+            404,
+          );
+        const row = await trx("billing_customers")
+          .where({ accountId: principal.accountId })
+          .forUpdate()
+          .first();
+        if (row.checkoutPrice !== price.id)
+          throw new GroveError(
+            "checkout_pending",
+            "Your checkout changed. Refresh billing and try again.",
+            409,
+          );
+        const state = await trialState(trx, principal.accountId);
+        if (!state.eligible)
+          throw new GroveError(
+            "trial_already_used",
+            "This account already used its Pro trial",
+            409,
+          );
+        const customerId = row.customerId as string;
+        const subscriptions = await this.sync(
+          trx,
+          principal.accountId,
+          customerId,
+        );
+        if (subscriptions.some((s) => ongoing(s.status)))
+          throw new GroveError(
+            "subscription_exists",
+            "Manage your existing subscription instead",
+            409,
+          );
+        // An open checkout created without a trial must never be silently
+        // reused as the trial checkout: the user would pay immediately while
+        // burning their single trial.
+        if (row.checkoutId) {
+          const existing = await this.checkoutSession(principal.accountId, row);
+          if (existing.status === "open")
+            throw new GroveError(
+              "checkout_pending",
+              "Finish or let your existing checkout expire before starting a trial",
+              409,
+            );
+        }
+        const session = await this.checkoutSession(
+          principal.accountId,
+          row,
+          trialDurationDays,
+        );
+        if (replaceableCheckout(session, subscriptions)) {
+          await trx("billing_customers")
+            .where({ accountId: principal.accountId })
+            .update({
+              checkoutId: null,
+              checkoutPrice: null,
+              checkoutOperation: randomUUID(),
+            });
+          return null;
+        }
+        if (session.status !== "open")
+          throw new GroveError(
+            "checkout_processing",
+            "Your subscription is processing. Refresh billing shortly.",
+            409,
+          );
+        await consumeTrial(trx, principal.accountId, undefined);
+        await trx("billing_customers")
+          .where({ accountId: principal.accountId })
+          .update({ checkoutId: session.id });
+        return destination(session.url, "checkout.stripe.com");
+      },
+    );
+    return result ?? this.startTrial(principal, interval, expectedAmount);
   }
 
   async portal(principal: Principal) {
