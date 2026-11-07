@@ -5,7 +5,7 @@ import type { Knex } from "knex";
  * and subscription sync never clear it. Admin reset restores eligibility.
  */
 export const billingTrial = {
-  name: "20261107_039_billing_trial",
+  name: "20261107_040_billing_trial",
   async up(db: Knex) {
     await db.raw(`
       CREATE TABLE billing_trials (
