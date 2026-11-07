@@ -102,7 +102,7 @@ export function WritingPreferences() {
   };
 
   return (
-    <section className="app-panel ai-preferences-panel" aria-labelledby="writing-heading">
+    <section className="app-panel writing-preferences-panel" aria-labelledby="writing-heading">
       <div className="settings-panel-heading">
         <h2 id="writing-heading">Writing</h2>
       </div>

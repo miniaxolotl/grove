@@ -294,6 +294,15 @@ export const determiners =
   /^(?:a|an|the|this|that|these|those|my|your|his|her|our|their|its|another)$/i;
 export const objectPrepositions =
   /^(?:between|for|to|from|with|of|at|by|near|around|about|against|among|behind|beside|under|over|without|within|into|onto|upon|toward|towards|across|after|before|except|like)$/i;
+/** English question operators that invert pronoun + verb ("does he have").
+ * Language-pack data: the agreement check abstains after these rather than
+ * "fixing" a correct bare verb. */
+export const questionOperators =
+  /^(?:do|does|did|will|would|shall|should|can|could|may|might|must)$/;
+/** English verbs whose mandative complement takes the base form
+ * ("I suggest he go"). Language-pack data for the same abstention. */
+export const mandativeTriggers =
+  /^(?:suggest|suggests|insist|insists|demand|demands|require|requires|recommend|recommends|propose|proposes|request|requests|ask|asks|prefer|prefers)$/;
 /** Declarative pronoun + be/have forms; questions invert and are never matched. */
 const beHaveAgreement: Record<string, Record<string, string>> = {
   i: { is: "am", are: "am", has: "have", "doesn't": "don't" },
@@ -366,7 +375,7 @@ const singularWrong: Record<string, string> = Object.fromEntries(
   verbAgreement.map(([base, third]) => [third, base]),
 );
 const pluralWrong: Record<string, string> = Object.fromEntries(
-  verbAgreement.map(([base, third]) => [base, third])
+  verbAgreement.map(([base, third]) => [base, third]),
 );
 export const agreementForms: Record<string, Record<string, string>> = {
   ...Object.fromEntries(
@@ -386,7 +395,6 @@ export const matchCase = (sample: string, replacement: string) =>
   /^[\p{Lu}]/u.test(sample)
     ? replacement[0]!.toLocaleUpperCase("en") + replacement.slice(1)
     : replacement;
-
 
 export function applyWritingEdit(
   source: string,

@@ -8,14 +8,10 @@ import assert from "node:assert/strict";
 test("webapp and extension resolve the same writing engine", async (t) => {
   const shared = await import("../../lib/shared/src/writing-settings.ts");
   const core = await import("../../lib/shared/src/writing-core.ts");
-  const extension = await import(
-    "../../packages/browser-extension/src/writing/core.ts"
-  );
+  const extension =
+    await import("../../packages/browser-extension/src/writing/core.ts");
   await t.test("identical rule registry", () => {
-    assert.deepEqual(
-      [...shared.writingRules],
-      [...extension.writingRules],
-    );
+    assert.deepEqual([...shared.writingRules], [...extension.writingRules]);
   });
   await t.test("identical defaults", () => {
     assert.deepEqual(
@@ -36,10 +32,7 @@ test("webapp and extension resolve the same writing engine", async (t) => {
     const { createRequire } = await import("node:module");
     const { dirname, join } = await import("node:path");
     const require = createRequire(
-      new URL(
-        "../../packages/browser-extension/package.json",
-        import.meta.url,
-      ),
+      new URL("../../packages/browser-extension/package.json", import.meta.url),
     );
     const directory = dirname(require.resolve("dictionary-en"));
     const dictionary = {
@@ -57,22 +50,18 @@ test("webapp and extension resolve the same writing engine", async (t) => {
     const { createRequire } = await import("node:module");
     const { dirname, join } = await import("node:path");
     const require = createRequire(
-      new URL(
-        "../../packages/browser-extension/package.json",
-        import.meta.url,
-      ),
+      new URL("../../packages/browser-extension/package.json", import.meta.url),
     );
     const directory = dirname(require.resolve("dictionary-en"));
     const dictionary = {
       aff: await readFile(join(directory, "index.aff"), "utf8"),
       dic: await readFile(join(directory, "index.dic"), "utf8"),
     };
-    const text = "This is is a test of teh checker with an hour and a university.";
+    const text =
+      "This is is a test of teh checker with an hour and a university.";
     const settings = shared.writingSettingsSchema.parse({});
     assert.deepEqual(
-      extension
-        .createEnglishChecker(dictionary)
-        .check(text, settings),
+      extension.createEnglishChecker(dictionary).check(text, settings),
       core.createEnglishChecker(dictionary).check(text, settings),
     );
   });
@@ -83,10 +72,7 @@ test("shared suggester ranks the obvious fix first", async () => {
   const { createRequire } = await import("node:module");
   const { dirname, join } = await import("node:path");
   const require = createRequire(
-    new URL(
-      "../../packages/browser-extension/package.json",
-      import.meta.url,
-    ),
+    new URL("../../packages/browser-extension/package.json", import.meta.url),
   );
   const directory = dirname(require.resolve("dictionary-en"));
   const engine = (
@@ -110,17 +96,13 @@ test("shared suggester ranks the obvious fix first", async () => {
 });
 
 test("shared grammar catches comparatives, participles and verb agreement", async () => {
-  const { createEnglishChecker, writingSettingsSchema } = await import(
-    "../../lib/shared/src/writing-core.ts"
-  );
+  const { createEnglishChecker, writingSettingsSchema } =
+    await import("../../lib/shared/src/writing-core.ts");
   const { readFile } = await import("node:fs/promises");
   const { createRequire } = await import("node:module");
   const { dirname, join } = await import("node:path");
   const require = createRequire(
-    new URL(
-      "../../packages/browser-extension/package.json",
-      import.meta.url,
-    ),
+    new URL("../../packages/browser-extension/package.json", import.meta.url),
   );
   const directory = dirname(require.resolve("dictionary-en"));
   const engine = createEnglishChecker({
@@ -131,14 +113,41 @@ test("shared grammar catches comparatives, participles and verb agreement", asyn
   const check = (text: string) =>
     engine
       .check(text, settings)
-      .issues.map((issue) => `${issue.rule}:${issue.original}->${issue.replacements.join("|")}`);
+      .issues.map(
+        (issue) =>
+          `${issue.rule}:${issue.original}->${issue.replacements.join("|")}`,
+      );
   // Comparative + then, doubled comparatives, possessive + participle.
-  assert.ok(check("This is bigger then that.").includes("confusion:bigger then->bigger than"));
-  assert.ok(check("She is more smarter than him.").includes("redundancy:more smarter->smarter"));
-  assert.ok(check("It was the most biggest day.").includes("redundancy:most biggest->biggest"));
-  assert.ok(check("Its been a long time.").some((entry) => entry.startsWith("confusion:Its")));
-  assert.ok(check("Their gone home.").some((entry) => entry.startsWith("confusion:Their")));
-  assert.ok(check("Your gone worry about it.").some((entry) => entry.startsWith("confusion:Your")));
+  assert.ok(
+    check("This is bigger then that.").includes(
+      "confusion:bigger then->bigger than",
+    ),
+  );
+  assert.ok(
+    check("She is more smarter than him.").includes(
+      "redundancy:more smarter->smarter",
+    ),
+  );
+  assert.ok(
+    check("It was the most biggest day.").includes(
+      "redundancy:most biggest->biggest",
+    ),
+  );
+  assert.ok(
+    check("Its been a long time.").some((entry) =>
+      entry.startsWith("confusion:Its"),
+    ),
+  );
+  assert.ok(
+    check("Their gone home.").some((entry) =>
+      entry.startsWith("confusion:Their"),
+    ),
+  );
+  assert.ok(
+    check("Your gone worry about it.").some((entry) =>
+      entry.startsWith("confusion:Your"),
+    ),
+  );
   // Pronoun + verb agreement in both directions.
   assert.ok(check("He go there.").includes("agreement:go->goes"));
   assert.ok(check("They goes there.").includes("agreement:goes->go"));
@@ -150,9 +159,51 @@ test("shared grammar catches comparatives, participles and verb agreement", asyn
   assert.deepEqual(check("I suggest he go there."), []);
 });
 
-test("webapp writing settings preserve explicit opt-outs", async () => {  const settings = await import(
-    "../../packages/website/src/lib/writing/settings.ts"
+test("every writing rule has a live implementation", async () => {
+  const { createEnglishChecker, writingSettingsSchema, writingRules } =
+    await import("../../lib/shared/src/writing-core.ts");
+  const { readFile } = await import("node:fs/promises");
+  const { createRequire } = await import("node:module");
+  const { dirname, join } = await import("node:path");
+  const require = createRequire(
+    new URL("../../packages/browser-extension/package.json", import.meta.url),
   );
+  const directory = dirname(require.resolve("dictionary-en"));
+  const engine = createEnglishChecker({
+    aff: await readFile(join(directory, "index.aff"), "utf8"),
+    dic: await readFile(join(directory, "index.dic"), "utf8"),
+  });
+  const settings = writingSettingsSchema.parse({});
+  // One minimal trigger per rule: adding a rule ID to writingRules without an
+  // implementation, a message, or a working check fails here.
+  const atlas: [string, string][] = [
+    ["spelling", "Say teh now."],
+    ["brackets", "Hello (world."],
+    ["quotes", 'Say "hi.'],
+    ["articles", "A hour passed."],
+    ["repetition", "the the test."],
+    ["spacing", "word  word."],
+    ["capitalization", "Hello. world."],
+    ["redundancy", "in order to go."],
+    ["agreement", "He go there."],
+    ["plurals", "The PR's are here."],
+    ["confusion", "Its a test."],
+  ];
+  assert.deepEqual(
+    [...writingRules, "spelling"].sort(),
+    atlas.map(([rule]) => rule).sort(),
+  );
+  for (const [rule, text] of atlas) {
+    const found = engine
+      .check(text, settings)
+      .issues.some((issue) => issue.rule === rule);
+    assert.ok(found, `${rule} has no live check for ${JSON.stringify(text)}`);
+  }
+});
+
+test("webapp writing settings preserve explicit opt-outs", async () => {
+  const settings =
+    await import("../../packages/website/src/lib/writing/settings.ts");
   const defaults = settings.defaultWritingSettings();
   assert.equal(defaults.enabled, true);
   assert.equal(defaults.automatic, true);
@@ -165,10 +216,7 @@ test("webapp writing settings preserve explicit opt-outs", async () => {  const 
 test("extension stands down on native webapp surfaces", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(
-    new URL(
-      "../../packages/browser-extension/src/content.ts",
-      import.meta.url,
-    ),
+    new URL("../../packages/browser-extension/src/content.ts", import.meta.url),
     "utf8",
   );
   assert.match(source, /data-grove-native-writing/);

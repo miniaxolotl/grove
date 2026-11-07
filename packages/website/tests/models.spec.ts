@@ -183,7 +183,7 @@ test("categorized AI preferences persist independently with provider availabilit
     "Speech",
   ])
     await expect(page.getByRole("group", { name, exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox")).toHaveCount(16);
+  await expect(page.locator(".ai-preferences-panel").getByRole("checkbox")).toHaveCount(16);
   const titles = page.getByRole("checkbox", {
     name: "Titles and tags",
     exact: true,
@@ -426,7 +426,9 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
   );
   const tabs = page.getByRole("navigation", { name: "Settings sections" });
   const before = await tabs.boundingBox();
-  await page.getByRole("checkbox").first().uncheck();
+  // Scope to the AI-preferences form: the device-local Writing section above
+  // it applies instantly and has no Save row.
+  await page.locator(".ai-preferences-panel form").getByRole("checkbox").first().uncheck();
   await page
     .getByRole("button", { name: "Save preferences" })
     .scrollIntoViewIfNeeded();
