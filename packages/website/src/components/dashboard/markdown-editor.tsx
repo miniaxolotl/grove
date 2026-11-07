@@ -959,7 +959,10 @@ export function MarkdownEditor({
           onAddWord={() =>
             proofing.selected && proofing.addWord(proofing.selected.original)
           }
-          onClose={() => proofing.selectIssue(null)}
+          onClose={(restore) => {
+            proofing.selectIssue(null);
+            if (restore) proofingView?.focus();
+          }}
           onAllIssues={() => proofing.setListOpen(true)}
         />
       )}

@@ -14,10 +14,19 @@ after a typing pause, and saving never waits for them.
   **Ignore**, **Add word** (spelling only) and **All issues**.
 - One click applies a replacement to that exact range only, with normal Undo.
   If the text changed underneath, the card says so and asks for a fresh check
-  instead of editing stale text.
-- The quiet status in the editor footer shows the current count, or
-  **Retry writing checks** when the dictionary could not load. When checks are
-  off or the note is empty, it shows nothing rather than a success panel.
+  instead of editing stale text. The quiet status in the editor footer shows
+  the current count, or **Retry writing checks** when the dictionary could not
+  load. When checks are off or the note is empty, it shows nothing rather
+  than a success panel.
+- Suggestions put the obvious fix first — keyboard transpositions (**teh** →
+  **the**), missing apostrophes (**dont** → **don't**) and dropped doubled
+  letters (**refered** → **referred**) outrank unrelated near-edits — then
+  follow the original word's capitalization. Grammar covers the same ground
+  as the extension: matching brackets/quotes, **a/an** sound exceptions,
+  repeated words, spacing, sentence capitalization, wordy phrases, pronoun
+  verb agreement, confused words and acronym plurals. Inverted questions
+  (**does he have**) and mandative clauses (**I suggest he go**) are left
+  alone rather than "fixed".
 - **No issues found by spelling and basic grammar checks** means exactly that:
   it is not a complete grammar guarantee.
 

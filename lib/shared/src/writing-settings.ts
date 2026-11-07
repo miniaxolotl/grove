@@ -225,7 +225,9 @@ export function articleFor(word: string): "a" | "an" | null {
   return /^[aeiou]/i.test(word) ? "an" : "a";
 }
 
-/** Small, unambiguous wordy phrases only; ambiguous wording is left to the writer. */
+/** Small, unambiguous wordy phrases only; ambiguous wording is left to the writer.
+ * Doubled comparatives and superlatives ("more better", "most biggest") are
+ * never correct, so they live here rather than in a style panel. */
 export const wordyPhrases: [RegExp, string][] = [
   [/\ball of (the|these|those)\b/gi, "all $1"],
   [/\bin order to\b/gi, "to"],
@@ -240,6 +242,14 @@ export const wordyPhrases: [RegExp, string][] = [
   [/\brevert back\b/gi, "revert"],
   [/\breturn back\b/gi, "return"],
   [/\brepeat again\b/gi, "repeat"],
+  [
+    /\bmore (better|worse|bigger|smaller|greater|larger|higher|lower|faster|slower|easier|harder|smarter|older|younger|newer|stronger|weaker|sooner|later|earlier)\b/gi,
+    "$1",
+  ],
+  [
+    /\bmost (best|worst|biggest|smallest|greatest|largest|highest|lowest|fastest|slowest|easiest|hardest|earliest|latest|smartest|oldest|youngest|newest|strongest|weakest)\b/gi,
+    "$1",
+  ],
 ];
 /** Fixed phrases whose wrong form is never the intended meaning. */
 export const confusedPhrases: [RegExp, string][] = [
@@ -254,8 +264,14 @@ export const confusedPhrases: [RegExp, string][] = [
   [/\bwet your appetite\b/gi, "whet your appetite"],
   [/\bextract revenge\b/gi, "exact revenge"],
   [/\bby in large\b/gi, "by and large"],
+  [
+    /\b(more|less|fewer|greater|smaller|bigger|larger|higher|lower|faster|slower|easier|harder|stronger|weaker|sooner|later|earlier|better|worse|rather|other)\s+then\b/gi,
+    "$1 than",
+  ],
 ];
-/** Two-word fixes the single-word spelling suggester cannot offer. */
+/** Single-token fixes the affix suggester cannot rank: either it returns
+ * nothing useful or buries the overwhelmingly intended word. American
+ * spellings only; ambiguous cases stay out. */
 export const phraseSuggestions = new Map<string, string>([
   ["alot", "a lot"],
   ["noone", "no one"],
@@ -267,13 +283,19 @@ export const phraseSuggestions = new Map<string, string>([
   ["infact", "in fact"],
   ["atleast", "at least"],
   ["everytime", "every time"],
+  ["maintainance", "maintenance"],
+  ["questionairre", "questionnaire"],
+  ["lisence", "license"],
+  ["speach", "speech"],
+  ["tendancy", "tendency"],
+  ["wich", "which"],
 ]);
 export const determiners =
   /^(?:a|an|the|this|that|these|those|my|your|his|her|our|their|its|another)$/i;
 export const objectPrepositions =
   /^(?:between|for|to|from|with|of|at|by|near|around|about|against|among|behind|beside|under|over|without|within|into|onto|upon|toward|towards|across|after|before|except|like)$/i;
 /** Declarative pronoun + be/have forms; questions invert and are never matched. */
-export const agreementForms: Record<string, Record<string, string>> = {
+const beHaveAgreement: Record<string, Record<string, string>> = {
   i: { is: "am", are: "am", has: "have", "doesn't": "don't" },
   you: {
     is: "are",
@@ -299,6 +321,66 @@ export const agreementForms: Record<string, Record<string, string>> = {
   he: { are: "is", am: "is", were: "was", have: "has", "don't": "doesn't" },
   she: { are: "is", am: "is", were: "was", have: "has", "don't": "doesn't" },
   it: { are: "is", am: "is", were: "was", have: "has", "don't": "doesn't" },
+};
+/**
+ * Common verbs with regular 3rd-person singular agreement. Singular subjects
+ * take the inflected form ("he goes"), plural subjects the base ("they go").
+ * Only pronouns trigger; nouns, names and clause subjects never match, and
+ * inverted questions and mandative subjunctives are guarded at the call site.
+ */
+const verbAgreement: [base: string, third: string][] = [
+  ["go", "goes"],
+  ["do", "does"],
+  ["say", "says"],
+  ["get", "gets"],
+  ["make", "makes"],
+  ["take", "takes"],
+  ["come", "comes"],
+  ["see", "sees"],
+  ["know", "knows"],
+  ["want", "wants"],
+  ["need", "needs"],
+  ["like", "likes"],
+  ["think", "thinks"],
+  ["work", "works"],
+  ["look", "looks"],
+  ["use", "uses"],
+  ["find", "finds"],
+  ["give", "gives"],
+  ["tell", "tells"],
+  ["call", "calls"],
+  ["try", "tries"],
+  ["carry", "carries"],
+  ["leave", "leaves"],
+  ["fly", "flies"],
+  ["watch", "watches"],
+  ["teach", "teaches"],
+  ["finish", "finishes"],
+  ["miss", "misses"],
+  ["fix", "fixes"],
+  ["pass", "passes"],
+];
+const pluralSubjects = ["i", "you", "we", "they"];
+const singularSubjects = ["he", "she", "it"];
+const singularWrong: Record<string, string> = Object.fromEntries(
+  verbAgreement.map(([base, third]) => [third, base]),
+);
+const pluralWrong: Record<string, string> = Object.fromEntries(
+  verbAgreement.map(([base, third]) => [base, third])
+);
+export const agreementForms: Record<string, Record<string, string>> = {
+  ...Object.fromEntries(
+    pluralSubjects.map((subject) => [
+      subject,
+      { ...beHaveAgreement[subject], ...singularWrong },
+    ]),
+  ),
+  ...Object.fromEntries(
+    singularSubjects.map((subject) => [
+      subject,
+      { ...beHaveAgreement[subject], ...pluralWrong },
+    ]),
+  ),
 };
 export const matchCase = (sample: string, replacement: string) =>
   /^[\p{Lu}]/u.test(sample)

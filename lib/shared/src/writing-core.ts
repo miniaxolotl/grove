@@ -31,14 +31,45 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
       if (!alternatives.has(word)) {
         if (alternatives.size >= 64)
           alternatives.delete(alternatives.keys().next().value!);
-        alternatives.set(
-          word,
-          spell
-            .suggest(word)
-            .filter(correct)
-            .slice(0, 3)
-            .map((candidate) => matchCase(word, candidate)),
-        );
+        const ranked: string[] = [];
+        const seen = new Set<string>();
+        // Deterministic generators first: each only fires when its output is
+        // a real dictionary word, so they cannot invent suggestions.
+        const consider = (candidate: string) => {
+          const key = candidate.toLocaleLowerCase("en");
+          if (
+            candidate !== word &&
+            ranked.length < 3 &&
+            !seen.has(key) &&
+            correct(candidate)
+          ) {
+            seen.add(key);
+            ranked.push(matchCase(word, candidate));
+          }
+        };
+        // Missing apostrophes in contractions ("dont" → "don't") outrank
+        // transpositions: a valid apostrophe form is almost always the intent.
+        for (let index = 1; index < word.length; index++)
+          consider(`${word.slice(0, index)}'${word.slice(index)}`);
+        // Adjacent transpositions: nspell can bury the obvious keyboard swap
+        // ("teh" → "the") below unrelated single-edits.
+        for (let index = 0; index + 1 < word.length; index++)
+          consider(
+            word.slice(0, index) +
+              word[index + 1] +
+              word[index] +
+              word.slice(index + 2),
+          );
+        // Dropped doubled letters ("refered" → "referred").
+        for (let index = 0; index < word.length; index++)
+          consider(
+            word.slice(0, index + 1) + word[index] + word.slice(index + 1),
+          );
+        for (const candidate of spell.suggest(word)) {
+          if (ranked.length >= 3) break;
+          consider(candidate);
+        }
+        alternatives.set(word, ranked);
       }
       return [...alternatives.get(word)!];
     },
@@ -207,10 +238,55 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
           a: { index: number; "0": string },
           b: RegExpMatchArray,
         ) => /^\s+$/.test(text.slice(a.index + a[0].length, b.index));
+        // Bare verb forms that can be correct after an operator or in a
+        // mandative clause. Derived from the singular-subject table so the
+        // two stay in sync: inflected forms ("goes") are never skipped.
+        const bareForms = new Set(
+          Object.keys(agreementForms.he).filter(
+            (form) => !/^(?:are|am|were|don't)$/.test(form),
+          ),
+        );
+        const operators =
+          /^(?:do|does|did|will|would|shall|should|can|could|may|might|must)$/;
+        const mandatives =
+          /^(?:suggest|suggests|insist|insists|demand|demands|require|requires|recommend|recommends|propose|proposes|request|requests|ask|asks|prefer|prefers)$/;
         for (let i = 0; i + 1 < words.length; i++) {
           const current = words[i],
             next = words[i + 1];
           if (!between(current, next)) continue;
+          const previous =
+            i > 0 &&
+            /^\s+$/.test(
+              text.slice(words[i - 1].index + words[i - 1][0].length, current.index),
+            )
+              ? words[i - 1][0].toLowerCase()
+              : "";
+          const beforePrevious =
+            i > 1 &&
+            previous &&
+            /^\s+$/.test(
+              text.slice(
+                words[i - 2].index + words[i - 2][0].length,
+                words[i - 1].index,
+              ),
+            )
+              ? words[i - 2][0].toLowerCase()
+              : "";
+          // Inverted questions put the operator before the pronoun, and only
+          // bare forms can be correct there: "does he have", "will she come".
+          if (
+            operators.test(previous) &&
+            bareForms.has(next[0].toLowerCase())
+          )
+            continue;
+          // Mandative subjunctive takes the base form: "I suggest he go".
+          const subject = current[0].toLowerCase();
+          if (
+            (subject === "he" || subject === "she" || subject === "it") &&
+            (mandatives.test(previous) ||
+              (previous === "that" && mandatives.test(beforePrevious)))
+          )
+            continue;
           const verb =
             agreementForms[current[0].toLocaleLowerCase("en")]?.[
               next[0].toLocaleLowerCase("en")
@@ -281,6 +357,22 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
               // "its a/the/this…" is possessive before a determiner: it's.
               add("confusion", word.index, word.index + word[0].length, [
                 matchCase(word[0], "it’s"),
+              ]);
+            if (
+              /^(?:its|their|your)$/i.test(word[0]) &&
+              /^(?:been|gone)$/i.test(next[0])
+            )
+              // Participles cannot follow a possessive: "its been" is it's,
+              // "their gone" is they're, "your gone" is you're.
+              add("confusion", word.index, word.index + word[0].length, [
+                matchCase(
+                  word[0],
+                  /^their$/i.test(word[0])
+                    ? "they’re"
+                    : /^your$/i.test(word[0])
+                      ? "you’re"
+                      : "it’s",
+                ),
               ]);
             if (
               /^their$/i.test(word[0]) &&

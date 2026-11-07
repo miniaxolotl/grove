@@ -9,9 +9,11 @@ and “a university” correctly abstain.
 | ![Suggestion card with replacements, Ignore, Add word and All issues](writing-card-1440.png) | ![Underlines at 390px with footer count](writing-underlines-390.png) | ![Settings → Writing at 390px](writing-settings-390.png) | ![All-issues list at 390px](writing-list-390.png) |
 | --- | --- | --- | --- |
 
-- `writing-card-1440.png` — anchored Spelling card: explanation, three
-  lookup-only replacements, Ignore / Add word / All issues. One click applies
-  with native Undo; stale sources ask for a recheck instead of editing.
+- `writing-card-1440.png` — anchored Spelling card: the obvious fix first
+  (**the**, not ten/eh), explanation, Ignore / Add word / All issues. One
+  click applies with native Undo; Escape or × returns focus to the editor;
+  card flips above the issue near the viewport bottom. Stale sources ask for
+  a recheck instead of editing.
 - `writing-underlines-390.png` — red wavy spelling vs dotted green grammar
   underlines; quiet footer count (“4 suggestions”), no success panel.
 - `writing-settings-390.png` — Settings → Preferences → Writing: master,

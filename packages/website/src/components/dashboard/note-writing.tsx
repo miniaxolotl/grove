@@ -220,6 +220,14 @@ export function useWritingProofing(
   }, [view, issues]);
 
   const selected = issues.find((issue) => issue.id === selectedId) ?? null;
+
+  const selectIssue = useCallback((id: string | null) => {
+    setSelectedId(id);
+    if (id) {
+      setListOpen(false);
+      setNotice("");
+    }
+  }, []);
   const alternatives =
     selected && lookup?.id === selected.id
       ? lookup.words
@@ -322,10 +330,7 @@ export function useWritingProofing(
     issues,
     visible,
     selected,
-    selectIssue: (id: string | null) => {
-      setSelectedId(id);
-      if (id) setListOpen(false);
-    },
+    selectIssue,
     listOpen,
     setListOpen,
     alternatives,
@@ -361,43 +366,50 @@ export function WritingIssueCard({
   onApply: (replacement: string) => void;
   onIgnore: () => void;
   onAddWord: () => void;
-  onClose: () => void;
+  onClose: (restoreFocus: boolean) => void;
   onAllIssues: () => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
   useEffect(() => {
     const card = ref.current;
     if (!card || !view) return;
     const coords = view.coordsAtPos(Math.max(0, issue.from));
     const rect = card.getBoundingClientRect();
-    const top = Math.min(
-      Math.max(8, (coords?.bottom ?? 120) + 8),
-      Math.max(8, window.innerHeight - rect.height - 8),
-    );
+    // Prefer below the issue; flip above when the viewport bottom is near.
+    const below = (coords?.bottom ?? 120) + 8;
+    const above = (coords?.top ?? 120) - rect.height - 8;
+    const top =
+      below + rect.height <= window.innerHeight - 8
+        ? Math.max(8, below)
+        : Math.max(8, above);
     const left = Math.min(
       Math.max(8, (coords?.left ?? 16) - 16),
       Math.max(8, window.innerWidth - rect.width - 8),
     );
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
-    const closeOnScroll = () => onClose();
-    window.addEventListener("scroll", closeOnScroll, true);
-    window.addEventListener("resize", closeOnScroll);
+    const autoDismiss = () => closeRef.current(false);
+    window.addEventListener("scroll", autoDismiss, true);
+    window.addEventListener("resize", autoDismiss);
     return () => {
-      window.removeEventListener("scroll", closeOnScroll, true);
-      window.removeEventListener("resize", closeOnScroll);
+      window.removeEventListener("scroll", autoDismiss, true);
+      window.removeEventListener("resize", autoDismiss);
     };
-  }, [view, issue, onClose]);
+  }, [view, issue]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
-        onClose();
+        closeRef.current(true);
       }
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
+  }, []);
   return (
     <section
       ref={ref}
@@ -407,7 +419,7 @@ export function WritingIssueCard({
     >
       <header>
         <strong>{writingCategoryLabel(issue.rule)}</strong>
-        <button type="button" className="grove-writing-close" onClick={onClose} aria-label="Close suggestion">
+        <button type="button" className="grove-writing-close" onClick={() => onClose(true)} aria-label="Close suggestion">
           ×
         </button>
       </header>

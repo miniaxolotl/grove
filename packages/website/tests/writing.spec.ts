@@ -82,6 +82,17 @@ for (const width of [1440, 390]) {
       await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
       // Native undo restores the exact original text.
       await expect(editor).toContainText("teh", { timeout: 5000 });
+      // Dismissal returns focus to the editor for uninterrupted writing.
+      await first.click();
+      await expect(card).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(card).not.toBeVisible();
+      await expect(editor).toBeFocused();
+      await first.click();
+      await expect(card).toBeVisible();
+      await card.getByRole("button", { name: "Close suggestion" }).click();
+      await expect(card).not.toBeVisible();
+      await expect(editor).toBeFocused();
       await page.screenshot({ path: info.outputPath("writing-applied.png") });
     });
 
