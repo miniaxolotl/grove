@@ -14,6 +14,7 @@ import {
 import { isWritingEditor } from "./editor.ts";
 import type { WritingSettings } from "./core.ts";
 import { copyText, copyWritingChoice } from "./clipboard.ts";
+import { GroveError } from "@lib/shared/contracts";
 import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 export type WritingToolTransport = {
@@ -340,6 +341,11 @@ export class WritingToolsController {
       menu.append(button);
     }
     this.card.append(menu);
+    const allowance = document.createElement("p");
+    allowance.className = "footnote";
+    allowance.textContent =
+      "Rewrites use your monthly allowance: 100 on Free, 1,000 on Pro. Local spelling and grammar checks are unlimited.";
+    this.card.append(allowance);
     if (!availability.available || !availability.authorized) {
       const reason = document.createElement("p");
       reason.className = "footnote";
@@ -454,17 +460,27 @@ export class WritingToolsController {
         this.timer = setTimeout(() => {
           void this.poll(epoch);
         }, 800);
-    } catch {
+    } catch (error) {
       if (!this.current(epoch)) return;
-      status.textContent = this.pendingId
-        ? "Not confirmed. Check status before trying again."
-        : "Couldn’t start. Your text is unchanged.";
-      if (this.pendingId)
-        this.card.append(
-          this.button("Check status", () => {
-            void this.poll(epoch);
-          }),
-        );
+      const quotaReset =
+        error instanceof GroveError &&
+        error.code === "usage_limit" &&
+        error.details?.resource === "writing"
+          ? (error.details.resetAt ?? null)
+          : undefined;
+      if (quotaReset !== undefined) {
+        status.textContent = `Monthly rewrite allowance used${quotaReset ? ` — resets ${new Date(quotaReset).toLocaleDateString(undefined, { month: "long", day: "numeric" })}` : ""}. Local spelling and grammar checks keep working.`;
+      } else {
+        status.textContent = this.pendingId
+          ? "Not confirmed. Check status before trying again."
+          : "Couldn’t start. Your text is unchanged.";
+        if (this.pendingId)
+          this.card.append(
+            this.button("Check status", () => {
+              void this.poll(epoch);
+            }),
+          );
+      }
       this.position();
     }
   }
