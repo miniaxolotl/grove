@@ -134,7 +134,7 @@ export function renderNote(
       case "image":
       case "imageReference":
         return dom.createTextNode(
-          node.alt ? `[Image: ${node.alt}]` : "[Image - open in Grove]",
+          node.alt ? `[Image: ${node.alt}]` : "[Image — open in Grove]",
         );
       case "table": {
         const table = dom.createElement("table");

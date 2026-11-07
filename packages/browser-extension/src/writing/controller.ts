@@ -395,7 +395,7 @@ export class WritingController {
       for (const item of issues)
         this.card.append(
           this.button(
-            `${item.original} - ${item.rule === "spelling" ? "Spelling" : "Grammar"}`,
+            `${item.original} — ${item.rule === "spelling" ? "Spelling" : "Grammar"}`,
             () => this.review(item),
           ),
         );
