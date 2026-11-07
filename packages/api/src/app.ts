@@ -18,7 +18,7 @@ import { readMediaBytes } from "./media-input.ts";
 import { Billing } from "./billing.ts";
 import { AdminAccounts, type AdminDirectory } from "./system-admin.ts";
 export { Billing };
-export { MonthlyPricing } from "./billing-pricing.ts";
+export { FlagPricing, MonthlyPricing, YearlyPricing } from "./billing-pricing.ts";
 import { PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";

@@ -7,8 +7,35 @@ import {
 } from "@lib/shared/sharing";
 import { noteSummary, renderNote } from "./reader.ts";
 import { userMessage } from "./messages.ts";
+import { copyText } from "./writing/clipboard.ts";
 
 /** One focused dialog; publishing is always a separate, explicit user action. */
+export function resolveShareUrl(
+  state: ShareState | undefined,
+  siteOrigin: string,
+  now = Date.now(),
+): string | null {
+  const value = state?.direct;
+  if (
+    !value?.active ||
+    !value.url ||
+    (value.expiresAt && Date.parse(value.expiresAt) <= now)
+  )
+    return null;
+  try {
+    const url = new URL(value.url);
+    return url.origin === siteOrigin &&
+      shareTokenSchema.safeParse(url.pathname.slice(3)).success &&
+      url.pathname.startsWith("/s/") &&
+      !url.search &&
+      !url.hash
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export class ShareController {
   private epoch = 0;
   private note: Memory | undefined;
@@ -60,25 +87,7 @@ export class ShareController {
     this.dialog.close();
   }
   private url() {
-    const value = this.state?.direct;
-    if (
-      !value?.active ||
-      !value.url ||
-      (value.expiresAt && Date.parse(value.expiresAt) <= Date.now())
-    )
-      return null;
-    try {
-      const url = new URL(value.url);
-      return url.origin === this.transport.siteOrigin &&
-        shareTokenSchema.safeParse(url.pathname.slice(3)).success &&
-        url.pathname.startsWith("/s/") &&
-        !url.search &&
-        !url.hash
-        ? url.href
-        : null;
-    } catch {
-      return null;
-    }
+    return resolveShareUrl(this.state, this.transport.siteOrigin, Date.now());
   }
   private paint() {
     const link = this.url();
@@ -254,11 +263,10 @@ export class ShareController {
       this.paint();
       const link = this.url();
       if (!link) return;
-      try {
-        await navigator.clipboard.writeText(link);
+      if (await copyText(link)) {
         if (epoch === this.epoch)
           this.element("share-status").textContent = "Link copied.";
-      } catch {
+      } else {
         if (epoch !== this.epoch) return;
         this.element("share-status").textContent =
           "Select the link to copy it.";
