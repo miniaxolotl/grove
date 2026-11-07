@@ -1,11 +1,12 @@
 import Stripe from "stripe";
 import { GroveError } from "@lib/shared/contracts";
 
-/** One product, immutable monthly USD prices. Flag changes affect new sales only. */
-export class MonthlyPricing {
+/** One product, immutable USD prices per interval. Flag changes affect new sales only. */
+export class FlagPricing {
   constructor(
     private stripe: Stripe,
     readonly productId: string,
+    readonly interval: "month" | "year",
     private dollars: (subject: string) => Promise<unknown>,
   ) {}
 
@@ -23,7 +24,7 @@ export class MonthlyPricing {
         "Subscription pricing is unavailable. Try again shortly.",
         503,
       );
-    return { interval: "month" as const, amount: cents, currency: "usd" };
+    return { interval: this.interval, amount: cents, currency: "usd" } as const;
   }
 
   async resolve(subject: string, expectedAmount: number | undefined) {
@@ -41,7 +42,7 @@ export class MonthlyPricing {
         "This subscription is unavailable",
         503,
       );
-    const key = `grove-pro-${this.productId}-usd-month-${quote.amount}`;
+    const key = `grove-pro-${this.productId}-usd-${this.interval}-${quote.amount}`;
     const existing = await this.stripe.prices.list({
       lookup_keys: [key],
       active: true,
@@ -55,7 +56,7 @@ export class MonthlyPricing {
           currency: "usd",
           unit_amount: quote.amount,
           recurring: {
-            interval: "month",
+            interval: this.interval,
             interval_count: 1,
             usage_type: "licensed",
           },
@@ -69,7 +70,7 @@ export class MonthlyPricing {
       price.currency !== "usd" ||
       price.product !== this.productId ||
       !price.active ||
-      price.recurring?.interval !== "month" ||
+      price.recurring?.interval !== this.interval ||
       price.recurring.interval_count !== 1 ||
       price.recurring.usage_type !== "licensed"
     )
@@ -79,5 +80,25 @@ export class MonthlyPricing {
         503,
       );
     return price;
+  }
+}
+
+export class MonthlyPricing extends FlagPricing {
+  constructor(
+    stripe: Stripe,
+    productId: string,
+    dollars: (subject: string) => Promise<unknown>,
+  ) {
+    super(stripe, productId, "month", dollars);
+  }
+}
+
+export class YearlyPricing extends FlagPricing {
+  constructor(
+    stripe: Stripe,
+    productId: string,
+    dollars: (subject: string) => Promise<unknown>,
+  ) {
+    super(stripe, productId, "year", dollars);
   }
 }

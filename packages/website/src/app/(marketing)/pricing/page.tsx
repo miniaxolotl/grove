@@ -2,7 +2,11 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { ArrowRight } from "lucide-react";
 import { resourceLimits, billingLimits } from "@lib/shared/billing";
-import { billingMonthlyUsd, showBilling } from "@/lib/flags";
+import {
+  billingMonthlyUsd,
+  billingYearlyUsd,
+  showBilling,
+} from "@/lib/flags";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(
@@ -12,6 +16,22 @@ export const metadata = pageMetadata(
 );
 
 const number = new Intl.NumberFormat("en-US");
+function validPrice(value: unknown) {
+  return typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 1 &&
+    value <= 10000 &&
+    Math.abs(value * 100 - Math.round(value * 100)) < 0.000001
+    ? value
+    : null;
+}
+const usd = (digits: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
 const comparisons = [
   ["Stored notes", "notes", false],
   ["Notebooks", "notebooks", false],
@@ -24,24 +44,17 @@ const comparisons = [
 export default async function PricingPage() {
   await connection();
   const enabled = await showBilling();
-  const configuredPrice = await billingMonthlyUsd();
-  const price =
-    typeof configuredPrice === "number" &&
-    Number.isFinite(configuredPrice) &&
-    configuredPrice >= 1 &&
-    configuredPrice <= 10000 &&
-    Math.abs(configuredPrice * 100 - Math.round(configuredPrice * 100)) <
-      0.000001
-      ? configuredPrice
-      : null;
-  const formattedPrice =
-    price === null
+  const monthly = validPrice(await billingMonthlyUsd());
+  const yearly = validPrice(await billingYearlyUsd());
+  const formattedMonthly =
+    monthly === null ? null : usd(2).format(monthly);
+  const formattedYearly = yearly === null ? null : usd(0).format(yearly);
+  const yearlyPerMonth =
+    yearly === null ? null : usd(2).format(yearly / 12);
+  const yearlySavings =
+    monthly === null || yearly === null || monthly * 12 - yearly <= 0.005
       ? null
-      : new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-          maximumFractionDigits: 2,
-        }).format(price);
+      : usd(0).format(Math.round(monthly * 12 - yearly));
   return (
     <main id="main" className="product-redesign pricing-page">
       <section
@@ -89,12 +102,24 @@ export default async function PricingPage() {
         >
           <h2 id="pro-heading">Pro</h2>
           <p className="plan-price">
-            {formattedPrice ?? "More capacity"}
-            {formattedPrice ? <span> USD / month</span> : null}
+            {formattedMonthly ?? "More capacity"}
+            {formattedMonthly ? <span> USD / month</span> : null}
           </p>
+          {formattedYearly ? (
+            <p className="plan-billing-alt">
+              or {formattedYearly} <span>USD / year</span>
+              {yearlyPerMonth ? (
+                <>
+                  {" "}
+                  ({yearlyPerMonth} / month
+                  {yearlySavings ? `, save ${yearlySavings}` : ""})
+                </>
+              ) : null}
+            </p>
+          ) : null}
           <p>
-            {formattedPrice
-              ? "Introductory monthly price. Confirm the current amount in your account before checkout."
+            {formattedMonthly
+              ? "Introductory prices. Confirm the current amount in your account before checkout."
               : "Check your account for current upgrade availability and pricing."}
           </p>
           <ul>
@@ -216,6 +241,14 @@ export default async function PricingPage() {
                 Monthly action and audio allowances reset on the first day of
                 each UTC calendar month, not your billing anniversary. Unused
                 allowances don’t roll over.
+              </dd>
+            </div>
+            <div className="feature-row">
+              <dt>Do you offer yearly billing?</dt>
+              <dd>
+                Yes. Pro is available month-to-month or once a year; both
+                include the same monthly allowances. Yearly renews each year
+                until you cancel.
               </dd>
             </div>
             <div className="feature-row">

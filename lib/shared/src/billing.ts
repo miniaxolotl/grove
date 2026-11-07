@@ -1,5 +1,6 @@
 export const billingFlagKey = "billing-enabled";
 export const billingPriceFlagKey = "billing-pro-monthly-usd";
+export const billingPriceYearlyFlagKey = "billing-pro-yearly-usd";
 /** Effective access, not a claim that an administrator grant cancels a purchase. */
 export type AccountPlan = {
   tier: "free" | "pro" | "unlimited";
