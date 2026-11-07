@@ -20,7 +20,9 @@ function text(node: Nodes): string {
 
 /** One CommonMark/GFM model for source positions, rendering and navigation. */
 export function noteHeadings(source: string): NoteHeading[] {
-  const tree = parseNoteMarkdown(source);
+  // Headings are a derived view (outline, PDF titles), not save validation:
+  // allow large documents here; the save path enforces NOTE_CONTENT_MAX.
+  const tree = parseNoteMarkdown(source, { maxCharacters: 100_000 });
   const headings: NoteHeading[] = [];
   const used = new Set<string>();
   function visit(node: Nodes) {
