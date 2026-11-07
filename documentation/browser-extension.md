@@ -519,7 +519,7 @@ Do not advertise signed/store availability or a proven under-one-minute setup.
 
 ### Offline store/reviewer handoff
 
-The package name is **Grove — private notes**. Suggested listing summary:
+The package name is **Grove: spelling, grammar, notes**. Suggested listing summary:
 “Save notes and sources, search your Grove notebooks, and share a thought.”
 List only documented panel features; do not promise full-page import,
 AI summaries, chat extraction, Safari/mobile, offline search or signed availability.

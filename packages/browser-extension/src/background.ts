@@ -772,7 +772,7 @@ async function menus() {
   await host.action.setBadgeText({ text: enabled ? "" : "OFF" });
   await host.action.setBadgeBackgroundColor({ color: "#5e625e" });
   await host.action.setTitle({
-    title: enabled ? "Open Grove" : "Grove is off — open to turn on",
+    title: enabled ? "Open Grove" : "Grove is off - open to turn on",
   });
   if (!enabled) return;
   for (const [id, title, contexts] of [
