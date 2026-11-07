@@ -4,6 +4,7 @@ import {
   adminDetailsSchema,
   adminBrowseSchema,
   adminSupportSchema,
+  adminTrialResetSchema,
   adminUsageReportSchema,
   emptyUsageReportMetrics,
   type AdminUsageReport,
@@ -194,6 +195,47 @@ export class SystemAdministration {
           ],
         )
       ).rows[0].result;
+    });
+  }
+  /**
+   * Restore trial eligibility. Never creates, changes, or cancels a Stripe
+   * subscription; it only deletes the single-use consumption record so the
+   * account can start one new trial. Audited like other admin changes.
+   */
+  trialReset(
+    principal: Principal,
+    raw: unknown,
+  ): Promise<{ accountId: string; eligible: true }> {
+    return this.access(principal, async (trx) => {
+      await trx.raw("SELECT grove_admin_accounts(ARRAY[]::text[])");
+      const input = adminTrialResetSchema.parse(raw);
+      const previous = await trx("billing_trials")
+        .where({ accountId: input.accountId })
+        .first();
+      if (!previous)
+        throw new GroveError(
+          "trial_not_consumed",
+          "This account never used a trial",
+          404,
+        );
+      const idempotent = await trx("system_admin_audit")
+        .where({ id: input.operationId })
+        .first("id");
+      if (!idempotent) {
+        await trx("billing_trials")
+          .where({ accountId: input.accountId })
+          .delete();
+        await trx("system_admin_audit").insert({
+          id: input.operationId,
+          actorId: principal.accountId,
+          accountId: input.accountId,
+          kind: "change",
+          reason: input.reason,
+          before: { trialConsumedAt: previous.consumedAt },
+          after: { trialEligible: true },
+        });
+      }
+      return { accountId: input.accountId, eligible: true as const };
     });
   }
 }

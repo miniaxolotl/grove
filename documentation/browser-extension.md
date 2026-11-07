@@ -62,7 +62,8 @@ than dashboard chrome. Notebook and source controls share one **Details** disclo
 ### English writing checks
 
 Spelling and basic grammar run locally by default in eligible textareas across normal
-website tabs, even while signed out. Notes uses the same checker. Open an underline
+website tabs, even while signed out, and they keep working after the anonymous
+grace period ends (see below). Notes uses the same checker. Open an underline
 or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
 word**; **All issues** returns from one issue to the full list without rechecking.
 Choosing a correction copies it and replaces only that range with native Undo,
@@ -225,6 +226,24 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   destination is remembered per API/account; existing drafts take precedence.
   System/light/dark appearance saves automatically on this device. Enablement has
   one home in the persistent header. Search has one result list and copy action.
+
+### Anonymous grace and trial
+
+The extension works without an account. Local spelling and basic grammar checks
+run signed out from install and keep working after the grace period ends; they
+never require sign-in, contact Grove, or consume any quota.
+
+Saving, search, capture, reader sharing, and AI writing tools need an account.
+For the first **14 days** after install the signed-out panel invites you to try
+these with a free account; after day 14 it asks you to create a free account to
+continue them. The install date is stored on the device (`chrome.storage.local`,
+with a `chrome.storage.sync` backup when browser sync is on). Reinstalling keeps
+the original date while sync backup exists; with sync off a reinstall restarts
+the local-only grace. This is best-effort and documented: the grace only times
+the signup nudge, never Pro access. Once you create an account, Settings →
+Billing offers a single-use **7-day Pro trial** with full Pro allowances (card
+required; converts to paid unless cancelled). Each account gets one trial; an
+administrator can restore eligibility. See [billing](billing.md#subscriptions).
 
 Notes opens directly to the editor. Save outcome and newer unsaved edits
 remain visible without version/indexing diagnostics.

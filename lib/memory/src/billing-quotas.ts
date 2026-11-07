@@ -493,6 +493,53 @@ export async function assertCapacity(
   }
 }
 
+/** Single-use trial consumption. Webhooks/sync never clear it; admin reset can. */
+export async function trialState(
+  trx: Knex.Transaction,
+  accountId: string,
+): Promise<{ eligible: boolean; consumedAt: string | null; resetAt: string | null }> {
+  const row = await trx("billing_trials").where({ accountId }).first();
+  if (!row) return { eligible: true, consumedAt: null, resetAt: null };
+  return {
+    eligible: false,
+    consumedAt: row.consumedAt ? new Date(row.consumedAt).toISOString() : null,
+    resetAt: row.resetAt ? new Date(row.resetAt).toISOString() : null,
+  };
+}
+
+export async function consumeTrial(
+  trx: Knex.Transaction,
+  accountId: string,
+  subscriptionId?: string,
+) {
+  const existing = await trx("billing_trials").where({ accountId }).first();
+  if (existing)
+    throw new GroveError(
+      "trial_already_used",
+      "This account already used its Pro trial",
+      409,
+    );
+  await trx("billing_trials").insert({
+    accountId,
+    subscriptionId: subscriptionId ?? null,
+  });
+}
+
+export async function resetTrial(
+  trx: Knex.Transaction,
+  accountId: string,
+  resetBy: string,
+) {
+  const updated = await trx("billing_trials")
+    .where({ accountId })
+    .update({ resetBy, resetAt: trx.fn.now() })
+    .returning("accountId");
+  if (!updated.length)
+    throw new GroveError("trial_not_consumed", "This account never used a trial", 404);
+  // Eligibility is restored by removing consumption; the audit trail stays in grove_admin_change.
+  await trx("billing_trials").where({ accountId }).delete();
+}
+
 /** Provider-call slots share durable leases across foreground and all worker lanes. */
 export async function withGenerationSlot<T>(
   db: Knex,
