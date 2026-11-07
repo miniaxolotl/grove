@@ -42,6 +42,28 @@ export default async function InstallPage() {
         </span>
       </div>
       <Installation />
+      <section className="setup-reference" aria-labelledby="extension-heading">
+        <h2 id="extension-heading" className="text-xl font-medium tracking-tight">
+          Browser extension
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-7">
+          Save notes from any tab and search your library in Chrome, Firefox
+          or Edge. Spelling and grammar checks run on your device; optional
+          sentence-level AI rewrites need your explicit consent. Build the
+          unsigned packages with Node 24 and pnpm 10.33
+          (<code>pnpm build:extension</code>), then load them unpacked in
+          developer mode — or as a temporary add-on in Firefox. It is not a
+          browser-store listing.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2">
+          <a
+            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md"
+            className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
+          >
+            Extension setup guide <ArrowUpRight size={14} />
+          </a>
+        </div>
+      </section>
       <section className="setup-reference" aria-labelledby="next-heading">
         <h2 id="next-heading" className="text-xl font-medium tracking-tight">
           Documentation and self-hosting

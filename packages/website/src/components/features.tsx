@@ -11,7 +11,11 @@ const features = [
   ],
   [
     "History and export",
-    "Restore earlier revisions, archive old notes and export your library. Choose each connected agent's notebook access and revoke it when you're done.",
+    "Restore earlier revisions, compare before and after with grouped diffs, archive old notes and export your library. Choose each connected agent's notebook access and revoke it when you're done.",
+  ],
+  [
+    "Browser extension",
+    "Save notes from any tab and search your library in Chrome, Firefox or Edge. Spelling and grammar checks run locally; optional sentence-level AI rewrites need your explicit consent. Locally installable, not a store listing.",
   ],
 ] as const;
 
