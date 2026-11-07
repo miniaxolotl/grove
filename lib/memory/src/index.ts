@@ -217,6 +217,9 @@ export {
   billingEntitlement,
   billingUsage,
   resourceUsage,
+  trialState,
+  consumeTrial,
+  resetTrial,
   UsageLimitError,
 } from "./billing-quotas.ts";
 export { SystemAdministration } from "./system-admin.ts";

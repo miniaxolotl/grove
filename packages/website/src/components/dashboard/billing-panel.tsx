@@ -109,7 +109,9 @@ export function BillingPanel() {
       setError(
         e instanceof DashboardApiError && e.code === "billing_price_changed"
           ? "The price changed. Refresh to review it."
-          : "Couldn’t open billing. Please try again.",
+          : e instanceof DashboardApiError && e.code === "trial_already_used"
+            ? "This account already used its Pro trial."
+            : "Couldn’t open billing. Please try again.",
       );
     } finally {
       pending.current = false;
@@ -319,6 +321,11 @@ export function BillingPanel() {
                 <h3 id="billing-pro-heading">Pro</h3>
                 <span className="billing-caption">Monthly allowances</span>
               </div>
+              {state.trial && !state.trial.eligible ? (
+                <p className="billing-caption">
+                  The single Pro trial for this account has been used.
+                </p>
+              ) : null}
               {state.prices.map((price) => (
                 <div className="billing-purchase" key={price.interval}>
                   <p
@@ -345,6 +352,24 @@ export function BillingPanel() {
                   >
                     {action === price.interval ? "Opening…" : "Upgrade to Pro"}
                   </button>
+                  {state.trial?.eligible ? (
+                    <button
+                      className="app-button secondary"
+                      aria-describedby={`billing-price-${price.interval}`}
+                      disabled={busy}
+                      onClick={() =>
+                        void open(
+                          "/billing/trial",
+                          price.interval,
+                          price.amount,
+                        )
+                      }
+                    >
+                      {action === price.interval
+                        ? "Opening…"
+                        : "Start 7-day Pro trial"}
+                    </button>
+                  ) : null}
                 </div>
               ))}
               <dl className="billing-included">

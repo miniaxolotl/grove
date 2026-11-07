@@ -225,6 +225,18 @@ automatic overage charges.
   with a future period end receives Pro. Other states use Free. Period-end
   cancellation preserves Pro until the period ends; past-due/unpaid subscriptions
   need attention in the portal.
+- **Pro trial:** new accounts can start one 7-day Pro trial from
+  Settings → Billing (`POST /v1/billing/trial`), with the monthly or yearly
+  price as the post-trial subscription. The trial checkout requires a payment
+  method and sets `trial_period_days: 7` on the Stripe subscription; it
+  converts to paid unless cancelled. Starting the trial checkout consumes the
+  account's single trial (`billing_trials`); each account gets one trial and
+  an abandoned or expired trial checkout still counts as used. `GET /v1/billing`
+  reports `trial: { eligible }` so the panel shows **Start 7-day Pro trial**
+  only while eligible, and **Trial ends <date>** while `trialing`.
+  A system admin can restore eligibility with `POST /v1/admin/accounts/trial-reset`
+  (audited, reason required); the reset only deletes the consumption record and
+  never creates, changes, or cancels Stripe state.
 - Customer creation has an account idempotency key. Checkout reserves an operation
   and its price before the remote write, serializes competing requests, reuses an
   open checkout and refuses a second ongoing subscription. Expired checkouts can

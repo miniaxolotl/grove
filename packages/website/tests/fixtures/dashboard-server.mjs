@@ -125,6 +125,15 @@ createServer(async (request, response) => {
     if (path === "/media-recorder.worklet.js") {
       response.writeHead(200,{"Content-Type":"application/javascript"}).end(await readFile(join(root,"public/media-recorder.worklet.js")));return;
     }
+    if (path === "/dictionaries/en.aff" || path === "/dictionaries/en.dic") {
+      response
+        .writeHead(200, {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        })
+        .end(await readFile(join(root, "public", path.slice(1))));
+      return;
+    }
     if (path === "/telemetry-fixture.js") {
       response
         .writeHead(200, { "Content-Type": "application/javascript" })

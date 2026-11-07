@@ -5,6 +5,7 @@ import { AiPreferences } from "./ai-preferences";
 import { LoadError } from "./load-error";
 import { usePreferenceEditor } from "./preference-editor";
 import { SettingsSaveRow } from "./settings-save-row";
+import { WritingPreferences } from "./writing-preferences";
 
 export function PreferencesPanel() {
   const editor = usePreferenceEditor();
@@ -13,6 +14,7 @@ export function PreferencesPanel() {
     Object.values(editor.availability).some((available) => !available);
   return (
     <div className="settings-content">
+      <WritingPreferences />
       <section className="app-panel ai-preferences-panel">
         <div className="settings-panel-heading">
           <h2>AI preferences</h2>

@@ -313,12 +313,14 @@ async function rpc<T>(kind: string, payload?: unknown): Promise<T> {
     });
   if (
     epoch !== sessionEpoch &&
-    !["logout", "configure", "preferences"].includes(kind)
+    !["logout", "configure", "preferences", "grace"].includes(kind)
   )
     throw new Error("Connection changed. Reopen Grove before continuing.");
   if (
     scope &&
-    !["state", "login", "logout", "configure", "preferences"].includes(kind) &&
+    !["state", "login", "logout", "configure", "preferences", "grace"].includes(
+      kind,
+    ) &&
     (scope.accountId !== state?.identity.accountId ||
       scope.connectionId !== state?.identity.connectionId)
   )
@@ -1308,6 +1310,27 @@ $("theme").addEventListener("change", () => {
     }),
   );
 });
+async function paintGrace() {
+  const note = document.querySelector<HTMLElement>("#grace-note");
+  if (!note || state) {
+    if (note) note.hidden = true;
+    return;
+  }
+  try {
+    const grace = await rpc<{
+      state: "active" | "expired";
+      daysLeft: number;
+    }>("grace");
+    note.hidden = false;
+    note.textContent =
+      grace.state === "expired"
+        ? "Your free start has ended. Create a free Grove account to keep saving and searching notes. Spelling and grammar checks keep working on this device."
+        : `No account needed to start: spelling and grammar checks work now. Create a free account within ${grace.daysLeft} ${grace.daysLeft === 1 ? "day" : "days"} to keep saving and searching notes.`;
+  } catch {
+    // Anonymous grace is advisory only; local checks never depend on it.
+    note.hidden = true;
+  }
+}
 async function connectView() {
   writingPreferences = await rpc<WritingPreferences>("writingState");
   paintWriting();
@@ -1317,9 +1340,11 @@ async function connectView() {
   } catch (error) {
     if (!state) {
       show(view);
+      await paintGrace();
       notice(userMessage(error, "Sign in to connect Grove."));
     } else throw error;
   }
+  if (!state) await paintGrace();
 }
 void action(async () => {
   const window = await host.windows.getCurrent();

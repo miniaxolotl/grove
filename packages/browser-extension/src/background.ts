@@ -18,6 +18,7 @@ import {
   type MessageSender,
 } from "./webextension.ts";
 import { contextMenuCapture, openNativePanel, tabSource } from "./platform.ts";
+import { ensureGrace, readGrace } from "./grace.ts";
 import {
   WritingPreferencesStore,
   writingSettingsFor,
@@ -82,6 +83,7 @@ const request = z
       "takeInbox",
       "writingState",
       "writingConfigure",
+      "grace",
     ]),
     windowId: z.number().int().nonnegative(),
     accountId: z.uuid().optional(),
@@ -137,6 +139,8 @@ async function dispatch(raw: unknown) {
   const message = request.parse(raw),
     id = message.windowId;
   if (message.kind === "preferences") return preferences();
+  if (message.kind === "grace")
+    return readGrace(host.storage.local, host.storage.sync);
   if (message.kind === "writingState" || message.kind === "writingConfigure") {
     const identity = (await session.get("identity")) as
       | { accountId: string; connectionId: string }
@@ -791,6 +795,9 @@ async function recordEntryError(id: number, message: string) {
   await session.set(`entryError:${id}`, message);
 }
 host.runtime.onInstalled.addListener(() => {
+  void serial(() => ensureGrace(host.storage.local, host.storage.sync)).catch(
+    () => {},
+  );
   void serial(async () => {
     await syncWritingSites();
     for (const tab of await host.tabs.query({}))

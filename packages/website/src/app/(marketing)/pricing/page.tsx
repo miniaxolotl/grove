@@ -134,6 +134,7 @@ export default async function PricingPage() {
             </li>
             <li>Higher search and organization allowances</li>
             <li>More transcription and read-aloud time</li>
+            <li>One 7-day Pro trial per account, then Pro or Free</li>
           </ul>
           <Link
             href={enabled ? "/app/settings/billing" : "/sign-up"}
@@ -243,6 +244,15 @@ export default async function PricingPage() {
                 Monthly action and audio allowances reset on the first day of
                 each UTC calendar month, not your billing anniversary. Unused
                 allowances don’t roll over.
+              </dd>
+            </div>
+            <div className="feature-row">
+              <dt>Is there a Pro trial?</dt>
+              <dd>
+                New accounts can start one 7-day Pro trial with full Pro
+                allowances. It needs a payment method and becomes a paid
+                subscription unless you cancel. Each account gets one trial;
+                an administrator can restore eligibility on request.
               </dd>
             </div>
             <div className="feature-row">

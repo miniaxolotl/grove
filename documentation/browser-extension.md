@@ -62,7 +62,8 @@ than dashboard chrome. Notebook and source controls share one **Details** disclo
 ### English writing checks
 
 Spelling and basic grammar run locally by default in eligible textareas across normal
-website tabs, even while signed out. Notes uses the same checker. Open an underline
+website tabs, even while signed out, and they keep working after the anonymous
+grace period ends (see below). Notes uses the same checker. Open an underline
 or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
 word**; **All issues** returns from one issue to the full list without rechecking.
 Choosing a correction copies it and replaces only that range with native Undo,
@@ -86,20 +87,34 @@ capitalization (including the start of a new line or list item), unambiguous wor
 phrases (**all of the** → **all the**, **in order to** → **to**, **due to the fact
 that** → **because**, **in the event that** → **if**, **in spite of the fact that** →
 **although**, **on a daily basis** → **daily**, **close proximity** → **proximity**,
-**revert back** → **revert**), declarative pronoun verb agreement plus **should of** →
-**should have** and **he don't** → **he doesn't**, and plural acronyms before a plural
-verb (**PR's are** → **PRs are**) or in decades (**1990's** → **1990s**). Confused-word
-checks cover **its a** → **it's a**, **their is** → **there is**, **suppose to** →
-**supposed to**, **I use to** → **I used to** (never after _didn't_), preposition +
+**revert back** → **revert**, doubled comparatives (**more better** → **better**,
+**most biggest** → **biggest**)), declarative pronoun verb agreement for common
+verbs (**he go** → **he goes**, **they goes** → **they go**, **she say** →
+**she says**) plus **should of** → **should have** and **he don't** →
+**he doesn't**, and plural acronyms before a plural verb (**PR's are** →
+**PRs are**) or in decades (**1990's** → **1990s**). Inverted questions keep
+their bare verbs (**does he have**, **will she come**) and mandative clauses
+keep the base form (**I suggest he go**): the agreement check abstains there
+rather than "fixing" correct English. Confused-word
+checks cover **its a** → **it's a**, **its been** → **it's been**,
+**their gone** → **they're gone** (**your gone** → **you're gone**),
+**their is** → **there is**, **suppose to** →
+**supposed to**, **bigger then** → **bigger than**, **I use to** →
+**I used to** (never after _didn't_), preposition +
 **and I** → **and me**, ordinal suffixes (**22th** → **22nd**), common eggcorns
-(**weather or not**, **free reign**, **baited breath**, **escape goat**) and two-word
-spelling fixes (**alot** → **a lot**, **noone** → **no one**, **eachother** →
-**each other**). Spelling alternatives follow the original word's capitalization, and
+(**weather or not**, **free reign**, **baited breath**, **escape goat**) and
+single-token fixes the affix suggester cannot rank (**alot** → **a lot**,
+**maintainance** → **maintenance**, **questionairre** → **questionnaire**,
+**lisence** → **license**, **speach** → **speech**, **tendancy** → **tendency**,
+**wich** → **which**). Spelling alternatives put the obvious fix first:
+adjacent transpositions (**teh** → **the**), missing apostrophes (**dont** →
+**don't**) and dropped doubled letters (**refered** → **referred**) outrank
+unrelated near-edits, then follow the original word's capitalization, and
 plural acronyms such as **PRs** are not flagged as misspellings. An article before a
 plural-looking noun (**an apples**) abstains: the article is not the real error.
 These are not a complete grammar/style analysis. Unknown names can be
 added to the dictionary; ambiguous rules abstain rather than guess a replacement.
-Possessive acronyms (**the PR's title**), inverted questions, soft-wrapped lines,
+Possessive acronyms (**the PR's title**), soft-wrapped lines,
 much/many and less/fewer are deliberately left alone.
 Future UI translations and proofing languages remain separate; only English ships.
 
@@ -237,6 +252,24 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   destination is remembered per API/account; existing drafts take precedence.
   System/light/dark appearance saves automatically on this device. Enablement has
   one home in the persistent header. Search has one result list and copy action.
+
+### Anonymous grace and trial
+
+The extension works without an account. Local spelling and basic grammar checks
+run signed out from install and keep working after the grace period ends; they
+never require sign-in, contact Grove, or consume any quota.
+
+Saving, search, capture, reader sharing, and AI writing tools need an account.
+For the first **14 days** after install the signed-out panel invites you to try
+these with a free account; after day 14 it asks you to create a free account to
+continue them. The install date is stored on the device (`chrome.storage.local`,
+with a `chrome.storage.sync` backup when browser sync is on). Reinstalling keeps
+the original date while sync backup exists; with sync off a reinstall restarts
+the local-only grace. This is best-effort and documented: the grace only times
+the signup nudge, never Pro access. Once you create an account, Settings →
+Billing offers a single-use **7-day Pro trial** with full Pro allowances (card
+required; converts to paid unless cancelled). Each account gets one trial; an
+administrator can restore eligibility. See [billing](billing.md#subscriptions).
 
 Notes opens directly to the editor. Save outcome and newer unsaved edits
 remain visible without version/indexing diagnostics.
@@ -533,7 +566,7 @@ Do not advertise signed/store availability or a proven under-one-minute setup.
 
 ### Offline store/reviewer handoff
 
-The package name is **Grove — private notes**. Suggested listing summary:
+The package name is **Grove: spelling, grammar, notes**. Suggested listing summary:
 “Save notes and sources, search your Grove notebooks, and share a thought.”
 List only documented panel features; do not promise full-page import,
 AI summaries, chat extraction, Safari/mobile, offline search or signed availability.
