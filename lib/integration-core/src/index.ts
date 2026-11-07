@@ -103,6 +103,16 @@ export class ApiClient {
           error?.code ?? "unavailable",
           error?.message ?? "Grove request failed",
           response.status,
+          error && typeof error === "object"
+            ? {
+                resource:
+                  typeof error.resource === "string"
+                    ? error.resource
+                    : undefined,
+                resetAt:
+                  typeof error.resetAt === "string" ? error.resetAt : undefined,
+              }
+            : undefined,
         );
       }
       if (!("data" in result))

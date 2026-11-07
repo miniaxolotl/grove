@@ -11,6 +11,7 @@ import { GroveError } from "@lib/shared/contracts";
 import {
   billingLimits,
   resourceLimits,
+  writingDailyLimits,
   type ActionMetric,
   type ResourceLimits,
   type ResourceUsage,
@@ -266,6 +267,39 @@ export async function reserveAction(
     .returning("id");
   return { id: row.id, leaseId, metric };
 }
+/** Daily burst cap for AI rewrites; monthly allowances still govern totals. */
+export async function assertWritingDailyLimit(
+  db: Knex,
+  trx: Knex.Transaction,
+  accountId: string,
+) {
+  const policy = await resourcePolicy(db, trx, accountId);
+  if (!policy || policy.plan === "unlimited") return;
+  const daily = writingDailyLimits[policy.plan];
+  await lockUsage(trx, accountId);
+  const count = await trx("action_usage")
+    .where({ accountId, metric: "writing" })
+    .whereRaw("created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')")
+    .where((q) =>
+      q
+        .where({ status: "completed" })
+        .orWhere((q) =>
+          q
+            .where({ status: "reserved" })
+            .where("leaseUntil", ">", trx.fn.now()),
+        ),
+    )
+    .sum("units AS total")
+    .first();
+  if (Number(count?.total ?? 0) + 5 > daily * 5) {
+    const {
+      rows: [clock],
+    } = await trx.raw(
+      "SELECT (date_trunc('day', now() AT TIME ZONE 'UTC') + interval '1 day') AT TIME ZONE 'UTC' AS reset",
+    );
+    throw new UsageLimitError("writing", new Date(clock.reset).toISOString());
+  }
+}
 export async function settleAction(
   trx: Knex.Transaction,
   reservation: ActionReservation | null,
@@ -430,6 +464,7 @@ export async function resourceUsage(
     "ask",
     "organization",
     "assistance",
+    "writing",
   ] as const) {
     const row = rows.find((r) => r.metric === metric);
     metrics[metric] = {

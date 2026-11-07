@@ -57,6 +57,7 @@ export function createBilling(env: ServerEnvironment, service: MemoryService) {
     ask: env[`BILLING_${tier}_ASK_MONTHLY`],
     organization: env[`BILLING_${tier}_ORGANIZATION_MONTHLY`],
     assistance: env[`BILLING_${tier}_ASSISTANCE_MONTHLY`],
+    writing: env[`BILLING_${tier}_WRITING_MONTHLY`],
     concurrency: resourceLimits.free.concurrency,
   });
   configureBillingQuotas(service.db, {
