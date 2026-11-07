@@ -490,7 +490,9 @@ network CSP. Custom-origin acceptance must use the actual
 Firefox network stack, not seeded tokens or intercepted fetch responses.
 
 Root lint/types/build, ordinary TypeScript tests and artifact tests cover the new
-core. Artifact checks rebuild in isolated directories, compare deterministic bytes,
+core. Fast `test:extension` runs capture, drafts, platform, oauth, client plus
+messages, webextension guards, reader summaries/rendering, share-URL validation
+and clipboard helpers. Artifact checks rebuild in isolated directories, compare deterministic bytes,
 restrict the input graph to reviewed core/shared/Zod code, require no external
 imports and exercise exports in a sandbox without Node globals, DOM or fetch.
 Runtime/package checks also validate deterministic ZIPs/manifests/CSP, trusted
