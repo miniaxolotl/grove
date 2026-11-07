@@ -35,6 +35,10 @@ owns connection commands and approval.
 - Autosave starts after a 450ms typing pause; viewer checklist changes start saving
   immediately. **Save note** or Ctrl/Cmd+S saves now. First-save routing retains
   the editor, focus, scroll and Undo. Another New note starts a separate document.
+- [Spelling and basic grammar](webapp-writing.md) are checked on your device as
+  you write, with the same engine as the browser extension and no double
+  underlines when both are present. Open an underline or press **Alt+Enter**;
+  one click applies a replacement with normal Undo.
   Existing notes send precise source edits, preserving unedited passages. Revision
   history groups nearby small autosaves from one editing session instead of listing
   each keystroke save. Large/structural changes and explicit Save stay separate.
