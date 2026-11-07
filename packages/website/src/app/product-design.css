@@ -433,6 +433,16 @@
 .product-redesign .plan-price span {
   margin-left: 8px;
 }
+.product-redesign .plan-billing-alt {
+  font-size: 17px;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  margin: -12px 0 24px;
+  color: var(--brand-ink);
+}
+.product-redesign .plan-billing-alt span {
+  font-size: 13px;
+}
 .product-redesign .demo-source {
   font-size: 14px;
 }
