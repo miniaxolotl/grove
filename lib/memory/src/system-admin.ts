@@ -200,7 +200,8 @@ export class SystemAdministration {
   /**
    * Restore trial eligibility. Never creates, changes, or cancels a Stripe
    * subscription; it only deletes the single-use consumption record so the
-   * account can start one new trial. Audited like other admin changes.
+   * account can start one new trial. Writes go through the guarded SQL
+   * function because runtime has no direct audit access, like other admins.
    */
   trialReset(
     principal: Principal,
@@ -209,32 +210,27 @@ export class SystemAdministration {
     return this.access(principal, async (trx) => {
       await trx.raw("SELECT grove_admin_accounts(ARRAY[]::text[])");
       const input = adminTrialResetSchema.parse(raw);
-      const previous = await trx("billing_trials")
+      const existing = await trx("billing_trials")
         .where({ accountId: input.accountId })
         .first();
-      if (!previous)
+      if (!existing)
         throw new GroveError(
           "trial_not_consumed",
           "This account never used a trial",
           404,
         );
-      const idempotent = await trx("system_admin_audit")
-        .where({ id: input.operationId })
-        .first("id");
-      if (!idempotent) {
-        await trx("billing_trials")
-          .where({ accountId: input.accountId })
-          .delete();
-        await trx("system_admin_audit").insert({
-          id: input.operationId,
-          actorId: principal.accountId,
-          accountId: input.accountId,
-          kind: "change",
-          reason: input.reason,
-          before: { trialConsumedAt: previous.consumedAt },
-          after: { trialEligible: true },
-        });
-      }
+      const {
+        rows: [result],
+      } = await trx.raw(
+        "SELECT grove_admin_trial_reset(?::uuid,?::uuid,?) AS result",
+        [input.accountId, input.operationId, input.reason],
+      );
+      if (!(result?.result as { eligible?: unknown } | null)?.eligible)
+        throw new GroveError(
+          "trial_not_consumed",
+          "This account never used a trial",
+          404,
+        );
       return { accountId: input.accountId, eligible: true as const };
     });
   }

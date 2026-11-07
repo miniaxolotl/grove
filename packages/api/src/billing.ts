@@ -86,6 +86,9 @@ export class Billing {
         metadata: { groveAccountId: accountId },
         ...(trialDays ? { trial_period_days: trialDays } : {}),
       },
+      // Card-required trials must always collect a payment method; ordinary
+      // checkout keeps Stripe's default behavior.
+      ...(trialDays ? { payment_method_collection: "always" as const } : {}),
       success_url: `${this.options.siteUrl}/app/settings/billing?checkout=success`,
       cancel_url: `${this.options.siteUrl}/app/settings/billing?checkout=canceled`,
     };
@@ -251,6 +254,16 @@ export class Billing {
           "periodEnd",
           "cancelAtPeriodEnd",
         ]);
+    }
+    // Keep the consumption record pointed at the live trial so admins can
+    // see which subscription used it. Never creates consumption: only an
+    // explicit trial start does.
+    const trialing = subscriptions.data.find((s) => s.status === "trialing");
+    if (trialing) {
+      await trx("billing_trials")
+        .where({ accountId })
+        .whereNull("subscriptionId")
+        .update({ subscriptionId: trialing.id });
     }
     // A provider-side removal cannot leave an old local entitlement active.
     await trx("billing_subscriptions")
@@ -610,6 +623,18 @@ export class Billing {
             "Manage your existing subscription instead",
             409,
           );
+        // An open checkout created without a trial must never be silently
+        // reused as the trial checkout: the user would pay immediately while
+        // burning their single trial.
+        if (row.checkoutId) {
+          const existing = await this.checkoutSession(principal.accountId, row);
+          if (existing.status === "open")
+            throw new GroveError(
+              "checkout_pending",
+              "Finish or let your existing checkout expire before starting a trial",
+              409,
+            );
+        }
         const session = await this.checkoutSession(
           principal.accountId,
           row,
