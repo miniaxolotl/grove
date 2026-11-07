@@ -86,20 +86,34 @@ capitalization (including the start of a new line or list item), unambiguous wor
 phrases (**all of the** → **all the**, **in order to** → **to**, **due to the fact
 that** → **because**, **in the event that** → **if**, **in spite of the fact that** →
 **although**, **on a daily basis** → **daily**, **close proximity** → **proximity**,
-**revert back** → **revert**), declarative pronoun verb agreement plus **should of** →
-**should have** and **he don't** → **he doesn't**, and plural acronyms before a plural
-verb (**PR's are** → **PRs are**) or in decades (**1990's** → **1990s**). Confused-word
-checks cover **its a** → **it's a**, **their is** → **there is**, **suppose to** →
-**supposed to**, **I use to** → **I used to** (never after _didn't_), preposition +
+**revert back** → **revert**, doubled comparatives (**more better** → **better**,
+**most biggest** → **biggest**)), declarative pronoun verb agreement for common
+verbs (**he go** → **he goes**, **they goes** → **they go**, **she say** →
+**she says**) plus **should of** → **should have** and **he don't** →
+**he doesn't**, and plural acronyms before a plural verb (**PR's are** →
+**PRs are**) or in decades (**1990's** → **1990s**). Inverted questions keep
+their bare verbs (**does he have**, **will she come**) and mandative clauses
+keep the base form (**I suggest he go**): the agreement check abstains there
+rather than "fixing" correct English. Confused-word
+checks cover **its a** → **it's a**, **its been** → **it's been**,
+**their gone** → **they're gone** (**your gone** → **you're gone**),
+**their is** → **there is**, **suppose to** →
+**supposed to**, **bigger then** → **bigger than**, **I use to** →
+**I used to** (never after _didn't_), preposition +
 **and I** → **and me**, ordinal suffixes (**22th** → **22nd**), common eggcorns
-(**weather or not**, **free reign**, **baited breath**, **escape goat**) and two-word
-spelling fixes (**alot** → **a lot**, **noone** → **no one**, **eachother** →
-**each other**). Spelling alternatives follow the original word's capitalization, and
+(**weather or not**, **free reign**, **baited breath**, **escape goat**) and
+single-token fixes the affix suggester cannot rank (**alot** → **a lot**,
+**maintainance** → **maintenance**, **questionairre** → **questionnaire**,
+**lisence** → **license**, **speach** → **speech**, **tendancy** → **tendency**,
+**wich** → **which**). Spelling alternatives put the obvious fix first:
+adjacent transpositions (**teh** → **the**), missing apostrophes (**dont** →
+**don't**) and dropped doubled letters (**refered** → **referred**) outrank
+unrelated near-edits, then follow the original word's capitalization, and
 plural acronyms such as **PRs** are not flagged as misspellings. An article before a
 plural-looking noun (**an apples**) abstains: the article is not the real error.
 These are not a complete grammar/style analysis. Unknown names can be
 added to the dictionary; ambiguous rules abstain rather than guess a replacement.
-Possessive acronyms (**the PR's title**), inverted questions, soft-wrapped lines,
+Possessive acronyms (**the PR's title**), soft-wrapped lines,
 much/many and less/fewer are deliberately left alone.
 Future UI translations and proofing languages remain separate; only English ships.
 

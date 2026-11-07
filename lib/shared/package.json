@@ -7,6 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     "./writing-assistance": "./src/writing-assistance.ts",
+    "./writing-core": "./src/writing-core.ts",
+    "./writing-settings": "./src/writing-settings.ts",
     "./markdown": "./src/markdown.ts",
     "./web-capture": "./src/web-capture.ts",
     "./files": "./src/files.ts",
@@ -50,11 +52,13 @@
     "mdast-util-from-markdown": "2.0.2",
     "mdast-util-gfm": "3.1.0",
     "micromark-extension-gfm": "3.0.0",
+    "nspell": "2.1.5",
     "zod": "~4.1.8"
   },
   "devDependencies": {
     "@lib/eslint-config": "workspace:*",
     "@lib/typescript-config": "workspace:*",
-    "@types/mdast": "4.0.4"
+    "@types/mdast": "4.0.4",
+    "@types/nspell": "^2.1.6"
   }
 }
