@@ -6,14 +6,16 @@ subscription; it does not sell a prepaid credit balance. Pro starts at
 yearly subscriptions. Both billing periods include the same monthly allowances,
 which reset on the first of each UTC calendar month regardless of billing period.
 The Vercel number flag `billing-pro-monthly-usd` controls the displayed amount and
-the amount charged for new monthly subscriptions; `billing-pro-yearly-usd`
+the amount charged for new monthly subscriptions (defaults to $19.99 when the
+variant is unset); `billing-pro-yearly-usd`
 (default $159) does the same for yearly subscriptions. Yearly checkout stays
 hidden until its flag is configured, and it never affects the monthly offer.
 
 The server validates whole-cent USD amounts between 1 and 10,000 dollars, resolves
 an immutable Stripe Price under the configured Grove Pro product, and refuses an
-outdated browser quote with `billing_price_changed`. Missing/invalid flag evaluation
-stops new checkout rather than silently charging a fallback amount. Changing the
+outdated browser quote with `billing_price_changed`. An invalid flag amount
+stops new checkout rather than silently charging a fallback amount; an unset
+monthly variant falls back to the $19.99 code default. Changing the
 flag does not reprice existing subscriptions; product-based entitlement preserves
 their Pro access. Reusing an open checkout retains its original agreed price;
 review the new amount after that checkout expires before starting another.
@@ -257,7 +259,8 @@ automatic overage charges.
 ## Vercel feature flag
 
 The **`billing-enabled`** boolean is evaluated server-side using the same Clerk
-user ID entity in Next.js, API and worker processes. It defaults **false**. The
+user ID entity in Next.js, API and worker processes. It defaults **true** once
+billing is configured. The
 Next.js Flags SDK declaration uses `@flags-sdk/vercel`; the off-Vercel API/worker
 uses `@vercel/flags-core` with a project/environment SDK key. Website flag overrides
 cannot override API/worker authorization or entitlements.
@@ -273,8 +276,9 @@ and account-deletion cancellation remain active. Keep credentials installed for
 that lifecycle handling; while hidden, customer requests can be managed in Stripe.
 
 Flags Explorer discovery is available at `/.well-known/vercel/flags` using the
-SDK's `FLAGS_SECRET` authentication. Set up the Vercel flag with false defaults
-for every environment, and enable an internal-user cohort before broader rollout.
+SDK's `FLAGS_SECRET` authentication. The Vercel flag ships with true defaults;
+set an explicit Off variant in any environment that must stay off, and use an
+internal-user cohort before broader rollout.
 
 ## Configuration
 
@@ -362,8 +366,9 @@ default cannot override deployed configuration. Coordinate website hour/action
 labels with API units; keep billing hidden or use maintenance during an incompatible
 cutover. Keep the forward schema and provider records on rollback.
 
-Keep `billing-enabled` false initially, configure the portal/webhook and price in
-one Stripe mode, then use an approved internal cohort and disposable identities.
+Billing is on by default once configured. Still configure the portal/webhook
+and price in one Stripe mode, then use an approved internal cohort and
+disposable identities.
 Create both numeric flag variants (`billing-pro-monthly-usd` and
 `billing-pro-yearly-usd`) before offering yearly checkout; the API hides yearly
 until its variant evaluates to a valid amount. Verify Checkout completion →

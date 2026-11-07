@@ -19,7 +19,7 @@ export function createBilling(env: ServerEnvironment, service: MemoryService) {
   const enabled = async (subject: string) => {
     const result = await client.evaluate<boolean, { user: { id: string } }>(
       billingFlagKey,
-      false,
+      true,
       { user: { id: subject } },
     );
     return result.value === true;
@@ -86,9 +86,9 @@ export function createBilling(env: ServerEnvironment, service: MemoryService) {
             env.STRIPE_PRO_PRODUCT_ID,
             async (subject) => {
               const result = await client.evaluate<
-                number | null,
+                number,
                 { user: { id: string } }
-              >(billingPriceFlagKey, null, { user: { id: subject } });
+              >(billingPriceFlagKey, 19.99, { user: { id: subject } });
               return result.value;
             },
           ),
