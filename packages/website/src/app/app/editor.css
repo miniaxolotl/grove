@@ -813,3 +813,156 @@
     background: Canvas;
   }
 }
+
+/* Local writing proofing: same underline language as the browser extension. */
+.grove-writing-spelling {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #bf353b;
+  text-underline-offset: 3px;
+}
+.grove-writing-grammar {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #32684b;
+  text-underline-offset: 3px;
+}
+.editor-writing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.grove-writing-status {
+  font-size: 12px;
+  color: var(--color-muted);
+  background: none;
+  border: 0;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+button.grove-writing-status:hover {
+  color: inherit;
+  text-decoration: underline;
+}
+.grove-writing-card {
+  position: fixed;
+  z-index: 60;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(420px, calc(100dvh - 24px));
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--color-border, #d6dfd3);
+  border-radius: 20px;
+  background: var(--color-surface, #fff);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.12);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.grove-writing-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.grove-writing-card p {
+  margin: 8px 0 12px;
+}
+.grove-writing-replacements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.grove-writing-replacement {
+  background: #e6eee3;
+  border: 0;
+  border-radius: 12px;
+  padding: 8px 12px;
+  min-height: 40px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.grove-writing-original {
+  overflow-wrap: anywhere;
+  background: #f0f5ed;
+  padding: 12px;
+  border-radius: 12px;
+}
+.grove-writing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.grove-writing-actions button {
+  border: 0;
+  background: none;
+  padding: 8px 12px;
+  min-height: 40px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.grove-writing-close {
+  border: 0;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.grove-writing-notice {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.grove-writing-list {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.grove-writing-list button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: start;
+  background: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.grove-writing-list button:hover {
+  background: #f0f5ed;
+}
+.grove-writing-words {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.grove-writing-words li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.grove-writing-add-word {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.grove-writing-add-word input {
+  flex: 1;
+  min-width: 0;
+}
+@media (forced-colors: active) {
+  .grove-writing-spelling,
+  .grove-writing-grammar {
+    text-decoration-color: Mark;
+  }
+  .grove-writing-card {
+    border: 1px solid CanvasText;
+  }
+}

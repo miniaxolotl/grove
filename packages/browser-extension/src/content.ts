@@ -89,6 +89,15 @@ if (!environment.groveWritingInstalled) {
     badge.hidden = false;
   }
   function bind(element: EventTarget | null) {
+    // First-party Grove pages with native proofing own their editor: never
+    // inject a second writer there. The webapp sets this marker while its
+    // own proofing is mounted and enabled.
+    if (
+      document.documentElement.hasAttribute("data-grove-native-writing")
+    ) {
+      if (element !== badge) detach();
+      return;
+    }
     // Check metadata BEFORE reading .value. All inputs and unqualified rich editors
     // remain unbound; the first supported website adapter is multiline textarea.
     if (

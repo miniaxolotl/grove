@@ -68,6 +68,12 @@ import { useWorkspaceNavigationState } from "./workspace-navigation-state";
 import { useWorkspaceCommands } from "./workspace-commands";
 import { workspaceCommand } from "@/lib/workspace-commands";
 import { NoteContextMenu } from "./note-context-menu";
+import { englishMessages } from "@lib/shared/writing-settings";
+import { writingField } from "@/lib/writing/proofing";import {
+  useWritingProofing,
+  WritingIssueCard,
+  WritingStatusButton,
+} from "./note-writing";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -229,9 +235,15 @@ export function MarkdownEditor({
   const compartments = useRef({
     mode: new Compartment(),
     editable: new Compartment(),
+    writing: new Compartment(),
   });
   const [writingMode, setWritingMode] = useState<"live" | "source">("live");
   const mode = preview ? "preview" : writingMode;
+  const [proofingView, setProofingView] = useState<EditorView | null>(null);
+  const proofing = useWritingProofing(proofingView, documentValue, {
+    disabled,
+    preview: mode === "preview",
+  });
   const moveImage = (from: number, to: number, destination: number) => {
     const editor = view.current;
     if (
@@ -369,6 +381,7 @@ export function MarkdownEditor({
           syntaxHighlighting(highlighting),
           compartments.current.mode.of(liveMarkdown),
           compartments.current.editable.of([]),
+          compartments.current.writing.of(writingField),
           editorPlaceholder(initial.current.placeholder ?? "Start writing…"),
           EditorView.contentAttributes.of({
             id,
@@ -419,9 +432,11 @@ export function MarkdownEditor({
       }),
     });
     view.current = editor;
+    setProofingView(editor);
     return () => {
       editor.destroy();
       view.current = null;
+      setProofingView(null);
     };
   }, [id]);
   useEffect(() => {
@@ -904,6 +919,25 @@ export function MarkdownEditor({
                 ? "Markdown source"
                 : "Reading preview"}
           </span>
+          {mode !== "preview" && !disabled && (
+            <span className="editor-writing">
+              <WritingStatusButton
+                status={proofing.status}
+                count={proofing.issues.length}
+                onOpen={() => proofing.setListOpen(true)}
+                onRetry={() => proofing.checkNow(true)}
+              />
+              {!proofing.settings.automatic && proofing.status !== "off" && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => proofing.checkNow(true)}
+                >
+                  Check writing
+                </button>
+              )}
+            </span>
+          )}
           <span>
             {value.trim()
               ? value.trim().split(/\s+/).length.toLocaleString()
@@ -912,6 +946,71 @@ export function MarkdownEditor({
           </span>
         </div>
       </div>
+      {proofing.selected && proofingView && (
+        <WritingIssueCard
+          view={proofingView}
+          issue={proofing.selected}
+          alternatives={proofing.alternatives}
+          notice={proofing.notice}
+          onApply={(replacement) =>
+            proofing.applyReplacement(proofing.selected!, replacement)
+          }
+          onIgnore={() => proofing.selected && proofing.ignoreIssue(proofing.selected)}
+          onAddWord={() =>
+            proofing.selected && proofing.addWord(proofing.selected.original)
+          }
+          onClose={(restore) => {
+            proofing.selectIssue(null);
+            if (restore) proofingView?.focus();
+          }}
+          onAllIssues={() => proofing.setListOpen(true)}
+        />
+      )}
+      {proofing.listOpen && (
+        <InspectorDialog
+          title="Writing suggestions"
+          close={() => proofing.setListOpen(false)}
+          onDismissed={() => proofing.selectIssue(null)}
+        >
+          {proofing.status === "unavailable" && proofing.notice ? (
+            <p className="app-error" role="alert">
+              {proofing.notice}{" "}
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => proofing.checkNow(true)}
+              >
+                Retry
+              </button>
+            </p>
+          ) : proofing.issues.length === 0 ? (
+            <p className="text-muted">
+              No issues found by spelling and basic grammar checks. This is not
+              a complete grammar guarantee.
+            </p>
+          ) : (
+            <ul className="grove-writing-list">
+              {proofing.issues.map((issue) => (
+                <li key={issue.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      proofing.setListOpen(false);
+                      proofing.selectIssue(issue.id);
+                      proofingView?.focus();
+                    }}
+                  >
+                    <strong>
+                      {issue.rule === "spelling" ? "Spelling" : "Grammar"}
+                    </strong>
+                    <span>“{issue.original}” — {englishMessages[issue.message]}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </InspectorDialog>
+      )}
       {limit && (
         <p role="alert" className="app-error">
           This draft exceeds the 6,000-character save limit. Shorten it to save,
