@@ -13,7 +13,7 @@ import {
 } from "@lib/shared/writing-assistance";
 import { isWritingEditor } from "./editor.ts";
 import type { WritingSettings } from "./core.ts";
-import { copyWritingChoice } from "./clipboard.ts";
+import { copyText, copyWritingChoice } from "./clipboard.ts";
 
 export type WritingToolTransport = {
   availability: () => WritingAvailability;
@@ -523,15 +523,11 @@ export class WritingToolsController {
             "Copy",
             () => {
               if (!this.current() || !this.freshWork()) return;
-              void navigator.clipboard.writeText(text).then(
-                () => {
-                  status.textContent = "Copied";
-                },
-                () => {
-                  status.textContent =
-                    "Clipboard unavailable. Select and copy the alternative manually.";
-                },
-              );
+              void copyText(text).then((ok) => {
+                status.textContent = ok
+                  ? "Copied"
+                  : "Clipboard unavailable. Select and copy the alternative manually.";
+              });
             },
             "copy",
           ),

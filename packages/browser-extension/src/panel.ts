@@ -6,6 +6,7 @@ import type { ExtensionClient } from "./client.ts";
 import { renderNote } from "./reader.ts";
 import { ShareController } from "./sharing.ts";
 import { userMessage } from "./messages.ts";
+import { copyText } from "./writing/clipboard.ts";
 import { nativeBrowser as host, extensionConfig } from "./webextension.ts";
 import { WritingController } from "./writing/controller.ts";
 import {
@@ -879,12 +880,9 @@ function noteRow(note: Memory) {
         feedback.textContent = "Note changed. Refresh to copy.";
         return;
       }
-      try {
-        await navigator.clipboard.writeText(current.content);
-        feedback.textContent = "Copied.";
-      } catch {
-        feedback.textContent = "Couldn’t copy. Open the note to try again.";
-      }
+      feedback.textContent = (await copyText(current.content))
+        ? "Copied."
+        : "Couldn’t copy. Open the note to try again.";
     });
   };
   share.textContent = "Share";
@@ -1090,13 +1088,9 @@ on("copy-note", async () => {
   const current = await rpc<Memory>("read", note.id);
   if (current.version !== note.version || readerNote?.id !== note.id)
     throw new Error("This note changed. Reopen it before copying.");
-  try {
-    await navigator.clipboard.writeText(current.content);
-    $("reader-copy-state").textContent = "Copied. Ready to paste.";
-  } catch {
-    $("reader-copy-state").textContent =
-      "Could not copy. Open in Grove to copy this note.";
-  }
+  $("reader-copy-state").textContent = (await copyText(current.content))
+    ? "Copied. Ready to paste."
+    : "Could not copy. Open in Grove to copy this note.";
 });
 on("share-reader", async () => {
   if (readerNote) await sharing.open(readerNote.id);
