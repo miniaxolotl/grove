@@ -1,7 +1,7 @@
 import type { Memory } from "@lib/shared/contracts";
 import {
+  parsePublicShareUrl,
   shareDurations,
-  shareTokenSchema,
   type ShareState,
   type ShareDuration,
 } from "@lib/shared/sharing";
@@ -23,14 +23,7 @@ export function resolveShareUrl(
   )
     return null;
   try {
-    const url = new URL(value.url);
-    return url.origin === siteOrigin &&
-      shareTokenSchema.safeParse(url.pathname.slice(3)).success &&
-      url.pathname.startsWith("/s/") &&
-      !url.search &&
-      !url.hash
-      ? url.href
-      : null;
+    return parsePublicShareUrl(value.url, siteOrigin);
   } catch {
     return null;
   }

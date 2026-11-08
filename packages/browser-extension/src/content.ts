@@ -10,6 +10,7 @@ import {
   unavailableWriting,
   type WritingAvailability,
 } from "@lib/shared/writing-assistance";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 // Isolated-world flag prevents duplicate controllers after explicit re-injection.
 const environment = globalThis as typeof globalThis & {
@@ -115,9 +116,12 @@ if (!environment.groveWritingInstalled) {
       settings: () => settings,
       check: async (text) => {
         const result = await rpc<WritingResult>("writingSiteCheck", {
-          text: text.slice(0, 6000),
+          text: text.slice(0, NOTE_CONTENT_MAX),
         });
-        return { ...result, complete: result.complete && text.length <= 6000 };
+        return {
+          ...result,
+          complete: result.complete && text.length <= NOTE_CONTENT_MAX,
+        };
       },
       suggest: (word) => rpc("writingSiteSuggest", { word }),
       tools: {

@@ -1,4 +1,5 @@
 import { webCaptureSchema, type WebCapture } from "@lib/shared/web-capture";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 export const browserTargets = Object.freeze([
   "chrome",
@@ -115,9 +116,11 @@ export function contextMenuCapture(
     if (
       typeof event.selectionText !== "string" ||
       !event.selectionText.trim() ||
-      event.selectionText.length > 6000
+      event.selectionText.length > NOTE_CONTENT_MAX
     )
-      throw new Error("Selection must contain 1–6000 characters");
+      throw new Error(
+        `Selection must contain 1–${NOTE_CONTENT_MAX} characters`,
+      );
     text = event.selectionText;
   }
   const url = link

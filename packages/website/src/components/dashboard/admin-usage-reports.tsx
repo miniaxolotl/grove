@@ -18,6 +18,7 @@ const labels: Record<UsageReportFeature, string> = {
   ask: "Ask replies",
   organization: "Note organization",
   assistance: "Summaries & assistance",
+  writing: "AI rewrites",
   embedding: "Embeddings",
   decision: "Classification",
   generation: "Generation",
@@ -25,8 +26,21 @@ const labels: Record<UsageReportFeature, string> = {
   transcription: "Transcription",
   synthesis: "Read aloud",
 };
-const actions = usageReportFeatures.slice(0, 4);
-const providers = usageReportFeatures.slice(4);
+const actions: readonly UsageReportFeature[] = [
+  "recall",
+  "ask",
+  "organization",
+  "assistance",
+  "writing",
+];
+const providers: readonly UsageReportFeature[] = [
+  "embedding",
+  "decision",
+  "generation",
+  "research",
+  "transcription",
+  "synthesis",
+];
 const number = (value: number) =>
   new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
 const isAudio = (feature: UsageReportFeature) =>

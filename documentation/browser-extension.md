@@ -187,6 +187,18 @@ or network does not disable local checks, which never fall back to AI.
 Website AI additionally requires browser-supplied document identity; hosts without
 it keep AI unavailable rather than reuse another document's authority.
 
+### Writing limits
+
+Spelling and grammar checks run on your device and are unlimited on every plan,
+including signed out. Each explicit AI rewrite request uses one rewrite from
+your monthly allowance: **100 a month on Free** (up to 30 a day) and
+**1,000 a month on Pro** (up to 200 a day). One request returns up to three
+alternatives and counts once; reopening the same completed result is free.
+When the allowance runs out the card says so with the reset date — local
+checks, Copy and your draft keep working. Allowances reset on the first of
+each UTC month and do not roll over. See the
+[billing guide](billing.md) for the full allowance table.
+
 Requests persist before HTTP **202** acceptance; Grove's existing enrichment workers
 perform generation. The UI reads durable queued, processing, backoff, expired-lease
 recovery, uncertain, failed and completed states. Polling only reads status; it does
@@ -578,6 +590,15 @@ Firefox declares authentication information, website content, browsing activity
 and search terms for user-invoked transmission. There is no analytics or automatic
 history collection. Operators must verify these declarations and corresponding
 Chrome/Edge disclosures against the final production package and privacy policy.
+
+## Shared implementation notes
+
+Webapp, extension, API and worker share `@lib/shared` as the single source for
+note limits (`NOTE_CONTENT_MAX`), Markdown parsing (`parseNoteMarkdown`), note
+titles (`noteTitle`/`sharedNoteTitle`), share durations and public share URL
+validation (`parsePublicShareUrl`). Do not re-implement these in package code;
+`tests/src/shared-drift.test.ts` fails on direct `mdast-util-from-markdown`
+imports in the webapp or hardcoded `6000` bounds.
 
 Reviewer checklist: install the matching package; check an eligible textarea while
 signed out; disable checks browser-wide and for a domain plus its subdomains;

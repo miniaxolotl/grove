@@ -49,12 +49,16 @@ control applies immediately and stays on this device:
 - Local checks never send keystrokes, prose, dictionary words or results
   anywhere. The 555 KB dictionary is fetched once from Grove itself on the first
   eligible edit and cached; no third-party dictionary download exists.
+  Spelling and grammar checks are unlimited on every plan.
 - Only English is supported. Code, link destinations, filenames and Markdown
   syntax are never flagged. Ambiguous rules abstain rather than guess.
 - Sentence rewrites with AI alternatives stay in the browser extension for now:
   they need an explicit consent and a connection-scoped authorization the
-  website session does not carry yet. The webapp never sends what you type for
-  checking, and this page will name the release when that changes.
+  website session does not carry yet. There they use a monthly writing
+  allowance — 100 a month on Free (up to 30 a day), 1,000 a month on Pro (up
+  to 200 a day) — with the same local checks staying unlimited. The webapp
+  never sends what you type for checking, and this page will name the release
+  when that changes.
 
 ## No double checking
 
