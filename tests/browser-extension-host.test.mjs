@@ -251,6 +251,7 @@ for (const target of ["chrome", "edge"])
           });
           let uncertain = true;
           globalThis.fixtureRequests = [];
+          globalThis.fixtureNotes = notes;
           globalThis.fixtureCaptureRequests = [];
           globalThis.fixtureWritingInputs = [];
           globalThis.fixtureSearchQueries = [];
@@ -360,22 +361,49 @@ for (const target of ["chrome", "edge"])
               if (operations.has(body.operationId))
                 data = operations.get(body.operationId);
               else {
-                data = {
-                  id: crypto.randomUUID(),
-                  projectId: null,
-                  content: body.content,
-                  kind: "fact",
-                  version: 1,
-                  status: "active",
-                  source: { agent: "api" },
-                  taskId: null,
-                  expiresAt: null,
-                  purgeAt: null,
-                  indexing: "pending",
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                };
-                notes.push(data);
+                const current = body.id
+                  ? notes.find((note) => note.id === body.id)
+                  : undefined;
+                if (
+                  body.id &&
+                  (!current || current.version !== body.expectedVersion)
+                )
+                  return Response.json(
+                    {
+                      success: false,
+                      error: {
+                        code: "version_conflict",
+                        message:
+                          "This note changed elsewhere. Open it in Grove before continuing.",
+                      },
+                    },
+                    { status: 409 },
+                  );
+                data = current
+                  ? {
+                      ...current,
+                      content: body.content,
+                      projectId: body.projectId,
+                      version: current.version + 1,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : {
+                      id: crypto.randomUUID(),
+                      projectId: null,
+                      content: body.content,
+                      kind: "fact",
+                      version: 1,
+                      status: "active",
+                      source: { agent: "api" },
+                      taskId: null,
+                      expiresAt: null,
+                      purgeAt: null,
+                      indexing: "pending",
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    };
+                if (current) notes[notes.indexOf(current)] = data;
+                else notes.push(data);
                 operations.set(body.operationId, data);
               }
               if (uncertain) {
@@ -464,6 +492,10 @@ for (const target of ["chrome", "edge"])
         { accountId, connectionId },
       );
       const page = await context.newPage();
+      // Context-wide fake clock (flowing until paused below) so the autosave
+      // debounce can be advanced deterministically without disturbing the
+      // real-time debounce journeys elsewhere in this test.
+      await page.clock.install();
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`chrome-extension://${extensionId}/panel.html`);
@@ -1690,11 +1722,9 @@ for (const target of ["chrome", "edge"])
       await page.locator("#new-note").click();
       await sourceTab.bringToFront();
       await waitSource("title", "First source");
-      await page
-        .locator("#note")
-        .fill(
-          "# Field notes\n\nA source worth keeping. <script>not executable</script>\n\n- [x] A useful task\n- **A clear idea**\n\n| Tool | Purpose |\n| --- | --- |\n| Grove | Keep thoughts |\n\n```js\nconst safe = true;\n```\n\n[Source](https://example.com/read)\n\n[Unsafe](javascript:alert(1))\n\n![No tracking](https://tracker.example/pixel.png)",
-        );
+      const fieldNotes = (paragraph) =>
+        `# Field notes\n\n${paragraph} <script>not executable</script>\n\n- [x] A useful task\n- **A clear idea**\n\n| Tool | Purpose |\n| --- | --- |\n| Grove | Keep thoughts |\n\n\`\`\`js\nconst safe = true;\n\`\`\`\n\n[Source](https://example.com/read)\n\n[Unsafe](javascript:alert(1))\n\n![No tracking](https://tracker.example/pixel.png)`;
+      await page.locator("#note").fill(fieldNotes("A source worth keeping."));
       const savedSourcePage = await context.newPage();
       await savedSourcePage.route(
         "https://source.writing-fixture.test/article",
@@ -1752,13 +1782,16 @@ for (const target of ["chrome", "edge"])
         await page.locator("#save-state").textContent(),
         /Save not confirmed/,
       );
-      await page.locator("#note").fill("A newer draft stays after retry.");
+      await page.clock.pauseAt(
+        new Date((await page.evaluate(() => Date.now())) + 50),
+      );
+      const newerDraft = fieldNotes("A newer draft stays after retry.");
+      await page.locator("#note").fill(newerDraft);
       await page.locator("#save").click();
       await page
         .locator("#save-state")
         .filter({
-          hasText:
-            "Your earlier note is saved. These changes aren’t saved yet.",
+          hasText: "Your earlier note is saved. These changes save on their own.",
         })
         .waitFor();
       assert.deepEqual(
@@ -1771,10 +1804,34 @@ for (const target of ["chrome", "edge"])
         ]),
         "uncertain retry preserves the exact original page and request",
       );
+      assert.equal(await page.locator("#note").inputValue(), newerDraft);
+      await page.clock.runFor(599);
       assert.equal(
-        await page.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
+        await worker.evaluate(() => globalThis.fixtureCaptureRequests.length),
+        2,
+        "edits wait out the debounce window before saving",
       );
+      await page.clock.runFor(1);
+      await page
+        .locator("#save-state")
+        .filter({ hasText: /^Saved\.$/ })
+        .waitFor();
+      const autosaveWrite = await worker.evaluate(
+        () => globalThis.fixtureCaptureRequests[2],
+      );
+      const autosaveNotes = await worker.evaluate(
+        () => globalThis.fixtureNotes,
+      );
+      assert.equal(autosaveWrite.id, autosaveNotes[0].id);
+      assert.equal(autosaveWrite.expectedVersion, 1);
+      assert.equal(autosaveWrite.content, newerDraft);
+      assert.equal(
+        autosaveNotes.length,
+        1,
+        "autosave updates the saved note instead of capturing again",
+      );
+      assert.equal(autosaveNotes[0].version, 2);
+      await page.clock.resume();
       assert.equal(
         await page
           .locator("#save-version, #save-indexing, #save-details")
@@ -2370,7 +2427,7 @@ for (const target of ["chrome", "edge"])
       await page.locator("#workspace").waitFor({ state: "visible" });
       assert.equal(
         await page.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
+        newerDraft,
       );
       // Workspace navigation contract: order, current marker, keyboard, scroll.
       assert.deepEqual(
@@ -2630,7 +2687,7 @@ for (const target of ["chrome", "edge"])
       );
       assert.equal(
         await page.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
+        newerDraft,
       );
       await page.locator('[data-nav="settings"]').click();
       const otherPanel = await context.newPage();
@@ -2638,7 +2695,7 @@ for (const target of ["chrome", "edge"])
       await otherPanel.locator("#workspace").waitFor({ state: "visible" });
       assert.equal(
         await otherPanel.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
+        newerDraft,
       );
       await page.locator("#extension-toggle").click();
       await page.waitForFunction(
@@ -2797,7 +2854,7 @@ for (const target of ["chrome", "edge"])
       );
       assert.equal(
         await otherPanel.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
+        newerDraft,
       );
       await otherPanel
         .locator("#note")
@@ -2860,6 +2917,38 @@ for (const target of ["chrome", "edge"])
             .querySelector("#extension-toggle")
             .getAttribute("aria-checked") === "true",
       );
+      await worker.evaluate(() => {
+        const current = globalThis.fixtureNotes[0];
+        globalThis.fixtureNotes[0] = {
+          ...current,
+          version: current.version + 1,
+          content: "Another writer's note",
+        };
+      });
+      await page.locator('[data-nav="capture"]').click();
+      await page.locator("#note").fill("Keep my conflicting draft");
+      await page
+        .locator("#save-state")
+        .filter({ hasText: "Couldn’t save" })
+        .waitFor({ timeout: 3000 });
+      const conflictWrites = await worker.evaluate(
+        () => globalThis.fixtureCaptureRequests.length,
+      );
+      await page.waitForTimeout(800);
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureCaptureRequests.length),
+        conflictWrites,
+        "a conflict stops autosave rather than retrying or rebasing silently",
+      );
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "Keep my conflicting draft",
+      );
+      assert.equal(
+        (await worker.evaluate(() => globalThis.fixtureNotes))[0].content,
+        "Another writer's note",
+      );
+      await page.locator('[data-nav="settings"]').click();
       await page.locator("#logout").click();
       await page.locator("#welcome").waitFor({ state: "visible" });
       await otherPanel

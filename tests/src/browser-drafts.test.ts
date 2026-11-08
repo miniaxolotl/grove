@@ -383,6 +383,18 @@ test("browser draft core isolates accounts and preserves exact uncertain save id
         now + 4,
       );
       assert.equal(next.save?.request.content, "Newer text");
+      assert.equal(
+        next.save?.request.id,
+        receipt.noteId,
+        "later saves update the same note instead of capturing again",
+      );
+      assert.equal(next.save?.request.expectedVersion, receipt.version);
+      assert.ok(next.save?.request.editSession);
+      assert.equal(
+        next.save?.request.editSession,
+        saved.editSession,
+        "one editing session spans every save of a note",
+      );
     },
   );
 
