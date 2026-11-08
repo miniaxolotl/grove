@@ -2,7 +2,7 @@ import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { applySourceEdits } from "@lib/shared/document-edits";
 import { memoryUpdateSchema } from "@lib/shared/memory-tools";
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Page, type Download } from "@playwright/test";
+import { test, expect, type Locator, type Page, type Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
@@ -6580,6 +6580,115 @@ test("sidebar note dragging carries a readable preview and marks the whole sourc
   await expect
     .poll(() => state.records.get(handoff.id)?.projectId)
     .toBe(project.id);
+});
+
+test("touch hold lifts notebooks and notes into drops while quick taps organize", async ({
+  page,
+  context,
+}, info) => {
+  const state = await fixture(page, [handoff]);
+  const target = {
+    ...project,
+    id: "00000000-0000-4000-a000-000000000030",
+    name: "Garden",
+  };
+  state.projects.push(target);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+  await page.goto(`${base}/app`);
+  await page.locator(".notebook-browser-toggle").click();
+  await page
+    .getByRole("button", { name: `Expand ${project.name}`, exact: true })
+    .click();
+  const center = (rect: Awaited<ReturnType<Locator["boundingBox"]>>) => ({
+    x: rect!.x + rect!.width / 2,
+    y: rect!.y + rect!.height / 2,
+  });
+  const holdAndDrag = async (handle: Locator, destination: Locator) => {
+    const start = center(await handle.boundingBox());
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [start],
+    });
+    // The touch sensor activates after a 220ms deliberate hold; the drop tray
+    // with its destination chips only exists once the drag is live.
+    await page.waitForTimeout(320);
+    await expect(page.locator(".memory-drag-preview")).toBeVisible();
+    const end = center(await destination.boundingBox());
+    for (let step = 1; step <= 8; step++) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          {
+            x: start.x + ((end.x - start.x) * step) / 8,
+            y: start.y + ((end.y - start.y) * step) / 8,
+          },
+        ],
+      });
+    }
+  };
+  const release = () =>
+    cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+
+  // Hold a note grip in the tree and drop it on the tray's Unfiled chip.
+  const noteHandle = page
+    .locator(".notebook-pages li")
+    .filter({
+      has: page.getByRole("link", { name: "Launch checklist", exact: true }),
+    })
+    .locator(".drag-handle");
+  const unfiled = page.locator(
+    '.mobile-drop-tray [data-destination="personal"]',
+  );
+  await holdAndDrag(noteHandle, unfiled);
+  await expect(unfiled).toHaveAttribute("data-drop-active", "true");
+  await release();
+  await expect(page.locator(".workspace-notice")).toContainText(
+    "1 note moved to Unfiled",
+  );
+  expect(state.records.get(handoff.id)?.projectId).toBeNull();
+  await page
+    .getByRole("button", { name: "Dismiss move notification" })
+    .click();
+
+  // Hold a notebook grip and drop it on another notebook row to nest.
+  const notebookHandle = page
+    .locator(".notebook-tree-row")
+    .filter({
+      has: page.getByRole("link", { name: project.name, exact: true }),
+    })
+    .locator(".notebook-drag-handle");
+  const destination = page.locator(
+    `.notebook-explorer [data-destination="${target.id}"]`,
+  );
+  await holdAndDrag(notebookHandle, destination);
+  await expect(page.locator(".mobile-drop-tray")).toBeVisible();
+  await expect(destination).toHaveAttribute("data-drop-active", "true");
+  await page.screenshot({ path: info.outputPath("touch-notebook-drag.png") });
+  await release();
+  await expect(page.locator(".workspace-notice")).toContainText(
+    `“${project.name}” moved.`,
+  );
+  expect(state.projects.find((p) => p.id === project.id)?.parentId).toBe(
+    target.id,
+  );
+  // The deliberate hold did not also open the organizer.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator(".workspace-notice")).toContainText(
+    "Notebook move undone.",
+  );
+  expect(state.projects.find((p) => p.id === project.id)?.parentId).toBeNull();
+
+  // A quick tap on the same grip still opens Organize.
+  const grip = center(await notebookHandle.boundingBox());
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [grip],
+  });
+  await release();
+  await expect(page.getByRole("dialog")).toContainText("Organize notebooks");
 });
 
 test("partial bulk failures are identifiable and undo never overwrites a concurrent edit", async ({
