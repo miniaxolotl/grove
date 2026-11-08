@@ -18,7 +18,7 @@ export const billingEnabled = flag<boolean, { user?: { id: string } }>({
   key: billingFlagKey,
   description:
     "Offer Free and Pro subscriptions and enforce plan usage allowances",
-  defaultValue: false,
+  defaultValue: true,
   identify,
   adapter: vercelAdapter,
 });
