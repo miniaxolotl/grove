@@ -302,7 +302,10 @@ use Connections to revoke access and Sign out to clear a mounted session.
 
 The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
-their previous scroll position. Switches work with the keyboard and retain focus.
+their previous scroll position. Capture, Search, then Settings stay in that order;
+the active destination marks itself current for assistive technology. Capture and
+Search disable while Grove is off or unapproved while Settings stays available.
+Switches and navigation buttons work with the keyboard and retain focus.
 Search preserves its input/results when switching views. Unchanged rows remain
 mounted during refresh. Per-note actions recheck access and saved versions; a
 focused action menu returns focus to its trigger, and sharing never publishes
