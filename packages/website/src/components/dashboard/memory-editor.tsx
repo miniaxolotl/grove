@@ -1037,7 +1037,7 @@ export function MemoryEditor({
       </form>
       {deleteRequested && base && cancelDelete && onDeleted && (
         <NoteDeleteDialog
-          memory={base}
+          memories={[base]}
           close={cancelDelete}
           onDeleted={onDeleted}
           retrySave={persist}
