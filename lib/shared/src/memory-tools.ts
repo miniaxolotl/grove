@@ -302,7 +302,7 @@ export const memoryTools = {
     schema: describeNoteMediaSchema,
     readOnly: true,
     description:
-      "Describe one bound attachment with safe metadata and transcript version. No bytes, keys, or hashes. IDs come from list_note_media; never invent grove-media IDs.",
+      "Describe one bound image/recording with safe metadata and transcript version. No bytes, keys, or hashes. Use listed IDs; never invent attachment references.",
   },
   read_media_transcript: {
     title: "Read media transcript",
