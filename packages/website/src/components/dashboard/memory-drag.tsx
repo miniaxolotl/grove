@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { errorMessage, type Project } from "@/lib/dashboard-api";
-import { useWorkspaceApi } from "./workspace-cache";
+import { useWorkspaceApi, useWorkspaceCache } from "./workspace-cache";
 import { memoryTitle, moveMemoryInput } from "@/lib/memory-display";
 import { notebookPath, notebookOptions } from "@/lib/notebooks";
 import { useNotebooks } from "./notebooks-provider";
@@ -246,6 +246,7 @@ const destinationCoordinates: KeyboardCoordinateGetter = (
 /** One drag surface spans navigation, notes and notebook organization. */
 export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const api = useWorkspaceApi();
+  const cache = useWorkspaceCache();
   const notebooks = useNotebooks();
   const path = usePathname();
   const origin = useRef<{ path: string; source: Element | null } | null>(null);
@@ -335,11 +336,21 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     setNotice("");
     setFailures([]);
     setUndo([]);
+    const moved = item.items
+      .filter((note) => note.projectId !== destination)
+      .slice(0, 50);
+    // Instant patch first: the rows jump to the destination notebook immediately.
+    cache.applyNoteRecords(
+      new Map(
+        moved.map((note) => [
+          note.id,
+          { ...note, projectId: destination, version: note.version + 1 },
+        ]),
+      ),
+    );
     const completed: Undo[] = [];
     const errors: string[] = [];
-    for (const before of item.items
-      .filter((note) => note.projectId !== destination)
-      .slice(0, 50)) {
+    for (const before of moved) {
       try {
         completed.push({
           kind: "notes",
@@ -347,6 +358,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           after: await moveNote(before, destination),
         });
       } catch (error) {
+        cache.restoreNoteRecords(new Map([[before.id, before]]));
         errors.push(`${memoryTitle(before)}: ${errorMessage(error)}`);
       }
     }

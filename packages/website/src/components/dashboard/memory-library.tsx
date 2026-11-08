@@ -130,12 +130,29 @@ export function MemoryLibrary({
   const setSelected = (note: Memory | "new" | null) =>
     selectId(typeof note === "string" ? note : (note?.id ?? null));
   const detailError = detail.error ? errorMessage(detail.error) : "";
-  const [deleting, setDeleting] = useState<Memory | null>(null);
+  const [deleting, setDeleting] = useState<Memory[] | null>(null);
   const focusAfterDelete = useRef<string | null | undefined>(undefined);
   const [checked, setChecked] = useState<string[]>([]);
   const [moving, setMoving] = useState<Memory[] | null>(null);
   const [destination, setDestination] = useState("personal");
-  const [busy, setBusy] = useState(false);
+  // In-flight mutation tracking replaces the old global busy lock: only rows
+  // with a pending request disable their own controls. Everything else stays
+  // usable while requests settle in the background.
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  const markPending = (ids: string[]) =>
+    setPending((current) => {
+      const next = new Set(current);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+  const unmarkPending = (ids: string[]) =>
+    setPending((current) => {
+      if (!ids.some((id) => current.has(id))) return current;
+      const next = new Set(current);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  const busy = pending.size > 0;
   const [undo, setUndo] = useState<Undo[]>([]);
   const requests = useRef(new Map<string, string>());
   const summary = useRef<HTMLSpanElement>(null);
@@ -206,6 +223,9 @@ export function MemoryLibrary({
     status !== (archive ? "archived" : "active")
   );
   const selectedItems = items.filter((memory) => checked.includes(memory.id));
+  const pendingSelected = selectedItems.some((memory) =>
+    pending.has(memory.id),
+  );
 
   function reload(message?: string) {
     setSelected(null);
@@ -231,21 +251,54 @@ export function MemoryLibrary({
       operationId: requests.current.get(fingerprint),
     });
   }
+  /** The record the UI shows while a mutation settles: same note, next version. */
+  function expectedNote(
+    memory: Memory,
+    action: Action,
+    target?: string | null,
+  ): Memory {
+    return {
+      ...memory,
+      projectId: action === "move" ? (target ?? null) : memory.projectId,
+      status:
+        action === "archive"
+          ? "archived"
+          : action === "restore"
+            ? "active"
+            : memory.status,
+      version: memory.version + 1,
+    };
+  }
   async function perform(
     memories: Memory[],
     action: Action,
     target?: string | null,
   ) {
-    if (busy) return;
+    const skipped = memories.filter((memory) => pending.has(memory.id));
     const work = memories
-      .filter((memory) => action !== "move" || memory.projectId !== target)
+      .filter(
+        (memory) =>
+          (action !== "move" || memory.projectId !== target) &&
+          !pending.has(memory.id),
+      )
       .slice(0, 50);
     if (!work.length) {
       setMoving(null);
-      setNotice("Already in this notebook.");
+      setNotice(
+        skipped.length
+          ? "Those notes are still updating. Try again when the update finishes."
+          : "Already in this notebook.",
+      );
       return;
     }
-    setBusy(true);
+    const ids = work.map((memory) => memory.id);
+    // Instant patch first: rows move immediately, requests settle behind it.
+    markPending(ids);
+    cache.applyNoteRecords(
+      new Map(work.map((memory) => [memory.id, expectedNote(memory, action, target)])),
+    );
+    setMoving(null);
+    setChecked((current) => current.filter((id) => !ids.includes(id)));
     setError("");
     setFailures([]);
     setNotice("");
@@ -265,13 +318,12 @@ export function MemoryLibrary({
           action,
         });
       } catch (e) {
+        // That note alone snaps back; every other row keeps its new state.
+        cache.restoreNoteRecords(new Map([[memory.id, memory]]));
         failures.push(`${memoryTitle(memory)}: ${errorMessage(e)}`);
       }
     }
-    setBusy(false);
-    setMoving(null);
-    setSelected(null);
-    setChecked([]);
+    unmarkPending(ids);
     setUndo(completed);
     setFailures(failures);
     const verb =
@@ -282,19 +334,24 @@ export function MemoryLibrary({
           : "restored";
     setNotice(
       completed.length
-        ? `${completed.length} ${completed.length === 1 ? "note" : "notes"} ${verb}.`
+        ? `${completed.length} ${completed.length === 1 ? "note" : "notes"} ${verb}.${skipped.length ? ` ${skipped.length} still updating.` : ""}`
         : "",
     );
     reload();
     // Retain mutation failures separately from the following successful list read.
     if (failures.length)
       setNotice(
-        `${completed.length} ${verb}; ${failures.length} could not be ${verb}. See the details in the library.`,
+        `${completed.length} ${verb}; ${failures.length} could not be ${verb}. See the details in the library.${skipped.length ? ` ${skipped.length} still updating.` : ""}`,
       );
   }
   async function undoLast() {
     if (busy) return;
-    setBusy(true);
+    const ids = undo.map((record) => record.before.id);
+    markPending(ids);
+    // Instant patch first, same as the mutation being undone.
+    cache.applyNoteRecords(
+      new Map(undo.map((record) => [record.before.id, record.before])),
+    );
     const remaining: Undo[] = [];
     let message = "";
     for (const record of undo) {
@@ -309,13 +366,16 @@ export function MemoryLibrary({
           record.before.projectId,
         );
       } catch (e) {
+        cache.restoreNoteRecords(
+          new Map([[record.after.id, record.after]]),
+        );
         remaining.push(record);
         message = errorMessage(e);
       }
     }
+    unmarkPending(ids);
     const count = undo.length - remaining.length;
     setUndo(remaining);
-    setBusy(false);
     reload(
       remaining.length
         ? `${count} undone. ${remaining.length} could not be undone: ${message}`
@@ -323,7 +383,7 @@ export function MemoryLibrary({
     );
   }
   function startMove(memories: Memory[]) {
-    if (busy || !memories.length) return;
+    if (!memories.length) return;
     setSelected(null);
     setMoving(memories);
     const first = memories[0].projectId;
@@ -333,13 +393,19 @@ export function MemoryLibrary({
         : "",
     );
   }
-  function deleted(memory: Memory) {
-    const index = items.findIndex((item) => item.id === memory.id);
-    const neighbor = items[index + 1] ?? items[index - 1];
+  function deletedMany(memories: Memory[]) {
+    const gone = new Set(memories.map((memory) => memory.id));
+    const remaining = items.filter((item) => !gone.has(item.id));
+    const firstIndex = items.findIndex((item) => gone.has(item.id));
+    const neighbor =
+      remaining[Math.min(Math.max(firstIndex, 0), remaining.length - 1)];
     focusAfterDelete.current = neighbor?.id ?? null;
     setDeleting(null);
-    setChecked((checked) => checked.filter((id) => id !== memory.id));
+    setChecked((checked) => checked.filter((id) => !gone.has(id)));
     reload();
+  }
+  function deleted(memory: Memory) {
+    deletedMany([memory]);
   }
   useEffect(() => {
     if (focusAfterDelete.current === undefined || loading) return;
@@ -366,6 +432,9 @@ export function MemoryLibrary({
     : initialView === "graph"
       ? "Note graph"
       : "Notes";
+  const detailBusy =
+    selected && selected !== "new" ? pending.has(selected.id) : false;
+  const moveBusy = moving?.some((note) => pending.has(note.id)) ?? false;
   const currentIndex =
     selected && selected !== "new"
       ? items.findIndex((m) => m.id === selected.id)
@@ -610,7 +679,6 @@ export function MemoryLibrary({
                   if (
                     event.key === "Escape" &&
                     !event.defaultPrevented &&
-                    !busy &&
                     !workspace.active &&
                     selectedItems.length > 0 &&
                     !document.querySelector(
@@ -627,7 +695,7 @@ export function MemoryLibrary({
                     !archive && (
                       <AssistanceAction
                         compact
-                        disabled={busy || selectedItems.length > 6}
+                        disabled={pendingSelected || selectedItems.length > 6}
                         input={{
                           kind: "actions",
                           sources: selectedItems.map(({ id, version }) => ({
@@ -644,7 +712,7 @@ export function MemoryLibrary({
                     .slice(0, 50)
                     .every((memory) => checked.includes(memory.id))}
                   limited={items.length > 50}
-                  busy={busy}
+                  busy={pendingSelected}
                   archive={archive}
                   onSelectAll={(selected) =>
                     setChecked(
@@ -658,6 +726,7 @@ export function MemoryLibrary({
                   onArchive={() =>
                     void perform(selectedItems, archive ? "restore" : "archive")
                   }
+                  onDelete={() => setDeleting(selectedItems)}
                 />
                 <ul>
                   {items.map((memory, index) => (
@@ -683,7 +752,7 @@ export function MemoryLibrary({
                         }
                         selected={checked.includes(memory.id)}
                         selectedItems={selectedItems}
-                        busy={busy}
+                        busy={pending.has(memory.id)}
                         onSelect={() =>
                           setChecked((current) =>
                             current.includes(memory.id)
@@ -698,7 +767,7 @@ export function MemoryLibrary({
                           setSelected(memory);
                         }}
                         onDelete={() => {
-                          setDeleting(memory);
+                          setDeleting([memory]);
                         }}
                         onMove={() => startMove([memory])}
                         onArchive={() =>
@@ -763,7 +832,7 @@ export function MemoryLibrary({
           key={selected === "new" ? "new" : selected.id}
           panel
           title={selected === "new" ? "New note" : "Note"}
-          busy={busy}
+          busy={detailBusy}
           close={() => setSelected(null)}
         >
           {selected === "new" ? (
@@ -778,7 +847,7 @@ export function MemoryLibrary({
               key={selected.id}
               memory={selected}
               projects={projects}
-              busy={busy}
+              busy={detailBusy}
               onSaved={setSelected}
               close={() => setSelected(null)}
               onDeleted={() => deleted(selected)}
@@ -811,16 +880,19 @@ export function MemoryLibrary({
       )}
       {deleting && (
         <NoteDeleteDialog
-          memory={deleting}
+          memories={deleting}
           close={() => setDeleting(null)}
-          onDeleted={() => deleted(deleting)}
+          onDeleted={(gone) => deletedMany(gone)}
+          onPendingChange={(ids, active) =>
+            active ? markPending(ids) : unmarkPending(ids)
+          }
         />
       )}
       {moving && (
         <Dialog
           title={`Move ${moving.length === 1 ? "note" : `${moving.length} notes`}`}
           close={() => setMoving(null)}
-          busy={busy}
+          busy={moveBusy}
         >
           <form
             className="app-form"
@@ -839,7 +911,7 @@ export function MemoryLibrary({
             {moving.length === 1 && moving[0].projectId === null && (
               <AssistanceAction
                 compact
-                disabled={busy}
+                disabled={moveBusy}
                 input={{
                   kind: "filing",
                   sources: [{ id: moving[0].id, version: moving[0].version }],
@@ -863,7 +935,7 @@ export function MemoryLibrary({
                   : []),
                 { value: "personal", label: "Unfiled" },
               ]}
-              disabled={busy}
+              disabled={moveBusy}
             />
             <p className="text-xs text-muted">
               Connected agents with access to this notebook can read these
@@ -873,14 +945,14 @@ export function MemoryLibrary({
               <button
                 type="button"
                 className="app-button secondary"
-                disabled={busy}
+                disabled={moveBusy}
                 onClick={() => setMoving(null)}
               >
                 Cancel
               </button>
               <button
                 disabled={
-                  busy ||
+                  moveBusy ||
                   !destination ||
                   moving.every(
                     (note) => (note.projectId ?? "personal") === destination,
@@ -888,7 +960,7 @@ export function MemoryLibrary({
                 }
                 className="app-button"
               >
-                {busy ? "Moving…" : "Move here"}
+                {moveBusy ? "Moving…" : "Move here"}
               </button>
             </div>
           </form>

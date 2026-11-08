@@ -2065,6 +2065,14 @@ html:has(.grove-app) {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.notebook-archive-list .row-checkbox {
+  display: grid;
+  place-items: center;
+  width: var(--touch-target, 44px);
+  height: var(--touch-target, 44px);
+  flex-shrink: 0;
+  cursor: pointer;
+}
 .search-match {
   background: #e3ebd7;
   color: var(--color-forest);
