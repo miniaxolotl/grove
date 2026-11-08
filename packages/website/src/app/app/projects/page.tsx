@@ -3,10 +3,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { errorMessage } from "@/lib/dashboard-api";
+import { errorMessage, type Project } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "@/components/dashboard/workspace-cache";
 import { ActionMenu } from "@/components/dashboard/ui/action-menu";
-import { Folder, Plus } from "lucide-react";
+import { ArchiveRestore, Folder, Plus, Trash2, X } from "lucide-react";
 import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { LoadError } from "@/components/dashboard/load-error";
 import {
@@ -18,6 +18,7 @@ import { useNotebooks } from "@/components/dashboard/notebooks-provider";
 import { PageHeading } from "@/components/dashboard/ui/page-heading";
 import { Button } from "@/components/dashboard/ui/button";
 import { NotebookActions } from "@/components/dashboard/notebook-actions";
+import { NotebookBulkLifecycleDialog } from "@/components/dashboard/notebook-bulk-lifecycle";
 import { SearchField } from "@/components/dashboard/ui/search-field";
 import {
   NotebookDropTarget,
@@ -45,11 +46,23 @@ export default function ProjectsPage() {
   const reload = archived ? () => void archiveQuery.refetch() : active.reload;
   const [query, setQuery] = useState("");
   const [action, setAction] = useState<NotebookAction | null>(null);
+  const [bulk, setBulk] = useState<{
+    action: "restore" | "delete";
+    projects: Project[];
+  } | null>(null);
+  const [checked, setChecked] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [sharing, setSharing] = useState<string | null>(null);
   const matches = projects.filter((p) =>
     p.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
+  const selectedArchived = archived
+    ? matches.filter((project) => checked.includes(project.id))
+    : [];
+  const allSelected =
+    archived &&
+    matches.length > 0 &&
+    matches.slice(0, 50).every((project) => checked.includes(project.id));
   return (
     <>
       <PageHeading
@@ -139,16 +152,118 @@ export default function ProjectsPage() {
           )}
         </div>
       ) : archived ? (
-        <ul className="notebook-archive-list" aria-label="Archived notebooks">
-          {matches.map((project) => (
-            <li key={project.id}>
-              <span>{project.name}</span>
-              <ActionMenu label={`Notebook actions for ${project.name}`}>
-                <NotebookActions project={project} onAction={setAction} />
-              </ActionMenu>
-            </li>
-          ))}
-        </ul>
+        <>
+          {matches.length > 0 && (
+            <div
+              className="library-selection-header"
+              data-active={selectedArchived.length > 0 || undefined}
+            >
+              <label className="select-loaded">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  aria-label="Select archived notebooks"
+                  onChange={(event) =>
+                    setChecked(
+                      event.target.checked
+                        ? matches.slice(0, 50).map((project) => project.id)
+                        : [],
+                    )
+                  }
+                />
+                <span role="status" aria-live="polite" aria-atomic="true">
+                  {selectedArchived.length > 0
+                    ? `${selectedArchived.length} selected`
+                    : "Select archived notebooks"}
+                </span>
+              </label>
+              {selectedArchived.length > 0 && (
+                <div
+                  className="selection-toolbar"
+                  role="group"
+                  aria-label="Selected notebooks"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBulk({
+                        action: "restore",
+                        projects: selectedArchived,
+                      })
+                    }
+                    aria-label="Restore"
+                    title="Restore selected notebooks"
+                  >
+                    <ArchiveRestore size={16} />
+                    <span>Restore</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() =>
+                      setBulk({ action: "delete", projects: selectedArchived })
+                    }
+                    aria-label="Delete"
+                    title="Delete selected notebooks"
+                  >
+                    <Trash2 size={16} />
+                    <span>Delete</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChecked([])}
+                    aria-label="Clear selection"
+                    title="Clear selection (Esc)"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <ul
+            className="notebook-archive-list"
+            aria-label="Archived notebooks"
+            onKeyDown={(event) => {
+              if (
+                event.key === "Escape" &&
+                !event.defaultPrevented &&
+                selectedArchived.length > 0 &&
+                !document.querySelector(
+                  "[popover]:popover-open, [role=listbox]",
+                )
+              ) {
+                event.preventDefault();
+                setChecked([]);
+              }
+            }}
+          >
+            {matches.map((project) => (
+              <li key={project.id}>
+                <label className="row-checkbox">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${project.name}`}
+                    checked={checked.includes(project.id)}
+                    onChange={() =>
+                      setChecked((current) =>
+                        current.includes(project.id)
+                          ? current.filter((id) => id !== project.id)
+                          : current.length < 50
+                            ? [...current, project.id]
+                            : current,
+                      )
+                    }
+                  />
+                </label>
+                <span>{project.name}</span>
+                <ActionMenu label={`Notebook actions for ${project.name}`}>
+                  <NotebookActions project={project} onAction={setAction} />
+                </ActionMenu>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : (
         <section
           className="notebook-manager"
@@ -178,6 +293,24 @@ export default function ProjectsPage() {
           action={action}
           close={() => setAction(null)}
           onSaved={() => setNotice("Notebook saved.")}
+        />
+      )}
+      {bulk && (
+        <NotebookBulkLifecycleDialog
+          projects={bulk.projects}
+          action={bulk.action}
+          close={() => setBulk(null)}
+          onDone={(summary) => {
+            // The rows already left optimistically; only clear the selection.
+            if (archived)
+              setChecked((current) =>
+                current.filter(
+                  (id) => !bulk.projects.some((project) => project.id === id),
+                ),
+              );
+            setBulk(null);
+            setNotice(summary);
+          }}
         />
       )}
       {sharing && (

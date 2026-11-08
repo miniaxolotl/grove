@@ -530,6 +530,11 @@
 .memory-list-item[data-dragging] {
   opacity: 0.35;
 }
+/* A row with a request in flight dims while its controls lock; the row keeps
+   its space so the list never jumps while the request settles. */
+.memory-list-item[data-pending] > .memory-row {
+  opacity: 0.55;
+}
 .memory-list-item {
   transition: opacity 180ms ease;
 }
@@ -895,6 +900,12 @@
 }
 .selection-toolbar button:hover {
   background: #fffef9;
+}
+.selection-toolbar button.danger {
+  color: #833323;
+}
+.selection-toolbar button.danger:hover {
+  background: #f8e8e2;
 }
 .workspace-notice {
   position: fixed;

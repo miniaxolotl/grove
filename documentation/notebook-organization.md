@@ -45,7 +45,10 @@ cross-tab notifications invalidate the complete catalog. Archive/delete immediat
 remove affected rows from cached catalogs and source views while they refresh.
 
 An uncertain organization response freezes new moves and offers **Retry same move**
-with its exact operation ID and body, even if the originating view closes. An
+with its exact operation ID and body, even if the originating view closes. Moves
+reorder the tree instantly and settle in the background; a failed or conflicting
+move snaps the tree back to the saved order and keeps the existing
+review/retry flow. An
 accepted response is reconciled from a fresh catalog, never installed as an old
 replayed row snapshot. A conflict requires **Review latest layout**, which resets
 the open chooser before a new intent. Undo uses the saved response's exact state
