@@ -2372,6 +2372,49 @@ for (const target of ["chrome", "edge"])
         await page.locator("#note").inputValue(),
         "A newer draft stays after retry.",
       );
+      // Workspace navigation contract: order, current marker, keyboard, scroll.
+      assert.deepEqual(
+        await page.locator("#navigation [data-nav]").evaluateAll((items) =>
+          items.map((item) => item.dataset.nav),
+        ),
+        ["capture", "search", "settings"],
+        "Settings stays last in workspace navigation",
+      );
+      for (const name of ["capture", "search", "settings"]) {
+        await page.locator(`[data-nav="${name}"]`).click();
+        assert.equal(
+          await page
+            .locator(`[data-nav="${name}"]`)
+            .getAttribute("aria-current"),
+          "page",
+          `${name} marks itself current`,
+        );
+      }
+      await page.locator('[data-nav="capture"]').click();
+      await page.locator('[data-nav="search"]').focus();
+      await page.locator('[data-nav="search"]').press("Enter");
+      await page.locator("#query").waitFor({ state: "visible" });
+      assert.equal(
+        await page.locator('[data-nav="search"]').getAttribute("aria-current"),
+        "page",
+        "keyboard activates workspace navigation",
+      );
+      assert.ok(
+        await page.evaluate(() => document.activeElement?.isConnected),
+        "navigation keeps focus in the document",
+      );
+      const searchScroll = await page.evaluate(() => {
+        const main = document.querySelector("main");
+        main.scrollTop = 42;
+        return main.scrollTop;
+      });
+      await page.locator('[data-nav="capture"]').click();
+      await page.locator('[data-nav="search"]').click();
+      assert.equal(
+        await page.evaluate(() => document.querySelector("main").scrollTop),
+        searchScroll,
+        "workspace navigation restores per-view scroll",
+      );
       await page.locator('[data-nav="search"]').click();
       const beforeTyping = await worker.evaluate(
         () => globalThis.fixtureSearchQueries.length,
@@ -2603,6 +2646,21 @@ for (const target of ["chrome", "edge"])
           document
             .querySelector("#extension-toggle")
             .getAttribute("aria-checked") === "false",
+      );
+      assert.equal(
+        await page.locator('[data-nav="capture"]').isDisabled(),
+        true,
+        "Capture is unavailable while paused",
+      );
+      assert.equal(
+        await page.locator('[data-nav="search"]').isDisabled(),
+        true,
+        "Search is unavailable while paused",
+      );
+      assert.equal(
+        await page.locator('[data-nav="settings"]').isDisabled(),
+        false,
+        "Settings stays available while paused",
       );
       await otherPanel.locator("#paused").waitFor({ state: "visible" });
       const pausedRequests = await worker.evaluate(
