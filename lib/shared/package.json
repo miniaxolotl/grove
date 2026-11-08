@@ -38,6 +38,7 @@
     "./jobs": "./src/jobs.ts",
     "./conversations": "./src/conversations.ts",
     "./ask-tools": "./src/ask-tools.ts",
+    "./agent-media": "./src/agent-media.ts",
     "./conversation-history": "./src/conversation-history.ts",
     "./relationships": "./src/relationships.ts",
     "./sharing": "./src/sharing.ts",

@@ -1126,6 +1126,33 @@ export class MemoryService {
       return this.present(trx, row);
     });
   }
+  async listNoteMedia(principal: Principal, memoryId: string, version?: number) {
+    const { MediaAttachments } = await import("./media.ts");
+    return new MediaAttachments(this).listForNote(principal, memoryId, version);
+  }
+  async describeNoteMedia(
+    principal: Principal,
+    memoryId: string,
+    id: string,
+    version?: number,
+  ) {
+    const { MediaAttachments } = await import("./media.ts");
+    return new MediaAttachments(this).describeForNote(
+      principal,
+      memoryId,
+      id,
+      version,
+    );
+  }
+  async readMediaTranscript(principal: Principal, memoryId: string, id: string) {
+    const { MediaAttachments } = await import("./media.ts");
+    const attachments = new MediaAttachments(this);
+    const meta = await attachments.describeForNote(principal, memoryId, id);
+    if (!meta.mime.startsWith("audio/")) throw missing();
+    const saved = await attachments.transcript(principal, memoryId, id);
+    const text = typeof saved.text === "string" ? saved.text.slice(0, 6000) : "";
+    return { text, version: saved.version, mediaId: id, memoryId };
+  }
 
   async moveMemories(principal: Principal, raw: MoveMemories) {
     const input = moveMemoriesSchema.parse(raw);

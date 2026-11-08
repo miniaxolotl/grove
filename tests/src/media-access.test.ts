@@ -285,7 +285,7 @@ test("narrow agent grants cannot read another notebook's media or initiate uploa
       bytes: png.length,
       sha256: createHash("sha256").update(png).digest("hex"),
     }),
-    { code: "forbidden" },
+    { code: "not_found" },
   );
   await service.grant(
     a,
@@ -299,6 +299,17 @@ test("narrow agent grants cannot read another notebook's media or initiate uploa
     { id: connection.id },
   );
   assert.equal((await media.read(agent, note.id, id)).bytes, png.length);
+  await assert.rejects(
+    media.claim(agent, {
+      id: randomUUID(),
+      memoryId: note.id,
+      version: note.version + 1,
+      mime: "image/png",
+      bytes: png.length,
+      sha256: createHash("sha256").update(png).digest("hex"),
+    }),
+    { code: "forbidden" },
+  );
   await service.revoke(a, connection.id);
   await assert.rejects(media.read(agent, note.id, id), { code: "forbidden" });
 });
