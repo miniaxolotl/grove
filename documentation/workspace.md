@@ -66,7 +66,12 @@ owns connection commands and approval.
   hold; tapping or clicking a grip opens Organize for exact placement. The
   [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
   and device qualification limits. Parent access never grants child access.
-- Select up to 50 loaded notes for batch move/archive/restore. Note handles support
+- Select up to 50 loaded notes for batch move/archive/restore/**Delete**.
+  Confirmations apply instantly: rows move the moment you confirm while the
+  request settles in the background, and only that note's controls lock during
+  its own request. A row with a request in flight dims without moving the list.
+  If a request fails, that note alone snaps back and the failure is reported;
+  every other row keeps its new state. Note handles support
   mouse/pen, keyboard Space/arrows/Escape and deliberate touch drag; horizontal
   swipe reveals ordinary note actions while vertical input scrolls. Notebook grips
   share the same hold-to-lift gesture. Partial failures identify notes;
@@ -74,14 +79,19 @@ owns connection commands and approval.
 
 Full-page phone notes use **Back to notes** instead of the sidebar. **Note actions**
 keeps compact secondary tools together. Menus/dialogs dismiss on outside press,
-not a drag crossing their edge; confirmations wait for mutations, while autosave
-retains its draft/request when you navigate away.
+not a drag crossing their edge; library confirmations apply instantly while the
+request settles in the background (failures roll back and are reported), while
+autosave retains its draft/request when you navigate away.
 
 ## Archive and delete notebooks
 
 Notebook options and manager actions offer whole-subtree Archive/Delete. Review
 descendant/note counts and resolve local drafts before confirmation. **Manage
-notebooks → Archived** offers Restore/Delete; restore the parent first. Independently
+notebooks → Archived** offers Restore/Delete; restore the parent first. The
+archived list also supports multi-select bulk Restore/Delete (up to 50):
+previews load per notebook, descendants covered by another selected root are
+handled once, and each notebook commits on its own so one failure rolls back
+only that notebook. Independently
 archived descendants remain archived. Deletion hides retained source/history and
 has no in-app Undo. Direct revoked links never reactivate on restore. See
 [lifecycle](notebook-lifecycle.md) for scope, concurrency and recovery.
@@ -149,6 +159,8 @@ include descendants. Progress/retry/cancel/download survive navigation; see
 [jobs](jobs.md#exports-and-storage) for format, expiry and source-change fencing.
 
 **Delete note…** confirms by name, hides the note/history and has no ordinary Undo.
+Select several notes to delete them with one confirmation (up to 50); the rows
+leave instantly and any note whose version changed snaps back with a report.
 It can discard a dirty draft, but waits for a running save and requires resolving
 an uncertain save first. A concurrent edit requires review, never unseen deletion.
 

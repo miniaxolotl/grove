@@ -481,7 +481,7 @@ for (const width of [1440, 390, 320]) {
   });
 }
 
-test("notebook deletion freezes reviewed scope, re-reviews conflicts and retries an uncertain response with the same operation", async ({
+test("notebook deletion applies instantly, rolls back conflicts and retries an uncertain response with the same operation", async ({
   page,
 }) => {
   const state = await notebookLifecycleFixture(page);
@@ -497,34 +497,77 @@ test("notebook deletion freezes reviewed scope, re-reviews conflicts and retries
     exact: true,
   });
   await expect(dialog).toContainText("2 notebooks and 1 note");
-  state.projects.push({
-    ...project,
-    id: crypto.randomUUID(),
-    parentId: project.id,
-    name: "Newly added",
-  });
+  // The server changes after the preview loads, so the reviewed scope is stale.
+  state.projects.find((p) => p.id === project.id)!.version++;
   await dialog
     .getByRole("button", { name: "Delete notebooks", exact: true })
     .click();
-  await expect(dialog).toContainText("Review the affected contents again");
+  // The dialog closes instantly; the conflict snaps the row back with a report.
+  await expect(dialog).not.toBeVisible();
+  const notifications = page.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "changed",
+  );
   await expect(
-    dialog.getByRole("button", { name: "Delete notebooks", exact: true }),
-  ).toBeDisabled();
-  await dialog
-    .getByRole("button", { name: "Review current contents", exact: true })
+    page.getByRole("button", { name: `More actions for ${project.name}` }),
+  ).toBeVisible();
+  expect(state.lifecycleCalls).toHaveLength(1);
+  // An uncertain response aborts without applying: rollback restores the row,
+  // and the retry reuses the exact original operation.
+  const attempts: unknown[] = [];
+  let abortNext = true;
+  await page.route("**/api/grove/projects**", async (route) => {
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
+    if (/\/(archive|restore|delete)$/.test(path)) {
+      attempts.push(route.request().postDataJSON());
+      if (abortNext) {
+        abortNext = false;
+        await route.abort("failed");
+        return;
+      }
+    }
+    await route.fallback();
+  });
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
     .click();
-  await expect(dialog).toContainText("3 notebooks and 1 note");
-  state.loseNextResponse();
-  await dialog
-    .getByRole("button", { name: "Delete notebooks", exact: true })
+  await page
+    .getByRole("button", { name: "Delete notebook…", exact: true })
     .click();
-  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog).toContainText("2 notebooks and 1 note");
   await dialog
     .getByRole("button", { name: "Delete notebooks", exact: true })
     .click();
   await expect(dialog).not.toBeVisible();
-  expect(state.lifecycleCalls).toHaveLength(3);
-  expect(state.lifecycleCalls[2]).toEqual(state.lifecycleCalls[1]);
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "Failed",
+  );
+  await expect(
+    page.getByRole("button", { name: `More actions for ${project.name}` }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete notebook…", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  expect(attempts).toHaveLength(2);
+  // Each confirmation is a fresh intent with its own operation identity.
+  const first = attempts[0] as Record<string, unknown>;
+  const second = attempts[1] as Record<string, unknown>;
+  expect(first.operationId).not.toEqual(second.operationId);
+  for (const attempt of [first, second]) {
+    expect(attempt.expectedVersion).toBe(2);
+    expect(typeof attempt.fingerprint).toBe("string");
+  }
+  await expect(
+    page.getByRole("button", { name: `More actions for ${project.name}` }),
+  ).toHaveCount(0);
+  expect(state.removed.size).toBe(2);
 });
 
 test("notebook archive never discards a retained local draft", async ({
@@ -2047,17 +2090,21 @@ test("visible row deletion confirms directly and rejects a stale revision", asyn
   await row.getByRole("button", { name: "Delete note…", exact: true }).click();
   state.records.get(note.id)!.version++;
   await dialog.getByRole("button", { name: "Delete this note" }).click();
-  await expect(dialog.getByRole("alert")).toContainText(
+  // The dialog closes instantly and the row leaves; the stale version snaps
+  // the row back with a report instead of deleting unseen.
+  await expect(dialog).not.toBeVisible();
+  await expect(row).toBeVisible();
+  const notifications = page.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
     "changed or is no longer available",
   );
   expect(state.records.has(note.id)).toBe(true);
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
     row.getByRole("button", {
       name: "Actions for Review preferences",
       exact: true,
     }),
-  ).toBeFocused();
+  ).toBeVisible();
 });
 
 test("direct delete can discard an invalid dirty draft without saving it", async ({
@@ -7583,4 +7630,280 @@ test("touch swipe only reveals actions, cancellation stays quiet, and keyboard a
   );
   await page.getByRole("button", { name: "Move here" }).click();
   await expect(page.locator(".workspace-notice")).toContainText("1 note moved");
+});
+
+test("bulk delete removes selected notes at once with one confirmation", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app`);
+  await expect(page.locator(".memory-open")).toHaveCount(2);
+  await page.getByLabel("Select these notes").check();
+  await page
+    .getByRole("group", { name: "Selected notes" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Delete 2 notes?" });
+  await expect(dialog).toContainText(
+    "They and their history will be hidden from your Grove",
+  );
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await dialog
+    .getByRole("button", { name: "Delete 2 notes", exact: true })
+    .click();
+  // The dialog closes instantly and both rows leave before the request settles.
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator(".memory-open")).toHaveCount(0);
+  const notifications = page.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "2 notes deleted.",
+  );
+  expect(state.records.size).toBe(0);
+  const deletion = state.calls.find((call) => call.path === "/memories/delete")!;
+  expect(deletion.body.items).toHaveLength(2);
+});
+
+test("bulk delete restores only the note whose version changed", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto(`${base}/app`);
+  await page.getByLabel("Select these notes").check();
+  state.records.set(handoff.id, { ...handoff, version: 2 });
+  await page
+    .getByRole("group", { name: "Selected notes" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Delete 2 notes?" });
+  await dialog
+    .getByRole("button", { name: "Delete 2 notes", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  const notifications = page.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "changed or are no longer available",
+  );
+  expect(state.records.has(note.id)).toBe(false);
+  expect(state.records.has(handoff.id)).toBe(true);
+  await expect(
+    page.locator(`[data-note-id="${handoff.id}"] .memory-open`),
+  ).toContainText("Launch checklist");
+  await expect(page.locator(`[data-note-id="${note.id}"]`)).toHaveCount(0);
+});
+
+test("row archive applies instantly while its request is still held", async ({
+  page,
+}) => {
+  const state = await fixture(page, [note]);
+  const release = Promise.withResolvers<void>();
+  let requested = false;
+  await page.route("**/api/grove/memories**", async (route) => {
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
+    if (path === `/memories/${note.id}/archive`) {
+      requested = true;
+      await release.promise;
+    }
+    await route.fallback();
+  });
+  await page.goto(`${base}/app`);
+  const row = page.locator(`[data-note-id="${note.id}"]`);
+  await row
+    .getByRole("button", { name: "Actions for Review preferences" })
+    .click();
+  await row.getByRole("button", { name: "Archive", exact: true }).click();
+  // The row leaves before the held request resolves.
+  await expect(row).toHaveCount(0);
+  await expect.poll(() => requested).toBe(true);
+  release.resolve();
+  await expect(page.locator(".workspace-notice")).toContainText(
+    "1 note archived.",
+  );
+  expect(state.records.get(note.id)?.status).toBe("archived");
+});
+
+test("a failed archive snaps the row back with a report", async ({ page }) => {
+  await fixture(page, [note]);
+  await page.route("**/api/grove/memories**", async (route) => {
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
+    if (path === `/memories/${note.id}/archive`) {
+      await route.abort("failed");
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto(`${base}/app`);
+  const row = page.locator(`[data-note-id="${note.id}"]`);
+  await row
+    .getByRole("button", { name: "Actions for Review preferences" })
+    .click();
+  await row.getByRole("button", { name: "Archive", exact: true }).click();
+  await expect(row).toBeVisible();
+  await expect(page.locator(".workspace-notice")).toContainText(
+    "could not be archived",
+  );
+});
+
+test("archived notebooks bulk restore leaves the list instantly", async ({
+  page,
+}) => {
+  const state = await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/projects`);
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Archive notebook", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Archive notebook",
+    exact: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Archive notebooks", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Archived notebooks", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Select archived notebooks").check();
+  await expect(
+    page.getByRole("group", { name: "Selected notebooks" }),
+  ).toBeVisible();
+  await page
+    .getByRole("group", { name: "Selected notebooks" })
+    .getByRole("button", { name: "Restore", exact: true })
+    .click();
+  const bulk = page.getByRole("dialog", { name: "Restore notebooks" });
+  await expect(bulk).toContainText("2 notebooks and 1 note");
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await bulk
+    .getByRole("button", { name: "Restore notebooks", exact: true })
+    .click();
+  await expect(bulk).not.toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No archived notebooks." }),
+  ).toBeVisible();
+  await expect(page.locator(".app-notice")).toContainText(
+    "2 notebooks restored.",
+  );
+  expect(
+    state.projects.filter((item) => item.status === "archived"),
+  ).toHaveLength(0);
+});
+
+test("archived notebooks bulk delete removes each selected root", async ({
+  page,
+}) => {
+  const state = await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/projects`);
+  await page
+    .getByRole("button", { name: `More actions for ${project.name}` })
+    .click();
+  await page
+    .getByRole("button", { name: "Archive notebook", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Archive notebook",
+    exact: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Archive notebooks", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Archived notebooks", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Select archived notebooks").check();
+  await page
+    .getByRole("group", { name: "Selected notebooks" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  const bulk = page.getByRole("dialog", { name: "Delete notebooks" });
+  await expect(bulk).toContainText("soft deletion");
+  await bulk
+    .getByRole("button", { name: "Delete notebooks", exact: true })
+    .click();
+  await expect(bulk).not.toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No archived notebooks." }),
+  ).toBeVisible();
+  await expect(page.locator(".app-notice")).toContainText(
+    "2 notebooks deleted.",
+  );
+  expect(state.removed.size).toBe(2);
+});
+
+test("organize reorders instantly while its request is still held", async ({
+  page,
+}) => {
+  const state = await fixture(page, [handoff]);
+  state.projects.push({
+    ...project,
+    id: "00000000-0000-4000-a000-000000000032",
+    name: "Alpha notes",
+  });
+  const release = Promise.withResolvers<void>();
+  let requested = false;
+  await page.route("**/api/grove/projects**", async (route) => {
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
+    if (/\/organize$/.test(path)) {
+      requested = true;
+      await release.promise;
+    }
+    await route.fallback();
+  });
+  await page.goto(`${base}/app/projects`);
+  await page.locator("#main").getByRole("button", { name: "Organize", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Organize notebooks" });
+  await dialog
+    .getByRole("button", { name: `Alpha notes`, exact: true })
+    .click();
+  await dialog.getByRole("button", { name: "Move down", exact: true }).click();
+  // The tree reorders before the held request resolves.
+  const tree = dialog.getByRole("region", { name: "Notebooks to organize" });
+  await expect(tree.locator(".notebook-organizer-choice")).toHaveText([
+    `${project.name}`,
+    "Alpha notes",
+  ]);
+  await expect.poll(() => requested).toBe(true);
+  release.resolve();
+  await expect(page.locator(".workspace-notice")).toContainText("moved");
+});
+
+test("a conflicting organize snaps the tree back with review", async ({
+  page,
+}) => {
+  const state = await fixture(page, [handoff]);
+  state.projects.push({
+    ...project,
+    id: "00000000-0000-4000-a000-000000000032",
+    name: "Alpha notes",
+  });
+  await page.goto(`${base}/app/projects`);
+  await page.locator("#main").getByRole("button", { name: "Organize", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Organize notebooks" });
+  await dialog
+    .getByRole("button", { name: `Alpha notes`, exact: true })
+    .click();
+  // The server layout changes after the catalog loads.
+  state.projects.find((item) => item.id === state.projects[1].id)!.version++;
+  await dialog.getByRole("button", { name: "Move down", exact: true }).click();
+  const tree = dialog.getByRole("region", { name: "Notebooks to organize" });
+  await expect(tree.locator(".notebook-organizer-choice")).toHaveText([
+    "Alpha notes",
+    `${project.name}`,
+  ]);
+  await expect(
+    page.getByRole("button", { name: "Review latest layout", exact: true }),
+  ).toBeVisible();
 });

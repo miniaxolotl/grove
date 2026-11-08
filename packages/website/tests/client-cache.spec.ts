@@ -564,3 +564,59 @@ test("cross-tab changes revalidate the same account without broadcasting note co
   expect(messages).toContain(note.id);
   expect(messages).not.toContain("Changed in another tab");
 });
+
+test("bulk delete restores a conflicted note instead of hiding it", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const second: Memory = {
+    ...note,
+    id: "00000000-0000-4000-a000-000000000012",
+    content: "# Second thought\n\nStill here",
+  };
+  await page.route("**/api/grove/memories/search", async (route) => {
+    await route.fulfill({
+      json: {
+        success: true,
+        data: { items: [state.note, second], nextCursor: null },
+      },
+    });
+  });
+  await page.route("**/api/grove/memories/delete", async (route) => {
+    const items = route.request().postDataJSON().items as { id: string }[];
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          results: items.map((item) =>
+            item.id === second.id
+              ? { id: item.id, outcome: "conflict" }
+              : { id: item.id, outcome: "deleted" },
+          ),
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app`);
+  await expect(page.locator(".memory-open")).toHaveText([
+    "Cached thought",
+    "Second thought",
+  ]);
+  await page.getByLabel("Select these notes").check();
+  await page
+    .getByRole("group", { name: "Selected notes" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Delete 2 notes?" });
+  await dialog
+    .getByRole("button", { name: "Delete 2 notes", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  // Both rows leave instantly; only the conflicted note snaps back, which
+  // proves the rollback lifted its client tombstone before the refetch landed.
+  await expect(page.locator(".memory-open")).toHaveText(["Second thought"]);
+  const notifications = page.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "changed or are no longer available",
+  );
+});
