@@ -94,6 +94,7 @@ export const usageReportFeatures = [
   "ask",
   "organization",
   "assistance",
+  "writing",
   "embedding",
   "decision",
   "generation",

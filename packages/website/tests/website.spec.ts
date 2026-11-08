@@ -51,6 +51,9 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   ).toContainText("$159");
   await expect(page.getByRole("table")).toContainText("150,000 / month");
   await expect(page.getByRole("table")).toContainText("8 hours / month");
+  await expect(page.getByRole("table")).toContainText("AI rewrites");
+  await expect(page.getByRole("table")).toContainText("1,000 / month");
+  await expect(page.getByText("What do writing limits cover?")).toBeVisible();
   await expect(
     page.getByRole("article", { name: "Pro", exact: true }).getByRole("link"),
   ).toHaveAttribute("href", "/sign-up");

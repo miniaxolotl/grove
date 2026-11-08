@@ -242,6 +242,7 @@ test("Free/Pro resource defaults are user actions, not provider requests", () =>
       ask: 300,
       organization: 1000,
       assistance: 50,
+      writing: 100,
       concurrency: 2,
     },
     pro: {
@@ -251,6 +252,7 @@ test("Free/Pro resource defaults are user actions, not provider requests", () =>
       ask: 1500,
       organization: 5000,
       assistance: 250,
+      writing: 1000,
       concurrency: 2,
     },
   });

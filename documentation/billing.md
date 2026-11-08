@@ -72,6 +72,8 @@ source validity, refresh and the distinction from actual provider attempts.
 | Ask Grove replies                         |    300/month |   1,500/month |
 | Note organization runs                    |  1,000/month |   5,000/month |
 | On-demand summaries and assistance        |     50/month |     250/month |
+| AI rewrites (Shorten, Expand, Rewrite,    |    100/month |   1,000/month |
+| Humanize, Synonyms, Opposite words)       | (30/day max) | (200/day max) |
 
 Both tiers retain **180 API operations/minute/account** and allow **two concurrent
 generation calls/account**, shared by foreground requests and all worker replicas.

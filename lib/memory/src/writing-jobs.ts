@@ -24,6 +24,7 @@ import {
   reserveAction,
   markActionWork,
   settleNamedAction,
+  assertWritingDailyLimit,
 } from "./billing-quotas.ts";
 import { checkpointTask, TaskError, type TaskHandler } from "./task-runner.ts";
 
@@ -135,7 +136,7 @@ async function cancelRows(
     await settleNamedAction(
       trx,
       row.accountId,
-      "assistance",
+      "writing",
       operation(row.id),
       row.providerStartedAt ? "completed" : "released",
     );
@@ -352,11 +353,12 @@ export class WritingTools {
         epoch: control.epoch,
       } as Row;
       const inputCiphertext = crypt(this.key!, row, "input").seal(input);
+      await assertWritingDailyLimit(this.service.db, trx, principal.accountId);
       await reserveAction(
         this.service.db,
         trx,
         principal.accountId,
-        "assistance",
+        "writing",
         operation(input.id),
       );
       const [saved] = await trx<Row>("writing_requests")
@@ -526,7 +528,7 @@ export function writingHandlers(
         await settleNamedAction(
           trx,
           row.accountId,
-          "assistance",
+          "writing",
           operation(row.id),
           "completed",
           true,
@@ -571,7 +573,7 @@ export function writingHandlers(
                 db,
                 trx,
                 row.accountId,
-                "assistance",
+                "writing",
                 operation(row.id),
               ),
             );
@@ -623,7 +625,7 @@ export function writingHandlers(
         await settleNamedAction(
           trx,
           row.accountId,
-          "assistance",
+          "writing",
           operation(row.id),
           "completed",
           true,
@@ -643,7 +645,7 @@ export function writingHandlers(
         await settleNamedAction(
           trx,
           row.accountId,
-          "assistance",
+          "writing",
           operation(row.id),
           "completed",
           true,

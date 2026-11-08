@@ -39,6 +39,7 @@ const comparisons = [
   ["Ask Grove replies", "ask", true],
   ["Note organization", "organization", true],
   ["Summaries and assistance", "assistance", true],
+  ["AI rewrites", "writing", true],
 ] as const;
 
 export default async function PricingPage() {
@@ -217,7 +218,8 @@ export default async function PricingPage() {
         </div>
         <p className="comparison-note">
           Standard limits are shown here. Your account shows its effective
-          limits and usage, including any custom access.
+          limits and usage, including any custom access. Spelling and grammar
+          checks run on your device and are unlimited on both plans.
         </p>
       </section>
       <section className="feature-index">
@@ -264,10 +266,22 @@ export default async function PricingPage() {
             <div className="feature-row">
               <dt>What counts as an action?</dt>
               <dd>
-                A fresh Ask reply or assistance result uses one action. A
-                distinct fully cached request uses 0.2 actions. Reopening the
-                same completed result doesn’t use another action. Separate
-                provider safety budgets also apply.
+                A fresh Ask reply, assistance result or AI rewrite uses one
+                action. A distinct fully cached Ask or assistance request uses
+                0.2 actions. Reopening the same completed result doesn’t use
+                another action. Separate provider safety budgets also apply.
+              </dd>
+            </div>
+            <div className="feature-row">
+              <dt>What do writing limits cover?</dt>
+              <dd>
+                Spelling and grammar checks run on your device and never use
+                an allowance. Each explicit AI rewrite request — Shorten,
+                Expand, Rewrite, Humanize, Synonyms or Opposite words — uses
+                one rewrite from your monthly allowance (100 on Free, 1,000
+                on Pro, up to 30 a day on Free and 200 a day on Pro). Waiting
+                for the reset or upgrading restores rewrites; local checks
+                keep working either way.
               </dd>
             </div>
             <div className="feature-row">

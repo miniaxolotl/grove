@@ -294,6 +294,10 @@ export class GroveError extends Error {
     public code: string,
     message: string,
     public status = 400,
+    public details?: { resource?: string; resetAt?: string | null } & Record<
+      string,
+      unknown
+    >,
   ) {
     super(message);
     this.name = "GroveError";
