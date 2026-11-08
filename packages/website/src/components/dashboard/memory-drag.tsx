@@ -6,6 +6,7 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -21,6 +22,7 @@ import {
   useDroppable,
   useDraggable,
   pointerWithin,
+  defaultDropAnimationSideEffects,
   type KeyboardCoordinateGetter,
   type Modifier,
 } from "@dnd-kit/core";
@@ -106,6 +108,25 @@ function cancelDrag() {
       bubbles: true,
     }),
   );
+}
+const reducedMotion = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function subscribeReducedMotion(update: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", update);
+  return () => media.removeEventListener("change", update);
+}
+function pickupFeedback(activatorEvent: Event) {
+  if (
+    activatorEvent.type !== "touchstart" &&
+    !(
+      activatorEvent instanceof PointerEvent &&
+      activatorEvent.pointerType === "touch"
+    )
+  )
+    return;
+  // Confirm the hold lifted the item; ignored where unsupported.
+  if ("vibrate" in navigator) navigator.vibrate(10);
 }
 const previewOffset: Modifier = ({
   transform,
@@ -237,6 +258,20 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const [failures, setFailures] = useState<string[]>([]);
   const [undo, setUndo] = useState<Undo[]>([]);
   const operations = useRef(new Map<string, string>());
+  const reduced = useSyncExternalStore(
+    subscribeReducedMotion,
+    reducedMotion,
+    () => false,
+  );
+  const dropAnimation = reduced
+    ? null
+    : {
+        duration: 160,
+        easing: "cubic-bezier(0.2, 0, 0, 1)",
+        sideEffects: defaultDropAnimationSideEffects({
+          styles: { active: { opacity: "0.45" } },
+        }),
+      };
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
@@ -416,6 +451,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         onDragStart={({ active, activatorEvent }) => {
           setKeyboard(activatorEvent.type === "keydown");
           pickingUp.current = true;
+          pickupFeedback(activatorEvent);
           if (!working.current) {
             origin.current = {
               path,
@@ -476,7 +512,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           </div>
         )}
         <DragOverlay
-          dropAnimation={null}
+          dropAnimation={dropAnimation}
           modifiers={[previewOffset]}
           style={{ width: "max-content" }}
         >

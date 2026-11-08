@@ -280,7 +280,8 @@ function DraggableNotebookBranch({
     useDraggable({
       id,
       data: { item: { kind: "notebook", project } satisfies WorkspaceDragItem },
-      disabled: busy || !draggable || coarse,
+      // Touch is included: tap opens Organize, a deliberate hold lifts the row.
+      disabled: busy || !draggable,
     });
   useEffect(() => {
     if (!isOver || open || !hasChildren) return;
@@ -314,24 +315,24 @@ function DraggableNotebookBranch({
         <button
           type="button"
           ref={setActivatorNodeRef}
-          {...(draggable && !coarse ? attributes : {})}
-          {...(draggable && !coarse ? listeners : {})}
+          {...(draggable ? attributes : {})}
+          {...(draggable ? listeners : {})}
           className="drag-handle notebook-drag-handle"
-          data-touch-organize={coarse || !draggable || undefined}
+          data-touch-organize={!draggable || undefined}
           disabled={busy || !draggable}
           aria-hidden={!draggable || undefined}
           aria-label={
-            coarse || !draggable
+            !draggable
               ? `Organize ${project.name}`
               : `Move notebook ${project.name} with drag or keyboard`
           }
           title={
-            coarse || !draggable
-              ? "Organize notebook"
-              : "Drag to nest, or press Space to move"
+            coarse
+              ? "Hold to move, tap to organize"
+              : "Drag to nest, click to organize, or press Space to move"
           }
           onClick={() => {
-            if (coarse && draggable) notebooks.openOrganizer(project.id);
+            if (draggable) notebooks.openOrganizer(project.id);
           }}
         >
           <span className="notebook-folder-icon" aria-hidden="true">
