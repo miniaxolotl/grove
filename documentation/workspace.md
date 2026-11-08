@@ -1,8 +1,10 @@
 # Your Grove notebook
 
 Start in **Notes** to write and browse, or **Ask Grove** to work with your notes.
-Notebooks live in the sidebar; on phones, open **Notebooks** beneath navigation.
-The Grove logo returns to Notes. Connected agents share these notes and their
+The sidebar groups **Workspace** (Notes, Ask Grove), collapsible **Notebooks**
+(Unfiled plus your tree, with a count) and **System** (Archive, Settings last);
+on phones, open **Notebooks** beneath navigation. The Grove logo returns to
+Notes. Connected agents share these notes and their
 approved permissions; technical references stay in **Note properties → Agent details**.
 
 ## Your first saved note
@@ -55,18 +57,19 @@ owns connection commands and approval.
   library, not just loaded rows. Queries remain in POST bodies. See
   [search](search.md) for relevance, typo/prefix matching and partial evidence.
 - **New note** follows your current notebook; notes without one are **Unfiled**.
-  Sidebar expansion, list scroll and outline pinning can be remembered per account
+  Sidebar expansion, notebook collapse, list scroll and outline pinning can be
+  remembered per account
   in this browser without storing note text, names, queries or drafts.
 - Create with the sidebar **+**; **Manage notebooks** browses the catalog. Use
   **Organize** for sibling order and **Move notebook** for a searchable destination
-  and explicit placement. Touch notebook folder controls open Organize rather than
-  requiring long-press drag. Mouse and keyboard paths remain available. The
+  and explicit placement. Notebook grips drag with mouse/pen or a deliberate touch
+  hold; tapping or clicking a grip opens Organize for exact placement. The
   [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
   and device qualification limits. Parent access never grants child access.
 - Select up to 50 loaded notes for batch move/archive/restore. Note handles support
   mouse/pen, keyboard Space/arrows/Escape and deliberate touch drag; horizontal
-  swipe reveals ordinary note actions while vertical input scrolls. Notebook touch
-  controls follow the separate Organize path above. Partial failures identify notes;
+  swipe reveals ordinary note actions while vertical input scrolls. Notebook grips
+  share the same hold-to-lift gesture. Partial failures identify notes;
   Undo never overwrites a later edit.
 
 Full-page phone notes use **Back to notes** instead of the sidebar. **Note actions**

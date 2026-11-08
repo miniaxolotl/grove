@@ -26,10 +26,12 @@ that the owner's reported physical-phone gesture failures are repaired.
   new notebooks append. Long manager titles wrap to two lines with the full name
   retained in their link's accessible name/title.
 - Mouse drag supports inside/before/after placement; keyboard drag retains nesting
-  and cancellation. Tap/keyboard Organize remains the primary complete path. On a
-  touch-primary device the notebook folder control opens Organize instead of
-  activating long-press drag, and permits native vertical scrolling/pinch zoom.
-  Note drag and swipe handlers are unchanged by this slice.
+  and cancellation. Organize stays the complete path: tapping or clicking the
+  notebook folder control opens it. Touch can also hold that control to lift the
+  notebook and drop it on a notebook row or the destination tray. The grip column
+  itself stops native scrolling; the rest of the row keeps vertical
+  scrolling/pinch zoom. Dropping into an exact sibling position still uses
+  Organize. Note drag and swipe handlers are unchanged by this slice.
 
 The desktop organizer separates the notebook browser from the selected controls.
 Phones stack them, with Done outside the scrolling content. Move keeps its action
