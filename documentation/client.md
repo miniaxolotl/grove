@@ -201,7 +201,10 @@ are generated from the runtime guidance; hosts can cache metadata until refreshe
 This adds no automatic writes, format rejection or changes to privacy/permissions.
 
 Connected agents can search/read exact notes, partially edit them, inspect history,
-move notes, archive/restore, delete and list/create/rename/move notebooks. Ask for an
+move notes, archive/restore, delete and list/create/rename/move notebooks. They
+can also list/describe bound images/recordings and read saved transcript text
+with the media tools, and — with `memory:write` on the note scope — attach
+bytes and save transcripts where they can already edit text. Ask for an
 action in ordinary language; the agent discovers IDs and checks current versions.
 For example: “Move these notes into Gardening” or “Restore the archived checklist.”
 `update_memory` preserves omitted metadata; `remember` remains the full-save contract.
