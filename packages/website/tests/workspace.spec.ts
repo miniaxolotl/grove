@@ -3533,7 +3533,7 @@ test("long project names remain inside destinations at every breakpoint", async 
   ).toEqual([]);
   await expect(
     page
-      .getByRole("navigation", { name: "Notebook navigation" })
+      .getByRole("navigation", { name: "Workspace" })
       .getByRole("link", { name: "Archive" }),
   ).toBeVisible();
   await expect(
@@ -4452,7 +4452,6 @@ for (const width of [1440, 390]) {
     await expect(history).toContainText("Revision 3 · Current");
   });
 }
-
 
 function savedHistory(
   title: string,
@@ -5885,11 +5884,11 @@ test("an unconfirmed chat message survives navigation and retries with its origi
   await page.getByRole("button", { name: "Send question" }).click();
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   await page
-    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("navigation", { name: "Workspace" })
     .getByRole("link", { name: "Notes", exact: true })
     .click();
   await page
-    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("navigation", { name: "Workspace" })
     .getByRole("link", { name: "Ask Grove", exact: true })
     .click();
   await expect(page.locator(".ask-question")).toContainText(
@@ -5954,7 +5953,7 @@ test("workspace search includes personal notes and dialogs light-dismiss only on
   } else await page.mouse.click(2, 2);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
-    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("navigation", { name: "Workspace" })
     .getByRole("link", { name: "Ask Grove", exact: true })
     .click();
   await page.getByRole("button", { name: "Search", exact: true }).click();
@@ -6032,7 +6031,7 @@ test("Today's note uses the same editor and library, with date grouping and note
   const state = await fixture(page, []);
   await page.goto(`${base}/app`);
   const navigation = page.getByRole("navigation", {
-    name: "Notebook navigation",
+    name: "Workspace",
   });
   await expect(
     navigation.getByRole("link", { name: "Journal", exact: true }),
@@ -6304,7 +6303,7 @@ test("full-page drafts survive app navigation and still detect changes to their 
   });
   await editor.fill("My unfinished thought.");
   await page
-    .getByRole("navigation", { name: "Notebook navigation" })
+    .getByRole("navigation", { name: "Workspace" })
     .getByRole("link", { name: "Notes", exact: true })
     .click();
   state.records.set(note.id, {
