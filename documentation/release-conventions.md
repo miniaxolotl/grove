@@ -10,7 +10,8 @@ Historical bootstrap SHAs, existing versions and published tags are preserved.
 
 - Routine `fix`, `feat`/`feature`, `perf` and `revert` changes produce patch releases.
 - Minor/major versions require a deliberate `Release-As: X.Y.Z` commit footer.
-- Breaking `!`/`BREAKING CHANGE` commits block source automation until an explicit
+
+Release-As: 1.11.19- Breaking `!`/`BREAKING CHANGE` commits block source automation until an explicit
   higher version is selected. Conflicting/malformed/non-increasing decisions fail.
 - Docs/tests/chores/CI/refactoring alone do not create releases. An explicit release
   decision can be a separate reviewed `chore(release)` commit.
