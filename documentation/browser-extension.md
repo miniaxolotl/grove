@@ -271,10 +271,16 @@ Billing offers a single-use **7-day Pro trial** with full Pro allowances (card
 required; converts to paid unless cancelled). Each account gets one trial; an
 administrator can restore eligibility. See [billing](billing.md#subscriptions).
 
-Notes opens directly to the editor. Save outcome and newer unsaved edits
-remain visible without version/indexing diagnostics.
+Notes opens directly to the editor. The first save is explicit (**Save now**);
+after it, changed text, notebook or source saves itself after a short editing
+pause as a guarded update of the same note, never a second capture. Autosave
+waits out IME composition and never runs while Grove is off, access is
+unapproved, an earlier save is unresolved, or the connection lacks write
+access; a rejected conflict stops autosave, keeps the local draft and links
+the contested note for review instead of silently rebasing. Save outcome and
+newer unsaved edits remain visible without version/indexing diagnostics.
 There are no source-link fields. Mounted approved panels follow source metadata
-locally until the first edit pins it; only explicit Save transmits it. Context-menu
+locally until the first edit pins it; only a save transmits it. Context-menu
 captures keep their original event source. Unknown/failed-save
 retries retain the exact original provenance snapshot even after a tab change.
 Restricted/private pages produce no automatic source. Required consent and uncertain-
@@ -292,7 +298,8 @@ in the trusted background, not only through disabled buttons. Opening an off pan
 does not authenticate or contact Grove. Appearance and Settings remain available.
 
 Switching off waits for earlier serialized actions to settle; a save already sent
-is not cancelled, deleted or falsely labelled unsuccessful. Session drafts/tokens,
+is not cancelled, deleted or falsely labelled unsuccessful. Autosave of changed
+drafts does not run while Grove is off. Session drafts/tokens,
 capture inboxes and opaque recovery receipts retain their normal scope/expiry rules.
 No unknown save is automatically retried on resume. Changing appearance cannot
 enable Grove. Other mounted panels update immediately and close private review
@@ -318,7 +325,7 @@ active-tab URL/title across sites and may show a browsing-history warning on ins
 or update. It does not grant document contents or history API access. Only mounted,
 enabled, approved panels follow their own window's active tab; no navigation listener
 collects browsing data in the background. Source values stay in scoped session
-storage and reach Grove only on explicit save, never from navigation or search.
+storage and reach Grove only on a save, never from navigation or search.
 
 ## Implemented contracts
 
@@ -351,6 +358,12 @@ are `POST /v1/browser/connect`, `POST /v1/browser/captures`,
 `GET /v1/browser/captures/:operationId` and `POST /v1/browser/pages`. They use the
 normal authentication, quota and connection-grant boundaries. Capture accepts an
 operation UUID, content, destination, `capture: explicit` and optional provenance.
+With a note ID it also requires that note's expected version and optionally an
+edit-session UUID: the update locks the target row, reuses the normal version
+fence and edit coalescing, and rebinds provenance to the new revision; stale
+versions, cross-account targets and a changed source without a new revision are
+rejected conflicts, never silent rebases. Replaying an operation whose note has
+moved past its receipt reports the conflict instead of presenting stale content.
 The note, structured revision, provenance, replay receipt and normal durable
 processing jobs commit atomically. Acceptance of a note is not completed indexing.
 
@@ -445,7 +458,10 @@ do not change capture time, extend expiry or churn storage. Inbox captures remai
 pinned to their original event snapshot rather than a later tab destination.
 
 `prepareCaptureSave` creates an independent local command snapshot with an
-operation UUID, formatted content, notebook and optional provenance. Runtime saves
+operation UUID, formatted content, notebook and optional provenance. After a
+saved receipt, later snapshots carry that note's ID, its expected version and
+the draft's edit-session UUID, so subsequent saves update the same note behind
+the server's version fence instead of capturing again. Runtime saves
 persist this snapshot before authorized HTTP I/O. While a save is unresolved, only
 the same UUID and exact snapshot can be
 retried; newer edits/destinations stay in the draft without altering the snapshot.

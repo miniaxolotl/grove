@@ -9,6 +9,16 @@ const timestamp = z
   .int()
   .nonnegative()
   .max(Number.MAX_SAFE_INTEGER - captureDraftLifetimeMs);
+function randomUuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
+    return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 const scopeSchema = z
   .object({
     origin: z
@@ -28,16 +38,21 @@ const scopeSchema = z
   .strict();
 export type CaptureScope = z.infer<typeof scopeSchema>;
 
-// A local command snapshot separate from later edits, not a supported HTTP body.
+// A local command snapshot; create bodies and guarded update bodies (id +
+// expectedVersion from an earlier receipt) are both supported HTTP requests.
 const requestSchema = z
   .object({
     operationId: uuidSchema,
+    id: uuidSchema.optional(),
+    expectedVersion: z.number().int().positive().optional(),
+    editSession: uuidSchema.optional(),
     content: rememberSchema.shape.content,
     projectId: uuidSchema.nullable(),
     capture: z.literal("explicit"),
     provenance: webCaptureSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((input) => Boolean(input.id) === Boolean(input.expectedVersion));
 const receiptSchema = z
   .object({
     status: z.literal("saved"),
@@ -68,6 +83,7 @@ const saveSchema = z.discriminatedUnion("status", [
 const draftSchema = z
   .object({
     schemaVersion: z.literal(1),
+    editSession: uuidSchema.optional(),
     scope: scopeSchema,
     text: z.string().max(NOTE_CONTENT_MAX),
     source: webCaptureSchema.optional(),
@@ -107,6 +123,7 @@ export function createCaptureDraft(input: {
   const now = timestamp.parse(input.now);
   return draftSchema.parse({
     schemaVersion: 1,
+    editSession: randomUuid(),
     scope: input.scope,
     text: input.text,
     projectId: input.projectId,
@@ -232,14 +249,29 @@ export function prepareCaptureSave(
   }
   if (draft.save?.request.operationId === operationId)
     throw new Error("A new save requires a new operation ID");
+  const editSession = draft.editSession ?? randomUuid();
   const request = requestSchema.parse({
     operationId,
+    editSession,
+    // After a saved receipt, later saves update that note behind its version
+    // fence instead of creating another capture of the same text.
+    ...(draft.save?.status === "saved"
+      ? {
+          id: draft.save.receipt.noteId,
+          expectedVersion: draft.save.receipt.version,
+        }
+      : {}),
     content: formatCaptureDraft(draft),
     projectId: draft.projectId,
     capture: "explicit",
     ...(draft.source ? { provenance: draft.source } : {}),
   });
-  return { ...draft, updatedAt: now, save: { status: "saving", request } };
+  return {
+    ...draft,
+    editSession,
+    updatedAt: now,
+    save: { status: "saving", request },
+  };
 }
 
 export function settleCaptureSave(
