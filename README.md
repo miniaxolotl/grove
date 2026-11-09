@@ -13,6 +13,7 @@ and non-owner runtime roles enforcing row-level security.
 
 [Website](https://usegrove.cloud) · [Tools/API](documentation/server.md) ·
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
+[Browser extension](documentation/browser-extension.md) ·
 [Delivery evidence](documentation/delivery.md)
 
 The website's `/docs` reference hub builds directly from selected committed docs.

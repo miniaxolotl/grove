@@ -4,7 +4,7 @@ import { RecoveryState } from "@/components/recovery-state";
 export function LoadError({
   message,
   retry,
-  title = "This view couldn’t load",
+  title = "Couldn’t load this page",
 }: {
   message: string;
   retry: () => void;
@@ -22,7 +22,7 @@ export function LoadError({
             className="app-button secondary"
             onClick={retry}
           >
-            <RefreshCw size={14} aria-hidden="true" /> Try loading again
+            <RefreshCw size={14} aria-hidden="true" /> Try again
           </button>
         }
       />

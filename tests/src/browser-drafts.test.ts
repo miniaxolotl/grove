@@ -10,6 +10,145 @@ const scope = {
 const operationId = "00000000-0000-4000-a000-000000000003";
 const now = Date.parse("2026-11-05T20:00:00.000Z");
 
+test("authored notes keep Markdown when a page is attached; external selections stay quoted", () => {
+  const source = {
+    url: "https://example.com/",
+    title: "Source",
+    capturedAt: new Date(now).toISOString(),
+  };
+  const manual = drafts.createCaptureDraft({
+    scope,
+    text: "",
+    projectId: null,
+    now,
+  });
+  const followed = drafts.followCaptureSource(manual, scope, source, now + 1);
+  const authored = drafts.editCaptureDraft(
+    followed,
+    scope,
+    { text: "# My heading\n\n**My idea**" },
+    now + 2,
+  );
+  const saved = drafts.prepareCaptureSave(
+    authored,
+    scope,
+    operationId,
+    now + 3,
+  );
+  assert.equal(
+    saved.save!.request.content,
+    "# My heading\n\n**My idea**",
+    "authored Markdown stays unchanged, with automatic source metadata stored separately",
+  );
+  assert.deepEqual(saved.save!.request.provenance, source);
+  const selected = drafts.createCaptureDraft({
+    scope,
+    text: "# External heading",
+    projectId: null,
+    source,
+    now,
+  });
+  assert.ok(
+    drafts
+      .prepareCaptureSave(selected, scope, operationId, now + 1)
+      .save!.request.content.startsWith("> \\# External heading"),
+  );
+});
+
+test("automatic sources follow untouched drafts but never replace edits, removals, captures or save snapshots", () => {
+  assert.equal(typeof drafts.followCaptureSource, "function");
+  const initial = drafts.createCaptureDraft({
+    scope,
+    text: "",
+    projectId: null,
+    now,
+  });
+  const { sourceMode: _mode, ...legacy } = initial;
+  assert.equal(
+    drafts.readCaptureDraft(legacy, scope, now + 1)?.sourceMode,
+    "automatic",
+  );
+  const page = {
+    url: "https://example.com/first",
+    title: "First page",
+    capturedAt: new Date(now).toISOString(),
+  };
+  const next = {
+    ...page,
+    url: "https://other.example/second",
+    title: "Second page",
+  };
+  const attached = drafts.followCaptureSource(initial, scope, page, now + 1);
+  assert.deepEqual(attached.source, page);
+  assert.equal(attached.sourceMode, "automatic");
+  assert.deepEqual(
+    drafts.followCaptureSource(
+      attached,
+      scope,
+      { ...page, capturedAt: new Date(now + 2).toISOString() },
+      now + 2,
+    ),
+    attached,
+    "unchanged pages must not churn timestamps or storage",
+  );
+  const followed = drafts.followCaptureSource(attached, scope, next, now + 3);
+  assert.deepEqual(followed.source, next);
+  assert.equal(followed.expiresAt, initial.expiresAt);
+  assert.equal(
+    drafts.followCaptureSource(followed, scope, null, now + 4).source,
+    undefined,
+  );
+  for (const changes of [
+    { text: "Started writing" },
+    { source: null },
+    { source: page },
+    { projectId: operationId },
+  ]) {
+    const edited = drafts.editCaptureDraft(attached, scope, changes, now + 4);
+    assert.equal(edited.sourceMode, "pinned");
+    assert.deepEqual(
+      drafts.followCaptureSource(edited, scope, next, now + 5),
+      edited,
+    );
+  }
+  const erased = drafts.editCaptureDraft(
+    drafts.editCaptureDraft(attached, scope, { text: "x" }, now + 4),
+    scope,
+    { text: "" },
+    now + 5,
+  );
+  assert.deepEqual(
+    drafts.followCaptureSource(erased, scope, next, now + 6),
+    erased,
+  );
+  for (const captured of [
+    drafts.createCaptureDraft({
+      scope,
+      text: "",
+      projectId: null,
+      source: page,
+      now,
+    }),
+    { ...attached, sourceMode: undefined }, // legacy source ownership is unknown
+    drafts.prepareCaptureSave(attached, scope, operationId, now + 4),
+  ])
+    assert.deepEqual(
+      drafts.followCaptureSource(captured, scope, next, now + 5),
+      captured,
+    );
+  assert.throws(() =>
+    drafts.followCaptureSource(
+      attached,
+      { ...scope, accountId: operationId },
+      page,
+      now + 4,
+    ),
+  );
+  assert.throws(() =>
+    drafts.followCaptureSource(attached, scope, page, attached.expiresAt),
+  );
+});
+
 test("browser draft core isolates accounts and preserves exact uncertain save identity", async (t) => {
   assert.equal(typeof drafts.createCaptureDraft, "function");
   assert.equal(typeof drafts.readCaptureDraft, "function");
@@ -268,7 +407,7 @@ test("browser draft core isolates accounts and preserves exact uncertain save id
       const oversized = drafts.editCaptureDraft(
         initial(),
         scope,
-        { text: "a".repeat(6000), source },
+        { text: "a".repeat(6000), source, textOrigin: "quoted" },
         now + 1,
       );
       assert.throws(

@@ -156,7 +156,7 @@ test("cancelled, expired and wrong-account links never display an approved state
     page.getByRole("button", { name: "Connect OpenCode", exact: true }),
   ).toHaveCount(0);
   mode = "pending";
-  await page.getByRole("button", { name: "Try loading again" }).click();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Connect OpenCode", exact: true }),
   ).toBeEnabled();
@@ -198,7 +198,7 @@ test("optional projects failure leaves compact approval usable and retries prese
     "Other projects could not load",
   );
   fail = false;
-  await page.getByRole("button", { name: "Try loading again" }).click();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(
     page.getByLabel("Personal memories", { exact: true }),

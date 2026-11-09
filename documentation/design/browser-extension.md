@@ -6,9 +6,11 @@ local installation, rollout and verification. This design retains the release
 requirements and deferred scope; it is not evidence of signed/store distribution,
 live provider acceptance or permission to migrate, deploy or publish.
 
-The shared TypeScript runtime now provides capture, search/read, reviewed context,
-explicit exact-URL lookup and Settings. Search's explicit **This page** mode makes the
-URL-disclosure consent boundary visible rather than running lookups on navigation.
+The shared TypeScript runtime provides Notes, global Search, formatted reading,
+explicit copying and Settings. Local source prefill follows an untouched draft;
+navigation never discloses its URL remotely. Search has one debounced bar with no
+scope selector. The [current guide](../browser-extension.md#use-the-panel) owns
+the latest behavior; earlier first-release proposals below are historical design scope.
 Browser-specific manifests, trusted session OAuth/storage and atomic provenance
 APIs implement the earlier core-only gaps below. The remaining release acceptance
 checklist is intentionally stricter than fixture/unsigned-package success.
@@ -19,17 +21,17 @@ Make Grove useful without leaving the current page: capture a useful detail,
 retrieve existing knowledge and explicitly carry selected context into another
 tool. Ship one shared interface with native browser adapters, not three products.
 
-| Proposed v1 feature    | Release boundary                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Search and read        | Search authorized notes, choose a notebook, read a note and open its canonical Grove page. Preserve existing lexical fallback and pagination.                             |
-| Quick note             | Toolbar/keyboard entry into a short composer; optionally attach the current page. Remember the last permitted destination, visibly.                                       |
-| Save selection or link | Context-menu capture into an editable preview containing the selected text, safe URL, page title and capture time. Save only after confirmation. No full-page extraction. |
-| Copy context           | Select notes, preview the exact bounded text and source links, then copy. No model call, site-specific insertion or automatic prompt submission.                          |
-| Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.             |
+| Proposed v1 feature    | Release boundary                                                                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search and read        | Search authorized notes, choose a notebook, read a note and open its canonical Grove page. Preserve existing lexical fallback and pagination.                                 |
+| Quick note             | Toolbar/keyboard entry into a short composer; optionally attach the current page. Remember the last permitted destination, visibly.                                           |
+| Save selection or link | Context-menu capture into an editable preview containing the selected text, safe URL, page title and capture time. Save only after confirmation. No full-page extraction.     |
+| Note actions           | One Open/Copy/Share menu per formatted result. No bulk selection, site-specific insertion or automatic submission. Public links require separate permission and confirmation. |
+| Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.                 |
 
-One sidebar has **Capture**, **Search** and **Settings**. Search offers an explicit
-**This page** mode; selected results expose **Copy context**. **Settings is last** and contains account/connection,
-destination, privacy, draft-clearing and shortcut information. Existing notebook
+One sidebar has **Notes**, **Search** and **Settings**. Search spans all granted
+notebooks with formatted previews and a per-note action menu. **Settings is last**
+with appearance, writing, account access and a short privacy summary. Existing notebook
 management and full editing remain in Grove's web app.
 
 The implemented device switch has one home: the persistent header. Off
@@ -38,14 +40,46 @@ unknown-save recovery and allow re-enabling from the toolbar. Appearance follows
 browser light/dark mode by default with an explicit device override. A persistent
 header/navigation frame encloses independently scrolling views; Settings groups
 appearance, access and privacy without extra onboarding. Recovery controls appear
-only for unconfirmed saves. Search and This page retain distinct disclosure forms
-but reuse one results/context surface and renderer, not duplicate lists/actions.
+only for unconfirmed saves. Notes keeps notebook selection and automatic source metadata in one Details
+disclosure; Search has one result list, with no filters or competing modes. A
+readable Markdown document replaces the old plain-source reader. Direct Copy note
+and Share actions serve one saved note at a time; there are no bulk search actions.
 
 Defer full articles, attachments, generated summaries/filing, chat scraping,
 AI-chat takeaway extraction, append/edit existing notes, semantic page matching,
 history ingestion, research-tab bundles, new-tab replacement, Safari and mobile.
 Existing hosted ChatGPT/Claude connections remain a separate integration; this
 extension must not depend on their directory approval or modify their setup.
+
+### Writing assistance — additional approved scope
+
+Keep the same three destinations. Bundled English dictionary spelling and basic
+deterministic grammar run quietly in Capture and eligible long-form website editors
+by default, without sign-in. Browser-wide and domain/subdomain opt-outs take precedence.
+Review an underline in one anchored card, then apply a correction, Ignore or Add word;
+native Undo and the current draft must survive. Settings discloses rule, dictionary
+and site controls without scores, dashboards, upsells or setup. Global Off wins.
+
+Website host access is declared at installation for default-on checking, subject to
+native grants; never bypass withheld browser access. Verify metadata before
+reading any field: exclude HTML inputs, short/sensitive fields and author opt-outs.
+Only the qualified textarea adapter currently ships; rich-text support is unfinished.
+Dictionary/rules use no network or AI. Explicit sentence tools use one selection-anchored
+**Use AI** menu: Shorten, Expand, Rewrite and Humanize; word selections offer Synonyms
+and Opposite words instead of length tools. Multiple alternatives per chosen tool
+copy and replace the exact range on selection, with native Undo. Separate
+authorization/consent and Grove's durable workers with encrypted expiring staging
+are required. Explicit rewrites include bounded previous/next sentence excerpts,
+containing-sentence fragments and sentence/paragraph position. The result UI leads
+with alternatives, not request diagnostics. Fresh context-aware consent is required; word alternatives stay
+selection-only. Context is reference, never replaced text. No automatic draft
+transmission or edits. Search previews use safe Markdown with one Open/Copy/Share
+menu per note, no checkboxes or bulk copy. Notes and Search share the same focused
+public-link dialog; publication needs separate connection approval and explicit
+confirmation. Settings uses short labels and generic recovery messages, never
+account IDs, server addresses or storage/worker internals.
+The [current guide](../browser-extension.md#english-writing-checks) owns actual support,
+limits and verification; this design does not establish native-browser acceptance.
 
 ## Shared design constraints
 
@@ -100,11 +134,13 @@ browser versions and supported desktop operating systems after testing; Chromium
 engine similarity is not evidence of Edge acceptance.
 
 Use the smallest proven permission set: storage, identity, context menus,
-native panel permission where required, `activeTab`, and only required Grove/auth
+native panel permission where required, `activeTab`, approved `tabs` metadata access, and only required Grove/auth
 hosts. Declare shortcuts through manifest commands, not an invented permission.
-Add `scripting` only if a bounded user-triggered capture needs it. Avoid
-`tabs`, history, cookies, clipboard-read, persistent content scripts and
-`<all_urls>` unless a separate reviewed requirement justifies them. Request any
+Default-on local writing declares HTTP(S) content scripts and `scripting`, with
+browser/domain opt-outs and native withheld access taking precedence. Keep website
+writing RPC separate from panel authority; never expose tokens to pages. Approved
+`tabs` access supports local source following in mounted panels, not history
+collection. Avoid history, cookies, clipboard-read and remote executable code. Request any
 additional access at its point of use. Capture restrictions must not block manual
 notes or library search. File/internal/store pages get a clear unsupported-source
 state. Keep private-browsing access out of v1.
@@ -130,7 +166,7 @@ never content scripts, page messages, synchronized storage, URLs or diagnostics.
 P0 must settle local token protection, refresh-token persistence and cleanup; browser
 storage is not an OS secret vault. Sign-out/account changes clear visible notes,
 drafts, tokens and selections before another account can use the panel. Remote
-revocation/grant changes are checked before further reads, writes or context copy;
+revocation/grant changes are checked before further reads, writes, copying or sharing;
 do not offer cached offline library reads.
 
 ### Capture and exact page lookup
@@ -202,8 +238,9 @@ Copy is an explicit disclosure of private text to the clipboard. Re-fetch select
 notes and recheck current versions/access before showing the final copy preview;
 removed or changed sources require review. Include note text and
 canonical Grove links with a visible size budget. Never include auth tokens
-or public capability links automatically. Never read the clipboard or inject into
-another website. Clipboard denial offers selectable plain text, not a false success.
+or public capability links automatically. Context copy never reads the clipboard or
+inserts into another website; explicitly accepted writing corrections have their own
+site permission/editor boundary. Clipboard denial offers selectable plain text, not a false success.
 Text already copied outside Grove cannot be recalled after revocation.
 
 ## Release qualification gates

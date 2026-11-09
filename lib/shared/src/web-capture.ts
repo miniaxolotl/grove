@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { rememberSchema } from "./contracts";
+import { rememberSchema } from "./contracts.ts";
+import { NOTE_CONTENT_MAX, WEB_URL_MAX } from "./limits.ts";
 
 const trackingParameters = new Set([
   "utm_source",
@@ -25,7 +26,7 @@ function containsControlCharacters(value: string): boolean {
 export function normalizeWebUrl(input: string): string {
   if (
     typeof input !== "string" ||
-    input.length > 4096 ||
+    input.length > WEB_URL_MAX ||
     !/^https?:\/\//i.test(input) ||
     /\s/u.test(input) ||
     containsControlCharacters(input)
@@ -48,7 +49,8 @@ export function normalizeWebUrl(input: string): string {
   // Filter raw segments instead; only rewrite when a known tracker was removed.
   if (retained.length !== parts.length) url.search = retained.join("&");
   const normalized = url.href;
-  if (normalized.length > 4096) throw new Error("Invalid source URL: too long");
+  if (normalized.length > WEB_URL_MAX)
+    throw new Error("Invalid source URL: too long");
   return normalized;
 }
 
@@ -58,7 +60,7 @@ export const webCaptureSchema = z
   .object({
     url: z
       .string()
-      .max(4096)
+      .max(WEB_URL_MAX)
       .transform((value, ctx) => {
         try {
           return normalizeWebUrl(value);
@@ -109,18 +111,22 @@ function escapeMarkdown(value: string): string {
 export function formatWebCapture(input: {
   text: string;
   source?: WebCapture;
+  quoteText?: boolean;
 }): string {
   const text = input.text.trim();
   let content = text;
   if (input.source) {
     const source = webCaptureSchema.parse(input.source);
-    const quote = text
-      ? text
-          .replace(/\r\n?/g, "\n")
-          .split("\n")
-          .map((line) => (line ? `> ${escapeMarkdown(line)}` : ">"))
-          .join("\n")
-      : "";
+    const quote =
+      input.quoteText === false
+        ? text
+        : text
+          ? text
+              .replace(/\r\n?/g, "\n")
+              .split("\n")
+              .map((line) => (line ? `> ${escapeMarkdown(line)}` : ">"))
+              .join("\n")
+          : "";
     const link = source.url.replaceAll("(", "%28").replaceAll(")", "%29");
     const title = escapeMarkdown(source.title || new URL(source.url).hostname);
     content = [
@@ -132,6 +138,6 @@ export function formatWebCapture(input: {
   }
   if (!content) throw new Error("Capture is empty");
   if (!rememberSchema.shape.content.safeParse(content).success)
-    throw new Error("Capture exceeds the 6000-character note limit");
+    throw new Error(`Capture exceeds the ${NOTE_CONTENT_MAX}-character note limit`);
   return content;
 }

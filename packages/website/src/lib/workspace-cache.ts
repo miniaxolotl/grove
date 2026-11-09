@@ -21,9 +21,12 @@ import type {
 } from "@lib/shared/relationships";
 import { api, DashboardApiError } from "./dashboard-api";
 import { SessionRefreshError } from "./dashboard-session";
+import { notebookOrder } from "./notebooks";
 
 type Filters = Omit<MemoryList, "cursor">;
 type Change = { ids?: string[]; scopes?: (string | null)[]; resource?: string };
+/** A staged optimistic change. commit() drops the journal; rollback() restores it. */
+export type StagedChange = { commit(): void; rollback(): void };
 type NotePages = InfiniteData<Page<Memory>, string | null>;
 const root = ["workspace"] as const;
 export const workspaceKeys = {
@@ -578,6 +581,33 @@ export class WorkspaceCache {
   }
   private notebookLifecycle(action: string, scopes: (string | null)[]) {
     void this.client.cancelQueries({ queryKey: root });
+    this.applyNotebookLifecycle(action, scopes);
+    // Lifecycle previews freeze the reviewed scope; evict them so the next
+    // confirmation reviews the new state instead of the archived snapshot.
+    for (const id of scopes) {
+      if (typeof id !== "string") continue;
+      this.client.removeQueries({
+        predicate: (query) =>
+          query.queryKey[1] === "resource" &&
+          query.queryKey[2] === `/projects/${id}/lifecycle`,
+      });
+    }
+    this.invalidate({ resource: "/projects" });
+    for (const path of ["/projects", "/projects?status=archived"]) {
+      void this.client.invalidateQueries({
+        queryKey: workspaceKeys.resource(path),
+      });
+    }
+    this.invalidate({});
+  }
+  /**
+   * Data-only notebook lifecycle patch for optimistic updates: removes the
+   * affected notebooks and notes from every cached list without marking
+   * anything stale, so the rows leave instantly. The post-response path
+   * re-applies the same outcome idempotently; on failure the caller rolls
+   * the stage back.
+   */
+  applyNotebookLifecycle(action: string, scopes: (string | null)[]) {
     const notes = new Map<string, Memory | null>();
     for (const query of this.client.getQueryCache().getAll()) {
       const data = query.state.data;
@@ -613,17 +643,12 @@ export class WorkspaceCache {
             : old,
       );
     }
-    this.invalidate({ resource: "/projects" });
     for (const path of ["/projects", "/projects?status=archived"]) {
       this.client.setQueryData<Notebook[]>(
         workspaceKeys.resource(path),
         (old) => old?.filter((project) => !scopes.includes(project.id)),
       );
-      void this.client.invalidateQueries({
-        queryKey: workspaceKeys.resource(path),
-      });
     }
-    this.invalidate({});
   }
   private noteLifecycle(action: string, ids: string[]) {
     const change = { ids };
@@ -638,6 +663,164 @@ export class WorkspaceCache {
     }
     this.patchPages(notes);
     this.invalidate(change);
+  }
+  /**
+   * Data-only note patch for optimistic updates: writes the records (a null
+   * tombstones a deleted note) into detail queries and every cached list
+   * without marking anything stale, so rows move instantly. The post-response
+   * path re-applies the same outcome idempotently; on failure the caller
+   * restores the before-records with restoreNoteRecords().
+   */
+  applyNoteRecords(records: Map<string, Memory | null>) {
+    for (const [id, note] of records) {
+      if (note) this.seed(note, Date.now());
+      else this.forget(id);
+    }
+    this.patchPages(records);
+  }
+  /** Force-restore note records, bypassing the version guard seed() applies. */
+  restoreNoteRecords(records: Map<string, Memory | null>) {
+    for (const [id, note] of records) {
+      if (note) {
+        this.deleted.delete(id);
+        this.client.setQueryData(workspaceKeys.note(id), note, {
+          updatedAt: Date.now(),
+        });
+      } else this.forget(id);
+    }
+    this.patchPages(records);
+  }
+  /**
+   * Optimistically reorder the active notebook catalog for an organize move:
+   * the item jumps to its anchored position and both affected sibling runs
+   * are resequenced, mirroring notebookOrder. The catalog HMAC state is
+   * never fabricated. Returns false when the move cannot preview.
+   */
+  applyOrganizePreview(
+    projectId: string,
+    placement: { parentId: string | null; beforeId?: string; afterId?: string },
+  ): boolean {
+    let applied = false;
+    this.client.setQueryData<NotebookCatalog>(
+      this.notebookCatalog("active").queryKey,
+      (old) => {
+        if (!old) return old;
+        const moving = old.items.find((item) => item.id === projectId);
+        if (!moving) return old;
+        const rest = old.items.filter((item) => item.id !== projectId);
+        const targetParent = placement.parentId;
+        const siblings = rest
+          .filter((item) => (item.parentId ?? null) === targetParent)
+          .sort(notebookOrder);
+        let index = siblings.length;
+        if (placement.beforeId) {
+          const anchor = siblings.findIndex(
+            (item) => item.id === placement.beforeId,
+          );
+          if (anchor < 0) return old;
+          index = anchor;
+        } else if (placement.afterId) {
+          const anchor = siblings.findIndex(
+            (item) => item.id === placement.afterId,
+          );
+          if (anchor < 0) return old;
+          index = anchor + 1;
+        }
+        const moved: Notebook = {
+          ...moving,
+          parentId: targetParent,
+        };
+        const run = [
+          ...siblings.slice(0, index),
+          moved,
+          ...siblings.slice(index),
+        ];
+        const positions = new Map<string, number>();
+        run.forEach((item, position) => positions.set(item.id, position));
+        const oldParent = moving.parentId ?? null;
+        if (oldParent !== targetParent)
+          rest
+            .filter((item) => (item.parentId ?? null) === oldParent)
+            .sort(notebookOrder)
+            .forEach((item, position) => positions.set(item.id, position));
+        applied = true;
+        return {
+          ...old,
+          items: old.items.map((item) =>
+            item.id === projectId
+              ? { ...moved, position: positions.get(item.id) }
+              : positions.has(item.id)
+                ? { ...item, position: positions.get(item.id) }
+                : item,
+          ),
+        };
+      },
+      { updatedAt: Date.now() },
+    );
+    return applied;
+  }
+  private stageTargets(change: Change) {
+    return (query: Query) => {
+      if (this.affected(query, change)) return true;
+      const [, kind, key] = query.queryKey;
+      if (kind !== "resource" || typeof key !== "string") return false;
+      if (
+        key === "/projects" ||
+        key === "/projects?status=archived" ||
+        key === "/projects/catalog"
+      )
+        return true;
+      // forget() and patchPages() also touch revision, assistance, search and
+      // derived reads for the affected ids; snapshot those for rollback.
+      return !!change.ids;
+    };
+  }
+  /**
+   * Snapshot every query an optimistic change touches (plus the catalogs,
+   * project lists and derived reads forget()/patchPages() reach) and cancel
+   * their in-flight reads so a stale response cannot clobber the patch.
+   * commit() drops the journal; rollback() restores every snapshot with its
+   * original timestamp, removes optimistic tombstones and quietly
+   * revalidates, since a lost response may still have committed server-side.
+   */
+  stage(change: Change): StagedChange {
+    void this.client.cancelQueries({
+      predicate: (query) => this.affected(query, change),
+    });
+    const targets = this.stageTargets(change);
+    const snapshots: {
+      key: readonly unknown[];
+      data: unknown;
+      updatedAt: number;
+    }[] = [];
+    for (const query of this.client.getQueryCache().getAll()) {
+      if (!targets(query)) continue;
+      snapshots.push({
+        key: query.queryKey,
+        data: query.state.data,
+        updatedAt: query.state.dataUpdatedAt,
+      });
+    }
+    const deletedBefore = new Set(this.deleted);
+    let settled = false;
+    return {
+      commit: () => {
+        settled = true;
+      },
+      rollback: () => {
+        if (settled) return;
+        settled = true;
+        for (const snapshot of snapshots)
+          this.client.setQueryData(snapshot.key, snapshot.data, {
+            updatedAt: snapshot.updatedAt,
+          });
+        this.deleted.clear();
+        for (const id of deletedBefore) this.deleted.add(id);
+        void this.client.invalidateQueries({
+          predicate: (query) => this.affected(query, change),
+        });
+      },
+    };
   }
   private patchPages(notes: Map<string, Memory | null>) {
     for (const query of this.client

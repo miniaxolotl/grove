@@ -35,32 +35,41 @@ import {
   ShortcutHelpButton,
 } from "./workspace-commands";
 
-const links = [
+const workspaceLinks = [
   { href: "/app", name: "Notes", icon: BookOpen },
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
+];
+const systemLinks = [
   { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];
+const links = [...workspaceLinks, ...systemLinks];
 
 function WorkspaceNavLink({
   item,
   current,
-  secondary = false,
 }: {
   item: (typeof links)[number];
   current: string | undefined;
-  secondary?: boolean;
 }) {
   const { href, name, icon: Icon } = item;
   return (
     <Link
       href={href}
       aria-current={href === current ? "page" : undefined}
-      className={`app-nav${secondary ? " app-nav-secondary" : ""}`}
+      className="app-nav"
     >
       <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
       <span>{name}</span>
     </Link>
+  );
+}
+
+function SidebarSection({ children }: { children: string }) {
+  return (
+    <p className="sidebar-section" aria-hidden="true">
+      {children}
+    </p>
   );
 }
 
@@ -136,34 +145,33 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                           <WorkspacePlan />
                           <ShortcutHelpButton compact />
                         </div>
-                        <nav
-                          aria-label="Notebook navigation"
-                          className="app-navigation"
-                        >
-                          {links.map((item, index) => (
+                        <nav aria-label="Workspace" className="app-navigation">
+                          <SidebarSection>Workspace</SidebarSection>
+                          {workspaceLinks.map((item) => (
                             <WorkspaceNavLink
                               key={item.href}
                               item={item}
                               current={current}
-                              secondary={index > 1}
+                            />
+                          ))}
+                          <SidebarSection>System</SidebarSection>
+                          {systemLinks.map((item) => (
+                            <WorkspaceNavLink
+                              key={item.href}
+                              item={item}
+                              current={current}
                             />
                           ))}
                         </nav>
                         <NotebookExplorer />
                         <div className="app-sidebar-footer">
-                          <nav aria-label="Workspace settings">
-                            {links.slice(2).map((item) => (
-                              <WorkspaceNavLink
-                                key={item.href}
-                                item={item}
-                                current={current}
-                              />
-                            ))}
-                          </nav>
                           <div className="sidebar-account">
                             <UserButton />
-                            <span className="truncate text-xs">
-                              {user?.firstName ?? "Your account"}
+                            <span className="sidebar-account-text">
+                              <strong>
+                                {user?.firstName ?? "Your account"}
+                              </strong>
+                              <small>Private Grove</small>
                             </span>
                           </div>
                         </div>

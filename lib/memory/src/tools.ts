@@ -95,6 +95,23 @@ export async function executeMemoryTool(
             notebookLifecycleSchema.parse(input),
           );
     }
+    case "list_note_media": {
+      const input = memoryTools.list_note_media.schema.parse(value);
+      return service.listNoteMedia(principal, input.memoryId, input.version);
+    }
+    case "describe_note_media": {
+      const input = memoryTools.describe_note_media.schema.parse(value);
+      return service.describeNoteMedia(
+        principal,
+        input.memoryId,
+        input.mediaId,
+        input.version,
+      );
+    }
+    case "read_media_transcript": {
+      const input = memoryTools.read_media_transcript.schema.parse(value);
+      return service.readMediaTranscript(principal, input.memoryId, input.mediaId);
+    }
     default:
       throw new GroveError("not_found", "Unknown Grove tool", 404);
   }

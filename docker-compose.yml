@@ -14,6 +14,8 @@ x-runtime: &runtime
   CLERK_ISSUER: ${CLERK_ISSUER:?Set Grove Clerk issuer}
   CLERK_WEBHOOK_SIGNING_SECRET: ${CLERK_WEBHOOK_SIGNING_SECRET:?Set Clerk webhook signing secret}
   CURSOR_SECRET: ${CURSOR_SECRET:?Generate a random cursor signing secret}
+  WRITING_STAGING_KEY: ${WRITING_STAGING_KEY:-}
+  WRITING_PROVIDER_NOTICE: ${WRITING_PROVIDER_NOTICE:-}
   EMBEDDING_MODE: ${EMBEDDING_MODE:-local}
   EMBEDDING_CACHE: /app/data/models
   GROVE_EDITION: ${GROVE_EDITION:-self-hosted}

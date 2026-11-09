@@ -40,6 +40,22 @@ export function NotebookExplorer() {
   const open = openPath === path;
   const wide = useSyncExternalStore(subscribeDesktop, desktop, () => false);
   const id = useId();
+  const bodyId = useId();
+  const [sectionCollapsed, setSectionCollapsed] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("grove.sidebar.notebooks") === "1",
+  );
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "grove.sidebar.notebooks",
+        sectionCollapsed ? "1" : "0",
+      );
+    } catch {
+      // Private browsing keeps the default open section.
+    }
+  }, [sectionCollapsed]);
   const explorer = useRef<HTMLElement>(null);
   const navigation = useWorkspaceNavigationState();
   const savedScroll = useEffectEvent(
@@ -126,13 +142,38 @@ export function NotebookExplorer() {
         id={id}
         className="notebook-explorer"
         data-mobile-open={open || undefined}
+        data-section-collapsed={sectionCollapsed || undefined}
         aria-label="Your notebooks"
         onClick={(event) => {
           if ((event.target as HTMLElement).closest("a")) setOpenPath(null);
         }}
       >
         <div className="notebook-explorer-heading">
-          <span>Notebooks</span>
+          <button
+            type="button"
+            className="notebook-collapse-toggle"
+            aria-expanded={!sectionCollapsed}
+            aria-controls={bodyId}
+            onClick={() => setSectionCollapsed((value) => !value)}
+            title={sectionCollapsed ? "Expand notebooks" : "Collapse notebooks"}
+          >
+            <ChevronDown size={14} aria-hidden="true" />
+            <span>Notebooks</span>
+            {!loading && !error ? (
+              <span
+                className="sidebar-count"
+                aria-label={`${projects.length} notebooks`}
+              >
+                {projects.length}
+              </span>
+            ) : null}
+          </button>
+          <span className="notebook-heading-static" aria-hidden="true">
+            <span>Notebooks</span>
+            {!loading && !error ? (
+              <span className="sidebar-count">{projects.length}</span>
+            ) : null}
+          </span>
           <button
             type="button"
             className="text-button notebook-organize-entry"
@@ -155,53 +196,55 @@ export function NotebookExplorer() {
             <Plus size={14} />
           </IconButton>
         </div>
-        <Link
-          ref={setNodeRef}
-          className="notebook-personal"
-          href="/app?notebook=personal"
-          aria-current={currentNotebook === null ? "page" : undefined}
-          data-destination="personal"
-          data-drop-active={isOver || undefined}
-        >
-          <Inbox size={15} />
-          Unfiled
-        </Link>
-        {active?.kind === "notebook" && (
-          <NotebookDropTarget projectId={null} name="Top level" root />
-        )}
-        {loading ? (
-          <p className="notebook-tree-message">Opening notebooks…</p>
-        ) : error ? (
-          <button className="text-button" onClick={reload}>
-            Retry notebooks
-          </button>
-        ) : projects.length ? (
-          <NotebookTree
-            remember
-            showNotes
-            notesVisible={wide || open}
-            projects={projects}
-            selectedId={currentNotebook}
-            actions={(project) => (
-              <ActionMenu label={`Notebook actions for ${project.name}`}>
-                <NotebookActions
-                  project={project}
-                  onAction={setAction}
-                  onShare={() => setSharing(project.id)}
-                />
-              </ActionMenu>
-            )}
-          />
-        ) : (
-          <p className="notebook-tree-message">
-            <button
-              className="text-button"
-              onClick={() => setAction({ mode: "create" })}
-            >
-              Create a notebook
+        <div id={bodyId} className="notebook-explorer-body">
+          <Link
+            ref={setNodeRef}
+            className="notebook-personal"
+            href="/app?notebook=personal"
+            aria-current={currentNotebook === null ? "page" : undefined}
+            data-destination="personal"
+            data-drop-active={isOver || undefined}
+          >
+            <Inbox size={15} />
+            Unfiled
+          </Link>
+          {active?.kind === "notebook" && (
+            <NotebookDropTarget projectId={null} name="Top level" root />
+          )}
+          {loading ? (
+            <p className="notebook-tree-message">Opening notebooks…</p>
+          ) : error ? (
+            <button className="text-button" onClick={reload}>
+              Retry notebooks
             </button>
-          </p>
-        )}
+          ) : projects.length ? (
+            <NotebookTree
+              remember
+              showNotes
+              notesVisible={wide || open}
+              projects={projects}
+              selectedId={currentNotebook}
+              actions={(project) => (
+                <ActionMenu label={`Notebook actions for ${project.name}`}>
+                  <NotebookActions
+                    project={project}
+                    onAction={setAction}
+                    onShare={() => setSharing(project.id)}
+                  />
+                </ActionMenu>
+              )}
+            />
+          ) : (
+            <p className="notebook-tree-message">
+              <button
+                className="text-button"
+                onClick={() => setAction({ mode: "create" })}
+              >
+                Create a notebook
+              </button>
+            </p>
+          )}
+        </div>
         {action && (
           <NotebookDialog action={action} close={() => setAction(null)} />
         )}

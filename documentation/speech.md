@@ -63,6 +63,8 @@ operation ID, and stops its player. Hard page exits/crashes cannot guarantee a
 cancellation request. Newer source versions discard the old controls/results.
 No anonymous reader or connected agent can generate or retrieve this derived audio.
 Public links still play their separately authorized original recordings.
+Saved transcript text (not derived MP3) stays readable through the authorized
+recordings/media transcript route.
 
 ## Provider and privacy contract
 

@@ -339,6 +339,44 @@ function AccountWorkspace({
     }
   }
 
+  async function resetTrial() {
+    if (pending.current) return;
+    if (reason.trim().length < 3) {
+      setError("Add a reason of at least 3 characters before resetting the trial.");
+      return;
+    }
+    pending.current = true;
+    setPhase("saving");
+    setError("");
+    setFeedback("");
+    try {
+      await cache.api<{ accountId: string; eligible: true }>(
+        "/admin/accounts/trial-reset",
+        {
+          accountId: state.account.accountId,
+          operationId: crypto.randomUUID(),
+          reason: reason.trim(),
+        },
+        "POST",
+      );
+      setFeedback("Pro trial eligibility restored for this account.");
+    } catch (failure) {
+      if (adminDenied(failure)) {
+        accessDenied();
+        return;
+      }
+      setPhase("conflict");
+      setError(
+        failure instanceof DashboardApiError &&
+          failure.code === "trial_not_consumed"
+          ? "This account never used a trial, so there is nothing to reset."
+          : "Couldn’t reset the trial. Review the latest saved values before trying again.",
+      );
+    } finally {
+      pending.current = false;
+    }
+  }
+
   async function reviewLatest() {
     if (pending.current) return;
     pending.current = true;
@@ -762,7 +800,17 @@ function AccountWorkspace({
                   </div>
                   <p className="admin-caption">
                     Access grants don’t create, change or cancel a subscription.
+                    Resetting the trial only restores eligibility; it never
+                    starts or cancels Stripe state.
                   </p>
+                  <button
+                    type="button"
+                    className="app-button secondary"
+                    disabled={locked}
+                    onClick={() => void resetTrial()}
+                  >
+                    Restore Pro trial eligibility
+                  </button>
                   {state.account.status !== "active" ? (
                     <p className="admin-warning">
                       Restore this account before changing access. Provider

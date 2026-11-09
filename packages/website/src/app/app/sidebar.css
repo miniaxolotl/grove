@@ -7,8 +7,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 10px;
+  padding: 14px 12px 12px;
   overflow-y: auto;
   scrollbar-width: thin;
   border-right: 1px solid var(--color-line);
@@ -44,6 +44,7 @@
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.4;
+  box-shadow: 0 1px 2px #253e3114;
 }
 .sidebar-create > svg {
   flex-shrink: 0;
@@ -59,12 +60,16 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  border-radius: 7px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 8px 11px;
   color: var(--color-muted);
   font-size: 12px;
   text-align: left;
   white-space: normal;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
 }
 .workspace-search-launcher {
   grid-column: 1 / -1;
@@ -72,11 +77,12 @@
   min-height: 40px;
   border: 1px solid var(--color-line);
   background: #fcfdfb;
+  box-shadow: 0 1px 2px #253e310a;
 }
 .workspace-command-launcher {
   flex: 1;
   min-height: 36px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   gap: 6px;
   container-type: inline-size;
 }
@@ -99,6 +105,7 @@
 .workspace-command-launcher:hover {
   background: #fff;
   color: var(--color-forest);
+  border-color: #c9d2c4;
 }
 .workspace-search-launcher > svg,
 .workspace-command-launcher > svg {
@@ -125,56 +132,122 @@
   width: 36px;
   height: 36px;
 }
+/* Sectioned navigation: Workspace notes first, System (Archive, Settings) after
+   notebooks. Settings stays the last link in the sidebar. */
 .app-navigation {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 4px;
+  margin-top: 2px;
+}
+.sidebar-section {
+  padding: 12px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #59664f;
+}
+.sidebar-section:first-child {
+  padding-top: 4px;
 }
 .app-nav {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
   min-height: 40px;
-  padding: 8px 10px;
-  border-radius: 7px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-size: 13px;
   color: var(--color-muted);
   white-space: nowrap;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
 }
 .app-nav > svg {
   flex-shrink: 0;
 }
 .app-nav:hover {
   background: #e7eddf80;
+  color: var(--color-forest);
 }
 .app-nav[aria-current] {
   background: #e2eadd;
   color: var(--color-forest);
   font-weight: 500;
 }
-.app-nav-secondary {
-  display: none;
+.app-nav[aria-current]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-forest);
+}
+.sidebar-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 20px;
+  padding: 1px 6px;
+  margin-left: auto;
+  border-radius: 10px;
+  background: #e2e7dc;
+  color: #4c5a4c;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.app-nav .sidebar-count {
+  background: #d9e2d2;
 }
 .app-sidebar-footer {
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 12px;
   border-top: 1px solid var(--color-line);
 }
+/* Account card: quiet surface like the reference examples, one glance. */
 .sidebar-account {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 8px 0;
+  padding: 8px;
   min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fbfcfb;
+}
+.sidebar-account-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.sidebar-account-text > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-forest);
+}
+.sidebar-account-text > small {
+  font-size: 11px;
+  color: var(--color-muted);
 }
 .notebook-browser {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 120px;
-  margin-top: 8px;
+  margin-top: 4px;
+  min-width: 0;
 }
 .notebook-browser-toggle {
   display: none;
@@ -185,13 +258,13 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scroll-padding-block: 40px 8px;
-  padding: 0 2px 8px;
+  padding: 0 0 8px;
 }
 .notebook-explorer-heading {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-left: 8px;
+  gap: 4px;
+  padding-right: 8px;
   color: #59664f;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -205,6 +278,41 @@
 .notebook-explorer-heading .app-icon {
   width: 28px;
   min-height: 28px;
+}
+.notebook-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  color: #59664f;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.notebook-collapse-toggle:hover {
+  background: #e7eddf80;
+  color: var(--color-forest);
+}
+.notebook-collapse-toggle > svg {
+  transition: transform 150ms ease;
+  flex-shrink: 0;
+}
+.notebook-explorer[data-section-collapsed] .notebook-collapse-toggle > svg {
+  transform: rotate(-90deg);
+}
+.notebook-collapse-toggle .sidebar-count {
+  margin-left: 2px;
+}
+.notebook-heading-static {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .notebook-manage {
   margin-left: auto;
@@ -224,7 +332,7 @@
   line-height: 1.45;
 }
 .notebook-explorer .notebook-tree-actions {
-  padding-right: 0;
+  padding-right: 8px;
 }
 .notebook-explorer .notebook-tree-actions .app-icon {
   width: 28px;
@@ -234,6 +342,9 @@
 .notebook-explorer .notebook-personal {
   min-height: 36px;
   margin-bottom: 2px;
+  /* Unfiled has no disclosure slot: pad to the 24px folder-icon column the
+     notebook rows use, so its inbox icon and text share the tree grid. */
+  padding: 7px 12px 7px 28px;
 }
 @media (hover: hover) and (pointer: fine) {
   .notebook-explorer .notebook-tree-actions > .app-icon {
@@ -250,14 +361,19 @@
     opacity: 1;
   }
 }
+@media (min-width: 1024px) {
+  .notebook-explorer[data-section-collapsed] .notebook-explorer-body {
+    display: none;
+  }
+}
 @media (max-width: 1023px) {
   .app-sidebar {
     position: static;
     height: auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 8px;
-    padding: 10px 12px 6px;
+    gap: 8px;
+    padding: 10px 12px 8px;
     overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--color-line);
@@ -265,7 +381,7 @@
   .app-sidebar-heading {
     grid-column: 1 / -1;
     display: flex;
-    gap: 6px;
+    gap: 8px;
   }
   .app-sidebar-heading > a:first-child {
     padding: 0;
@@ -285,6 +401,7 @@
     padding: 0;
     border-color: transparent;
     background: transparent;
+    box-shadow: none;
   }
   .workspace-search-launcher > span {
     display: none;
@@ -318,11 +435,26 @@
     margin: 0;
     gap: 2px;
   }
+  .sidebar-section {
+    display: none;
+  }
   .app-nav {
     display: flex;
     justify-content: center;
     min-height: 44px;
-    padding-inline: 6px;
+    padding: 8px 6px 8px 6px;
+  }
+  .app-nav::before {
+    display: none;
+  }
+  .app-nav[aria-current]::before {
+    display: block;
+    left: 6px;
+    right: 6px;
+    top: auto;
+    bottom: 4px;
+    width: auto;
+    height: 3px;
   }
   .app-sidebar-footer {
     display: none;
@@ -356,6 +488,12 @@
     display: block;
     max-height: 45dvh;
   }
+  .notebook-collapse-toggle {
+    display: none;
+  }
+  .notebook-heading-static {
+    display: inline-flex;
+  }
 }
 @media (max-width: 600px) {
   .app-navigation {
@@ -373,6 +511,10 @@
     font-size: 11px;
     white-space: nowrap;
   }
+  .app-nav[aria-current]::before {
+    left: 12px;
+    right: 12px;
+  }
 }
 @media (any-pointer: coarse) {
   .workspace-search-launcher,
@@ -380,6 +522,7 @@
   .app-nav,
   .notebook-browser-toggle,
   .notebook-manage,
+  .notebook-collapse-toggle,
   .notebook-explorer .notebook-tree-link,
   .notebook-explorer .notebook-personal {
     min-height: 44px;
@@ -395,5 +538,13 @@
   .workspace-utilities > .app-icon {
     width: 44px;
     height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-search-launcher,
+  .workspace-command-launcher,
+  .app-nav,
+  .notebook-collapse-toggle > svg {
+    transition: none;
   }
 }

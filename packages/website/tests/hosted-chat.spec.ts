@@ -247,7 +247,7 @@ test("Connections offers an explicit refresh for newly signed-in hosted clients"
     }),
   );
   await page.goto(`${base}/app/settings/connections`);
-  await expect(page.getByText("Your agents are welcome here.")).toBeVisible();
+  await expect(page.getByText("No connections yet.")).toBeVisible();
   appeared = true;
   await page
     .getByRole("button", { name: "Refresh connections", exact: true })
@@ -255,6 +255,47 @@ test("Connections offers an explicit refresh for newly signed-in hosted clients"
   await expect(
     page.getByText("synthetic_chatgpt_client", { exact: false }),
   ).toBeVisible();
+});
+
+test("AI sentence permission is explicit and independent of note scope", async ({
+  page,
+}) => {
+  let connection = {
+    ...pending,
+    name: "Browser extension",
+    capabilities: ["memory:read"],
+    writingEnabled: false,
+  };
+  let saved: Record<string, unknown> | undefined;
+  await page.route("**/api/grove/**", async (route) => {
+    if (route.request().method() === "PATCH") {
+      saved = route.request().postDataJSON();
+      connection = { ...connection, ...saved };
+      return route.fulfill({ json: { success: true, data: { connection } } });
+    }
+    return route.fulfill({
+      json: {
+        success: true,
+        data: new URL(route.request().url()).pathname.endsWith("/connections")
+          ? [connection]
+          : [],
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/connections`);
+  await page.getByRole("button", { name: "Edit scope", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Connection access" });
+  await expect(dialog.getByLabel("Allow AI writing tools")).not.toBeChecked();
+  await expect(dialog.getByLabel("Read notes", { exact: true })).toBeChecked();
+  await dialog.getByLabel("Allow AI writing tools").check();
+  await dialog
+    .getByRole("button", { name: "Approve access", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  expect(saved?.writingEnabled).toBe(true);
+  expect(saved?.capabilities).toEqual(["memory:read"]);
+  await page.getByRole("button", { name: "Edit scope", exact: true }).click();
+  await expect(dialog.getByLabel("Allow AI writing tools")).toBeChecked();
 });
 
 test("stale approval preserves the review, blocks duplicate submissions and requires an explicit refresh", async ({

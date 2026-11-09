@@ -1,8 +1,10 @@
 # Your Grove notebook
 
 Start in **Notes** to write and browse, or **Ask Grove** to work with your notes.
-Notebooks live in the sidebar; on phones, open **Notebooks** beneath navigation.
-The Grove logo returns to Notes. Connected agents share these notes and their
+The sidebar groups **Workspace** (Notes, Ask Grove), collapsible **Notebooks**
+(Unfiled plus your tree, with a count) and **System** (Archive, Settings last);
+on phones, open **Notebooks** beneath navigation. The Grove logo returns to
+Notes. Connected agents share these notes and their
 approved permissions; technical references stay in **Note properties → Agent details**.
 
 ## Your first saved note
@@ -35,6 +37,10 @@ owns connection commands and approval.
 - Autosave starts after a 450ms typing pause; viewer checklist changes start saving
   immediately. **Save note** or Ctrl/Cmd+S saves now. First-save routing retains
   the editor, focus, scroll and Undo. Another New note starts a separate document.
+- [Spelling and basic grammar](webapp-writing.md) are checked on your device as
+  you write, with the same engine as the browser extension and no double
+  underlines when both are present. Open an underline or press **Alt+Enter**;
+  one click applies a replacement with normal Undo.
   Existing notes send precise source edits, preserving unedited passages. Revision
   history groups nearby small autosaves from one editing session instead of listing
   each keystroke save. Large/structural changes and explicit Save stay separate.
@@ -51,30 +57,41 @@ owns connection commands and approval.
   library, not just loaded rows. Queries remain in POST bodies. See
   [search](search.md) for relevance, typo/prefix matching and partial evidence.
 - **New note** follows your current notebook; notes without one are **Unfiled**.
-  Sidebar expansion, list scroll and outline pinning can be remembered per account
+  Sidebar expansion, notebook collapse, list scroll and outline pinning can be
+  remembered per account
   in this browser without storing note text, names, queries or drafts.
 - Create with the sidebar **+**; **Manage notebooks** browses the catalog. Use
   **Organize** for sibling order and **Move notebook** for a searchable destination
-  and explicit placement. Touch notebook folder controls open Organize rather than
-  requiring long-press drag. Mouse and keyboard paths remain available. The
+  and explicit placement. Notebook grips drag with mouse/pen or a deliberate touch
+  hold; tapping or clicking a grip opens Organize for exact placement. The
   [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
   and device qualification limits. Parent access never grants child access.
-- Select up to 50 loaded notes for batch move/archive/restore. Note handles support
+- Select up to 50 loaded notes for batch move/archive/restore/**Delete**.
+  Confirmations apply instantly: rows move the moment you confirm while the
+  request settles in the background, and only that note's controls lock during
+  its own request. A row with a request in flight dims without moving the list.
+  If a request fails, that note alone snaps back and the failure is reported;
+  every other row keeps its new state. Note handles support
   mouse/pen, keyboard Space/arrows/Escape and deliberate touch drag; horizontal
-  swipe reveals ordinary note actions while vertical input scrolls. Notebook touch
-  controls follow the separate Organize path above. Partial failures identify notes;
+  swipe reveals ordinary note actions while vertical input scrolls. Notebook grips
+  share the same hold-to-lift gesture. Partial failures identify notes;
   Undo never overwrites a later edit.
 
 Full-page phone notes use **Back to notes** instead of the sidebar. **Note actions**
 keeps compact secondary tools together. Menus/dialogs dismiss on outside press,
-not a drag crossing their edge; confirmations wait for mutations, while autosave
-retains its draft/request when you navigate away.
+not a drag crossing their edge; library confirmations apply instantly while the
+request settles in the background (failures roll back and are reported), while
+autosave retains its draft/request when you navigate away.
 
 ## Archive and delete notebooks
 
 Notebook options and manager actions offer whole-subtree Archive/Delete. Review
 descendant/note counts and resolve local drafts before confirmation. **Manage
-notebooks → Archived** offers Restore/Delete; restore the parent first. Independently
+notebooks → Archived** offers Restore/Delete; restore the parent first. The
+archived list also supports multi-select bulk Restore/Delete (up to 50):
+previews load per notebook, descendants covered by another selected root are
+handled once, and each notebook commits on its own so one failure rolls back
+only that notebook. Independently
 archived descendants remain archived. Deletion hides retained source/history and
 has no in-app Undo. Direct revoked links never reactivate on restore. See
 [lifecycle](notebook-lifecycle.md) for scope, concurrency and recovery.
@@ -142,6 +159,8 @@ include descendants. Progress/retry/cancel/download survive navigation; see
 [jobs](jobs.md#exports-and-storage) for format, expiry and source-change fencing.
 
 **Delete note…** confirms by name, hides the note/history and has no ordinary Undo.
+Select several notes to delete them with one confirmation (up to 50); the rows
+leave instantly and any note whose version changed snaps back with a report.
 It can discard a dirty draft, but waits for a running save and requires resolving
 an uncertain save first. A concurrent edit requires review, never unseen deletion.
 

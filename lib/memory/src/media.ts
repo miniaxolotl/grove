@@ -68,8 +68,11 @@ export class MediaAttachments {
     return note;
   }
   async claim(principal: Principal, input: MediaUpload) {
-    return this.service.access(principal, "admin", async ({ trx, account }) => {
-      const note = await this.note(trx, input.memoryId);
+    return this.service.access(
+      principal,
+      "memory:write",
+      async ({ trx, account, grant }) => {
+        const note = await this.note(trx, input.memoryId, grant);
       if (note.status !== "active") throw missing();
       const existing: ObjectRow | undefined = await trx("media_objects")
         .where({ id: input.id })
@@ -137,8 +140,11 @@ export class MediaAttachments {
     leaseId: string,
     dimensions: { width: number; height: number; durationMs?: number },
   ) {
-    return this.service.access(principal, "admin", async ({ trx }) => {
-      const note = await this.note(trx, input.memoryId);
+    return this.service.access(
+      principal,
+      "memory:write",
+      async ({ trx, grant }) => {
+        const note = await this.note(trx, input.memoryId, grant);
       if (note.status !== "active" || note.version !== input.version)
         throw conflict();
       const [row] = await trx("media_objects")
@@ -164,11 +170,20 @@ export class MediaAttachments {
     });
   }
   async fail(principal: Principal, id: string, leaseId: string) {
-    return this.service.access(principal, "admin", async ({ trx }) => {
-      await trx("media_objects")
-        .where({ id, leaseId, status: "pending" })
-        .update({ status: "failed" });
-    });
+    return this.service.access(
+      principal,
+      "memory:write",
+      async ({ trx, grant }) => {
+        const target = await trx("media_objects")
+          .where({ id, leaseId, status: "pending" })
+          .first("memoryId");
+        if (!target) return;
+        await this.note(trx, target.memoryId as string, grant);
+        await trx("media_objects")
+          .where({ id, leaseId, status: "pending" })
+          .update({ status: "failed" });
+      },
+    );
   }
   async read(
     principal: Principal,
@@ -246,14 +261,84 @@ export class MediaAttachments {
       },
     );
   }
+  async listForNote(principal: Principal, memoryId: string, version?: number) {
+    return this.service.access(
+      principal,
+      "memory:read",
+      async ({ trx, grant }) => {
+        const note = await this.note(trx, memoryId, grant);
+        const bound = version ?? note.version;
+        const rows = await trx("media_objects as o")
+          .join("media_revision_bindings as b", function () {
+            this.on("b.accountId", "=", "o.accountId").andOn(
+              "b.mediaId",
+              "=",
+              "o.id",
+            );
+          })
+          .leftJoin("media_transcripts as t", function () {
+            this.on("t.accountId", "=", "o.accountId").andOn(
+              "t.mediaId",
+              "=",
+              "o.id",
+            );
+          })
+          .where({
+            "o.memoryId": memoryId,
+            "o.status": "ready",
+            "b.memoryId": memoryId,
+            "b.version": bound,
+          })
+          .select(
+            "o.id",
+            "o.mime",
+            "o.bytes",
+            "o.width",
+            "o.height",
+            "o.durationMs",
+            "t.version as transcriptVersion",
+            "t.text as transcriptText",
+          )
+          .orderBy("o.id");
+        return rows.map((row) => ({
+          id: row.id as string,
+          reference: mediaReference(row.id as string),
+          mime: row.mime as string,
+          bytes: row.bytes as number,
+          width: row.width as number,
+          height: row.height as number,
+          durationMs: (row.durationMs as number | null) ?? null,
+          version: bound,
+          transcriptVersion: (row.transcriptVersion as number | null) ?? 0,
+          hasTranscript:
+            typeof row.transcriptText === "string" &&
+            row.transcriptText.length > 0,
+        }));
+      },
+    );
+  }
+  async describeForNote(
+    principal: Principal,
+    memoryId: string,
+    id: string,
+    version?: number,
+  ) {
+    const items = await this.listForNote(principal, memoryId, version);
+    const found = items.find((item) => item.id === id);
+    if (!found) throw missing();
+    return found;
+  }
   async saveTranscript(
     principal: Principal,
     memoryId: string,
     id: string,
     input: { operationId: string; expectedVersion: number; text: string },
   ) {
-    return this.service.access(principal, "admin", async ({ trx, account }) => {
-      const note = await this.note(trx, memoryId);
+    return this.service.access(
+      principal,
+      "memory:write",
+      async ({ trx, account, grant }) => {
+        const note = await this.note(trx, memoryId, grant);
       const object = await trx("media_objects")
         .where({ id, memoryId, mime: "audio/wav", status: "ready" })
         .first();

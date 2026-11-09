@@ -131,12 +131,14 @@ const serverSchema = z.object({
     resourceLimits.free.organization,
   ),
   BILLING_FREE_ASSISTANCE_MONTHLY: allowance(resourceLimits.free.assistance),
+  BILLING_FREE_WRITING_MONTHLY: allowance(resourceLimits.free.writing),
   BILLING_PRO_NOTES: allowance(resourceLimits.pro.notes),
   BILLING_PRO_NOTEBOOKS: allowance(resourceLimits.pro.notebooks),
   BILLING_PRO_RECALL_MONTHLY: allowance(resourceLimits.pro.recall),
   BILLING_PRO_ASK_MONTHLY: allowance(resourceLimits.pro.ask),
   BILLING_PRO_ORGANIZATION_MONTHLY: allowance(resourceLimits.pro.organization),
   BILLING_PRO_ASSISTANCE_MONTHLY: allowance(resourceLimits.pro.assistance),
+  BILLING_PRO_WRITING_MONTHLY: allowance(resourceLimits.pro.writing),
   // Reject old deployment settings instead of silently treating characters as time.
   BILLING_FREE_SYNTHESIS_MONTHLY_CHARACTERS: z.string().optional(),
   BILLING_PRO_SYNTHESIS_MONTHLY_CHARACTERS: z.string().optional(),
@@ -283,12 +285,41 @@ const serverSchema = z.object({
   RESEND_API_KEY: z.string().startsWith("re_").optional(),
   EMAIL_FROM: z.string().email().default("notifications@mail.usegrove.cloud"),
   CURSOR_SECRET: z.string().min(32),
+  WRITING_STAGING_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i)
+    .optional(),
+  WRITING_PROVIDER_NOTICE: z.string().trim().min(20).max(1000).optional(),
   SHARE_LINK_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/i)
     .optional(),
 });
 export const serverEnvironmentSchema = serverSchema.superRefine((env, ctx) => {
+  if (env.WRITING_STAGING_KEY && !env.WRITING_PROVIDER_NOTICE)
+    ctx.addIssue({
+      code: "custom",
+      path: ["WRITING_PROVIDER_NOTICE"],
+      message: "WRITING_PROVIDER_NOTICE is required for AI writing consent",
+    });
+  if (env.WRITING_PROVIDER_NOTICE && !env.WRITING_STAGING_KEY)
+    ctx.addIssue({
+      code: "custom",
+      path: ["WRITING_STAGING_KEY"],
+      message:
+        "WRITING_STAGING_KEY is required for encrypted AI writing staging",
+    });
+  if (
+    env.WRITING_STAGING_KEY &&
+    [env.CURSOR_SECRET, env.SHARE_LINK_KEY, env.MODEL_SETTINGS_KEY].includes(
+      env.WRITING_STAGING_KEY,
+    )
+  )
+    ctx.addIssue({
+      code: "custom",
+      path: ["WRITING_STAGING_KEY"],
+      message: "Use a dedicated writing staging key, not another service key",
+    });
   for (const tier of ["FREE", "PRO"] as const) {
     const path = `BILLING_${tier}_SYNTHESIS_MONTHLY_CHARACTERS` as const;
     if (env[path] !== undefined)

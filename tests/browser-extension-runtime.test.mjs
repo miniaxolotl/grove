@@ -134,6 +134,23 @@ test("packaged background rejects outside senders, fences accounts and avoids re
     new Promise((resolve) => {
       assert.equal(events.message(message, sender, resolve), true);
     });
+  for (const kind of ["sharing", "publish", "unshare"]) {
+    assert.equal(
+      events.message(
+        { kind, windowId: 1 },
+        { id: "fixture", url: "https://example.com" },
+        () => assert.fail("website cannot use sharing authority"),
+      ),
+      false,
+    );
+  }
+  const writingDefaults = await send({ kind: "writingState", windowId: 1 });
+  assert.equal(
+    writingDefaults.ok,
+    true,
+    "local writing controls do not require sign-in",
+  );
+  assert.equal(writingDefaults.data.settings.enabled, true);
   const bad = await send({
     kind: "edit",
     windowId: 1,
@@ -184,7 +201,10 @@ test("packaged background rejects outside senders, fences accounts and avoids re
     "search",
     "save",
     "attach",
-    "context",
+    "followSource",
+    "sharing",
+    "publish",
+    "unshare",
     "inbox",
     "reconcile",
   ]) {

@@ -9,7 +9,7 @@ export function pageMetadata(
   const image = {
     url: `${site.url}/opengraph-image`,
     width: 1200,
-    height: 628,
+    height: 630,
     alt: site.imageAlt,
   };
 

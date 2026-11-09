@@ -36,6 +36,11 @@ export const faqs = [
       "Open the citations and check the evidence. You can choose exact notes in Sources and ask a narrower question. A cited answer is not a guarantee that the whole notebook was read or that every statement is correct.",
   },
   {
+    question: "Is there a browser extension?",
+    answer:
+      "Yes, for Chrome, Firefox and Edge. Install it locally from the repository build, save notes from any tab and search your library from the panel. Spelling and grammar checks run on your device; sentence-level AI rewrites need your explicit consent, a separate connection permission and a configured provider. It is not a browser-store listing.",
+  },
+  {
     question: "Can I run Grove on my own server?",
     answer:
       "Yes. Grove is open source. The self-hosting guide covers the separate infrastructure and provider configuration; creating a Cloud account does not set up a self-hosted server.",

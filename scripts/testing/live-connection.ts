@@ -90,6 +90,9 @@ for (const transport of [
         "create_notebook",
         "update_notebook",
         "notebook_lifecycle",
+        "list_note_media",
+        "describe_note_media",
+        "read_media_transcript",
       ],
     );
     const result = await client.callTool({

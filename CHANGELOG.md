@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.11.19](https://github.com/miniaxolotl/grove/compare/v1.11.16...v1.11.19) (2026-11-08)
+
+
+### Features
+
+* **billing:** default billing on with 19.99 monthly Pro price ([#205](https://github.com/miniaxolotl/grove/issues/205)) ([06cf81d](https://github.com/miniaxolotl/grove/commit/06cf81d23c7357f6603df0f3c7bad83b2759980b))
+* **billing:** meter AI rewrites with Free and Pro writing allowances ([#203](https://github.com/miniaxolotl/grove/issues/203)) ([f90c1ac](https://github.com/miniaxolotl/grove/commit/f90c1acacad9b0e581bf87d4fade502546887393))
+* **billing:** offer Pro yearly alongside monthly ([#199](https://github.com/miniaxolotl/grove/issues/199)) ([d3a0dc8](https://github.com/miniaxolotl/grove/commit/d3a0dc815d8fdbde08358558853f1d94c2cd62f2))
+* **billing:** single-use 7-day Pro trial with 14-day anonymous extension grace ([#202](https://github.com/miniaxolotl/grove/issues/202)) ([b6243ac](https://github.com/miniaxolotl/grove/commit/b6243ac35235577257810b0a8339868ef2e46d59))
+* **media:** scoped agent discovery and uploads for notes media ([#208](https://github.com/miniaxolotl/grove/issues/208)) ([add07d1](https://github.com/miniaxolotl/grove/commit/add07d188656b91a173dd717951be018f4afc9ff))
+* **webapp:** share extension writing engine with native note proofing ([5badd0f](https://github.com/miniaxolotl/grove/commit/5badd0fc9fbd4de505a7e1017b733b35dba7de91))
+* **website:** add bulk deletion and seamless workspace actions ([#209](https://github.com/miniaxolotl/grove/issues/209)) ([3ff8832](https://github.com/miniaxolotl/grove/commit/3ff88320f5bad2b5fd98890c8070c49922f6db7d))
+* **website:** group the sidebar and make organizing effortless ([#206](https://github.com/miniaxolotl/grove/issues/206)) ([5bdad30](https://github.com/miniaxolotl/grove/commit/5bdad30a7b1c3ddcec26a24bab6e6f65b8484554))
+* **website:** market the browser extension and revision comparisons ([c698a2b](https://github.com/miniaxolotl/grove/commit/c698a2bc5c549f6637c2d80aca8316ddc7ffcef9))
+* **website:** market the browser extension and revision comparisons ([31a7739](https://github.com/miniaxolotl/grove/commit/31a77396aa2c6461321fad7e1b6433cb77c3e491))
+
+
+### Bug Fixes
+
+* **shared:** preserve exact error strings and reader html skipping ([35d3fe5](https://github.com/miniaxolotl/grove/commit/35d3fe5b43a0a041e4a9b463f7abdbe779a03e91))
+* **website:** allow large docs in noteHeadings derived view ([4033c44](https://github.com/miniaxolotl/grove/commit/4033c446a33b4f2fe5cf49d814d2ddcd4f9db289))
+
+
+### Miscellaneous Chores
+
+* **extension:** refresh store icons and writing-first summary ([#198](https://github.com/miniaxolotl/grove/issues/198)) ([27eed31](https://github.com/miniaxolotl/grove/commit/27eed31fad3269be923ecfe57ac04cd42b92e39a))
+* **extension:** rename store title to everyday characters ([74ccd39](https://github.com/miniaxolotl/grove/commit/74ccd39424ccf3a8387fb6129e570cf8576d1a84))
+
+## [1.11.16](https://github.com/miniaxolotl/grove/compare/v1.11.15...v1.11.16) (2026-11-06)
+
+
+### Features
+
+* **extension:** redesign notes and simplify search ([#190](https://github.com/miniaxolotl/grove/issues/190)) ([37d4e0f](https://github.com/miniaxolotl/grove/commit/37d4e0fd18bf522b7e929b11068e5742e2a924d6))
+* **extension:** streamline writing, notes, sharing and proofing ([#189](https://github.com/miniaxolotl/grove/issues/189)) ([9c626dc](https://github.com/miniaxolotl/grove/commit/9c626dcd44a9bf8b7462560cc47dc53a0051bb92))
+* **website:** integrate note-history artwork and adaptive favicons ([7b3d8c3](https://github.com/miniaxolotl/grove/commit/7b3d8c381e128db4a70b9010fe33542c13b24bb4))
+* **website:** polish note-history artwork and favicons ([0070c34](https://github.com/miniaxolotl/grove/commit/0070c3431dbb3f3b7b19169ea247db69c8bae148))
+
 ## [1.11.15](https://github.com/miniaxolotl/grove/compare/v1.11.14...v1.11.15) (2026-11-06)
 
 

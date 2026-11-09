@@ -115,20 +115,25 @@ try:
     ''')
     call("WebDriver:Refresh")
     wait_for('!document.getElementById("workspace").hidden')
-    script('document.getElementById("note").value="A native Firefox note";document.getElementById("note").dispatchEvent(new Event("input",{bubbles:true}));document.getElementById("capture-form").requestSubmit();')
-    wait_for('document.getElementById("save-state").textContent.includes("Saved in Grove")')
-    script('document.querySelector("[data-nav=search]").click();document.getElementById("search-form").requestSubmit();')
-    assert wait_for('document.querySelector(".note-row .excerpt")?.textContent') == "A native Firefox note"
-    script('document.querySelector(".note-row input").click();document.getElementById("review-context").click();')
-    wait_for('document.getElementById("context").open&&document.getElementById("context-text").value.includes("Grove source:")')
+    script('document.getElementById("note").value="# Native Firefox note\\n\\n- **Readable**";document.getElementById("note").dispatchEvent(new Event("input",{bubbles:true}));document.getElementById("capture-form").requestSubmit();')
+    wait_for('document.getElementById("save-state").textContent.includes("Saved.")')
+    script('document.querySelector("[data-nav=search]").click();document.getElementById("query").value="native Firefox";document.getElementById("query").dispatchEvent(new Event("input",{bubbles:true}));')
+    assert wait_for('document.querySelector(".note-row .note-preview h2")?.textContent') == "Native Firefox note"
+    assert script('return document.querySelector(".note-row .note-preview strong").textContent;') == "Readable"
+    script('document.querySelector(".note-menu").open=true;document.querySelector(".note-row .open-note").click();')
+    wait_for('document.getElementById("reader").open')
+    assert script('return document.querySelector("#reader-content h2").textContent;') == "Native Firefox note"
+    assert script('return document.querySelector("#reader-content strong").textContent;') == "Readable"
+    script('document.getElementById("copy-note").click();')
+    wait_for('document.getElementById("reader-copy-state").textContent')
     # A real WebDriver click supplies the gesture for the native Firefox API.
-    script('document.getElementById("context").close();const button=document.createElement("button");button.id="native-host-probe";button.textContent="Native sidebar probe";button.onclick=()=>window.browser.sidebarAction.open();document.body.prepend(button);')
+    script('document.getElementById("reader").close();const button=document.createElement("button");button.id="native-host-probe";button.textContent="Native sidebar probe";button.onclick=()=>window.browser.sidebarAction.open();document.body.prepend(button);')
     element = call("WebDriver:FindElement", {"using": "css selector", "value": "#native-host-probe"})
     call("WebDriver:ElementClick", {"id": element["value"]["element-6066-11e4-a52e-4f735466cecf"]})
     call("Marionette:SetContext", {"value": "chrome"})
     sidebar = script("return {open:window.SidebarController.isOpen,id:window.SidebarController.currentID};")
     assert sidebar == {"open": True, "id": "grove_usegrove_cloud-sidebar-action"}, sidebar
-    print("PASS Firefox", session["capabilities"]["browserVersion"], "temporary install, native sidebar, capture, search, context (synthetic HTTP/auth)")
+    print("PASS Firefox", session["capabilities"]["browserVersion"], "temporary install, native sidebar, capture, formatted search, reader/copy (synthetic HTTP/auth)")
     call("Marionette:Quit", {"flags": ["eAttemptQuit"]})
 finally:
     try:

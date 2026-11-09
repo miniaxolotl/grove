@@ -126,6 +126,7 @@ export {
   conversationDocumentHandlers,
 } from "./conversation-documents.ts";
 export { SpeechJobs, speechHandlers, configureSpeech } from "./speech.ts";
+export { WritingTools, writingHandlers } from "./writing-jobs.ts";
 export { exportHandlers, type ArtifactStore } from "./exports.ts";
 export {
   importHandlers,
@@ -216,6 +217,9 @@ export {
   billingEntitlement,
   billingUsage,
   resourceUsage,
+  trialState,
+  consumeTrial,
+  resetTrial,
   UsageLimitError,
 } from "./billing-quotas.ts";
 export { SystemAdministration } from "./system-admin.ts";
@@ -589,6 +593,7 @@ export class MemoryService {
             personal: grant.personal,
             allProjects: grant.allProjects,
             projectIds: grant.projectIds,
+            sharingEnabled: grant.sharingEnabled ?? false,
           }
         : null,
       apiVersion: 1,
@@ -1120,6 +1125,33 @@ export class MemoryService {
       if (!row) throw missing();
       return this.present(trx, row);
     });
+  }
+  async listNoteMedia(principal: Principal, memoryId: string, version?: number) {
+    const { MediaAttachments } = await import("./media.ts");
+    return new MediaAttachments(this).listForNote(principal, memoryId, version);
+  }
+  async describeNoteMedia(
+    principal: Principal,
+    memoryId: string,
+    id: string,
+    version?: number,
+  ) {
+    const { MediaAttachments } = await import("./media.ts");
+    return new MediaAttachments(this).describeForNote(
+      principal,
+      memoryId,
+      id,
+      version,
+    );
+  }
+  async readMediaTranscript(principal: Principal, memoryId: string, id: string) {
+    const { MediaAttachments } = await import("./media.ts");
+    const attachments = new MediaAttachments(this);
+    const meta = await attachments.describeForNote(principal, memoryId, id);
+    if (!meta.mime.startsWith("audio/")) throw missing();
+    const saved = await attachments.transcript(principal, memoryId, id);
+    const text = typeof saved.text === "string" ? saved.text.slice(0, 6000) : "";
+    return { text, version: saved.version, mediaId: id, memoryId };
   }
 
   async moveMemories(principal: Principal, raw: MoveMemories) {
@@ -2615,6 +2647,8 @@ export class MemoryService {
           connection.revokedAt,
           connection.authorizedAfter,
           connection.setup ?? null,
+          connection.writingEnabled ?? false,
+          connection.sharingEnabled ?? false,
         ]),
       )
       .digest("hex");

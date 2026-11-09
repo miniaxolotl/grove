@@ -1,6 +1,6 @@
 {
   "name": "@miniaxolotl/grove-codex-plugin",
-  "version": "1.11.15",
+  "version": "1.11.19",
   "type": "module",
   "description": "Grove private memory tools and skills for Codex",
   "license": "MIT",
