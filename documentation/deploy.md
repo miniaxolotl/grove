@@ -95,6 +95,10 @@ providers/dimensions never silently fall back. See [models](models.md).
    publishes coordinated packages/images and deploys API/worker by immutable digest.
    Missing `DIGITALOCEAN_ACCESS_TOKEN`/`DIGITALOCEAN_APP_ID` is an error. Verify registry
    integrity, active provider generation, both component digests and readiness.
+   After publication/image verification it attaches the admitted source's unsigned
+   browser ZIPs and integrity metadata to the existing GitHub release, with direct
+   links in its Downloads section. [Release downloads](release-conventions.md#release-downloads)
+   defines same-byte reuse, conflict handling and the boundary from store/live acceptance.
    Development does not publish or deploy. Existing previews need separate retirement.
 6. Deploy's `website` job runs only after API/worker deployment and readiness pass.
    It checks out the admitted source, builds with Vercel's production configuration,
