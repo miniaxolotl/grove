@@ -388,6 +388,21 @@ test("provider availability attributes connections to generation and keeps keywo
   );
 });
 
+test("writing settings stay reachable on a short, narrow screen", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 256 });
+  await page.route("**/api/grove/**", (route) =>
+    route.fulfill({ json: { success: true, data: {} } }),
+  );
+  await page.goto(`${base}/app/settings`);
+  const spelling = page.getByRole("checkbox", { name: "Spelling", exact: true });
+  await spelling.focus();
+  await expect(spelling).toBeInViewport({ ratio: 1 });
+  await spelling.press("Space");
+  await expect(spelling).not.toBeChecked();
+  await page.reload();
+  await expect(spelling).not.toBeChecked();
+});
+
 test("settings share persistent navigation and scrolling, and feedback leaves forms in place", async ({
   page,
 }, info) => {
@@ -467,6 +482,12 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
       await page.screenshot({ path: info.outputPath("settings-account.png") });
   }
   await page.setViewportSize({ width: 320, height: 750 });
+  for (const link of await tabs.getByRole("link").all()) {
+    await expect(link).toBeInViewport({ ratio: 1 });
+  }
+  expect(await tabs.evaluate((nav) => nav.scrollWidth)).toBe(
+    await tabs.evaluate((nav) => nav.clientWidth),
+  );
   await tabs.getByRole("link", { name: "Your data", exact: true }).click();
   await page
     .locator(".settings-page")

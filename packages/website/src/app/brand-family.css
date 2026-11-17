@@ -168,87 +168,9 @@
 .marketing-site .idea-map-stars {
   filter: none;
 }
-.agent-story {
-  padding-block: clamp(64px, 8vw, 112px);
-}
-.agent-story-grid {
-  display: grid;
-  gap: 40px;
-  align-items: center;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-.agent-story h2 {
-  margin-top: 20px;
-}
-.agent-story-copy {
-  max-width: 460px;
-  font-size: 16px;
-  line-height: 1.9;
-  margin-top: 24px;
-  color: var(--brand-muted);
-}
-.agent-story-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-top: 28px;
-}
-.agent-terminal {
-  border: 1px solid #365742;
-  border-radius: 8px;
-  background: #20372a;
-  color: #faf9f3;
-  padding: clamp(24px, 3vw, 36px);
-}
-.agent-terminal > p {
-  color: #c7df9e;
-  font:
-    11px/1.8 var(--font-jetbrains-mono),
-    monospace;
-}
-.agent-terminal code {
-  display: block;
-  overflow-wrap: anywhere;
-  margin-block: 28px;
-  font:
-    13px/2 var(--font-jetbrains-mono),
-    monospace;
-}
-.agent-terminal ol {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 20px;
-}
-.agent-terminal li {
-  display: flex;
-  gap: 16px;
-  font-size: 14px;
-  line-height: 1.8;
-}
-.agent-terminal li > span {
-  color: #c7df9e;
-  font-family: var(--font-jetbrains-mono), monospace;
-}
-.agent-terminal small {
-  display: block;
-  font-size: 12px;
-  color: #ccd7c7;
-}
-.agent-terminal figcaption {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid #4a624e;
-  font-size: 11px;
-  color: #ccd7c7;
-}
 @media (max-width: 767px) {
   .marketing-site .hero-heading {
     font-size: clamp(40px, 10vw, 64px);
-  }
-  .agent-story-grid {
-    grid-template-columns: minmax(0, 1fr);
   }
   .marketing-site .library-panel:not([hidden]) {
     grid-template-columns: minmax(0, 1fr);

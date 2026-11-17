@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   Plus,
   CalendarDays,
-  MessageSquare,
   AlignLeft,
   ListTodo,
   Network,
@@ -106,26 +105,29 @@ export function MemoryContext({
       )}
       <PageHeading
         title={project?.name ?? (projectId ? "Opening notebook…" : "About you")}
-        description={
-          project
-            ? undefined
-            : "The little things that make your notebook yours."
-        }
+        description={project ? undefined : "Your saved notes and preferences."}
         actions={
           (project || view !== "memories") && (
             <>
               {project && (
                 <>
-                  <Link
-                    className="app-button secondary notebook-daily-note"
-                    aria-label="Today’s note"
-                    title="Today’s note"
-                    href={`/app/notes/new?from=journal&notebook=${project.id}`}
+                  <Button
+                    variant="secondary"
+                    aria-label="Ask about these notes"
+                    onClick={() => setView("ask")}
                   >
-                    <CalendarDays size={16} />
-                    <span>Today’s note</span>
-                  </Link>
-                  <ActionMenu label="Notebook options">
+                    Ask
+                  </Button>
+                  <ActionMenu
+                    label="Notebook options"
+                    visibleLabel="Notebook options"
+                  >
+                    <Link
+                      href={`/app/notes/new?from=journal&notebook=${project.id}`}
+                    >
+                      <CalendarDays size={16} aria-hidden="true" />
+                      Today’s note
+                    </Link>
                     <NotebookActions
                       project={project}
                       onAction={setNotebookAction}
@@ -148,10 +150,6 @@ export function MemoryContext({
                     >
                       <Network size={15} />
                       Connected notebooks
-                    </button>
-                    <button onClick={() => setView("ask")}>
-                      <MessageSquare size={15} />
-                      Ask about these notes
                     </button>
                     <button onClick={() => setView("context")}>
                       <AlignLeft size={15} />

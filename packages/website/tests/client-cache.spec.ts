@@ -339,7 +339,9 @@ test("opening notes never presents a false empty count", async ({ page }) => {
   ).toBeVisible();
   await expect(page.locator(".library-summary")).toContainText("Your notes");
   await expect(page.getByText("0 notes", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Good things start small.")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "No notes yet" })).toHaveCount(
+    0,
+  );
   release.resolve();
   await expect(page.locator(".memory-open")).toHaveText("Cached thought");
   await expect(page.locator(".library-summary")).toHaveText("1 note");
@@ -348,25 +350,30 @@ test("opening notes never presents a false empty count", async ({ page }) => {
 test.describe("phone Notes header", () => {
   test.use({ viewport: { width: 320, height: 844 }, hasTouch: true });
 
-  test("keeps the two secondary actions together beneath the title", async ({
+  test("keeps secondary actions in More without pushing search down", async ({
     page,
   }) => {
     await fixture(page);
     await page.goto(`${base}/app`);
     const title = page.getByRole("heading", { name: "Notes", exact: true });
+    const more = page.getByRole("button", { name: "More note actions" });
     const today = page.getByRole("link", { name: "Today’s note" });
     const importNotes = page.getByRole("button", { name: "Import notes" });
     const search = page.getByRole("textbox", { name: "Search notes" });
-    await expect(importNotes).toBeVisible();
+    await expect(more).toBeVisible();
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    const [heading, journal, upload, field] = await Promise.all(
-      [title, today, importNotes, search].map((item) => item.boundingBox()),
+    const [heading, trigger, field] = await Promise.all(
+      [title, more, search].map((item) => item.boundingBox()),
     );
-    expect(journal!.y).toBeGreaterThanOrEqual(heading!.y + heading!.height);
-    expect(journal!.x).toBeCloseTo(heading!.x, 0);
-    expect(upload!.y).toBeCloseTo(journal!.y, 0);
-    expect(upload!.x).toBeGreaterThan(journal!.x);
-    expect(field!.y).toBeGreaterThan(upload!.y + upload!.height);
+    expect(trigger!.y).toBeLessThan(heading!.y + heading!.height);
+    expect(trigger!.x).toBeGreaterThan(heading!.x);
+    expect(field!.y).toBeGreaterThan(trigger!.y + trigger!.height);
+    await expect(today).toBeHidden();
+    await expect(importNotes).toBeHidden();
+    await more.click();
+    await expect(today).toBeVisible();
+    await expect(importNotes).toBeVisible();
+    expect((await search.boundingBox())!.y).toBe(field!.y);
   });
 });
 
@@ -494,6 +501,63 @@ test("interrupted refresh keeps notes, selection and geometry with a keyboard re
   await expect(page.locator(".library-summary")).toBeFocused();
   await expect(selection).toBeChecked();
   expect((await row.boundingBox())?.y).toBe(before?.y);
+});
+
+test("an empty library has one next step and keeps recovery when refresh fails", async ({
+  page,
+}) => {
+  await fixture(page);
+  const release = Promise.withResolvers<void>();
+  let fail = false;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    if (fail) {
+      await release.promise;
+      await route.fulfill({
+        status: 503,
+        json: { success: false, error: { message: "Temporarily unavailable" } },
+      });
+    } else {
+      await route.fulfill({
+        json: { success: true, data: { items: [], nextCursor: null } },
+      });
+    }
+  });
+  await page.goto(`${base}/app`);
+  const empty = page.getByRole("heading", {
+    name: "No notes yet",
+    exact: true,
+  });
+  const write = page.getByRole("link", {
+    name: "Write your first note",
+    exact: true,
+  });
+  await expect(empty).toBeVisible();
+  await expect(write).toHaveAttribute("href", "/app/notes/new");
+  await expect(page.getByText("0 notes", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Write a note to get started.", { exact: true }),
+  ).toHaveCount(0);
+  const more = page.getByRole("button", { name: "More note actions" });
+  await more.click();
+  await expect(
+    page.getByRole("button", { name: "Graph", exact: true }),
+  ).toBeHidden();
+  await page.keyboard.press("Escape");
+  await write.focus();
+  fail = true;
+  await invalidateNotes(page);
+  await expect(page.locator(".library-refreshing")).toBeVisible();
+  await expect(write).toBeFocused();
+  release.resolve();
+  const retry = page.getByRole("button", { name: "Retry refreshing notes" });
+  await expect(retry).toBeVisible();
+  await expect(empty).toBeHidden();
+  await expect(write).toBeHidden();
+  fail = false;
+  await retry.press("Enter");
+  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(empty).toBeVisible();
+  await expect(write).toBeVisible();
 });
 
 test("an interrupted next page retries its cursor without replacing loaded notes", async ({

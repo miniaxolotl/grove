@@ -10,7 +10,7 @@
   background: var(--brand-paper);
   color: var(--brand-ink);
   box-shadow: 0 4px 24px #18261d14;
-  font-family: var(--font-space-grotesk), sans-serif;
+  font-family: var(--font-interface);
 }
 .cookie-notice[hidden] {
   display: none;
@@ -92,7 +92,7 @@
   outline-offset: 3px;
 }
 #cc-main {
-  --cc-font-family: var(--font-space-grotesk), sans-serif;
+  --cc-font-family: var(--font-interface);
   --cc-bg: var(--brand-paper);
   --cc-primary-color: var(--brand-ink);
   --cc-secondary-color: var(--brand-muted);

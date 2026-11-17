@@ -97,23 +97,14 @@ export function WorkspaceRouteSkeleton({ path }: { path: string }) {
     <>
       <PageHeading
         title={archive ? "Archive" : "Notes"}
-        className="library-page-heading"
         actions={
           !archive && (
-            <>
-              <span
-                className="app-button secondary skeleton-action"
-                aria-hidden="true"
-              >
-                Today’s note
-              </span>
-              <span
-                className="app-button secondary skeleton-action"
-                aria-hidden="true"
-              >
-                Import notes
-              </span>
-            </>
+            <span
+              className="app-button secondary skeleton-action"
+              aria-hidden="true"
+            >
+              More
+            </span>
           )
         }
       />
@@ -148,9 +139,11 @@ export function WorkspaceOpening({ path }: { path: string }) {
       <div className="app-sidebar" aria-hidden="true" inert>
         <div className="app-sidebar-heading">
           <Brand href="/app" />
-          <i className="workspace-bone sidebar-create skeleton-create" />
-          <i className="workspace-bone workspace-search-launcher skeleton-search" />
-          <div className="sidebar-account-avatar workspace-bone lg:hidden" />
+          <div className="workspace-header-actions">
+            <i className="workspace-bone sidebar-create skeleton-create" />
+            <i className="workspace-bone workspace-search-launcher skeleton-search" />
+            <div className="sidebar-account-avatar workspace-bone lg:hidden" />
+          </div>
         </div>
         <div className="workspace-utilities">
           <i className="workspace-bone" />

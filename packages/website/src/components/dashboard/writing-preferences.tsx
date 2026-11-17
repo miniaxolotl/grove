@@ -107,9 +107,7 @@ export function WritingPreferences() {
         <h2 id="writing-heading">Writing</h2>
       </div>
       <p className="settings-panel-description">
-        Spelling and basic grammar checks run on your device as you write. No
-        typing-time network calls. Changes apply immediately and stay on this
-        device.
+        Spelling and grammar checks run on this device. Changes apply immediately.
       </p>
       <fieldset className="ai-preference-group">
         <legend>
@@ -118,28 +116,28 @@ export function WritingPreferences() {
         <Row
           id="writing-enabled"
           label="Writing assistance"
-          description="Master switch for webapp checks. Off stops everything here."
+          description="Turn all writing checks in the web app on or off."
           checked={settings.enabled}
           onChange={(enabled) => update({ enabled })}
         />
         <Row
           id="writing-spelling"
           label="Spelling"
-          description="Dictionary lookup, spelling underlines and suggestions."
+          description="Flag misspellings and suggest corrections."
           checked={settings.spelling}
           onChange={(spelling) => update({ spelling })}
         />
         <Row
           id="writing-grammar"
           label="Basic grammar"
-          description="Deterministic local rules. Each rule can be switched below."
+          description="Flag common grammar issues. Adjust individual rules below."
           checked={settings.grammar}
           onChange={(grammar) => update({ grammar })}
         />
         <Row
           id="writing-automatic"
           label="Check as I type"
-          description="Check after a typing pause. Off keeps explicit checks only."
+          description="Check after a pause in typing. You can still check manually when this is off."
           checked={settings.automatic}
           onChange={(automatic) => update({ automatic })}
         />

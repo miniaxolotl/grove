@@ -55,9 +55,11 @@ These are bundled assets, not evidence of store publication.
 
 ## Use the panel
 
-Three tabs keep the panel focused: **Notes**, **Search**, then **Settings**.
-The panel uses a quiet sage frame, a paper-like editor and tonal note rows rather
-than dashboard chrome. Notebook and source controls share one **Details** disclosure.
+The signed-out panel starts with spelling and grammar. Choose **Writing settings**
+to open those controls, or sign in if you want to save and search your notes.
+The tabs stay in order: **Notes**, **Search**, then **Settings**. The note editor
+shows writing feedback and the character count together. **Notebook and source**
+shows the save destination and page details.
 
 ### English writing checks
 
@@ -71,8 +73,8 @@ without changing an already-submitted save. Clipboard failure leaves the edit in
 and reports that copying was unavailable. Applying a correction updates only
 the current draft, never an already-submitted save. Saving does not wait for checks.
 
-Settings → **Writing** contains independent spelling/grammar switches, an Advanced
-disclosure for individual rules, automatic checking and highlights, and a personal
+Settings → **Writing** contains independent spelling/grammar switches, **More writing
+options** for individual rules, automatic checking and highlights, and a personal
 dictionary. Parent switches preserve individual choices. Writing switches and domain
 exceptions apply browser-wide on this device, including after sign-out. Personal
 dictionary words remain scoped to the API/account and English language (with a separate

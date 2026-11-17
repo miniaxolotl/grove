@@ -229,9 +229,7 @@
   color: #6f7a72;
 }
 .codemirror-host .cm-note-quote {
-  padding-inline: 16px;
-  background: var(--color-paper);
-  color: var(--color-muted);
+  padding-inline-start: 16px;
 }
 .live-editor[data-mode="source"] .cm-scroller {
   font-family: var(--font-mono);
@@ -699,9 +697,7 @@
   border-bottom: 1px solid var(--color-line);
 }
 .inspector-dialog > .dialog-heading h2 {
-  font:
-    500 16px var(--font-space-grotesk),
-    sans-serif;
+  font: 500 16px var(--font-interface);
 }
 .inspector-dialog > .dialog-heading .app-icon {
   width: 44px;

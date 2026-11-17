@@ -25,6 +25,15 @@ import {
 import { fixture, handoff, note, project } from "./fixtures/workspace-fixture";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
+const moreNoteActions = (page: Page) =>
+  page.getByRole("button", { name: "More note actions", exact: true });
+const showGraph = (page: Page) =>
+  page.getByRole("button", { name: "Graph", exact: true });
+async function openGraph(page: Page) {
+  await moreNoteActions(page).click();
+  await showGraph(page).click();
+}
+
 async function readDownload(download: Download) {
   const path = test.info().outputPath(download.suggestedFilename());
   await download.saveAs(path);
@@ -817,13 +826,11 @@ for (const width of [1440, 390, 320]) {
       // around the list must keep their geometry.
       expect(await trigger.boundingBox()).toEqual(triggerBefore);
       await panel.getByRole("button", { name: "Done", exact: true }).click();
-      const viewBefore = await page
-        .getByRole("group", { name: "Note view" })
-        .boundingBox();
-      await page.getByRole("button", { name: "Graph", exact: true }).click();
-      expect(
-        await page.getByRole("group", { name: "Note view" }).boundingBox(),
-      ).toEqual(viewBefore);
+      await openGraph(page);
+      await expect(
+        page.getByRole("button", { name: "Back to list" }),
+      ).toBeInViewport();
+      expect(await trigger.boundingBox()).toEqual(triggerBefore);
     });
   });
 }
@@ -1074,6 +1081,23 @@ for (const width of [1440, 768, 390, 320]) {
       await expect(notes).toBeInViewport();
       if (width < 1024) {
         expect((await sidebar.boundingBox())!.height).toBeLessThanOrEqual(220);
+        const header = sidebar.locator(".app-sidebar-heading");
+        const headerBounds = (await header.boundingBox())!;
+        const logo = (await header.locator("a").first().boundingBox())!;
+        const create = (await header
+          .getByRole("link", { name: "New note" })
+          .boundingBox())!;
+        const account = (await header
+          .getByRole("button", { name: "Account" })
+          .boundingBox())!;
+        expect(Math.abs(logo.x - headerBounds.x)).toBeLessThan(1);
+        expect(
+          Math.abs(account.x + account.width - headerBounds.x - headerBounds.width),
+        ).toBeLessThan(1);
+        expect(create.x - logo.x - logo.width).toBeGreaterThanOrEqual(8);
+        expect(
+          Math.abs(logo.y + logo.height / 2 - (account.y + account.height / 2)),
+        ).toBeLessThan(1);
         for (const name of ["Notes", "Ask Grove", "Archive", "Settings"]) {
           const link = sidebar.getByRole("link", { name, exact: true });
           await expect(link).toBeInViewport();
@@ -1159,7 +1183,10 @@ for (const width of [1440, 768, 390, 320]) {
       ).toEqual(heading);
       await expect(
         notebooks.getByRole("link", { name: "Manage notebooks" }),
-      ).toBeInViewport();
+      ).toBeInViewport({ ratio: 1 });
+      await expect(
+        notebooks.getByRole("button", { name: "Create notebook", exact: true }),
+      ).toBeInViewport({ ratio: 1 });
       expect(
         await sidebar.evaluate(
           (element) => element.scrollWidth <= element.clientWidth,
@@ -2682,7 +2709,7 @@ test("browsing arrows and delete are scoped to notes and deletion still requires
   await page.keyboard.press("Delete");
   await confirmation.getByRole("button", { name: "Delete this note" }).click();
   await expect(
-    page.getByRole("heading", { name: "Good things start small." }),
+    page.getByRole("heading", { name: "No notes yet" }),
   ).toBeFocused();
 });
 
@@ -2861,7 +2888,7 @@ test("notebook context and graph share evidence, show partial coverage and offer
   await expect(inspector.locator("blockquote")).toHaveCount(2);
   await page.keyboard.press("Escape");
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  await openGraph(page);
   await page
     .getByRole("navigation", { name: "Connection level" })
     .getByRole("button", { name: "Notebooks", exact: true })
@@ -3564,7 +3591,7 @@ test("long project names remain inside destinations at every breakpoint", async 
     expect(geometry.overflow).toBe(false);
     expect(geometry.separated).toBe(true);
     expect(geometry.destinationsContained).toBe(true);
-    expect(geometry.font.toLowerCase()).toContain("space grotesk");
+    expect(geometry.font.toLowerCase()).toMatch(/^system-ui(?:,|$)/);
     await page.screenshot({
       path: info.outputPath(`memory-library-${width}.png`),
       fullPage: true,
@@ -5047,6 +5074,76 @@ test("history switches retain each conversation's unsent draft and closing a hel
   await expect(input).toHaveValue("");
 });
 
+test("notebook Graph preserves scope and filters and returns focus to More", async ({
+  page,
+}) => {
+  await fixture(page, [
+    { ...note, projectId: project.id },
+    { ...handoff, projectId: project.id },
+    { ...note, id: crypto.randomUUID(), projectId: null },
+  ]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${base}/app/projects/${project.id}`);
+  const search = page.getByRole("textbox", {
+    name: "Search notes",
+    exact: true,
+  });
+  await search.fill("specific");
+  const row = page.locator(".memory-open");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Review preferences");
+  const more = moreNoteActions(page);
+  const graph = showGraph(page);
+  await expect(graph).toBeHidden();
+  await more.press("ArrowDown");
+  await expect(graph).toBeFocused();
+  await graph.press("Escape");
+  await expect(more).toBeFocused();
+  await more.press("ArrowDown");
+  await graph.press("Enter");
+  const back = page.getByRole("button", { name: "Back to list" });
+  await expect(back).toBeFocused();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await expect(
+    page.locator(`.react-flow__node[data-id="${note.id}"]`),
+  ).toBeVisible();
+  await back.press("Enter");
+  await expect(more).toBeFocused();
+  await expect(search).toHaveValue("specific");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Review preferences");
+  await expect(page).toHaveURL(new RegExp(`/app/projects/${project.id}$`));
+  await openGraph(page);
+  await search.fill("no-matching-phrase");
+  await expect(
+    page.getByRole("heading", { name: "No matching notes" }),
+  ).toBeVisible();
+  await expect(page.getByText("0 notes found", { exact: true })).toBeVisible();
+  await back.press("Enter");
+  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(
+    page.getByRole("button", { name: "Clear filters", exact: true }).last(),
+  ).toBeVisible();
+  await expect(more).toBeHidden();
+});
+
+test("the direct Graph route still opens with an obvious return to Notes", async ({
+  page,
+}) => {
+  await fixture(page, [note]);
+  await page.goto(`${base}/app/graph`);
+  await expect(
+    page.getByRole("heading", { name: "Note graph", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await page.getByRole("button", { name: "Back to list" }).press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Notes", exact: true }),
+  ).toBeVisible();
+  await expect(moreNoteActions(page)).toBeFocused();
+  await expect(page.locator(".memory-open")).toContainText("Review preferences");
+});
+
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
   page,
 }, info) => {
@@ -5083,7 +5180,7 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   ]);
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Load more", exact: true }).click();
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  await openGraph(page);
   await expect(page.locator(".react-flow__node")).toHaveCount(4);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
   await expect(page.locator(".graph-legend")).toHaveText("Related");
@@ -5222,7 +5319,7 @@ test("graph selection and note revisions retain zoom while ordinary wheel input 
   await fixture(page, [{ ...note, projectId: project.id }, handoff]);
   await page.setViewportSize({ width: 1280, height: 650 });
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  await openGraph(page);
   const viewport = page.locator(".react-flow__viewport");
   await expect(page.locator(".react-flow__node")).toHaveCount(2);
   const zoom = () =>
@@ -5280,7 +5377,8 @@ test("embedded touch graph yields to page scrolling and expanded fallback suppor
     );
     await fixture(page, [note, handoff]);
     await page.goto(`${base}/app`);
-    await page.getByRole("button", { name: "Graph", exact: true }).tap();
+    await moreNoteActions(page).tap();
+    await showGraph(page).tap();
     const canvas = page.locator(".graph-canvas");
     await canvas.scrollIntoViewIfNeeded();
     await expect(page.locator(".react-flow__node")).toHaveCount(2);
@@ -5836,8 +5934,12 @@ test("chat composer grows, preserves selections between modes, formats and submi
       (element) => element.scrollHeight > element.clientHeight,
     ),
   ).toBe(true);
-  for (const width of [1440, 390, 320]) {
-    await page.setViewportSize({ width, height: 900 });
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 900],
+    [320, 720],
+  ]) {
+    await page.setViewportSize({ width, height });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -5845,7 +5947,7 @@ test("chat composer grows, preserves selections between modes, formats and submi
     ).toBe(true);
     await expect(
       page.getByRole("button", { name: "Send question" }),
-    ).toBeInViewport();
+    ).toBeInViewport({ ratio: 1 });
     await page.screenshot({
       path: info.outputPath(`composer-${width}.png`),
       fullPage: true,
@@ -6035,6 +6137,13 @@ test("mobile notebook browsing keeps creation and dated writing in the selected 
   await expect(
     page.getByRole("link", { name: "New note", exact: true }),
   ).toHaveAttribute("href", `/app/notes/new?notebook=${project.id}`);
+  await expect(
+    page.getByRole("button", { name: "Ask about these notes", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    page.getByRole("link", { name: "Today’s note", exact: true }),
+  ).toBeHidden();
+  await page.getByRole("button", { name: "Notebook options", exact: true }).click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
@@ -6089,6 +6198,7 @@ test("Today's note uses the same editor and library, with date grouping and note
   await expect(
     page.getByRole("link", { name: "New note", exact: true }),
   ).toHaveCount(1);
+  await page.getByRole("button", { name: "More note actions", exact: true }).click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   const editor = page.locator(".note-editor-full");
   await editor.getByRole("button", { name: "Markdown", exact: true }).click();
@@ -6359,7 +6469,7 @@ test("full-page drafts survive app navigation and still detect changes to their 
     content: "An agent’s newer copy.",
   });
   await page.locator(".memory-open").first().click();
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page.getByRole("link", { name: "Open note page" }).click();
   await page.getByRole("button", { name: "Write", exact: true }).click();
   await expect(editor).toHaveText("My unfinished thought.");

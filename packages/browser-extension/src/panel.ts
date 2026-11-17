@@ -69,7 +69,6 @@ const writingController = new WritingController(
     addWord: (word) => saveWriting({ addWord: word }),
     feedback: (message) => {
       $("writing-hint").textContent = message;
-      $("writing-hint").hidden = false;
     },
     status: (result, error) => {
       const button = $<HTMLButtonElement>("writing-review");
@@ -87,7 +86,13 @@ const writingController = new WritingController(
         !error &&
         !result?.issues.length &&
         (writingPreferences?.settings.automatic ?? true);
-      $("writing-hint").hidden = !button.hidden;
+      // Keep the result in the editor toolbar without repeating the review button.
+      $("writing-hint").textContent =
+        result && !result.issues.length
+          ? result.complete
+            ? "No issues found"
+            : "No issues in checked text"
+          : "";
     },
   },
 );
@@ -774,7 +779,7 @@ function emptyResults() {
     cursor: null as string | null,
     input: { query: "" },
     items: [] as Memory[],
-    status: "Type to search your notes.",
+    status: "Search by a word or phrase you remember.",
   };
 }
 let resultState = emptyResults();
@@ -1355,6 +1360,12 @@ on("writing-review", async () => {
   await writingController.check();
   writingController.review();
 });
+on("open-writing-settings", async () => {
+  show("settings");
+  const settings = $<HTMLDetailsElement>("writing-settings");
+  settings.open = true;
+  settings.querySelector("summary")?.focus();
+});
 on("writing-enable-site", async () => {
   const [tab] = await host.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url || tab.incognito !== false || tab.id === undefined)
@@ -1400,8 +1411,8 @@ async function paintGrace() {
     note.hidden = false;
     note.textContent =
       grace.state === "expired"
-        ? "Your free start has ended. Create a free Grove account to keep saving and searching notes. Spelling and grammar checks keep working on this device."
-        : `No account needed to start: spelling and grammar checks work now. Create a free account within ${grace.daysLeft} ${grace.daysLeft === 1 ? "day" : "days"} to keep saving and searching notes.`;
+        ? "Your free start has ended. Local writing checks still work."
+        : "Choose notebook access after signing in.";
   } catch {
     // Anonymous grace is advisory only; local checks never depend on it.
     note.hidden = true;

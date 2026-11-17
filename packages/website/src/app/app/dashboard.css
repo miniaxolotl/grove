@@ -1,6 +1,6 @@
 .grove-app,
 .connect-shell {
-  font-family: var(--font-space-grotesk), Arial, sans-serif;
+  font-family: var(--font-interface);
   font-size: 14px;
   font-optical-sizing: auto;
 }
@@ -36,7 +36,7 @@
 }
 .connect-content .connect-page-heading h1 {
   margin-top: 0;
-  font-size: clamp(30px, 5vw, 42px);
+  font-size: clamp(24px, 4.3vw, 36px);
 }
 .connect-content .connect-page-heading p:last-child {
   margin-top: 8px;
@@ -53,10 +53,10 @@
 .toast-region,
 .workspace-drop-surface,
 .memory-drag-preview {
-  --color-paper: #f8f9f7;
-  --color-line: #e1e5df;
-  --color-muted: #626e66;
-  --color-sage: #edf1e9;
+  --color-paper: #fbfcfb;
+  --color-line: #dce2dc;
+  --color-muted: #535f57;
+  --color-sage: #edf0ec;
 }
 .grove-app {
   min-height: 100vh;
@@ -76,7 +76,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--color-line);
-  background: #ffffff80;
+  background: #fff;
 }
 .app-content {
   width: 100%;
@@ -213,6 +213,10 @@
   height: 36px;
   font-size: 13px;
 }
+.app-search input::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
+}
 .app-search:focus-within {
   outline: 2px solid var(--color-leaf);
   outline-offset: 2px;
@@ -245,6 +249,18 @@
   color: var(--color-muted);
   font-size: 14px;
   line-height: 1.8;
+}
+.app-empty.library-empty {
+  padding: 24px;
+  text-align: left;
+}
+.library-empty h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.app-empty.library-empty > p {
+  margin: 6px 0 0;
+  line-height: 1.5;
 }
 .app-notice {
   padding: 13px 16px;
@@ -672,6 +688,9 @@
   color: var(--color-muted);
   align-items: center;
   margin: 8px 0;
+}
+.library-caption[data-empty]:not(:has(> button)) {
+  margin: 0;
 }
 .library-scope {
   display: block;
@@ -1176,15 +1195,6 @@
 .memory-markdown a {
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-.memory-markdown blockquote {
-  padding: 14px 18px;
-  background: var(--color-paper);
-  border-radius: 6px;
-  border: 0;
-}
-.memory-markdown blockquote > * + * {
-  margin-top: 10px;
 }
 .memory-markdown code {
   font-size: 0.86em;
