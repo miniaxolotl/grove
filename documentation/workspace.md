@@ -13,7 +13,8 @@ You only need a Grove account and a browser. No CLI, agent plugin or personal
 model-provider key is needed for the Cloud notebook.
 
 1. [Create an account](https://usegrove.cloud/sign-up), then open **Notes**.
-2. Choose **New note**. You can file it in a notebook later.
+2. Choose **New note**, or **Write your first note** if the library is empty.
+   You can file it in a notebook later.
 3. Write a short title and something you will want to find,
    such as a packing list. Save the note and wait for the saved confirmation.
 4. Return to Notes and reopen your note. Seeing the saved text

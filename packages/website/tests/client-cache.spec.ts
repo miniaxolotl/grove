@@ -339,7 +339,9 @@ test("opening notes never presents a false empty count", async ({ page }) => {
   ).toBeVisible();
   await expect(page.locator(".library-summary")).toContainText("Your notes");
   await expect(page.getByText("0 notes", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Good things start small.")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "No notes yet" })).toHaveCount(
+    0,
+  );
   release.resolve();
   await expect(page.locator(".memory-open")).toHaveText("Cached thought");
   await expect(page.locator(".library-summary")).toHaveText("1 note");

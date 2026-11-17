@@ -159,9 +159,7 @@ html:has(.grove-app) {
   min-height: 44px;
 }
 .app-detail-panel:has(.note-editor-drawer) > .dialog-heading h2 {
-  font:
-    500 12px var(--font-space-grotesk),
-    sans-serif;
+  font: 500 12px var(--font-interface);
   color: var(--color-muted);
 }
 .app-dialog:has(.note-workspace):not(:has(.note-editor-drawer))
@@ -795,10 +793,7 @@ html:has(.grove-app) {
   outline: 0;
   box-shadow: none;
   background: transparent;
-  font:
-    14px/1.65 var(--font-space-grotesk),
-    Arial,
-    sans-serif;
+  font: 14px/1.65 var(--font-interface);
 }
 .ask-composer textarea[hidden] {
   display: none;
@@ -1450,7 +1445,7 @@ html:has(.grove-app) {
 }
 .memory-drag-preview,
 .workspace-notice {
-  font-family: var(--font-space-grotesk), Arial, sans-serif;
+  font-family: var(--font-interface);
 }
 .workspace-notice {
   max-height: 35dvh;
@@ -1482,7 +1477,7 @@ html:has(.grove-app) {
   box-shadow:
     0 8px 28px #25372016,
     0 2px 6px #25372009;
-  font-family: var(--font-space-grotesk), Arial, sans-serif;
+  font-family: var(--font-interface);
   font-size: 12px;
 }
 .library-filter-heading,
@@ -1593,10 +1588,7 @@ html:has(.grove-app) {
   background: #fff;
   color: var(--color-forest);
   box-shadow: 0 8px 24px #15251b18;
-  font:
-    13px var(--font-space-grotesk),
-    Arial,
-    sans-serif;
+  font: 13px var(--font-interface);
 }
 .action-menu > :is(a, button) {
   display: flex;

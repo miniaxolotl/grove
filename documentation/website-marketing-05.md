@@ -5,11 +5,11 @@ source-linked Ask answers and optional agent context. Notebook signup is the
 primary action. Interactive examples demonstrate notes, journal/graph views and
 answers; all use labelled sample content and perform no account writes.
 
-The opening notebook presents the saved note and its cited answer together at
-readable size. The separate Ask comparison demonstrates the effect of saved
-context. Onboarding explains actual setup instead of repeating a third note and
-answer example. Feature descriptions are owned by their demonstration or feature
-section, not repeated throughout the page.
+The homepage introduces the product in plain text next to a compact sample note
+and its cited answer. A short feature list follows, with library and Ask examples
+further down. The page uses system UI fonts and does not wait for scroll-triggered
+reveals. The primary action is signup; visitors can also explore the sample
+notebook without signing in.
 
 Library views explain nested notebooks, semantic/keyword search and assistance
 previews. The feature index adds short voice recording/transcription, read aloud,
@@ -26,37 +26,18 @@ billing, promise an annual discount or create a checkout session. Prices shown
 before a purchase are informational; the account and checkout remain authoritative.
 See [billing](billing.md) for reset, cache, provider-budget and downgrade rules.
 
-The four product sites share a public-site system: plain navigation,
-single-face headings, filled product surfaces, readable feature lists and
-responsive actions. “A home for your notes” sits beside the light working notebook
-on paper, refining the live site's split introduction rather than replacing it.
-The notebook has a sample selector, complete note and source-linked answer. Weekend,
-newsletter and journal selectors switch the complete note, question and answer;
-each source link returns to its note. The working columns stack on phones. The lower
-library and Ask examples use concrete travel, dinner, garden and journal details.
-Space Grotesk stays precise and calm; flat surfaces separate the reading areas. The
-compact footer uses the approved outlined Grove signature without a separate
-giant-name row. Fine-pointer header/primary actions are 36px/38px, with 44px coarse-pointer targets,
-an 80px desktop / 72px phone header and a 1280px content frame.
-Existing marks and local fonts remain.
-Styles stay under the marketing layout; the authenticated workspace is not redesigned.
-The owning kit guide is `marketing/guidelines/grove.md`, generated from
-`marketing/_source/website-guidelines.mjs`. Its 4 November website rules specify
-Space Grotesk 500 headings, optical tracking, natural two-line
-breaks, readable notebook demonstrations and signup-first actions. Footer top padding is
-40px desktop / 32px phone, with the proportional approved signature at up to
-280px / 220px. Pricing stays sourced from shared limits and existing flags.
-The website owns its CSS/assets and does not import the sibling kit at runtime.
-The feature index uses the approved earlier-draft editorial collage with an HTML
-caption. Its photography is illustrative, not a customer's notebook. Current
-editorial/share artwork and adaptive SVG plus light/dark ICO/PNG favicons are
-traced in `packages/website/public/marketing-kit.json`. Photography credits/source
-pages ship at `public/images/marketing/{CREDITS.md,source-manifest.json}` within
-the website package. Existing logo signatures, Apple touch icon and notebook
-examples remain. Favicons follow the browser colour scheme independently of the
-light page. `tests/marketing-kit.spec.ts` checks HTTP hashes, theme links and
-lazy-image loading.
-See the [current four-width review](design/screenshots/marketing-polish-20261106/README.md).
+The homepage's two columns stack on phones. Weekend, newsletter and journal
+selectors switch the complete note, question and answer; each citation returns
+to its note. The layout uses flat surfaces and keeps the approved Grove marks.
+The expanded library and Ask examples use labelled sample content, not account
+data. The workspace uses the same interface typeface, but keeps its own sidebar,
+note editor and settings navigation.
+
+The website owns its CSS and assets and does not import the sibling kit at
+runtime. Share artwork and adaptive SVG, ICO and PNG favicons are tracked in
+`packages/website/public/marketing-kit.json`; favicons follow the browser's color
+scheme independently of the page. The marketing-kit test checks HTTP hashes,
+theme links and the header wordmark. See the [interface screenshots](design/screenshots/interface-refresh/README.md).
 Research: [Linear](https://linear.app), [Craft](https://www.craft.do),
 [Things](https://culturedcode.com/things/), [Retro](https://retro.app),
 [Raycast](https://www.raycast.com) and [Panic](https://panic.com).
@@ -147,7 +128,8 @@ no overflow, accessibility violations or browser errors.
 
 - Search and journal graphics use Collection 05 notebook artwork.
 - The interactive notebook and Ask Grove previews demonstrate the supported tasks.
-- The approved Sprout mark and Space Grotesk/JetBrains Mono typography remain.
+- The approved Sprout mark remains. The media kit still ships brand fonts;
+  website interface text uses system fonts and code can use JetBrains Mono.
 - Share metadata, the brand page, product description and media kit are refreshed.
 - `packages/website/public/materials/manifest.json` records sources and hashes.
 - The media kit includes logos, fonts, licenses, illustrations and product copy.

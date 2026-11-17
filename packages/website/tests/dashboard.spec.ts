@@ -146,7 +146,9 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Note actions" }).click();
   await page.getByRole("button", { name: "Archive", exact: true }).click();
-  await expect(page.getByText("Good things start small.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No notes yet" }),
+  ).toBeVisible();
   await page.goto(`${base}/app/archive`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Note actions" }).click();
@@ -162,7 +164,9 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await expect(
     page.getByRole("status").filter({ hasText: "Note deleted" }),
   ).toBeVisible();
-  await expect(page.getByText("Good things start small.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No notes yet" }),
+  ).toBeVisible();
 });
 
 test("a filtered empty library can return to all memories without losing the query workflow", async ({
@@ -173,7 +177,9 @@ test("a filtered empty library can return to all memories without losing the que
   await page
     .getByRole("textbox", { name: "Search notes" })
     .fill("a missing memory");
-  await expect(page.getByText("Nothing here matches yet.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No matching notes" }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();

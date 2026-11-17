@@ -12,7 +12,7 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   const page = await context.newPage();
   await page.goto(baseURL!);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "A home foryour notes.",
+    "Private notes, easy to find",
   );
   await expect(
     page.getByRole("link", { name: "Start your notebook" }).first(),

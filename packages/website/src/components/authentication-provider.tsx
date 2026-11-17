@@ -27,7 +27,7 @@ export function AuthenticationProvider({
           colorRing: "#32634980",
           colorModalBackdrop: "#15251bb3",
           borderRadius: "0.75rem",
-          fontFamily: "var(--font-space-grotesk)",
+          fontFamily: "var(--font-interface)",
         },
         options: {
           logoImageUrl: "/icon.svg",

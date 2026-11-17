@@ -4,15 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import {
-  X,
-  Undo2,
-  BookOpen,
-  List,
-  Network,
-  CalendarDays,
-  RefreshCw,
-} from "lucide-react";
+import { X, Undo2, List, Network, CalendarDays, RefreshCw } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
@@ -613,21 +605,20 @@ export function MemoryLibrary({
           {loading && !items.length ? (
             <LibrarySkeleton archive={archive} showExcerpt={!!search} />
           ) : !items.length && !currentError ? (
-            <section className="app-empty">
-              <BookOpen size={26} className="mx-auto mb-4" strokeWidth={1.4} />
-              <h2 className="font-editorial text-3xl">
+            <section className="app-empty library-empty">
+              <h2>
                 {filtered
-                  ? "Nothing here matches yet."
+                  ? "No matching notes"
                   : archive
-                    ? "Your archive is empty."
-                    : "Good things start small."}
+                    ? "No archived notes"
+                    : "No notes yet"}
               </h2>
               <p>
                 {filtered
                   ? "Try a different phrase or clear a filter."
                   : archive
                     ? "Archived notes stay here until you restore or delete them."
-                    : "Start with a thought, a plan, or something you want to remember."}
+                    : "Write a note to get started."}
               </p>
               {filtered && (
                 <button
@@ -644,18 +635,12 @@ export function MemoryLibrary({
                 </button>
               )}
               {!archive && !filtered && (
-                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <div className="mt-4">
                   <Link
                     className="app-button"
                     href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
                   >
                     Write your first note
-                  </Link>
-                  <Link
-                    href="/app/settings/connections"
-                    className="app-button secondary"
-                  >
-                    Connect an agent
                   </Link>
                 </div>
               )}

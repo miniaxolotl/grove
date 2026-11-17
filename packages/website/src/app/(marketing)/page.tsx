@@ -1,4 +1,3 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { FAQ } from "@/components/faq";
@@ -27,13 +26,11 @@ export default async function HomePage() {
           <div className="notebook-spread">
             <div className="product-hero-copy notebook-invitation">
               <h1 id="hero-heading" className="hero-title">
-                A home for
-                <br />
-                your notes.
+                Private notes, easy to find
               </h1>
               <p className="hero-summary">
-                Write things down, find them again and ask questions with
-                answers linked to your notes.
+                Write notes, organize them in notebooks, and find them by word
+                or meaning. Ask questions and open the notes behind each answer.
               </p>
               <div className="hero-actions">
                 <Link
@@ -43,10 +40,9 @@ export default async function HomePage() {
                   data-analytics-placement="hero"
                 >
                   <HeroCtaCopy />
-                  <ArrowRight size={17} aria-hidden="true" />
                 </Link>
                 <a href="#your-library" className="text-link">
-                  Try the notebook
+                  Explore an example
                 </a>
               </div>
             </div>
@@ -56,24 +52,20 @@ export default async function HomePage() {
           </div>
         </section>
       </div>
-      <LibraryPreview />
       <Features />
+      <LibraryPreview />
       <MemoryDemo />
       <HowItWorks />
       <AgentStory />
       <section className="feature-index" aria-labelledby="plans-heading">
         <div className="page-container product-facts" data-reveal>
           <h2 id="plans-heading" className="section-title">
-            Free to start.
+            Free and Pro
           </h2>
           <div>
             <p>
-              Free includes writing, search, Ask Grove and optional agent
-              connections, with clear usage allowances and no trial countdown.
-            </p>
-            <p>
-              Need more room for notes and AI work? Pro increases the limits
-              without changing how you work.
+              Start with notes, search, Ask Grove, and optional agent
+              connections. Pro raises the limits for notes and AI use.
             </p>
             <Link href="/pricing" className="text-link">
               Compare Free and Pro

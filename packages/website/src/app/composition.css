@@ -1,33 +1,45 @@
-/* A calm refinement of the live notebook layout, not a new marketing template. */
-.notebook-home .hero-field {
+/* A compact product example beside a plain-text introduction. */
+.notebook-home {
+  --brand-paper: #f7f9f6;
+  --brand-surface: #fff;
+  --brand-ink: #202b24;
+  --brand-muted: #535e56;
+  --brand-support: #e7ede5;
+  --brand-line: #dce2db;
   background: var(--brand-paper);
+}
+.notebook-home .hero-field {
+  background: var(--brand-surface);
+  border-bottom: 1px solid var(--brand-line);
 }
 .notebook-home .product-hero {
   display: block;
   min-height: 0;
-  padding-block: 64px;
+  padding-block: 52px;
 }
 .notebook-home .notebook-spread {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 72px;
+  gap: clamp(32px, 5vw, 64px);
   align-items: center;
   padding: 0;
   background: transparent;
 }
 .notebook-home .notebook-invitation {
-  align-self: start;
-  padding-top: 40px;
-  background: transparent;
+  align-self: center;
 }
 .notebook-home .hero-title {
-  font-size: clamp(48px, 4.8vw, 68px);
+  font-size: clamp(36px, 4.1vw, 56px);
+  font-weight: 650;
   letter-spacing: -0.035em;
-  line-height: 1.08;
+  line-height: 1.1;
+  max-width: 15ch;
 }
-.notebook-home .hero-summary {
-  font-size: 18px;
-  max-width: 36ch;
+.notebook-home .notebook-invitation .hero-summary {
+  font-size: 17px;
+  max-width: 42ch;
+  margin-top: 16px;
+  color: var(--brand-muted);
 }
 .notebook-home .product-stage {
   padding: 0;
@@ -39,19 +51,21 @@
   max-width: none;
   margin: 0;
   border-radius: 8px;
+  border: 1px solid var(--brand-line);
+  box-shadow: none;
   background: var(--brand-surface);
   color: var(--brand-ink);
 }
 .notebook-home .notebook-preview-bar {
-  padding: 20px 24px;
-  background: var(--brand-surface);
+  padding: 12px 20px;
+  background: var(--brand-paper);
   font-size: 14px;
 }
 .notebook-home .notebook-sample-choices {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 16px 20px 0;
+  padding: 8px 12px 0;
 }
 .notebook-home .notebook-sample-choices button {
   min-height: 44px;
@@ -90,8 +104,11 @@
 }
 .notebook-home .notebook-preview-body {
   display: grid;
-  gap: 28px;
-  padding: 28px;
+  gap: 16px;
+  padding: 16px 20px;
+}
+.notebook-home .notebook-preview-pages :is(.preview-note, .preview-answer) {
+  min-height: 0;
 }
 .notebook-home .preview-note {
   margin: 0;
@@ -100,47 +117,47 @@
   border: 0;
 }
 .notebook-home .preview-note h2 {
-  font-size: 26px;
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1.2;
-  margin-block: 16px;
+  margin-block: 6px 8px;
 }
 .notebook-home .preview-note p {
-  font-size: 16px;
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 1.55;
 }
 .notebook-home .preview-note-detail {
   margin-top: 12px;
 }
 .notebook-home .preview-note-footer {
-  margin-top: 20px;
+  margin-top: 12px;
   font-size: 12px;
 }
 .notebook-home .preview-answer {
   padding: 0;
 }
 .notebook-home .preview-answer > p {
-  margin-block: 16px;
-  font-size: 16px;
+  margin-block: 8px;
+  font-size: 14px;
 }
 .notebook-home .preview-answer-copy {
-  background: #edf2e9;
-  padding: 20px;
-  font-size: 15px;
-  line-height: 1.65;
+  background: var(--brand-paper);
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.55;
 }
 .notebook-home .preview-answer-copy a {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  margin-top: 8px;
+  min-height: 40px;
+  margin-top: 2px;
   color: var(--brand-ink);
 }
 .notebook-home .notebook-preview figcaption {
-  padding: 16px 24px;
+  padding: 10px 20px;
   font-size: 12px;
 }
-.notebook-home .library-layout .section-intro,
-.notebook-home #features .feature-index-heading {
+.notebook-home .library-layout .section-intro {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 72px;
@@ -193,37 +210,20 @@
   display: none;
 }
 .notebook-home #features .feature-index-layout {
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  gap: 40px 72px;
-}
-.notebook-home #features .feature-index-heading {
-  grid-column: 1 / -1;
-}
-.notebook-home #features .feature-index-heading > p {
-  margin: 0;
-}
-.notebook-home .feature-photo img {
-  width: 100%;
-  max-height: 480px;
-  height: auto;
-  object-fit: cover;
-  border-radius: 8px;
-}
-.notebook-home .feature-photo {
-  min-width: 0;
-  margin: 0;
-}
-.notebook-home .feature-photo figcaption {
-  margin-top: 16px;
-  font-size: 14px;
-  line-height: 1.6;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
 }
 .notebook-home #features .feature-list {
-  grid-template-columns: 1fr;
-  gap: 32px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 48px;
 }
 .notebook-home .feature-row dt {
-  font-size: 22px;
+  font-size: 17px;
+}
+.notebook-home .section-title {
+  font-size: clamp(26px, 2.5vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 .notebook-home .memory-note {
   padding: 0;
@@ -234,6 +234,7 @@
 .notebook-home :is(.demo-memory, .demo-conversation) {
   padding: 32px;
   min-width: 0;
+  background-image: none;
 }
 .notebook-home :is(.demo-toolbar, .demo-caption) {
   padding: 20px 24px;
@@ -340,38 +341,20 @@
     justify-self: start;
   }
 }
-@media (max-width: 1000px) {
-  .notebook-home .notebook-spread {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .notebook-home .notebook-invitation {
-    padding-top: 0;
-  }
-  .notebook-home .notebook-spread {
-    gap: 40px;
-  }
-  .notebook-home .hero-title {
-    font-size: 48px;
-  }
-}
 @media (max-width: 767px) {
-  .notebook-home .notebook-invitation {
-    padding-top: 0;
-  }
   .notebook-home .product-hero {
-    padding-block: 48px 56px;
+    padding-block: 28px 36px;
   }
   .notebook-home .notebook-spread,
   .notebook-home .library-layout .section-intro,
-  .notebook-home #features .feature-index-heading,
-  .notebook-home #features .feature-index-layout,
+  .notebook-home #features .feature-list,
   .notebook-home .note-path,
   .marketing-site .setup-intro {
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }
   .notebook-home .hero-title {
-    font-size: clamp(40px, 10.5vw, 60px);
+    font-size: clamp(34px, 8vw, 46px);
   }
   .notebook-home
     :is(

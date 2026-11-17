@@ -2682,7 +2682,7 @@ test("browsing arrows and delete are scoped to notes and deletion still requires
   await page.keyboard.press("Delete");
   await confirmation.getByRole("button", { name: "Delete this note" }).click();
   await expect(
-    page.getByRole("heading", { name: "Good things start small." }),
+    page.getByRole("heading", { name: "No notes yet" }),
   ).toBeFocused();
 });
 
