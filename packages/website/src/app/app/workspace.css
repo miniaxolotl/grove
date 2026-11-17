@@ -1628,7 +1628,6 @@ html:has(.grove-app) {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  border-bottom: 1px solid var(--color-line);
   padding-bottom: 8px;
   margin-bottom: 16px;
 }

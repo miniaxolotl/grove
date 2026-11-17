@@ -116,6 +116,37 @@ test("public note is readable signed out, safe, responsive and not indexed", asy
 
 test.describe("server-rendered sharing", () => {
   test.use({ javaScriptEnabled: false });
+  test("shared quotations remain nested and use space instead of frames", async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    const key = token("Q");
+    const response = await request.post(`${fixture}/_fixture/${key}`, {
+      data: {
+        title: "Library notes",
+        content:
+          "# Library notes\n\nRegular text.\n\n> First passage.\n>\n>> A quotation within the passage.\n\n***\n\nNext steps.",
+      },
+    });
+    expect(response.ok()).toBe(true);
+    await page.goto(`/s/${key}`);
+    const reader = page.locator(".memory-markdown");
+    const quote = reader.locator(":scope > blockquote");
+    const nested = quote.locator(":scope > blockquote");
+    await expect(quote).toContainText("First passage.");
+    await expect(nested).toHaveText("A quotation within the passage.");
+    await expect(quote).toHaveCSS("border-inline-start-width", "0px");
+    await expect(quote).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    expect((await nested.boundingBox())!.x).toBeGreaterThan(
+      (await quote.boundingBox())!.x,
+    );
+    await expect(reader.getByRole("separator")).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(320);
+  });
+
   test("long saved headings remain complete without JavaScript", async ({
     page,
     request,

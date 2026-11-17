@@ -10,7 +10,6 @@
   justify-content: space-between;
   gap: 16px;
   min-height: 64px;
-  border-bottom: 1px solid var(--color-line);
 }
 .shared-site-header > span,
 .shared-heading-details {
@@ -62,9 +61,6 @@
   list-style: none;
   padding: 0;
   margin-top: 8px;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--brand-surface);
 }
 .shared-notes li + li,
 .shared-notebooks li + li {
@@ -75,7 +71,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 10px 4px;
   min-height: 48px;
   border-radius: 6px;
   font-size: 14px;
@@ -136,10 +132,7 @@
 }
 .shared-empty {
   margin-top: 8px;
-  padding: 12px;
   color: var(--color-muted);
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
 }
 .shared-message {
   max-width: 480px;
@@ -174,8 +167,6 @@
 }
 .shared-reader .memory-markdown {
   max-width: 70ch;
-  padding-top: 18px;
-  border-top: 1px solid var(--color-line);
   font-size: 17px;
   line-height: 1.7;
 }
@@ -237,15 +228,6 @@
   padding: 2px 5px;
   border-radius: 4px;
   background: var(--color-sage);
-}
-.shared-reader .memory-markdown blockquote {
-  border: 0;
-  padding: 14px 18px;
-  border-radius: 6px;
-  background: #f2f3ef;
-}
-.shared-reader .memory-markdown blockquote > * + * {
-  margin-top: 10px;
 }
 .shared-reader .markdown-table {
   overflow: auto;

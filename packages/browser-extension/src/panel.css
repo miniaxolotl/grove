@@ -206,9 +206,7 @@ h2 {
   color: var(--muted);
 }
 .connection-card {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
+  margin-top: 32px;
 }
 .connection-card h2 {
   margin-bottom: 6px;
@@ -343,7 +341,6 @@ summary {
 }
 #note-details {
   margin-top: 8px;
-  border-bottom: 1px solid var(--line);
 }
 #note-details > summary::after,
 .share-disclosure > summary::after {
@@ -451,7 +448,9 @@ summary {
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   padding: 14px 0;
-  border-bottom: 1px solid var(--line);
+}
+.note-row + .note-row {
+  border-top: 1px solid var(--line);
 }
 .note-actions {
   position: absolute;
@@ -557,7 +556,6 @@ summary {
 }
 .settings-section {
   padding: 16px 0;
-  border-bottom: 1px solid var(--line);
 }
 .settings-section:first-of-type {
   padding-top: 0;
@@ -741,9 +739,7 @@ dialog .title-row button {
 }
 .note-document blockquote {
   margin: 16px 0;
-  padding: 4px 0 4px 16px;
-  border-left: 3px solid var(--control);
-  color: var(--muted);
+  padding-inline-start: 14px;
 }
 .note-document blockquote p:last-child {
   margin-bottom: 0;
@@ -806,7 +802,6 @@ dialog .title-row button {
 }
 .reader-tools {
   padding-top: 16px;
-  border-top: 1px solid var(--line);
 }
 .reader-tools button,
 .reader-tools a {

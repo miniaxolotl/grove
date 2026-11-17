@@ -67,6 +67,12 @@
 }
 
 @layer components {
+  .memory-markdown blockquote {
+    padding-inline-start: clamp(12px, 3vw, 22px);
+  }
+  .memory-markdown blockquote > * + * {
+    margin-block-start: 0.75em;
+  }
   .page-container {
     @apply mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-12;
   }

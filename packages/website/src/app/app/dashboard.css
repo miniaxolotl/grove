@@ -1193,15 +1193,6 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.memory-markdown blockquote {
-  padding: 14px 18px;
-  background: var(--color-paper);
-  border-radius: 6px;
-  border: 0;
-}
-.memory-markdown blockquote > * + * {
-  margin-top: 10px;
-}
 .memory-markdown code {
   font-size: 0.86em;
   background: #eff0ea;

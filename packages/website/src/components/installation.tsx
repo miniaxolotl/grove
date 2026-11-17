@@ -119,7 +119,7 @@ export function Installation() {
             access and return to {hosted ? "your chat" : "your terminal"}.
           </p>
         </div>
-        <div className="rounded-md border border-line bg-sage/40 p-4 text-sm leading-6">
+        <div className="max-w-[68ch] text-sm leading-6">
           <p>
             New connections start with all permission and scope checkboxes
             selected, including deletion and all current and future notebooks.

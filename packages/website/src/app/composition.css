@@ -10,7 +10,6 @@
 }
 .notebook-home .hero-field {
   background: var(--brand-surface);
-  border-bottom: 1px solid var(--brand-line);
 }
 .notebook-home .product-hero {
   display: block;
@@ -59,6 +58,7 @@
 .notebook-home .notebook-preview-bar {
   padding: 12px 20px;
   background: var(--brand-paper);
+  border-bottom: 0;
   font-size: 14px;
 }
 .notebook-home .notebook-sample-choices {
@@ -155,7 +155,9 @@
 }
 .notebook-home .notebook-preview figcaption {
   padding: 10px 20px;
+  border-top: 0;
   font-size: 12px;
+  text-align: start;
 }
 .notebook-home .library-layout .section-intro {
   display: grid;
@@ -276,10 +278,6 @@
   padding-block: clamp(24px, 4vw, 52px) 72px;
   max-width: 1080px;
 }
-.marketing-site .setup-intro {
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--color-line);
-}
 .marketing-site .setup-heading {
   font-size: clamp(32px, 4vw, 44px);
   line-height: 1.15;
@@ -307,7 +305,7 @@
   text-underline-offset: 3px;
 }
 .marketing-site .setup-tools {
-  margin-top: 28px;
+  margin-top: 36px;
 }
 .marketing-site .setup-tools > h2 {
   font-size: 22px;
@@ -321,10 +319,10 @@
 }
 .marketing-site .setup-page .installation-step {
   display: block;
-  padding-block: 22px;
+  border: 0;
+  padding-block: 16px;
 }
 .marketing-site .setup-page .installation-step:first-child {
-  border: 0;
   padding-top: 0;
 }
 .marketing-site .setup-page .installation-copy {
@@ -358,10 +356,7 @@
   text-decoration: underline;
 }
 .marketing-site .setup-reference {
-  margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid var(--color-line);
-  background: transparent;
+  margin-top: 40px;
 }
 @media (min-width: 768px) {
   .product-redesign .plan {

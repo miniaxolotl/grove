@@ -229,9 +229,7 @@
   color: #6f7a72;
 }
 .codemirror-host .cm-note-quote {
-  padding-inline: 16px;
-  background: var(--color-paper);
-  color: var(--color-muted);
+  padding-inline-start: 16px;
 }
 .live-editor[data-mode="source"] .cm-scroller {
   font-family: var(--font-mono);
