@@ -185,7 +185,11 @@ edits. [API contracts](server.md#memory-and-notebook-tools) define exact semanti
 
 ## Linked notes and Ask Grove
 
-**Graph** explores loaded current notes/notebooks; load earlier pages for broader
+When notes are available, choose **More → Graph** in Notes or in an open
+notebook. **Back to list** keeps your current notebook and filters. The direct
+`/app/graph` link also works.
+
+The graph explores loaded current notes/notebooks; load earlier pages for broader
 coverage. Ordinary wheel input scrolls the page; Ctrl/Cmd+wheel zooms. Touch users
 expand for pan/pinch; keyboard users can focus/select/read nodes and return focus.
 Linked-note explanations cite current excerpts; see [relationships](relationships.md).

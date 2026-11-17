@@ -144,18 +144,18 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await page.getByText("Full versions", { exact: true }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page.getByRole("button", { name: "Archive", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "No notes yet" }),
   ).toBeVisible();
   await page.goto(`${base}/app/archive`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page
     .getByRole("group", { name: "Note actions", exact: true })
     .getByRole("button", { name: "Delete note…", exact: true })

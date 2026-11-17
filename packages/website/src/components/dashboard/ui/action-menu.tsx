@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { overlayViewport } from "./overlay-focus";
@@ -13,6 +14,7 @@ import { overlayViewport } from "./overlay-focus";
 export function ActionMenu({
   label,
   visibleLabel,
+  triggerRef,
   children,
   icon = <MoreHorizontal size={18} />,
   open: controlledOpen,
@@ -21,6 +23,7 @@ export function ActionMenu({
 }: {
   label: string;
   visibleLabel?: string;
+  triggerRef?: RefObject<HTMLButtonElement | null>;
   children: ReactNode;
   icon?: ReactNode;
   open?: boolean;
@@ -29,7 +32,8 @@ export function ActionMenu({
 }) {
   const id = useId();
   const popup = useRef<HTMLDivElement>(null);
-  const anchor = useRef<HTMLButtonElement>(null);
+  const localAnchor = useRef<HTMLButtonElement>(null);
+  const anchor = triggerRef ?? localAnchor;
   const [open, setOpen] = useState(false);
   useLayoutEffect(() => {
     if (controlledOpen === undefined) return;
@@ -38,7 +42,7 @@ export function ActionMenu({
       anchor.current?.focus({ preventScroll: true });
       element.showPopover();
     } else if (!controlledOpen) element.hidePopover();
-  }, [controlledOpen]);
+  }, [anchor, controlledOpen]);
   useLayoutEffect(() => {
     if (!open) return;
     const element = popup.current!;
@@ -88,7 +92,7 @@ export function ActionMenu({
       viewport?.removeEventListener("resize", place);
       viewport?.removeEventListener("scroll", place);
     };
-  }, [open]);
+  }, [anchor, open]);
   const items = () =>
     [
       ...popup.current!.querySelectorAll<HTMLElement>(

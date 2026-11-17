@@ -28,12 +28,6 @@
 .segmented-control > button:hover {
   color: var(--color-forest);
 }
-.library-caption {
-  flex-wrap: wrap;
-}
-.library-caption .segmented-control {
-  margin-left: auto;
-}
 .memory-graph {
   --graph-surface: #ffffff;
   --graph-line: var(--color-line);
@@ -991,10 +985,6 @@
 @media (max-width: 480px) {
   .revision-compare {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .library-caption .segmented-control {
-    order: -1;
-    margin-left: 0;
   }
   .graph-toolbar {
     padding: 10px 12px;

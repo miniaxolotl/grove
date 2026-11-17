@@ -689,6 +689,9 @@
   align-items: center;
   margin: 8px 0;
 }
+.library-caption[data-empty]:not(:has(> button)) {
+  margin: 0;
+}
 .library-scope {
   display: block;
   max-width: 160px;

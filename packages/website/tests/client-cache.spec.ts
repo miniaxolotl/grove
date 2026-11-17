@@ -498,6 +498,63 @@ test("interrupted refresh keeps notes, selection and geometry with a keyboard re
   expect((await row.boundingBox())?.y).toBe(before?.y);
 });
 
+test("an empty library has one next step and keeps recovery when refresh fails", async ({
+  page,
+}) => {
+  await fixture(page);
+  const release = Promise.withResolvers<void>();
+  let fail = false;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    if (fail) {
+      await release.promise;
+      await route.fulfill({
+        status: 503,
+        json: { success: false, error: { message: "Temporarily unavailable" } },
+      });
+    } else {
+      await route.fulfill({
+        json: { success: true, data: { items: [], nextCursor: null } },
+      });
+    }
+  });
+  await page.goto(`${base}/app`);
+  const empty = page.getByRole("heading", {
+    name: "No notes yet",
+    exact: true,
+  });
+  const write = page.getByRole("link", {
+    name: "Write your first note",
+    exact: true,
+  });
+  await expect(empty).toBeVisible();
+  await expect(write).toHaveAttribute("href", "/app/notes/new");
+  await expect(page.getByText("0 notes", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Write a note to get started.", { exact: true }),
+  ).toHaveCount(0);
+  const more = page.getByRole("button", { name: "More note actions" });
+  await more.click();
+  await expect(
+    page.getByRole("button", { name: "Graph", exact: true }),
+  ).toBeHidden();
+  await page.keyboard.press("Escape");
+  await write.focus();
+  fail = true;
+  await invalidateNotes(page);
+  await expect(page.locator(".library-refreshing")).toBeVisible();
+  await expect(write).toBeFocused();
+  release.resolve();
+  const retry = page.getByRole("button", { name: "Retry refreshing notes" });
+  await expect(retry).toBeVisible();
+  await expect(empty).toBeHidden();
+  await expect(write).toBeHidden();
+  fail = false;
+  await retry.press("Enter");
+  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(empty).toBeVisible();
+  await expect(write).toBeVisible();
+});
+
 test("an interrupted next page retries its cursor without replacing loaded notes", async ({
   page,
 }) => {

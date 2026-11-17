@@ -1,6 +1,13 @@
 "use client";
 import { ImportNotesPanel } from "./import-notes-button";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -37,7 +44,6 @@ import {
 } from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
 import { ActionMenu } from "./ui/action-menu";
-import { SegmentedControl } from "./ui/segmented-control";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
 import { NoteDeleteDialog } from "./note-delete-dialog";
@@ -97,6 +103,9 @@ export function MemoryLibrary({
   const api = cache.api;
   const workspace = useWorkspaceDrag();
   const [view, setView] = useState(initialView);
+  const viewChanged = useRef(false);
+  const moreButton = useRef<HTMLButtonElement>(null);
+  const listButton = useRef<HTMLButtonElement>(null);
   const [importing, setImporting] = useState(false);
   const {
     projects,
@@ -158,6 +167,12 @@ export function MemoryLibrary({
   const [undo, setUndo] = useState<Undo[]>([]);
   const requests = useRef(new Map<string, string>());
   const summary = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (!viewChanged.current) return;
+    viewChanged.current = false;
+    const target = view === "graph" ? listButton.current : moreButton.current;
+    (target ?? summary.current)?.focus({ preventScroll: true });
+  }, [view]);
   const scopedProject =
     fixedProject !== undefined
       ? fixedProject
@@ -224,6 +239,10 @@ export function MemoryLibrary({
     (fixedProject === undefined && project !== "all") ||
     status !== (archive ? "archived" : "active")
   );
+  const emptyCandidate = !archive && !filtered && !items.length && !next;
+  const emptyLibrary =
+    emptyCandidate && !!query.data && !loading && !readError && !currentError;
+  const showEmptyState = !currentError && (!emptyCandidate || !readError);
   const selectedItems = items.filter((memory) => checked.includes(memory.id));
   const pendingSelected = selectedItems.some((memory) =>
     pending.has(memory.id),
@@ -431,7 +450,7 @@ export function MemoryLibrary({
   }, [items, loading]);
   const title = archive
     ? "Archive"
-    : initialView === "graph"
+    : initialView === "graph" && view === "graph"
       ? "Note graph"
       : "Notes";
   const detailBusy =
@@ -441,30 +460,54 @@ export function MemoryLibrary({
     selected && selected !== "new"
       ? items.findIndex((m) => m.id === selected.id)
       : -1;
+  function switchView(nextView: typeof view) {
+    viewChanged.current = true;
+    setView(nextView);
+  }
+  const libraryActions = !archive && (
+    <>
+      {view === "graph" && (
+        <button
+          type="button"
+          className="app-button secondary"
+          ref={listButton}
+          onClick={() => switchView("list")}
+        >
+          <List size={16} aria-hidden="true" /> Back to list
+        </button>
+      )}
+      {(!embedded || (view === "list" && items.length > 0)) && (
+        <ActionMenu
+          label="More note actions"
+          visibleLabel="More"
+          triggerRef={moreButton}
+        >
+          {view === "list" && items.length > 0 && (
+            <button type="button" onClick={() => switchView("graph")}>
+              <Network size={16} aria-hidden="true" /> Graph
+            </button>
+          )}
+          {!embedded && (
+            <>
+              <Link
+                href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+              >
+                <CalendarDays size={16} aria-hidden="true" />
+                Today’s note
+              </Link>
+              <button type="button" onClick={() => setImporting(true)}>
+                <Upload size={16} aria-hidden="true" />
+                Import notes
+              </button>
+            </>
+          )}
+        </ActionMenu>
+      )}
+    </>
+  );
   return (
     <>
-      {!embedded && (
-        <PageHeading
-          title={title}
-          className="library-page-heading"
-          actions={
-            !archive && (
-              <ActionMenu label="More note actions" visibleLabel="More">
-                <Link
-                  href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
-                >
-                  <CalendarDays size={16} aria-hidden="true" />
-                  Today’s note
-                </Link>
-                <button type="button" onClick={() => setImporting(true)}>
-                  <Upload size={16} aria-hidden="true" />
-                  Import notes
-                </button>
-              </ActionMenu>
-            )
-          }
-        />
-      )}
+      {!embedded && <PageHeading title={title} actions={libraryActions} />}
       {importing && (
         <Dialog title="Import notes" close={() => setImporting(false)}>
           <ImportNotesPanel projectId={scopedProject ?? undefined} />
@@ -489,10 +532,15 @@ export function MemoryLibrary({
               ),
             ]}
           />
-          <div className="library-caption">
+          <div
+            className="library-caption"
+            data-empty={emptyLibrary || undefined}
+          >
             <span className="library-summary" ref={summary} tabIndex={-1}>
               <span className="library-summary-label">
-                {query.data ? (
+                {emptyLibrary ? (
+                  <span className="sr-only">Notes status</span>
+                ) : query.data ? (
                   <>
                     {items.length}
                     {next ? "+" : ""}{" "}
@@ -517,7 +565,9 @@ export function MemoryLibrary({
                         ? "Search changed. Refresh results."
                         : query.isFetchNextPageError
                           ? "Couldn’t load more. Showing loaded notes."
-                          : "Couldn’t refresh. Showing saved notes."}
+                          : items.length
+                            ? "Couldn’t refresh. Showing saved notes."
+                            : "Couldn’t refresh notes."}
                     </span>
                     <button
                       type="button"
@@ -531,7 +581,11 @@ export function MemoryLibrary({
                       }
                       aria-busy={query.isFetching}
                       disabled={query.isFetching}
-                      title={`Showing loaded notes. ${readError}`}
+                      title={
+                        items.length
+                          ? `Showing loaded notes. ${readError}`
+                          : readError
+                      }
                       onClick={() => {
                         summary.current?.focus({ preventScroll: true });
                         if (query.isFetchNextPageError && !staleSearch)
@@ -550,33 +604,7 @@ export function MemoryLibrary({
                 ) : null}
               </span>
             </span>
-            {!archive && (
-              <SegmentedControl
-                label="Note view"
-                value={view}
-                onChange={setView}
-                options={[
-                  {
-                    value: "list",
-                    label: (
-                      <>
-                        <List size={15} />
-                        List
-                      </>
-                    ),
-                  },
-                  {
-                    value: "graph",
-                    label: (
-                      <>
-                        <Network size={15} />
-                        Graph
-                      </>
-                    ),
-                  },
-                ]}
-              />
-            )}
+            {embedded && libraryActions}
           </div>
           {currentError && (
             <LoadError
@@ -621,7 +649,7 @@ export function MemoryLibrary({
           )}
           {loading && !items.length ? (
             <LibrarySkeleton archive={archive} showExcerpt={!!search} />
-          ) : !items.length && !currentError ? (
+          ) : !items.length && showEmptyState ? (
             <section className="app-empty library-empty">
               <h2>
                 {filtered
@@ -630,13 +658,13 @@ export function MemoryLibrary({
                     ? "No archived notes"
                     : "No notes yet"}
               </h2>
-              <p>
-                {filtered
-                  ? "Try a different phrase or clear a filter."
-                  : archive
-                    ? "Archived notes stay here until you restore or delete them."
-                    : "Write a note to get started."}
-              </p>
+              {filtered ? (
+                <p>Try a different phrase or clear a filter.</p>
+              ) : archive ? (
+                <p>
+                  Archived notes stay here until you restore or delete them.
+                </p>
+              ) : null}
               {filtered && (
                 <button
                   type="button"
@@ -651,7 +679,7 @@ export function MemoryLibrary({
                   Clear filters
                 </button>
               )}
-              {!archive && !filtered && (
+              {emptyLibrary && (
                 <div className="mt-4">
                   <Link
                     className="app-button"

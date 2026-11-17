@@ -1554,10 +1554,6 @@ html:has(.grove-app) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
   }
-  .library-caption .segmented-control {
-    grid-column: 2;
-    grid-row: 1;
-  }
   .selection-toolbar button span {
     display: none;
   }
