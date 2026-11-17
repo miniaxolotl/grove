@@ -3564,7 +3564,7 @@ test("long project names remain inside destinations at every breakpoint", async 
     expect(geometry.overflow).toBe(false);
     expect(geometry.separated).toBe(true);
     expect(geometry.destinationsContained).toBe(true);
-    expect(geometry.font.toLowerCase()).toContain("space grotesk");
+    expect(geometry.font.toLowerCase()).toMatch(/^system-ui(?:,|$)/);
     await page.screenshot({
       path: info.outputPath(`memory-library-${width}.png`),
       fullPage: true,
