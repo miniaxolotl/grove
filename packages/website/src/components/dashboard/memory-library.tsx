@@ -464,50 +464,37 @@ export function MemoryLibrary({
     viewChanged.current = true;
     setView(nextView);
   }
-  const libraryActions = !archive && (
-    <>
-      {view === "graph" && (
-        <button
-          type="button"
-          className="app-button secondary"
-          ref={listButton}
-          onClick={() => switchView("list")}
-        >
-          <List size={16} aria-hidden="true" /> Back to list
-        </button>
-      )}
-      {(!embedded || (view === "list" && items.length > 0)) && (
-        <ActionMenu
-          label="More note actions"
-          visibleLabel="More"
-          triggerRef={moreButton}
-        >
-          {view === "list" && items.length > 0 && (
-            <button type="button" onClick={() => switchView("graph")}>
-              <Network size={16} aria-hidden="true" /> Graph
+  const moreActions = !archive &&
+    (!embedded || (view === "list" && items.length > 0)) && (
+      <ActionMenu
+        label="More note actions"
+        visibleLabel="More"
+        triggerRef={moreButton}
+      >
+        {view === "list" && items.length > 0 && (
+          <button type="button" onClick={() => switchView("graph")}>
+            <Network size={16} aria-hidden="true" /> Graph
+          </button>
+        )}
+        {!embedded && (
+          <>
+            <Link
+              href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+            >
+              <CalendarDays size={16} aria-hidden="true" />
+              Today’s note
+            </Link>
+            <button type="button" onClick={() => setImporting(true)}>
+              <Upload size={16} aria-hidden="true" />
+              Import notes
             </button>
-          )}
-          {!embedded && (
-            <>
-              <Link
-                href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
-              >
-                <CalendarDays size={16} aria-hidden="true" />
-                Today’s note
-              </Link>
-              <button type="button" onClick={() => setImporting(true)}>
-                <Upload size={16} aria-hidden="true" />
-                Import notes
-              </button>
-            </>
-          )}
-        </ActionMenu>
-      )}
-    </>
-  );
+          </>
+        )}
+      </ActionMenu>
+    );
   return (
     <>
-      {!embedded && <PageHeading title={title} actions={libraryActions} />}
+      {!embedded && <PageHeading title={title} actions={moreActions} />}
       {importing && (
         <Dialog title="Import notes" close={() => setImporting(false)}>
           <ImportNotesPanel projectId={scopedProject ?? undefined} />
@@ -604,7 +591,18 @@ export function MemoryLibrary({
                 ) : null}
               </span>
             </span>
-            {embedded && libraryActions}
+            {!archive && view === "graph" ? (
+              <button
+                type="button"
+                className="app-button secondary"
+                ref={listButton}
+                onClick={() => switchView("list")}
+              >
+                <List size={16} aria-hidden="true" /> Back to list
+              </button>
+            ) : embedded ? (
+              moreActions
+            ) : null}
           </div>
           {currentError && (
             <LoadError
