@@ -8,8 +8,19 @@ accounts or real share links. Cookie prompts were dismissed in both sets.
 
 ## Final polish
 
-These pairs compare the previous PR revision (`42f628a3`) with the lighter
-reader and the corrected mobile workspace header. The full-size gallery below
+The first two pairs compare `8d2e17f5` with the final pass. The 390 × 900 Notes
+capture is cropped to the toolbar and empty state. The 1440 × 900 homepage shows
+setup and examples links immediately after the retained note-and-answer demo.
+
+| Empty library before | Empty library after |
+| --- | --- |
+| ![Duplicate zero count and Graph in the empty library](polish/empty-notes-before.webp) | ![Empty Notes with one prompt and a first-note button](polish/empty-notes-after.webp) |
+
+| Homepage before | Homepage after |
+| --- | --- |
+| ![A second interactive library begins below the hero](polish/home-lead-before.webp) | ![Setup and optional examples links follow the hero demo](home-1440.webp) |
+
+The following pairs show earlier polish within the PR. The full-size gallery
 compares the original baseline with the latest UI.
 
 | Mobile Notes before | Mobile Notes after |
