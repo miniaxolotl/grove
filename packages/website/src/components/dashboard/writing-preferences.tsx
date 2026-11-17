@@ -9,18 +9,50 @@ import {
   type WritingSettings,
 } from "@/lib/writing/settings";
 
-const ruleLabels: Record<WritingRule, { label: string; description: string }> = {
-  brackets: { label: "Matching brackets", description: "Flag unmatched or misnested brackets." },
-  quotes: { label: "Matching quotes", description: "Flag unmatched quotation marks." },
-  articles: { label: "A / an", description: "Suggest the article that matches the next word’s sound." },
-  repetition: { label: "Repeated words", description: "Flag accidental duplicates like “the the”." },
-  spacing: { label: "Spacing", description: "Flag extra spaces and missing spaces after punctuation." },
-  capitalization: { label: "Sentence capitalization", description: "Suggest capitals at sentence starts and for standalone “I”." },
-  redundancy: { label: "Wordy phrases", description: "Suggest shorter forms of unambiguous wordy phrases." },
-  agreement: { label: "Verb agreement", description: "Flag verb forms that don’t match their subject." },
-  plurals: { label: "Acronym plurals", description: "Plural acronyms don’t need an apostrophe." },
-  confusion: { label: "Common mix-ups", description: "Flag wording that is a common mix-up." },
-};
+const ruleLabels: Record<WritingRule, { label: string; description: string }> =
+  {
+    brackets: {
+      label: "Matching brackets",
+      description: "Flag unmatched or misnested brackets.",
+    },
+    quotes: {
+      label: "Matching quotes",
+      description: "Flag unmatched quotation marks.",
+    },
+    articles: {
+      label: "A / an",
+      description: "Suggest the article that matches the next word’s sound.",
+    },
+    repetition: {
+      label: "Repeated words",
+      description: "Flag accidental duplicates like “the the”.",
+    },
+    spacing: {
+      label: "Spacing",
+      description: "Flag extra spaces and missing spaces after punctuation.",
+    },
+    capitalization: {
+      label: "Sentence capitalization",
+      description:
+        "Suggest capitals at sentence starts and for standalone “I”.",
+    },
+    redundancy: {
+      label: "Wordy phrases",
+      description: "Suggest shorter forms of unambiguous wordy phrases.",
+    },
+    agreement: {
+      label: "Verb agreement",
+      description: "Flag verb forms that don’t match their subject.",
+    },
+    plurals: {
+      label: "Acronym plurals",
+      description: "Plural acronyms don’t need an apostrophe.",
+    },
+    confusion: {
+      label: "Common mix-ups",
+      description: "Flag wording that is a common mix-up.",
+    },
+  };
 
 function Row({
   id,
@@ -77,16 +109,16 @@ export function WritingPreferences() {
     [],
   );
 
-  const update = (
-    patch: Parameters<typeof saveWritingSettings>[0],
-  ) => setSettings(saveWritingSettings(patch));
+  const update = (patch: Parameters<typeof saveWritingSettings>[0]) =>
+    setSettings(saveWritingSettings(patch));
 
   const addWord = () => {
     const clean = newWord.trim();
     if (!clean) return;
     if (
       settings.words.some(
-        (entry) => entry.toLocaleLowerCase("en") === clean.toLocaleLowerCase("en"),
+        (entry) =>
+          entry.toLocaleLowerCase("en") === clean.toLocaleLowerCase("en"),
       )
     ) {
       setWordError("That word is already in your dictionary.");
@@ -97,17 +129,23 @@ export function WritingPreferences() {
       setNewWord("");
       setWordError("");
     } catch {
-      setWordError("Use letters with optional apostrophes, up to 80 characters.");
+      setWordError(
+        "Use letters with optional apostrophes, up to 80 characters.",
+      );
     }
   };
 
   return (
-    <section className="app-panel writing-preferences-panel" aria-labelledby="writing-heading">
+    <section
+      className="app-panel writing-preferences-panel"
+      aria-labelledby="writing-heading"
+    >
       <div className="settings-panel-heading">
         <h2 id="writing-heading">Writing</h2>
       </div>
       <p className="settings-panel-description">
-        Spelling and grammar checks run on this device. Changes apply immediately.
+        Spelling and grammar checks run on this device. Changes apply
+        immediately.
       </p>
       <fieldset className="ai-preference-group">
         <legend>
@@ -130,10 +168,13 @@ export function WritingPreferences() {
         <Row
           id="writing-grammar"
           label="Basic grammar"
-          description="Flag common grammar issues. Adjust individual rules below."
+          description="Flag common grammar issues."
           checked={settings.grammar}
           onChange={(grammar) => update({ grammar })}
         />
+      </fieldset>
+      <details className="settings-options">
+        <summary>More writing options</summary>
         <Row
           id="writing-automatic"
           label="Check as I type"
@@ -148,111 +189,104 @@ export function WritingPreferences() {
           checked={settings.highlights}
           onChange={(highlights) => update({ highlights })}
         />
-      </fieldset>
-      <div className="ai-preference-group">
-        <button
-          type="button"
-          className="text-button"
-          aria-expanded={advanced}
-          onClick={() => setAdvanced(!advanced)}
-        >
-          {advanced ? "Hide advanced rules" : "Show advanced rules"}
-        </button>
-        {advanced && (
-          <fieldset className="ai-preference-group">
-            <legend>
-              <h3>Grammar rules</h3>
-            </legend>
-            {writingRules.map((rule) => (
-              <Row
-                key={rule}
-                id={`writing-rule-${rule}`}
-                label={ruleLabels[rule].label}
-                description={ruleLabels[rule].description}
-                checked={settings.grammar && settings.rules[rule]}
-                disabled={!settings.grammar}
-                onChange={(checked) =>
-                  update({ rules: { [rule]: checked } })
-                }
-              />
-            ))}
-          </fieldset>
-        )}
-      </div>
-      <fieldset className="ai-preference-group">
-        <legend>
-          <h3>Personal dictionary</h3>
-        </legend>
-        <p className="ai-preference-description">
-          Names, brands and terms this device won’t flag. This list is separate
-          from the browser extension’s dictionary.
-        </p>
-        {settings.words.length > 0 ? (
-          <ul className="grove-writing-words">
-            {settings.words.map((word) => (
-              <li key={word}>
-                <span>{word}</span>
-                <button
-                  type="button"
-                  className="text-button"
-                  aria-label={`Remove ${word} from dictionary`}
-                  onClick={() =>
-                    update({
-                      words: settings.words.filter((entry) => entry !== word),
-                    })
-                  }
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ai-preference-description">No added words yet.</p>
-        )}
-        <div className="grove-writing-add-word">
-          <input
-            type="text"
-            aria-label="Add a word to the dictionary"
-            placeholder="Add a word"
-            value={newWord}
-            spellCheck={false}
-            autoComplete="off"
-            onChange={(event) => {
-              setNewWord(event.target.value);
-              setWordError("");
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addWord();
-              }
-            }}
-          />
-          <button type="button" onClick={addWord}>
-            Add word
-          </button>
-        </div>
-        {wordError ? (
-          <p className="app-error" role="alert">
-            {wordError}
-          </p>
-        ) : null}
-        {settings.words.length > 0 && (
+        <div className="ai-preference-group mt-3">
           <button
             type="button"
             className="text-button"
-            onClick={() => update({ words: [] })}
+            aria-expanded={advanced}
+            onClick={() => setAdvanced(!advanced)}
           >
-            Clear dictionary
+            {advanced ? "Hide advanced rules" : "Show advanced rules"}
           </button>
-        )}
-      </fieldset>
-      <p className="ai-preference-description">
-        Sentence rewrites with AI alternatives live in the browser extension,
-        which asks for your consent before sending anything. The webapp never
-        sends what you type for checking.
-      </p>
+          {advanced && (
+            <fieldset className="ai-preference-group">
+              <legend>
+                <h3>Grammar rules</h3>
+              </legend>
+              {writingRules.map((rule) => (
+                <Row
+                  key={rule}
+                  id={`writing-rule-${rule}`}
+                  label={ruleLabels[rule].label}
+                  description={ruleLabels[rule].description}
+                  checked={settings.grammar && settings.rules[rule]}
+                  disabled={!settings.grammar}
+                  onChange={(checked) => update({ rules: { [rule]: checked } })}
+                />
+              ))}
+            </fieldset>
+          )}
+        </div>
+      </details>
+      <details className="settings-options">
+        <summary>Personal dictionary</summary>
+        <fieldset className="ai-preference-group">
+          <p className="ai-preference-description">
+            Names, brands and terms this device won’t flag. This list is
+            separate from the browser extension’s dictionary.
+          </p>
+          {settings.words.length > 0 ? (
+            <ul className="grove-writing-words">
+              {settings.words.map((word) => (
+                <li key={word}>
+                  <span>{word}</span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    aria-label={`Remove ${word} from dictionary`}
+                    onClick={() =>
+                      update({
+                        words: settings.words.filter((entry) => entry !== word),
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ai-preference-description">No added words yet.</p>
+          )}
+          <div className="grove-writing-add-word">
+            <input
+              type="text"
+              aria-label="Add a word to the dictionary"
+              placeholder="Add a word"
+              value={newWord}
+              spellCheck={false}
+              autoComplete="off"
+              onChange={(event) => {
+                setNewWord(event.target.value);
+                setWordError("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addWord();
+                }
+              }}
+            />
+            <button type="button" onClick={addWord}>
+              Add word
+            </button>
+          </div>
+          {wordError ? (
+            <p className="app-error" role="alert">
+              {wordError}
+            </p>
+          ) : null}
+          {settings.words.length > 0 && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => update({ words: [] })}
+            >
+              Clear dictionary
+            </button>
+          )}
+        </fieldset>
+      </details>
     </section>
   );
 }

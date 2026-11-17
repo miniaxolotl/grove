@@ -10,6 +10,11 @@ The [setup page](https://usegrove.cloud/install) has separate links to AI tool
 instructions and the browser extension guide. Neither is required to use the web
 notebook.
 
+Connection names are prefilled and can be edited during setup or later under
+**Settings → Connections → Edit scope**. Choose **Hide** to move an old entry
+into **Hidden connections** in this browser, and **Show again** to restore it.
+Hiding leaves the connection's permissions unchanged; **Revoke** stops access.
+
 ## ChatGPT and Claude web
 
 Add Grove's remote `/mcp` endpoint as a custom OAuth connection, approve the exact

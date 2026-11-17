@@ -196,7 +196,7 @@ for (const path of [
   "/app/archive",
   "/app/projects",
   "/app/settings/connections",
-  "/app/settings",
+  "/app/settings/models",
 ]) {
   test(`${path} recovers from an unavailable service without a false empty or loading state`, async ({
     page,
@@ -228,13 +228,40 @@ for (const path of [
       await expect(
         page.getByRole("button", { name: /^I prefer concise/ }),
       ).toBeVisible();
-    else if (path === "/app/settings")
+    else if (path === "/app/settings/models")
       await expect(
         page.getByRole("button", { name: "Save preferences" }),
       ).toBeVisible();
     else await expect(page.locator(".app-empty")).toBeVisible();
   });
 }
+
+test("local Writing settings work when account settings are unavailable", async ({
+  page,
+}) => {
+  let accountWrites = 0;
+  await fixture(page);
+  await page.route("**/api/grove/me", (route) => {
+    return route.fulfill({ status: 503 });
+  });
+  await page.route("**/api/grove/account/settings", (route) => {
+    accountWrites++;
+    return route.fulfill({ status: 503 });
+  });
+  await page.goto(`${base}/app/settings`);
+  const spelling = page.getByRole("checkbox", {
+    name: "Spelling",
+    exact: true,
+  });
+  await expect(spelling).toBeChecked();
+  await spelling.uncheck();
+  await page.reload();
+  await expect(spelling).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Save preferences" }),
+  ).toHaveCount(0);
+  expect(accountWrites).toBe(0);
+});
 
 test("dashboard navigation, narrow layouts and dialogs meet accessibility checks", async ({
   page,

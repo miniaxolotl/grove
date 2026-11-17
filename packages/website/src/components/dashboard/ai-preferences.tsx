@@ -2,6 +2,7 @@ import type { AiAvailability, PreferenceKey } from "@lib/shared/preferences";
 import type { AccountSettings } from "@lib/shared/account-settings";
 import type { SpeechVoice } from "@lib/shared/speech-voices";
 import { VoicePreference } from "./voice-chooser";
+import Link from "next/link";
 
 const groups: {
   title: string;
@@ -158,56 +159,86 @@ export function AiPreferences({
   onChange: (value: AccountSettings) => void;
   voices?: SpeechVoice[];
 }) {
-  return groups.map(({ title, features }) => (
-    <fieldset className="ai-preference-group" key={title}>
-      <legend>
-        <h3>{title}</h3>
-      </legend>
-      {features.map(({ key, label, description, provider }) => (
-        <label className="ai-preference" key={key}>
-          <span className="ai-preference-copy">
-            <span className="ai-preference-label">
-              <span id={`${key}-label`}>{label}</span>
-              {provider && availability?.[provider] === false && (
-                <span className="settings-badge" aria-hidden="true">
-                  Unavailable
-                </span>
-              )}
+  function renderGroup(
+    { title, features }: (typeof groups)[number],
+    open = false,
+  ) {
+    return (
+      <fieldset className="ai-preference-group" key={title}>
+        <legend className={open ? undefined : "sr-only"}>{title}</legend>
+        {features.map(({ key, label, description, provider }) => (
+          <label className="ai-preference" key={key}>
+            <span className="ai-preference-copy">
+              <span className="ai-preference-label">
+                <span id={`${key}-label`}>{label}</span>
+                {provider && availability?.[provider] === false && (
+                  <span className="settings-badge" aria-hidden="true">
+                    Unavailable
+                  </span>
+                )}
+              </span>
+              <span
+                id={`${key}-description`}
+                className="ai-preference-description"
+              >
+                {description}
+                {provider && availability?.[provider] === false && (
+                  <span className="sr-only">
+                    {" "}
+                    Currently unavailable. Your choice will be saved.
+                  </span>
+                )}
+              </span>
             </span>
-            <span
-              id={`${key}-description`}
-              className="ai-preference-description"
-            >
-              {description}
-              {provider && availability?.[provider] === false && (
-                <span className="sr-only">
-                  {" "}
-                  Currently unavailable. Your choice will be saved.
-                </span>
-              )}
-            </span>
-          </span>
-          <input
-            type="checkbox"
-            name={key}
-            aria-labelledby={`${key}-label`}
-            aria-describedby={`${key}-description`}
-            checked={value[key]}
-            onChange={(event) =>
-              onChange({ ...value, [key]: event.target.checked })
+            <input
+              type="checkbox"
+              name={key}
+              aria-labelledby={`${key}-label`}
+              aria-describedby={`${key}-description`}
+              checked={value[key]}
+              onChange={(event) =>
+                onChange({ ...value, [key]: event.target.checked })
+              }
+            />
+          </label>
+        ))}
+        {title === "Speech" && value.readAloudEnabled && (
+          <VoicePreference
+            value={value.readAloudVoiceId}
+            voices={voices}
+            onChange={(readAloudVoiceId) =>
+              onChange({ ...value, readAloudVoiceId })
             }
           />
-        </label>
-      ))}
-      {title === "Speech" && value.readAloudEnabled && (
-        <VoicePreference
-          value={value.readAloudVoiceId}
-          voices={voices}
-          onChange={(readAloudVoiceId) =>
-            onChange({ ...value, readAloudVoiceId })
-          }
-        />
-      )}
-    </fieldset>
-  ));
+        )}
+        {title === "Connected agents" && (
+          <p className="text-sm text-muted">
+            Apps still need your permission to access notes.{" "}
+            <Link className="text-button" href="/app/settings/connections">
+              Manage connections
+            </Link>
+          </p>
+        )}
+      </fieldset>
+    );
+  }
+  return (
+    <div className="settings-option-groups">
+      {groups
+        .filter(({ title }) => title === "Ask Grove")
+        .map((group) => renderGroup(group, true))}
+      {groups
+        .filter(({ title }) => title !== "Ask Grove")
+        .map((group) => (
+          <details key={group.title} className="settings-options">
+            <summary>
+              {group.title === "Connections"
+                ? "Related notes and notebooks"
+                : group.title}
+            </summary>
+            {renderGroup(group)}
+          </details>
+        ))}
+    </div>
+  );
 }

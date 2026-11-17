@@ -80,7 +80,7 @@ export type BrowserHost = NativePanelHost & {
       windowId?: number;
       currentWindow?: boolean;
     }): Promise<(CaptureTab & { id?: number })[]>;
-    create(options: { url: string }): Promise<unknown>;
+    create(options: { url: string; windowId?: number }): Promise<unknown>;
     sendMessage?(tabId: number, message: unknown): Promise<unknown>;
   };
   permissions?: {

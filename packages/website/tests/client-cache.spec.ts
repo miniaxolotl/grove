@@ -49,19 +49,21 @@ async function fixture(page: Page) {
     const data =
       path === "/projects"
         ? [project]
-        : path === "/memories/search"
-          ? { items: [state.note], nextCursor: null }
-          : path === "/memories" || path === `/memories/${note.id}`
-            ? state.note
-            : path === "/me"
-              ? {
-                  captureEnabled: true,
-                  recallEnabled: true,
-                  organizeEnabled: true,
-                  summariesEnabled: true,
-                  accountId: "fixture",
-                }
-              : [];
+        : path === "/models"
+          ? { config: { embedding: { provider: "disabled" } }, editable: false }
+          : path === "/memories/search"
+            ? { items: [state.note], nextCursor: null }
+            : path === "/memories" || path === `/memories/${note.id}`
+              ? state.note
+              : path === "/me"
+                ? {
+                    captureEnabled: true,
+                    recallEnabled: true,
+                    organizeEnabled: true,
+                    summariesEnabled: true,
+                    accountId: "fixture",
+                  }
+                : [];
     await route.fulfill({
       json: {
         success: true,
@@ -144,17 +146,18 @@ test("fresh Notes, Settings and note-detail revisits reuse snapshots without new
   expect(
     state.reads.filter((path) => path === `/memories/${note.id}`),
   ).toHaveLength(0);
-  await navigate(page, "/app/settings");
+  await navigate(page, "/app/settings/models");
   await expect(
-    page.getByRole("checkbox", { name: "Automatic capture", exact: true }),
+    page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("Keyword search is available.")).toBeVisible();
   const reads = state.reads.length;
   for (let visit = 0; visit < 3; visit++) {
     await navigate(page, "/app");
     await expect(page.locator(".memory-open")).toHaveText("Cached thought");
-    await navigate(page, "/app/settings");
+    await navigate(page, "/app/settings/models");
     await expect(
-      page.getByRole("checkbox", { name: "Automatic capture", exact: true }),
+      page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
     ).toBeVisible();
   }
   expect(state.reads).toHaveLength(reads);

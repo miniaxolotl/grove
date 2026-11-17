@@ -41,9 +41,16 @@
           Writing settings
         </button>
         <section class="connection-card" aria-labelledby="welcome-notes-title">
-          <h2 id="welcome-notes-title">Save notes from your browser</h2>
-          <p class="muted">Sign in to save and search your notes.</p>
-          <button id="login" class="primary">Sign in to Grove</button>
+          <h2 id="welcome-notes-title">Use Grove with an account</h2>
+          <p class="muted">
+            Save and find notes, and use optional AI writing tools.
+          </p>
+          <div class="actions">
+            <button id="login" class="primary">Sign in to Grove</button>
+            <a class="button signup-link" target="_blank" rel="noreferrer"
+              >Create an account</a
+            >
+          </div>
           <p id="grace-note" class="muted small" role="status" hidden></p>
         </section>
       </section>
@@ -52,10 +59,11 @@
         <p class="muted">Choose which notebooks this browser can access.</p>
         <div class="actions">
           <a
-            class="button primary approval-link"
+            id="continue-connection"
+            class="button primary"
             target="_blank"
             rel="noreferrer"
-            >Open Connections</a
+            >Choose note access</a
           ><button id="approved">Check access</button>
         </div>
       </section>
@@ -151,8 +159,10 @@
       >
         <h1 id="settings-title">Settings</h1>
         <section class="settings-section" aria-label="Writing settings">
-          <details id="writing-settings">
-            <summary>Writing <span class="muted small">English</span></summary>
+          <details id="writing-settings" open>
+            <summary>
+              Writing checks <span class="muted small">English</span>
+            </summary>
             <div id="writing-controls" class="field-stack">
               <label class="writing-option"
                 ><span>Check writing everywhere</span
@@ -166,15 +176,6 @@
                 ><span>Basic grammar</span
                 ><input id="writing-grammar" type="checkbox" role="switch"
               /></label>
-              <label class="writing-option"
-                ><span>AI writing tools</span
-                ><input id="writing-ai-rewrites" type="checkbox" role="switch"
-              /></label>
-              <p class="muted small">
-                AI runs only when you choose it. Rewrites use your monthly
-                allowance: 100 on Free, 1,000 on Pro. Local spelling and grammar
-                checks are unlimited.
-              </p>
               <details>
                 <summary>More writing options</summary>
                 <label class="writing-option"
@@ -224,13 +225,31 @@
                 <p class="muted small">Also skips subdomains.</p>
                 <div id="writing-sites"></div>
               </details>
-              <p
-                id="writing-settings-status"
-                class="small muted"
-                role="status"
-              ></p>
             </div>
           </details>
+          <p id="writing-settings-status" class="small muted" role="status"></p>
+        </section>
+        <section
+          id="ai-settings"
+          class="settings-section"
+          hidden
+          aria-labelledby="ai-settings-title"
+        >
+          <h2 id="ai-settings-title">AI writing</h2>
+          <label class="writing-option">
+            <span>Show AI tools in this browser</span>
+            <input
+              id="writing-ai-rewrites"
+              type="checkbox"
+              role="switch"
+              aria-describedby="ai-settings-status"
+            />
+          </label>
+          <p id="ai-settings-status" class="muted small"></p>
+          <a class="approval-link quiet" target="_blank" rel="noreferrer"
+            >Manage AI permission</a
+          >
+          <p id="ai-save-status" class="small muted" role="status"></p>
         </section>
         <section
           class="settings-section settings-appearance"
@@ -249,7 +268,8 @@
         >
           <h2 id="connection-settings-title">Account</h2>
           <p id="connection-help" class="muted small">
-            Sign in to save and find your notes.
+            Local checks work without an account. Open the main panel to sign in
+            or create one.
           </p>
           <div id="connection-settings" hidden>
             <p id="connection-state" class="muted"></p>

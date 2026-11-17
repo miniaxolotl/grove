@@ -3793,9 +3793,6 @@ test("personal prompts save explicit preferences and the editor exposes independ
     page.locator(".memory-open").filter({ hasText: "Communication" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "New note", exact: true }).click();
-  await page
-    .getByLabel("What should stay with you?")
-    .fill("Temporary review context");
   await page.getByRole("button", { name: "Note properties" }).click();
   await page.getByText("Note options", { exact: true }).click();
   await chooseOption(page.getByLabel("Keep this note"), "ephemeral");
@@ -3804,6 +3801,10 @@ test("personal prompts save explicit preferences and the editor exposes independ
     .getByRole("dialog", { name: "Note properties", exact: true })
     .getByRole("button", { name: "Close dialog", exact: true })
     .click();
+  // Choose the lifetime before typing can trigger first-save navigation.
+  await page
+    .getByLabel("What should stay with you?")
+    .fill("Temporary review context");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   expect(
     state.calls.filter((call) => call.path === "/memories").at(-1)?.body
