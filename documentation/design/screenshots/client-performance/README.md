@@ -2,9 +2,9 @@
 
 ## Notes loading and ready states · PR #219
 
-Captured from application source `7da9700135ee7a4bb215f64872dee220767ba31c`
+Captured from application source `351070d2f33951b1d67f156e9c827db8434da166`
 using the Chromium dashboard fixture with production CSS from build
-`O32MsFkfYj3XNMSeU9UoB`. The same six synthetic notes were held and then
+`rnq4IoRnmVbi0KTEDC1gw`. The same six synthetic notes were held and then
 released in each viewport. These captures do not exercise live Clerk or Next
 server rendering.
 
@@ -13,10 +13,10 @@ server rendering.
 | 1440 × 900 | [Desktop skeleton](workspace-notes-loading-1440.png) | [Desktop notes](workspace-notes-ready-1440.png) |
 | 390 × 844, touch emulation | [Mobile skeleton](workspace-notes-loading-390.png) | [Mobile notes](workspace-notes-ready-390.png) |
 
-Row width stayed the same in both pairs. The first row moved down 1 px on
-desktop and 9 px in touch emulation as the selection header resolved. The
-loading status is present for assistive technology but is visually covered by
-the placeholder header in this build.
+The loading message sits in the selection header. The first row kept its
+position and width in both pairs, with a 1 px height difference on desktop and
+no height change in touch emulation. On phones, Today’s note and Import notes
+sit together beneath the title; New note stays in the workspace header.
 
 ## Earlier client loading and recovery captures
 
