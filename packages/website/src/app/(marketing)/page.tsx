@@ -52,10 +52,10 @@ export default async function HomePage() {
           </div>
         </section>
       </div>
-      <Features />
       <LibraryPreview />
       <MemoryDemo />
       <HowItWorks />
+      <Features />
       <AgentStory />
       <section className="feature-index" aria-labelledby="plans-heading">
         <div className="page-container product-facts" data-reveal>

@@ -6,8 +6,8 @@ primary action. Interactive examples demonstrate notes, journal/graph views and
 answers; all use labelled sample content and perform no account writes.
 
 The homepage introduces the product in plain text next to a compact sample note
-and its cited answer. A short feature list follows, with library and Ask examples
-further down. The page uses system UI fonts and does not wait for scroll-triggered
+and its cited answer. Library and Ask examples come before the list of other
+features. The page uses system UI fonts and does not wait for scroll-triggered
 reveals. The primary action is signup; visitors can also explore the sample
 notebook without signing in.
 

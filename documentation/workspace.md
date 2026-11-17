@@ -32,6 +32,8 @@ owns connection commands and approval.
 ## Write, find, and organize
 
 - **New note**, **Today’s note** and existing notes use the same workspace.
+  Find **Today’s note** under **More** in Notes or **Notebook options** in a
+  specific notebook.
   **Edit note** / **Preview** switch in place, preserving cursor, Undo and reading
   position. **Write** styles Markdown; **Markdown** exposes source. Formatting,
   outline and focus mode remain available while writing.

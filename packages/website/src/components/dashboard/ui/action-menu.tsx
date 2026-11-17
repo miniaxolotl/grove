@@ -12,6 +12,7 @@ import { overlayViewport } from "./overlay-focus";
 /** Native popover gives all action menus light-dismiss, Escape and focus return. */
 export function ActionMenu({
   label,
+  visibleLabel,
   children,
   icon = <MoreHorizontal size={18} />,
   open: controlledOpen,
@@ -19,6 +20,7 @@ export function ActionMenu({
   closeOnSelect = true,
 }: {
   label: string;
+  visibleLabel?: string;
   children: ReactNode;
   icon?: ReactNode;
   open?: boolean;
@@ -98,7 +100,7 @@ export function ActionMenu({
       <button
         ref={anchor}
         type="button"
-        className="app-icon"
+        className={visibleLabel ? "app-button secondary" : "app-icon"}
         aria-label={label}
         title={label}
         aria-expanded={open}
@@ -111,7 +113,7 @@ export function ActionMenu({
           (event.key === "ArrowDown" ? choices[0] : choices.at(-1))?.focus();
         }}
       >
-        {icon}
+        {visibleLabel ?? icon}
       </button>
       <div
         ref={popup}

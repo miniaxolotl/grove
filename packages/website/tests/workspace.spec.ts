@@ -6059,6 +6059,13 @@ test("mobile notebook browsing keeps creation and dated writing in the selected 
   await expect(
     page.getByRole("link", { name: "New note", exact: true }),
   ).toHaveAttribute("href", `/app/notes/new?notebook=${project.id}`);
+  await expect(
+    page.getByRole("button", { name: "Ask about these notes", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    page.getByRole("link", { name: "Today’s note", exact: true }),
+  ).toBeHidden();
+  await page.getByRole("button", { name: "Notebook options", exact: true }).click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
@@ -6113,6 +6120,7 @@ test("Today's note uses the same editor and library, with date grouping and note
   await expect(
     page.getByRole("link", { name: "New note", exact: true }),
   ).toHaveCount(1);
+  await page.getByRole("button", { name: "More note actions", exact: true }).click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   const editor = page.locator(".note-editor-full");
   await editor.getByRole("button", { name: "Markdown", exact: true }).click();

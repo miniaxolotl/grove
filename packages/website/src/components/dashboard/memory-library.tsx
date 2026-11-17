@@ -1,10 +1,18 @@
 "use client";
-import { ImportNotesButton } from "./import-notes-button";
+import { ImportNotesPanel } from "./import-notes-button";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { X, Undo2, List, Network, CalendarDays, RefreshCw } from "lucide-react";
+import {
+  X,
+  Undo2,
+  List,
+  Network,
+  CalendarDays,
+  RefreshCw,
+  Upload,
+} from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
@@ -28,6 +36,7 @@ import {
   type LibraryFilters,
 } from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
+import { ActionMenu } from "./ui/action-menu";
 import { SegmentedControl } from "./ui/segmented-control";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
@@ -88,6 +97,7 @@ export function MemoryLibrary({
   const api = cache.api;
   const workspace = useWorkspaceDrag();
   const [view, setView] = useState(initialView);
+  const [importing, setImporting] = useState(false);
   const {
     projects,
     error: notebookError,
@@ -287,7 +297,9 @@ export function MemoryLibrary({
     // Instant patch first: rows move immediately, requests settle behind it.
     markPending(ids);
     cache.applyNoteRecords(
-      new Map(work.map((memory) => [memory.id, expectedNote(memory, action, target)])),
+      new Map(
+        work.map((memory) => [memory.id, expectedNote(memory, action, target)]),
+      ),
     );
     setMoving(null);
     setChecked((current) => current.filter((id) => !ids.includes(id)));
@@ -358,9 +370,7 @@ export function MemoryLibrary({
           record.before.projectId,
         );
       } catch (e) {
-        cache.restoreNoteRecords(
-          new Map([[record.after.id, record.after]]),
-        );
+        cache.restoreNoteRecords(new Map([[record.after.id, record.after]]));
         remaining.push(record);
         message = errorMessage(e);
       }
@@ -439,19 +449,26 @@ export function MemoryLibrary({
           className="library-page-heading"
           actions={
             !archive && (
-              <>
+              <ActionMenu label="More note actions" visibleLabel="More">
                 <Link
-                  className="app-button secondary"
                   href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
                 >
                   <CalendarDays size={16} aria-hidden="true" />
                   Today’s note
                 </Link>
-                <ImportNotesButton projectId={scopedProject ?? undefined} />
-              </>
+                <button type="button" onClick={() => setImporting(true)}>
+                  <Upload size={16} aria-hidden="true" />
+                  Import notes
+                </button>
+              </ActionMenu>
             )
           }
         />
+      )}
+      {importing && (
+        <Dialog title="Import notes" close={() => setImporting(false)}>
+          <ImportNotesPanel projectId={scopedProject ?? undefined} />
+        </Dialog>
       )}
       <div className={`memory-workspace${embedded ? " embedded" : ""}`}>
         <div className="library-main">

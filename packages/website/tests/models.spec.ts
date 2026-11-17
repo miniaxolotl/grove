@@ -388,6 +388,21 @@ test("provider availability attributes connections to generation and keeps keywo
   );
 });
 
+test("writing settings stay reachable on a short, narrow screen", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 256 });
+  await page.route("**/api/grove/**", (route) =>
+    route.fulfill({ json: { success: true, data: {} } }),
+  );
+  await page.goto(`${base}/app/settings`);
+  const spelling = page.getByRole("checkbox", { name: "Spelling", exact: true });
+  await spelling.focus();
+  await expect(spelling).toBeInViewport({ ratio: 1 });
+  await spelling.press("Space");
+  await expect(spelling).not.toBeChecked();
+  await page.reload();
+  await expect(spelling).not.toBeChecked();
+});
+
 test("settings share persistent navigation and scrolling, and feedback leaves forms in place", async ({
   page,
 }, info) => {

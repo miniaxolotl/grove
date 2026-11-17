@@ -1965,14 +1965,6 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 600px) {
-  .notebook-daily-note {
-    width: 44px;
-    min-height: 44px;
-    padding: 8px;
-  }
-  .notebook-daily-note > span {
-    display: none;
-  }
   .settings-save-row {
     gap: 8px;
     align-items: stretch;
