@@ -1295,13 +1295,22 @@ for (const target of ["chrome", "edge"])
                   ),
                 ),
             );
-            const bounds = await dialog.boundingBox();
+            const geometry = await dialog.evaluate((card) => {
+              const editor = document.querySelector("#note");
+              return {
+                bounds: card.getBoundingClientRect().toJSON(),
+                editor: editor.getBoundingClientRect().toJSON(),
+                maxHeight: globalThis.getComputedStyle(card).maxHeight,
+                viewport: [innerWidth, globalThis.innerHeight],
+              };
+            });
+            const bounds = geometry.bounds;
             assert.ok(
               bounds.x >= 0 &&
                 bounds.y >= 0 &&
                 bounds.x + bounds.width <= width &&
                 bounds.y + bounds.height <= height,
-              "AI review stays inside narrow/short and dark viewports",
+              `AI review stays inside ${width}x${height} ${colorScheme}: ${JSON.stringify(geometry)}`,
             );
             assert.deepEqual(
               (
@@ -1321,6 +1330,30 @@ for (const target of ["chrome", "edge"])
                 fullPage: true,
               });
           }
+          await page.setViewportSize({ width: 320, height: 240 });
+          await page.evaluate(() => {
+            document.querySelector("#note-details").open = true;
+            const panel = document.querySelector("main");
+            panel.scrollTop = panel.scrollHeight;
+          });
+          const scrolledReview = await dialog.evaluate(async (card) => {
+            await new Promise((resolve) =>
+              globalThis.requestAnimationFrame(() =>
+                globalThis.requestAnimationFrame(resolve),
+              ),
+            );
+            const { top, bottom } = card.getBoundingClientRect();
+            return { top, bottom, height: globalThis.innerHeight };
+          });
+          assert.ok(
+            scrolledReview.top >= 12 &&
+              scrolledReview.bottom <= scrolledReview.height - 12,
+            `AI review fits after the selection scrolls away: ${JSON.stringify(scrolledReview)}`,
+          );
+          await page.evaluate(() => {
+            document.querySelector("#note-details").open = false;
+            document.querySelector("main").scrollTop = 0;
+          });
           await page.setViewportSize({ width: 390, height: 844 });
           await page.emulateMedia({ colorScheme: "light" });
           await dialog
@@ -1791,7 +1824,8 @@ for (const target of ["chrome", "edge"])
       await page
         .locator("#save-state")
         .filter({
-          hasText: "Your earlier note is saved. These changes save on their own.",
+          hasText:
+            "Your earlier note is saved. These changes save on their own.",
         })
         .waitFor();
       assert.deepEqual(
@@ -2425,10 +2459,7 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="capture"]').click();
       await page.reload();
       await page.locator("#workspace").waitFor({ state: "visible" });
-      assert.equal(
-        await page.locator("#note").inputValue(),
-        newerDraft,
-      );
+      assert.equal(await page.locator("#note").inputValue(), newerDraft);
       // Workspace navigation contract: order, current marker, keyboard, scroll.
       assert.deepEqual(
         await page
@@ -2685,18 +2716,12 @@ for (const target of ["chrome", "edge"])
         saveBox.y >= 0 && saveBox.y + saveBox.height <= navBox.y,
         "Save stays reachable above navigation in a short panel",
       );
-      assert.equal(
-        await page.locator("#note").inputValue(),
-        newerDraft,
-      );
+      assert.equal(await page.locator("#note").inputValue(), newerDraft);
       await page.locator('[data-nav="settings"]').click();
       const otherPanel = await context.newPage();
       await otherPanel.goto(`chrome-extension://${extensionId}/panel.html`);
       await otherPanel.locator("#workspace").waitFor({ state: "visible" });
-      assert.equal(
-        await otherPanel.locator("#note").inputValue(),
-        newerDraft,
-      );
+      assert.equal(await otherPanel.locator("#note").inputValue(), newerDraft);
       await page.locator("#extension-toggle").click();
       await page.waitForFunction(
         () =>
@@ -2852,10 +2877,7 @@ for (const target of ["chrome", "edge"])
         "extension-toggle",
         "keyboard toggle preserves focus through resume",
       );
-      assert.equal(
-        await otherPanel.locator("#note").inputValue(),
-        newerDraft,
-      );
+      assert.equal(await otherPanel.locator("#note").inputValue(), newerDraft);
       await otherPanel
         .locator("#note")
         .fill("# Shared from Notes\n\nA newly saved thought.");
