@@ -66,6 +66,7 @@ test("public note is readable signed out, safe, responsive and not indexed", asy
   await expect(
     page.getByRole("heading", { name: "A shared idea", level: 1 }),
   ).toBeVisible();
+  await expect(page.getByText("Shared note", { exact: true })).toBeVisible();
   await expect(page.getByText("Keep the useful details.")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Next steps", level: 2 }),

@@ -2,6 +2,9 @@
 
 Owners can share saved notes and notebooks with anyone who has the link. Readers
 see **live saved content** without signing in. Visitor permission is **Can view**.
+The reader labels the page as a shared note or notebook. Shared notebooks list
+sub-notebooks and notes separately, and a note opened from the list links back to
+the shared notebook.
 
 ## Owner controls and lifecycle
 

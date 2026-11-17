@@ -1,5 +1,5 @@
 .shared-page {
-  max-width: 784px;
+  max-width: 816px;
   margin: auto;
   padding: 0 32px;
   min-height: 100dvh;
@@ -9,68 +9,74 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 88px;
+  min-height: 64px;
   border-bottom: 1px solid var(--color-line);
 }
 .shared-site-header > span,
-.shared-date {
-  font-size: 12px;
+.shared-heading-details {
+  font-size: 13px;
   color: var(--color-muted);
 }
 .shared-reader {
-  padding: 40px 0 56px;
+  padding: 32px 0 56px;
   overflow-wrap: anywhere;
 }
 .shared-heading {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 .shared-heading h1,
 .shared-message h1 {
   font-size: clamp(28px, 5vw, 36px);
   line-height: 1.2;
-  font-weight: 500;
+  font-weight: 650;
   letter-spacing: -0.025em;
 }
-.shared-date {
-  margin-top: 12px;
+.shared-heading-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
 }
 .shared-back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 44px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   font-size: 13px;
-  color: var(--color-muted);
+  color: var(--color-forest);
   max-width: 100%;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .shared-notebooks h2,
 .shared-notes h2 {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-muted);
+  font-size: 15px;
+  font-weight: 600;
 }
 .shared-notebooks {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 .shared-notes ul,
 .shared-notebooks ul {
   list-style: none;
   padding: 0;
   margin-top: 8px;
-  border-top: 1px solid var(--color-line);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--brand-surface);
 }
-.shared-notes li,
-.shared-notebooks li {
-  border-bottom: 1px solid var(--color-line);
+.shared-notes li + li,
+.shared-notebooks li + li {
+  border-top: 1px solid var(--color-line);
 }
 .shared-notes a,
 .shared-notebooks a {
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 14px 8px;
-  min-height: 56px;
+  padding: 10px 12px;
+  min-height: 48px;
   border-radius: 6px;
   font-size: 14px;
   line-height: 1.5;
@@ -129,8 +135,11 @@
   background: var(--color-sage);
 }
 .shared-empty {
-  padding: 20px 0;
+  margin-top: 8px;
+  padding: 12px;
   color: var(--color-muted);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
 }
 .shared-message {
   max-width: 480px;
@@ -164,8 +173,11 @@
   background: var(--color-leaf);
 }
 .shared-reader .memory-markdown {
-  font-size: 16px;
-  line-height: 1.75;
+  max-width: 70ch;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-line);
+  font-size: 17px;
+  line-height: 1.7;
 }
 .shared-reader .memory-markdown > * + * {
   margin-top: 16px;
@@ -261,13 +273,10 @@
     padding: 0 20px;
   }
   .shared-site-header {
-    min-height: 76px;
-  }
-  .shared-site-header > span {
-    font-size: 11px;
+    min-height: 58px;
   }
   .shared-reader {
-    padding: 28px 0 40px;
+    padding: 24px 0 40px;
   }
   .shared-message {
     padding-top: 40px;
