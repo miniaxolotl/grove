@@ -1074,6 +1074,23 @@ for (const width of [1440, 768, 390, 320]) {
       await expect(notes).toBeInViewport();
       if (width < 1024) {
         expect((await sidebar.boundingBox())!.height).toBeLessThanOrEqual(220);
+        const header = sidebar.locator(".app-sidebar-heading");
+        const headerBounds = (await header.boundingBox())!;
+        const logo = (await header.locator("a").first().boundingBox())!;
+        const create = (await header
+          .getByRole("link", { name: "New note" })
+          .boundingBox())!;
+        const account = (await header
+          .getByRole("button", { name: "Account" })
+          .boundingBox())!;
+        expect(Math.abs(logo.x - headerBounds.x)).toBeLessThan(1);
+        expect(
+          Math.abs(account.x + account.width - headerBounds.x - headerBounds.width),
+        ).toBeLessThan(1);
+        expect(create.x - logo.x - logo.width).toBeGreaterThanOrEqual(8);
+        expect(
+          Math.abs(logo.y + logo.height / 2 - (account.y + account.height / 2)),
+        ).toBeLessThan(1);
         for (const name of ["Notes", "Ask Grove", "Archive", "Settings"]) {
           const link = sidebar.getByRole("link", { name, exact: true });
           await expect(link).toBeInViewport();

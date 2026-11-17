@@ -149,10 +149,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       >
                         <div className="app-sidebar-heading">
                           <Brand href="/app" />
-                          <NewNoteLink />
-                          <WorkspaceSearchButton />
-                          <div className="sidebar-account-avatar lg:hidden">
-                            <UserButton />
+                          <div className="workspace-header-actions">
+                            <NewNoteLink />
+                            <WorkspaceSearchButton />
+                            <div className="sidebar-account-avatar lg:hidden">
+                              <UserButton />
+                            </div>
                           </div>
                         </div>
                         <div className="workspace-utilities">

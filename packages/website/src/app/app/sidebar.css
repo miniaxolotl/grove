@@ -35,6 +35,9 @@
 .app-sidebar-heading img {
   height: 22px;
 }
+.workspace-header-actions {
+  display: contents;
+}
 .app-sidebar .sidebar-create {
   grid-column: 1 / -1;
   grid-row: 2;
@@ -383,14 +386,22 @@
   .app-sidebar-heading {
     grid-column: 1 / -1;
     display: flex;
+    justify-content: space-between;
     gap: 8px;
   }
   .app-sidebar-heading > a:first-child {
+    flex-shrink: 0;
     padding: 0;
     min-height: 44px;
   }
-  .sidebar-create {
-    margin-left: auto;
+  .workspace-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    gap: 8px;
+  }
+  .app-sidebar-heading .sidebar-create {
     padding: 8px 12px;
     min-height: 44px;
     font-size: 12px;
