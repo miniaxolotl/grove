@@ -263,6 +263,7 @@ async function saveWriting(change: {
 let searchRevision = 0;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let composingSearch = false;
+let composingNote = false;
 let draftRevision = 0;
 let readerNote: Memory | undefined;
 let readerRevision = 0;
@@ -272,6 +273,56 @@ const renderedNotes = new WeakMap<HTMLElement, Memory>();
 const scrollPositions = new Map<string, number>();
 let editTail: Promise<unknown> = Promise.resolve(),
   replaceAction: (() => Promise<void>) | undefined;
+// Notes save themselves after their first explicit save: one debounced timer
+// per editing pause, re-checked at fire time so late keystrokes, IME
+// composition, configuration changes, an off switch or an unresolved earlier
+// save always win over the timer.
+const autosaveDelayMs = 600;
+let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
+function cancelAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = undefined;
+}
+function changedDraft() {
+  const draft = state?.draft;
+  if (!draft) return false;
+  try {
+    return (
+      !draft.save ||
+      draft.save.request.content !== formatCaptureDraft(draft) ||
+      draft.save.request.projectId !== draft.projectId ||
+      JSON.stringify(draft.save.request.provenance) !==
+        JSON.stringify(draft.source)
+    );
+  } catch {
+    return true;
+  }
+}
+function scheduleAutosave() {
+  cancelAutosave();
+  const revision = draftRevision;
+  const epoch = sessionEpoch;
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = undefined;
+    void action(async () => {
+      await editTail;
+      if (
+        revision !== draftRevision ||
+        epoch !== sessionEpoch ||
+        !preferences.enabled ||
+        configuring ||
+        composingNote ||
+        savingCapture ||
+        !state?.identity.capabilities.includes("memory:write") ||
+        state.draft?.save?.status !== "saved" ||
+        !changedDraft() ||
+        !$<HTMLTextAreaElement>("note").value.trim()
+      )
+        return;
+      await saveCapture();
+    });
+  }, autosaveDelayMs);
+}
 const approved = () =>
   state?.identity.capabilities.some((cap) =>
     ["memory:read", "memory:write"].includes(cap),
@@ -413,6 +464,7 @@ function paintPreferences(next: Preferences) {
 async function configure(changes: Partial<Preferences>) {
   const focused = document.activeElement as HTMLElement | null;
   configuring = true;
+  cancelAutosave();
   for (const id of ["extension-toggle", "theme"])
     $<HTMLButtonElement>(id).disabled = true;
   $("extension-toggle").setAttribute("aria-busy", "true");
@@ -501,7 +553,7 @@ function paintDraft(draft: CaptureDraft, fields = true) {
     ? ""
     : save.status === "saved"
       ? changedSinceSave
-        ? "Your earlier note is saved. These changes aren’t saved yet."
+        ? "Your earlier note is saved. These changes save on their own."
         : "Saved."
       : save.status === "failed"
         ? "Couldn’t save. Your note is still here. Retry the earlier note."
@@ -509,12 +561,14 @@ function paintDraft(draft: CaptureDraft, fields = true) {
           ? "Save not confirmed. Retry the earlier note safely; newer changes stay here."
           : "Saving…";
   $("save").textContent =
-    save && save.status !== "saved" ? "Retry earlier note" : "Save note";
+    save && save.status !== "saved" ? "Retry earlier note" : "Save now";
   $<HTMLButtonElement>("save").formNoValidate =
     !!save && save.status !== "saved";
-  $<HTMLAnchorElement>("saved-link").hidden = save?.status !== "saved";
-  if (save?.status === "saved")
-    $<HTMLAnchorElement>("saved-link").href = noteUrl(save.receipt.noteId);
+  // A rejected update still knows its note; keep it reachable for review.
+  const savedId =
+    save?.status === "saved" ? save.receipt.noteId : save?.request.id;
+  $<HTMLAnchorElement>("saved-link").hidden = !savedId;
+  if (savedId) $<HTMLAnchorElement>("saved-link").href = noteUrl(savedId);
   if (save?.status === "saved" && state) {
     state.pending = state.pending.filter(
       (item) => item.operationId !== save.request.operationId,
@@ -570,6 +624,7 @@ function persist(changes: {
   void editTail.catch(() =>
     notice("Couldn’t keep this draft. Leave it open and try again."),
   );
+  scheduleAutosave();
 }
 async function followSource() {
   if (
@@ -627,6 +682,8 @@ async function refresh() {
       state.draft,
       !$<HTMLTextAreaElement>("note").dataset.loaded || !!changed,
     );
+  if (state.draft?.save?.status === "saved" && changedDraft())
+    scheduleAutosave();
   $<HTMLButtonElement>("save").disabled =
     !state.identity.capabilities.includes("memory:write");
   const pending = $("pending-list");
@@ -698,10 +755,14 @@ async function loadInbox() {
   existing.forEach((el) => el.remove());
 }
 async function replace(run: () => Promise<void>) {
-  if (
-    state?.draft?.sourceMode !== "automatic" &&
-    ($<HTMLTextAreaElement>("note").value || state?.draft?.source)
-  ) {
+  cancelAutosave();
+  await editTail;
+  const draft = state?.draft;
+  const unsaved =
+    !!($<HTMLTextAreaElement>("note").value || draft?.source) ||
+    (!!draft?.save &&
+      (draft.save.status !== "saved" || changedDraft()));
+  if (draft?.sourceMode !== "automatic" && unsaved) {
     replaceAction = run;
     $<HTMLDialogElement>("confirm").showModal();
     return;
@@ -978,6 +1039,7 @@ $("capture-form").addEventListener("submit", (event) => {
 async function saveCapture() {
   if (savingCapture) throw new Error("Wait for the save to finish.");
   savingCapture = true;
+  cancelAutosave();
   $<HTMLButtonElement>("share-draft").disabled = true;
   try {
     await editTail;
@@ -1009,6 +1071,10 @@ async function saveCapture() {
   } finally {
     savingCapture = false;
     if (state?.draft) paintDraft(state.draft, false);
+    // Keep autosaving only behind a settled, current receipt: a rejected or
+    // unknown save is never retried automatically.
+    if (state?.draft?.save?.status === "saved" && changedDraft())
+      scheduleAutosave();
   }
 }
 on("share-draft", async () => {
@@ -1038,6 +1104,14 @@ $("note").addEventListener("input", () => {
   $("writing-hint").textContent = "";
   count();
   persist({ text: $<HTMLTextAreaElement>("note").value });
+});
+$("note").addEventListener("compositionstart", () => {
+  composingNote = true;
+  cancelAutosave();
+});
+$("note").addEventListener("compositionend", () => {
+  composingNote = false;
+  scheduleAutosave();
 });
 $("destination").addEventListener("change", () =>
   persist({ projectId: $<HTMLSelectElement>("destination").value || null }),
@@ -1113,6 +1187,7 @@ on("notebooks-more", async () => {
   updateNotebooks(page.items, true);
 });
 function clearSessionView() {
+  cancelAutosave();
   sessionEpoch++;
   view = "capture";
   state = undefined;
@@ -1155,6 +1230,7 @@ function clearSessionView() {
   paintPreferences(preferences);
 }
 on("logout", async () => {
+  cancelAutosave();
   await editTail;
   await rpc("logout");
   clearSessionView();

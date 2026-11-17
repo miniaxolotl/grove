@@ -436,6 +436,90 @@ test("browser capture service commits provenance and scope-checked replay atomic
   );
 
   await t.test(
+    "guarded autosave updates one note behind a version fence and never rebases silently",
+    async () => {
+      const url = `https://example.com/autosave/${randomUUID()}`;
+      const provenance = {
+        url,
+        title: "Source",
+        capturedAt: new Date().toISOString(),
+      };
+      const note = await service.captureWeb(a, {
+        operationId: randomUUID(),
+        content: "A first note",
+        projectId: null,
+        capture: "explicit" as const,
+        provenance,
+      });
+      const editSession = randomUUID();
+      const edit = (expectedVersion: number, content: string) => ({
+        operationId: randomUUID(),
+        id: note.id,
+        expectedVersion,
+        editSession,
+        content,
+        projectId: null,
+        capture: "explicit" as const,
+        provenance,
+      });
+      const first = edit(note.version, "A first note, edited");
+      const updated = await service.captureWeb(a, first);
+      assert.equal(updated.id, note.id);
+      assert.equal(updated.version, note.version + 1);
+      assert.equal(
+        (await service.captureWeb(a, first)).version,
+        updated.version,
+        "replaying the same operation settles on its receipt",
+      );
+      assert.equal(
+        (
+          await service.captureWeb(
+            a,
+            edit(updated.version, "A first note, edited"),
+          )
+        ).version,
+        updated.version,
+        "identical autosaves do not mint revisions",
+      );
+      assert.equal(
+        (await service.pageCaptures(a, { url, projectId: null })).items.length,
+        1,
+        "updates rebind provenance instead of listing a second page note",
+      );
+      await assert.rejects(
+        service.captureWeb(b, edit(updated.version, "Another account")),
+        "other accounts cannot update this note",
+      );
+      await assert.rejects(
+        service.captureWeb(a, edit(note.version, "Stale edit")),
+        /changed/i,
+        "a stale expectedVersion fences concurrent writers",
+      );
+      const external = await service.updateMemory(a, {
+        operationId: randomUUID(),
+        id: note.id,
+        expectedVersion: updated.version,
+        content: "Another writer's note",
+        capture: "explicit",
+      });
+      await assert.rejects(
+        service.captureWeb(a, first),
+        /changed|current/i,
+        "an old receipt never grants a newer version fence",
+      );
+      assert.equal(
+        (await service.webCaptureStatus(a, first.operationId)).version,
+        updated.version,
+      );
+      assert.equal(
+        (await service.get(a, external.id)).content,
+        "Another writer's note",
+        "a conflicting autosave never rebases the saved note",
+      );
+    },
+  );
+
+  await t.test(
     "read/write grants, scope changes and revoked connections are rechecked",
     async () => {
       const { connection } = await service.grant(
