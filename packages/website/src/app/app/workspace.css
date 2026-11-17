@@ -566,8 +566,7 @@ html:has(.grove-app) {
   box-shadow: 0 2px 12px #253e3130;
   font-size: 12px;
 }
-.ask-toolbar,
-.ask-composer {
+.ask-toolbar {
   flex-shrink: 0;
 }
 .ask-toolbar .segmented-control {
@@ -590,9 +589,15 @@ html:has(.grove-app) {
   padding-block: 6px;
   border-radius: 5px;
 }
-.ask-composer {
+.ask-console > .ask-composer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 8px 10px;
   border-radius: 10px;
+}
+.ask-composer > :not(textarea, .ask-message-preview) {
+  flex-shrink: 0;
 }
 .ask-composer:focus-within {
   border-color: var(--color-muted);
@@ -797,6 +802,10 @@ html:has(.grove-app) {
 }
 .ask-composer textarea[hidden] {
   display: none;
+}
+.ask-composer .ask-message-preview {
+  min-height: 0;
+  overflow-y: auto;
 }
 .ask-composer textarea:focus {
   box-shadow: none;

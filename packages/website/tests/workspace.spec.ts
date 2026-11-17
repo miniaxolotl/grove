@@ -1159,7 +1159,10 @@ for (const width of [1440, 768, 390, 320]) {
       ).toEqual(heading);
       await expect(
         notebooks.getByRole("link", { name: "Manage notebooks" }),
-      ).toBeInViewport();
+      ).toBeInViewport({ ratio: 1 });
+      await expect(
+        notebooks.getByRole("button", { name: "Create notebook", exact: true }),
+      ).toBeInViewport({ ratio: 1 });
       expect(
         await sidebar.evaluate(
           (element) => element.scrollWidth <= element.clientWidth,
@@ -5836,8 +5839,12 @@ test("chat composer grows, preserves selections between modes, formats and submi
       (element) => element.scrollHeight > element.clientHeight,
     ),
   ).toBe(true);
-  for (const width of [1440, 390, 320]) {
-    await page.setViewportSize({ width, height: 900 });
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 900],
+    [320, 720],
+  ]) {
+    await page.setViewportSize({ width, height });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -5845,7 +5852,7 @@ test("chat composer grows, preserves selections between modes, formats and submi
     ).toBe(true);
     await expect(
       page.getByRole("button", { name: "Send question" }),
-    ).toBeInViewport();
+    ).toBeInViewport({ ratio: 1 });
     await page.screenshot({
       path: info.outputPath(`composer-${width}.png`),
       fullPage: true,
