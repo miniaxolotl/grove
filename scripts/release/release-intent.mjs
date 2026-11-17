@@ -6,6 +6,40 @@ import console from "node:console";
 import { pathToFileURL } from "node:url";
 
 const plainVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const releaseAs = /^Release-As:[ \t]*(.*)$/gim;
+
+export function reconcileGroveReleaseHistory(tag, source, history) {
+  const v16 = "0ee29d9c96b532af6ebfadc7c38026843c122029";
+  const v19 = "7b36ba690553437a3d1c987db8d9b104f4f175fe";
+  const superseded = "27eed31fad3269be923ecfe57ac04cd42b92e39a";
+  const reaffirmed = "a30ec65fc6b72dfc60855a4bfaa24502d6415c78";
+  const indexOf = (sha) => history.findIndex((commit) => commit.sha === sha);
+  const footerOf = (message) =>
+    [...message.matchAll(releaseAs)].map((match) => match[1].trim());
+
+  let remove = -1;
+  let expected;
+  if (tag === "v1.11.16" && source === v16 && indexOf(superseded) >= 0) {
+    // #198's store-preparation version was superseded by #211. Require the
+    // actual merged Release Please PR (#196) between those two decisions.
+    const selected = indexOf(reaffirmed);
+    const generated = indexOf(v19);
+    remove = indexOf(superseded);
+    assert.ok(selected >= 0 && selected < generated && generated < remove);
+    assert.deepEqual(footerOf(history[selected].message), ["1.11.19"]);
+    expected = "1.11.18";
+  } else if (tag === "v1.11.19" && source === v19) {
+    // Release Please tags #196, not the later commit that reaffirmed it.
+    remove = indexOf(reaffirmed);
+    expected = "1.11.19";
+  }
+  if (remove >= 0)
+    assert.deepEqual(footerOf(history[remove].message), [expected]);
+  return history.map(({ message }, index) =>
+    index === remove ? message.replace(releaseAs, "") : message,
+  );
+}
+
 export function assertReleaseIntent(messages, currentVersion) {
   assert.match(currentVersion, plainVersion);
   assert.ok(
@@ -13,8 +47,8 @@ export function assertReleaseIntent(messages, currentVersion) {
       messages.every((message) => typeof message === "string"),
   );
   const text = messages.join("\n\n").replaceAll("\r\n", "\n");
-  const versions = [...text.matchAll(/^Release-As:[ \t]*(.*)$/gim)].map(
-    (match) => match[1].trim(),
+  const versions = [...text.matchAll(releaseAs)].map((match) =>
+    match[1].trim(),
   );
   for (const version of versions)
     assert.match(
@@ -96,14 +130,25 @@ if (
       base && (tag || /^[a-f0-9]{40}$/.test(base)),
       "Release history or an explicit bootstrap boundary is required",
     );
-    const messages = git(
+    const records = git(
       "log",
       "--first-parent",
-      "--format=%B%x00",
+      "-z",
+      "--format=%H%x00%B",
       `${base}..HEAD`,
-    )
-      .split("\0")
-      .filter(Boolean);
+    ).split("\0");
+    assert.equal(records.pop(), "");
+    assert.equal(records.length % 2, 0);
+    const history = [];
+    for (let i = 0; i < records.length; i += 2) {
+      assert.match(records[i], /^[a-f0-9]{40}$/);
+      history.push({ sha: records[i], message: records[i + 1] });
+    }
+    const messages = reconcileGroveReleaseHistory(
+      tag,
+      tag ? git("rev-parse", `${tag}^{commit}`).trim() : null,
+      history,
+    );
     const selected = assertReleaseIntent(
       messages,
       tag ? tag.slice(1) : "0.0.0",
