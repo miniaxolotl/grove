@@ -2,11 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { FAQ } from "@/components/faq";
 import { Features } from "@/components/features";
-import { HowItWorks } from "@/components/how-it-works";
-import { MemoryDemo } from "@/components/memory-demo";
 import { MemoryPreview } from "@/components/memory-preview";
-import { LibraryPreview } from "@/components/library-preview";
-import { AgentStory } from "@/components/agent-story";
 import { StructuredData } from "@/components/structured-data";
 import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
@@ -46,17 +42,51 @@ export default async function HomePage() {
                 </a>
               </div>
             </div>
-            <div className="product-stage notebook-leaf" data-reveal>
+            <div
+              id="your-library"
+              className="product-stage notebook-leaf"
+              data-reveal
+            >
               <MemoryPreview />
             </div>
           </div>
         </section>
       </div>
-      <LibraryPreview />
-      <MemoryDemo />
-      <HowItWorks />
+      <section
+        id="how-it-works"
+        className="feature-index"
+        aria-labelledby="for-developers"
+      >
+        <div className="page-container product-facts">
+          <h2 id="for-developers" className="section-title">
+            Get started
+          </h2>
+          <div>
+            <p>
+              Write your first note in the browser. Add the extension or connect
+              AI tools whenever you need them.
+            </p>
+            <ul className="home-resource-links">
+              <li>
+                <Link href="/install#extension-heading" className="text-link">
+                  Browser extension setup
+                </Link>
+              </li>
+              <li>
+                <Link href="/install" className="text-link">
+                  Connect your AI tools
+                </Link>
+              </li>
+              <li>
+                <Link href="/examples" className="text-link" prefetch={false}>
+                  More notebook examples
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
       <Features />
-      <AgentStory />
       <section className="feature-index" aria-labelledby="plans-heading">
         <div className="page-container product-facts" data-reveal>
           <h2 id="plans-heading" className="section-title">

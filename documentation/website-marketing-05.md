@@ -5,11 +5,12 @@ source-linked Ask answers and optional agent context. Notebook signup is the
 primary action. Interactive examples demonstrate notes, journal/graph views and
 answers; all use labelled sample content and perform no account writes.
 
-The homepage introduces the product in plain text next to a compact sample note
-and its cited answer. Library and Ask examples come before the list of other
-features. The page uses system UI fonts and does not wait for scroll-triggered
-reveals. The primary action is signup; visitors can also explore the sample
-notebook without signing in.
+The homepage introduces the product in plain text next to one interactive
+notebook with cited answers. **Get started** links to extension and AI tool setup
+and to [Notebook examples](https://usegrove.cloud/examples), where visitors can
+try the separate library and Ask examples without signing in. The homepage keeps
+signup, the feature list, pricing and FAQ without repeating the setup steps.
+It uses system UI fonts and does not wait for scroll-triggered reveals.
 
 Library views explain nested notebooks, semantic/keyword search and assistance
 previews. The feature index adds short voice recording/transcription, read aloud,
@@ -52,7 +53,7 @@ local-first, offline, encryption, collaboration or plugin claims.
 
 ## Realistic, isolated examples
 
-The public library opens on the app's real graph canvas, node/edge components and
+On `/examples`, the public library opens on the app's real graph canvas, node/edge components and
 deterministic force layout. Eight local sample notes form two connected groups;
 selection, linked-note inspection, panning, zoom and title controls work without
 account API calls. The public wrapper does not mount the private graph container
