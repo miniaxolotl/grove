@@ -268,7 +268,6 @@ html:has(.grove-app) {
   border-color: transparent;
   background: var(--color-line);
   box-shadow: none;
-  padding-inline-start: 36px;
   pointer-events: none;
 }
 .skeleton-filter {
@@ -355,12 +354,6 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 600px) {
-  .library-page-heading > .heading-actions {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: start;
-    max-width: none;
-  }
   .workspace-opening .app-navigation .app-nav {
     min-width: 0;
   }

@@ -350,25 +350,30 @@ test("opening notes never presents a false empty count", async ({ page }) => {
 test.describe("phone Notes header", () => {
   test.use({ viewport: { width: 320, height: 844 }, hasTouch: true });
 
-  test("keeps the two secondary actions together beneath the title", async ({
+  test("keeps secondary actions in More without pushing search down", async ({
     page,
   }) => {
     await fixture(page);
     await page.goto(`${base}/app`);
     const title = page.getByRole("heading", { name: "Notes", exact: true });
+    const more = page.getByRole("button", { name: "More note actions" });
     const today = page.getByRole("link", { name: "Today’s note" });
     const importNotes = page.getByRole("button", { name: "Import notes" });
     const search = page.getByRole("textbox", { name: "Search notes" });
-    await expect(importNotes).toBeVisible();
+    await expect(more).toBeVisible();
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    const [heading, journal, upload, field] = await Promise.all(
-      [title, today, importNotes, search].map((item) => item.boundingBox()),
+    const [heading, trigger, field] = await Promise.all(
+      [title, more, search].map((item) => item.boundingBox()),
     );
-    expect(journal!.y).toBeGreaterThanOrEqual(heading!.y + heading!.height);
-    expect(journal!.x).toBeCloseTo(heading!.x, 0);
-    expect(upload!.y).toBeCloseTo(journal!.y, 0);
-    expect(upload!.x).toBeGreaterThan(journal!.x);
-    expect(field!.y).toBeGreaterThan(upload!.y + upload!.height);
+    expect(trigger!.y).toBeLessThan(heading!.y + heading!.height);
+    expect(trigger!.x).toBeGreaterThan(heading!.x);
+    expect(field!.y).toBeGreaterThan(trigger!.y + trigger!.height);
+    await expect(today).toBeHidden();
+    await expect(importNotes).toBeHidden();
+    await more.click();
+    await expect(today).toBeVisible();
+    await expect(importNotes).toBeVisible();
+    expect((await search.boundingBox())!.y).toBe(field!.y);
   });
 });
 

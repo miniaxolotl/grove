@@ -97,23 +97,14 @@ export function WorkspaceRouteSkeleton({ path }: { path: string }) {
     <>
       <PageHeading
         title={archive ? "Archive" : "Notes"}
-        className="library-page-heading"
         actions={
           !archive && (
-            <>
-              <span
-                className="app-button secondary skeleton-action"
-                aria-hidden="true"
-              >
-                Today’s note
-              </span>
-              <span
-                className="app-button secondary skeleton-action"
-                aria-hidden="true"
-              >
-                Import notes
-              </span>
-            </>
+            <span
+              className="app-button secondary skeleton-action"
+              aria-hidden="true"
+            >
+              More
+            </span>
           )
         }
       />
