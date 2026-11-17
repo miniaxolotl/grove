@@ -10,8 +10,7 @@ Historical bootstrap SHAs, existing versions and published tags are preserved.
 
 - Routine `fix`, `feat`/`feature`, `perf` and `revert` changes produce patch releases.
 - Minor/major versions require a deliberate `Release-As: X.Y.Z` commit footer.
-
-Release-As: 1.11.19- Breaking `!`/`BREAKING CHANGE` commits block source automation until an explicit
+- Breaking `!`/`BREAKING CHANGE` commits block source automation until an explicit
   higher version is selected. Conflicting/malformed/non-increasing decisions fail.
 - Docs/tests/chores/CI/refactoring alone do not create releases. An explicit release
   decision can be a separate reviewed `chore(release)` commit.
@@ -25,6 +24,11 @@ Release-As: 1.11.19- Breaking `!`/`BREAKING CHANGE` commits block source automat
 Refresh pending release PRs created under the old policy through Source Release
 before merging them. An old minor/major proposal cannot bypass the explicit
 decision: publication checks the merged manifest against the released version.
+
+Grove's one-time v1.11.16 → v1.11.19 history reconciliation is pinned to the
+original source and decision commit IDs. It does not accept new conflicting
+footers or change what Release Please tags. Do not move tags or rewrite merged
+history to resolve a conflict.
 
 Source Release runs only on protected `development`, serially without cancellation.
 It checks release intent before invoking Release Please. Website/Burrow/Grove/InkByte use
