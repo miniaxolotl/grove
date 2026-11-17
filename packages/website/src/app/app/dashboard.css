@@ -807,7 +807,8 @@
 .memory-row-content {
   min-width: 0;
 }
-.memory-open {
+.memory-open,
+.skeleton-note-open {
   display: block;
   width: 100%;
   text-align: left;

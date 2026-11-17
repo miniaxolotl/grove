@@ -14,6 +14,7 @@ import { Button } from "./ui/button";
 import { useToast } from "./toasts";
 import { useWorkspaceCache } from "./workspace-cache";
 import { AssistanceAction } from "./assistance-action";
+import { DocumentSkeleton } from "./workspace-opening";
 
 export function MemoryInspector({
   id,
@@ -126,9 +127,7 @@ export function MemoryInspector({
           }}
         />
       )}
-      {!current && !creation && !error && (
-        <p role="status">Opening your note…</p>
-      )}
+      {!current && !creation && !error && <DocumentSkeleton />}
       {current &&
         citedVersion !== undefined &&
         citedVersion !== current.version && (

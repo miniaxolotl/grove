@@ -159,14 +159,14 @@ export function NotebookExplorer() {
           >
             <ChevronDown size={14} aria-hidden="true" />
             <span>Notebooks</span>
-            {!loading && !error ? (
-              <span
-                className="sidebar-count"
-                aria-label={`${projects.length} notebooks`}
-              >
-                {projects.length}
-              </span>
-            ) : null}
+            <span
+              className="sidebar-count"
+              aria-hidden={loading || !!error}
+              aria-label={`${projects.length} notebooks`}
+              style={loading || error ? { visibility: "hidden" } : undefined}
+            >
+              {projects.length}
+            </span>
           </button>
           <span className="notebook-heading-static" aria-hidden="true">
             <span>Notebooks</span>
