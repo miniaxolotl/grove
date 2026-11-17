@@ -5,6 +5,7 @@ import { modelConfigSchema, type ModelSettings } from "@lib/shared/models";
 import { preferencesFor } from "@lib/shared/preferences";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
+const aiSettings = `${base}/app/settings/models`;
 const config = () =>
   modelConfigSchema.parse({
     embedding: {
@@ -71,7 +72,15 @@ test("preferences retain newer edits during saving and errors do not move the fo
       },
     });
   });
-  await page.goto(`${base}/app/settings`);
+  await page.goto(aiSettings);
+  await page
+    .locator("summary")
+    .getByText("Connected agents", { exact: true })
+    .click();
+  await page
+    .locator("summary")
+    .getByText("Organization", { exact: true })
+    .click();
   const button = page.getByRole("button", { name: "Save preferences" });
   await expect(button).toBeDisabled();
   const recall = page.getByRole("checkbox", {
@@ -173,17 +182,24 @@ test("categorized AI preferences persist independently with provider availabilit
       },
     });
   });
-  await page.goto(`${base}/app/settings`);
-  for (const name of [
+  await page.goto(aiSettings);
+  await expect(
+    page.getByRole("group", { name: "Ask Grove", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".ai-preferences-panel").getByRole("checkbox"),
+  ).toHaveCount(2);
+  for (const title of [
     "Organization",
-    "Connections",
+    "Related notes and notebooks",
     "Summaries",
-    "Ask Grove",
     "Connected agents",
     "Speech",
   ])
-    await expect(page.getByRole("group", { name, exact: true })).toBeVisible();
-  await expect(page.locator(".ai-preferences-panel").getByRole("checkbox")).toHaveCount(16);
+    await page.locator("summary").getByText(title, { exact: true }).click();
+  await expect(
+    page.locator(".ai-preferences-panel").getByRole("checkbox"),
+  ).toHaveCount(16);
   const titles = page.getByRole("checkbox", {
     name: "Titles and tags",
     exact: true,
@@ -217,6 +233,10 @@ test("categorized AI preferences persist independently with provider availabilit
   await expect(unavailable).toBeEnabled();
   await page.getByRole("button", { name: "Save preferences" }).click();
   await page.reload();
+  await page
+    .locator("summary")
+    .getByText("Organization", { exact: true })
+    .click();
   await expect(titles).toBeChecked();
   await expect(
     page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
@@ -286,8 +306,12 @@ test("preference drafts survive settings tabs, discard restores saved choices, a
       },
     });
   });
-  await page.goto(`${base}/app/settings`);
+  await page.goto(aiSettings);
   const tabs = page.getByRole("navigation", { name: "Settings sections" });
+  const aiTab = tabs.getByRole("link", { name: "AI & search", exact: true });
+  const organization = page
+    .locator("summary")
+    .getByText("Organization", { exact: true });
   const titles = page.getByRole("checkbox", {
     name: "Titles and tags",
     exact: true,
@@ -304,12 +328,12 @@ test("preference drafts survive settings tabs, discard restores saved choices, a
     name: "Discard changes",
     exact: true,
   });
+  await organization.click();
   await titles.uncheck();
-  await page.getByRole("link", { name: "AI availability" }).click();
-  await expect(
-    tabs.getByRole("link", { name: "Preferences", exact: true }),
-  ).toHaveAccessibleDescription("Unsaved preference changes");
-  await tabs.getByRole("link", { name: "Preferences", exact: true }).click();
+  await tabs.getByRole("link", { name: "Writing", exact: true }).click();
+  await expect(aiTab).toHaveAccessibleDescription("Unsaved preference changes");
+  await aiTab.click();
+  await organization.click();
   await expect(titles).not.toBeChecked();
   await discard.click();
   await expect(titles).toBeChecked();
@@ -320,7 +344,11 @@ test("preference drafts survive settings tabs, discard restores saved choices, a
   await save.click();
   await started.promise;
   await tabs.getByRole("link", { name: "Account", exact: true }).click();
-  await tabs.getByRole("link", { name: "Preferences", exact: true }).click();
+  await aiTab.click();
+  await page
+    .locator("summary")
+    .getByText("Connected agents", { exact: true })
+    .click();
   await expect(discard).toBeDisabled();
   await expect(page.locator(".settings-save-status")).toHaveText("Saving…");
   await capture.uncheck();
@@ -336,6 +364,7 @@ test("preference drafts survive settings tabs, discard restores saved choices, a
     { titlesTagsEnabled: false },
     { captureEnabled: false },
   ]);
+  await organization.click();
   await expect(titles).not.toBeChecked();
   await expect(capture).not.toBeChecked();
 
@@ -358,6 +387,7 @@ test("preference drafts survive settings tabs, discard restores saved choices, a
       }
     ).switchWorkspaceAccount("fixture-user", "replacement-session"),
   );
+  await organization.click();
   await expect(titles).not.toBeChecked();
   await expect(discard).toBeDisabled();
 });
@@ -374,27 +404,46 @@ test("provider availability attributes connections to generation and keeps keywo
         success: true,
         data: route.request().url().endsWith("/models")
           ? { config: models, editable: false, edition: "self-hosted" }
-          : { today: [], failedJobs: 0 },
+          : {
+              ...preferencesFor({}),
+              aiAvailability: { classification: true, generation: false },
+            },
       },
     }),
   );
   await page.goto(`${base}/app/settings/models`);
-  const row = (text: string) =>
-    page.locator(".feature-availability > div").filter({ hasText: text });
-  await expect(row("Search your notes")).toContainText("Keyword search");
-  await expect(row("Note classification")).toContainText("Available");
-  await expect(row("Note and notebook connections")).toContainText(
-    "Unavailable",
-  );
+  await expect(page.getByText("Keyword search is available.")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Manage model providers" }),
+  ).toHaveCount(0);
+  await page
+    .locator("summary")
+    .getByText("Organization", { exact: true })
+    .click();
+  await expect(
+    page.getByRole("checkbox", { name: "Note classification" }),
+  ).not.toHaveAccessibleDescription(/Currently unavailable/);
+  await page
+    .locator("summary")
+    .getByText("Related notes and notebooks", { exact: true })
+    .click();
+  await expect(
+    page.getByRole("checkbox", { name: "Linked notes" }),
+  ).toHaveAccessibleDescription(/Currently unavailable/);
 });
 
-test("writing settings stay reachable on a short, narrow screen", async ({ page }) => {
+test("writing settings stay reachable on a short, narrow screen", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 256 });
   await page.route("**/api/grove/**", (route) =>
     route.fulfill({ json: { success: true, data: {} } }),
   );
   await page.goto(`${base}/app/settings`);
-  const spelling = page.getByRole("checkbox", { name: "Spelling", exact: true });
+  const spelling = page.getByRole("checkbox", {
+    name: "Spelling",
+    exact: true,
+  });
   await spelling.focus();
   await expect(spelling).toBeInViewport({ ratio: 1 });
   await spelling.press("Space");
@@ -434,16 +483,19 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
       },
     });
   });
-  await page.goto(`${base}/app/settings`);
+  await page.goto(aiSettings);
   const header = page.locator(".settings-header");
   await header.evaluate((element) =>
     element.setAttribute("data-retained", "yes"),
   );
   const tabs = page.getByRole("navigation", { name: "Settings sections" });
   const before = await tabs.boundingBox();
-  // Scope to the AI-preferences form: the device-local Writing section above
-  // it applies instantly and has no Save row.
-  await page.locator(".ai-preferences-panel form").getByRole("checkbox").first().uncheck();
+  await page.getByRole("checkbox", { name: "Answers and writing" }).check();
+  await page
+    .locator(".ai-preferences-panel form")
+    .getByRole("checkbox")
+    .first()
+    .uncheck();
   await page
     .getByRole("button", { name: "Save preferences" })
     .scrollIntoViewIfNeeded();
@@ -466,7 +518,7 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
     "Connections",
     "AI & search",
     "Your data",
-    "Preferences",
+    "Writing",
   ]) {
     await tabs.getByRole("link", { name, exact: true }).click();
     await expect(tabs.getByRole("link", { name, exact: true })).toHaveAttribute(
@@ -587,13 +639,22 @@ for (const editable of [true, false])
         },
       });
     });
-    await page.goto(`${base}/app/settings/models`);
+    await page.goto(aiSettings);
     await expect(
       page.getByRole("heading", {
         name: "AI & search",
       }),
     ).toBeVisible();
     if (editable) {
+      await page.getByRole("link", { name: "Manage model providers" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Model providers" }),
+      ).toBeVisible();
+      await expect(page.getByLabel("Dimensions", { exact: true })).toBeHidden();
+      await page
+        .locator("summary")
+        .getByText("Search by meaning", { exact: true })
+        .click();
       const save = page.getByRole("button", {
         name: "Save model settings",
         exact: true,
@@ -652,7 +713,9 @@ for (const editable of [true, false])
         page.getByText("Technical details", { exact: true }),
       ).toHaveCount(0);
       await expect(
-        page.getByText("Search your notes", { exact: true }),
+        page.getByText("Search by keyword or meaning is available.", {
+          exact: true,
+        }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Save model settings" }),
@@ -731,7 +794,8 @@ test("saving a summary preference refreshes derived content in another open tab"
   const other = await context.newPage();
   await other.goto(`${base}/app/profile`);
   await expect(other.getByText("Saved personal context")).toBeVisible();
-  await page.goto(`${base}/app/settings`);
+  await page.goto(aiSettings);
+  await page.locator("summary").getByText("Summaries", { exact: true }).click();
   await page
     .getByRole("checkbox", { name: "Personal summary", exact: true })
     .uncheck();

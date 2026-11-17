@@ -6,10 +6,10 @@ import { useWorkspaceCache } from "./workspace-cache";
 import { usePreferenceEditor } from "./preference-editor";
 
 const sections = [
-  ["/app/settings", "Preferences"],
+  ["/app/settings", "Writing"],
+  ["/app/settings/models", "AI & search"],
   ["/app/settings/account", "Account"],
   ["/app/settings/connections", "Connections"],
-  ["/app/settings/models", "AI & search"],
   ["/app/settings/data", "Your data"],
   ["/app/settings/files", "Files & storage"],
 ];
@@ -38,18 +38,19 @@ export function SettingsNavigation({ billing = false }: { billing?: boolean }) {
           }
           aria-current={
             path === href ||
+            (href === "/app/settings/models" && path.startsWith(`${href}/`)) ||
             (href.endsWith("connections") && path === "/app/connections")
               ? "page"
               : undefined
           }
           aria-describedby={
-            href === "/app/settings" && dirty
+            href === "/app/settings/models" && dirty
               ? "settings-draft-hint"
               : undefined
           }
         >
           {label}
-          {href === "/app/settings" && (
+          {href === "/app/settings/models" && (
             <span
               className="settings-draft-dot"
               data-dirty={dirty}

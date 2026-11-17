@@ -10,7 +10,7 @@ remain usable when speech is disabled or unavailable.
 ## Using speech
 
 1. Choose **Recording transcription** and **Read aloud** in
-   **Settings → Preferences → Speech**, then save. If a feature is off, its prompt
+   **Settings → AI & search → Speech**, then save. If a feature is off, its prompt
    names that feature and links to **AI preferences**. Unavailable features are
    identified without showing backend setup details. Availability reflects setup,
    not a successful health check or remaining quota.
@@ -38,7 +38,7 @@ attempts cancellation of unfinished work. It never prepares or plays new audio
 automatically. A failed preference save keeps the applied local voice and offers
 **Retry saving voice** beside the player.
 
-In **Settings → Preferences → Speech**, **Reading voice** shows the current name
+In **Settings → AI & search → Speech**, **Reading voice** shows the current name
 and **Change** only while Read aloud is enabled. The same chooser updates the form
 draft; **Save preferences** persists it and **Discard changes** restores the saved
 choice. Turning Read aloud off hides the summary without clearing the voice.

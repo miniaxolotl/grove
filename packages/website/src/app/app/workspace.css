@@ -1733,7 +1733,32 @@ html:has(.grove-app) {
   color: var(--color-forest);
 }
 .ai-preferences-form {
-  gap: 22px;
+  gap: 16px;
+}
+.settings-options {
+  margin-top: 8px;
+}
+.settings-options > summary {
+  min-height: 44px;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.settings-provider-form .settings-options {
+  margin: 0;
+  padding-block: 4px;
+}
+.settings-provider-form .settings-options[open] {
+  padding-bottom: 16px;
+}
+.settings-search-status > h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.settings-search-status > :is(a, button) {
+  margin-top: 8px;
 }
 .ai-preference-group {
   min-width: 0;
