@@ -98,6 +98,7 @@ const writingController = new WritingController(
 );
 function paintWriting() {
   const settings = writingPreferences?.settings;
+  paintAiSettings();
   for (const key of [
     "enabled",
     "spelling",
@@ -244,6 +245,17 @@ function paintWriting() {
     (!settings.spelling && !settings.grammar);
   writingController.refresh();
 }
+function paintAiSettings() {
+  const tools = state?.identity.writingTools;
+  $("ai-settings").hidden = !state;
+  $("ai-settings-status").textContent = !preferences.enabled
+    ? "Grove is paused in this browser."
+    : !tools?.authorized
+      ? "Allow AI writing tools in Connections to use them here."
+      : !tools.available
+        ? "AI writing is currently unavailable."
+        : "Text is sent only when you choose a tool and give permission.";
+}
 async function saveWriting(change: {
   patch?: WritingPatch;
   addWord?: string;
@@ -251,15 +263,20 @@ async function saveWriting(change: {
   site?: { domain: string; enabled: boolean; restrictions?: WritingPatch };
   removeDomain?: string;
 }) {
-  $("writing-settings-status").textContent = "Saving…";
+  const status = $(
+    change.patch?.aiRewrites === undefined
+      ? "writing-settings-status"
+      : "ai-save-status",
+  );
+  status.textContent = "Saving…";
   try {
     writingPreferences = await rpc<WritingPreferences>(
       "writingConfigure",
       change,
     );
-    $("writing-settings-status").textContent = "Saved on this device.";
+    status.textContent = "Saved on this device.";
   } catch (error) {
-    $("writing-settings-status").textContent = "Not saved. Try again.";
+    status.textContent = "Not saved. Try again.";
     throw error;
   } finally {
     paintWriting();
@@ -496,6 +513,9 @@ async function configure(changes: Partial<Preferences>) {
 function approvalUrl() {
   return `${extensionConfig.siteOrigin}/app/connections#connection-${state!.identity.connectionId}`;
 }
+function setupUrl(connectionId: string) {
+  return `${extensionConfig.siteOrigin}/app/connect/browser/${encodeURIComponent(connectionId)}`;
+}
 function noteUrl(id: string) {
   return `${extensionConfig.siteOrigin}/app/memories/${id}`;
 }
@@ -676,6 +696,9 @@ async function refresh() {
     clearRecall();
   }
   state = next;
+  $<HTMLAnchorElement>("continue-connection").href = setupUrl(
+    next.identity.connectionId,
+  );
   notebookCursor = next.notebooks.nextCursor;
   for (const link of document.querySelectorAll<HTMLAnchorElement>(
     ".approval-link",
@@ -765,8 +788,7 @@ async function replace(run: () => Promise<void>) {
   const draft = state?.draft;
   const unsaved =
     !!($<HTMLTextAreaElement>("note").value || draft?.source) ||
-    (!!draft?.save &&
-      (draft.save.status !== "saved" || changedDraft()));
+    (!!draft?.save && (draft.save.status !== "saved" || changedDraft()));
   if (draft?.sourceMode !== "automatic" && unsaved) {
     replaceAction = run;
     $<HTMLDialogElement>("confirm").showModal();
@@ -1180,6 +1202,11 @@ on("login", async () => {
   try {
     await rpc("login");
     await refresh();
+    if (state && !approved())
+      await host.tabs.create({
+        url: setupUrl(state.identity.connectionId),
+        windowId,
+      });
   } finally {
     button.disabled = false;
   }
@@ -1275,6 +1302,7 @@ host.storage.onChanged.addListener((changes, area) => {
     void action(loadInbox);
   if (changes.identity && identity && state) {
     state.identity.writingTools = identity.writingTools;
+    paintAiSettings();
     writingController.refreshTools();
   }
   const entry = changes[`entryError:${windowId}`];
@@ -1283,6 +1311,10 @@ host.storage.onChanged.addListener((changes, area) => {
 host.tabs.onActivated.addListener((info) => {
   if (info.windowId === windowId)
     void followSource().catch(() => notice("Couldn’t update page details."));
+});
+window.addEventListener("focus", () => {
+  if (state && preferences.enabled && !approved() && !$("approval").hidden)
+    void action(refresh);
 });
 host.tabs.onUpdated.addListener((_id, changes, tab) => {
   if (
@@ -1295,6 +1327,8 @@ host.tabs.onUpdated.addListener((_id, changes, tab) => {
     void followSource().catch(() => notice("Couldn’t update page details."));
 });
 $<HTMLAnchorElement>("home").href = extensionConfig.siteOrigin;
+for (const link of document.querySelectorAll<HTMLAnchorElement>(".signup-link"))
+  link.href = `${extensionConfig.siteOrigin}/sign-up`;
 on("extension-toggle", () => configure({ enabled: !preferences.enabled }));
 const ruleNames: Record<(typeof writingRules)[number], string> = {
   brackets: "Matching brackets",

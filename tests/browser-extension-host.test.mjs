@@ -1578,10 +1578,18 @@ for (const target of ["chrome", "edge"])
           ).length,
       );
       await page.locator('[data-nav="settings"]').click();
-      await page.locator("#writing-settings > summary").click();
+      assert.equal(await page.locator("#writing-spelling").isVisible(), true);
+      assert.equal(
+        new URL(
+          await page
+            .locator("#ai-settings .approval-link")
+            .getAttribute("href"),
+        ).hash,
+        `#connection-${connectionId}`,
+      );
       await page.locator("#writing-ai-rewrites").uncheck();
       await page
-        .locator("#writing-settings-status")
+        .locator("#ai-save-status")
         .filter({ hasText: "Saved on this device." })
         .waitFor();
       await page.locator('[data-nav="capture"]').click();
@@ -1603,10 +1611,9 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="settings"]').click();
       await page.locator("#writing-ai-rewrites").check();
       await page
-        .locator("#writing-settings-status")
+        .locator("#ai-save-status")
         .filter({ hasText: "Saved on this device." })
         .waitFor();
-      await page.locator("#writing-settings > summary").click();
       await page.locator('[data-nav="capture"]').click();
       assert.equal(
         await worker.evaluate(
@@ -2557,7 +2564,7 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="settings"]').click();
       assert.equal(await page.locator("#account-id").isVisible(), false);
       assert.equal(await page.locator("#recovery-settings").isVisible(), false);
-      await page.locator("#writing-settings > summary").click();
+      assert.equal(await page.locator("#writing-spelling").isVisible(), true);
       const websites = page
         .locator("#writing-controls > details")
         .filter({ has: page.locator("#writing-sites") });
@@ -2979,6 +2986,12 @@ for (const target of ["chrome", "edge"])
       await otherPanel
         .getByRole("heading", { name: "Spelling and grammar" })
         .waitFor();
+      assert.match(
+        await otherPanel
+          .getByRole("link", { name: "Create an account" })
+          .getAttribute("href"),
+        /\/sign-up$/,
+      );
       if (process.env.EXTENSION_SCREENSHOTS)
         await otherPanel.screenshot({
           path: join(
@@ -2989,6 +3002,11 @@ for (const target of ["chrome", "edge"])
       await otherPanel
         .getByRole("button", { name: "Writing settings" })
         .press("Enter");
+      assert.equal(await otherPanel.locator("#ai-settings").isVisible(), false);
+      assert.equal(
+        await otherPanel.locator("#writing-spelling").isVisible(),
+        true,
+      );
       assert.equal(
         await otherPanel.locator("#writing-settings").evaluate((el) => el.open),
         true,

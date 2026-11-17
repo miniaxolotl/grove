@@ -35,12 +35,16 @@ API/manifest floors, not claims that every version/OS is tested. Pin the toolbar
 icon or use the suggested **Alt+Shift+G** shortcut (browser conflicts may require
 rebinding). Chrome/Edge use a native side panel; Firefox uses its native sidebar.
 
-Choose **Sign in to Grove**. Native browser identity performs public-client OAuth
-discovery and authorization-code/PKCE sign-in; no pasted key, embedded secret or
-website-cookie extraction is used. Approve only the reading/saving capabilities
-and Personal/notebook scope you want in **Grove Connections**, then check approval.
-Notebook discovery starts immediately; there is no setup wizard. Sign-in alone is
-not an approved grant. Revocation is enforced by the API on subsequent operations.
+Local spelling and grammar work without an account. To save and find notes,
+choose **Sign in to Grove** or **Create an account**. The extension uses native
+browser OAuth with PKCE; no key or website cookie is copied. After sign-in, a
+new connection opens **Connect your browser** in the same browser window. Review
+the prefilled name and choose note access; Personal read and save are suggested.
+AI writing access is optional and off by default. Return to the panel after
+approving. Use **Choose note access** to reopen a dismissed setup screen or
+**Check access** if the panel hasn't updated. Existing approved connections skip
+this step. If the website asks you to sign in, use the same Grove account.
+Change or revoke access later in Connections.
 
 ### Listing and toolbar icons
 
@@ -181,10 +185,13 @@ wording, not an AI-detection guarantee. Output can be wrong: structural validati
 does not establish factual or semantic equivalence. English is the supported contract;
 sentence segmentation is not language detection or an automatic translation feature.
 
-Settings → Writing → **AI writing tools** is independent of spelling and grammar.
+In extension Settings, **AI writing → Show AI tools in this browser** is
+independent of spelling and grammar under **Writing checks**.
 Site restrictions and Grove Off still win. Enabling a switch never generates text.
 AI needs a separately approved **Allow AI writing tools** permission in
-Grove Connections; note access alone is insufficient. Missing configuration, permission
+the setup screen or Grove Connections; note access alone is insufficient. The
+extension’s **Manage AI permission** link opens this browser’s connection.
+Missing configuration, permission
 or network does not disable local checks, which never fall back to AI.
 Website AI additionally requires browser-supplied document identity; hosts without
 it keep AI unavailable rather than reuse another document's authority.
