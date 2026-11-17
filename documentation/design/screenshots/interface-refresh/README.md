@@ -12,6 +12,10 @@ These pairs compare the previous PR revision (`42f628a3`) with the lighter
 reader and the corrected mobile workspace header. The full-size gallery below
 compares the original baseline with the latest UI.
 
+| Mobile Notes before | Mobile Notes after |
+| --- | --- |
+| ![Import and daily note buttons compete with the Notes heading](polish/notes-priority-before.webp) | ![New note, search, and Ask Grove remain visible while secondary actions move under More](polish/notes-priority-after.webp) |
+
 | Mobile header before | Mobile header after |
 | --- | --- |
 | ![Actions cluster beside the logo](polish/header-before.webp) | ![Logo on the left and actions grouped on the right](polish/header-after.webp) |
