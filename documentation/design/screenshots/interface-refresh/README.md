@@ -6,6 +6,20 @@ production website builds and the installed Chromium extension, not a deployed
 release. The workspace and shared reader use synthetic fixtures, not live
 accounts or real share links. Cookie prompts were dismissed in both sets.
 
+## Final polish
+
+These pairs compare the previous PR revision (`42f628a3`) with the lighter
+reader and the corrected mobile workspace header. The full-size gallery below
+compares the original baseline with the latest UI.
+
+| Mobile header before | Mobile header after |
+| --- | --- |
+| ![Actions cluster beside the logo](polish/header-before.webp) | ![Logo on the left and actions grouped on the right](polish/header-after.webp) |
+
+| Shared quotation before | Shared quotation after |
+| --- | --- |
+| ![Quotation in a tinted box below two dividers](polish/quote-before.webp) | ![Nested quotation distinguished by indentation, without a box or divider](polish/quote-after.webp) |
+
 ## Full-size comparisons
 
 | Area | Phone | Tablet | Desktop |
