@@ -1626,10 +1626,11 @@ html:has(.grove-app) {
 }
 .settings-navigation {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   border-bottom: 1px solid var(--color-line);
+  padding-bottom: 8px;
   margin-bottom: 16px;
-  overflow-x: auto;
 }
 .settings-save-row {
   display: flex;
@@ -1651,11 +1652,13 @@ html:has(.grove-app) {
   min-height: 36px;
   font-size: 13px;
   line-height: 20px;
-  border-radius: 5px 5px 0 0;
-  white-space: nowrap;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
   color: var(--color-muted);
-  border-bottom: 2px solid transparent;
   gap: 6px;
+}
+.settings-navigation a:focus-visible {
+  outline-offset: -2px;
 }
 .settings-navigation a:hover {
   color: var(--color-forest);
@@ -1673,7 +1676,8 @@ html:has(.grove-app) {
 }
 .settings-navigation a[aria-current] {
   color: var(--color-forest);
-  border-bottom-color: var(--color-forest);
+  background: var(--color-sage);
+  font-weight: 600;
 }
 .settings-content {
   display: grid;
@@ -1754,7 +1758,7 @@ html:has(.grove-app) {
   font-size: 12px;
   font-weight: 600;
 }
-.app-form .ai-preference {
+:is(.app-form, .writing-preferences-panel) .ai-preference {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1787,6 +1791,20 @@ html:has(.grove-app) {
   font-size: 12px;
   font-weight: 400;
   line-height: 1.6;
+}
+.writing-preferences-panel > .ai-preference-group {
+  margin-top: 16px;
+}
+.writing-preferences-panel .ai-preference > input {
+  accent-color: var(--color-forest);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin: 0;
+  cursor: inherit;
+}
+.writing-preferences-panel .grove-writing-add-word {
+  margin-top: 10px;
 }
 .app-form .ai-preference input[type="checkbox"] {
   appearance: none;
@@ -2056,7 +2074,7 @@ html:has(.grove-app) {
     display: none;
   }
   .settings-navigation a {
-    padding: 8px;
+    padding: 6px 8px;
     font-size: 12px;
   }
   .page-writing .writing-paper {

@@ -194,9 +194,11 @@ note changes. [Ask tools](ask-tools.md) owns tools/history/composer behavior;
 [document imports](imports.md) owns attachments/full-text review. Uploading or asking
 does not implicitly create a library note. Drafts remain private session memory.
 
-**Settings** keeps navigation while section content scrolls. Preference drafts survive
-tab switches; Save submits changed controls and retains newer typing, Discard restores
-saved values. Availability is separate from preferences and provider health. See
+**Settings** keeps section links visible while the selected page scrolls. On narrow
+screens the links wrap instead of scrolling sideways. Writing checks apply immediately
+on this device. Account preference drafts survive section changes; Save submits changed
+controls and retains newer typing, and Discard restores saved values. Availability is
+separate from preferences and provider health. See
 [models](models.md), [billing](billing.md) and [files/storage](files-storage.md).
 Original images/audio, [manual transcripts](recordings.md) and editing remain usable
 without inference; [speech](speech.md) requires separate explicit actions.

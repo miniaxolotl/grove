@@ -467,6 +467,12 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
       await page.screenshot({ path: info.outputPath("settings-account.png") });
   }
   await page.setViewportSize({ width: 320, height: 750 });
+  for (const link of await tabs.getByRole("link").all()) {
+    await expect(link).toBeInViewport({ ratio: 1 });
+  }
+  expect(await tabs.evaluate((nav) => nav.scrollWidth)).toBe(
+    await tabs.evaluate((nav) => nav.clientWidth),
+  );
   await tabs.getByRole("link", { name: "Your data", exact: true }).click();
   await page
     .locator(".settings-page")
