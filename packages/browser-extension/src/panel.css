@@ -1,38 +1,25 @@
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("space-grotesk-400.woff2") format("woff2");
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("space-grotesk-600.woff2") format("woff2");
-  font-weight: 600;
-  font-display: swap;
-}
 :root {
   color-scheme: light;
-  --ground: #f1f5ef;
-  --surface: #fcfdfb;
-  --raised: #e9efe6;
-  --ink: #24352b;
-  --muted: #58675b;
-  --line: #dce5d8;
-  --control: #bccbb9;
+  --ground: #f4f6f3;
+  --surface: #fff;
+  --raised: #edf0ec;
+  --ink: #212722;
+  --muted: #535c55;
+  --line: #dce2dc;
+  --control: #b5bfb7;
   --signal: #365f43;
   --negative: #9b3e38;
-  --radius: 16px;
+  --radius: 12px;
   font:
-    14px/1.5 "Space Grotesk",
-    system-ui,
+    14px/1.5 system-ui,
     sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --ground: #171e19;
-    --surface: #202a23;
-    --raised: #2c382e;
+    --ground: #191c1a;
+    --surface: #222624;
+    --raised: #2d332f;
     --ink: #edf2e8;
     --muted: #b5c3b4;
     --line: #354437;
@@ -43,9 +30,9 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: #171e19;
-  --surface: #202a23;
-  --raised: #2c382e;
+  --ground: #191c1a;
+  --surface: #222624;
+  --raised: #2d332f;
   --ink: #edf2e8;
   --muted: #b5c3b4;
   --line: #354437;
@@ -143,8 +130,8 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 60px;
-  padding: 8px clamp(16px, 4vw, 24px);
+  min-height: 56px;
+  padding: 4px clamp(16px, 4vw, 24px);
 }
 #home {
   display: flex;
@@ -166,7 +153,11 @@ main {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  padding: 12px clamp(16px, 4vw, 24px) 24px;
+  margin-inline: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 20px clamp(14px, 4vw, 24px) 24px;
   scroll-padding: 16px;
 }
 main > section,
@@ -180,11 +171,11 @@ p {
   margin-top: 0;
 }
 h1 {
-  font-size: 24px;
-  font-weight: 400;
-  letter-spacing: -0.7px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   line-height: 1.2;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 h2 {
   font-size: 16px;
@@ -199,8 +190,8 @@ h2 {
   gap: 12px;
 }
 .title-row {
-  min-height: 44px;
-  margin-bottom: 20px;
+  min-height: 36px;
+  margin-bottom: 12px;
 }
 .title-row h1,
 .title-row h2 {
@@ -213,6 +204,17 @@ h2 {
 .muted,
 .small {
   color: var(--muted);
+}
+.connection-card {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.connection-card h2 {
+  margin-bottom: 6px;
+}
+#grace-note {
+  margin: 10px 0 0;
 }
 .small {
   font-size: 12px;
@@ -248,19 +250,25 @@ textarea::placeholder {
   color: var(--muted);
   opacity: 1;
 }
+.note-sheet {
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+}
 #note {
-  min-height: clamp(160px, 34dvh, 320px);
-  padding: 16px;
+  height: clamp(132px, 30dvh, 300px);
+  min-height: 112px;
+  padding: 14px;
   border: 0;
   border-radius: var(--radius);
   font-size: 16px;
 }
 #note:focus-visible {
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 #note-help {
-  min-height: 28px;
-  margin: 8px 0 16px;
+  min-height: 44px;
+  padding-inline: 12px;
+  border-top: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
   flex-wrap: wrap;
   gap: 8px;
@@ -269,9 +277,9 @@ textarea::placeholder {
   margin-inline-start: auto;
 }
 .writing-review {
-  min-height: 28px;
+  min-height: 44px;
   padding: 0;
-  color: var(--muted);
+  color: var(--signal);
   font-size: 12px;
 }
 .writing-option {
@@ -333,6 +341,10 @@ summary {
   gap: 12px;
   list-style: none;
 }
+#note-details {
+  margin-top: 8px;
+  border-bottom: 1px solid var(--line);
+}
 #note-details > summary::after,
 .share-disclosure > summary::after {
   content: "+";
@@ -357,7 +369,7 @@ summary {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 50%;
+  min-width: 0;
 }
 #source-label:not(:empty)::before {
   content: "· ";
@@ -376,11 +388,10 @@ summary {
   margin-top: 16px;
 }
 #capture-form > .actions {
-  margin-top: 20px;
+  margin-top: 12px;
 }
 #save {
-  flex: 1;
-  min-height: 46px;
+  min-height: 44px;
 }
 #saved-link {
   font-size: 12px;
@@ -417,10 +428,8 @@ summary {
   font-size: 12px;
 }
 #query {
-  border: 0;
-  min-height: 52px;
-  border-radius: var(--radius);
-  padding-inline: 18px;
+  min-height: 44px;
+  padding-inline: 12px;
   font-size: 15px;
 }
 .result-heading {
@@ -441,9 +450,8 @@ summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
-  padding: 16px;
-  border-radius: var(--radius);
-  background: var(--surface);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
 }
 .note-actions {
   position: absolute;
@@ -554,6 +562,20 @@ summary {
 .settings-section:first-of-type {
   padding-top: 0;
 }
+.settings-appearance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-appearance select {
+  width: auto;
+  max-width: 100%;
+}
+.settings-section.settings-appearance h2 {
+  margin: 0;
+}
 .settings-section h2 {
   margin-bottom: 12px;
 }
@@ -615,7 +637,7 @@ nav button {
   font-weight: 400;
 }
 nav button[aria-current] {
-  background: var(--surface);
+  background: var(--raised);
   font-weight: 600;
 }
 nav button:disabled {
@@ -901,13 +923,7 @@ dialog .title-row button {
 }
 @media (max-width: 320px) {
   .masthead {
-    padding-inline: 18px;
-  }
-  main {
-    padding-inline: 18px;
-  }
-  #note {
-    padding: 16px;
+    padding-inline: 16px;
   }
   nav {
     padding-inline: 12px;

@@ -2431,9 +2431,9 @@ for (const target of ["chrome", "edge"])
       );
       // Workspace navigation contract: order, current marker, keyboard, scroll.
       assert.deepEqual(
-        await page.locator("#navigation [data-nav]").evaluateAll((items) =>
-          items.map((item) => item.dataset.nav),
-        ),
+        await page
+          .locator("#navigation [data-nav]")
+          .evaluateAll((items) => items.map((item) => item.dataset.nav)),
         ["capture", "search", "settings"],
         "Settings stays last in workspace navigation",
       );
@@ -2520,7 +2520,7 @@ for (const target of ["chrome", "edge"])
       await page.locator("#query").fill("");
       await page
         .locator("#results-status")
-        .filter({ hasText: "Type to search" })
+        .filter({ hasText: "Search by a word or phrase" })
         .waitFor();
       assert.equal(await page.locator("#results .note-row").count(), 0);
       await page.locator('[data-nav="settings"]').click();
@@ -2954,6 +2954,29 @@ for (const target of ["chrome", "edge"])
       await otherPanel
         .locator("#welcome")
         .waitFor({ state: "visible", timeout: 3000 });
+      await otherPanel
+        .getByRole("heading", { name: "Spelling and grammar" })
+        .waitFor();
+      if (process.env.EXTENSION_SCREENSHOTS)
+        await otherPanel.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-welcome-390.png`,
+          ),
+        });
+      await otherPanel
+        .getByRole("button", { name: "Writing settings" })
+        .press("Enter");
+      assert.equal(
+        await otherPanel.locator("#writing-settings").evaluate((el) => el.open),
+        true,
+      );
+      assert.equal(
+        await otherPanel
+          .locator("#writing-settings > summary")
+          .evaluate((el) => el === document.activeElement),
+        true,
+      );
       assert.equal(await otherPanel.locator("#note").inputValue(), "");
       assert.deepEqual(
         await worker.evaluate(() =>
