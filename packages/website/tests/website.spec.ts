@@ -4,6 +4,42 @@ import { canonical, indexable } from "./site-fixture";
 
 const siteURL = canonical.origin;
 
+test("a guest can check writing without sending text or opening an account", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 750 });
+  const text = "This is is a smple sentence.";
+  const transfers: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.url().includes("/api/grove/") ||
+      request.postData()?.includes(text) ||
+      decodeURI(request.url()).includes(text)
+    )
+      transfers.push(request.url());
+  });
+  await page.goto("/");
+  await page.getByRole("link", { name: "Try writing checks" }).click();
+  await expect(page).toHaveURL(/\/writing$/);
+  const input = page.getByRole("textbox", { name: "English text" });
+  await input.fill(text);
+  await page.getByRole("button", { name: "Check writing" }).click();
+  await expect(
+    page
+      .getByRole("list", { name: "Writing suggestions" })
+      .getByRole("listitem"),
+  ).not.toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Create an account", exact: true }),
+  ).toHaveAttribute("href", "/sign-up");
+  await expect(
+    page.getByRole("link", { name: "Sign in", exact: true }),
+  ).toHaveAttribute("href", "/sign-in");
+  expect(transfers).toEqual([]);
+  await page.reload();
+  await expect(input).toHaveValue("");
+});
+
 test("serves the notebook story, signup links, and FAQ without JavaScript", async ({
   browser,
   baseURL,

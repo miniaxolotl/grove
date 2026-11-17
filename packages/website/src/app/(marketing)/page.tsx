@@ -68,6 +68,11 @@ export default async function HomePage() {
             </p>
             <ul className="home-resource-links">
               <li>
+                <Link href="/writing" className="text-link">
+                  Try writing checks
+                </Link>
+              </li>
+              <li>
                 <Link href="/install#extension-heading" className="text-link">
                   Browser extension setup
                 </Link>

@@ -253,6 +253,28 @@
   padding: 0;
   list-style: none;
 }
+.guest-writing-form {
+  display: grid;
+  gap: 10px;
+  max-width: 660px;
+  margin-top: 24px;
+  font-size: 15px;
+}
+.guest-writing-form textarea {
+  width: 100%;
+  min-height: 128px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--brand-line);
+  border-radius: 6px;
+  background: #fff;
+}
+.guest-writing-form button { justify-self: start; }
+.guest-writing-form button:disabled { opacity: 0.6; }
+.guest-writing-form > ul { list-style: disc; padding-inline-start: 20px; }
+.guest-writing-account { margin-top: 32px; }
+.guest-writing-account h2 { font-size: 20px; font-weight: 600; }
+.guest-writing-account .home-resource-links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }
 .notebook-home :is(#your-library, #how-it-works, #for-developers) {
   scroll-margin-top: 80px;
 }
