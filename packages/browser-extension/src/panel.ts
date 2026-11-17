@@ -416,6 +416,7 @@ function on(id: string, run: () => Promise<void>) {
 function show(next: string) {
   const main = document.querySelector("main")!;
   const switched = next !== view;
+  if (switched) $<HTMLDetailsElement>("capture-actions").open = false;
   if (switched)
     document
       .querySelectorAll<HTMLDetailsElement>(".note-menu[open]")
@@ -1104,7 +1105,19 @@ async function saveCapture() {
       scheduleAutosave();
   }
 }
+const captureActions = $<HTMLDetailsElement>("capture-actions");
+function closeCaptureActions() {
+  captureActions.open = false;
+  captureActions.querySelector("summary")?.focus({ preventScroll: true });
+}
+captureActions.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !captureActions.open) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeCaptureActions();
+});
 on("share-draft", async () => {
+  closeCaptureActions();
   await editTail;
   if (state?.draft?.save && state.draft.save.status !== "saved") {
     notice("Check the earlier save before sharing.");
