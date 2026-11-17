@@ -19,6 +19,7 @@ import {
   CalendarDays,
   RefreshCw,
   Upload,
+  Archive,
 } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
@@ -478,6 +479,9 @@ export function MemoryLibrary({
         )}
         {!embedded && (
           <>
+            <Link href="/app/archive">
+              <Archive size={16} aria-hidden="true" /> Archive
+            </Link>
             <Link
               href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
             >
@@ -494,7 +498,20 @@ export function MemoryLibrary({
     );
   return (
     <>
-      {!embedded && <PageHeading title={title} actions={moreActions} />}
+      {!embedded && (
+        <PageHeading
+          title={title}
+          actions={
+            archive ? (
+              <Link className="app-button secondary" href="/app">
+                Back to notes
+              </Link>
+            ) : (
+              moreActions
+            )
+          }
+        />
+      )}
       {importing && (
         <Dialog title="Import notes" close={() => setImporting(false)}>
           <ImportNotesPanel projectId={scopedProject ?? undefined} />

@@ -10,7 +10,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
-  Archive,
   Settings,
   Plus,
   LockKeyhole,
@@ -41,7 +40,6 @@ const workspaceLinks = [
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
 ];
 const systemLinks = [
-  { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];
 const links = [...workspaceLinks, ...systemLinks];
@@ -213,10 +211,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <strong>
                               {path === "/app/graph"
                                 ? "Note graph"
-                                : path === "/app/profile"
-                                  ? "About you"
-                                  : (links.find(({ href }) => href === current)
-                                      ?.name ?? "Your notes")}
+                                : path === "/app/archive"
+                                  ? "Archive"
+                                  : path === "/app/profile"
+                                    ? "About you"
+                                    : (links.find(
+                                        ({ href }) => href === current,
+                                      )?.name ?? "Your notes")}
                             </strong>
                           </span>
                           <div className="flex items-center gap-3">

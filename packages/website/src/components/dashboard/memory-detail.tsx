@@ -7,7 +7,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   History,
-  Trash2,
   Share2,
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
@@ -247,26 +246,6 @@ export function MemoryDetail({
                 </button>
               </>
             )}
-            <button
-              type="button"
-              className="app-icon note-secondary-control"
-              aria-label="History"
-              disabled={!memory}
-              title="History"
-              onClick={() => setHistoryOpen(true)}
-            >
-              <History size={16} />
-            </button>
-            <button
-              type="button"
-              className="app-icon note-secondary-control"
-              aria-label="Share note"
-              disabled={!memory}
-              title="Share note"
-              onClick={() => setSharing(true)}
-            >
-              <Share2 size={16} />
-            </button>
             <ActionMenu label="Note actions">
               <NoteActions
                 inactive={!!memory && isInactive(memory)}
@@ -279,11 +258,10 @@ export function MemoryDetail({
                 sharing={
                   <button
                     type="button"
-                    className="note-mobile-menu-item"
                     disabled={!memory}
                     onClick={() => setSharing(true)}
                   >
-                    <Share2 size={15} /> Share note
+                    <Share2 size={15} aria-hidden="true" /> Share note
                   </button>
                 }
                 before={
@@ -316,7 +294,7 @@ export function MemoryDetail({
                       disabled={!memory}
                       onClick={() => setHistoryOpen(true)}
                     >
-                      <History size={15} />
+                      <History size={15} aria-hidden="true" />
                       Revision history
                     </button>
                     {secondary}
@@ -346,17 +324,6 @@ export function MemoryDetail({
                 }
               />
             </ActionMenu>
-            <button
-              type="button"
-              className="app-icon note-delete-button"
-              aria-label="Delete note…"
-              title="Delete note…"
-              data-focus-key="note-delete"
-              disabled={!memory || busy || actionBusy}
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 size={17} />
-            </button>
           </>
         )}
         details={
