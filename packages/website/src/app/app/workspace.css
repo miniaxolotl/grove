@@ -133,7 +133,6 @@ html:has(.grove-app) {
   color: var(--color-muted);
   opacity: 1;
 }
-.note-mobile-actions,
 .action-menu > .note-mobile-menu-item {
   display: none;
 }
@@ -2021,7 +2020,7 @@ html:has(.grove-app) {
     padding: 8px;
   }
   .note-editor-bar > button[popovertarget],
-  .note-mobile-actions {
+  .note-editor-actions {
     grid-column: 4;
     grid-row: 1 / 3;
   }

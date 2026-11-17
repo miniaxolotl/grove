@@ -10,7 +10,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
-  Archive,
   Settings,
   Plus,
   LockKeyhole,
@@ -18,7 +17,11 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
-import { WorkspaceCacheProvider, useWorkspaceCache } from "./workspace-cache";
+import {
+  WorkspaceCacheProvider,
+  noteListWarmup,
+  useWorkspaceCache,
+} from "./workspace-cache";
 import { WorkspaceOpening } from "./workspace-opening";
 import { NoteExportProvider } from "./note-export";
 import { NotebooksProvider, useCurrentNotebook } from "./notebooks-provider";
@@ -41,7 +44,6 @@ const workspaceLinks = [
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
 ];
 const systemLinks = [
-  { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];
 const links = [...workspaceLinks, ...systemLinks];
@@ -55,30 +57,12 @@ function WorkspaceNavLink({
 }) {
   const { href, name, icon: Icon } = item;
   const cache = useWorkspaceCache();
-  const warm = () => {
-    // Do not speculate on scoped notebook searches: the API can record visits.
-    if (href !== "/app" && href !== "/app/archive") return;
-    if (
-      (navigator as Navigator & { connection?: { saveData?: boolean } })
-        .connection?.saveData
-    )
-      return;
-    const options = cache.notes({
-      status: href === "/app/archive" ? "archived" : "active",
-    });
-    // A mounted view will revalidate stale snapshots without discarding loaded pages.
-    if (cache.client.getQueryData(options.queryKey) === undefined)
-      void cache.client.prefetchInfiniteQuery(options);
-  };
   return (
     <Link
       href={href}
       aria-current={href === current ? "page" : undefined}
       className="app-nav"
-      onFocus={warm}
-      onPointerEnter={(event) => {
-        if (event.pointerType === "mouse") warm();
-      }}
+      {...(href === "/app" ? noteListWarmup(cache, "active") : {})}
     >
       <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
       <span>{name}</span>
@@ -213,10 +197,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <strong>
                               {path === "/app/graph"
                                 ? "Note graph"
-                                : path === "/app/profile"
-                                  ? "About you"
-                                  : (links.find(({ href }) => href === current)
-                                      ?.name ?? "Your notes")}
+                                : path === "/app/archive"
+                                  ? "Archive"
+                                  : path === "/app/profile"
+                                    ? "About you"
+                                    : (links.find(
+                                        ({ href }) => href === current,
+                                      )?.name ?? "Your notes")}
                             </strong>
                           </span>
                           <div className="flex items-center gap-3">

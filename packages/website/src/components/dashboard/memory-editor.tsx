@@ -724,15 +724,6 @@ export function MemoryEditor({
                 />
                 <span title={saveStatus}>{saveStatus}</span>
               </span>
-              <button
-                type="button"
-                className="app-button secondary note-export-button"
-                data-focus-key="note-export"
-                onClick={openExport}
-              >
-                <Download size={16} />
-                Export
-              </button>
               {toolbar ? (
                 toolbar({
                   locked: busy || dirty || !!latest,
@@ -741,7 +732,7 @@ export function MemoryEditor({
                   onExport: openExport,
                 })
               ) : (
-                <span className="note-mobile-actions">
+                <span className="note-editor-actions">
                   <ActionMenu label="Note actions">
                     <button type="button" onClick={openExport}>
                       <Download size={15} />

@@ -241,7 +241,9 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   **Open in Grove** opens the full editor. HTML remains literal text, unsafe links
   are inert and images/media never load automatically. PDF/Word originals are not
   fetched or extracted in the extension; previously imported Markdown is readable.
-- **Share:** choose Share from a result's menu or reader, or **Save & share** in Notes.
+- **Share:** choose **Share** from a result's menu or reader. In Notes, open
+  **More note actions** and choose **Share** or **Save & share**. **Save now**
+  remains separate.
   A new note saves first; changed/uncertain drafts cannot publish an older snapshot.
   The compact dialog identifies the note without reopening a full reader. Its
   title expands a saved-note preview; **Link options** holds expiry (initially one

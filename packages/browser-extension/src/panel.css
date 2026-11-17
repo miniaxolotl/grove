@@ -424,6 +424,12 @@ summary {
   color: var(--muted);
   font-size: 12px;
 }
+#capture-actions > summary {
+  min-height: 36px;
+  padding-block: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
 #query {
   min-height: 44px;
   padding-inline: 12px;

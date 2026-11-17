@@ -623,7 +623,7 @@
   .note-editor-bar > .note-secondary-control:not([aria-pressed="true"]) {
     display: none;
   }
-  .note-editor-full .note-mobile-actions,
+  .note-editor-full .note-editor-actions,
   .note-editor-full .action-menu > .note-mobile-menu-item {
     display: flex;
   }

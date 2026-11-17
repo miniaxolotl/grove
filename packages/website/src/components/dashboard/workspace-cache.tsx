@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useState,
+  type PointerEvent,
   type ReactNode,
 } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -63,3 +64,26 @@ export function useWorkspaceCache() {
   return cache;
 }
 export const useWorkspaceApi = () => useWorkspaceCache().api;
+
+export function noteListWarmup(
+  cache: WorkspaceCache,
+  status: "active" | "archived",
+) {
+  const warm = () => {
+    if (
+      (navigator as Navigator & { connection?: { saveData?: boolean } })
+        .connection?.saveData
+    )
+      return;
+    // Only warm the default list. Scoped notebook reads may record visits.
+    const options = cache.notes({ status });
+    if (cache.client.getQueryData(options.queryKey) === undefined)
+      void cache.client.prefetchInfiniteQuery(options);
+  };
+  return {
+    onFocus: warm,
+    onPointerEnter: (event: PointerEvent<HTMLAnchorElement>) => {
+      if (event.pointerType === "mouse") warm();
+    },
+  };
+}

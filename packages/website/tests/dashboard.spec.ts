@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
 import { applySourceEdits } from "@lib/shared/document-edits";
+import { openNoteAction } from "./fixtures/note-action";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const sample: Memory = {
@@ -139,7 +140,7 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
     .fill("I prefer examples in TypeScript.");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(page.locator(".note-save-status")).toHaveText("Saved");
-  await page.getByRole("button", { name: "History", exact: true }).click();
+  await openNoteAction(page, "Revision history");
   await expect(page.locator(".revision-diff")).toBeVisible();
   await page.getByText("Full versions", { exact: true }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();

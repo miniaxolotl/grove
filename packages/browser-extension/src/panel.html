@@ -117,14 +117,18 @@
               </div>
             </details>
             <div class="actions">
-              <button id="save" type="submit" class="primary">Save now</button
-              ><button id="share-draft" type="button" class="quiet">
-                Save &amp; share</button
-              ><a id="saved-link" hidden target="_blank" rel="noreferrer"
+              <button id="save" type="submit" class="primary">Save now</button>
+              <a id="saved-link" hidden target="_blank" rel="noreferrer"
                 >Open saved note</a
               >
             </div>
             <p id="save-state" class="feedback" role="status"></p>
+            <details id="capture-actions">
+              <summary>More note actions</summary>
+              <button id="share-draft" type="button" class="quiet">
+                Save &amp; share
+              </button>
+            </details>
           </form>
         </section>
         <section data-view="search" hidden aria-labelledby="search-title">

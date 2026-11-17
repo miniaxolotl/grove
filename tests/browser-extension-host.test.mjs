@@ -2896,6 +2896,18 @@ for (const target of ["chrome", "edge"])
           globalThis.fixtureCaptureStarted = resolve;
         });
       });
+      const captureActions = otherPanel.locator("#capture-actions > summary");
+      assert.equal(await otherPanel.locator("#share-draft").isVisible(), false);
+      await captureActions.press("Enter");
+      await otherPanel.locator("#share-draft").press("Escape");
+      assert.equal(await otherPanel.locator("#share-draft").isVisible(), false);
+      assert.equal(
+        await captureActions.evaluate(
+          (element) => element === document.activeElement,
+        ),
+        true,
+      );
+      await captureActions.press("Space");
       await otherPanel.locator("#share-draft").click();
       await worker.evaluate(() => globalThis.fixtureCaptureReached);
       await otherPanel
@@ -2914,6 +2926,7 @@ for (const target of ["chrome", "edge"])
         0,
         "typing during Save & share cannot publish an earlier snapshot",
       );
+      await captureActions.click();
       await otherPanel.locator("#share-draft").click();
       await otherPanel.locator("#create-share").waitFor({ state: "visible" });
       assert.equal(

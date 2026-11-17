@@ -2,7 +2,13 @@ import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { applySourceEdits } from "@lib/shared/document-edits";
 import { memoryUpdateSchema } from "@lib/shared/memory-tools";
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Locator, type Page, type Download } from "@playwright/test";
+import {
+  test,
+  expect,
+  type Locator,
+  type Page,
+  type Download,
+} from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
@@ -1092,13 +1098,15 @@ for (const width of [1440, 768, 390, 320]) {
           .boundingBox())!;
         expect(Math.abs(logo.x - headerBounds.x)).toBeLessThan(1);
         expect(
-          Math.abs(account.x + account.width - headerBounds.x - headerBounds.width),
+          Math.abs(
+            account.x + account.width - headerBounds.x - headerBounds.width,
+          ),
         ).toBeLessThan(1);
         expect(create.x - logo.x - logo.width).toBeGreaterThanOrEqual(8);
         expect(
           Math.abs(logo.y + logo.height / 2 - (account.y + account.height / 2)),
         ).toBeLessThan(1);
-        for (const name of ["Notes", "Ask Grove", "Archive", "Settings"]) {
+        for (const name of ["Notes", "Ask Grove", "Settings"]) {
           const link = sidebar.getByRole("link", { name, exact: true });
           await expect(link).toBeInViewport();
           expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -1311,7 +1319,7 @@ for (const width of [1440, 768, 390, 320]) {
               ".editor-heading",
               ".writing-layout",
               ".editor-footer",
-              ".note-export-button",
+              ".note-editor-bar > button[popovertarget]",
               ".note-save-button",
             ].map((selector) => [
               selector,
@@ -1927,23 +1935,36 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
     const target = await page.evaluate(() =>
       matchMedia("(any-pointer: coarse), (max-width: 600px)").matches ? 44 : 36,
     );
-    for (const name of ["Export", "Delete note…"]) {
-      const direct = page.getByRole("button", { name, exact: true });
-      const compact = !(await direct.isVisible());
-      if (compact)
-        await page
-          .getByRole("button", { name: "Note actions", exact: true })
-          .click();
-      const control = page.getByRole("button", {
-        name: compact && name === "Export" ? "Export…" : name,
-        exact: true,
-      });
+    const trigger = page.getByRole("button", {
+      name: "Note actions",
+      exact: true,
+    });
+    const names = ["Export…", "Share note", "Revision history", "Delete note…"];
+    await expect(
+      page.getByRole("button", { name: "Write", exact: true }),
+    ).toBeInViewport();
+    for (const name of names)
+      await expect(
+        page.getByRole("button", { name, exact: true }),
+      ).toBeHidden();
+    await trigger.press("ArrowDown");
+    const actions = page.getByRole("group", {
+      name: "Note actions",
+      exact: true,
+    });
+    await expect(
+      actions.getByRole("button", { name: "Move", exact: true }),
+    ).toBeFocused();
+    for (const name of names) {
+      const control = actions.getByRole("button", { name, exact: true });
+      await control.scrollIntoViewIfNeeded();
       await expect(control).toBeInViewport();
       const bounds = (await control.boundingBox())!;
       expect(bounds.width).toBeGreaterThanOrEqual(target);
       expect(bounds.height).toBeGreaterThanOrEqual(target);
-      if (compact) await page.keyboard.press("Escape");
     }
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
     expect(
       await page
         .locator(".note-editor-bar")
@@ -2352,14 +2373,8 @@ test("row export reads current content and first-save routing retains the export
   expect((await loading.promise).numPages).toBe(1);
   await loading.destroy();
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  const exportTrigger = page.getByRole("button", {
-    name: "Export",
-    exact: true,
-  });
   await expect(
-    (await exportTrigger.isVisible())
-      ? exportTrigger
-      : page.getByRole("button", { name: "Note actions", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeFocused();
 });
 
@@ -3609,12 +3624,24 @@ test("long project names remain inside destinations at every breakpoint", async 
     page
       .getByRole("navigation", { name: "Workspace" })
       .getByRole("link", { name: "Archive" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page
       .getByRole("navigation", { name: "Workspace help and policies" })
       .getByRole("link", { name: "Archive" }),
   ).toHaveCount(0);
+  const more = moreNoteActions(page);
+  await more.press("ArrowDown");
+  const archived = page
+    .getByRole("group", { name: "More note actions" })
+    .getByRole("link", { name: "Archive", exact: true });
+  await archived.press("Enter");
+  await expect(page).toHaveURL(/\/app\/archive$/);
+  await expect(
+    page.getByRole("heading", { name: "Archive", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Back to notes", exact: true }).click();
+  await expect(page).toHaveURL(/\/app$/);
 });
 
 test("search debounces automatically and source, date, and lifetime refine all results", async ({
@@ -3943,7 +3970,7 @@ test("sharing controls keep stable links, retry uncertain writes and show inheri
   const { sharing } = await shareFixture(page);
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(page, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await chooseOption(
     dialog.getByRole("combobox", { name: "General access" }),
@@ -3963,7 +3990,7 @@ test("sharing controls keep stable links, retry uncertain writes and show inheri
   );
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "Share note", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Control+Shift+p");
   await page
@@ -4022,15 +4049,7 @@ test("timed sharing offers six durations, stages expiry edits and preserves retr
 }, info) => {
   const { sharing } = await shareFixture(page);
   await page.goto(`${base}/app/memories/${note.id}`);
-  if (
-    !(await page
-      .getByRole("button", { name: "Share note", exact: true })
-      .isVisible())
-  )
-    await page
-      .getByRole("button", { name: "Note actions", exact: true })
-      .click();
-  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(page, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await chooseOption(
     dialog.getByRole("combobox", { name: "General access" }),
@@ -4115,15 +4134,7 @@ test("an open sharing dialog stops offering an expired URL and renews with a new
     url: old,
   };
   await page.goto(`${base}/app/memories/${note.id}`);
-  if (
-    !(await page
-      .getByRole("button", { name: "Share note", exact: true })
-      .isVisible())
-  )
-    await page
-      .getByRole("button", { name: "Note actions", exact: true })
-      .click();
-  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(page, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await expect(dialog.getByLabel("Current link")).toHaveValue(old);
   await page.clock.fastForward(61_000);
@@ -4359,15 +4370,7 @@ test("sharing an editing note permits revocation while retaining the pending dra
   await editor.fill("An unsaved thought worth keeping");
   await editor.press("Control+s");
   await started.promise;
-  if (
-    !(await drawer
-      .getByRole("button", { name: "Share note", exact: true })
-      .isVisible())
-  )
-    await drawer
-      .getByRole("button", { name: "Note actions", exact: true })
-      .click();
-  await drawer.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(drawer, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await expect(
     dialog.getByRole("button", { name: "Replace link" }),
@@ -5142,7 +5145,9 @@ test("the direct Graph route still opens with an obvious return to Notes", async
     page.getByRole("heading", { name: "Notes", exact: true }),
   ).toBeVisible();
   await expect(moreNoteActions(page)).toBeFocused();
-  await expect(page.locator(".memory-open")).toContainText("Review preferences");
+  await expect(page.locator(".memory-open")).toContainText(
+    "Review preferences",
+  );
 });
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
@@ -6144,7 +6149,9 @@ test("mobile notebook browsing keeps creation and dated writing in the selected 
   await expect(
     page.getByRole("link", { name: "Today’s note", exact: true }),
   ).toBeHidden();
-  await page.getByRole("button", { name: "Notebook options", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Notebook options", exact: true })
+    .click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
@@ -6199,7 +6206,9 @@ test("Today's note uses the same editor and library, with date grouping and note
   await expect(
     page.getByRole("link", { name: "New note", exact: true }),
   ).toHaveCount(1);
-  await page.getByRole("button", { name: "More note actions", exact: true }).click();
+  await page
+    .getByRole("button", { name: "More note actions", exact: true })
+    .click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   const editor = page.locator(".note-editor-full");
   await editor.getByRole("button", { name: "Markdown", exact: true }).click();
@@ -6278,7 +6287,7 @@ test("a changed note preserves the draft for review and restoring history create
     "A reviewed replacement",
   );
   expect(state.records.get(note.id)?.version).toBe(3);
-  await page.getByRole("button", { name: "History", exact: true }).click();
+  await openNoteAction(page, "Revision history");
   const revision = page
     .locator(".revision-list > li")
     .filter({ hasText: "Revision 2" });
@@ -6806,9 +6815,7 @@ test("touch hold lifts notebooks and notes into drops while quick taps organize"
     "1 note moved to Unfiled",
   );
   expect(state.records.get(handoff.id)?.projectId).toBeNull();
-  await page
-    .getByRole("button", { name: "Dismiss move notification" })
-    .click();
+  await page.getByRole("button", { name: "Dismiss move notification" }).click();
 
   // Hold a notebook grip and drop it on another notebook row to nest.
   const notebookHandle = page
@@ -7776,7 +7783,9 @@ test("bulk delete removes selected notes at once with one confirmation", async (
     "2 notes deleted.",
   );
   expect(state.records.size).toBe(0);
-  const deletion = state.calls.find((call) => call.path === "/memories/delete")!;
+  const deletion = state.calls.find(
+    (call) => call.path === "/memories/delete",
+  )!;
   expect(deletion.body.items).toHaveLength(2);
 });
 
@@ -7974,7 +7983,10 @@ test("organize reorders instantly while its request is still held", async ({
     await route.fallback();
   });
   await page.goto(`${base}/app/projects`);
-  await page.locator("#main").getByRole("button", { name: "Organize", exact: true }).click();
+  await page
+    .locator("#main")
+    .getByRole("button", { name: "Organize", exact: true })
+    .click();
   const dialog = page.getByRole("dialog", { name: "Organize notebooks" });
   await dialog
     .getByRole("button", { name: `Alpha notes`, exact: true })
@@ -8001,7 +8013,10 @@ test("a conflicting organize snaps the tree back with review", async ({
     name: "Alpha notes",
   });
   await page.goto(`${base}/app/projects`);
-  await page.locator("#main").getByRole("button", { name: "Organize", exact: true }).click();
+  await page
+    .locator("#main")
+    .getByRole("button", { name: "Organize", exact: true })
+    .click();
   const dialog = page.getByRole("dialog", { name: "Organize notebooks" });
   await dialog
     .getByRole("button", { name: `Alpha notes`, exact: true })
