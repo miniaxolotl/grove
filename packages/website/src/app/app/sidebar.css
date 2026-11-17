@@ -139,8 +139,7 @@
   width: 36px;
   height: 36px;
 }
-/* Sectioned navigation: Workspace notes first, System (Archive, Settings) after
-   notebooks. Settings stays the last link in the sidebar. */
+/* Notes and Ask come first. Settings follows the notebook explorer. */
 .app-navigation {
   display: flex;
   flex-direction: column;
@@ -307,7 +306,9 @@
   min-width: 0;
   padding: 4px 6px;
 }
-.notebook-explorer-heading > :is(.notebook-collapse-toggle, .notebook-heading-static) > span:first-of-type {
+.notebook-explorer-heading
+  > :is(.notebook-collapse-toggle, .notebook-heading-static)
+  > span:first-of-type {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -376,7 +377,7 @@
     position: static;
     height: auto;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 8px;
     padding: 10px 12px 8px;
     overflow: visible;
@@ -444,9 +445,17 @@
   .app-navigation {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin: 0;
     gap: 2px;
+  }
+  .app-settings-navigation {
+    grid-column: 3;
+    grid-row: 3;
+    align-self: start;
+  }
+  .app-settings-navigation .app-nav {
+    min-inline-size: 88px;
   }
   .sidebar-section {
     display: none;
@@ -503,7 +512,7 @@
     flex-wrap: wrap;
   }
   .app-navigation .app-nav {
-    flex: 1 0 calc(25% - 2px);
+    flex: 1 0 calc(50% - 2px);
     min-width: max-content;
     flex-direction: column;
     gap: 3px;

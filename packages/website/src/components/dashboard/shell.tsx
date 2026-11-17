@@ -43,10 +43,12 @@ const workspaceLinks = [
   { href: "/app", name: "Notes", icon: BookOpen },
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
 ];
-const systemLinks = [
-  { href: "/app/settings", name: "Settings", icon: Settings },
-];
-const links = [...workspaceLinks, ...systemLinks];
+const settingsLink = {
+  href: "/app/settings",
+  name: "Settings",
+  icon: Settings,
+};
+const links = [...workspaceLinks, settingsLink];
 
 function WorkspaceNavLink({
   item,
@@ -165,16 +167,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                               current={current}
                             />
                           ))}
-                          <SidebarSection>System</SidebarSection>
-                          {systemLinks.map((item) => (
-                            <WorkspaceNavLink
-                              key={item.href}
-                              item={item}
-                              current={current}
-                            />
-                          ))}
                         </nav>
                         <NotebookExplorer />
+                        <nav
+                          aria-label="Account settings"
+                          className="app-settings-navigation"
+                        >
+                          <WorkspaceNavLink
+                            item={settingsLink}
+                            current={current}
+                          />
+                        </nav>
                         <div className="app-sidebar-footer">
                           <div className="sidebar-account">
                             <div className="sidebar-account-avatar">
