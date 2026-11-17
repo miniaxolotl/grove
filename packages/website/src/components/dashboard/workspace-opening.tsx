@@ -98,14 +98,12 @@ export function WorkspaceRouteSkeleton({ path }: { path: string }) {
       <PageHeading
         title={archive ? "Archive" : "Notes"}
         actions={
-          !archive && (
-            <span
-              className="app-button secondary skeleton-action"
-              aria-hidden="true"
-            >
-              More
-            </span>
-          )
+          <span
+            className="app-button secondary skeleton-action"
+            aria-hidden="true"
+          >
+            {archive ? "Back to notes" : "More"}
+          </span>
         }
       />
       <div className="workspace-bone skeleton-filter" aria-hidden="true" />
@@ -149,7 +147,7 @@ export function WorkspaceOpening({ path }: { path: string }) {
           <i className="workspace-bone" />
         </div>
         <div className="app-navigation">
-          {[0, 1, 2, 3].map((index) => (
+          {[0, 1, 2].map((index) => (
             <div className="app-nav" key={index}>
               <i className="workspace-bone" />
             </div>

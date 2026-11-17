@@ -91,10 +91,11 @@ Use `useWorkspaceCache()` and the query factories in
   normalized into the key. Missing project means all notebooks; `null` means Unfiled.
   Cursor state belongs to that query. Refetch starts at the first page and rebuilds
   subsequent cursors; old-scope requests cannot append into a new scope.
-  Hover or keyboard focus can warm the first page of the default Notes and Archive
-  views when they have no snapshot. Navigation joins an in-flight read; it does not
-  prefetch over existing pagination. Data Saver skips this warm-up. Scoped notebook
-  reads are not speculative because they may record a visit on the server.
+  Hover or keyboard focus on Notes, **More → Archive**, or **Back to notes** can
+  warm the first page of the default view when it has no snapshot. Navigation
+  joins an in-flight read; it does not prefetch over existing pagination.
+  Data Saver skips this warm-up. Scoped notebook reads are not speculative because
+  they may record a visit on the server.
 - `note(id)` shares complete list and mutation snapshots with the reader/editor.
   Higher content versions win. Equal-version enrichment can refresh, but a read
   begun before a newer snapshot cannot overwrite it.

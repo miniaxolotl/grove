@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
-import { useWorkspaceCache } from "./workspace-cache";
+import { noteListWarmup, useWorkspaceCache } from "./workspace-cache";
 import {
   dateLabel,
   isInactive,
@@ -479,7 +479,7 @@ export function MemoryLibrary({
         )}
         {!embedded && (
           <>
-            <Link href="/app/archive">
+            <Link href="/app/archive" {...noteListWarmup(cache, "archived")}>
               <Archive size={16} aria-hidden="true" /> Archive
             </Link>
             <Link
@@ -503,7 +503,11 @@ export function MemoryLibrary({
           title={title}
           actions={
             archive ? (
-              <Link className="app-button secondary" href="/app">
+              <Link
+                className="app-button secondary"
+                href="/app"
+                {...noteListWarmup(cache, "active")}
+              >
                 Back to notes
               </Link>
             ) : (

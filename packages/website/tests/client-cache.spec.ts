@@ -114,16 +114,20 @@ test("archive intent warms one request and navigation joins it", async ({
   });
   await page.goto(`${base}/app`);
   await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+  expect(archiveReads).toBe(0);
+  await page.getByRole("button", { name: "More note actions" }).click();
   const link = page
-    .getByRole("navigation", { name: "Workspace" })
-    .getByRole("link", { name: "Archive" });
+    .getByRole("group", { name: "More note actions" })
+    .getByRole("link", { name: "Archive", exact: true });
   expect(archiveReads).toBe(0);
   await link.focus();
   await expect.poll(() => archiveReads, { timeout: 3000 }).toBe(1);
   await started.promise;
   await link.click();
   await expect(page).toHaveURL(/\/app\/archive$/);
-  await expect(page.locator(".library-skeleton")).toBeVisible();
+  await expect(
+    page.locator(".library-skeleton").getByRole("status"),
+  ).toHaveText("Opening your archive…");
   expect(archiveReads).toBe(1);
   release.resolve();
   await expect(page.locator(".memory-open")).toHaveText("Archived thought");
