@@ -83,12 +83,19 @@ export type WebCapture = z.infer<typeof webCaptureSchema>;
 export const browserCaptureRequestSchema = z
   .object({
     operationId: z.uuid(),
+    id: z.uuid().optional(),
+    expectedVersion: z.number().int().positive().optional(),
+    editSession: z.uuid().optional(),
     content: rememberSchema.shape.content,
     projectId: z.uuid().nullable(),
     capture: z.literal("explicit"),
     provenance: webCaptureSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (input) => Boolean(input.id) === Boolean(input.expectedVersion),
+    "Updates require both id and expectedVersion",
+  );
 export const browserPageRequestSchema = z
   .object({
     url: webCaptureSchema.shape.url,
