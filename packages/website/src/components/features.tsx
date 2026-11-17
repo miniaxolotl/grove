@@ -1,21 +1,21 @@
-import Image from "next/image";
+import Link from "next/link";
 
 const features = [
   [
+    "Import and share",
+    "Bring in notes and PDFs. Share a read-only link to a note or notebook and turn it off when you need to.",
+  ],
+  [
+    "Revision history and export",
+    "Compare and restore earlier versions, archive notes you no longer need, and export your library.",
+  ],
+  [
     "Voice notes and read aloud",
-    "Record a short voice note and transcribe it. Listen to notes with read aloud when you would rather step away from the screen.",
-  ],
-  [
-    "Imports and sharing",
-    "Import notes or PDFs, review the proposed pages and choose where they go. Share a read-only link to a note or notebook, and revoke it when you need to.",
-  ],
-  [
-    "History and export",
-    "Restore earlier revisions, compare before and after with grouped diffs, archive old notes and export your library. Choose each connected agent's notebook access and revoke it when you're done.",
+    "Record and transcribe a short voice note, or listen to a saved note instead of reading it.",
   ],
   [
     "Browser extension",
-    "Save notes from any tab and search your library in Chrome, Firefox or Edge. Spelling and grammar checks run locally; optional sentence-level AI rewrites need your explicit consent. Locally installable, not a store listing.",
+    "Check spelling and grammar on your device, and save or find notes from the browser panel. Install locally in Chrome, Firefox, or Edge.",
   ],
 ] as const;
 
@@ -29,26 +29,9 @@ export function Features() {
       <div className="page-container feature-index-layout">
         <div className="feature-index-heading" data-reveal>
           <h2 id="features-heading" className="section-title">
-            More ways to use your notes
+            What you can do with Grove
           </h2>
-          <p>
-            Write at your own pace, bring in what you already have and decide
-            what to share.
-          </p>
         </div>
-        <figure className="feature-photo" data-reveal>
-          <Image
-            src="/images/marketing/editorial.webp"
-            alt="Editorial notebook illustration showing an earlier draft beside a person writing by a window."
-            width={1600}
-            height={1000}
-            sizes="(max-width: 767px) calc(100vw - 40px), 40vw"
-          />
-          <figcaption>
-            Illustrative note history. Your earlier drafts stay within reach.{" "}
-            <a href="/images/marketing/CREDITS.md">Photo credits</a>.
-          </figcaption>
-        </figure>
         <dl className="feature-list" data-stagger>
           {features.map(([title, description]) => (
             <div className="feature-row" key={title} data-reveal>
@@ -57,6 +40,9 @@ export function Features() {
             </div>
           ))}
         </dl>
+        <Link className="text-link" href="/docs/notebook">
+          Read the notebook guide
+        </Link>
       </div>
     </section>
   );

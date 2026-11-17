@@ -10,7 +10,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
-  Archive,
   Settings,
   Plus,
   LockKeyhole,
@@ -18,7 +17,12 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
-import { WorkspaceCacheProvider } from "./workspace-cache";
+import {
+  WorkspaceCacheProvider,
+  noteListWarmup,
+  useWorkspaceCache,
+} from "./workspace-cache";
+import { WorkspaceOpening } from "./workspace-opening";
 import { NoteExportProvider } from "./note-export";
 import { NotebooksProvider, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookExplorer } from "./notebook-explorer";
@@ -40,7 +44,6 @@ const workspaceLinks = [
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
 ];
 const systemLinks = [
-  { href: "/app/archive", name: "Archive", icon: Archive },
   { href: "/app/settings", name: "Settings", icon: Settings },
 ];
 const links = [...workspaceLinks, ...systemLinks];
@@ -53,11 +56,13 @@ function WorkspaceNavLink({
   current: string | undefined;
 }) {
   const { href, name, icon: Icon } = item;
+  const cache = useWorkspaceCache();
   return (
     <Link
       href={href}
       aria-current={href === current ? "page" : undefined}
       className="app-nav"
+      {...(href === "/app" ? noteListWarmup(cache, "active") : {})}
     >
       <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
       <span>{name}</span>
@@ -86,13 +91,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoaded) setAccountBoundary(user?.id ?? null);
   }, [isLoaded, user?.id]);
-  if (!isLoaded || !sessionLoaded)
-    return (
-      <main id="main" className="app-opening">
-        <Brand />
-        <p role="status">Opening your Grove…</p>
-      </main>
-    );
+  if (!isLoaded || !sessionLoaded) return <WorkspaceOpening path={path} />;
   if (!isSignedIn || !session) return <RedirectToSignIn />;
   if (path.startsWith("/app/connect/"))
     return (
@@ -105,7 +104,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main id="main" className="connect-content" key={user?.id}>
-          {children}
+          {path.startsWith("/app/connect/browser/") ? (
+            <WorkspaceCacheProvider
+              key={`${user!.id}:${session.id}`}
+              account={user!.id}
+              sessionId={session.id}
+            >
+              <NotebooksProvider>{children}</NotebooksProvider>
+            </WorkspaceCacheProvider>
+          ) : (
+            children
+          )}
         </main>
         <footer className="app-footer">
           <TelemetryChoice />
@@ -134,10 +143,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       >
                         <div className="app-sidebar-heading">
                           <Brand href="/app" />
-                          <NewNoteLink />
-                          <WorkspaceSearchButton />
-                          <div className="lg:hidden">
-                            <UserButton />
+                          <div className="workspace-header-actions">
+                            <NewNoteLink />
+                            <WorkspaceSearchButton />
+                            <div className="sidebar-account-avatar lg:hidden">
+                              <UserButton />
+                            </div>
                           </div>
                         </div>
                         <div className="workspace-utilities">
@@ -166,7 +177,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         <NotebookExplorer />
                         <div className="app-sidebar-footer">
                           <div className="sidebar-account">
-                            <UserButton />
+                            <div className="sidebar-account-avatar">
+                              <UserButton />
+                            </div>
                             <span className="sidebar-account-text">
                               <strong>
                                 {user?.firstName ?? "Your account"}
@@ -184,10 +197,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <strong>
                               {path === "/app/graph"
                                 ? "Note graph"
-                                : path === "/app/profile"
-                                  ? "About you"
-                                  : (links.find(({ href }) => href === current)
-                                      ?.name ?? "Your notes")}
+                                : path === "/app/archive"
+                                  ? "Archive"
+                                  : path === "/app/profile"
+                                    ? "About you"
+                                    : (links.find(
+                                        ({ href }) => href === current,
+                                      )?.name ?? "Your notes")}
                             </strong>
                           </span>
                           <div className="flex items-center gap-3">

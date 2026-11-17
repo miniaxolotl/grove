@@ -4,6 +4,42 @@ import { canonical, indexable } from "./site-fixture";
 
 const siteURL = canonical.origin;
 
+test("a guest can check writing without sending text or opening an account", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 750 });
+  const text = "This is is a smple sentence.";
+  const transfers: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.url().includes("/api/grove/") ||
+      request.postData()?.includes(text) ||
+      decodeURI(request.url()).includes(text)
+    )
+      transfers.push(request.url());
+  });
+  await page.goto("/");
+  await page.getByRole("link", { name: "Try writing checks" }).click();
+  await expect(page).toHaveURL(/\/writing$/);
+  const input = page.getByRole("textbox", { name: "English text" });
+  await input.fill(text);
+  await page.getByRole("button", { name: "Check writing" }).click();
+  await expect(
+    page
+      .getByRole("list", { name: "Writing suggestions" })
+      .getByRole("listitem"),
+  ).not.toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Create an account", exact: true }),
+  ).toHaveAttribute("href", "/sign-up");
+  await expect(
+    page.getByRole("link", { name: "Sign in", exact: true }),
+  ).toHaveAttribute("href", "/sign-in");
+  expect(transfers).toEqual([]);
+  await page.reload();
+  await expect(input).toHaveValue("");
+});
+
 test("serves the notebook story, signup links, and FAQ without JavaScript", async ({
   browser,
   baseURL,
@@ -12,7 +48,7 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   const page = await context.newPage();
   await page.goto(baseURL!);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "A home foryour notes.",
+    "Private notes, easy to find",
   );
   await expect(
     page.getByRole("link", { name: "Start your notebook" }).first(),
@@ -20,14 +56,27 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await expect(
     page.getByRole("heading", { name: "A slower Sunday", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Explore an example", exact: true })
+    .click();
+  await expect(page).toHaveURL(/#your-library$/);
+  await expect(page.locator("#your-library")).toBeInViewport();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Integrations", exact: true })
+    .click();
+  await expect(page).toHaveURL(/#for-developers$/);
+  await expect(
+    page.getByRole("heading", { name: "Get started", exact: true }),
+  ).toBeInViewport();
   await page.getByText("Is my notebook private?", { exact: true }).click();
   await expect(
     page.getByText("Your notes belong to your account.", { exact: false }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Connect your AI tools" }).click();
   await expect(page).toHaveURL(/\/install$/);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "AI tools.",
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Set up Grove",
   );
   await expect(
     page.getByLabel("OpenCode connection command", { exact: true }),
@@ -90,12 +139,20 @@ test("hero notebook switches between complete sample notes and their cited answe
     .getByRole("button", { name: "The long weekend", exact: true })
     .click();
   await expect(notebook).toContainText("10:30");
+  await expect(
+    page.locator(".library-window, .demo-shell, .agent-terminal"),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "More notebook examples" }).click();
+  await expect(page).toHaveURL(/\/examples$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Notebook examples",
+  );
 });
 
 test("Ask Grove examples, comparison and source notes work with keyboard navigation", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/examples");
   await page.getByRole("tab", { name: "Travel plans" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(
@@ -123,6 +180,31 @@ test("Ask Grove examples, comparison and source notes work with keyboard navigat
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#example-note-preferences$/);
   await expect(page.locator("#example-note-preferences")).toBeInViewport();
+});
+
+test("mobile setup links lead to the browser extension and AI tools", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto("/install");
+  const options = page.getByRole("navigation", { name: "Setup options" });
+  const extension = options.getByRole("link", {
+    name: "Browser extension setup",
+  });
+  await expect(extension).toBeInViewport({ ratio: 1 });
+  await extension.press("Enter");
+  await expect(page).toHaveURL(/#extension-heading$/);
+  await expect(
+    page.getByRole("heading", { name: "Browser extension", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    page.getByRole("link", { name: "Extension setup guide" }),
+  ).toHaveAttribute("href", /documentation\/browser-extension\.md$/);
+  await options.getByRole("link", { name: "AI tool setup" }).click();
+  await expect(page).toHaveURL(/#ai-tools$/);
+  await expect(
+    page.getByRole("tab", { name: "OpenCode", exact: true }),
+  ).toBeInViewport();
 });
 
 test("Cloud setup selects the right agent and keeps self-hosting on its own page", async ({
@@ -197,7 +279,7 @@ test("the public library preview supports keyboard exploration without account m
   page.on("request", (request) => {
     if (request.url().includes("/api/grove/")) requests.push(request.url());
   });
-  await page.goto("/");
+  await page.goto("/examples");
   await page.getByRole("tab", { name: "Notes", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(
@@ -350,8 +432,10 @@ test("social metadata, crawler routes, and generated images are usable", async (
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.ok()).toBe(true);
   const sitemapText = await sitemap.text();
-  if (indexable) expect(sitemapText).toContain(`${siteURL}/install</loc>`);
-  else expect(sitemapText).not.toContain("<loc>");
+  if (indexable) {
+    expect(sitemapText).toContain(`${siteURL}/install</loc>`);
+    expect(sitemapText).toContain(`${siteURL}/examples</loc>`);
+  } else expect(sitemapText).not.toContain("<loc>");
   expect(await (await request.get("/robots.txt")).text()).toContain(
     `${siteURL}/sitemap.xml`,
   );
@@ -423,7 +507,7 @@ test("key pages meet automated accessibility checks and render without browser e
   await page.emulateMedia({ reducedMotion: "reduce" });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  for (const path of ["/", "/install"]) {
+  for (const path of ["/", "/examples", "/install"]) {
     await page.goto(path);
     const result = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])

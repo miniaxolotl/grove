@@ -6,6 +6,14 @@ Server/development baseline is Node 24. See
 
 Grove Cloud is at [usegrove.cloud](https://usegrove.cloud), with API origin
 `https://api.usegrove.cloud`. Grove Open Source is the self-hosted edition.
+The [setup page](https://usegrove.cloud/install) has separate links to AI tool
+instructions and the browser extension guide. Neither is required to use the web
+notebook.
+
+Connection names are prefilled and can be edited during setup or later under
+**Settings → Connections → Edit scope**. Choose **Hide** to move an old entry
+into **Hidden connections** in this browser, and **Show again** to restore it.
+Hiding leaves the connection's permissions unchanged; **Revoke** stops access.
 
 ## ChatGPT and Claude web
 

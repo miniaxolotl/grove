@@ -125,7 +125,8 @@ function Permission({
         `${feature} is currently unavailable.`
       ) : (
         <>
-          Turn on {feature} in <Link href="/app/settings">AI preferences</Link>.
+          Turn on {feature} in{" "}
+          <Link href="/app/settings/models">AI preferences</Link>.
         </>
       )}
     </span>

@@ -69,7 +69,6 @@ const writingController = new WritingController(
     addWord: (word) => saveWriting({ addWord: word }),
     feedback: (message) => {
       $("writing-hint").textContent = message;
-      $("writing-hint").hidden = false;
     },
     status: (result, error) => {
       const button = $<HTMLButtonElement>("writing-review");
@@ -87,12 +86,19 @@ const writingController = new WritingController(
         !error &&
         !result?.issues.length &&
         (writingPreferences?.settings.automatic ?? true);
-      $("writing-hint").hidden = !button.hidden;
+      // Keep the result in the editor toolbar without repeating the review button.
+      $("writing-hint").textContent =
+        result && !result.issues.length
+          ? result.complete
+            ? "No issues found"
+            : "No issues in checked text"
+          : "";
     },
   },
 );
 function paintWriting() {
   const settings = writingPreferences?.settings;
+  paintAiSettings();
   for (const key of [
     "enabled",
     "spelling",
@@ -239,6 +245,17 @@ function paintWriting() {
     (!settings.spelling && !settings.grammar);
   writingController.refresh();
 }
+function paintAiSettings() {
+  const tools = state?.identity.writingTools;
+  $("ai-settings").hidden = !state;
+  $("ai-settings-status").textContent = !preferences.enabled
+    ? "Grove is paused in this browser."
+    : !tools?.authorized
+      ? "Allow AI writing tools in Connections to use them here."
+      : !tools.available
+        ? "AI writing is currently unavailable."
+        : "Text is sent only when you choose a tool and give permission.";
+}
 async function saveWriting(change: {
   patch?: WritingPatch;
   addWord?: string;
@@ -246,15 +263,20 @@ async function saveWriting(change: {
   site?: { domain: string; enabled: boolean; restrictions?: WritingPatch };
   removeDomain?: string;
 }) {
-  $("writing-settings-status").textContent = "Saving…";
+  const status = $(
+    change.patch?.aiRewrites === undefined
+      ? "writing-settings-status"
+      : "ai-save-status",
+  );
+  status.textContent = "Saving…";
   try {
     writingPreferences = await rpc<WritingPreferences>(
       "writingConfigure",
       change,
     );
-    $("writing-settings-status").textContent = "Saved on this device.";
+    status.textContent = "Saved on this device.";
   } catch (error) {
-    $("writing-settings-status").textContent = "Not saved. Try again.";
+    status.textContent = "Not saved. Try again.";
     throw error;
   } finally {
     paintWriting();
@@ -263,6 +285,7 @@ async function saveWriting(change: {
 let searchRevision = 0;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let composingSearch = false;
+let composingNote = false;
 let draftRevision = 0;
 let readerNote: Memory | undefined;
 let readerRevision = 0;
@@ -272,6 +295,56 @@ const renderedNotes = new WeakMap<HTMLElement, Memory>();
 const scrollPositions = new Map<string, number>();
 let editTail: Promise<unknown> = Promise.resolve(),
   replaceAction: (() => Promise<void>) | undefined;
+// Notes save themselves after their first explicit save: one debounced timer
+// per editing pause, re-checked at fire time so late keystrokes, IME
+// composition, configuration changes, an off switch or an unresolved earlier
+// save always win over the timer.
+const autosaveDelayMs = 600;
+let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
+function cancelAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = undefined;
+}
+function changedDraft() {
+  const draft = state?.draft;
+  if (!draft) return false;
+  try {
+    return (
+      !draft.save ||
+      draft.save.request.content !== formatCaptureDraft(draft) ||
+      draft.save.request.projectId !== draft.projectId ||
+      JSON.stringify(draft.save.request.provenance) !==
+        JSON.stringify(draft.source)
+    );
+  } catch {
+    return true;
+  }
+}
+function scheduleAutosave() {
+  cancelAutosave();
+  const revision = draftRevision;
+  const epoch = sessionEpoch;
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = undefined;
+    void action(async () => {
+      await editTail;
+      if (
+        revision !== draftRevision ||
+        epoch !== sessionEpoch ||
+        !preferences.enabled ||
+        configuring ||
+        composingNote ||
+        savingCapture ||
+        !state?.identity.capabilities.includes("memory:write") ||
+        state.draft?.save?.status !== "saved" ||
+        !changedDraft() ||
+        !$<HTMLTextAreaElement>("note").value.trim()
+      )
+        return;
+      await saveCapture();
+    });
+  }, autosaveDelayMs);
+}
 const approved = () =>
   state?.identity.capabilities.some((cap) =>
     ["memory:read", "memory:write"].includes(cap),
@@ -343,6 +416,7 @@ function on(id: string, run: () => Promise<void>) {
 function show(next: string) {
   const main = document.querySelector("main")!;
   const switched = next !== view;
+  if (switched) $<HTMLDetailsElement>("capture-actions").open = false;
   if (switched)
     document
       .querySelectorAll<HTMLDetailsElement>(".note-menu[open]")
@@ -413,6 +487,7 @@ function paintPreferences(next: Preferences) {
 async function configure(changes: Partial<Preferences>) {
   const focused = document.activeElement as HTMLElement | null;
   configuring = true;
+  cancelAutosave();
   for (const id of ["extension-toggle", "theme"])
     $<HTMLButtonElement>(id).disabled = true;
   $("extension-toggle").setAttribute("aria-busy", "true");
@@ -438,6 +513,9 @@ async function configure(changes: Partial<Preferences>) {
 }
 function approvalUrl() {
   return `${extensionConfig.siteOrigin}/app/connections#connection-${state!.identity.connectionId}`;
+}
+function setupUrl(connectionId: string) {
+  return `${extensionConfig.siteOrigin}/app/connect/browser/${encodeURIComponent(connectionId)}`;
 }
 function noteUrl(id: string) {
   return `${extensionConfig.siteOrigin}/app/memories/${id}`;
@@ -501,7 +579,7 @@ function paintDraft(draft: CaptureDraft, fields = true) {
     ? ""
     : save.status === "saved"
       ? changedSinceSave
-        ? "Your earlier note is saved. These changes aren’t saved yet."
+        ? "Your earlier note is saved. These changes save on their own."
         : "Saved."
       : save.status === "failed"
         ? "Couldn’t save. Your note is still here. Retry the earlier note."
@@ -509,12 +587,14 @@ function paintDraft(draft: CaptureDraft, fields = true) {
           ? "Save not confirmed. Retry the earlier note safely; newer changes stay here."
           : "Saving…";
   $("save").textContent =
-    save && save.status !== "saved" ? "Retry earlier note" : "Save note";
+    save && save.status !== "saved" ? "Retry earlier note" : "Save now";
   $<HTMLButtonElement>("save").formNoValidate =
     !!save && save.status !== "saved";
-  $<HTMLAnchorElement>("saved-link").hidden = save?.status !== "saved";
-  if (save?.status === "saved")
-    $<HTMLAnchorElement>("saved-link").href = noteUrl(save.receipt.noteId);
+  // A rejected update still knows its note; keep it reachable for review.
+  const savedId =
+    save?.status === "saved" ? save.receipt.noteId : save?.request.id;
+  $<HTMLAnchorElement>("saved-link").hidden = !savedId;
+  if (savedId) $<HTMLAnchorElement>("saved-link").href = noteUrl(savedId);
   if (save?.status === "saved" && state) {
     state.pending = state.pending.filter(
       (item) => item.operationId !== save.request.operationId,
@@ -570,6 +650,7 @@ function persist(changes: {
   void editTail.catch(() =>
     notice("Couldn’t keep this draft. Leave it open and try again."),
   );
+  scheduleAutosave();
 }
 async function followSource() {
   if (
@@ -616,6 +697,9 @@ async function refresh() {
     clearRecall();
   }
   state = next;
+  $<HTMLAnchorElement>("continue-connection").href = setupUrl(
+    next.identity.connectionId,
+  );
   notebookCursor = next.notebooks.nextCursor;
   for (const link of document.querySelectorAll<HTMLAnchorElement>(
     ".approval-link",
@@ -627,6 +711,8 @@ async function refresh() {
       state.draft,
       !$<HTMLTextAreaElement>("note").dataset.loaded || !!changed,
     );
+  if (state.draft?.save?.status === "saved" && changedDraft())
+    scheduleAutosave();
   $<HTMLButtonElement>("save").disabled =
     !state.identity.capabilities.includes("memory:write");
   const pending = $("pending-list");
@@ -698,10 +784,13 @@ async function loadInbox() {
   existing.forEach((el) => el.remove());
 }
 async function replace(run: () => Promise<void>) {
-  if (
-    state?.draft?.sourceMode !== "automatic" &&
-    ($<HTMLTextAreaElement>("note").value || state?.draft?.source)
-  ) {
+  cancelAutosave();
+  await editTail;
+  const draft = state?.draft;
+  const unsaved =
+    !!($<HTMLTextAreaElement>("note").value || draft?.source) ||
+    (!!draft?.save && (draft.save.status !== "saved" || changedDraft()));
+  if (draft?.sourceMode !== "automatic" && unsaved) {
     replaceAction = run;
     $<HTMLDialogElement>("confirm").showModal();
     return;
@@ -713,7 +802,7 @@ function emptyResults() {
     cursor: null as string | null,
     input: { query: "" },
     items: [] as Memory[],
-    status: "Type to search your notes.",
+    status: "Search by a word or phrase you remember.",
   };
 }
 let resultState = emptyResults();
@@ -978,6 +1067,7 @@ $("capture-form").addEventListener("submit", (event) => {
 async function saveCapture() {
   if (savingCapture) throw new Error("Wait for the save to finish.");
   savingCapture = true;
+  cancelAutosave();
   $<HTMLButtonElement>("share-draft").disabled = true;
   try {
     await editTail;
@@ -1009,9 +1099,25 @@ async function saveCapture() {
   } finally {
     savingCapture = false;
     if (state?.draft) paintDraft(state.draft, false);
+    // Keep autosaving only behind a settled, current receipt: a rejected or
+    // unknown save is never retried automatically.
+    if (state?.draft?.save?.status === "saved" && changedDraft())
+      scheduleAutosave();
   }
 }
+const captureActions = $<HTMLDetailsElement>("capture-actions");
+function closeCaptureActions() {
+  captureActions.open = false;
+  captureActions.querySelector("summary")?.focus({ preventScroll: true });
+}
+captureActions.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !captureActions.open) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeCaptureActions();
+});
 on("share-draft", async () => {
+  closeCaptureActions();
   await editTail;
   if (state?.draft?.save && state.draft.save.status !== "saved") {
     notice("Check the earlier save before sharing.");
@@ -1038,6 +1144,14 @@ $("note").addEventListener("input", () => {
   $("writing-hint").textContent = "";
   count();
   persist({ text: $<HTMLTextAreaElement>("note").value });
+});
+$("note").addEventListener("compositionstart", () => {
+  composingNote = true;
+  cancelAutosave();
+});
+$("note").addEventListener("compositionend", () => {
+  composingNote = false;
+  scheduleAutosave();
 });
 $("destination").addEventListener("change", () =>
   persist({ projectId: $<HTMLSelectElement>("destination").value || null }),
@@ -1101,6 +1215,11 @@ on("login", async () => {
   try {
     await rpc("login");
     await refresh();
+    if (state && !approved())
+      await host.tabs.create({
+        url: setupUrl(state.identity.connectionId),
+        windowId,
+      });
   } finally {
     button.disabled = false;
   }
@@ -1113,6 +1232,7 @@ on("notebooks-more", async () => {
   updateNotebooks(page.items, true);
 });
 function clearSessionView() {
+  cancelAutosave();
   sessionEpoch++;
   view = "capture";
   state = undefined;
@@ -1155,6 +1275,7 @@ function clearSessionView() {
   paintPreferences(preferences);
 }
 on("logout", async () => {
+  cancelAutosave();
   await editTail;
   await rpc("logout");
   clearSessionView();
@@ -1194,6 +1315,7 @@ host.storage.onChanged.addListener((changes, area) => {
     void action(loadInbox);
   if (changes.identity && identity && state) {
     state.identity.writingTools = identity.writingTools;
+    paintAiSettings();
     writingController.refreshTools();
   }
   const entry = changes[`entryError:${windowId}`];
@@ -1202,6 +1324,10 @@ host.storage.onChanged.addListener((changes, area) => {
 host.tabs.onActivated.addListener((info) => {
   if (info.windowId === windowId)
     void followSource().catch(() => notice("Couldn’t update page details."));
+});
+window.addEventListener("focus", () => {
+  if (state && preferences.enabled && !approved() && !$("approval").hidden)
+    void action(refresh);
 });
 host.tabs.onUpdated.addListener((_id, changes, tab) => {
   if (
@@ -1214,6 +1340,8 @@ host.tabs.onUpdated.addListener((_id, changes, tab) => {
     void followSource().catch(() => notice("Couldn’t update page details."));
 });
 $<HTMLAnchorElement>("home").href = extensionConfig.siteOrigin;
+for (const link of document.querySelectorAll<HTMLAnchorElement>(".signup-link"))
+  link.href = `${extensionConfig.siteOrigin}/sign-up`;
 on("extension-toggle", () => configure({ enabled: !preferences.enabled }));
 const ruleNames: Record<(typeof writingRules)[number], string> = {
   brackets: "Matching brackets",
@@ -1279,6 +1407,12 @@ on("writing-review", async () => {
   await writingController.check();
   writingController.review();
 });
+on("open-writing-settings", async () => {
+  show("settings");
+  const settings = $<HTMLDetailsElement>("writing-settings");
+  settings.open = true;
+  settings.querySelector("summary")?.focus();
+});
 on("writing-enable-site", async () => {
   const [tab] = await host.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url || tab.incognito !== false || tab.id === undefined)
@@ -1324,8 +1458,8 @@ async function paintGrace() {
     note.hidden = false;
     note.textContent =
       grace.state === "expired"
-        ? "Your free start has ended. Create a free Grove account to keep saving and searching notes. Spelling and grammar checks keep working on this device."
-        : `No account needed to start: spelling and grammar checks work now. Create a free account within ${grace.daysLeft} ${grace.daysLeft === 1 ? "day" : "days"} to keep saving and searching notes.`;
+        ? "Your free start has ended. Local writing checks still work."
+        : "Choose notebook access after signing in.";
   } catch {
     // Anonymous grace is advisory only; local checks never depend on it.
     note.hidden = true;

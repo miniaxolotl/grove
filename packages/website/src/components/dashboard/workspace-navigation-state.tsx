@@ -13,11 +13,13 @@ type NavigationState = {
   expanded: Record<string, boolean>;
   scroll: { desktop: number; mobile: number };
   pinned: boolean;
+  hiddenConnections: string[];
 };
 const empty = (): NavigationState => ({
   expanded: {},
   scroll: { desktop: 0, mobile: 0 },
   pinned: false,
+  hiddenConnections: [],
 });
 const Context = createContext<{
   state: NavigationState;
@@ -42,6 +44,14 @@ function sanitize(value: unknown): NavigationState {
       result.scroll[mode] = Math.max(0, Math.min(top, 1_000_000));
   }
   result.pinned = data.pinned === true;
+  if (Array.isArray(data.hiddenConnections))
+    result.hiddenConnections = [
+      ...new Set(
+        data.hiddenConnections.filter(
+          (id) => typeof id === "string" && validId.test(id),
+        ),
+      ),
+    ].slice(-500);
   return result;
 }
 

@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
 import { applySourceEdits } from "@lib/shared/document-edits";
+import { openNoteAction } from "./fixtures/note-action";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const sample: Memory = {
@@ -139,21 +140,23 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
     .fill("I prefer examples in TypeScript.");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(page.locator(".note-save-status")).toHaveText("Saved");
-  await page.getByRole("button", { name: "History", exact: true }).click();
+  await openNoteAction(page, "Revision history");
   await expect(page.locator(".revision-diff")).toBeVisible();
   await page.getByText("Full versions", { exact: true }).click();
   await expect(page.getByText(sample.content, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page.getByRole("button", { name: "Archive", exact: true }).click();
-  await expect(page.getByText("Good things start small.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No notes yet" }),
+  ).toBeVisible();
   await page.goto(`${base}/app/archive`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: /^I prefer examples/ }).click();
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page
     .getByRole("group", { name: "Note actions", exact: true })
     .getByRole("button", { name: "Delete note…", exact: true })
@@ -162,7 +165,9 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
   await expect(
     page.getByRole("status").filter({ hasText: "Note deleted" }),
   ).toBeVisible();
-  await expect(page.getByText("Good things start small.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No notes yet" }),
+  ).toBeVisible();
 });
 
 test("a filtered empty library can return to all memories without losing the query workflow", async ({
@@ -173,7 +178,9 @@ test("a filtered empty library can return to all memories without losing the que
   await page
     .getByRole("textbox", { name: "Search notes" })
     .fill("a missing memory");
-  await expect(page.getByText("Nothing here matches yet.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No matching notes" }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
@@ -190,7 +197,7 @@ for (const path of [
   "/app/archive",
   "/app/projects",
   "/app/settings/connections",
-  "/app/settings",
+  "/app/settings/models",
 ]) {
   test(`${path} recovers from an unavailable service without a false empty or loading state`, async ({
     page,
@@ -222,13 +229,40 @@ for (const path of [
       await expect(
         page.getByRole("button", { name: /^I prefer concise/ }),
       ).toBeVisible();
-    else if (path === "/app/settings")
+    else if (path === "/app/settings/models")
       await expect(
         page.getByRole("button", { name: "Save preferences" }),
       ).toBeVisible();
     else await expect(page.locator(".app-empty")).toBeVisible();
   });
 }
+
+test("local Writing settings work when account settings are unavailable", async ({
+  page,
+}) => {
+  let accountWrites = 0;
+  await fixture(page);
+  await page.route("**/api/grove/me", (route) => {
+    return route.fulfill({ status: 503 });
+  });
+  await page.route("**/api/grove/account/settings", (route) => {
+    accountWrites++;
+    return route.fulfill({ status: 503 });
+  });
+  await page.goto(`${base}/app/settings`);
+  const spelling = page.getByRole("checkbox", {
+    name: "Spelling",
+    exact: true,
+  });
+  await expect(spelling).toBeChecked();
+  await spelling.uncheck();
+  await page.reload();
+  await expect(spelling).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Save preferences" }),
+  ).toHaveCount(0);
+  expect(accountWrites).toBe(0);
+});
 
 test("dashboard navigation, narrow layouts and dialogs meet accessibility checks", async ({
   page,

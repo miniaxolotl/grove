@@ -251,6 +251,7 @@ for (const target of ["chrome", "edge"])
           });
           let uncertain = true;
           globalThis.fixtureRequests = [];
+          globalThis.fixtureNotes = notes;
           globalThis.fixtureCaptureRequests = [];
           globalThis.fixtureWritingInputs = [];
           globalThis.fixtureSearchQueries = [];
@@ -360,22 +361,49 @@ for (const target of ["chrome", "edge"])
               if (operations.has(body.operationId))
                 data = operations.get(body.operationId);
               else {
-                data = {
-                  id: crypto.randomUUID(),
-                  projectId: null,
-                  content: body.content,
-                  kind: "fact",
-                  version: 1,
-                  status: "active",
-                  source: { agent: "api" },
-                  taskId: null,
-                  expiresAt: null,
-                  purgeAt: null,
-                  indexing: "pending",
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                };
-                notes.push(data);
+                const current = body.id
+                  ? notes.find((note) => note.id === body.id)
+                  : undefined;
+                if (
+                  body.id &&
+                  (!current || current.version !== body.expectedVersion)
+                )
+                  return Response.json(
+                    {
+                      success: false,
+                      error: {
+                        code: "version_conflict",
+                        message:
+                          "This note changed elsewhere. Open it in Grove before continuing.",
+                      },
+                    },
+                    { status: 409 },
+                  );
+                data = current
+                  ? {
+                      ...current,
+                      content: body.content,
+                      projectId: body.projectId,
+                      version: current.version + 1,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : {
+                      id: crypto.randomUUID(),
+                      projectId: null,
+                      content: body.content,
+                      kind: "fact",
+                      version: 1,
+                      status: "active",
+                      source: { agent: "api" },
+                      taskId: null,
+                      expiresAt: null,
+                      purgeAt: null,
+                      indexing: "pending",
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    };
+                if (current) notes[notes.indexOf(current)] = data;
+                else notes.push(data);
                 operations.set(body.operationId, data);
               }
               if (uncertain) {
@@ -464,6 +492,10 @@ for (const target of ["chrome", "edge"])
         { accountId, connectionId },
       );
       const page = await context.newPage();
+      // Context-wide fake clock (flowing until paused below) so the autosave
+      // debounce can be advanced deterministically without disturbing the
+      // real-time debounce journeys elsewhere in this test.
+      await page.clock.install();
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`chrome-extension://${extensionId}/panel.html`);
@@ -1263,13 +1295,22 @@ for (const target of ["chrome", "edge"])
                   ),
                 ),
             );
-            const bounds = await dialog.boundingBox();
+            const geometry = await dialog.evaluate((card) => {
+              const editor = document.querySelector("#note");
+              return {
+                bounds: card.getBoundingClientRect().toJSON(),
+                editor: editor.getBoundingClientRect().toJSON(),
+                maxHeight: globalThis.getComputedStyle(card).maxHeight,
+                viewport: [innerWidth, globalThis.innerHeight],
+              };
+            });
+            const bounds = geometry.bounds;
             assert.ok(
               bounds.x >= 0 &&
                 bounds.y >= 0 &&
                 bounds.x + bounds.width <= width &&
                 bounds.y + bounds.height <= height,
-              "AI review stays inside narrow/short and dark viewports",
+              `AI review stays inside ${width}x${height} ${colorScheme}: ${JSON.stringify(geometry)}`,
             );
             assert.deepEqual(
               (
@@ -1289,6 +1330,30 @@ for (const target of ["chrome", "edge"])
                 fullPage: true,
               });
           }
+          await page.setViewportSize({ width: 320, height: 240 });
+          await page.evaluate(() => {
+            document.querySelector("#note-details").open = true;
+            const panel = document.querySelector("main");
+            panel.scrollTop = panel.scrollHeight;
+          });
+          const scrolledReview = await dialog.evaluate(async (card) => {
+            await new Promise((resolve) =>
+              globalThis.requestAnimationFrame(() =>
+                globalThis.requestAnimationFrame(resolve),
+              ),
+            );
+            const { top, bottom } = card.getBoundingClientRect();
+            return { top, bottom, height: globalThis.innerHeight };
+          });
+          assert.ok(
+            scrolledReview.top >= 12 &&
+              scrolledReview.bottom <= scrolledReview.height - 12,
+            `AI review fits after the selection scrolls away: ${JSON.stringify(scrolledReview)}`,
+          );
+          await page.evaluate(() => {
+            document.querySelector("#note-details").open = false;
+            document.querySelector("main").scrollTop = 0;
+          });
           await page.setViewportSize({ width: 390, height: 844 });
           await page.emulateMedia({ colorScheme: "light" });
           await dialog
@@ -1513,10 +1578,18 @@ for (const target of ["chrome", "edge"])
           ).length,
       );
       await page.locator('[data-nav="settings"]').click();
-      await page.locator("#writing-settings > summary").click();
+      assert.equal(await page.locator("#writing-spelling").isVisible(), true);
+      assert.equal(
+        new URL(
+          await page
+            .locator("#ai-settings .approval-link")
+            .getAttribute("href"),
+        ).hash,
+        `#connection-${connectionId}`,
+      );
       await page.locator("#writing-ai-rewrites").uncheck();
       await page
-        .locator("#writing-settings-status")
+        .locator("#ai-save-status")
         .filter({ hasText: "Saved on this device." })
         .waitFor();
       await page.locator('[data-nav="capture"]').click();
@@ -1538,10 +1611,9 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="settings"]').click();
       await page.locator("#writing-ai-rewrites").check();
       await page
-        .locator("#writing-settings-status")
+        .locator("#ai-save-status")
         .filter({ hasText: "Saved on this device." })
         .waitFor();
-      await page.locator("#writing-settings > summary").click();
       await page.locator('[data-nav="capture"]').click();
       assert.equal(
         await worker.evaluate(
@@ -1690,11 +1762,9 @@ for (const target of ["chrome", "edge"])
       await page.locator("#new-note").click();
       await sourceTab.bringToFront();
       await waitSource("title", "First source");
-      await page
-        .locator("#note")
-        .fill(
-          "# Field notes\n\nA source worth keeping. <script>not executable</script>\n\n- [x] A useful task\n- **A clear idea**\n\n| Tool | Purpose |\n| --- | --- |\n| Grove | Keep thoughts |\n\n```js\nconst safe = true;\n```\n\n[Source](https://example.com/read)\n\n[Unsafe](javascript:alert(1))\n\n![No tracking](https://tracker.example/pixel.png)",
-        );
+      const fieldNotes = (paragraph) =>
+        `# Field notes\n\n${paragraph} <script>not executable</script>\n\n- [x] A useful task\n- **A clear idea**\n\n| Tool | Purpose |\n| --- | --- |\n| Grove | Keep thoughts |\n\n\`\`\`js\nconst safe = true;\n\`\`\`\n\n[Source](https://example.com/read)\n\n[Unsafe](javascript:alert(1))\n\n![No tracking](https://tracker.example/pixel.png)`;
+      await page.locator("#note").fill(fieldNotes("A source worth keeping."));
       const savedSourcePage = await context.newPage();
       await savedSourcePage.route(
         "https://source.writing-fixture.test/article",
@@ -1752,13 +1822,17 @@ for (const target of ["chrome", "edge"])
         await page.locator("#save-state").textContent(),
         /Save not confirmed/,
       );
-      await page.locator("#note").fill("A newer draft stays after retry.");
+      await page.clock.pauseAt(
+        new Date((await page.evaluate(() => Date.now())) + 50),
+      );
+      const newerDraft = fieldNotes("A newer draft stays after retry.");
+      await page.locator("#note").fill(newerDraft);
       await page.locator("#save").click();
       await page
         .locator("#save-state")
         .filter({
           hasText:
-            "Your earlier note is saved. These changes aren’t saved yet.",
+            "Your earlier note is saved. These changes save on their own.",
         })
         .waitFor();
       assert.deepEqual(
@@ -1771,10 +1845,34 @@ for (const target of ["chrome", "edge"])
         ]),
         "uncertain retry preserves the exact original page and request",
       );
+      assert.equal(await page.locator("#note").inputValue(), newerDraft);
+      await page.clock.runFor(599);
       assert.equal(
-        await page.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
+        await worker.evaluate(() => globalThis.fixtureCaptureRequests.length),
+        2,
+        "edits wait out the debounce window before saving",
       );
+      await page.clock.runFor(1);
+      await page
+        .locator("#save-state")
+        .filter({ hasText: /^Saved\.$/ })
+        .waitFor();
+      const autosaveWrite = await worker.evaluate(
+        () => globalThis.fixtureCaptureRequests[2],
+      );
+      const autosaveNotes = await worker.evaluate(
+        () => globalThis.fixtureNotes,
+      );
+      assert.equal(autosaveWrite.id, autosaveNotes[0].id);
+      assert.equal(autosaveWrite.expectedVersion, 1);
+      assert.equal(autosaveWrite.content, newerDraft);
+      assert.equal(
+        autosaveNotes.length,
+        1,
+        "autosave updates the saved note instead of capturing again",
+      );
+      assert.equal(autosaveNotes[0].version, 2);
+      await page.clock.resume();
       assert.equal(
         await page
           .locator("#save-version, #save-indexing, #save-details")
@@ -2368,15 +2466,12 @@ for (const target of ["chrome", "edge"])
       await page.locator('[data-nav="capture"]').click();
       await page.reload();
       await page.locator("#workspace").waitFor({ state: "visible" });
-      assert.equal(
-        await page.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
-      );
+      assert.equal(await page.locator("#note").inputValue(), newerDraft);
       // Workspace navigation contract: order, current marker, keyboard, scroll.
       assert.deepEqual(
-        await page.locator("#navigation [data-nav]").evaluateAll((items) =>
-          items.map((item) => item.dataset.nav),
-        ),
+        await page
+          .locator("#navigation [data-nav]")
+          .evaluateAll((items) => items.map((item) => item.dataset.nav)),
         ["capture", "search", "settings"],
         "Settings stays last in workspace navigation",
       );
@@ -2463,13 +2558,13 @@ for (const target of ["chrome", "edge"])
       await page.locator("#query").fill("");
       await page
         .locator("#results-status")
-        .filter({ hasText: "Type to search" })
+        .filter({ hasText: "Search by a word or phrase" })
         .waitFor();
       assert.equal(await page.locator("#results .note-row").count(), 0);
       await page.locator('[data-nav="settings"]').click();
       assert.equal(await page.locator("#account-id").isVisible(), false);
       assert.equal(await page.locator("#recovery-settings").isVisible(), false);
-      await page.locator("#writing-settings > summary").click();
+      assert.equal(await page.locator("#writing-spelling").isVisible(), true);
       const websites = page
         .locator("#writing-controls > details")
         .filter({ has: page.locator("#writing-sites") });
@@ -2628,18 +2723,12 @@ for (const target of ["chrome", "edge"])
         saveBox.y >= 0 && saveBox.y + saveBox.height <= navBox.y,
         "Save stays reachable above navigation in a short panel",
       );
-      assert.equal(
-        await page.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
-      );
+      assert.equal(await page.locator("#note").inputValue(), newerDraft);
       await page.locator('[data-nav="settings"]').click();
       const otherPanel = await context.newPage();
       await otherPanel.goto(`chrome-extension://${extensionId}/panel.html`);
       await otherPanel.locator("#workspace").waitFor({ state: "visible" });
-      assert.equal(
-        await otherPanel.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
-      );
+      assert.equal(await otherPanel.locator("#note").inputValue(), newerDraft);
       await page.locator("#extension-toggle").click();
       await page.waitForFunction(
         () =>
@@ -2795,10 +2884,7 @@ for (const target of ["chrome", "edge"])
         "extension-toggle",
         "keyboard toggle preserves focus through resume",
       );
-      assert.equal(
-        await otherPanel.locator("#note").inputValue(),
-        "A newer draft stays after retry.",
-      );
+      assert.equal(await otherPanel.locator("#note").inputValue(), newerDraft);
       await otherPanel
         .locator("#note")
         .fill("# Shared from Notes\n\nA newly saved thought.");
@@ -2810,6 +2896,18 @@ for (const target of ["chrome", "edge"])
           globalThis.fixtureCaptureStarted = resolve;
         });
       });
+      const captureActions = otherPanel.locator("#capture-actions > summary");
+      assert.equal(await otherPanel.locator("#share-draft").isVisible(), false);
+      await captureActions.press("Enter");
+      await otherPanel.locator("#share-draft").press("Escape");
+      assert.equal(await otherPanel.locator("#share-draft").isVisible(), false);
+      assert.equal(
+        await captureActions.evaluate(
+          (element) => element === document.activeElement,
+        ),
+        true,
+      );
+      await captureActions.press("Space");
       await otherPanel.locator("#share-draft").click();
       await worker.evaluate(() => globalThis.fixtureCaptureReached);
       await otherPanel
@@ -2828,6 +2926,7 @@ for (const target of ["chrome", "edge"])
         0,
         "typing during Save & share cannot publish an earlier snapshot",
       );
+      await captureActions.click();
       await otherPanel.locator("#share-draft").click();
       await otherPanel.locator("#create-share").waitFor({ state: "visible" });
       assert.equal(
@@ -2860,11 +2959,77 @@ for (const target of ["chrome", "edge"])
             .querySelector("#extension-toggle")
             .getAttribute("aria-checked") === "true",
       );
+      await worker.evaluate(() => {
+        const current = globalThis.fixtureNotes[0];
+        globalThis.fixtureNotes[0] = {
+          ...current,
+          version: current.version + 1,
+          content: "Another writer's note",
+        };
+      });
+      await page.locator('[data-nav="capture"]').click();
+      await page.locator("#note").fill("Keep my conflicting draft");
+      await page
+        .locator("#save-state")
+        .filter({ hasText: "Couldn’t save" })
+        .waitFor({ timeout: 3000 });
+      const conflictWrites = await worker.evaluate(
+        () => globalThis.fixtureCaptureRequests.length,
+      );
+      await page.waitForTimeout(800);
+      assert.equal(
+        await worker.evaluate(() => globalThis.fixtureCaptureRequests.length),
+        conflictWrites,
+        "a conflict stops autosave rather than retrying or rebasing silently",
+      );
+      assert.equal(
+        await page.locator("#note").inputValue(),
+        "Keep my conflicting draft",
+      );
+      assert.equal(
+        (await worker.evaluate(() => globalThis.fixtureNotes))[0].content,
+        "Another writer's note",
+      );
+      await page.locator('[data-nav="settings"]').click();
       await page.locator("#logout").click();
       await page.locator("#welcome").waitFor({ state: "visible" });
       await otherPanel
         .locator("#welcome")
         .waitFor({ state: "visible", timeout: 3000 });
+      await otherPanel
+        .getByRole("heading", { name: "Spelling and grammar" })
+        .waitFor();
+      assert.match(
+        await otherPanel
+          .getByRole("link", { name: "Create an account" })
+          .getAttribute("href"),
+        /\/sign-up$/,
+      );
+      if (process.env.EXTENSION_SCREENSHOTS)
+        await otherPanel.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-welcome-390.png`,
+          ),
+        });
+      await otherPanel
+        .getByRole("button", { name: "Writing settings" })
+        .press("Enter");
+      assert.equal(await otherPanel.locator("#ai-settings").isVisible(), false);
+      assert.equal(
+        await otherPanel.locator("#writing-spelling").isVisible(),
+        true,
+      );
+      assert.equal(
+        await otherPanel.locator("#writing-settings").evaluate((el) => el.open),
+        true,
+      );
+      assert.equal(
+        await otherPanel
+          .locator("#writing-settings > summary")
+          .evaluate((el) => el === document.activeElement),
+        true,
+      );
       assert.equal(await otherPanel.locator("#note").inputValue(), "");
       assert.deepEqual(
         await worker.evaluate(() =>

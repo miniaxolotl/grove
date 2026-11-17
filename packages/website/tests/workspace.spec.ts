@@ -2,7 +2,13 @@ import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { applySourceEdits } from "@lib/shared/document-edits";
 import { memoryUpdateSchema } from "@lib/shared/memory-tools";
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Locator, type Page, type Download } from "@playwright/test";
+import {
+  test,
+  expect,
+  type Locator,
+  type Page,
+  type Download,
+} from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { notebookLifecycleSchema } from "@lib/shared/notebook-lifecycle";
@@ -25,6 +31,15 @@ import {
 import { fixture, handoff, note, project } from "./fixtures/workspace-fixture";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
+const moreNoteActions = (page: Page) =>
+  page.getByRole("button", { name: "More note actions", exact: true });
+const showGraph = (page: Page) =>
+  page.getByRole("button", { name: "Graph", exact: true });
+async function openGraph(page: Page) {
+  await moreNoteActions(page).click();
+  await showGraph(page).click();
+}
+
 async function readDownload(download: Download) {
   const path = test.info().outputPath(download.suggestedFilename());
   await download.saveAs(path);
@@ -817,13 +832,11 @@ for (const width of [1440, 390, 320]) {
       // around the list must keep their geometry.
       expect(await trigger.boundingBox()).toEqual(triggerBefore);
       await panel.getByRole("button", { name: "Done", exact: true }).click();
-      const viewBefore = await page
-        .getByRole("group", { name: "Note view" })
-        .boundingBox();
-      await page.getByRole("button", { name: "Graph", exact: true }).click();
-      expect(
-        await page.getByRole("group", { name: "Note view" }).boundingBox(),
-      ).toEqual(viewBefore);
+      await openGraph(page);
+      await expect(
+        page.getByRole("button", { name: "Back to list" }),
+      ).toBeInViewport();
+      expect(await trigger.boundingBox()).toEqual(triggerBefore);
     });
   });
 }
@@ -1074,7 +1087,26 @@ for (const width of [1440, 768, 390, 320]) {
       await expect(notes).toBeInViewport();
       if (width < 1024) {
         expect((await sidebar.boundingBox())!.height).toBeLessThanOrEqual(220);
-        for (const name of ["Notes", "Ask Grove", "Archive", "Settings"]) {
+        const header = sidebar.locator(".app-sidebar-heading");
+        const headerBounds = (await header.boundingBox())!;
+        const logo = (await header.locator("a").first().boundingBox())!;
+        const create = (await header
+          .getByRole("link", { name: "New note" })
+          .boundingBox())!;
+        const account = (await header
+          .getByRole("button", { name: "Account" })
+          .boundingBox())!;
+        expect(Math.abs(logo.x - headerBounds.x)).toBeLessThan(1);
+        expect(
+          Math.abs(
+            account.x + account.width - headerBounds.x - headerBounds.width,
+          ),
+        ).toBeLessThan(1);
+        expect(create.x - logo.x - logo.width).toBeGreaterThanOrEqual(8);
+        expect(
+          Math.abs(logo.y + logo.height / 2 - (account.y + account.height / 2)),
+        ).toBeLessThan(1);
+        for (const name of ["Notes", "Ask Grove", "Settings"]) {
           const link = sidebar.getByRole("link", { name, exact: true });
           await expect(link).toBeInViewport();
           expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -1159,7 +1191,10 @@ for (const width of [1440, 768, 390, 320]) {
       ).toEqual(heading);
       await expect(
         notebooks.getByRole("link", { name: "Manage notebooks" }),
-      ).toBeInViewport();
+      ).toBeInViewport({ ratio: 1 });
+      await expect(
+        notebooks.getByRole("button", { name: "Create notebook", exact: true }),
+      ).toBeInViewport({ ratio: 1 });
       expect(
         await sidebar.evaluate(
           (element) => element.scrollWidth <= element.clientWidth,
@@ -1284,7 +1319,7 @@ for (const width of [1440, 768, 390, 320]) {
               ".editor-heading",
               ".writing-layout",
               ".editor-footer",
-              ".note-export-button",
+              ".note-editor-bar > button[popovertarget]",
               ".note-save-button",
             ].map((selector) => [
               selector,
@@ -1900,23 +1935,36 @@ test("export and delete remain reachable across widths, focus mode and enlarged 
     const target = await page.evaluate(() =>
       matchMedia("(any-pointer: coarse), (max-width: 600px)").matches ? 44 : 36,
     );
-    for (const name of ["Export", "Delete note…"]) {
-      const direct = page.getByRole("button", { name, exact: true });
-      const compact = !(await direct.isVisible());
-      if (compact)
-        await page
-          .getByRole("button", { name: "Note actions", exact: true })
-          .click();
-      const control = page.getByRole("button", {
-        name: compact && name === "Export" ? "Export…" : name,
-        exact: true,
-      });
+    const trigger = page.getByRole("button", {
+      name: "Note actions",
+      exact: true,
+    });
+    const names = ["Export…", "Share note", "Revision history", "Delete note…"];
+    await expect(
+      page.getByRole("button", { name: "Write", exact: true }),
+    ).toBeInViewport();
+    for (const name of names)
+      await expect(
+        page.getByRole("button", { name, exact: true }),
+      ).toBeHidden();
+    await trigger.press("ArrowDown");
+    const actions = page.getByRole("group", {
+      name: "Note actions",
+      exact: true,
+    });
+    await expect(
+      actions.getByRole("button", { name: "Move", exact: true }),
+    ).toBeFocused();
+    for (const name of names) {
+      const control = actions.getByRole("button", { name, exact: true });
+      await control.scrollIntoViewIfNeeded();
       await expect(control).toBeInViewport();
       const bounds = (await control.boundingBox())!;
       expect(bounds.width).toBeGreaterThanOrEqual(target);
       expect(bounds.height).toBeGreaterThanOrEqual(target);
-      if (compact) await page.keyboard.press("Escape");
     }
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
     expect(
       await page
         .locator(".note-editor-bar")
@@ -2325,14 +2373,8 @@ test("row export reads current content and first-save routing retains the export
   expect((await loading.promise).numPages).toBe(1);
   await loading.destroy();
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  const exportTrigger = page.getByRole("button", {
-    name: "Export",
-    exact: true,
-  });
   await expect(
-    (await exportTrigger.isVisible())
-      ? exportTrigger
-      : page.getByRole("button", { name: "Note actions", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeFocused();
 });
 
@@ -2682,7 +2724,7 @@ test("browsing arrows and delete are scoped to notes and deletion still requires
   await page.keyboard.press("Delete");
   await confirmation.getByRole("button", { name: "Delete this note" }).click();
   await expect(
-    page.getByRole("heading", { name: "Good things start small." }),
+    page.getByRole("heading", { name: "No notes yet" }),
   ).toBeFocused();
 });
 
@@ -2861,7 +2903,7 @@ test("notebook context and graph share evidence, show partial coverage and offer
   await expect(inspector.locator("blockquote")).toHaveCount(2);
   await page.keyboard.press("Escape");
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  await openGraph(page);
   await page
     .getByRole("navigation", { name: "Connection level" })
     .getByRole("button", { name: "Notebooks", exact: true })
@@ -3564,7 +3606,7 @@ test("long project names remain inside destinations at every breakpoint", async 
     expect(geometry.overflow).toBe(false);
     expect(geometry.separated).toBe(true);
     expect(geometry.destinationsContained).toBe(true);
-    expect(geometry.font.toLowerCase()).toContain("space grotesk");
+    expect(geometry.font.toLowerCase()).toMatch(/^system-ui(?:,|$)/);
     await page.screenshot({
       path: info.outputPath(`memory-library-${width}.png`),
       fullPage: true,
@@ -3582,12 +3624,24 @@ test("long project names remain inside destinations at every breakpoint", async 
     page
       .getByRole("navigation", { name: "Workspace" })
       .getByRole("link", { name: "Archive" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page
       .getByRole("navigation", { name: "Workspace help and policies" })
       .getByRole("link", { name: "Archive" }),
   ).toHaveCount(0);
+  const more = moreNoteActions(page);
+  await more.press("ArrowDown");
+  const archived = page
+    .getByRole("group", { name: "More note actions" })
+    .getByRole("link", { name: "Archive", exact: true });
+  await archived.press("Enter");
+  await expect(page).toHaveURL(/\/app\/archive$/);
+  await expect(
+    page.getByRole("heading", { name: "Archive", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Back to notes", exact: true }).click();
+  await expect(page).toHaveURL(/\/app$/);
 });
 
 test("search debounces automatically and source, date, and lifetime refine all results", async ({
@@ -3766,9 +3820,6 @@ test("personal prompts save explicit preferences and the editor exposes independ
     page.locator(".memory-open").filter({ hasText: "Communication" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "New note", exact: true }).click();
-  await page
-    .getByLabel("What should stay with you?")
-    .fill("Temporary review context");
   await page.getByRole("button", { name: "Note properties" }).click();
   await page.getByText("Note options", { exact: true }).click();
   await chooseOption(page.getByLabel("Keep this note"), "ephemeral");
@@ -3777,6 +3828,10 @@ test("personal prompts save explicit preferences and the editor exposes independ
     .getByRole("dialog", { name: "Note properties", exact: true })
     .getByRole("button", { name: "Close dialog", exact: true })
     .click();
+  // Choose the lifetime before typing can trigger first-save navigation.
+  await page
+    .getByLabel("What should stay with you?")
+    .fill("Temporary review context");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   expect(
     state.calls.filter((call) => call.path === "/memories").at(-1)?.body
@@ -3915,7 +3970,7 @@ test("sharing controls keep stable links, retry uncertain writes and show inheri
   const { sharing } = await shareFixture(page);
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(`${base}/app/memories/${note.id}`);
-  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(page, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await chooseOption(
     dialog.getByRole("combobox", { name: "General access" }),
@@ -3935,7 +3990,7 @@ test("sharing controls keep stable links, retry uncertain writes and show inheri
   );
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "Share note", exact: true }),
+    page.getByRole("button", { name: "Note actions", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Control+Shift+p");
   await page
@@ -3994,15 +4049,7 @@ test("timed sharing offers six durations, stages expiry edits and preserves retr
 }, info) => {
   const { sharing } = await shareFixture(page);
   await page.goto(`${base}/app/memories/${note.id}`);
-  if (
-    !(await page
-      .getByRole("button", { name: "Share note", exact: true })
-      .isVisible())
-  )
-    await page
-      .getByRole("button", { name: "Note actions", exact: true })
-      .click();
-  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(page, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await chooseOption(
     dialog.getByRole("combobox", { name: "General access" }),
@@ -4087,15 +4134,7 @@ test("an open sharing dialog stops offering an expired URL and renews with a new
     url: old,
   };
   await page.goto(`${base}/app/memories/${note.id}`);
-  if (
-    !(await page
-      .getByRole("button", { name: "Share note", exact: true })
-      .isVisible())
-  )
-    await page
-      .getByRole("button", { name: "Note actions", exact: true })
-      .click();
-  await page.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(page, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await expect(dialog.getByLabel("Current link")).toHaveValue(old);
   await page.clock.fastForward(61_000);
@@ -4331,15 +4370,7 @@ test("sharing an editing note permits revocation while retaining the pending dra
   await editor.fill("An unsaved thought worth keeping");
   await editor.press("Control+s");
   await started.promise;
-  if (
-    !(await drawer
-      .getByRole("button", { name: "Share note", exact: true })
-      .isVisible())
-  )
-    await drawer
-      .getByRole("button", { name: "Note actions", exact: true })
-      .click();
-  await drawer.getByRole("button", { name: "Share note", exact: true }).click();
+  await openNoteAction(drawer, "Share note");
   const dialog = page.getByRole("dialog", { name: "Share note", exact: true });
   await expect(
     dialog.getByRole("button", { name: "Replace link" }),
@@ -5047,6 +5078,78 @@ test("history switches retain each conversation's unsent draft and closing a hel
   await expect(input).toHaveValue("");
 });
 
+test("notebook Graph preserves scope and filters and returns focus to More", async ({
+  page,
+}) => {
+  await fixture(page, [
+    { ...note, projectId: project.id },
+    { ...handoff, projectId: project.id },
+    { ...note, id: crypto.randomUUID(), projectId: null },
+  ]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${base}/app/projects/${project.id}`);
+  const search = page.getByRole("textbox", {
+    name: "Search notes",
+    exact: true,
+  });
+  await search.fill("specific");
+  const row = page.locator(".memory-open");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Review preferences");
+  const more = moreNoteActions(page);
+  const graph = showGraph(page);
+  await expect(graph).toBeHidden();
+  await more.press("ArrowDown");
+  await expect(graph).toBeFocused();
+  await graph.press("Escape");
+  await expect(more).toBeFocused();
+  await more.press("ArrowDown");
+  await graph.press("Enter");
+  const back = page.getByRole("button", { name: "Back to list" });
+  await expect(back).toBeFocused();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await expect(
+    page.locator(`.react-flow__node[data-id="${note.id}"]`),
+  ).toBeVisible();
+  await back.press("Enter");
+  await expect(more).toBeFocused();
+  await expect(search).toHaveValue("specific");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Review preferences");
+  await expect(page).toHaveURL(new RegExp(`/app/projects/${project.id}$`));
+  await openGraph(page);
+  await search.fill("no-matching-phrase");
+  await expect(
+    page.getByRole("heading", { name: "No matching notes" }),
+  ).toBeVisible();
+  await expect(page.getByText("0 notes found", { exact: true })).toBeVisible();
+  await back.press("Enter");
+  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(
+    page.getByRole("button", { name: "Clear filters", exact: true }).last(),
+  ).toBeVisible();
+  await expect(more).toBeHidden();
+});
+
+test("the direct Graph route still opens with an obvious return to Notes", async ({
+  page,
+}) => {
+  await fixture(page, [note]);
+  await page.goto(`${base}/app/graph`);
+  await expect(
+    page.getByRole("heading", { name: "Note graph", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await page.getByRole("button", { name: "Back to list" }).press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Notes", exact: true }),
+  ).toBeVisible();
+  await expect(moreNoteActions(page)).toBeFocused();
+  await expect(page.locator(".memory-open")).toContainText(
+    "Review preferences",
+  );
+});
+
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
   page,
 }, info) => {
@@ -5083,7 +5186,7 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
   ]);
   await page.goto(`${base}/app`);
   await page.getByRole("button", { name: "Load more", exact: true }).click();
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  await openGraph(page);
   await expect(page.locator(".react-flow__node")).toHaveCount(4);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
   await expect(page.locator(".graph-legend")).toHaveText("Related");
@@ -5222,7 +5325,7 @@ test("graph selection and note revisions retain zoom while ordinary wheel input 
   await fixture(page, [{ ...note, projectId: project.id }, handoff]);
   await page.setViewportSize({ width: 1280, height: 650 });
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  await openGraph(page);
   const viewport = page.locator(".react-flow__viewport");
   await expect(page.locator(".react-flow__node")).toHaveCount(2);
   const zoom = () =>
@@ -5280,7 +5383,8 @@ test("embedded touch graph yields to page scrolling and expanded fallback suppor
     );
     await fixture(page, [note, handoff]);
     await page.goto(`${base}/app`);
-    await page.getByRole("button", { name: "Graph", exact: true }).tap();
+    await moreNoteActions(page).tap();
+    await showGraph(page).tap();
     const canvas = page.locator(".graph-canvas");
     await canvas.scrollIntoViewIfNeeded();
     await expect(page.locator(".react-flow__node")).toHaveCount(2);
@@ -5836,8 +5940,12 @@ test("chat composer grows, preserves selections between modes, formats and submi
       (element) => element.scrollHeight > element.clientHeight,
     ),
   ).toBe(true);
-  for (const width of [1440, 390, 320]) {
-    await page.setViewportSize({ width, height: 900 });
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 900],
+    [320, 720],
+  ]) {
+    await page.setViewportSize({ width, height });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -5845,7 +5953,7 @@ test("chat composer grows, preserves selections between modes, formats and submi
     ).toBe(true);
     await expect(
       page.getByRole("button", { name: "Send question" }),
-    ).toBeInViewport();
+    ).toBeInViewport({ ratio: 1 });
     await page.screenshot({
       path: info.outputPath(`composer-${width}.png`),
       fullPage: true,
@@ -6035,6 +6143,15 @@ test("mobile notebook browsing keeps creation and dated writing in the selected 
   await expect(
     page.getByRole("link", { name: "New note", exact: true }),
   ).toHaveAttribute("href", `/app/notes/new?notebook=${project.id}`);
+  await expect(
+    page.getByRole("button", { name: "Ask about these notes", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    page.getByRole("link", { name: "Today’s note", exact: true }),
+  ).toBeHidden();
+  await page
+    .getByRole("button", { name: "Notebook options", exact: true })
+    .click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
@@ -6089,6 +6206,9 @@ test("Today's note uses the same editor and library, with date grouping and note
   await expect(
     page.getByRole("link", { name: "New note", exact: true }),
   ).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "More note actions", exact: true })
+    .click();
   await page.getByRole("link", { name: "Today’s note", exact: true }).click();
   const editor = page.locator(".note-editor-full");
   await editor.getByRole("button", { name: "Markdown", exact: true }).click();
@@ -6167,7 +6287,7 @@ test("a changed note preserves the draft for review and restoring history create
     "A reviewed replacement",
   );
   expect(state.records.get(note.id)?.version).toBe(3);
-  await page.getByRole("button", { name: "History", exact: true }).click();
+  await openNoteAction(page, "Revision history");
   const revision = page
     .locator(".revision-list > li")
     .filter({ hasText: "Revision 2" });
@@ -6359,7 +6479,7 @@ test("full-page drafts survive app navigation and still detect changes to their 
     content: "An agent’s newer copy.",
   });
   await page.locator(".memory-open").first().click();
-  await page.getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page.getByRole("link", { name: "Open note page" }).click();
   await page.getByRole("button", { name: "Write", exact: true }).click();
   await expect(editor).toHaveText("My unfinished thought.");
@@ -6695,9 +6815,7 @@ test("touch hold lifts notebooks and notes into drops while quick taps organize"
     "1 note moved to Unfiled",
   );
   expect(state.records.get(handoff.id)?.projectId).toBeNull();
-  await page
-    .getByRole("button", { name: "Dismiss move notification" })
-    .click();
+  await page.getByRole("button", { name: "Dismiss move notification" }).click();
 
   // Hold a notebook grip and drop it on another notebook row to nest.
   const notebookHandle = page
@@ -7665,7 +7783,9 @@ test("bulk delete removes selected notes at once with one confirmation", async (
     "2 notes deleted.",
   );
   expect(state.records.size).toBe(0);
-  const deletion = state.calls.find((call) => call.path === "/memories/delete")!;
+  const deletion = state.calls.find(
+    (call) => call.path === "/memories/delete",
+  )!;
   expect(deletion.body.items).toHaveLength(2);
 });
 
@@ -7863,7 +7983,10 @@ test("organize reorders instantly while its request is still held", async ({
     await route.fallback();
   });
   await page.goto(`${base}/app/projects`);
-  await page.locator("#main").getByRole("button", { name: "Organize", exact: true }).click();
+  await page
+    .locator("#main")
+    .getByRole("button", { name: "Organize", exact: true })
+    .click();
   const dialog = page.getByRole("dialog", { name: "Organize notebooks" });
   await dialog
     .getByRole("button", { name: `Alpha notes`, exact: true })
@@ -7890,7 +8013,10 @@ test("a conflicting organize snaps the tree back with review", async ({
     name: "Alpha notes",
   });
   await page.goto(`${base}/app/projects`);
-  await page.locator("#main").getByRole("button", { name: "Organize", exact: true }).click();
+  await page
+    .locator("#main")
+    .getByRole("button", { name: "Organize", exact: true })
+    .click();
   const dialog = page.getByRole("dialog", { name: "Organize notebooks" });
   await dialog
     .getByRole("button", { name: `Alpha notes`, exact: true })

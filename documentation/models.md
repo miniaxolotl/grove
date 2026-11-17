@@ -59,7 +59,8 @@ MODEL_SETTINGS_KEY=REPLACE_WITH_64_HEX_CHARACTERS
 ```
 
 Generate the encryption key with `openssl rand -hex 32`. Sign in as a listed
-administrator and open **Settings → AI & search**. Settings apply installation-wide,
+administrator and open **Settings → AI & search → Manage model providers**.
+Expand the provider you want to edit. These settings apply installation-wide,
 not per account. Agent credentials and ordinary website users cannot change them.
 Cloud settings are read-only and ignore stored self-hosted overrides.
 
@@ -114,7 +115,11 @@ these values explicitly for an existing installation.
 
 ## Account AI preferences
 
-**Settings → Preferences** has sixteen independent AI controls and one Save action.
+**Settings → AI & search** has sixteen independent account controls and one Save
+action. Ask Grove appears first; expand another group to adjust its controls.
+Provider availability is shown beside relevant controls. Local spelling and
+grammar are separate under **Settings → Writing**.
+See [before-and-after settings captures](design/screenshots/ai-settings/README.md).
 Ask Grove's per-conversation research/organization tools are configured separately
 in the composer:
 

@@ -133,7 +133,6 @@ html:has(.grove-app) {
   color: var(--color-muted);
   opacity: 1;
 }
-.note-mobile-actions,
 .action-menu > .note-mobile-menu-item {
   display: none;
 }
@@ -159,9 +158,7 @@ html:has(.grove-app) {
   min-height: 44px;
 }
 .app-detail-panel:has(.note-editor-drawer) > .dialog-heading h2 {
-  font:
-    500 12px var(--font-space-grotesk),
-    sans-serif;
+  font: 500 12px var(--font-interface);
   color: var(--color-muted);
 }
 .app-dialog:has(.note-workspace):not(:has(.note-editor-drawer))
@@ -223,37 +220,142 @@ html:has(.grove-app) {
 .feature-placeholder-lines:not(.is-list) > div:nth-child(2) i:last-child {
   width: 54%;
 }
-.library-placeholder {
+.workspace-bone {
+  display: block;
+  height: 10px;
+  border-radius: 4px;
+  background: var(--color-line);
+}
+.library-skeleton .memory-row {
+  pointer-events: none;
+}
+.skeleton-note-open {
+  display: grid;
+  align-content: center;
+}
+.library-skeleton .memory-row-content .workspace-bone {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 240px;
+}
+.library-skeleton .memory-excerpt > i {
+  width: 85%;
+  max-width: 420px;
+}
+.library-skeleton .memory-meta .workspace-bone {
+  width: 34px;
+  height: 6px;
+}
+.library-skeleton .memory-meta span + span .workspace-bone {
+  width: 60px;
+}
+.skeleton-check {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  vertical-align: middle;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: #fff;
-  padding: 20px;
+  border-radius: 3px;
 }
-.library-placeholder .feature-placeholder-content {
+/* Don't paint the document-flow footer at a speculative result-list height. */
+.app-main:has(.library-skeleton) > .app-footer {
+  visibility: hidden;
+}
+.skeleton-action.app-button {
+  color: transparent;
+  border-color: transparent;
+  background: var(--color-line);
+  box-shadow: none;
+  pointer-events: none;
+}
+.skeleton-filter {
+  height: 42px;
+}
+.skeleton-caption {
+  height: 36px;
+}
+.skeleton-caption[data-archive] {
+  height: 18px;
+}
+.skeleton-caption > i {
+  width: 72px;
+}
+.document-skeleton {
   width: 100%;
+  min-height: 0;
 }
-.library-placeholder .feature-placeholder-message > svg {
+.document-skeleton-bar {
+  min-height: 53px;
+  display: grid;
+  align-content: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-line);
+}
+.document-skeleton-bar > i {
+  width: 120px;
+}
+.document-skeleton-paper {
+  width: min(100%, 960px);
+  margin-inline: auto;
+  padding: clamp(24px, 5vw, 64px);
+  display: grid;
+  gap: 16px;
+}
+.document-skeleton-paper > :first-child {
+  width: 53%;
+  height: 22px;
+  margin-bottom: 8px;
+}
+.document-skeleton-paper > :last-child {
+  width: 70%;
+}
+.app-main:has(.note-document > .document-skeleton)
+  > :is(.app-topbar, .app-footer) {
   display: none;
 }
-.library-placeholder .feature-placeholder-title {
-  font-size: 13px;
-  color: var(--color-muted);
-  margin: 0;
+.workspace-opening .app-topbar > i {
+  width: 140px;
 }
-.feature-placeholder-lines.is-list {
-  gap: 0;
-  margin: 16px -20px -20px;
+.workspace-opening .workspace-utilities > i {
+  width: 96px;
 }
-.feature-placeholder-lines.is-list > div {
-  padding: 24px 20px;
-  border-top: 1px solid var(--color-line);
+.workspace-opening .app-nav > i {
+  width: min(70px, 90%);
 }
-.feature-placeholder-lines.is-list i:first-child {
-  width: min(65%, 320px);
+.workspace-opening .skeleton-create,
+.workspace-opening .skeleton-search {
+  background: var(--color-line);
 }
-.feature-placeholder-lines.is-list i:last-child {
-  width: min(40%, 160px);
-  height: 6px;
+.workspace-opening .skeleton-notebooks {
+  width: 120px;
+  align-self: center;
+}
+@media (max-width: 1023px) {
+  .workspace-opening .skeleton-create {
+    width: 92px;
+    height: 44px;
+    margin-left: auto;
+  }
+  .workspace-opening .skeleton-search {
+    width: 44px;
+    height: 44px;
+  }
+  .workspace-opening .skeleton-notebooks {
+    grid-row: 3;
+    margin-left: 10px;
+  }
+  .grove-app:has(.note-document > .document-skeleton) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .grove-app:has(.note-document > .document-skeleton) > .app-sidebar {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .workspace-opening .app-navigation .app-nav {
+    min-width: 0;
+  }
 }
 .library-summary {
   display: inline-flex;
@@ -456,8 +558,7 @@ html:has(.grove-app) {
   box-shadow: 0 2px 12px #253e3130;
   font-size: 12px;
 }
-.ask-toolbar,
-.ask-composer {
+.ask-toolbar {
   flex-shrink: 0;
 }
 .ask-toolbar .segmented-control {
@@ -480,9 +581,15 @@ html:has(.grove-app) {
   padding-block: 6px;
   border-radius: 5px;
 }
-.ask-composer {
+.ask-console > .ask-composer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 8px 10px;
   border-radius: 10px;
+}
+.ask-composer > :not(textarea, .ask-message-preview) {
+  flex-shrink: 0;
 }
 .ask-composer:focus-within {
   border-color: var(--color-muted);
@@ -683,13 +790,14 @@ html:has(.grove-app) {
   outline: 0;
   box-shadow: none;
   background: transparent;
-  font:
-    14px/1.65 var(--font-space-grotesk),
-    Arial,
-    sans-serif;
+  font: 14px/1.65 var(--font-interface);
 }
 .ask-composer textarea[hidden] {
   display: none;
+}
+.ask-composer .ask-message-preview {
+  min-height: 0;
+  overflow-y: auto;
 }
 .ask-composer textarea:focus {
   box-shadow: none;
@@ -1338,7 +1446,7 @@ html:has(.grove-app) {
 }
 .memory-drag-preview,
 .workspace-notice {
-  font-family: var(--font-space-grotesk), Arial, sans-serif;
+  font-family: var(--font-interface);
 }
 .workspace-notice {
   max-height: 35dvh;
@@ -1370,7 +1478,7 @@ html:has(.grove-app) {
   box-shadow:
     0 8px 28px #25372016,
     0 2px 6px #25372009;
-  font-family: var(--font-space-grotesk), Arial, sans-serif;
+  font-family: var(--font-interface);
   font-size: 12px;
 }
 .library-filter-heading,
@@ -1438,10 +1546,6 @@ html:has(.grove-app) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
   }
-  .library-caption .segmented-control {
-    grid-column: 2;
-    grid-row: 1;
-  }
   .selection-toolbar button span {
     display: none;
   }
@@ -1481,10 +1585,7 @@ html:has(.grove-app) {
   background: #fff;
   color: var(--color-forest);
   box-shadow: 0 8px 24px #15251b18;
-  font:
-    13px var(--font-space-grotesk),
-    Arial,
-    sans-serif;
+  font: 13px var(--font-interface);
 }
 .action-menu > :is(a, button) {
   display: flex;
@@ -1513,10 +1614,10 @@ html:has(.grove-app) {
 }
 .settings-navigation {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 8px;
   margin-bottom: 16px;
-  overflow-x: auto;
 }
 .settings-save-row {
   display: flex;
@@ -1538,11 +1639,13 @@ html:has(.grove-app) {
   min-height: 36px;
   font-size: 13px;
   line-height: 20px;
-  border-radius: 5px 5px 0 0;
-  white-space: nowrap;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
   color: var(--color-muted);
-  border-bottom: 2px solid transparent;
   gap: 6px;
+}
+.settings-navigation a:focus-visible {
+  outline-offset: -2px;
 }
 .settings-navigation a:hover {
   color: var(--color-forest);
@@ -1560,7 +1663,8 @@ html:has(.grove-app) {
 }
 .settings-navigation a[aria-current] {
   color: var(--color-forest);
-  border-bottom-color: var(--color-forest);
+  background: var(--color-sage);
+  font-weight: 600;
 }
 .settings-content {
   display: grid;
@@ -1628,7 +1732,32 @@ html:has(.grove-app) {
   color: var(--color-forest);
 }
 .ai-preferences-form {
-  gap: 22px;
+  gap: 16px;
+}
+.settings-options {
+  margin-top: 8px;
+}
+.settings-options > summary {
+  min-height: 44px;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.settings-provider-form .settings-options {
+  margin: 0;
+  padding-block: 4px;
+}
+.settings-provider-form .settings-options[open] {
+  padding-bottom: 16px;
+}
+.settings-search-status > h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.settings-search-status > :is(a, button) {
+  margin-top: 8px;
 }
 .ai-preference-group {
   min-width: 0;
@@ -1641,7 +1770,7 @@ html:has(.grove-app) {
   font-size: 12px;
   font-weight: 600;
 }
-.app-form .ai-preference {
+:is(.app-form, .writing-preferences-panel) .ai-preference {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1674,6 +1803,20 @@ html:has(.grove-app) {
   font-size: 12px;
   font-weight: 400;
   line-height: 1.6;
+}
+.writing-preferences-panel > .ai-preference-group {
+  margin-top: 16px;
+}
+.writing-preferences-panel .ai-preference > input {
+  accent-color: var(--color-forest);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin: 0;
+  cursor: inherit;
+}
+.writing-preferences-panel .grove-writing-add-word {
+  margin-top: 10px;
 }
 .app-form .ai-preference input[type="checkbox"] {
   appearance: none;
@@ -1835,14 +1978,6 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 600px) {
-  .notebook-daily-note {
-    width: 44px;
-    min-height: 44px;
-    padding: 8px;
-  }
-  .notebook-daily-note > span {
-    display: none;
-  }
   .settings-save-row {
     gap: 8px;
     align-items: stretch;
@@ -1885,7 +2020,7 @@ html:has(.grove-app) {
     padding: 8px;
   }
   .note-editor-bar > button[popovertarget],
-  .note-mobile-actions {
+  .note-editor-actions {
     grid-column: 4;
     grid-row: 1 / 3;
   }
@@ -1943,7 +2078,7 @@ html:has(.grove-app) {
     display: none;
   }
   .settings-navigation a {
-    padding: 8px;
+    padding: 6px 8px;
     font-size: 12px;
   }
   .page-writing .writing-paper {

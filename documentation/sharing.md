@@ -2,12 +2,15 @@
 
 Owners can share saved notes and notebooks with anyone who has the link. Readers
 see **live saved content** without signing in. Visitor permission is **Can view**.
+The reader labels the page as a shared note or notebook. Shared notebooks list
+sub-notebooks and notes separately, and a note opened from the list links back to
+the shared notebook.
 
 ## Owner controls and lifecycle
 
-Open **Share note** in the note toolbar, the phone's **Note actions** menu, or
-Commands. Notebook sharing is available
-in notebook options, sidebar actions and the notebook manager.
+Open **Note actions → Share note** on desktop or phone, or find **Share note**
+in Commands. Notebook sharing is available in notebook options, sidebar actions
+and the notebook manager.
 
 - Choose **Anyone with the link**, then **Create link**. Existing links lead with
   **Copy link**; **Done** closes the dialog. Copy confirmation stays on the button.
@@ -84,11 +87,11 @@ publish content, even with every memory capability.
 
 ### Extension note links
 
-The browser extension offers Share from each Search result's action menu and reader,
-and Save & share from Notes. The compact dialog uses the panel's existing note and
-Details-disclosure conventions: the note title expands its preview, and Link options
-holds expiry, the URL and Turn off link. Create link or Copy link is the single main
-action, with quiet in-place progress/recovery and Escape returning to the invoking
+The browser extension offers **Share** from each Search result's action menu and
+reader. In Notes, open **More note actions** and choose **Share** or **Save &
+share**. In the dialog, the note title expands its preview, and **Link options**
+holds expiry, the URL and **Turn off link**. **Create link** or **Copy link** is
+the main action, with progress in place and Escape returning to the invoking
 note action. Opening the dialog does not publish. The saved note is
 reloaded before an explicit Create link, with the normal target/share version fences,
 expiry, replay and revocation behavior. Draft changes during saving block sharing

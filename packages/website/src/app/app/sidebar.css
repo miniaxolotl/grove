@@ -12,7 +12,7 @@
   overflow-y: auto;
   scrollbar-width: thin;
   border-right: 1px solid var(--color-line);
-  background: #f0f3ed;
+  background: #f3f5f2;
 }
 .app-sidebar > :not(.notebook-browser) {
   flex-shrink: 0;
@@ -35,6 +35,9 @@
 .app-sidebar-heading img {
   height: 22px;
 }
+.workspace-header-actions {
+  display: contents;
+}
 .app-sidebar .sidebar-create {
   grid-column: 1 / -1;
   grid-row: 2;
@@ -44,7 +47,6 @@
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.4;
-  box-shadow: 0 1px 2px #253e3114;
 }
 .sidebar-create > svg {
   flex-shrink: 0;
@@ -77,7 +79,6 @@
   min-height: 40px;
   border: 1px solid var(--color-line);
   background: #fcfdfb;
-  box-shadow: 0 1px 2px #253e310a;
 }
 .workspace-command-launcher {
   flex: 1;
@@ -126,6 +127,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
+}
+.sidebar-account-avatar {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
 }
 .workspace-utilities > .app-icon {
   flex-shrink: 0;
@@ -144,9 +151,7 @@
   padding: 12px 12px 4px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #59664f;
+  color: var(--color-muted);
 }
 .sidebar-section:first-child {
   padding-top: 4px;
@@ -175,19 +180,9 @@
   color: var(--color-forest);
 }
 .app-nav[aria-current] {
-  background: #e2eadd;
+  background: #e6ebe5;
   color: var(--color-forest);
-  font-weight: 500;
-}
-.app-nav[aria-current]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--color-forest);
+  font-weight: 600;
 }
 .sidebar-count {
   display: inline-flex;
@@ -263,8 +258,8 @@
 .notebook-explorer-heading {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-right: 8px;
+  gap: 2px;
+  padding-inline: 2px;
   color: #59664f;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -282,15 +277,14 @@
 .notebook-collapse-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
   min-height: 32px;
-  padding: 4px 12px;
+  padding: 4px 6px;
   border-radius: 6px;
   color: #59664f;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .notebook-collapse-toggle:hover {
   background: #e7eddf80;
@@ -309,13 +303,24 @@
 .notebook-heading-static {
   display: none;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 6px;
+}
+.notebook-explorer-heading > :is(.notebook-collapse-toggle, .notebook-heading-static) > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notebook-explorer-heading .sidebar-count {
+  flex-shrink: 0;
+}
+.notebook-explorer-heading .notebook-organize-entry {
+  flex-shrink: 0;
+  padding-inline: 6px;
 }
 .notebook-manage {
-  margin-left: auto;
   padding: 0;
 }
 .notebook-explorer .notebook-tree-link {
@@ -381,14 +386,22 @@
   .app-sidebar-heading {
     grid-column: 1 / -1;
     display: flex;
+    justify-content: space-between;
     gap: 8px;
   }
   .app-sidebar-heading > a:first-child {
+    flex-shrink: 0;
     padding: 0;
     min-height: 44px;
   }
-  .sidebar-create {
-    margin-left: auto;
+  .workspace-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    gap: 8px;
+  }
+  .app-sidebar-heading .sidebar-create {
     padding: 8px 12px;
     min-height: 44px;
     font-size: 12px;
@@ -444,18 +457,6 @@
     min-height: 44px;
     padding: 8px 6px 8px 6px;
   }
-  .app-nav::before {
-    display: none;
-  }
-  .app-nav[aria-current]::before {
-    display: block;
-    left: 6px;
-    right: 6px;
-    top: auto;
-    bottom: 4px;
-    width: auto;
-    height: 3px;
-  }
   .app-sidebar-footer {
     display: none;
   }
@@ -510,10 +511,6 @@
     padding: 5px 4px;
     font-size: 11px;
     white-space: nowrap;
-  }
-  .app-nav[aria-current]::before {
-    left: 12px;
-    right: 12px;
   }
 }
 @media (any-pointer: coarse) {

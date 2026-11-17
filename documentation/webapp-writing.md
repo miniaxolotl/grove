@@ -32,8 +32,9 @@ after a typing pause, and saving never waits for them.
 
 ## Settings → Writing
 
-Writing lives last in navigation, under **Settings → Preferences**. Every
-control applies immediately and stays on this device:
+Writing is under **Settings → Writing**. Open **More writing options** for
+typing, highlighting, and individual rule preferences. Each control applies
+immediately and stays on this device:
 
 - **Writing assistance** master switch, **Spelling**, **Basic grammar**,
   **Check as I type** and **Inline highlights** (off keeps the accessible issue
@@ -45,6 +46,10 @@ control applies immediately and stays on this device:
   store lands; adding the same word in both places is expected for now.
 
 ## Privacy and limits
+
+- Guests can use the [web writing checker](https://usegrove.cloud/writing)
+  without an account. Text is checked locally and is not saved; note storage,
+  account preferences and Ask Grove still require sign-in.
 
 - Local checks never send keystrokes, prose, dictionary words or results
   anywhere. The 555 KB dictionary is fetched once from Grove itself on the first

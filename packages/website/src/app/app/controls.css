@@ -72,7 +72,7 @@
   background: #fff;
   color: var(--color-forest);
   box-shadow: 0 8px 24px #15251b18;
-  font-family: var(--font-space-grotesk), Arial, sans-serif;
+  font-family: var(--font-interface);
   font-size: 12px;
   line-height: 1.5;
 }

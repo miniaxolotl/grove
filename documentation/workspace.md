@@ -13,7 +13,8 @@ You only need a Grove account and a browser. No CLI, agent plugin or personal
 model-provider key is needed for the Cloud notebook.
 
 1. [Create an account](https://usegrove.cloud/sign-up), then open **Notes**.
-2. Choose **New note**. You can file it in a notebook later.
+2. Choose **New note**, or **Write your first note** if the library is empty.
+   You can file it in a notebook later.
 3. Write a short title and something you will want to find,
    such as a packing list. Save the note and wait for the saved confirmation.
 4. Return to Notes and reopen your note. Seeing the saved text
@@ -31,6 +32,8 @@ owns connection commands and approval.
 ## Write, find, and organize
 
 - **New note**, **Today’s note** and existing notes use the same workspace.
+  Find **Today’s note** under **More** in Notes or **Notebook options** in a
+  specific notebook.
   **Edit note** / **Preview** switch in place, preserving cursor, Undo and reading
   position. **Write** styles Markdown; **Markdown** exposes source. Formatting,
   outline and focus mode remain available while writing.
@@ -115,7 +118,8 @@ links. A missing section leaves the note usable without altering text.
 
 ### Public read-only links
 
-**Share note/notebook** creates a live read-only capability for anyone with its URL.
+Choose **Note actions → Share note** or **Notebook options → Share notebook** to
+create a live read-only link. Anyone with the URL can read the shared content.
 Choose direct versus descendant scope and optional expiry; review before saving.
 Unshared drafts/history/agent metadata are not published. Revoking one direct link
 does not remove independently covering links. [Public sharing](sharing.md) owns
@@ -145,6 +149,8 @@ mode hides secondary navigation without replacing the document or losing history
 
 ## Export and delete notes
 
+Open **Note actions** beside the save control for **Revision history**, **Share
+note**, **Export**, and **Delete note**. The same menu works on desktop and phone.
 **Export** offers Markdown, PDF and Copy Markdown using the current reading/editing
 text, including unsaved drafts. Row export uses a retained draft or latest saved
 content. Oversized drafts remain exportable even when they cannot be saved.
@@ -153,6 +159,9 @@ characters get explicit Unicode fallbacks. Authorized owned raster images can be
 embedded; external images stay links. Audio is a textual reference, not embedded
 playback. [Media exports](media.md#exports-and-recovery) own image limits, portable
 original-byte TARs and media-complete account exports.
+
+To see archived notes and notebooks, choose **Notes → More → Archive**. Use
+**Back to notes** to return to the active library.
 
 **Settings → Your data** prepares a background account export; notebook export can
 include descendants. Progress/retry/cancel/download survive navigation; see
@@ -182,7 +191,11 @@ edits. [API contracts](server.md#memory-and-notebook-tools) define exact semanti
 
 ## Linked notes and Ask Grove
 
-**Graph** explores loaded current notes/notebooks; load earlier pages for broader
+When notes are available, choose **More → Graph** in Notes or in an open
+notebook. **Back to list** keeps your current notebook and filters. The direct
+`/app/graph` link also works.
+
+The graph explores loaded current notes/notebooks; load earlier pages for broader
 coverage. Ordinary wheel input scrolls the page; Ctrl/Cmd+wheel zooms. Touch users
 expand for pan/pinch; keyboard users can focus/select/read nodes and return focus.
 Linked-note explanations cite current excerpts; see [relationships](relationships.md).
@@ -193,9 +206,11 @@ note changes. [Ask tools](ask-tools.md) owns tools/history/composer behavior;
 [document imports](imports.md) owns attachments/full-text review. Uploading or asking
 does not implicitly create a library note. Drafts remain private session memory.
 
-**Settings** keeps navigation while section content scrolls. Preference drafts survive
-tab switches; Save submits changed controls and retains newer typing, Discard restores
-saved values. Availability is separate from preferences and provider health. See
+**Settings** keeps section links visible while the selected page scrolls. On narrow
+screens the links wrap instead of scrolling sideways. Writing checks apply immediately
+on this device. Account preference drafts survive section changes; Save submits changed
+controls and retains newer typing, and Discard restores saved values. Availability is
+separate from preferences and provider health. See
 [models](models.md), [billing](billing.md) and [files/storage](files-storage.md).
 Original images/audio, [manual transcripts](recordings.md) and editing remain usable
 without inference; [speech](speech.md) requires separate explicit actions.

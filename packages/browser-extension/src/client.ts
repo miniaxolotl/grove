@@ -299,7 +299,7 @@ export class ExtensionClient {
       JSON.stringify(draft.save.request.provenance) ===
         JSON.stringify(draft.source)
     )
-      return this.state(windowId);
+      return { identity, draft };
     const ambiguous =
       !!draft.save && ["saving", "uncertain"].includes(draft.save.status);
     const operationId =
@@ -320,6 +320,8 @@ export class ExtensionClient {
           body: draft.save!.request,
         }),
       );
+      if (draft.save!.request.id && note.id !== draft.save!.request.id)
+        throw new Error("The save response does not match this note.");
       draft = settleCaptureSave(
         draft,
         this.scope(identity),
@@ -336,10 +338,13 @@ export class ExtensionClient {
       await this.removePending(operationId);
       return { identity, draft };
     } catch (error) {
+      // A guarded update the server definitively refused (wrong note, version
+      // fence, deleted or expired target) is rejected, not unknown: the note
+      // was never written by this attempt.
       const rejected =
         !ambiguous &&
         error instanceof GroveError &&
-        [400, 403, 413, 422, 429].includes(error.status);
+        [400, 403, 404, 409, 410, 413, 422, 429].includes(error.status);
       draft = settleCaptureSave(
         draft,
         this.scope(identity),

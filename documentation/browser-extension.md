@@ -40,12 +40,16 @@ API/manifest floors, not claims that every version/OS is tested. Pin the toolbar
 icon or use the suggested **Alt+Shift+G** shortcut (browser conflicts may require
 rebinding). Chrome/Edge use a native side panel; Firefox uses its native sidebar.
 
-Choose **Sign in to Grove**. Native browser identity performs public-client OAuth
-discovery and authorization-code/PKCE sign-in; no pasted key, embedded secret or
-website-cookie extraction is used. Approve only the reading/saving capabilities
-and Personal/notebook scope you want in **Grove Connections**, then check approval.
-Notebook discovery starts immediately; there is no setup wizard. Sign-in alone is
-not an approved grant. Revocation is enforced by the API on subsequent operations.
+Local spelling and grammar work without an account. To save and find notes,
+choose **Sign in to Grove** or **Create an account**. The extension uses native
+browser OAuth with PKCE; no key or website cookie is copied. After sign-in, a
+new connection opens **Connect your browser** in the same browser window. Review
+the prefilled name and choose note access; Personal read and save are suggested.
+AI writing access is optional and off by default. Return to the panel after
+approving. Use **Choose note access** to reopen a dismissed setup screen or
+**Check access** if the panel hasn't updated. Existing approved connections skip
+this step. If the website asks you to sign in, use the same Grove account.
+Change or revoke access later in Connections.
 
 ### Listing and toolbar icons
 
@@ -60,9 +64,11 @@ These are bundled assets, not evidence of store publication.
 
 ## Use the panel
 
-Three tabs keep the panel focused: **Notes**, **Search**, then **Settings**.
-The panel uses a quiet sage frame, a paper-like editor and tonal note rows rather
-than dashboard chrome. Notebook and source controls share one **Details** disclosure.
+The signed-out panel starts with spelling and grammar. Choose **Writing settings**
+to open those controls, or sign in if you want to save and search your notes.
+The tabs stay in order: **Notes**, **Search**, then **Settings**. The note editor
+shows writing feedback and the character count together. **Notebook and source**
+shows the save destination and page details.
 
 ### English writing checks
 
@@ -76,8 +82,8 @@ without changing an already-submitted save. Clipboard failure leaves the edit in
 and reports that copying was unavailable. Applying a correction updates only
 the current draft, never an already-submitted save. Saving does not wait for checks.
 
-Settings → **Writing** contains independent spelling/grammar switches, an Advanced
-disclosure for individual rules, automatic checking and highlights, and a personal
+Settings → **Writing** contains independent spelling/grammar switches, **More writing
+options** for individual rules, automatic checking and highlights, and a personal
 dictionary. Parent switches preserve individual choices. Writing switches and domain
 exceptions apply browser-wide on this device, including after sign-out. Personal
 dictionary words remain scoped to the API/account and English language (with a separate
@@ -184,10 +190,13 @@ wording, not an AI-detection guarantee. Output can be wrong: structural validati
 does not establish factual or semantic equivalence. English is the supported contract;
 sentence segmentation is not language detection or an automatic translation feature.
 
-Settings → Writing → **AI writing tools** is independent of spelling and grammar.
+In extension Settings, **AI writing → Show AI tools in this browser** is
+independent of spelling and grammar under **Writing checks**.
 Site restrictions and Grove Off still win. Enabling a switch never generates text.
 AI needs a separately approved **Allow AI writing tools** permission in
-Grove Connections; note access alone is insufficient. Missing configuration, permission
+the setup screen or Grove Connections; note access alone is insufficient. The
+extension’s **Manage AI permission** link opens this browser’s connection.
+Missing configuration, permission
 or network does not disable local checks, which never fall back to AI.
 Website AI additionally requires browser-supplied document identity; hosts without
 it keep AI unavailable rather than reuse another document's authority.
@@ -237,7 +246,9 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   **Open in Grove** opens the full editor. HTML remains literal text, unsafe links
   are inert and images/media never load automatically. PDF/Word originals are not
   fetched or extracted in the extension; previously imported Markdown is readable.
-- **Share:** choose Share from a result's menu or reader, or **Save & share** in Notes.
+- **Share:** choose **Share** from a result's menu or reader. In Notes, open
+  **More note actions** and choose **Share** or **Save & share**. **Save now**
+  remains separate.
   A new note saves first; changed/uncertain drafts cannot publish an older snapshot.
   The compact dialog identifies the note without reopening a full reader. Its
   title expands a saved-note preview; **Link options** holds expiry (initially one
@@ -276,10 +287,16 @@ Billing offers a single-use **7-day Pro trial** with full Pro allowances (card
 required; converts to paid unless cancelled). Each account gets one trial; an
 administrator can restore eligibility. See [billing](billing.md#subscriptions).
 
-Notes opens directly to the editor. Save outcome and newer unsaved edits
-remain visible without version/indexing diagnostics.
+Notes opens directly to the editor. The first save is explicit (**Save now**);
+after it, changed text, notebook or source saves itself after a short editing
+pause as a guarded update of the same note, never a second capture. Autosave
+waits out IME composition and never runs while Grove is off, access is
+unapproved, an earlier save is unresolved, or the connection lacks write
+access; a rejected conflict stops autosave, keeps the local draft and links
+the contested note for review instead of silently rebasing. Save outcome and
+newer unsaved edits remain visible without version/indexing diagnostics.
 There are no source-link fields. Mounted approved panels follow source metadata
-locally until the first edit pins it; only explicit Save transmits it. Context-menu
+locally until the first edit pins it; only a save transmits it. Context-menu
 captures keep their original event source. Unknown/failed-save
 retries retain the exact original provenance snapshot even after a tab change.
 Restricted/private pages produce no automatic source. Required consent and uncertain-
@@ -297,7 +314,8 @@ in the trusted background, not only through disabled buttons. Opening an off pan
 does not authenticate or contact Grove. Appearance and Settings remain available.
 
 Switching off waits for earlier serialized actions to settle; a save already sent
-is not cancelled, deleted or falsely labelled unsuccessful. Session drafts/tokens,
+is not cancelled, deleted or falsely labelled unsuccessful. Autosave of changed
+drafts does not run while Grove is off. Session drafts/tokens,
 capture inboxes and opaque recovery receipts retain their normal scope/expiry rules.
 No unknown save is automatically retried on resume. Changing appearance cannot
 enable Grove. Other mounted panels update immediately and close private review
@@ -323,7 +341,7 @@ active-tab URL/title across sites and may show a browsing-history warning on ins
 or update. It does not grant document contents or history API access. Only mounted,
 enabled, approved panels follow their own window's active tab; no navigation listener
 collects browsing data in the background. Source values stay in scoped session
-storage and reach Grove only on explicit save, never from navigation or search.
+storage and reach Grove only on a save, never from navigation or search.
 
 ## Implemented contracts
 
@@ -356,6 +374,12 @@ are `POST /v1/browser/connect`, `POST /v1/browser/captures`,
 `GET /v1/browser/captures/:operationId` and `POST /v1/browser/pages`. They use the
 normal authentication, quota and connection-grant boundaries. Capture accepts an
 operation UUID, content, destination, `capture: explicit` and optional provenance.
+With a note ID it also requires that note's expected version and optionally an
+edit-session UUID: the update locks the target row, reuses the normal version
+fence and edit coalescing, and rebinds provenance to the new revision; stale
+versions, cross-account targets and a changed source without a new revision are
+rejected conflicts, never silent rebases. Replaying an operation whose note has
+moved past its receipt reports the conflict instead of presenting stale content.
 The note, structured revision, provenance, replay receipt and normal durable
 processing jobs commit atomically. Acceptance of a note is not completed indexing.
 
@@ -450,7 +474,10 @@ do not change capture time, extend expiry or churn storage. Inbox captures remai
 pinned to their original event snapshot rather than a later tab destination.
 
 `prepareCaptureSave` creates an independent local command snapshot with an
-operation UUID, formatted content, notebook and optional provenance. Runtime saves
+operation UUID, formatted content, notebook and optional provenance. After a
+saved receipt, later snapshots carry that note's ID, its expected version and
+the draft's edit-session UUID, so subsequent saves update the same note behind
+the server's version fence instead of capturing again. Runtime saves
 persist this snapshot before authorized HTTP I/O. While a save is unresolved, only
 the same UUID and exact snapshot can be
 retried; newer edits/destinations stay in the draft without altering the snapshot.

@@ -83,7 +83,7 @@
   border-radius: 9px;
   background: var(--color-paper);
   color: var(--color-forest);
-  font-family: var(--font-space-grotesk), sans-serif;
+  font-family: var(--font-interface);
   font-size: 12px;
   line-height: 1.45;
   box-shadow: 0 8px 24px #253e3114;

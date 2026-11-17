@@ -10,7 +10,7 @@ import type {
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { LoadError } from "./load-error";
-import { ProviderOverview } from "./provider-overview";
+import Link from "next/link";
 import { useToast } from "./toasts";
 import { SettingsSaveRow } from "./settings-save-row";
 
@@ -91,7 +91,10 @@ export function ModelSettings() {
   }
   return (
     <>
-      <h2 className="settings-section-heading">AI &amp; search</h2>
+      <Link className="text-button mb-3" href="/app/settings/models">
+        Back to AI &amp; search
+      </Link>
+      <h2 className="settings-section-heading">Model providers</h2>
       {query.error && (
         <LoadError
           message={errorMessage(query.error)}
@@ -107,10 +110,16 @@ export function ModelSettings() {
           </p>
         )
       ) : !settings.editable ? (
-        <ProviderOverview settings={settings} />
+        <p className="settings-section-description">
+          Only installation administrators can change providers.
+        </p>
       ) : (
         <form
           className="app-form settings-provider-form"
+          onInvalidCapture={(event) => {
+            const section = (event.target as HTMLElement).closest("details");
+            if (section) section.open = true;
+          }}
           onSubmit={(e) => {
             e.preventDefault();
             if (!dirty) return;
@@ -131,12 +140,11 @@ export function ModelSettings() {
         >
           <p className="text-sm leading-7 text-muted">
             These providers serve the whole installation. Keys are encrypted;
-            leave a key blank to keep it. Choose your account’s features in
-            Preferences.
+            leave a key blank to keep it.
           </p>
           {roles.map(({ role, label, description }) => (
-            <section key={role} className="app-panel min-w-0">
-              <h3 className="settings-section-heading">{label}</h3>
+            <details key={role} className="app-panel settings-options min-w-0">
+              <summary>{label}</summary>
               <p className="mt-2 text-sm text-muted">{description}</p>
               <fieldset
                 disabled={!settings.editable || busy}
@@ -431,7 +439,7 @@ export function ModelSettings() {
                   Test saved {role} configuration
                 </button>
               )}
-            </section>
+            </details>
           ))}
           <SettingsSaveRow
             label="Save model settings"
