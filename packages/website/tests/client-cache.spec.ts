@@ -345,44 +345,112 @@ test("opening notes never presents a false empty count", async ({ page }) => {
   await expect(page.locator(".library-summary")).toHaveText("1 note");
 });
 
-for (const width of [1440, 390, 320]) {
-  test(`slow notes keep list and navigation geometry at ${width}px`, async ({
+test.describe("phone Notes header", () => {
+  test.use({ viewport: { width: 320, height: 844 }, hasTouch: true });
+
+  test("keeps the two secondary actions together beneath the title", async ({
     page,
   }) => {
-    await page.setViewportSize({ width, height: 900 });
     await fixture(page);
-    const release = Promise.withResolvers<void>();
-    await page.route("**/api/grove/memories/search", async (route) => {
-      await release.promise;
-      await route.fallback();
-    });
     await page.goto(`${base}/app`);
-    const skeleton = page.locator(".library-skeleton");
-    const nav = page.getByRole("navigation", {
-      name: "Workspace",
-      exact: true,
-    });
-    await expect(skeleton).toBeVisible();
+    const title = page.getByRole("heading", { name: "Notes", exact: true });
+    const today = page.getByRole("link", { name: "Today’s note" });
+    const importNotes = page.getByRole("button", { name: "Import notes" });
+    const search = page.getByRole("textbox", { name: "Search notes" });
+    await expect(importNotes).toBeVisible();
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    const geometry = async () =>
-      Promise.all([
-        page.locator(".library-list .library-selection-header").boundingBox(),
-        page.locator(".library-list .memory-row").first().boundingBox(),
-        nav.boundingBox(),
-      ]);
-    const before = await geometry();
-    await expect(page.locator(".app-main > .app-footer")).toBeHidden();
-    release.resolve();
-    await expect(page.locator(".memory-open")).toHaveText("Cached thought");
-    const after = await geometry();
-    for (const [index, box] of before.entries()) {
-      expect(Math.abs(after[index]!.y - box!.y)).toBeLessThanOrEqual(1);
-      expect(Math.abs(after[index]!.width - box!.width)).toBeLessThanOrEqual(1);
-    }
-    expect(Math.abs(after[1]!.height - before[1]!.height)).toBeLessThanOrEqual(
-      8,
+    const [heading, journal, upload, field] = await Promise.all(
+      [title, today, importNotes, search].map((item) => item.boundingBox()),
     );
-    await expect(page.locator(".app-main > .app-footer")).toBeVisible();
+    expect(journal!.y).toBeGreaterThanOrEqual(heading!.y + heading!.height);
+    expect(journal!.x).toBeCloseTo(heading!.x, 0);
+    expect(upload!.y).toBeCloseTo(journal!.y, 0);
+    expect(upload!.x).toBeGreaterThan(journal!.x);
+    expect(field!.y).toBeGreaterThan(upload!.y + upload!.height);
+  });
+});
+
+for (const { width, hasTouch } of [
+  { width: 1440, hasTouch: false },
+  { width: 390, hasTouch: false },
+  { width: 390, hasTouch: true },
+  { width: 320, hasTouch: true },
+]) {
+  test.describe(`${width}px ${hasTouch ? "touch" : "pointer"}`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch });
+    test("slow notes keep the selection header and first rows aligned", async ({
+      page,
+    }) => {
+      await fixture(page);
+      const release = Promise.withResolvers<void>();
+      await page.route("**/api/grove/memories/search", async (route) => {
+        await release.promise;
+        await route.fulfill({
+          json: {
+            success: true,
+            data: {
+              items: [
+                note,
+                {
+                  ...note,
+                  id: "00000000-0000-4000-a000-000000000012",
+                  content: "# Second thought",
+                },
+              ],
+              nextCursor: null,
+            },
+          },
+        });
+      });
+      await page.goto(`${base}/app`);
+      const skeleton = page.locator(".library-skeleton");
+      const nav = page.getByRole("navigation", {
+        name: "Workspace",
+        exact: true,
+      });
+      await expect(skeleton).toBeVisible();
+      expect(
+        await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+      ).toBe(hasTouch);
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      const status = skeleton.getByRole("status");
+      await expect(status).toHaveText("Opening your notes…");
+      expect(
+        await status.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return element.contains(
+            document.elementFromPoint(box.x + 2, box.y + box.height / 2),
+          );
+        }),
+      ).toBe(true);
+      await expect(skeleton.getByRole("checkbox")).toHaveCount(0);
+      const rows = page.locator(".library-list .memory-row");
+      const geometry = async () =>
+        Promise.all([
+          page.locator(".library-list .library-selection-header").boundingBox(),
+          rows.nth(0).boundingBox(),
+          rows.nth(1).boundingBox(),
+          nav.boundingBox(),
+        ]);
+      const before = await geometry();
+      await expect(page.locator(".app-main > .app-footer")).toBeHidden();
+      release.resolve();
+      await expect(page.locator(".memory-open")).toHaveText([
+        "Cached thought",
+        "Second thought",
+      ]);
+      const after = await geometry();
+      for (const [index, box] of before.entries()) {
+        expect(Math.abs(after[index]!.y - box!.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(after[index]!.width - box!.width)).toBeLessThanOrEqual(
+          1,
+        );
+        expect(
+          Math.abs(after[index]!.height - box!.height),
+        ).toBeLessThanOrEqual(1);
+      }
+      await expect(page.locator(".app-main > .app-footer")).toBeVisible();
+    });
   });
 }
 

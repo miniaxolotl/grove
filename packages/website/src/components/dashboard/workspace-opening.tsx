@@ -1,30 +1,61 @@
 import { Brand } from "@/components/brand";
 import { PageHeading } from "./ui/page-heading";
 
-export function LibrarySkeleton({ archive = false }: { archive?: boolean }) {
+const skeletonTitleWidths = ["72%", "48%", "63%", "55%", "68%"];
+
+export function LibrarySkeleton({
+  archive = false,
+  showExcerpt = false,
+}: {
+  archive?: boolean;
+  showExcerpt?: boolean;
+}) {
   return (
     <div className="library-list library-skeleton">
-      <p className="library-skeleton-status" role="status">
-        {archive ? "Opening your archive…" : "Opening your notes…"}
-      </p>
-      <div aria-hidden="true">
-        <div className="library-selection-header">
-          <i className="workspace-bone skeleton-check" />
+      <div className="library-selection-header">
+        <div className="select-loaded">
+          <i className="skeleton-check" aria-hidden="true" />
+          <span role="status">
+            {archive ? "Opening your archive…" : "Opening your notes…"}
+          </span>
         </div>
-        {Array.from({ length: 5 }, (_, index) => (
-          <div className="memory-list-item" key={index}>
-            <div className="memory-row">
-              <i className="workspace-bone skeleton-check" />
-              <div className="skeleton-row-copy">
-                <i className="workspace-bone" />
-                <i className="workspace-bone" />
-                <i className="workspace-bone" />
-              </div>
-              <i className="workspace-bone skeleton-check" />
-            </div>
-          </div>
-        ))}
       </div>
+      <ul aria-hidden="true">
+        {skeletonTitleWidths.map((width) => (
+          <li className="memory-list-item" key={width}>
+            <div className="memory-row">
+              <div className="row-selection">
+                <span className="row-checkbox">
+                  <i className="skeleton-check" />
+                </span>
+                <span className="drag-handle" />
+              </div>
+              <div className="memory-row-content">
+                <div className="skeleton-note-open">
+                  <span className="memory-title">
+                    <i className="workspace-bone" style={{ width }} />
+                  </span>
+                  {showExcerpt && (
+                    <span className="memory-excerpt">
+                      <i className="workspace-bone" />
+                    </span>
+                  )}
+                </div>
+                <div className="memory-row-details">
+                  <div className="memory-meta">
+                    <span>
+                      <i className="workspace-bone" />
+                    </span>
+                    <span>
+                      <i className="workspace-bone" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -66,6 +97,7 @@ export function WorkspaceRouteSkeleton({ path }: { path: string }) {
     <>
       <PageHeading
         title={archive ? "Archive" : "Notes"}
+        className="library-page-heading"
         actions={
           !archive && (
             <>
@@ -73,13 +105,13 @@ export function WorkspaceRouteSkeleton({ path }: { path: string }) {
                 className="app-button secondary skeleton-action"
                 aria-hidden="true"
               >
-                Import notes
+                Today’s note
               </span>
               <span
                 className="app-button secondary skeleton-action"
                 aria-hidden="true"
               >
-                Today’s note
+                Import notes
               </span>
             </>
           )

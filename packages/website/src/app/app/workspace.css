@@ -229,39 +229,37 @@ html:has(.grove-app) {
   border-radius: 4px;
   background: var(--color-line);
 }
-.library-skeleton {
-  position: relative;
-}
-.library-skeleton-status {
-  position: absolute;
-  inset: 0 auto auto 43px;
-  height: 44px;
-  display: grid;
-  align-content: center;
-  color: var(--color-muted);
-  font-size: 12px;
-}
 .library-skeleton .memory-row {
   pointer-events: none;
 }
-.skeleton-row-copy {
+.skeleton-note-open {
   display: grid;
-  grid-template-rows: 22px 23px 22px;
-  align-items: center;
+  align-content: center;
 }
-.skeleton-row-copy > :first-child {
-  width: min(72%, 240px);
+.library-skeleton .memory-row-content .workspace-bone {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 240px;
 }
-.skeleton-row-copy > :nth-child(2) {
-  width: min(90%, 420px);
+.library-skeleton .memory-excerpt > i {
+  width: 85%;
+  max-width: 420px;
 }
-.skeleton-row-copy > :last-child {
-  width: min(60%, 140px);
+.library-skeleton .memory-meta .workspace-bone {
+  width: 34px;
+  height: 6px;
+}
+.library-skeleton .memory-meta span + span .workspace-bone {
+  width: 60px;
 }
 .skeleton-check {
+  display: inline-block;
   width: 16px;
   height: 16px;
-  margin: 4px auto 0;
+  flex-shrink: 0;
+  vertical-align: middle;
+  border: 1px solid var(--color-line);
+  border-radius: 3px;
 }
 /* Don't paint the document-flow footer at a speculative result-list height. */
 .app-main:has(.library-skeleton) > .app-footer {
@@ -359,6 +357,12 @@ html:has(.grove-app) {
   }
 }
 @media (max-width: 600px) {
+  .library-page-heading > .heading-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: start;
+    max-width: none;
+  }
   .workspace-opening .app-navigation .app-nav {
     min-width: 0;
   }

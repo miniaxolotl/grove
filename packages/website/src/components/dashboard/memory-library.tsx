@@ -444,17 +444,18 @@ export function MemoryLibrary({
       {!embedded && (
         <PageHeading
           title={title}
+          className="library-page-heading"
           actions={
             !archive && (
               <>
-                <ImportNotesButton projectId={scopedProject ?? undefined} />
                 <Link
                   className="app-button secondary"
                   href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
                 >
-                  <CalendarDays size={16} />
+                  <CalendarDays size={16} aria-hidden="true" />
                   Today’s note
                 </Link>
+                <ImportNotesButton projectId={scopedProject ?? undefined} />
               </>
             )
           }
@@ -610,7 +611,7 @@ export function MemoryLibrary({
             </div>
           )}
           {loading && !items.length ? (
-            <LibrarySkeleton archive={archive} />
+            <LibrarySkeleton archive={archive} showExcerpt={!!search} />
           ) : !items.length && !currentError ? (
             <section className="app-empty">
               <BookOpen size={26} className="mx-auto mb-4" strokeWidth={1.4} />
