@@ -24,7 +24,7 @@ import {
 } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
-import { LoadingState } from "./loading-state";
+import { LibrarySkeleton } from "./workspace-opening";
 import { MemoryRow } from "./memory-row";
 import { deferredFeature } from "./deferred-feature";
 import { LibrarySelection } from "./library-selection";
@@ -610,11 +610,7 @@ export function MemoryLibrary({
             </div>
           )}
           {loading && !items.length ? (
-            <LoadingState
-              label="Opening your notes…"
-              className="library-placeholder"
-              list
-            />
+            <LibrarySkeleton archive={archive} />
           ) : !items.length && !currentError ? (
             <section className="app-empty">
               <BookOpen size={26} className="mx-auto mb-4" strokeWidth={1.4} />

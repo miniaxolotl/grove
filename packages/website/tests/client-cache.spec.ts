@@ -85,6 +85,54 @@ async function invalidateNotes(page: Page) {
   });
 }
 
+test("archive intent warms one request and navigation joins it", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let archiveReads = 0;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    if (route.request().postDataJSON().status !== "archived")
+      return route.fallback();
+    archiveReads++;
+    started.resolve();
+    await release.promise;
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: [
+            { ...note, status: "archived", content: "# Archived thought" },
+          ],
+          nextCursor: null,
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app`);
+  await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+  const link = page
+    .getByRole("navigation", { name: "Workspace" })
+    .getByRole("link", { name: "Archive" });
+  expect(archiveReads).toBe(0);
+  await link.focus();
+  await expect.poll(() => archiveReads, { timeout: 3000 }).toBe(1);
+  await started.promise;
+  await link.click();
+  await expect(page).toHaveURL(/\/app\/archive$/);
+  await expect(page.locator(".library-skeleton")).toBeVisible();
+  expect(archiveReads).toBe(1);
+  release.resolve();
+  await expect(page.locator(".memory-open")).toHaveText("Archived thought");
+  await page.goBack();
+  await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+  expect(
+    state.reads.filter((path) => path === "/memories/search"),
+  ).toHaveLength(1);
+  expect(archiveReads).toBe(1);
+});
+
 test("fresh Notes, Settings and note-detail revisits reuse snapshots without new reads", async ({
   page,
 }) => {
@@ -296,6 +344,47 @@ test("opening notes never presents a false empty count", async ({ page }) => {
   await expect(page.locator(".memory-open")).toHaveText("Cached thought");
   await expect(page.locator(".library-summary")).toHaveText("1 note");
 });
+
+for (const width of [1440, 390, 320]) {
+  test(`slow notes keep list and navigation geometry at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await fixture(page);
+    const release = Promise.withResolvers<void>();
+    await page.route("**/api/grove/memories/search", async (route) => {
+      await release.promise;
+      await route.fallback();
+    });
+    await page.goto(`${base}/app`);
+    const skeleton = page.locator(".library-skeleton");
+    const nav = page.getByRole("navigation", {
+      name: "Workspace",
+      exact: true,
+    });
+    await expect(skeleton).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const geometry = async () =>
+      Promise.all([
+        page.locator(".library-list .library-selection-header").boundingBox(),
+        page.locator(".library-list .memory-row").first().boundingBox(),
+        nav.boundingBox(),
+      ]);
+    const before = await geometry();
+    await expect(page.locator(".app-main > .app-footer")).toBeHidden();
+    release.resolve();
+    await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+    const after = await geometry();
+    for (const [index, box] of before.entries()) {
+      expect(Math.abs(after[index]!.y - box!.y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(after[index]!.width - box!.width)).toBeLessThanOrEqual(1);
+    }
+    expect(Math.abs(after[1]!.height - before[1]!.height)).toBeLessThanOrEqual(
+      8,
+    );
+    await expect(page.locator(".app-main > .app-footer")).toBeVisible();
+  });
+}
 
 test("interrupted refresh keeps notes, selection and geometry with a keyboard retry", async ({
   page,

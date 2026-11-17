@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
-import { WorkspaceCacheProvider } from "./workspace-cache";
+import { WorkspaceCacheProvider, useWorkspaceCache } from "./workspace-cache";
+import { WorkspaceOpening } from "./workspace-opening";
 import { NoteExportProvider } from "./note-export";
 import { NotebooksProvider, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookExplorer } from "./notebook-explorer";
@@ -53,11 +54,31 @@ function WorkspaceNavLink({
   current: string | undefined;
 }) {
   const { href, name, icon: Icon } = item;
+  const cache = useWorkspaceCache();
+  const warm = () => {
+    // Do not speculate on scoped notebook searches: the API can record visits.
+    if (href !== "/app" && href !== "/app/archive") return;
+    if (
+      (navigator as Navigator & { connection?: { saveData?: boolean } })
+        .connection?.saveData
+    )
+      return;
+    const options = cache.notes({
+      status: href === "/app/archive" ? "archived" : "active",
+    });
+    // A mounted view will revalidate stale snapshots without discarding loaded pages.
+    if (cache.client.getQueryData(options.queryKey) === undefined)
+      void cache.client.prefetchInfiniteQuery(options);
+  };
   return (
     <Link
       href={href}
       aria-current={href === current ? "page" : undefined}
       className="app-nav"
+      onFocus={warm}
+      onPointerEnter={(event) => {
+        if (event.pointerType === "mouse") warm();
+      }}
     >
       <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
       <span>{name}</span>
@@ -86,13 +107,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoaded) setAccountBoundary(user?.id ?? null);
   }, [isLoaded, user?.id]);
-  if (!isLoaded || !sessionLoaded)
-    return (
-      <main id="main" className="app-opening">
-        <Brand />
-        <p role="status">Opening your Grove…</p>
-      </main>
-    );
+  if (!isLoaded || !sessionLoaded) return <WorkspaceOpening path={path} />;
   if (!isSignedIn || !session) return <RedirectToSignIn />;
   if (path.startsWith("/app/connect/"))
     return (
@@ -136,7 +151,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                           <Brand href="/app" />
                           <NewNoteLink />
                           <WorkspaceSearchButton />
-                          <div className="lg:hidden">
+                          <div className="sidebar-account-avatar lg:hidden">
                             <UserButton />
                           </div>
                         </div>
@@ -166,7 +181,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         <NotebookExplorer />
                         <div className="app-sidebar-footer">
                           <div className="sidebar-account">
-                            <UserButton />
+                            <div className="sidebar-account-avatar">
+                              <UserButton />
+                            </div>
                             <span className="sidebar-account-text">
                               <strong>
                                 {user?.firstName ?? "Your account"}

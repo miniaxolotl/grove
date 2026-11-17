@@ -126,6 +126,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
+}
+.sidebar-account-avatar {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
 }
 .workspace-utilities > .app-icon {
   flex-shrink: 0;
