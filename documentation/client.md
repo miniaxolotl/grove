@@ -6,6 +6,9 @@ Server/development baseline is Node 24. See
 
 Grove Cloud is at [usegrove.cloud](https://usegrove.cloud), with API origin
 `https://api.usegrove.cloud`. Grove Open Source is the self-hosted edition.
+The [setup page](https://usegrove.cloud/install) has separate links to AI tool
+instructions and the browser extension guide. Neither is required to use the web
+notebook.
 
 ## ChatGPT and Claude web
 

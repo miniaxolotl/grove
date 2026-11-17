@@ -273,41 +273,75 @@
   padding-block: 64px;
 }
 .marketing-site .setup-page {
-  padding-block: 36px 88px;
+  padding-block: clamp(24px, 4vw, 52px) 72px;
+  max-width: 1080px;
 }
 .marketing-site .setup-intro {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: end;
-  gap: 48px;
-  padding-block: 40px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--color-line);
 }
 .marketing-site .setup-heading {
-  font-size: clamp(40px, 5vw, 64px);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
-  font-weight: 500;
+  font-size: clamp(32px, 4vw, 44px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 650;
 }
 .marketing-site .setup-intro > p {
-  max-width: 42ch;
-  font-size: 18px;
-  line-height: 1.65;
+  max-width: 60ch;
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 1.6;
 }
-.marketing-site .setup-prerequisites {
+.marketing-site .setup-jump {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px 32px;
-  padding: 0;
-  margin-bottom: 40px;
-  background: transparent;
+  gap: 0 20px;
+  margin-top: 8px;
   font-size: 14px;
 }
-.marketing-site .setup-page .installation-step {
-  padding-block: 32px;
-  border: 0;
+.marketing-site .setup-jump a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.marketing-site .setup-page .step-number {
-  display: none;
+.marketing-site .setup-tools {
+  margin-top: 28px;
+}
+.marketing-site .setup-tools > h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+.marketing-site .setup-page h2[id] {
+  scroll-margin-block-start: 96px;
+}
+.marketing-site .setup-page .installation-steps {
+  margin-top: 8px;
+}
+.marketing-site .setup-page .installation-step {
+  display: block;
+  padding-block: 22px;
+}
+.marketing-site .setup-page .installation-step:first-child {
+  border: 0;
+  padding-top: 0;
+}
+.marketing-site .setup-page .installation-copy {
+  margin-bottom: 12px;
+}
+.marketing-site .setup-page .installation-copy > p {
+  margin-top: 4px;
+  max-width: 64ch;
+  line-height: 1.55;
+}
+.marketing-site .setup-page .tab-list {
+  gap: 6px;
+}
+.marketing-site .setup-page .tab-list [role="tab"] {
+  min-height: 44px;
+  padding-inline: 12px;
+  font-size: 13px;
 }
 .marketing-site :is(.setup-checkpoint, .setup-reference) {
   padding: 0;
@@ -324,7 +358,9 @@
   text-decoration: underline;
 }
 .marketing-site .setup-reference {
-  margin-top: 40px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-line);
   background: transparent;
 }
 @media (min-width: 768px) {
@@ -348,8 +384,7 @@
   .notebook-home .notebook-spread,
   .notebook-home .library-layout .section-intro,
   .notebook-home #features .feature-list,
-  .notebook-home .note-path,
-  .marketing-site .setup-intro {
+  .notebook-home .note-path {
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }
@@ -383,8 +418,5 @@
   }
   .notebook-home .note-path p {
     font-size: 16px;
-  }
-  .marketing-site :is(.setup-checkpoint, .setup-reference) {
-    padding: 0;
   }
 }

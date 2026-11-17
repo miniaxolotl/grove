@@ -26,8 +26,8 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   ).toBeVisible();
   await page.getByRole("link", { name: "Connect your AI tools" }).click();
   await expect(page).toHaveURL(/\/install$/);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "AI tools.",
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Set up Grove",
   );
   await expect(
     page.getByLabel("OpenCode connection command", { exact: true }),
@@ -123,6 +123,31 @@ test("Ask Grove examples, comparison and source notes work with keyboard navigat
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#example-note-preferences$/);
   await expect(page.locator("#example-note-preferences")).toBeInViewport();
+});
+
+test("mobile setup links lead to the browser extension and AI tools", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto("/install");
+  const options = page.getByRole("navigation", { name: "Setup options" });
+  const extension = options.getByRole("link", {
+    name: "Browser extension setup",
+  });
+  await expect(extension).toBeInViewport({ ratio: 1 });
+  await extension.press("Enter");
+  await expect(page).toHaveURL(/#extension-heading$/);
+  await expect(
+    page.getByRole("heading", { name: "Browser extension", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    page.getByRole("link", { name: "Extension setup guide" }),
+  ).toHaveAttribute("href", /documentation\/browser-extension\.md$/);
+  await options.getByRole("link", { name: "AI tool setup" }).click();
+  await expect(page).toHaveURL(/#ai-tools$/);
+  await expect(
+    page.getByRole("tab", { name: "OpenCode", exact: true }),
+  ).toBeInViewport();
 });
 
 test("Cloud setup selects the right agent and keeps self-hosting on its own page", async ({
