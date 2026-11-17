@@ -118,7 +118,8 @@ links. A missing section leaves the note usable without altering text.
 
 ### Public read-only links
 
-**Share note/notebook** creates a live read-only capability for anyone with its URL.
+Choose **Note actions → Share note** or **Notebook options → Share notebook** to
+create a live read-only link. Anyone with the URL can read the shared content.
 Choose direct versus descendant scope and optional expiry; review before saving.
 Unshared drafts/history/agent metadata are not published. Revoking one direct link
 does not remove independently covering links. [Public sharing](sharing.md) owns
@@ -148,6 +149,8 @@ mode hides secondary navigation without replacing the document or losing history
 
 ## Export and delete notes
 
+Open **Note actions** beside the save control for **Revision history**, **Share
+note**, **Export**, and **Delete note**. The same menu works on desktop and phone.
 **Export** offers Markdown, PDF and Copy Markdown using the current reading/editing
 text, including unsaved drafts. Row export uses a retained draft or latest saved
 content. Oversized drafts remain exportable even when they cannot be saved.
@@ -156,6 +159,9 @@ characters get explicit Unicode fallbacks. Authorized owned raster images can be
 embedded; external images stay links. Audio is a textual reference, not embedded
 playback. [Media exports](media.md#exports-and-recovery) own image limits, portable
 original-byte TARs and media-complete account exports.
+
+To see archived notes and notebooks, choose **Notes → More → Archive**. Use
+**Back to notes** to return to the active library.
 
 **Settings → Your data** prepares a background account export; notebook export can
 include descendants. Progress/retry/cancel/download survive navigation; see
