@@ -6189,6 +6189,49 @@ test("mobile notebook browsing keeps creation and dated writing in the selected 
   ).toBe(true);
 });
 
+test("Settings follows notebooks without crowding the main workspace controls", async ({
+  page,
+}, info) => {
+  await fixture(page);
+  await page.route("**/api/grove/admin", (route) =>
+    route.fulfill({ json: { success: true, data: { role: "user" } } }),
+  );
+  await page.goto(`${base}/app`);
+  const sidebar = page.getByRole("complementary", {
+    name: "Workspace sidebar",
+  });
+  const settings = sidebar.getByRole("link", { name: "Settings", exact: true });
+  const notebooks = sidebar.locator(".notebook-browser");
+  await expect(settings).toBeVisible();
+  expect(
+    await notebooks.evaluate((el) =>
+      Boolean(
+        el.compareDocumentPosition(
+          el.parentElement!.querySelector('a[href="/app/settings"]')!,
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ),
+  ).toBe(true);
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const target = (await settings.boundingBox())!;
+    expect(target.height).toBeGreaterThanOrEqual(width < 1024 ? 44 : 40);
+    await expect(settings).toBeInViewport();
+    await expect(
+      sidebar.getByRole("link", { name: "New note", exact: true }),
+    ).toBeInViewport();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width);
+    if (width === 390 || width === 1440)
+      await sidebar.screenshot({
+        path: info.outputPath(`settings-last-${width}.png`),
+      });
+  }
+  await settings.press("Enter");
+  await expect(page).toHaveURL(/\/app\/settings(?:\/|$)/);
+});
+
 test("Today's note uses the same editor and library, with date grouping and notebook organization", async ({
   page,
 }, info) => {

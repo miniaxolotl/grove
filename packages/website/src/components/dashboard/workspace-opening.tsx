@@ -147,13 +147,18 @@ export function WorkspaceOpening({ path }: { path: string }) {
           <i className="workspace-bone" />
         </div>
         <div className="app-navigation">
-          {[0, 1, 2].map((index) => (
+          {[0, 1].map((index) => (
             <div className="app-nav" key={index}>
               <i className="workspace-bone" />
             </div>
           ))}
         </div>
         <div className="workspace-bone skeleton-notebooks" />
+        <div className="app-settings-navigation">
+          <div className="app-nav">
+            <i className="workspace-bone" />
+          </div>
+        </div>
       </div>
       <div className="app-main">
         <div className="app-topbar" aria-hidden="true">

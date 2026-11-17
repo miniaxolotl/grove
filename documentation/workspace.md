@@ -1,11 +1,11 @@
 # Your Grove notebook
 
 Start in **Notes** to write and browse, or **Ask Grove** to work with your notes.
-The sidebar groups **Workspace** (Notes, Ask Grove), collapsible **Notebooks**
-(Unfiled plus your tree, with a count) and **System** (Archive, Settings last);
-on phones, open **Notebooks** beneath navigation. The Grove logo returns to
-Notes. Connected agents share these notes and their
-approved permissions; technical references stay in **Note properties → Agent details**.
+The sidebar puts **Notes** and **Ask Grove** first, then **Notebooks** (Unfiled
+and your notebook tree), with **Settings** last. On phones, open **Notebooks**
+beneath Notes and Ask Grove. The Grove logo returns to Notes. Connected agents
+share these notes and their approved permissions; technical references stay in
+**Note properties → Agent details**.
 
 ## Your first saved note
 
