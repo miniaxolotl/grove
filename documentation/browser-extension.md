@@ -20,6 +20,11 @@ Use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `packages.build.json` with product version, configuration, input inventory and hashes.
 Successful source CI also retains these unsigned ZIPs and their report as a
 `grove-browser-extensions-<source SHA>` artifact for 14 days.
+Protected production delivery also attaches verified browser ZIPs and checksums
+to the version's GitHub release, with direct **Downloads** links. CLI/plugins retain
+their supported package-manager installation instead of separate raw tarball links.
+Download availability alone is not server rollout or signing acceptance; see
+[release downloads](release-conventions.md#release-downloads).
 
 - **Chrome:** open `chrome://extensions`, enable Developer mode, choose **Load
   unpacked** and select the extracted `chrome/` directory.
