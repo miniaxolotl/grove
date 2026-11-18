@@ -6,6 +6,18 @@ import {
 } from "@lib/shared/contracts";
 import { noteWritingInstructions } from "@lib/shared/note-writing";
 
+export function isAutomaticCapture(tool: string, input: unknown) {
+  return (
+    [
+      "remember",
+      "update_memory",
+      "preview_memory_patch",
+      "apply_memory_patch",
+    ].includes(tool) &&
+    (input as { capture?: unknown } | null)?.capture === "automatic"
+  );
+}
+
 export function apiOrigin(value: string) {
   const url = new URL(value);
   if (
