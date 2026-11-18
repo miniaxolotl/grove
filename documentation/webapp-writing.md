@@ -48,8 +48,10 @@ immediately and stays on this device:
 ## Privacy and limits
 
 - Guests can use the [web writing checker](https://usegrove.cloud/writing)
-  without an account. Text is checked locally and is not saved; note storage,
-  account preferences and Ask Grove still require sign-in.
+  without an account. **Check writing** lists a short English explanation for
+  each issue, such as “This word appears twice.” Text is checked locally and
+  is not saved; note storage, account preferences and Ask Grove still require
+  sign-in.
 
 - Local checks never send keystrokes, prose, dictionary words or results
   anywhere. The 555 KB dictionary is fetched once from Grove itself on the first
