@@ -16,13 +16,13 @@ import {
   MouseSensor,
   TouchSensor,
   PointerSensor,
+  KeyboardCode,
   KeyboardSensor,
   useSensor,
   useSensors,
   useDroppable,
   useDraggable,
   pointerWithin,
-  defaultDropAnimationSideEffects,
   type KeyboardCoordinateGetter,
   type Modifier,
 } from "@dnd-kit/core";
@@ -53,16 +53,22 @@ const Context = createContext<{
 }>({ active: null, busy: false, keyboard: false });
 export const useWorkspaceDrag = () => useContext(Context);
 
-type Destination =
-  | {
-      kind: "notebook";
-      projectId: string | null;
-      root: boolean;
-      name: string;
-      beforeId?: string;
-      afterId?: string;
-    }
-  | { kind: "cancel"; name: string };
+type NotebookDestination = {
+  kind: "notebook";
+  projectId: string | null;
+  root: boolean;
+  name: string;
+  beforeId?: string;
+  afterId?: string;
+};
+type Destination = NotebookDestination | { kind: "cancel"; name: string };
+function describeDestination(destination: NotebookDestination) {
+  if (destination.beforeId || destination.afterId)
+    return destination.name.replace(/^(Before|After)/, (word) =>
+      word.toLowerCase(),
+    );
+  return `${destination.projectId === null ? "to" : "into"} ${destination.name}`;
+}
 function validDestination(
   item: WorkspaceDragItem,
   destination: Destination,
@@ -131,66 +137,70 @@ function pickupFeedback(activatorEvent: Event) {
 const previewOffset: Modifier = ({
   transform,
   activatorEvent,
-  activeNodeRect,
   overlayNodeRect,
   windowRect,
 }) => {
-  if (!activeNodeRect || !overlayNodeRect || !windowRect) return transform;
-  const touch =
-    activatorEvent?.type === "touchstart" ||
-    (activatorEvent as PointerEvent | null)?.pointerType === "pen";
+  const touch = activatorEvent?.type === "touchstart";
   const point =
-    activatorEvent && "clientX" in activatorEvent
-      ? (activatorEvent as MouseEvent)
-      : null;
-  // Anchor every source (a whole row or a small sidebar icon) beside the pointer.
-  // Touch previews sit above the finger so the destination remains visible.
-  const x =
-    transform.x + (point ? point.clientX - activeNodeRect.left + 14 : 0);
-  const y =
-    transform.y +
-    (touch ? -64 : point ? point.clientY - activeNodeRect.top + 14 : 0);
+    touch && "touches" in activatorEvent
+      ? (activatorEvent as TouchEvent).touches[0]
+      : activatorEvent && "clientX" in activatorEvent
+        ? (activatorEvent as MouseEvent)
+        : null;
+  if (!point) return transform; // Keyboard keeps its measured row origin.
+
+  // Pointer overlays have a viewport origin, independent of the source row.
+  // Only the preview moves here: collision and auto-scroll use the sensor point.
+  const direct =
+    touch || (activatorEvent as PointerEvent | null)?.pointerType === "pen";
+  const x = point.clientX + transform.x;
+  const y = point.clientY + transform.y;
+  const width = overlayNodeRect?.width ?? 0;
+  const height = overlayNodeRect?.height ?? 0;
+  const inset = 8;
+  const gap = direct ? 18 : 14;
+  const viewportWidth = windowRect?.width ?? window.innerWidth;
+  const viewportHeight = windowRect?.height ?? window.innerHeight;
+  const clamp = (value: number, end: number) =>
+    Math.max(inset, Math.min(value, end - inset));
+  const above = y - height - gap;
+  const below = y + gap;
+  const right = x + gap;
+  const preferAbove = direct
+    ? above >= inset
+    : below + height > viewportHeight - inset;
   return {
     ...transform,
-    x: Math.max(
-      8 - activeNodeRect.left,
-      Math.min(
-        x,
-        windowRect.width - overlayNodeRect.width - activeNodeRect.left - 8,
-      ),
+    x: clamp(
+      direct
+        ? x - width / 2
+        : right + width <= viewportWidth - inset
+          ? right
+          : x - width - gap,
+      viewportWidth - width,
     ),
-    y: Math.max(
-      8 - activeNodeRect.top,
-      Math.min(
-        y,
-        windowRect.height - overlayNodeRect.height - activeNodeRect.top - 8,
-      ),
-    ),
+    y: clamp(preferAbove ? above : below, viewportHeight - height),
   };
 };
-function insideScrollClip(
-  node: HTMLElement | null,
-  point: { x: number; y: number },
-) {
-  for (
-    let parent = node?.parentElement;
-    parent;
-    parent = parent.parentElement
-  ) {
-    const style = getComputedStyle(parent);
-    const rect = parent.getBoundingClientRect();
-    if (
-      /(auto|scroll|hidden|clip)/.test(style.overflowY) &&
-      (point.y < rect.top || point.y > rect.bottom)
-    )
-      return false;
-    if (
-      /(auto|scroll|hidden|clip)/.test(style.overflowX) &&
-      (point.x < rect.left || point.x > rect.right)
-    )
-      return false;
+function releasePoint(activator: Event, event: Event) {
+  if ("touches" in activator && "changedTouches" in event) {
+    const id = (activator as TouchEvent).touches[0]?.identifier;
+    return Array.from((event as TouchEvent).changedTouches).find(
+      (touch) => touch.identifier === id,
+    );
   }
-  return true;
+  if (activator instanceof PointerEvent && activator.pointerType === "pen") {
+    return event instanceof PointerEvent &&
+      event.pointerId === activator.pointerId
+      ? event
+      : undefined;
+  }
+  return activator.type === "mousedown" &&
+    event.type === "mouseup" &&
+    event instanceof MouseEvent &&
+    event.button === 0
+    ? event
+    : undefined;
 }
 
 const destinationCoordinates: KeyboardCoordinateGetter = (
@@ -255,6 +265,8 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
   const pickingUp = useRef(false);
+  const activator = useRef<Event | null>(null);
+  const releasedAt = useRef<Element | null>(null);
   const [notice, setNotice] = useState("");
   const [failures, setFailures] = useState<string[]>([]);
   const [undo, setUndo] = useState<Undo[]>([]);
@@ -264,32 +276,55 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     reducedMotion,
     () => false,
   );
-  const dropAnimation = reduced
-    ? null
-    : {
-        duration: 160,
-        easing: "cubic-bezier(0.2, 0, 0, 1)",
-        sideEffects: defaultDropAnimationSideEffects({
-          styles: { active: { opacity: "0.45" } },
-        }),
-      };
+  const dropAnimation =
+    reduced || keyboard
+      ? null
+      : {
+          duration: 160,
+          easing: "cubic-bezier(0.2, 0, 0, 1)",
+          sideEffects: undefined,
+        };
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 220, tolerance: 8 },
     }),
     useSensor(PenSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: destinationCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: destinationCoordinates,
+      keyboardCodes: {
+        start: [KeyboardCode.Space, KeyboardCode.Enter],
+        end: [KeyboardCode.Space, KeyboardCode.Enter],
+        cancel: [KeyboardCode.Esc, KeyboardCode.Tab],
+      },
+    }),
   );
   useEffect(() => {
     const interrupt = () => {
       if (pickingUp.current) cancelDrag();
     };
+    const release = (event: Event) => {
+      if (!pickingUp.current || !activator.current) return;
+      const point = releasePoint(activator.current, event);
+      if (point)
+        releasedAt.current = document.elementFromPoint(
+          point.clientX,
+          point.clientY,
+        );
+    };
     // A second contact interrupts both long-press activation and an active drag.
     document.addEventListener("pointerdown", interrupt, true);
+    // dnd-kit uses the last move for `over`; capture the terminal native sample
+    // before its sensor ends so a fast release cannot commit a stale highlight.
+    document.addEventListener("mouseup", release, true);
+    document.addEventListener("pointerup", release, true);
+    document.addEventListener("touchend", release, true);
     window.addEventListener("blur", interrupt);
     return () => {
       document.removeEventListener("pointerdown", interrupt, true);
+      document.removeEventListener("mouseup", release, true);
+      document.removeEventListener("pointerup", release, true);
+      document.removeEventListener("touchend", release, true);
       window.removeEventListener("blur", interrupt);
     };
   }, []);
@@ -418,39 +453,77 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
             x: args.collisionRect.left + 8,
             y: args.collisionRect.top + 8,
           };
-          const targets = args.droppableContainers.filter((target) =>
-            insideScrollClip(target.node.current, point),
-          );
+          // The browser hit test accounts for clipping and stacking (including
+          // the fixed tray); a covered row is not a destination.
+          const hit = document.elementFromPoint(point.x, point.y);
+          const targets = hit
+            ? args.droppableContainers.filter(({ node }) =>
+                node.current?.contains(hit),
+              )
+            : [];
           return pointerWithin({
             ...args,
             pointerCoordinates: point,
             droppableContainers: targets,
           }).sort((a, b) => {
-            const placement = (id: typeof a.id) => {
-              const d = targets.find((target) => target.id === id)?.data.current
-                ?.destination;
+            const placement = (collision: typeof a) => {
+              const d =
+                collision.data?.droppableContainer.data.current?.destination;
               return Number(!!(d?.beforeId || d?.afterId));
             };
-            return placement(b.id) - placement(a.id);
+            return placement(b) - placement(a);
           });
+        }}
+        cancelDrop={({ over, collisions, activatorEvent }) => {
+          const destination: Destination | undefined =
+            over?.data.current?.destination;
+          if (
+            !active ||
+            !over ||
+            destination?.kind !== "notebook" ||
+            working.current ||
+            notebooks.organizationLocked ||
+            origin.current?.path !== path ||
+            !origin.current.source?.isConnected ||
+            !validDestination(active, destination, notebooks.projects)
+          )
+            return true;
+          if (activatorEvent.type === "keydown") return false;
+          const shown: HTMLElement | null | undefined =
+            collisions?.[0]?.id === over.id
+              ? collisions[0].data?.droppableContainer.node.current
+              : null;
+          return (
+            !shown ||
+            !shown.hasAttribute("data-drop-active") ||
+            !shown.isConnected ||
+            !releasedAt.current ||
+            !shown.contains(releasedAt.current)
+          );
         }}
         accessibility={{
           screenReaderInstructions: {
             draggable:
-              "Press Space to pick up. Use arrow keys to choose a notebook, then Space to move. Escape cancels.",
+              "Press Space to pick up. Use arrow keys to choose a notebook, then Space to move. Escape or Tab cancels.",
           },
           announcements: {
             onDragStart: () => "Picked up. Choose a notebook. Escape cancels.",
-            onDragOver: ({ over }) =>
-              over?.data.current?.destination?.kind === "cancel"
-                ? "Release to cancel the move."
-                : over
-                  ? `Move to ${over.data.current?.name}.`
-                  : "Choose an available destination.",
-            onDragEnd: ({ over }) =>
-              over?.data.current?.destination?.kind === "notebook"
-                ? `Moving to ${over.data.current?.name}.`
-                : "Move cancelled.",
+            onDragOver: ({ over }) => {
+              const destination: Destination | undefined =
+                over?.data.current?.destination;
+              return destination?.kind === "cancel"
+                ? "Cancel move."
+                : destination
+                  ? `Move ${describeDestination(destination)}.`
+                  : "Choose an available destination.";
+            },
+            onDragEnd: ({ over }) => {
+              const destination: Destination | undefined =
+                over?.data.current?.destination;
+              return destination?.kind === "notebook"
+                ? `Moving ${describeDestination(destination)}.`
+                : "Move cancelled.";
+            },
             onDragCancel: () => "Move cancelled.",
           },
         }}
@@ -461,6 +534,8 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           pickingUp.current = false;
         }}
         onDragStart={({ active, activatorEvent }) => {
+          activator.current = activatorEvent;
+          releasedAt.current = null;
           setKeyboard(activatorEvent.type === "keydown");
           pickingUp.current = true;
           pickupFeedback(activatorEvent);
@@ -477,10 +552,14 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         }}
         onDragCancel={() => {
           pickingUp.current = false;
+          activator.current = null;
+          releasedAt.current = null;
           setActive(null);
         }}
         onDragEnd={({ over }) => {
           pickingUp.current = false;
+          activator.current = null;
+          releasedAt.current = null;
           const destination: Destination | undefined =
             over?.data.current?.destination;
           if (
@@ -526,16 +605,28 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         <DragOverlay
           dropAnimation={dropAnimation}
           modifiers={[previewOffset]}
-          style={{ width: "max-content" }}
+          transition="none"
+          style={{
+            width: "max-content",
+            height: "auto",
+            pointerEvents: "none",
+            ...(keyboard ? {} : { top: 0, left: 0 }),
+          }}
         >
           {active && (
-            <div className="memory-drag-preview">
+            <div
+              className="memory-drag-preview"
+              aria-hidden="true"
+              // Keyboard uses the focused grip and highlighted row, not a chip
+              // over the destination. Keep the geometry dnd-kit measures.
+              data-keyboard={keyboard || undefined}
+            >
               {active.kind === "notebook" ? (
-                <FolderInput size={18} />
+                <FolderInput size={16} />
               ) : active.items.length > 1 ? (
-                <Files size={18} />
+                <Files size={16} />
               ) : (
-                <FileText size={18} />
+                <FileText size={16} />
               )}
               <strong>
                 {active.kind === "notebook"

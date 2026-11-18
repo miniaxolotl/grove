@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
+import {
+  ChevronRight,
+  Folder,
+  FolderInput,
+  FolderOpen,
+  GripVertical,
+} from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Project } from "@/lib/dashboard-api";
 import { notebookOrder, notebookPath } from "@/lib/notebooks";
@@ -336,7 +342,7 @@ function DraggableNotebookBranch({
           }}
         >
           <span className="notebook-folder-icon" aria-hidden="true">
-            {icon}
+            {isOver ? <FolderInput size={16} strokeWidth={1.6} /> : icon}
           </span>
           <GripVertical
             className="notebook-grip-icon"
