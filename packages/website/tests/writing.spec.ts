@@ -139,3 +139,30 @@ for (const width of [1440, 390]) {
     });
   });
 }
+
+test("switching to manual checks discards an automatic check still loading", async ({
+  page,
+}) => {
+  const requested = page.waitForRequest("**/dictionaries/en.dic");
+  const gate = Promise.withResolvers<void>();
+  await page.route("**/dictionaries/en.dic", async (route) => {
+    await gate.promise;
+    await route.continue();
+  });
+  await openDraft(page);
+  await requested;
+  const checking = page.getByText("Checking…", { exact: true });
+  await expect(checking).toBeVisible();
+  // Preferences changed in another tab while the first check was waiting.
+  const otherTab = await page.context().newPage();
+  await otherTab.goto(`${base}/dictionaries/en.aff`);
+  await otherTab.evaluate(() => {
+    localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
+  });
+  const manual = page.getByRole("button", { name: "Check writing", exact: true });
+  await expect(manual).toBeVisible();
+  await expect(checking).toHaveCount(0);
+  gate.resolve();
+  await manual.click();
+  await expect(page.locator(".grove-writing-status").first()).toContainText(/suggestion/);
+});

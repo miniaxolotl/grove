@@ -114,7 +114,11 @@ export function useWritingProofing(
         setStatus("off");
         return;
       }
-      if (!manual && !current.settings.automatic) return;
+      if (!manual && !current.settings.automatic) {
+        if (!abort.current)
+          setStatus((previous) => previous === "checking" ? "idle" : previous);
+        return;
+      }
       if (!text.trim()) {
         snapshot.current = text;
         ignored.current = [];
@@ -124,14 +128,14 @@ export function useWritingProofing(
       }
       setStatus("checking");
       setNotice("");
+      const controller = new AbortController();
       try {
         abort.current?.abort();
-        const controller = new AbortController();
         abort.current = controller;
         checker.current ??= loadChecker(controller.signal);
         const engine = await checker.current;
         controller.signal.throwIfAborted();
-        if (state.current.doc !== text) return;
+        if (abort.current !== controller || state.current.doc !== text) return;
         const fresh = engine.check(text, state.current.settings);
         const kept = mapIgnoredIssues(snapshot.current, text, ignored.current);
         ignored.current = kept;
@@ -142,6 +146,7 @@ export function useWritingProofing(
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         checker.current = null;
+        if (abort.current !== controller) return;
         setStatus("unavailable");
         setNotice(
           error instanceof Error
@@ -170,8 +175,11 @@ export function useWritingProofing(
     );
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      // This editor may stop waiting, but another consumer can still need
+      // the pending dictionary. Discard this run's results, not the fetch.
+      abort.current = null;
     };
-  }, [doc, active, runCheck]);
+  }, [view, doc, active, settings.automatic, runCheck]);
 
   // Keep decorations in sync with the visible issue set.
   const visible = useMemo(
