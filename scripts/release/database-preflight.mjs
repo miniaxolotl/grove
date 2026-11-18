@@ -55,7 +55,7 @@ export async function preflightDatabases(env, dependencies) {
       }
     } catch {
       throw new Error(
-        `Production ${name} schema preflight failed. Verify connectivity and runtime grants, then have the migration owner apply the admitted source's pending forward migrations before retrying. Migration 033 provides action_usage.units; no migrations were run by this check.`,
+        `Production ${name} schema preflight failed. Verify connectivity and runtime grants, then have the migration owner apply the admitted source's pending forward migrations before retrying. Migration 033 provides action_usage.units; migration 044 provides proofing_consents. No migrations were run by this check.`,
       );
     }
   }

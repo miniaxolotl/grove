@@ -19,7 +19,7 @@ git -C "$root" show "$source_sha:lib/shared/package.json" | node --input-type=co
   if (pkg.dependencies["harper.js"] !== "3.2.0") process.exit(1)'
 git -C "$root" archive --format=tar --prefix=grove/ -o "$work/grove.tar" "$source_sha" -- \
   package.json ':(glob)**/package.json' .npmrc pnpm-lock.yaml pnpm-workspace.yaml \
-  LICENSE tsconfig.json lib packages/browser-extension scripts/build-browser-extension.mjs \
+  LICENSE tsconfig.json lib packages/browser-extension scripts/build-browser-extension.mjs scripts/release/browser-versions.mjs \
   packages/website/public/brand/wordmark-primary.svg packages/website/public/brand-kit/{licenses,fonts} \
   documentation/browser-extension.md
 # Include Harper's Rust sources, dictionary, Cargo.lock, toolchain, wasm-pack
