@@ -191,9 +191,9 @@ edits. [API contracts](server.md#memory-and-notebook-tools) define exact semanti
 
 ## Linked notes and Ask Grove
 
-When notes are available, choose **More → Graph** in Notes or in an open
-notebook. **Back to list** keeps your current notebook and filters. The direct
-`/app/graph` link also works.
+Use **List / Graph** beside **More** in Notes, or beside the note count in an
+open notebook. Switching views keeps your notebook scope, filters and loaded
+notes. The direct `/app/graph` link opens with Graph selected.
 
 The graph explores loaded current notes/notebooks; load earlier pages for broader
 coverage. Ordinary wheel input scrolls the page; Ctrl/Cmd+wheel zooms. Touch users

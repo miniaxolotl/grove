@@ -1,9 +1,10 @@
 # Note and notebook connections
 
-Open **Linked notes** and select a connection, or select an edge in the Notes
-graph. Compact rows show the other note, category and a short reason; notebook
-lists use the same layout. Endpoint lists start with five results and offer
-**More connections**.
+Open **Linked notes** and select a connection, or use **List / Graph** in Notes
+or an open notebook and select an edge. Compact rows show the other note,
+category and a short reason; notebook lists use the same layout. Endpoint lists
+start with five results and offer **More connections**. See the
+[view switch previews](design/screenshots/note-relationships/README.md#list--graph-switch).
 
 The compact **Connection** inspector shows the reason and links to both endpoints.
 Expand **Supporting notes** for current excerpts and notebook coverage. Source

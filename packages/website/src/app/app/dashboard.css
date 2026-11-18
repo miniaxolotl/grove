@@ -689,7 +689,7 @@
   align-items: center;
   margin: 8px 0;
 }
-.library-caption[data-empty]:not(:has(> button)) {
+.library-caption[data-empty]:not(:has(> .library-view-switch)) {
   margin: 0;
 }
 .library-scope {

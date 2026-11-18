@@ -21,11 +21,13 @@ import { SettingsFrame } from "../../src/components/dashboard/settings-frame";
 import { SourceRevision } from "../../src/components/dashboard/source-revision";
 import { BillingPanel } from "../../src/components/dashboard/billing-panel";
 import { AdminPanel } from "../../src/components/dashboard/admin-panel";
+import { WorkspaceOpening } from "../../src/components/dashboard/workspace-opening";
 
 function DashboardFixture() {
   const location = useLocation();
   const [path, search] = location.split("?");
   const query = new URLSearchParams(search);
+  if (query.has("fixtureOpening")) return <WorkspaceOpening path={path} />;
   const content = path.endsWith("/ask") ? (
     <AskGrove />
   ) : path.endsWith("/journal") ? (
