@@ -19,7 +19,8 @@ See [operator prerequisites](deploy.md#identity-and-website).
    If the option is unavailable, check current [developer-mode guidance](https://developers.openai.com/api/docs/guides/developer-mode)
    and your workspace's permissions; do not purchase/change a plan just to follow
    these instructions without checking eligibility.
-2. Name it **Grove**, select **Server URL**, and paste the endpoint above.
+2. Name it **Grove**. For **Server URL**, paste `https://api.usegrove.cloud/mcp`
+   for Grove Cloud, or your own public HTTPS API URL plus `/mcp` for self-hosted Grove.
 3. Select **OAuth**. Under advanced OAuth settings, use **Dynamic Client
    Registration (DCR)**, with the discovered `openid offline_access` scopes.
    Grove's current issuer does not advertise CIMD; do not select it. Review the
@@ -35,7 +36,8 @@ See [operator prerequisites](deploy.md#identity-and-website).
    **Add connector → Add custom connector**. Choose **Web** if asked. Team and
    Enterprise administrators may need to add the connector for their organization
    before members connect their own accounts.
-2. Name it **Grove**, paste the endpoint, and continue.
+2. Name it **Grove**. Paste `https://api.usegrove.cloud/mcp` for Grove Cloud,
+   or your own public HTTPS API URL plus `/mcp` for self-hosted Grove, and continue.
 3. Choose **Sign in now** and **Register automatically** (DCR). No manually copied
    client secret is needed. Add the connector and sign in to Grove.
 4. Approve its Grove access below, return to Claude, retry if necessary, and enable
