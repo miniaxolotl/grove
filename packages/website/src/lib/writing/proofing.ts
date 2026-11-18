@@ -1,8 +1,4 @@
-import {
-  RangeSetBuilder,
-  StateEffect,
-  StateField,
-} from "@codemirror/state";
+import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView } from "@codemirror/view";
 import type { WritingIssue } from "@lib/shared/writing-settings";
 
@@ -45,7 +41,9 @@ function buildDecorations(issues: WritingIssue[]) {
   return builder.finish();
 }
 
-export const writingField = StateField.define<ReturnType<typeof buildDecorations>>({
+export const writingField = StateField.define<
+  ReturnType<typeof buildDecorations>
+>({
   create: () => Decoration.none,
   update(value, transaction) {
     for (const effect of transaction.effects)

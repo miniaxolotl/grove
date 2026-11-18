@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useEnhancedConsent } from '@/lib/writing/enhanced';
-import { dictionaryWordKey, personalWordLimit, writingRules, type WritingRule } from "@lib/shared/writing-settings";
+import { useEnhancedConsent } from "@/lib/writing/enhanced";
+import {
+  dictionaryWordKey,
+  personalWordLimit,
+  writingRules,
+  type WritingRule,
+} from "@lib/shared/writing-settings";
 import {
   loadWritingSettings,
   saveWritingSettings,
@@ -147,7 +152,8 @@ export function WritingPreferences() {
           Writing
         </h2>
         <p className="settings-section-description">
-          Spelling and basic grammar run on this device. Changes apply immediately.
+          Spelling and basic grammar run on this device. Changes apply
+          immediately.
         </p>
       </header>
       <fieldset className="ai-preference-group">
@@ -177,15 +183,42 @@ export function WritingPreferences() {
         />
       </fieldset>
       <fieldset className="ai-preference-group">
-        <legend><h3>Enhanced grammar</h3></legend>
-        <Row id="writing-enhanced" label="Enhanced grammar"
+        <legend>
+          <h3>Enhanced grammar</h3>
+        </legend>
+        <Row
+          id="writing-enhanced"
+          label="Enhanced grammar"
           description="Send only the paragraph you check to Grove’s private grammar service for additional suggestions."
-          checked={enhanced.grant?.enabled ?? false} disabled={!enhanced.grant}
-          onChange={(enabled) => void enhanced.refresh({ enabled, automatic: false })} />
-        {enhanced.grant?.enabled && <Row id="writing-enhanced-auto" label="Automatically check edited paragraphs"
-          description="Send the edited paragraph after a typing pause. Leave off to check only when you ask."
-          checked={enhanced.grant.automatic} onChange={(automatic) => void enhanced.refresh({ enabled: true, automatic })} />}
-        {enhanced.failed && <p role="status">Enhanced settings couldn’t be confirmed. <button type="button" className="text-button" onClick={() => void enhanced.refresh()}>Retry</button></p>}
+          checked={enhanced.grant?.enabled ?? false}
+          disabled={!enhanced.grant}
+          onChange={(enabled) =>
+            void enhanced.refresh({ enabled, automatic: false })
+          }
+        />
+        {enhanced.grant?.enabled && (
+          <Row
+            id="writing-enhanced-auto"
+            label="Automatically check edited paragraphs"
+            description="Send the edited paragraph after a typing pause. Leave off to check only when you ask."
+            checked={enhanced.grant.automatic}
+            onChange={(automatic) =>
+              void enhanced.refresh({ enabled: true, automatic })
+            }
+          />
+        )}
+        {enhanced.failed && (
+          <p role="status">
+            Enhanced settings couldn’t be confirmed.{" "}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void enhanced.refresh()}
+            >
+              Retry
+            </button>
+          </p>
+        )}
       </fieldset>
       <div className="writing-secondary">
         <details className="settings-options">

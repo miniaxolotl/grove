@@ -21,7 +21,9 @@ export function GuestWritingCheck() {
   const checker = useRef<ReturnType<typeof openWritingChecker> | null>(null);
   const revision = useRef(0);
   useEffect(() => {
-    const invalidate = () => { revision.current++; };
+    const invalidate = () => {
+      revision.current++;
+    };
     document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, "true");
     return () => {
       invalidate();
@@ -42,7 +44,10 @@ export function GuestWritingCheck() {
         const request = ++revision.current;
         try {
           checker.current ??= openWritingChecker();
-          const checked = await checker.current.check(text, writingSettingsSchema.parse({}));
+          const checked = await checker.current.check(
+            text,
+            writingSettingsSchema.parse({}),
+          );
           if (request === revision.current) setResult(checked);
         } catch {
           if (request !== revision.current) return;
@@ -110,7 +115,11 @@ function quoteExcerpt(text: string) {
 }
 
 function issueExcerpt(issue: WritingResult["issues"][number], text: string) {
-  if (issue.rule === "spacing" && /^[,.:;!?]$/.test(issue.original) && issue.replacements.some(value => value.endsWith(" "))) {
+  if (
+    issue.rule === "spacing" &&
+    /^[,.:;!?]$/.test(issue.original) &&
+    issue.replacements.some((value) => value.endsWith(" "))
+  ) {
     const next = text.slice(issue.to).match(/^[\p{L}\p{M}]+/u)?.[0];
     if (next) return `Missing space before ${quoteExcerpt(next)}`;
   }

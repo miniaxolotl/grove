@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { EditorView, ViewUpdate } from "@codemirror/view";
 import {
   dictionaryWordKey,
@@ -10,10 +17,14 @@ import {
   type WritingPatch,
   type WritingSettings,
 } from "@lib/shared/writing-settings";
-import { isolateHistory } from '@codemirror/commands';
-import { openWritingChecker } from '@/lib/writing/harper';
-import { useEnhancedConsent } from '@/lib/writing/enhanced';
-import { EditorChecks, type CheckState, type WritingStatus } from '@/lib/writing/editor-checks';
+import { isolateHistory } from "@codemirror/commands";
+import { openWritingChecker } from "@/lib/writing/harper";
+import { useEnhancedConsent } from "@/lib/writing/enhanced";
+import {
+  EditorChecks,
+  type CheckState,
+  type WritingStatus,
+} from "@/lib/writing/editor-checks";
 import {
   loadWritingSettings,
   NATIVE_WRITING_ATTRIBUTE,
@@ -22,72 +33,171 @@ import {
 } from "@/lib/writing/settings";
 import { setWritingIssues } from "@/lib/writing/proofing";
 
-const blank: CheckState = { issues: [], status: 'idle', notice: '', enhancedStatus: '' };
-export function useWritingProofing(view: EditorView | null, { disabled, preview, noteId }: {disabled?:boolean; preview?:boolean; noteId?:string}) {
-  const [settings, setSettings] = useState<WritingSettings>(loadWritingSettings);
+const blank: CheckState = {
+  issues: [],
+  status: "idle",
+  notice: "",
+  enhancedStatus: "",
+};
+export function useWritingProofing(
+  view: EditorView | null,
+  {
+    disabled,
+    preview,
+    noteId,
+  }: { disabled?: boolean; preview?: boolean; noteId?: string },
+) {
+  const [settings, setSettings] =
+    useState<WritingSettings>(loadWritingSettings);
   const [result, setResult] = useState<CheckState>(blank);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
-  const [notice, setNotice] = useState('');
-  const active = !preview && !disabled && settings.enabled && (settings.grammar || settings.spelling);
-  const { grant: consent, request, current } = useEnhancedConsent(!!view && active);
+  const [notice, setNotice] = useState("");
+  const active =
+    !preview &&
+    !disabled &&
+    settings.enabled &&
+    (settings.grammar || settings.spelling);
+  const {
+    grant: consent,
+    request,
+    current,
+  } = useEnhancedConsent(!!view && active);
   const grant = consent?.enabled ? consent : null;
   const worker = useRef<ReturnType<typeof openWritingChecker> | null>(null);
   const controller = useRef<EditorChecks | null>(null);
   const ignored = useRef<WritingIssue[]>([]);
-  useLayoutEffect(() => { ignored.current = []; return () => { worker.current?.dispose(); worker.current = null; }; }, [view, noteId]);
+  useLayoutEffect(() => {
+    ignored.current = [];
+    return () => {
+      worker.current?.dispose();
+      worker.current = null;
+    };
+  }, [view, noteId]);
   useLayoutEffect(() => {
     if (!active || !view) return;
-    const checks = new EditorChecks(view, settings, {grant, request, current}, worker, ignored, setResult);
+    const checks = new EditorChecks(
+      view,
+      settings,
+      { grant, request, current },
+      worker,
+      ignored,
+      setResult,
+    );
     controller.current = checks;
-    return () => { checks.stop(); controller.current = null; };
+    return () => {
+      checks.stop();
+      controller.current = null;
+    };
   }, [active, view, settings, grant, request, current, noteId]);
-  useEffect(() => subscribeWritingSettings(() => setSettings(loadWritingSettings())), []);
+  useEffect(
+    () => subscribeWritingSettings(() => setSettings(loadWritingSettings())),
+    [],
+  );
   useEffect(() => {
     if (!view) return;
     // Preserve first-party ownership even when the writer opts out.
-    document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, 'true');
-    const previous = view.contentDOM.getAttribute('spellcheck');
-    view.contentDOM.setAttribute('spellcheck', active ? 'false' : 'true');
+    document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, "true");
+    const previous = view.contentDOM.getAttribute("spellcheck");
+    view.contentDOM.setAttribute("spellcheck", active ? "false" : "true");
     return () => {
       document.documentElement.removeAttribute(NATIVE_WRITING_ATTRIBUTE);
-      if (previous === null) view.contentDOM.removeAttribute('spellcheck');
-      else view.contentDOM.setAttribute('spellcheck', previous);
+      if (previous === null) view.contentDOM.removeAttribute("spellcheck");
+      else view.contentDOM.setAttribute("spellcheck", previous);
     };
   }, [view, active]);
   const issues = active ? result.issues : blank.issues;
-  const visible = useMemo(() => settings.highlights ? issues : [], [issues, settings.highlights]);
-  useEffect(() => { if (view) view.dispatch({ effects: setWritingIssues.of(visible) }); }, [view, visible]);
+  const visible = useMemo(
+    () => (settings.highlights ? issues : []),
+    [issues, settings.highlights],
+  );
+  useEffect(() => {
+    if (view) view.dispatch({ effects: setWritingIssues.of(visible) });
+  }, [view, visible]);
   useEffect(() => {
     if (!view || !active) return;
     const click = (event: MouseEvent) => {
       if (!event.isTrusted || !view.state.selection.main.empty) return;
-      const pos = view.posAtCoords({x: event.clientX, y: event.clientY});
-      const hit = issues.find(i => pos !== null && i.from <= pos && pos <= i.to);
-      if (hit) { setSelectedId(hit.id); setListOpen(false); setNotice(''); }
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      const hit = issues.find(
+        (i) => pos !== null && i.from <= pos && pos <= i.to,
+      );
+      if (hit) {
+        setSelectedId(hit.id);
+        setListOpen(false);
+        setNotice("");
+      }
     };
-    const key = (event: KeyboardEvent) => { if (event.isTrusted && event.altKey && event.key === 'Enter') { event.preventDefault(); setListOpen(true); } };
-    view.dom.addEventListener('click',click); view.dom.addEventListener('keydown',key);
-    return () => { view.dom.removeEventListener('click',click); view.dom.removeEventListener('keydown',key); };
+    const key = (event: KeyboardEvent) => {
+      if (event.isTrusted && event.altKey && event.key === "Enter") {
+        event.preventDefault();
+        setListOpen(true);
+      }
+    };
+    view.dom.addEventListener("click", click);
+    view.dom.addEventListener("keydown", key);
+    return () => {
+      view.dom.removeEventListener("click", click);
+      view.dom.removeEventListener("keydown", key);
+    };
   }, [view, issues, active]);
-  const selected = issues.find(i => i.id === selectedId) ?? null;
+  const selected = issues.find((i) => i.id === selectedId) ?? null;
   const applyReplacement = (issue: WritingIssue, replacement: string) => {
-    if (!view || !controller.current?.canApply(issue,replacement)) { setNotice('Writing changed. Check again before applying.'); return false; }
-    view.dispatch({ changes:{ from:issue.from, to:issue.to, insert:replacement }, selection:{ anchor:issue.from+replacement.length }, annotations:isolateHistory.of('full'), userEvent:'input.proofing' });
-    view.focus(); setSelectedId(null); return true;
+    if (!view || !controller.current?.canApply(issue, replacement)) {
+      setNotice("Writing changed. Check again before applying.");
+      return false;
+    }
+    view.dispatch({
+      changes: { from: issue.from, to: issue.to, insert: replacement },
+      selection: { anchor: issue.from + replacement.length },
+      annotations: isolateHistory.of("full"),
+      userEvent: "input.proofing",
+    });
+    view.focus();
+    setSelectedId(null);
+    return true;
   };
-  const updateSettings = (patch: WritingPatch) => setSettings(saveWritingSettings(patch));
+  const updateSettings = (patch: WritingPatch) =>
+    setSettings(saveWritingSettings(patch));
   const addWord = (word: string) => {
-    const {words} = loadWritingSettings();
-    if (words.some(w => dictionaryWordKey(w) === dictionaryWordKey(word))) return;
-    if (words.length >= personalWordLimit) { setNotice('Dictionary full. Remove a word in Writing settings first.'); return; }
-    updateSettings({words:[...words,word]}); setSelectedId(null);
+    const { words } = loadWritingSettings();
+    if (words.some((w) => dictionaryWordKey(w) === dictionaryWordKey(word)))
+      return;
+    if (words.length >= personalWordLimit) {
+      setNotice("Dictionary full. Remove a word in Writing settings first.");
+      return;
+    }
+    updateSettings({ words: [...words, word] });
+    setSelectedId(null);
   };
-  const onUpdate = useCallback((update:ViewUpdate) => { controller.current?.change(update); if(update.docChanged) setSelectedId(null); }, []);
-  return { settings, updateSettings, selected, selectIssue:setSelectedId, issues, visible, alternatives:selected?.replacements ?? [], applyReplacement,
-    ignoreIssue:(issue:WritingIssue) => { controller.current?.ignore(issue); setSelectedId(null); }, addWord,
-    checkNow:() => controller.current?.checkLocal(), checkEnhanced:() => controller.current?.manual(), enhanced:grant?.enabled, enhancedStatus:result.enhancedStatus,
-    listOpen, setListOpen, status:active ? result.status : 'off' as const, notice:notice || result.notice, onUpdate };
+  const onUpdate = useCallback((update: ViewUpdate) => {
+    controller.current?.change(update);
+    if (update.docChanged) setSelectedId(null);
+  }, []);
+  return {
+    settings,
+    updateSettings,
+    selected,
+    selectIssue: setSelectedId,
+    issues,
+    visible,
+    alternatives: selected?.replacements ?? [],
+    applyReplacement,
+    ignoreIssue: (issue: WritingIssue) => {
+      controller.current?.ignore(issue);
+      setSelectedId(null);
+    },
+    addWord,
+    checkNow: () => controller.current?.checkLocal(),
+    checkEnhanced: () => controller.current?.manual(),
+    enhanced: grant?.enabled,
+    enhancedStatus: result.enhancedStatus,
+    listOpen,
+    setListOpen,
+    status: active ? result.status : ("off" as const),
+    notice: notice || result.notice,
+    onUpdate,
+  };
 }
 
 export function writingCategoryLabel(rule: WritingIssue["rule"]): string {
@@ -166,7 +276,12 @@ export function WritingIssueCard({
     >
       <header>
         <strong>{writingCategoryLabel(issue.rule)}</strong>
-        <button type="button" className="grove-writing-close" onClick={() => onClose(true)} aria-label="Close suggestion">
+        <button
+          type="button"
+          className="grove-writing-close"
+          onClick={() => onClose(true)}
+          aria-label="Close suggestion"
+        >
           ×
         </button>
       </header>
@@ -185,7 +300,13 @@ export function WritingIssueCard({
           ))}
         </div>
       ) : (
-        <p className="grove-writing-original">“{issue.rule === "repetition" ? issue.original.trimStart() : issue.original}”</p>
+        <p className="grove-writing-original">
+          “
+          {issue.rule === "repetition"
+            ? issue.original.trimStart()
+            : issue.original}
+          ”
+        </p>
       )}
       {notice ? (
         <p className="grove-writing-notice" role="alert">
