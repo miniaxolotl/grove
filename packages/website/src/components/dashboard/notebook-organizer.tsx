@@ -26,10 +26,17 @@ function OrganizerContent() {
   const list = useRef<HTMLDivElement>(null);
   const moveButton = useRef<HTMLButtonElement>(null);
   const selectionTitle = useRef<HTMLHeadingElement>(null);
+  const dialogTitle = useRef<HTMLHeadingElement>(null);
   const wasChoosing = useRef(false);
   useEffect(() => {
-    if (notebooks.choosingDestination) wasChoosing.current = true;
-    else if (wasChoosing.current && !notebooks.organizationBusy) {
+    if (notebooks.choosingDestination && !wasChoosing.current) {
+      dialogTitle.current?.focus({ preventScroll: true });
+      wasChoosing.current = true;
+    } else if (
+      !notebooks.choosingDestination &&
+      wasChoosing.current &&
+      !notebooks.organizationBusy
+    ) {
       const target = moveButton.current?.disabled
         ? selectionTitle.current
         : moveButton.current;
@@ -51,6 +58,13 @@ function OrganizerContent() {
   const matches = notebooks.projects.filter((p) =>
     p.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   ).length;
+  function place(placement: Parameters<typeof notebooks.organize>[1]) {
+    if (!project || locked) return;
+    // The pressed shortcut can disappear at the new boundary. Keep keyboard
+    // focus in this selection while the optimistic order and receipt settle.
+    selectionTitle.current?.focus({ preventScroll: true });
+    void notebooks.organize(project, placement);
+  }
   useEffect(() => {
     const element = list.current;
     if (!element) return;
@@ -71,6 +85,8 @@ function OrganizerContent() {
     return () => observer.disconnect();
   }, [
     project?.id,
+    project?.parentId,
+    index,
     query,
     notebooks.choosingDestination,
     notebooks.layoutReview,
@@ -86,7 +102,7 @@ function OrganizerContent() {
       busy={notebooks.organizationBusy}
       variant="inspector"
       header={
-        <h2>
+        <h2 ref={dialogTitle} tabIndex={-1} data-autofocus>
           {notebooks.choosingDestination && project
             ? "Move notebook"
             : "Organize notebooks"}
@@ -98,100 +114,108 @@ function OrganizerContent() {
           <NotebookMove
             key={`${project.id}:${notebooks.layoutReview}`}
             project={project}
+            focusSearch={false}
             cancel={() => notebooks.setChoosingDestination(false)}
             done={() => notebooks.setChoosingDestination(false)}
           />
         ) : (
-          <>
-            <div className="notebook-organizer-body">
-              <div className="notebook-organizer-browser">
-                <SearchField
-                  label="Find notebook to organize"
-                  value={query}
-                  onChange={setQuery}
-                  placeholder="Find a notebook…"
-                  disabled={notebooks.organizationBusy}
-                />
+          <div className="notebook-organizer-body">
+            <div className="notebook-organizer-browser">
+              <SearchField
+                label="Find notebook to organize"
+                value={query}
+                onChange={setQuery}
+                placeholder="Find a notebook…"
+                disabled={notebooks.organizationBusy}
+              />
+              {(notebooks.loading || !!query.trim()) && (
                 <p className="notebook-organizer-caption" role="status">
                   {notebooks.loading
                     ? "Loading notebooks…"
-                    : query.trim()
-                      ? `${matches} ${matches === 1 ? "match" : "matches"}`
-                      : `${notebooks.projects.length} notebooks in saved order`}
+                    : `${matches} ${matches === 1 ? "match" : "matches"}`}
                 </p>
-                <div
-                  ref={list}
-                  className="notebook-organizer-list"
-                  role="region"
-                  aria-label="Notebooks to organize"
-                >
-                  <NotebookTree
-                    projects={notebooks.projects}
-                    query={query}
-                    defaultExpanded
-                    draggable={false}
-                    selectedId={project?.id}
-                    renderItem={(p) => (
+              )}
+              <div
+                ref={list}
+                className="notebook-organizer-list"
+                role="region"
+                aria-label="Notebooks to organize"
+              >
+                <NotebookTree
+                  projects={notebooks.projects}
+                  query={query}
+                  defaultExpanded
+                  draggable={false}
+                  selectedId={project?.id}
+                  renderItem={(p) => (
+                    <button
+                      className="notebook-organizer-choice"
+                      type="button"
+                      aria-pressed={p.id === project?.id}
+                      disabled={notebooks.organizationBusy}
+                      onClick={() => notebooks.openOrganizer(p.id)}
+                    >
+                      <span>{p.name}</span>
+                      {p.id === project?.id && (
+                        <Check size={16} aria-hidden="true" />
+                      )}
+                    </button>
+                  )}
+                />
+                {!notebooks.loading && !notebooks.error && !matches && (
+                  <div className="notebook-organizer-empty">
+                    <p>
+                      {query.trim()
+                        ? "No notebooks match your search."
+                        : "No notebooks to organize yet."}
+                    </p>
+                    {query.trim() && (
                       <button
-                        className="notebook-organizer-choice"
+                        className="text-button"
                         type="button"
-                        aria-pressed={p.id === project?.id}
-                        disabled={notebooks.organizationBusy}
-                        onClick={() => notebooks.openOrganizer(p.id)}
+                        onClick={() => setQuery("")}
                       >
-                        <span>{p.name}</span>
-                        {p.id === project?.id && (
-                          <Check size={16} aria-hidden="true" />
-                        )}
+                        Clear search
                       </button>
                     )}
-                  />
-                  {!notebooks.loading && !notebooks.error && !matches && (
-                    <div className="notebook-organizer-empty">
-                      <p>
-                        {query.trim()
-                          ? "No notebooks match your search."
-                          : "No notebooks to organize yet."}
-                      </p>
-                      {query.trim() && (
-                        <button
-                          className="text-button"
-                          type="button"
-                          onClick={() => setQuery("")}
-                        >
-                          Clear search
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-              {project ? (
-                <section
-                  className="notebook-organization-controls"
-                  aria-label={`Organize ${project.name}`}
-                >
-                  <h3 ref={selectionTitle} tabIndex={-1}>
-                    {project.name}
-                  </h3>
-                  <p>
-                    In{" "}
-                    {parent
-                      ? notebookPath(notebooks.projects, parent.id)
-                          .map((p) => p.name)
-                          .join(" / ")
-                      : "Top level"}
-                  </p>
-                  <p className="notebook-sibling-position">
-                    Position {index + 1} of {siblings.length}
-                  </p>
-                  <div className="notebook-position-controls">
+            </div>
+            {project ? (
+              <section
+                className="notebook-organization-controls"
+                aria-label={`Organize ${project.name}`}
+              >
+                <h3 ref={selectionTitle} tabIndex={-1}>
+                  {project.name}
+                </h3>
+                <p>
+                  {parent
+                    ? `In ${notebookPath(notebooks.projects, parent.id)
+                        .map((p) => p.name)
+                        .join(" / ")}`
+                    : "Top level"}
+                  {siblings.length > 1 &&
+                    ` · ${index + 1} of ${siblings.length}`}
+                </p>
+                <div className="notebook-placement-actions">
+                  <button
+                    ref={moveButton}
+                    type="button"
+                    className="app-button"
+                    disabled={locked}
+                    onClick={() => notebooks.setChoosingDestination(true)}
+                  >
+                    <FolderInput size={16} /> Move to…
+                  </button>
+                  {!query.trim() && index > 0 && (
                     <button
                       type="button"
                       className="app-button secondary"
-                      disabled={locked || !!query.trim() || index <= 0}
+                      disabled={locked}
                       onClick={() =>
-                        void notebooks.organize(project, {
+                        place({
                           parentId: project.parentId ?? null,
                           beforeId: siblings[index - 1].id,
                         })
@@ -200,57 +224,32 @@ function OrganizerContent() {
                       <ArrowUp size={16} />
                       Move up
                     </button>
-                    <button
-                      type="button"
-                      className="app-button secondary"
-                      disabled={
-                        locked ||
-                        !!query.trim() ||
-                        index < 0 ||
-                        index >= siblings.length - 1
-                      }
-                      onClick={() =>
-                        void notebooks.organize(project, {
-                          parentId: project.parentId ?? null,
-                          afterId: siblings[index + 1].id,
-                        })
-                      }
-                    >
-                      <ArrowDown size={16} />
-                      Move down
-                    </button>
-                  </div>
-                  {!!query.trim() && (
-                    <p className="notebook-reorder-help">
-                      <button
-                        className="text-button"
-                        type="button"
-                        disabled={notebooks.organizationBusy}
-                        onClick={() => setQuery("")}
-                      >
-                        Clear search
-                      </button>{" "}
-                      to rearrange the full sibling group.
-                    </p>
                   )}
-                  <div className="notebook-location-controls">
-                    <button
-                      ref={moveButton}
-                      type="button"
-                      className="app-button"
-                      disabled={locked}
-                      onClick={() => notebooks.setChoosingDestination(true)}
-                    >
-                      <FolderInput size={16} />
-                      Move to…
-                    </button>
+                  {!query.trim() &&
+                    index >= 0 &&
+                    index < siblings.length - 1 && (
+                      <button
+                        type="button"
+                        className="app-button secondary"
+                        disabled={locked}
+                        onClick={() =>
+                          place({
+                            parentId: project.parentId ?? null,
+                            afterId: siblings[index + 1].id,
+                          })
+                        }
+                      >
+                        <ArrowDown size={16} />
+                        Move down
+                      </button>
+                    )}
+                  {parent && (
                     <button
                       type="button"
                       className="app-button secondary"
-                      disabled={locked || !parent}
+                      disabled={locked}
                       onClick={() =>
-                        parent &&
-                        void notebooks.organize(project, {
+                        place({
                           parentId: parent.parentId ?? null,
                           afterId: parent.id,
                         })
@@ -259,48 +258,23 @@ function OrganizerContent() {
                       <CornerUpLeft size={16} />
                       Move out
                     </button>
-                  </div>
-                  <p className="notebook-organizer-intro">
-                    Move to another notebook or choose an exact position.
-                    Sub-notebooks move with it.
-                  </p>
-                </section>
-              ) : (
-                <div className="notebook-organizer-empty notebook-organizer-prompt">
-                  <FolderInput size={24} aria-hidden="true" />
-                  <h3>
-                    {notebooks.organizing
-                      ? "Notebook unavailable"
-                      : "Choose a notebook"}
-                  </h3>
-                  <p>
-                    {notebooks.organizing
-                      ? "Choose another notebook from the current list."
-                      : "Select a notebook to move, nest or rearrange it."}
-                  </p>
+                  )}
                 </div>
-              )}
-              {notebooks.error && (
-                <p role="alert">
-                  {notebooks.error}{" "}
-                  <button type="button" onClick={notebooks.reload}>
-                    Retry notebooks
-                  </button>
-                </p>
-              )}
-            </div>
-            <div className="notebook-organizer-done">
-              <p>Changes save as you go.</p>
-              <button
-                className="app-button"
-                type="button"
-                disabled={notebooks.organizationBusy}
-                onClick={notebooks.closeOrganizer}
-              >
-                Done
-              </button>
-            </div>
-          </>
+              </section>
+            ) : notebooks.organizing && !notebooks.loading ? (
+              <p role="status">
+                Notebook unavailable. Choose another notebook.
+              </p>
+            ) : null}
+            {notebooks.error && (
+              <p role="alert">
+                {notebooks.error}{" "}
+                <button type="button" onClick={notebooks.reload}>
+                  Retry notebooks
+                </button>
+              </p>
+            )}
+          </div>
         )}
       </div>
     </Dialog>

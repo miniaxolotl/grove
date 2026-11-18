@@ -9,7 +9,14 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Plus, Inbox, Folder, FolderCog, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Inbox,
+  Folder,
+  FolderCog,
+  ListTree,
+  ChevronDown,
+} from "lucide-react";
 import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
@@ -174,13 +181,6 @@ export function NotebookExplorer() {
               <span className="sidebar-count">{projects.length}</span>
             ) : null}
           </span>
-          <button
-            type="button"
-            className="text-button notebook-organize-entry"
-            onClick={() => openOrganizer()}
-          >
-            Organize
-          </button>
           <Link
             href="/app/projects"
             className="app-icon notebook-manage"
@@ -197,6 +197,14 @@ export function NotebookExplorer() {
           </IconButton>
         </div>
         <div id={bodyId} className="notebook-explorer-body">
+          <button
+            type="button"
+            className="notebook-organize-entry"
+            aria-haspopup="dialog"
+            onClick={() => openOrganizer(currentNotebook ?? undefined)}
+          >
+            <ListTree size={16} aria-hidden="true" /> Organize
+          </button>
           <Link
             ref={setNodeRef}
             className="notebook-personal"

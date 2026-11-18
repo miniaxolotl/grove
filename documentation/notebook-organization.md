@@ -7,18 +7,22 @@ that the owner's reported physical-phone gesture failures are repaired.
 
 ## Organize in the website
 
-- Open **Organize** from the notebook manager or explorer, or **Rearrange notebook**
-  from a notebook's actions menu. Select a notebook to **Move up**, **Move down**,
-  **Move to…** or **Move out**. Move to opens the destination/position chooser;
-  Move out places it after its former parent. The selection shows its current
-  location and sibling position. Changes save immediately; Done closes Organize.
+- Open **Organize** below the sidebar’s Notebooks heading. It selects the current
+  notebook when there is one; otherwise choose from the tree. The manager’s
+  **Organize** button and a row’s **Rearrange notebook** action also open it.
+  Focus starts on the dialog title, so typing is optional. Close or Escape
+  returns to the opener. Changes save immediately.
+- The selection shows its location and, when it has siblings, its position.
+  **Move up** and **Move down** appear only in available directions. **Move out**
+  places a nested notebook after its former parent. **Move to…** opens the
+  destination and exact position chooser.
 - **Move notebook** in any notebook menu opens the same searchable destination
   chooser. Select Top level or another notebook, then choose At the end or an
   explicit before/after sibling position. The source and its descendants are not
   offered as destinations. Search matches full ancestor paths, displayed below
   destination names. A preview retains the chosen destination and position even
   when search hides its row. Cancel returns focus to Move to in Organize.
-- Filtered Organize lists disable adjacent Move up/down until the search is cleared;
+- Filtered Organize lists omit adjacent Move up/down until the search is cleared;
   a filtered list is not the complete sibling group. Archived notebooks remain in
   their separate list with Restore/Delete, not ordering controls.
 - The manager has one row menu, one count and a full-width search. Explorer,
@@ -36,8 +40,8 @@ that the owner's reported physical-phone gesture failures are repaired.
   Release on the highlighted destination to move. Releasing outside it or over
   **Drop here to cancel** cancels without a move. Covered rows cannot receive drops.
 
-The desktop organizer separates the notebook browser from the selected controls.
-Phones stack them, with Done outside the scrolling content. Move keeps its action
+The organizer keeps the tree above the selection’s actions at both sizes.
+Move keeps its action
 footer reachable while destinations and supporting information scroll. Empty
 searches offer Clear search; reopening Organize starts with an unfiltered list.
 
