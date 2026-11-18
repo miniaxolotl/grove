@@ -5167,6 +5167,57 @@ test("notebook Graph preserves scope, shared filters and keyboard focus", async 
   await expect(graph).toBeVisible();
 });
 
+test("Graph exposes failed connection reads and keeps list selection during retry", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  let failing = true;
+  await page.route("**/api/grove/relationships/search", (route) =>
+    failing
+      ? route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: { code: "unavailable", message: "Connections unavailable" },
+          },
+        })
+      : route.fallback(),
+  );
+  await page.goto(`${base}/app`);
+  const checked = page.getByRole("checkbox", {
+    name: "Select Review preferences",
+  });
+  await checked.check();
+  await openGraph(page);
+  const graph = page.locator(".memory-graph");
+  await expect(graph.locator(".react-flow__node")).toHaveCount(2);
+  await expect(graph.getByRole("alert")).toContainText(
+    "Connections unavailable",
+  );
+  const retry = graph.getByRole("button", { name: "Try again" });
+  await expect(retry).toBeVisible();
+  failing = false;
+  await retry.click();
+  await expect(graph.locator(".react-flow__edge")).toHaveCount(1);
+  await showList(page).press("Enter");
+  await expect(checked).toBeChecked();
+  await expect(showList(page)).toBeFocused();
+});
+
+test("deleting an open graph note returns keyboard focus to its surviving neighbor", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  await page.goto(`${base}/app/graph`);
+  await page.locator(`.react-flow__node[data-id="${note.id}"]`).press("Enter");
+  await openNoteAction(page, "Delete note…");
+  await page.getByRole("button", { name: "Delete this note" }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await expect(
+    page.locator(`.react-flow__node[data-id="${handoff.id}"]`),
+  ).toBeFocused();
+});
+
 test("the direct Graph route still opens with an obvious return to Notes", async ({
   page,
 }) => {
@@ -5186,7 +5237,14 @@ test("the direct Graph route still opens with an obvious return to Notes", async
     page.getByRole("status").filter({ hasText: "Opening graph…" }),
   ).toBeVisible();
   await expect(showList(page)).toBeInViewport();
+  await showList(page).press("Enter");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Opening your notes…" }),
+  ).toBeVisible();
   release.resolve();
+  await expect(page.locator(".memory-open")).toHaveCount(1);
+  await expect(showList(page)).toBeFocused();
+  await showGraph(page).press("Enter");
   await expect(page.locator(".react-flow__node")).toHaveCount(1);
   await showList(page).press("Enter");
   await expect(

@@ -417,12 +417,13 @@ export function MemoryLibrary({
     const target =
       (id
         ? document.querySelector<HTMLElement>(
-            `[data-note-id="${id}"] .memory-open`,
+            `[data-note-id="${id}"] .memory-open, .library-main .react-flow__node[data-id="${id}"]`,
           )
         : null) ??
       document.querySelector<HTMLElement>(
-        ".library-main .memory-open, .library-main .app-empty h2",
-      );
+        ".library-main .memory-open, .library-main .react-flow__node, .library-main .app-empty h2",
+      ) ??
+      summary.current;
     if (!target) return;
     const frame = requestAnimationFrame(() => {
       target.tabIndex = target.tabIndex < 0 ? -1 : target.tabIndex;
