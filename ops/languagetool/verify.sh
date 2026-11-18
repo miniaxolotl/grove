@@ -43,6 +43,9 @@ known() {
     node -e 'const r=JSON.parse(require("fs").readFileSync(0)); if(r.software.version!=="6.8" || !r.matches.some(m=>m.rule.id==="EN_A_VS_AN" && m.replacements[0].value==="an"))process.exit(1)'
 }
 known
+docker run --rm -i --read-only --log-driver none --network "${project}_proofing" \
+  python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e \
+  python -I - <ops/languagetool/verify-serial.py
 docker exec -i "$id" bash -eu <<'SH'
 url=http://localhost:8081/v2/check
 code() { curl -sS --max-time 8 -o /dev/null -w '%{http_code}' --data "$1" "$url"; }
@@ -54,8 +57,8 @@ code() { curl -sS --max-time 8 -o /dev/null -w '%{http_code}' --data "$1" "$url"
 exec 3<>/dev/tcp/127.0.0.1/8081
 printf 'POST /v2/check HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 200\r\n\r\ntext=GroveSyntheticMarker' >&3
 sleep .3
-result=$(curl -s --max-time 2 -o /dev/null -w '%{http_code}' --data 'language=en-US&text=GroveSyntheticMarker' "$url") || rc=$?
-[[ $result = 503 || ($result = 000 && ${rc:-0} != 28) ]]
+[[ $(curl -fsS --max-time 2 -o /dev/null -w '%{http_code}' http://localhost:8081/ready) = 200 ]]
+[[ $(code 'language=en-US&text=GroveSyntheticMarker') = 503 ]]
 exec 3>&-
 SH
 known
