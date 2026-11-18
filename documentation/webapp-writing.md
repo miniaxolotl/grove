@@ -13,6 +13,8 @@ after a typing pause, and saving never waits for them.
   shows the category, an explanation and up to three replacements, then
   **Ignore**, **Add word** (spelling only) and **All issues**.
 - One click applies a replacement to that exact range only, with normal Undo.
+  You can correct a word in Markdown image alt text without changing the image
+  link. A suggestion whose replacement would cross masked inline code is omitted.
   If the text changed underneath, the card says so and asks for a fresh check
   instead of editing stale text. The quiet status in the editor footer shows
   the current count, or **Retry writing checks** when the dictionary could not
