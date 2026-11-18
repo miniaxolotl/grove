@@ -47,6 +47,7 @@ export function NoteListContinuation({
   const refresh = repeated || stale;
   const canLoad = hasNextPage && !isFetching && !paused;
   const auto = canLoad && !query.isError && !repeated && !stalled;
+  const supportsObserver = typeof IntersectionObserver !== "undefined";
 
   function load() {
     if (!canLoad || request.current) return false;
@@ -67,7 +68,7 @@ export function NoteListContinuation({
   });
   useLayoutEffect(() => {
     const target = edge.current;
-    if (!auto || !target || typeof IntersectionObserver === "undefined") return;
+    if (!auto || !target || !supportsObserver) return;
     let observing = true;
     // The viewport root also clips through nested overflow containers, including
     // the notebook rail and its independently scrolling explorer.
@@ -85,11 +86,20 @@ export function NoteListContinuation({
       { threshold: 0.5 },
     );
     observer.observe(target);
+    // A focused manual control defers the append. On blur the edge may still
+    // be visible, so there won't necessarily be another threshold crossing.
+    const manual = button.current;
+    const recheck = () => {
+      observer.unobserve(target);
+      observer.observe(target);
+    };
+    manual?.addEventListener("blur", recheck);
     return () => {
       observing = false;
       observer.disconnect();
+      manual?.removeEventListener("blur", recheck);
     };
-  }, [auto, cursor]);
+  }, [auto, cursor, supportsObserver]);
 
   const exceptional = failed || repeated || stalled;
   if (!hasNextPage && !isFetchingNextPage) return null;
@@ -112,7 +122,7 @@ export function NoteListContinuation({
       {hasNextPage && !isFetchingNextPage && !(isFetching && exceptional) && (
         <button
           type="button"
-          className={`text-button${exceptional ? "" : " note-continuation-fallback"}`}
+          className={`text-button${exceptional || !supportsObserver ? "" : " note-continuation-fallback"}`}
           ref={button}
           aria-disabled={!canLoad}
           onClick={(event) => {
@@ -122,7 +132,7 @@ export function NoteListContinuation({
             const previous = event.currentTarget
               .closest("ul")
               ?.querySelectorAll<HTMLElement>(
-                ":scope > li[data-note-id] [data-note-page-link]",
+                ":scope > li [data-note-page-link]",
               );
             previous?.[previous.length - 1]?.focus({ preventScroll: true });
           }}

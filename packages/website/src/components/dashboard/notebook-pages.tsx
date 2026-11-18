@@ -23,7 +23,6 @@ export function NotebookPages({ projectId }: { projectId: string }) {
       {notes.map((note) => (
         <li
           key={note.id}
-          data-note-id={note.id}
           data-dragging={
             (active?.kind === "notes" &&
               active.items.some((item) => item.id === note.id)) ||

@@ -198,7 +198,7 @@ for (const width of [1440, 390]) {
   });
 }
 
-test("keyboard continuation is exposed to AT and reveals only on focus", async ({
+test("without edge observation, continuation is visible and keyboard accessible", async ({
   page,
 }, info) => {
   await page.addInitScript(() =>
@@ -220,7 +220,7 @@ test("keyboard continuation is exposed to AT and reveals only on focus", async (
   await page.goto(`${base}/app`);
   const list = page.locator(".library-list");
   const more = list.getByRole("button", { name: "Load more notes" });
-  await expect(more).toHaveCSS("clip-path", "inset(50%)");
+  await expect(more).toHaveCSS("clip-path", "none");
   await expect(list.ariaSnapshot()).resolves.toContain(
     'button "Load more notes"',
   );
@@ -241,6 +241,80 @@ test("keyboard continuation is exposed to AT and reveals only on focus", async (
   await expect(list.locator(".memory-open").first()).toBeFocused();
 });
 
+for (const pause of ["continuation focus", "a drag"]) {
+  test(`ending ${pause} resumes observation at a visible edge`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    const items = Array.from({ length: 20 }, (_, i) => fieldNote(i + 1));
+    await page.route("**/api/grove/memories/search", async (route) => {
+      const { cursor } = route.request().postDataJSON();
+      await route.fulfill({
+        json: {
+          success: true,
+          data: {
+            items: cursor ? [fieldNote(21)] : items,
+            nextCursor: cursor ? null : "next",
+          },
+        },
+      });
+    });
+    await page.goto(`${base}/app`);
+    const list = page.locator(".library-list");
+    const rows = list.locator(".memory-open");
+    const handle = list.locator(".drag-handle").nth(19);
+    if (pause === "a drag") {
+      await handle.evaluate((node) =>
+        (node as HTMLElement).focus({ preventScroll: true }),
+      );
+      await page.keyboard.press("Space", { delay: 50 });
+      await expect(page.locator(".memory-drag-preview")).toBeVisible();
+      await edge(list).scrollIntoViewIfNeeded();
+    } else {
+      await list.getByRole("button", { name: "Load more notes" }).focus();
+    }
+    await expect(edge(list)).toBeInViewport();
+    await paint(page);
+    await expect(rows).toHaveCount(20);
+    if (pause === "a drag") await page.keyboard.press("Escape");
+    else await rows.last().focus();
+    await expect(rows).toHaveCount(21);
+    await expect(pause === "a drag" ? handle : rows.nth(19)).toBeFocused();
+  });
+}
+
+test("keyboard continuation after empty pages keeps a position before incoming notes", async ({
+  page,
+}) => {
+  await fixture(page);
+  const reads: unknown[] = [];
+  await page.route("**/api/grove/memories/search", async (route) => {
+    const { cursor } = route.request().postDataJSON();
+    reads.push(cursor ?? null);
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: cursor === "last" ? [fieldNote(1)] : [],
+          nextCursor: cursor === "last" ? null : cursor ? "last" : "next",
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app`);
+  const list = page.locator(".library-list");
+  const more = list.getByRole("button", { name: "Continue loading notes" });
+  await expect(more).toHaveCSS("clip-path", "none");
+  expect(reads).toEqual([null, "next"]);
+  await more.press("Enter");
+  await expect(list.locator(".memory-open")).toHaveText(title(1));
+  await page.keyboard.press("Tab");
+  await expect(
+    list.getByRole("checkbox", { name: `Select ${title(1)}` }),
+  ).toBeFocused();
+  expect(reads).toEqual([null, "next", "last"]);
+});
+
 for (const repeated of [true, false]) {
   test(`pagination stops automatically when ${repeated ? "a cursor repeats" : "a page adds no new rows"}`, async ({
     page,
@@ -250,13 +324,19 @@ for (const repeated of [true, false]) {
     await page.route("**/api/grove/memories/search", async (route) => {
       const { cursor } = route.request().postDataJSON();
       reads.push(cursor ?? null);
+      const restarted = repeated && !cursor && reads.length > 1;
       await route.fulfill({
         json: {
           success: true,
           data: {
-            items: [fieldNote(cursor === "last" ? 2 : 1)],
-            nextCursor:
-              !cursor || repeated ? "next" : cursor === "next" ? "last" : null,
+            items: [fieldNote(restarted || cursor === "last" ? 2 : 1)],
+            nextCursor: restarted
+              ? null
+              : !cursor || repeated
+                ? "next"
+                : cursor === "next"
+                  ? "last"
+                  : null,
           },
         },
       });
@@ -270,16 +350,52 @@ for (const repeated of [true, false]) {
     await expect(list.locator(".memory-open")).toHaveText([title(1)]);
     await paint(page);
     expect(reads).toEqual([null, "next"]);
-    if (!repeated) {
-      await recover.click();
-      await expect(list.locator(".memory-open")).toHaveText([
-        title(1),
-        title(2),
-      ]);
-      expect(reads).toEqual([null, "next", "last"]);
-    }
+    await recover.click();
+    await expect(list.locator(".memory-open")).toHaveText(
+      repeated ? [title(2)] : [title(1), title(2)],
+    );
+    expect(reads).toEqual([null, "next", repeated ? null : "last"]);
   });
 }
+
+test("sidebar continuation for a shared note keeps keyboard focus and requests in its own list", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(window, "IntersectionObserver", { value: undefined }),
+  );
+  await fixture(page);
+  const first = { ...fieldNote(1), projectId: project.id };
+  const next = { ...fieldNote(2), projectId: project.id };
+  const appends: unknown[] = [];
+  await page.route("**/api/grove/memories/search", async (route) => {
+    const { limit, cursor, projectId } = route.request().postDataJSON();
+    if (cursor) appends.push({ limit, cursor, projectId });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: cursor ? [next] : [first],
+          nextCursor: cursor ? null : limit === 8 ? "rail" : "main",
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app/projects/${project.id}`);
+  const sidebar = page.locator(".notebook-pages");
+  const link = sidebar.getByRole("link", { name: title(1) });
+  await expect(link).toBeVisible();
+  await expect(page.locator(`[data-note-id="${first.id}"]`)).toHaveCount(1);
+  await sidebar.getByRole("button", { name: "Load more notes" }).press("Enter");
+  await expect(sidebar.getByRole("link", { name: title(2) })).toBeVisible();
+  await expect(link).toBeFocused();
+  await expect(page.locator(".library-list .memory-open")).toHaveText([
+    title(1),
+  ]);
+  expect(appends).toEqual([
+    { limit: 8, cursor: "rail", projectId: project.id },
+  ]);
+});
 
 test("the Graph route only requests the next page on demand", async ({
   page,
