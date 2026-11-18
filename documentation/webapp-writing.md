@@ -61,8 +61,9 @@ immediately and stays on this device:
   sign-in.
 
 - Local checks never send keystrokes, prose, dictionary words or results
-  anywhere. The 555 KB dictionary is fetched once from Grove itself on the first
-  eligible edit and cached; no third-party dictionary download exists.
+  anywhere. The first check loads the 555 KB dictionary from Grove. Concurrent
+  checks share that download: starting a newer check does not interrupt it.
+  The dictionary stays cached in memory; a failed download can be retried.
   Spelling and grammar checks are unlimited on every plan.
 - Only English is supported. Code, link destinations, filenames and Markdown
   syntax are never flagged. Ambiguous rules abstain rather than guess.

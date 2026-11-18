@@ -7,10 +7,9 @@ import {
   mapIgnoredIssues,
   type WritingIssue,
   type WritingPatch,
-  type WritingResult,
   type WritingSettings,
 } from "@lib/shared/writing-settings";
-import { loadEnglishDictionary } from "@/lib/writing/dictionary";
+import { loadWritingChecker } from "@/lib/writing/dictionary";
 import {
   loadWritingSettings,
   NATIVE_WRITING_ATTRIBUTE,
@@ -18,20 +17,6 @@ import {
   subscribeWritingSettings,
 } from "@/lib/writing/settings";
 import { setWritingIssues } from "@/lib/writing/proofing";
-
-type Checker = {
-  check: (source: string, settings: WritingSettings) => WritingResult;
-  suggest: (word: string) => string[];
-};
-
-async function loadChecker(signal: AbortSignal): Promise<Checker> {
-  const [{ createEnglishChecker }, dictionary] = await Promise.all([
-    import("@lib/shared/writing-core"),
-    loadEnglishDictionary(signal),
-  ]);
-  signal.throwIfAborted();
-  return createEnglishChecker(dictionary);
-}
 
 export type WritingStatus =
   | "idle"
@@ -57,7 +42,7 @@ export function useWritingProofing(
   const [lookup, setLookup] = useState<{ id: string; words: string[] } | null>(
     null,
   );
-  const checker = useRef<Promise<Checker> | null>(null);
+  const checker = useRef<ReturnType<typeof loadWritingChecker> | null>(null);
   const snapshot = useRef("");
   const ignored = useRef<WritingIssue[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,7 +117,7 @@ export function useWritingProofing(
       try {
         abort.current?.abort();
         abort.current = controller;
-        checker.current ??= loadChecker(controller.signal);
+        checker.current ??= loadWritingChecker();
         const engine = await checker.current;
         controller.signal.throwIfAborted();
         if (abort.current !== controller || state.current.doc !== text) return;

@@ -41,6 +41,28 @@ async function openDraft(page: Page) {
   await expect(page.locator("html[data-grove-native-writing]")).toHaveCount(1);
 }
 
+test("superseding a check during dictionary loading keeps the next check usable", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
+  });
+  const requested = page.waitForRequest("**/dictionaries/en.dic");
+  const gate = Promise.withResolvers<void>();
+  let requests = 0;
+  await page.route("**/dictionaries/en.dic", async (route) => {
+    requests++;
+    await gate.promise;
+    await route.continue();
+  });
+  await openDraft(page);
+  const check = page.getByRole("button", { name: "Check writing", exact: true });
+  await check.click();
+  await requested;
+  await check.click();
+  gate.resolve();
+  await expect(page.locator(".grove-writing-status").first()).toContainText(/suggestion/);
+  expect(requests).toBe(1);
+});
+
 for (const width of [1440, 390]) {
   test.describe(`webapp writing at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });

@@ -213,6 +213,38 @@ test("webapp writing settings preserve explicit opt-outs", async () => {
   assert.equal(typeof settings.subscribeWritingSettings, "function");
 });
 
+test("concurrent web checkers can retry a shared dictionary download", async (t) => {
+  const { loadWritingChecker } =
+    await import("../../packages/website/src/lib/writing/dictionary.ts");
+  let available = false;
+  const requests: string[] = [];
+  t.mock.method(globalThis, "fetch", async (path: string) => {
+    requests.push(path);
+    if (!available) return new Response(null, { status: 503 });
+    return new Response(path.endsWith(".aff") ? "SET UTF-8\n" : "1\nhello\n");
+  });
+  const failed = await Promise.allSettled([
+    loadWritingChecker(),
+    loadWritingChecker(),
+  ]);
+  assert.deepEqual(
+    failed.map((result) => result.status),
+    ["rejected", "rejected"],
+  );
+  available = true;
+  const [guest, editor] = await Promise.all([
+    loadWritingChecker(),
+    loadWritingChecker(),
+  ]);
+  assert.notEqual(guest, editor);
+  assert.deepEqual(requests, [
+    "/dictionaries/en.aff",
+    "/dictionaries/en.dic",
+    "/dictionaries/en.aff",
+    "/dictionaries/en.dic",
+  ]);
+});
+
 test("extension stands down on native webapp surfaces", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(

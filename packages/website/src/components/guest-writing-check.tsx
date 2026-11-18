@@ -6,7 +6,7 @@ import {
   writingSettingsSchema,
   type WritingResult,
 } from "@lib/shared/writing-settings";
-import { loadEnglishDictionary } from "@/lib/writing/dictionary";
+import { loadWritingChecker } from "@/lib/writing/dictionary";
 import { NATIVE_WRITING_ATTRIBUTE } from "@/lib/writing/settings";
 
 export function GuestWritingCheck() {
@@ -18,9 +18,7 @@ export function GuestWritingCheck() {
   const [result, setResult] = useState<WritingResult>();
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
-  const checker = useRef<Promise<
-    ReturnType<typeof import("@lib/shared/writing-core").createEnglishChecker>
-  > | null>(null);
+  const checker = useRef<ReturnType<typeof loadWritingChecker> | null>(null);
   useEffect(() => {
     document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, "true");
     return () =>
@@ -36,12 +34,7 @@ export function GuestWritingCheck() {
         setBusy(true);
         setError(false);
         try {
-          checker.current ??= Promise.all([
-            import("@lib/shared/writing-core"),
-            loadEnglishDictionary(),
-          ]).then(([{ createEnglishChecker }, dictionary]) =>
-            createEnglishChecker(dictionary),
-          );
+          checker.current ??= loadWritingChecker();
           const engine = await checker.current;
           setResult(engine.check(text, writingSettingsSchema.parse({})));
         } catch {
