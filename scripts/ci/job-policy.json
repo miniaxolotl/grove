@@ -13,6 +13,10 @@
       "jobs": ["extension", "contracts", "contracts-quality"]
     },
     {
+      "prefix": "packages/website/public/brand",
+      "jobs": ["extension", "contracts"]
+    },
+    {
       "prefix": "packages/website/",
       "jobs": ["website", "website-quality"]
     },

@@ -100,6 +100,20 @@ test("installable extensions select the extension lane and TypeScript verificati
     },
   );
 });
+test("extension packaging inputs outside the package run browser and artifact checks", () => {
+  const actual = JSON.parse(
+    readFileSync(new URL("./job-policy.json", import.meta.url), "utf8"),
+  );
+  for (const path of [
+    "LICENSE",
+    "packages/website/public/brand/wordmark-primary.svg",
+    "packages/website/public/brand-kit/fonts/space-grotesk-600.woff2",
+    "packages/website/public/brand-kit/licenses/space-grotesk-OFL.txt",
+  ]) {
+    const selected = classify(actual, [path]);
+    assert.ok(selected.extension && selected.contracts, path);
+  }
+});
 test("only admission-gated promotions reuse full independent source validation", () => {
   assert.deepEqual(
     selectEvent(policy, "pull_request", "production", false, ["shared/a"]),
