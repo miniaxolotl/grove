@@ -68,7 +68,7 @@ export function plan(
   effects = {},
 ) {
   const targets = {};
-  assert.equal(candidate.policy, 2);
+  assert.equal(candidate.policy, 3);
   assert.equal(
     candidate.mode,
     "comparison",

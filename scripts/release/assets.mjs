@@ -232,6 +232,14 @@ export async function publishAssets({
   }
 }
 
+export function assertCoordinatedBrowserSource(previous, candidate) {
+  assert(
+    previous.browserVersions === undefined &&
+      candidate.browserVersions === undefined,
+    "Independent browser versions require reservation and last-delivery admission",
+  );
+}
+
 async function main() {
   const context = workflowContext();
   assert.equal(context.repository, repository);
@@ -269,6 +277,21 @@ async function main() {
     sourceSha,
     "Tag must retain admitted source",
   );
+  const ledger = JSON.parse(
+    await readFile(join(root, "scripts/release/impact-receipts.json"), "utf8"),
+  );
+  const prior = ledger.targets.downloads.source;
+  assert.match(prior, /^[0-9a-f]{40}$/);
+  const manifestPath = "packages/browser-extension/package.json";
+  const candidateManifest = JSON.parse(
+    await readFile(join(root, manifestPath), "utf8"),
+  );
+  assertCoordinatedBrowserSource(
+    JSON.parse(git(["show", `${prior}:${manifestPath}`])),
+    candidateManifest,
+  );
+  if (process.argv[2] === "preflight") return;
+  assert.equal(process.argv.length, 2);
   const files = Object.fromEntries(
     await Promise.all(
       [

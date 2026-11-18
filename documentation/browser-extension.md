@@ -28,6 +28,8 @@ If the private extension manifest declares `browserVersions`, its `chrome`, `edg
 version. The source release tag identifies the product in either case. Before changing
 a browser version, check its last GitHub download and published, submitted and reserved
 store versions; a public listing cannot rule out a pending submission.
+The coordinated publisher rejects an independent map during preflight. Local
+builds and CI can exercise it before a protected, reservation-aware download release.
 Changing the website brand assets or root license also runs extension packaging
 and browser checks because these files ship inside the ZIPs.
 Successful source CI also retains these unsigned ZIPs and their report as a
