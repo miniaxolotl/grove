@@ -3723,6 +3723,7 @@ test("keyboard drag cancels safely and moves a memory to a chosen project", asyn
 test("sidebar pages and keyboard notebook nesting share destinations, cancellation and undo", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const state = await fixture(page, [handoff]);
   const parent = {
     ...project,
@@ -3750,6 +3751,14 @@ test("sidebar pages and keyboard notebook nesting share destinations, cancellati
   });
   await handle.focus();
   await page.keyboard.press("Space", { delay: 50 });
+  await expect(handle).toBeFocused();
+  await expect(handle).toHaveCSS("outline-style", "solid");
+  await expect(handle).toHaveCSS("outline-width", "2px");
+  await expect(handle).toHaveCSS("outline-offset", "-2px");
+  await expect(page.locator(".memory-drag-preview")).toHaveCSS(
+    "animation-name",
+    "none",
+  );
   await expect(
     sidebar.locator(`[data-destination="${child.id}"]`),
   ).toHaveAttribute("data-drop-disabled", "true");
@@ -3759,6 +3768,7 @@ test("sidebar pages and keyboard notebook nesting share destinations, cancellati
   ).toHaveAttribute("data-drop-active", "true");
   await page.keyboard.press("Escape");
   await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  await expect(handle).toBeFocused();
   expect(state.projects[0].parentId).toBeNull();
   await handle.focus();
   await page.keyboard.press("Space", { delay: 50 });
@@ -6792,6 +6802,76 @@ test("sidebar note dragging carries a readable preview and marks the whole sourc
     .toBe(project.id);
 });
 
+test("notebook drag distinguishes dropping inside from inserting between siblings", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, [handoff]);
+  state.projects[0].position = 0;
+  const target = {
+    ...project,
+    id: crypto.randomUUID(),
+    name: "Garden",
+    position: 1,
+  };
+  state.projects.push(target);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${base}/app`);
+  const tree = page.getByRole("region", { name: "Your notebooks" });
+  const row = (id: string) => tree.locator(`[data-destination="${id}"]`);
+  const source = row(project.id);
+  const destination = row(target.id);
+  const handle = source.locator(".notebook-drag-handle");
+  const grip = (await handle.boundingBox())!;
+  const sx = grip.x + grip.width / 2;
+  const sy = grip.y + grip.height / 2;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx + 16, sy);
+  const preview = page.locator(".memory-drag-preview");
+  await expect(preview).toHaveText(project.name);
+  await expect(source).toHaveCSS("opacity", "1");
+  await expect(source.locator(".notebook-grip-icon")).toHaveCSS("opacity", "1");
+  await expect(handle).toHaveCSS("outline-style", "none");
+
+  const bounds = (await destination.boundingBox())!;
+  const x = bounds.x + bounds.width * 0.78;
+  const y = bounds.y + bounds.height / 2;
+  await page.mouse.move(x, y, { steps: 6 });
+  await expect(destination).toHaveAttribute("data-drop-active", "true");
+  await expect(
+    destination.locator(".notebook-folder-icon .lucide-folder-input"),
+  ).toBeVisible();
+  await expect(destination).toHaveCSS("outline-style", "none");
+  expect(await destination.boundingBox()).toEqual(bounds);
+  await expect
+    .poll(async () => Math.abs((await preview.boundingBox())!.x - x - 14))
+    .toBeLessThan(2);
+  const clip = { x: 0, y: bounds.y - 90, width: 470, height: 183 };
+  await page.screenshot({
+    clip,
+    path: info.outputPath("notebook-drag-inside.png"),
+  });
+
+  const after = destination
+    .locator("..")
+    .locator(":scope > .notebook-insertion.after");
+  await expect(after).not.toHaveAttribute("data-drop-disabled", "true");
+  const boundary = (await after.boundingBox())!;
+  await page.mouse.move(x, boundary.y + boundary.height / 2);
+  await expect(after).toHaveAttribute("data-drop-active", "true");
+  await expect(destination).not.toHaveAttribute("data-drop-active", "true");
+  expect(await destination.boundingBox()).toEqual(bounds);
+  await page.screenshot({
+    clip,
+    path: info.outputPath("notebook-drag-between.png"),
+  });
+  await page.mouse.up();
+  await expect(page.locator(".workspace-notice")).toContainText("moved");
+  const moves = state.calls.filter(({ path }) => path.endsWith("/organize"));
+  expect(moves).toHaveLength(1);
+  expect(moves[0].body).toMatchObject({ parentId: null, afterId: target.id });
+});
+
 test("touch hold lifts notebooks and notes into drops while quick taps organize", async ({
   page,
   context,
@@ -6823,8 +6903,22 @@ test("touch hold lifts notebooks and notes into drops while quick taps organize"
     });
     // The touch sensor activates after a 220ms deliberate hold; the drop tray
     // with its destination chips only exists once the drag is live.
-    await page.waitForTimeout(320);
-    await expect(page.locator(".memory-drag-preview")).toBeVisible();
+    const preview = page.locator(".memory-drag-preview");
+    await expect(preview).toBeVisible();
+    const expectAboveContact = async (point: { x: number; y: number }) => {
+      await expect
+        .poll(async () => {
+          const { x, y, width, height } = (await preview.boundingBox())!;
+          return Math.max(
+            Math.abs(point.y - y - height - 18),
+            Math.abs(
+              x - Math.max(8, Math.min(point.x - width / 2, 382 - width)),
+            ),
+          );
+        })
+        .toBeLessThan(2);
+    };
+    await expectAboveContact(start);
     const end = center(await destination.boundingBox());
     for (let step = 1; step <= 8; step++) {
       await cdp.send("Input.dispatchTouchEvent", {
@@ -6837,6 +6931,7 @@ test("touch hold lifts notebooks and notes into drops while quick taps organize"
         ],
       });
     }
+    await expectAboveContact(end);
   };
   const release = () =>
     cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });

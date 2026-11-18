@@ -2,8 +2,26 @@
 
 Reviewed Chromium captures from the isolated dashboard fixture, using production
 CSS, local fonts and synthetic notes/notebooks. Touch scenarios use trusted CDP
-events; these are browser-emulated device captures. Refreshed after the 21 October
-2026 screenshot review requesting subtle, nonintrusive, intentional UI.
+events; these are browser-emulated device captures.
+
+## Notebook drag feedback
+
+Captured from the optimized candidate based on `c8de2701`:
+
+- Desktop, 1280 × 800 (470 × 183 crops): [drop inside](notebook-drag-inside.png)
+  uses a softly filled row and a folder-entry icon; [drop between](notebook-drag-between.png)
+  marks the sibling boundary without filling the row. The lifted source keeps its
+  readable label and grip. Neither cue changes the destination's dimensions.
+- Phone, 390 × 844: [nest a notebook](notebook-drag-touch.png) shows the item
+  held above the contact, leaving Garden readable. [Cancel a note move](touch-drag-cancel.png)
+  shows the tray after edge auto-scroll, with the active cancel cue. The test
+  verifies zero writes on cancel and one write on a subsequent valid drop.
+
+Browser checks also cover the visible grip focus ring, reduced motion, keyboard
+nesting, and reopening Organize with a tap. Physical iOS/Android contact, pen and
+trackpad feel are not qualified by these captures.
+
+## Earlier interaction evidence — 21 October 2026
 
 - [Phone reader](compact-reader-mobile.png), 390 × 844: the writing region starts
   at y=134, versus y=280 in the [previous drawer](../note-workspace/note-drawer-mobile.png).

@@ -22,7 +22,6 @@ import {
   useDroppable,
   useDraggable,
   pointerWithin,
-  defaultDropAnimationSideEffects,
   type KeyboardCoordinateGetter,
   type Modifier,
 } from "@dnd-kit/core";
@@ -131,41 +130,49 @@ function pickupFeedback(activatorEvent: Event) {
 const previewOffset: Modifier = ({
   transform,
   activatorEvent,
-  activeNodeRect,
   overlayNodeRect,
   windowRect,
 }) => {
-  if (!activeNodeRect || !overlayNodeRect || !windowRect) return transform;
-  const touch =
-    activatorEvent?.type === "touchstart" ||
-    (activatorEvent as PointerEvent | null)?.pointerType === "pen";
+  const touch = activatorEvent?.type === "touchstart";
   const point =
-    activatorEvent && "clientX" in activatorEvent
-      ? (activatorEvent as MouseEvent)
-      : null;
-  // Anchor every source (a whole row or a small sidebar icon) beside the pointer.
-  // Touch previews sit above the finger so the destination remains visible.
-  const x =
-    transform.x + (point ? point.clientX - activeNodeRect.left + 14 : 0);
-  const y =
-    transform.y +
-    (touch ? -64 : point ? point.clientY - activeNodeRect.top + 14 : 0);
+    touch && "touches" in activatorEvent
+      ? (activatorEvent as TouchEvent).touches[0]
+      : activatorEvent && "clientX" in activatorEvent
+        ? (activatorEvent as MouseEvent)
+        : null;
+  if (!point) return transform; // Keyboard keeps its measured row origin.
+
+  // Pointer overlays have a viewport origin, independent of the source row.
+  // Only the preview moves here: collision and auto-scroll use the sensor point.
+  const direct =
+    touch || (activatorEvent as PointerEvent | null)?.pointerType === "pen";
+  const x = point.clientX + transform.x;
+  const y = point.clientY + transform.y;
+  const width = overlayNodeRect?.width ?? 0;
+  const height = overlayNodeRect?.height ?? 0;
+  const inset = 8;
+  const gap = direct ? 18 : 14;
+  const viewportWidth = windowRect?.width ?? window.innerWidth;
+  const viewportHeight = windowRect?.height ?? window.innerHeight;
+  const clamp = (value: number, end: number) =>
+    Math.max(inset, Math.min(value, end - inset));
+  const above = y - height - gap;
+  const below = y + gap;
+  const right = x + gap;
+  const preferAbove = direct
+    ? above >= inset
+    : below + height > viewportHeight - inset;
   return {
     ...transform,
-    x: Math.max(
-      8 - activeNodeRect.left,
-      Math.min(
-        x,
-        windowRect.width - overlayNodeRect.width - activeNodeRect.left - 8,
-      ),
+    x: clamp(
+      direct
+        ? x - width / 2
+        : right + width <= viewportWidth - inset
+          ? right
+          : x - width - gap,
+      viewportWidth - width,
     ),
-    y: Math.max(
-      8 - activeNodeRect.top,
-      Math.min(
-        y,
-        windowRect.height - overlayNodeRect.height - activeNodeRect.top - 8,
-      ),
-    ),
+    y: clamp(preferAbove ? above : below, viewportHeight - height),
   };
 };
 function insideScrollClip(
@@ -264,15 +271,14 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     reducedMotion,
     () => false,
   );
-  const dropAnimation = reduced
-    ? null
-    : {
-        duration: 160,
-        easing: "cubic-bezier(0.2, 0, 0, 1)",
-        sideEffects: defaultDropAnimationSideEffects({
-          styles: { active: { opacity: "0.45" } },
-        }),
-      };
+  const dropAnimation =
+    reduced || keyboard
+      ? null
+      : {
+          duration: 160,
+          easing: "cubic-bezier(0.2, 0, 0, 1)",
+          sideEffects: undefined,
+        };
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
@@ -526,16 +532,22 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         <DragOverlay
           dropAnimation={dropAnimation}
           modifiers={[previewOffset]}
-          style={{ width: "max-content" }}
+          transition="none"
+          style={{
+            width: "max-content",
+            height: "auto",
+            pointerEvents: "none",
+            ...(keyboard ? {} : { top: 0, left: 0 }),
+          }}
         >
           {active && (
             <div className="memory-drag-preview">
               {active.kind === "notebook" ? (
-                <FolderInput size={18} />
+                <FolderInput size={16} />
               ) : active.items.length > 1 ? (
-                <Files size={18} />
+                <Files size={16} />
               ) : (
-                <FileText size={18} />
+                <FileText size={16} />
               )}
               <strong>
                 {active.kind === "notebook"
