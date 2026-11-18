@@ -47,6 +47,10 @@ once; failed/repeated/malformed pages require retry. Save, lifecycle and same-ac
 cross-tab notifications invalidate the complete catalog. Archive/delete immediately
 remove affected rows from cached catalogs and source views while they refresh.
 
+In the explorer, only the notes inside an expanded notebook load in batches
+as you scroll. Notebook rows and move destinations still use the complete
+directory; scrolling never changes the hierarchy or the available destinations.
+
 An uncertain organization response freezes new moves and offers **Retry same move**
 with its exact operation ID and body, even if the originating view closes. Moves
 reorder the tree instantly and settle in the background; a failed or conflicting

@@ -1327,6 +1327,38 @@ html:has(.grove-app) {
   outline: 2px solid var(--color-leaf);
   outline-offset: -2px;
 }
+.note-continuation,
+.notebook-pages li.note-continuation {
+  position: relative;
+  display: block;
+  overflow-anchor: none;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.note-continuation-edge {
+  display: block;
+  height: 1px;
+}
+.library-list .note-continuation {
+  padding-inline: 12px;
+}
+.note-continuation-status:not(:empty) {
+  display: block;
+  padding: 6px 0;
+}
+.note-continuation .text-button {
+  min-height: 32px;
+}
+.note-continuation-fallback:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .notebook-pages {
   margin: 2px 0 5px 12px;
   border-left: 1px solid var(--color-line);

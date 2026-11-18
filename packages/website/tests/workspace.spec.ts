@@ -220,7 +220,6 @@ test("search quality restarts a stale relevance cursor instead of retrying the o
   });
   await page.goto(`${base}/app`);
   await page.getByLabel("Search notes", { exact: true }).fill("review");
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
   const refresh = page.getByRole("button", { name: "Refresh search results" });
   await expect(refresh).toBeVisible();
   await refresh.click();
@@ -5230,7 +5229,7 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
     revised,
   ]);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await expect(page.locator(".memory-open")).toHaveCount(4);
   await openGraph(page);
   await expect(page.locator(".react-flow__node")).toHaveCount(4);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
@@ -6715,7 +6714,8 @@ test("pagination discards an old scope response after filters change", async ({
     await route.fallback();
   });
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await expect.poll(() => page.locator(".memory-open").count()).toBe(2);
+  await page.locator(".note-continuation-edge").scrollIntoViewIfNeeded();
   await started.promise;
   await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
@@ -6727,7 +6727,7 @@ test("pagination discards an old scope response after filters change", async ({
   await expect(page.locator(".memory-open")).toContainText("Launch checklist");
   await expect(page.getByText("Old scope only")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Load more", exact: true }),
+    page.getByRole("button", { name: "Load more notes", exact: true }),
   ).toHaveCount(0);
 });
 
