@@ -1,21 +1,28 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { ArrowRight } from "lucide-react";
-import { resourceLimits, billingLimits } from "@lib/shared/billing";
 import {
-  billingMonthlyUsd,
-  billingYearlyUsd,
-  showBilling,
-} from "@/lib/flags";
+  billingLimits,
+  resourceLimits,
+  trialDurationDays,
+  writingDailyLimits,
+} from "@lib/shared/billing";
+import { billingMonthlyUsd, billingYearlyUsd, showBilling } from "@/lib/flags";
 import { pageMetadata } from "@/lib/metadata";
+import styles from "./pricing.module.css";
 
 export const metadata = pageMetadata(
   "Grove pricing | Free and Pro",
-  "Start with Grove Free. Compare note storage, search, Ask Grove and audio allowances with Pro. No automatic overage charges.",
+  "Compare Grove Cloud prices, note storage, Ask Grove and audio allowances. Explore guest writing checks and self-hosting.",
   "/pricing",
 );
 
 const number = new Intl.NumberFormat("en-US");
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  trailingZeroDisplay: "stripIfInteger",
+});
+
 function validPrice(value: unknown) {
   return typeof value === "number" &&
     Number.isFinite(value) &&
@@ -25,14 +32,90 @@ function validPrice(value: unknown) {
     ? value
     : null;
 }
-const usd = (digits: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-const comparisons = [
+
+function PlanPrices({
+  enabled,
+  monthly,
+  yearly,
+}: {
+  enabled: boolean;
+  monthly: number | null;
+  yearly: number | null;
+}) {
+  const savingsCents =
+    monthly !== null && yearly !== null
+      ? 12 * Math.round(monthly * 100) - Math.round(yearly * 100)
+      : 0;
+  return (
+    <section
+      className={styles.offers}
+      aria-label="Grove Cloud plans in US dollars"
+    >
+      <article aria-labelledby="free-heading">
+        <h2 id="free-heading">Free</h2>
+        <p className={styles.rate}>
+          <strong>$0</strong> / month
+        </p>
+        <p>
+          Save up to {number.format(resourceLimits.free.notes)} notes. Search
+          your library, ask questions and connect your tools.
+        </p>
+        <Link className="button-primary" href="/sign-up">
+          Create a free account
+        </Link>
+      </article>
+      <article aria-labelledby="pro-heading">
+        <h2 id="pro-heading">Pro</h2>
+        <div className={styles.rates}>
+          {monthly !== null && (
+            <p className={styles.rate}>
+              <strong>{money.format(monthly)}</strong> / month
+            </p>
+          )}
+          {yearly !== null && (
+            <p className={styles.rate}>
+              <strong>{money.format(yearly)}</strong> / year
+            </p>
+          )}
+        </div>
+        {yearly !== null && (
+          <p>
+            Billed once a year ({money.format(yearly / 12)} per month on
+            average).
+            {savingsCents > 0 &&
+              ` Save ${money.format(savingsCents / 100)} compared with 12 monthly payments.`}
+          </p>
+        )}
+        {monthly === null && yearly === null && (
+          <p>Current Pro prices are unavailable.</p>
+        )}
+        <p>
+          Store up to {number.format(resourceLimits.pro.notes)} notes, with more
+          Ask replies, AI rewrites and audio time.
+        </p>
+        {enabled ? (
+          <>
+            <p>
+              Confirm your price and billing period in your account. Eligible
+              accounts get one {trialDurationDays}-day trial. A payment method
+              is required; the trial becomes paid unless you cancel.
+            </p>
+            <Link className="text-link" href="/app/settings/billing">
+              View billing options
+            </Link>
+          </>
+        ) : (
+          <p className={styles.availability}>
+            Pro purchases and trials are unavailable here. You can still use
+            Free.
+          </p>
+        )}
+      </article>
+    </section>
+  );
+}
+
+const rows = [
   ["Stored notes", "notes", false],
   ["Notebooks", "notebooks", false],
   ["Recall and semantic search", "recall", true],
@@ -42,284 +125,159 @@ const comparisons = [
   ["AI rewrites", "writing", true],
 ] as const;
 
+function Allowances() {
+  return (
+    <section className={styles.section} aria-labelledby="limits-heading">
+      <div>
+        <h2 id="limits-heading">Plan allowances</h2>
+        <p>
+          Monthly and yearly Pro have the same limits. Monthly usage resets on
+          the first day of each UTC calendar month. Unused allowances don’t roll
+          over.
+        </p>
+        <p>Your account shows any custom limits and how much you’ve used.</p>
+      </div>
+      <table
+        className={styles.table}
+        aria-label="Standard Grove Cloud allowances"
+      >
+        <thead>
+          <tr>
+            <th scope="col">Allowance</th>
+            <th scope="col">Free</th>
+            <th scope="col">Pro</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, key, monthly]) => (
+            <tr key={key}>
+              <th scope="row">{label}</th>
+              {(["free", "pro"] as const).map((tier) => (
+                <td key={tier}>
+                  {number.format(resourceLimits[tier][key])}
+                  {monthly && " / month"}
+                </td>
+              ))}
+            </tr>
+          ))}
+          {(
+            [
+              ["Transcription", "transcription"],
+              ["Read aloud", "synthesis"],
+            ] as const
+          ).map(([label, key]) => (
+            <tr key={key}>
+              <th scope="row">{label}</th>
+              {(["free", "pro"] as const).map((tier) => (
+                <td key={tier}>
+                  {billingLimits[tier][key].monthly / 3600000} hours / month
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 export default async function PricingPage() {
   await connection();
-  const enabled = await showBilling();
-  const monthly = validPrice(await billingMonthlyUsd());
-  const yearly = validPrice(await billingYearlyUsd());
-  const formattedMonthly =
-    monthly === null ? null : usd(2).format(monthly);
-  const formattedYearly = yearly === null ? null : usd(0).format(yearly);
-  const yearlyPerMonth =
-    yearly === null ? null : usd(2).format(yearly / 12);
-  const yearlySavings =
-    monthly === null || yearly === null || monthly * 12 - yearly <= 0.005
-      ? null
-      : usd(0).format(Math.round(monthly * 12 - yearly));
+  const [enabled, monthly, yearly] = await Promise.all([
+    showBilling(),
+    billingMonthlyUsd(),
+    billingYearlyUsd(),
+  ]);
   return (
-    <main id="main" className="product-redesign pricing-page">
-      <section
-        className="page-container pricing-intro"
-        aria-labelledby="pricing-heading"
-      >
-        <h1 id="pricing-heading" className="hero-title">
-          Free and Pro
-        </h1>
-        <p className="hero-summary">
-          Compare storage and monthly allowances. Both plans use the same
-          notebook.
-        </p>
-      </section>
-      <section
-        className="page-container plan-pair"
-        aria-label="Grove Cloud plans"
-      >
-        <article className="plan" aria-labelledby="free-heading" data-reveal>
-          <h2 id="free-heading">Free</h2>
-          <p className="plan-price">
-            $0 <span>USD / month</span>
-          </p>
-          <p>Writing, search and source-linked answers.</p>
-          <ul>
-            <li>
-              {number.format(resourceLimits.free.notes)} notes and{" "}
-              {number.format(resourceLimits.free.notebooks)} notebooks
-            </li>
-            <li>
-              {number.format(resourceLimits.free.ask)} Ask Grove replies each
-              month
-            </li>
-            <li>Semantic search and agent connections</li>
-            <li>Revision history and exports</li>
-          </ul>
-          <Link href="/sign-up" className="button-primary">
-            Start your notebook <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-        </article>
-        <article
-          className="plan plan-pro"
-          aria-labelledby="pro-heading"
-          data-reveal
-        >
-          <h2 id="pro-heading">Pro</h2>
-          <p className="plan-price">
-            {formattedMonthly ?? "More capacity"}
-            {formattedMonthly ? <span> USD / month</span> : null}
-          </p>
-          {formattedYearly ? (
-            <p className="plan-billing-alt">
-              or {formattedYearly} <span>USD / year</span>
-              {yearlyPerMonth ? (
-                <>
-                  {" "}
-                  ({yearlyPerMonth} / month
-                  {yearlySavings ? `, save ${yearlySavings}` : ""})
-                </>
-              ) : null}
+    <main id="main" className={styles.page}>
+      <div className={styles.field}>
+        <div className={styles.inner}>
+          <header>
+            <h1>Free and Pro</h1>
+            <p>
+              Both Grove Cloud plans include the same notebook. Pro adds storage
+              and higher monthly limits. Prices for new subscriptions are in
+              USD.
             </p>
-          ) : null}
-          <p>
-            {formattedMonthly
-              ? "Introductory prices. Confirm the current amount in your account before checkout."
-              : "Check your account for current upgrade availability and pricing."}
-          </p>
-          <ul>
-            <li>
-              {number.format(resourceLimits.pro.notes)} notes and{" "}
-              {number.format(resourceLimits.pro.notebooks)} notebooks
-            </li>
-            <li>
-              {number.format(resourceLimits.pro.ask)} Ask Grove replies each
-              month
-            </li>
-            <li>Higher search and organization allowances</li>
-            <li>More transcription and read-aloud time</li>
-            <li>One 7-day Pro trial per account, then Pro or Free</li>
-          </ul>
-          <Link
-            href={enabled ? "/app/settings/billing" : "/sign-up"}
-            className="button-primary"
-          >
-            {enabled ? "View your upgrade" : "Create an account"}{" "}
-            <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-          {!enabled ? (
-            <p className="plan-note">
-              Pro purchases aren’t currently available here. You can still start
-              free.
+          </header>
+          <PlanPrices
+            enabled={enabled}
+            monthly={validPrice(monthly)}
+            yearly={validPrice(yearly)}
+          />
+        </div>
+      </div>
+      <div className={styles.inner}>
+        <Allowances />
+        <section className={styles.section} aria-labelledby="terms-heading">
+          <div>
+            <h2 id="terms-heading">Usage and billing</h2>
+            <p>
+              No automatic overage charges. If you run out of an AI allowance,
+              you can still write, read, edit, search by keyword and export.
             </p>
-          ) : null}
-        </article>
-      </section>
-      <section
-        className="page-container story-section"
-        aria-labelledby="included-heading"
-      >
-        <div className="section-lead">
-          <h2 id="included-heading" className="section-title">
-            The notebook is included
-          </h2>
-          <p>
-            Both plans include the editor, journal, graph, source-linked answers
-            and optional agent integrations. Pro raises your allowances.
-          </p>
-        </div>
-        <div
-          className="comparison-scroll"
-          tabIndex={0}
-          role="region"
-          aria-label="Free and Pro allowance comparison"
-        >
-          <table className="plan-comparison">
-            <caption>Standard Grove Cloud allowances</caption>
-            <thead>
-              <tr>
-                <th scope="col">What you can use</th>
-                <th scope="col">Free</th>
-                <th scope="col">Pro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparisons.map(([label, key, monthly]) => (
-                <tr key={key}>
-                  <th scope="row">{label}</th>
-                  <td>
-                    {number.format(resourceLimits.free[key])}
-                    {monthly ? " / month" : ""}
-                  </td>
-                  <td>
-                    {number.format(resourceLimits.pro[key])}
-                    {monthly ? " / month" : ""}
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <th scope="row">Transcription</th>
-                <td>
-                  {billingLimits.free.transcription.monthly / 3600000} hours /
-                  month
-                </td>
-                <td>
-                  {billingLimits.pro.transcription.monthly / 3600000} hours /
-                  month
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">Read aloud</th>
-                <td>
-                  {billingLimits.free.synthesis.monthly / 3600000} hours / month
-                </td>
-                <td>
-                  {billingLimits.pro.synthesis.monthly / 3600000} hours / month
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="comparison-note">
-          Standard limits are shown here. Your account shows its effective
-          limits and usage, including any custom access. Spelling and grammar
-          checks run on your device and are unlimited on both plans.
-        </p>
-      </section>
-      <section className="feature-index">
-        <div className="page-container feature-index-layout">
-          <h2 className="section-title">
-            Clear limits.
-            <br />
-            No overages.
-          </h2>
-          <dl className="feature-list">
-            <div className="feature-row">
-              <dt>What happens at a limit?</dt>
-              <dd>
-                Writing, reading, editing, keyword search and export remain
-                available when an AI allowance runs out. Wait for the reset or
-                upgrade where available. There are no automatic overage charges.
-              </dd>
-            </div>
-            <div className="feature-row">
-              <dt>When does usage reset?</dt>
-              <dd>
-                Monthly action and audio allowances reset on the first day of
-                each UTC calendar month, not your billing anniversary. Unused
-                allowances don’t roll over.
-              </dd>
-            </div>
-            <div className="feature-row">
-              <dt>Is there a Pro trial?</dt>
-              <dd>
-                New accounts can start one 7-day Pro trial with full Pro
-                allowances. It needs a payment method and becomes a paid
-                subscription unless you cancel. Each account gets one trial;
-                an administrator can restore eligibility on request.
-              </dd>
-            </div>
-            <div className="feature-row">
-              <dt>Do you offer yearly billing?</dt>
-              <dd>
-                Yes. Pro is available month-to-month or once a year; both
-                include the same monthly allowances. Yearly renews each year
-                until you cancel.
-              </dd>
-            </div>
-            <div className="feature-row">
-              <dt>What counts as an action?</dt>
-              <dd>
-                A fresh Ask reply, assistance result or AI rewrite uses one
+          </div>
+          <div className={styles.details}>
+            <details>
+              <summary>What counts as an action?</summary>
+              <p>
+                A new Ask reply, assistance result or AI rewrite uses one
                 action. A distinct fully cached Ask or assistance request uses
-                0.2 actions. Reopening the same completed result doesn’t use
-                another action. Separate provider safety budgets also apply.
-              </dd>
-            </div>
-            <div className="feature-row">
-              <dt>What do writing limits cover?</dt>
-              <dd>
-                Spelling and grammar checks run on your device and never use
-                an allowance. Each explicit AI rewrite request — Shorten,
-                Expand, Rewrite, Humanize, Synonyms or Opposite words — uses
-                one rewrite from your monthly allowance (100 on Free, 1,000
-                on Pro, up to 30 a day on Free and 200 a day on Pro). Waiting
-                for the reset or upgrading restores rewrites; local checks
-                keep working either way.
-              </dd>
-            </div>
-            <div className="feature-row">
-              <dt>How does audio work?</dt>
-              <dd>
-                The time shown is a monthly total, not a single recording limit.
-                Recordings are up to 60 seconds each; read aloud accepts up to
-                3,000 text units per request.
-              </dd>
-            </div>
-            <div className="feature-row">
-              <dt>Can I cancel or take my notes?</dt>
-              <dd>
-                Manage a subscription in Settings → Billing. Period-end
-                cancellation keeps Pro until the paid period ends. A downgrade
-                preserves your notes, and you can export your library.
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </section>
-      <section
-        className="page-container page-close"
-        aria-labelledby="self-host-heading"
-      >
-        <div>
-          <h2 id="self-host-heading" className="section-title">
-            Prefer your own server?
-          </h2>
-          <p>
-            Grove is open source. Run it on your infrastructure and bring your
-            own providers; hosting and provider costs are yours.
-          </p>
-        </div>
-        <Link href="/self-host" className="text-link">
-          Read the self-hosting guide
-        </Link>
-      </section>
+                0.2 actions. Reopening the same result uses none. Provider
+                safety limits also apply.
+              </p>
+            </details>
+            <details>
+              <summary>What do writing limits cover?</summary>
+              <p>
+                Spelling and basic grammar checks run locally without limits.
+                Each AI rewrite uses one action. Daily caps are{" "}
+                {writingDailyLimits.free} on Free and {writingDailyLimits.pro}{" "}
+                on Pro.
+              </p>
+            </details>
+            <details>
+              <summary>How long can a recording be?</summary>
+              <p>
+                Record up to 60 seconds at a time. Read aloud accepts up to
+                3,000 text units per request. Each has its own monthly
+                allowance.
+              </p>
+            </details>
+            <details>
+              <summary>What happens if I cancel Pro?</summary>
+              <p>
+                Subscriptions renew until cancelled. If you cancel at the end of
+                a paid period, you keep Pro until that period ends. Returning to
+                Free preserves your notes and exports.
+              </p>
+            </details>
+          </div>
+        </section>
+        <section className={styles.section} aria-labelledby="guest-heading">
+          <div>
+            <h2 id="guest-heading">Without an account</h2>
+            <p>
+              Check English spelling and basic grammar in your browser. Text
+              stays in this tab and isn’t saved. Saving notes and using AI
+              rewrites require an account.
+            </p>
+            <Link className="text-link" href="/writing">
+              Try guest writing checks
+            </Link>
+          </div>
+          <div>
+            <h2>On your own server</h2>
+            <p>
+              Run the open-source notebook on your infrastructure with your own
+              providers. You cover hosting and provider costs.
+            </p>
+            <Link className="text-link" href="/self-host">
+              Read the self-hosting guide
+            </Link>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

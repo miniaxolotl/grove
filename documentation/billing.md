@@ -11,6 +11,13 @@ variant is unset); `billing-pro-yearly-usd`
 (default $159) does the same for yearly subscriptions. Yearly checkout stays
 hidden until its flag is configured, and it never affects the monthly offer.
 
+The public pricing page compares standard Cloud allowances and displays each
+valid price independently. The annual total is billed once a year; its monthly
+equivalent is for comparison. **View billing options** opens Settings → Billing,
+where the account confirms its available intervals, price and trial eligibility.
+When purchases are disabled, the comparison stays visible with a Free signup
+link and no upgrade or trial action. [Pricing page examples](design/screenshots/billing-periods/README.md).
+
 The server validates whole-cent USD amounts between 1 and 10,000 dollars, resolves
 an immutable Stripe Price under the configured Grove Pro product, and refuses an
 outdated browser quote with `billing_price_changed`. An invalid flag amount
