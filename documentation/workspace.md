@@ -175,6 +175,13 @@ an uncertain save first. A concurrent edit requires review, never unseen deletio
 
 ## Daily writing and personal details
 
+**Today’s note** uses the regular note editor. To group notes by creation day,
+choose the creation-date order in **Filters**. See [note sorting](search.md).
+**Progress notes** are handoffs whose references survive editing/moving. **Settings →
+Account → About you** records preferences and things you want Grove to know.
+
+### Returning to a daily note
+
 **Today’s note** opens one ordinary note per account and local calendar date,
 regardless of the notebook you open it from. Nothing is created until the first
 save, which uses the selected notebook by default. Older notes with similar
@@ -189,16 +196,12 @@ session resumes the draft and retries the original save. If another device saved
 first, the local draft stays available through navigation and background refresh.
 Copy any text you want to keep before choosing **Discard draft and open saved note**.
 
-**Filters → Sort notes → Date written** groups ordinary notes by when they were
-created; there is no separate journal store. The legacy `/app/journal` URL still
-opens this sorted view.
+The legacy `/app/journal` URL opens Notes sorted by creation date.
 
 Self-hosted rollout requires the `20261117_042_daily_notes` migration before
 the updated app. `tests/src/daily-note.test.ts` exercises isolation, first-save
 races and lifecycle against disposable PostgreSQL; `daily-note.spec.ts` covers
 workspace entry and midnight behavior with synthetic browser fixtures.
-**Progress notes** are handoffs whose references survive editing/moving. **Settings →
-Account → About you** records preferences and things you want Grove to know.
 
 ## History and how long notes stay
 
