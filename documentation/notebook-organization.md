@@ -25,9 +25,6 @@ that the owner's reported physical-phone gesture failures are repaired.
   manager and sub-notebook lists all use saved sibling order. Rename keeps order;
   new notebooks append. Long manager titles wrap to two lines with the full name
   retained in their link's accessible name/title.
-- In the explorer, only the notes inside an expanded notebook load in batches
-  as you scroll. Notebook rows and move destinations still use the complete
-  directory; scrolling never changes the hierarchy or the available destinations.
 - Mouse drag supports inside/before/after placement; keyboard drag retains nesting
   and cancellation. Organize stays the complete path: tapping or clicking the
   notebook folder control opens it. Touch can also hold that control to lift the
@@ -46,6 +43,10 @@ Partial scans never replace the last complete snapshot. A changed scan restarts
 once; failed/repeated/malformed pages require retry. Save, lifecycle and same-account
 cross-tab notifications invalidate the complete catalog. Archive/delete immediately
 remove affected rows from cached catalogs and source views while they refresh.
+
+In the explorer, only the notes inside an expanded notebook load in batches
+as you scroll. Notebook rows and move destinations still use the complete
+directory; scrolling never changes the hierarchy or the available destinations.
 
 An uncertain organization response freezes new moves and offers **Retry same move**
 with its exact operation ID and body, even if the originating view closes. Moves

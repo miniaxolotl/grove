@@ -211,7 +211,9 @@ export function MemoryLibrary({
   useSetCurrentNotebook(scopedProject);
   const items = useMemo(() => uniquePageNotes(query.data?.pages), [query.data]);
   const next = query.hasNextPage;
-  const loading = query.isPending || query.isFetchingNextPage;
+  const loading = query.isPending;
+  const loadingRows = loading || query.isFetchingNextPage;
+  const hasListContinuation = view === "list" && next;
   const searchMode = query.data?.pages[0]?.searchMode;
   const matches = Object.assign(
     {},
@@ -237,8 +239,13 @@ export function MemoryLibrary({
   );
   const emptyCandidate = !archive && !filtered && !items.length && !next;
   const emptyLibrary =
-    emptyCandidate && !!query.data && !loading && !readError && !currentError;
-  const showEmptyState = !currentError && (!emptyCandidate || !readError);
+    emptyCandidate &&
+    !!query.data &&
+    !loadingRows &&
+    !readError &&
+    !currentError;
+  const showEmptyState =
+    !next && !currentError && (!emptyCandidate || !readError);
   const selectedItems = items.filter((memory) => checked.includes(memory.id));
   const pendingSelected = selectedItems.some((memory) =>
     pending.has(memory.id),
@@ -425,7 +432,7 @@ export function MemoryLibrary({
     deletedMany([memory]);
   }
   useEffect(() => {
-    if (focusAfterDelete.current === undefined || loading) return;
+    if (focusAfterDelete.current === undefined || loadingRows) return;
     const id = focusAfterDelete.current;
     const target =
       (id
@@ -443,7 +450,7 @@ export function MemoryLibrary({
       focusAfterDelete.current = undefined;
     });
     return () => cancelAnimationFrame(frame);
-  }, [items, loading]);
+  }, [items, loadingRows]);
   const title = archive
     ? "Archive"
     : initialView === "graph" && view === "graph"
@@ -663,9 +670,9 @@ export function MemoryLibrary({
               </button>
             </div>
           )}
-          {query.isPending && !items.length ? (
+          {loading && !items.length ? (
             <LibrarySkeleton archive={archive} showExcerpt={!!search} />
-          ) : !items.length && showEmptyState && !next ? (
+          ) : !items.length && showEmptyState ? (
             <section className="app-empty library-empty">
               <h2>
                 {filtered
@@ -707,7 +714,7 @@ export function MemoryLibrary({
               )}
             </section>
           ) : (
-            (items.length > 0 || (next && view === "list")) &&
+            (items.length > 0 || hasListContinuation) &&
             (view === "graph" ? (
               <MemoryGraph
                 key={JSON.stringify(noteOptions.queryKey)}
@@ -838,13 +845,13 @@ export function MemoryLibrary({
             <div className="mt-6 text-center">
               <button
                 className="app-button secondary"
-                disabled={loading}
+                disabled={loadingRows}
                 onClick={() => {
                   if (staleSearch) void query.refetch();
                   else void query.fetchNextPage({ cancelRefetch: false });
                 }}
               >
-                {loading ? "Loading…" : "Expand graph"}
+                {loadingRows ? "Loading…" : "Expand graph"}
               </button>
             </div>
           )}
