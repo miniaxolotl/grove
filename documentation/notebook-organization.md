@@ -28,11 +28,13 @@ that the owner's reported physical-phone gesture failures are repaired.
 - With a mouse, drop onto a highlighted notebook row to move inside it; drop on
   the insertion line to move before or after a sibling. For keyboard nesting,
   press Space on the grip, use the arrow keys to choose a destination, then Space
-  to drop or Escape to cancel. On touch, hold the grip to lift, then drag to a
+  to drop or Escape or Tab to cancel. On touch, hold the grip to lift, then drag to a
   notebook row or the destination tray. The preview follows the contact and sits
   above it when there is room. The grip stops native scrolling; the rest of the
   row keeps vertical scrolling and pinch zoom. Tap or click the folder control
   to open **Organize**, including for exact sibling placement without dragging.
+  Release on the highlighted destination to move. Releasing outside it or over
+  **Drop here to cancel** cancels without a move. Covered rows cannot receive drops.
 
 The desktop organizer separates the notebook browser from the selected controls.
 Phones stack them, with Done outside the scrolling content. Move keeps its action

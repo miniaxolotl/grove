@@ -512,6 +512,9 @@
   pointer-events: none;
   width: max-content;
 }
+.memory-drag-preview[data-keyboard] {
+  opacity: 0;
+}
 @media (prefers-reduced-motion: reduce) {
   .drag-handle {
     transition: none;

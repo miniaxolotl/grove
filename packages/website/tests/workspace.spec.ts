@@ -3720,9 +3720,35 @@ test("keyboard drag cancels safely and moves a memory to a chosen project", asyn
   expect(state.records.get(note.id)?.projectId).toBe(project.id);
 });
 
-test("sidebar pages and keyboard notebook nesting share destinations, cancellation and undo", async ({
+test("Tab cancels a keyboard drag without moving the note", async ({
   page,
 }) => {
+  const state = await fixture(page, [note]);
+  await page.goto(`${base}/app`);
+  const handle = page.locator(".memory-row .drag-handle");
+  await handle.focus();
+  await page.keyboard.press("Space", { delay: 50 });
+  await expect(page.locator(".memory-drag-preview")).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.locator(`.notebook-explorer [data-destination="${project.id}"]`),
+  ).toHaveAttribute("data-drop-active", "true");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+    0,
+  );
+  await expect(page.locator('[aria-live="assertive"]')).toHaveText(
+    "Move cancelled.",
+  );
+  await expect(handle).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(handle).not.toBeFocused();
+});
+
+test("sidebar pages and keyboard notebook nesting share destinations, cancellation and undo", async ({
+  page,
+}, info) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const state = await fixture(page, [handoff]);
   const parent = {
@@ -3766,6 +3792,15 @@ test("sidebar pages and keyboard notebook nesting share destinations, cancellati
   await expect(
     sidebar.locator(`[data-destination="${parent.id}"]`),
   ).toHaveAttribute("data-drop-active", "true");
+  await expect(page.locator('[aria-live="assertive"]')).toHaveText(
+    "Move into Garden.",
+  );
+  await expect(page.locator(".memory-drag-preview")).toHaveCSS("opacity", "0");
+  const sidebarBox = (await sidebar.boundingBox())!;
+  await page.screenshot({
+    clip: { x: 0, y: sidebarBox.y, width: 440, height: 270 },
+    path: info.outputPath("notebook-drag-keyboard.png"),
+  });
   await page.keyboard.press("Escape");
   await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
   await expect(handle).toBeFocused();
@@ -6872,6 +6907,46 @@ test("notebook drag distinguishes dropping inside from inserting between sibling
   expect(moves[0].body).toMatchObject({ parentId: null, afterId: target.id });
 });
 
+test("a pointer released outside the highlighted notebook never moves it", async ({
+  page,
+  context,
+}) => {
+  const state = await fixture(page, [handoff]);
+  const garden = { ...project, id: crypto.randomUUID(), name: "Garden" };
+  state.projects.push(garden);
+  await page.goto(`${base}/app`);
+  const source = page.locator(
+    `.notebook-explorer [data-destination="${project.id}"] .notebook-drag-handle`,
+  );
+  const destination = page.locator(
+    `.notebook-explorer [data-destination="${garden.id}"]`,
+  );
+  const grip = (await source.boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 10, grip.y + grip.height / 2);
+  await expect(page.locator(".memory-drag-preview")).toHaveText(project.name);
+  const box = (await destination.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(destination).toHaveAttribute("data-drop-active", "true");
+  const cdp = await context.newCDPSession(page);
+  // A terminal native sample can arrive at a different point without another move.
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    button: "left",
+    buttons: 0,
+    x: box.x + box.width + 50,
+    y: box.y,
+  });
+  await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  expect(
+    state.calls.filter(({ path }) => path.endsWith("/organize")),
+  ).toHaveLength(0);
+  await expect(page.locator('[aria-live="assertive"]')).toHaveText(
+    "Move cancelled.",
+  );
+});
+
 test("touch hold lifts notebooks and notes into drops while quick taps organize", async ({
   page,
   context,
@@ -7689,6 +7764,160 @@ test("touch handles activate deliberately, scroll destinations and cancel withou
     expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
       1,
     );
+  } finally {
+    await context.close();
+  }
+});
+
+test("touch scrolling and interrupted holds neither move nor click the notebook", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 590 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  try {
+    const page = await context.newPage();
+    const state = await fixture(page, [handoff]);
+    state.projects.push(
+      ...Array.from({ length: 12 }, (_, index) => ({
+        ...project,
+        id: crypto.randomUUID(),
+        name: `Notebook ${index}`,
+      })),
+    );
+    await page.goto(`${base}/app`);
+    await page.locator(".notebook-browser-toggle").tap();
+    const source = page.getByRole("button", {
+      name: `Move notebook ${project.name} with drag or keyboard`,
+      exact: true,
+    });
+    const link = page.getByRole("link", { name: project.name, exact: true });
+    const cdp = await context.newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd" | "touchCancel",
+      point?: { x: number; y: number },
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: point ? [point] : [],
+      });
+    const center = async (locator: Locator) => {
+      const rect = (await locator.boundingBox())!;
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    };
+    const preview = page.locator(".memory-drag-preview");
+    const calls = () =>
+      state.calls.filter(({ path }) => path.endsWith("/organize"));
+    await source.scrollIntoViewIfNeeded();
+    const label = await center(link);
+    const readScroll = () =>
+      page.locator(".notebook-explorer").evaluate((el) => el.scrollTop);
+    const idleScroll = await readScroll();
+    expect(idleScroll).toBeGreaterThan(0); // The source starts at the bottom of the long tree.
+    await touch("touchStart", label);
+    for (let step = 1; step <= 4; step++)
+      await touch("touchMove", { x: label.x, y: label.y + 22 * step });
+    await expect.poll(readScroll).toBeLessThan(idleScroll);
+    await touch("touchEnd");
+    await expect(preview).toHaveCount(0);
+    expect(page.url()).toBe(`${base}/app`);
+
+    await source.scrollIntoViewIfNeeded();
+    const grip = await center(source);
+    await touch("touchStart", grip);
+    await touch("touchMove", { x: grip.x + 20, y: grip.y });
+    await touch("touchEnd");
+    await expect(preview).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    for (const interruption of ["touchCancel", "blur"] as const) {
+      await touch("touchStart", await center(source));
+      await expect(preview).toHaveText(project.name);
+      const destination = page.locator(
+        `.mobile-drop-tray [data-destination="${state.projects[1].id}"]`,
+      );
+      await touch("touchMove", await center(destination));
+      await expect(destination).toHaveAttribute("data-drop-active", "true");
+      if (interruption === "touchCancel") await touch("touchCancel");
+      else {
+        await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+        await touch("touchEnd");
+      }
+      await expect(preview).toHaveCount(0);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      expect(calls()).toHaveLength(0);
+    }
+    await source.tap();
+    await expect(page.getByRole("dialog")).toContainText("Organize notebooks");
+  } finally {
+    await context.close();
+  }
+});
+
+test("a notebook covered by the touch destination tray cannot accept a drop", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 510 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  try {
+    const page = await context.newPage();
+    const state = await fixture(page, [handoff]);
+    state.projects[0].position = 0;
+    const garden = {
+      ...project,
+      id: crypto.randomUUID(),
+      name: "Garden",
+      position: 1,
+    };
+    state.projects.push(garden);
+    await page.goto(`${base}/app`);
+    await page.locator(".notebook-browser-toggle").tap();
+    const source = page.locator(
+      `.notebook-explorer [data-destination="${project.id}"] .notebook-drag-handle`,
+    );
+    const covered = page.locator(
+      `.notebook-explorer [data-destination="${garden.id}"]`,
+    );
+    const grip = (await source.boundingBox())!;
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { x: grip.x + grip.width / 2, y: grip.y + grip.height / 2 },
+      ],
+    });
+    await expect(page.locator(".memory-drag-preview")).toHaveText(project.name);
+    const box = (await covered.boundingBox())!;
+    const point = { x: box.x + 2, y: box.y + box.height / 2 };
+    expect(
+      await page.evaluate(({ x, y }) => {
+        const hit = document.elementFromPoint(x, y);
+        return Boolean(
+          hit?.closest(".mobile-drop-tray") &&
+          !hit.closest("[data-destination]"),
+        );
+      }, point),
+    ).toBe(true);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [point],
+    });
+    await expect(covered).not.toHaveAttribute("data-drop-active", "true");
+    await page.screenshot({ path: info.outputPath("touch-drop-covered.png") });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+    expect(
+      state.calls.filter(({ path }) => path.endsWith("/organize")),
+    ).toHaveLength(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   } finally {
     await context.close();
   }

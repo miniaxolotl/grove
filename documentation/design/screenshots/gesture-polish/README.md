@@ -17,9 +17,17 @@ Captured from the optimized candidate based on `c8de2701`:
   shows the tray after edge auto-scroll, with the active cancel cue. The test
   verifies zero writes on cancel and one write on a subsequent valid drop.
 
-Browser checks also cover the visible grip focus ring, reduced motion, keyboard
-nesting, and reopening Organize with a tap. Physical iOS/Android contact, pen and
-trackpad feel are not qualified by these captures.
+The follow-up candidate based on `cb186df5` adds two checks:
+
+- [Keyboard nesting](notebook-drag-keyboard.png), 1280 × 720 (440 × 270 crop):
+  keyboard focus stays on the lifted grip and the destination label stays visible.
+  The live region announces “Move into Garden.” Escape or Tab cancels without writing.
+- [Covered touch destination](touch-drop-covered.png), 390 × 510: a release on the
+  tray's left inset commits nothing; the notebook row behind the tray is not active.
+
+Browser checks also cover reduced motion, interrupted holds, and reopening
+Organize with a tap. Physical iOS/Android contact, pen and trackpad feel are not
+qualified by these captures.
 
 ## Earlier interaction evidence — 21 October 2026
 
