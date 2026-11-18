@@ -534,6 +534,18 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
       await page.screenshot({ path: info.outputPath("settings-account.png") });
   }
   await page.setViewportSize({ width: 320, height: 750 });
+  const picker = tabs.getByRole("button", { name: /Change settings section/ });
+  await picker.focus();
+  await picker.press("ArrowDown");
+  await expect(
+    tabs.getByRole("link", { name: "Writing", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(picker).toBeFocused();
+  await picker.click();
+  await expect(
+    tabs.getByRole("link", { name: "Writing", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
   for (const link of await tabs.getByRole("link").all()) {
     await expect(link).toBeInViewport({ ratio: 1 });
   }
@@ -541,6 +553,8 @@ test("settings share persistent navigation and scrolling, and feedback leaves fo
     await tabs.evaluate((nav) => nav.clientWidth),
   );
   await tabs.getByRole("link", { name: "Your data", exact: true }).click();
+  await expect(picker).toHaveText("Your data");
+  await expect(picker).toHaveAttribute("aria-expanded", "false");
   await page
     .locator(".settings-page")
     .evaluate((element) => element.scrollTo(0, element.scrollHeight));
@@ -726,11 +740,16 @@ for (const editable of [true, false])
     }
     for (const width of [1440, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
-      await expect(
-        page
-          .getByRole("navigation", { name: "Settings sections" })
-          .getByRole("link", { name: "AI & search", exact: true }),
-      ).toBeInViewport({ ratio: 1 });
+      const navigation = page.getByRole("navigation", {
+        name: "Settings sections",
+      });
+      const current =
+        width < 701
+          ? navigation.getByRole("button", {
+              name: /Change settings section: AI & search/,
+            })
+          : navigation.getByRole("link", { name: "AI & search", exact: true });
+      await expect(current).toBeInViewport({ ratio: 1 });
       await page
         .locator(".settings-page")
         .evaluate((element) => element.scrollTo(0, 0));

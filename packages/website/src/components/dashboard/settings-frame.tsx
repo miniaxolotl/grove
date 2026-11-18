@@ -1,6 +1,7 @@
 import { PageHeading } from "./ui/page-heading";
 import { SettingsNavigation } from "./settings-navigation";
 import { PreferenceEditor } from "./preference-editor";
+import "./settings-layout.css";
 
 export function SettingsFrame({
   children,

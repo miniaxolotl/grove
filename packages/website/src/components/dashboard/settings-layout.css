@@ -1,0 +1,123 @@
+.settings-section-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.settings-section-picker {
+  display: none;
+}
+.settings-page > :is(.settings-writing, .settings-ai, .files-panel) {
+  max-width: 66rem;
+}
+.settings-writing .writing-preferences-panel,
+.settings-content.settings-ai {
+  display: grid;
+  align-items: start;
+  gap: 1rem;
+}
+:is(.settings-writing, .settings-ai, .files-panel) .settings-section-heading {
+  margin-bottom: 4px;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+:is(.settings-writing, .settings-ai, .files-panel)
+  .settings-section-description {
+  margin-bottom: 0;
+}
+.settings-writing .ai-preference-group,
+.settings-ai .ai-preferences-form {
+  margin-top: 0;
+}
+.settings-page
+  :is(.ai-preferences-form, .writing-preferences-panel)
+  .ai-preference {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  justify-content: start;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 2px;
+  border: 0;
+}
+.settings-page .ai-preference > input {
+  grid-area: 1 / 1;
+  align-self: start;
+  margin-top: 2px;
+}
+.settings-page .ai-preference-copy {
+  grid-area: 1 / 2;
+}
+.settings-page .ai-preference-label {
+  font-weight: 500;
+}
+.settings-page .ai-preference:has(input:focus-visible) {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+.settings-page :is(.settings-ai, .settings-writing) .settings-options {
+  margin-top: 0;
+}
+.settings-ai .settings-note {
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-muted);
+}
+.settings-ai .settings-save-row {
+  border: 0;
+  padding-top: 0;
+}
+@media (min-width: 1200px) {
+  .settings-writing .writing-preferences-panel,
+  .settings-content.settings-ai {
+    max-width: 56rem;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    column-gap: 2rem;
+  }
+  .writing-preferences-panel > header,
+  .settings-ai > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 700px) {
+  .settings-frame .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .settings-header .app-page-heading,
+  .settings-header .settings-navigation {
+    padding: 0;
+    margin: 0;
+  }
+  .settings-section-links {
+    display: none;
+  }
+  .settings-section-picker {
+    display: block;
+  }
+  .settings-section-picker > button,
+  .settings-section-picker .action-menu a {
+    min-height: 44px;
+  }
+  .settings-section-picker > button::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin: -3px 2px 0 4px;
+    border: solid currentColor;
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+  }
+  .settings-frame .settings-page {
+    scrollbar-gutter: auto;
+    padding-right: 2px;
+  }
+  .settings-ai .settings-save-row > button {
+    min-height: 44px;
+  }
+}
