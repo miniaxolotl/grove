@@ -23,7 +23,10 @@ import {
 } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
-import { GraphSkeleton, LibrarySkeleton } from "./workspace-opening";
+import {
+  GraphSkeleton,
+  LibrarySkeleton as ListSkeleton,
+} from "./workspace-opening";
 import { MemoryRow } from "./memory-row";
 import { deferredFeature } from "./deferred-feature";
 import { LibrarySelection } from "./library-selection";
@@ -440,12 +443,8 @@ export function MemoryLibrary({
     selected && selected !== "new"
       ? items.findIndex((m) => m.id === selected.id)
       : -1;
-  const opening =
-    !archive && view === "graph" ? (
-      <GraphSkeleton />
-    ) : (
-      <LibrarySkeleton archive={archive} showExcerpt={!!search} />
-    );
+  const LibrarySkeleton =
+    !archive && view === "graph" ? GraphSkeleton : ListSkeleton;
   return (
     <>
       {!embedded && (
@@ -629,7 +628,7 @@ export function MemoryLibrary({
             </div>
           )}
           {loading && !items.length ? (
-            opening
+            <LibrarySkeleton archive={archive} showExcerpt={!!search} />
           ) : !items.length && showEmptyState ? (
             <section className="app-empty library-empty">
               <h2>
