@@ -80,8 +80,8 @@ function PlanPrices({
         </div>
         {yearly !== null && (
           <p>
-            Billed once a year ({money.format(yearly / 12)} per month on
-            average).
+            The yearly plan costs {money.format(yearly)} in one annual payment,
+            averaging {money.format(yearly / 12)} per month.
             {savingsCents > 0 &&
               ` Save ${money.format(savingsCents / 100)} compared with 12 monthly payments.`}
           </p>
