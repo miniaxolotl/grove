@@ -140,7 +140,9 @@ context hook through the V2 APIs. The bridge reuses OpenCode's executable (with
 Bun runtime mode for compiled hosts), so desktop/background launches do not need
 `node` on PATH. It does not add a second Grove server if one is
 already configured. No V1 hook or handwritten MCP transport remains. Plugin option
-`private: true` or session metadata `private: true` also disables automatic recall.
+`private: true` or session metadata `private: true` disables automatic recall and
+automatic saves and edits, including targeted patch previews and applies. Explicit
+user-requested edits remain available.
 OpenCode reloads watched configuration automatically; check its MCP tools and
 use `/reload` if Grove has not appeared. `grove uninstall --client opencode` removes
 only the matching plugin entry; it does not delete memories or credentials.
