@@ -141,6 +141,10 @@ test("hero notebook switches between complete sample notes and their cited answe
   });
   await source.click();
   await expect(page).toHaveURL(/#hero-note-newsletter$/);
+  await page.reload();
+  await expect(
+    notebook.getByRole("heading", { name: "The first issue", exact: true }),
+  ).toBeInViewport();
   await notebook
     .getByRole("button", { name: "The long weekend", exact: true })
     .click();

@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, Check, LockKeyhole, MessageSquare } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GroveMark } from "@/components/brand";
 
 const notes = [
@@ -41,6 +41,25 @@ const notes = [
 
 export function MemoryPreview() {
   const [selected, setSelected] = useState(0);
+
+  useEffect(() => {
+    function showCitedNote() {
+      const index = notes.findIndex(
+        ({ id }) => window.location.hash === `#hero-note-${id}`,
+      );
+      if (index !== -1) setSelected(index);
+    }
+    showCitedNote();
+    window.addEventListener("hashchange", showCitedNote);
+    return () => window.removeEventListener("hashchange", showCitedNote);
+  }, []);
+
+  function chooseNote(index: number) {
+    if (window.location.hash.startsWith("#hero-note-")) {
+      window.history.replaceState(null, "", `#hero-note-${notes[index].id}`);
+    }
+    setSelected(index);
+  }
   return (
     <figure
       className="notebook-preview"
@@ -66,7 +85,7 @@ export function MemoryPreview() {
             type="button"
             aria-pressed={selected === index}
             aria-controls="hero-notebook-page"
-            onClick={() => setSelected(index)}
+            onClick={() => chooseNote(index)}
           >
             {item.notebook}
           </button>
