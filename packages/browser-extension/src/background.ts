@@ -220,7 +220,7 @@ async function dispatch(raw: unknown) {
     case "edit":
       return client.edit(id, edit.parse(message.payload));
     case "save":
-      return client.save(id);
+      return client.save(id, z.uuid().optional().parse(message.payload));
     case "clear":
       return client.clear(id);
     case "notebooks":

@@ -291,7 +291,10 @@ administrator can restore eligibility. See [billing](billing.md#subscriptions).
 
 Notes opens directly to the editor. The first save is explicit (**Save now**);
 after it, changed text, notebook or source saves itself after a short editing
-pause as a guarded update of the same note, never a second capture. Autosave
+pause as a guarded update of the same note, never a second capture. Each timer
+save names the prior receipt. If the draft expires or is replaced before the
+background handles it, that timer cannot create a note or replay another save.
+Autosave
 waits out IME composition and never runs while Grove is off, access is
 unapproved, an earlier save is unresolved, or the connection lacks write
 access; a rejected conflict stops autosave, keeps the local draft and links
