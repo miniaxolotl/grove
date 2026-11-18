@@ -129,11 +129,6 @@
   height: auto;
   border-radius: 4px;
 }
-.revision figcaption {
-  margin-top: 12px;
-  font-size: 14px;
-  line-height: 1.45;
-}
 .setup {
   background: var(--brand-accent);
   color: white;

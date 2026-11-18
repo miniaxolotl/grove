@@ -13,20 +13,14 @@ export function Features() {
         <div>
           <h2 id="features-heading">Work with your notes</h2>
           <dl className={styles.featureList}>
-            <dt>Capture a thought</dt>
+            <dt>Save notes</dt>
+            <dd>Write, import a PDF, or record a voice note.</dd>
+            <dt>Review edits</dt>
+            <dd>Compare drafts or restore an earlier version.</dd>
+            <dt>Share notes</dt>
             <dd>
-              Write a note, bring in a PDF, or record a short voice note and
-              transcribe it.
-            </dd>
-            <dt>See what changed</dt>
-            <dd>
-              Compare two versions of a note. Restore an earlier draft as a new
-              revision without losing the edits in between.
-            </dd>
-            <dt>Share a copy or a link</dt>
-            <dd>
-              Export your library, or share a read-only link to a note or
-              notebook. You can turn the link off later.
+              Send a read-only link you can turn off later, or export your
+              library.
             </dd>
           </dl>
           <Link className={styles.link} href="/docs/notebook">
@@ -49,7 +43,6 @@ export function Features() {
               alt="Revision history comparing two versions: ‘working’ is crossed out and ‘tested’ is underlined."
             />
           </picture>
-          <figcaption>Comparing two versions of a note in Grove.</figcaption>
         </figure>
       </div>
     </section>

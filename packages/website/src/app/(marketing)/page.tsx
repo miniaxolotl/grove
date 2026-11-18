@@ -19,10 +19,7 @@ export default async function HomePage() {
         <div className={`page-container ${styles.intro}`}>
           <h1 id="hero-heading">Private notes, easy to find</h1>
           <div>
-            <p>
-              Save a note. Find it by word or meaning, or ask Grove a question
-              and open the note behind the answer.
-            </p>
+            <p>Search your notes or ask Grove a question.</p>
             <div className={styles.actions}>
               <Link
                 href="/sign-up"
