@@ -50,6 +50,8 @@ Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build
   dedicated release credential supports Apple-triggered source automation.
 - Burrow/Grove: protected-push/PR validation on GitHub runners. Fern: classified
   PR/merge-group CI, complete exact-tag dispatch, Blacksmith sizing and coverage.
+- Grove CI and Deploy use ONNX Runtime's bundled CPU binaries, matching the
+  production container and avoiding optional CUDA downloads on fresh runners.
 
 The workflow files contain authoritative SHA pins and job details.
 

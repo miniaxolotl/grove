@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+
+test("CI and Deploy installs match the production image's CPU-only ONNX runtime", () => {
+  const dockerfile = readFileSync("Dockerfile", "utf8");
+  assert.match(dockerfile, /^ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip$/m);
+  for (const file of ["ci.yml", "deploy.yml"]) {
+    assert.match(
+      readFileSync(`.github/workflows/${file}`, "utf8"),
+      /^env:\n(?: {2}#[^\n]*\n)* {2}ONNXRUNTIME_NODE_INSTALL_CUDA: skip$/m,
+    );
+  }
+});
+
 test("source release guards intent and preserves its authenticated generated-PR CI path", () => {
   const text = readFileSync(".github/workflows/release.yml", "utf8");
   assert.match(

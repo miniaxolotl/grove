@@ -10,6 +10,9 @@ permissions:
 concurrency:
   group: production-release
   cancel-in-progress: false
+env:
+  # Match the production image; no runner needs ONNX's optional CUDA download.
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
 jobs:
   candidate:
     if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/production' && github.ref_protected == true
