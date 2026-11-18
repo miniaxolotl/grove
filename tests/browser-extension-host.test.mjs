@@ -195,6 +195,28 @@ for (const target of ["chrome", "edge"])
       );
       context.off("request", recordRequest);
       await context.setOffline(false);
+      // Exercise independently persisted opt-outs through the signed-out UI,
+      // then reload the content script and inspect real worker results.
+      const guestPanel = await context.newPage();
+      await guestPanel.goto(`chrome-extension://${extensionId}/panel.html`);
+      await guestPanel
+        .getByRole("button", { name: "Writing settings" })
+        .click();
+      for (const off of ["spelling", "grammar"]) {
+        const checkbox = guestPanel.locator(`#writing-${off}`);
+        await checkbox.uncheck();
+        await localPage.reload();
+        await localPage
+          .locator("#draft")
+          .fill("This is a sentnce. This is a apple.");
+        await localPage
+          .locator(off === "grammar" ? "mark.spelling" : "mark.grammar")
+          .waitFor();
+        assert.equal(await localPage.locator(`mark.${off}`).count(), 0);
+        await checkbox.check();
+        await localPage.locator(`mark.${off}`).waitFor();
+      }
+      await guestPanel.close();
       await worker.evaluate(async () => {
         const stored = (await chrome.storage.local.get("writing-browser:en"))[
           "writing-browser:en"

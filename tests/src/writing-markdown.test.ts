@@ -45,8 +45,12 @@ for (const [name, before, code, after] of [
 
 test("only the prose after multiline code receives an exact grammar edit", async () => {
   const source = "📌 ``a apple `\r\na apple`` then a apple.";
-  const issues = (await checker.check(source, writingSettingsSchema.parse({ spelling: false })))
-    .issues.filter((i) => i.rule === "articles");
+  const issues = (
+    await checker.check(
+      source,
+      writingSettingsSchema.parse({ spelling: false }),
+    )
+  ).issues.filter((i) => i.rule === "articles");
   assert.equal(issues.length, 1);
   const [issue] = issues;
   assert.equal(issue.from, source.lastIndexOf("a apple"));

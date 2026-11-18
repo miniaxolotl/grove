@@ -8,7 +8,9 @@ import {
 
 const settings = writingSettingsSchema.parse({ spelling: false });
 const issuesFor = async (source: string, rule: "confusion" | "redundancy") =>
-  (await checker.check(source, settings)).issues.filter((issue) => issue.rule === rule);
+  (await checker.check(source, settings)).issues.filter(
+    (issue) => issue.rule === rule,
+  );
 
 for (const [rule, source] of [
   ["confusion", "After you and I met, things changed."],

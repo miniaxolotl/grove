@@ -1,9 +1,7 @@
 import { checker } from "./fixtures/harper-checker.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  writingSettingsSchema,
-} from "../../lib/shared/src/writing-core.ts";
+import { writingSettingsSchema } from "../../lib/shared/src/writing-core.ts";
 
 const settings = writingSettingsSchema.parse({ grammar: false });
 for (const [field, prose, typo, correction] of [
@@ -65,6 +63,10 @@ for (const [field, prose, typo, correction] of [
       (await checker.check(typo, settings)).issues.map((i) => i.original),
       [typo],
     );
-    assert.ok((await checker.check(typo, settings)).issues[0].replacements.includes(correction));
+    assert.ok(
+      (await checker.check(typo, settings)).issues[0].replacements.includes(
+        correction,
+      ),
+    );
   });
 }

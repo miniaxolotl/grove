@@ -8,8 +8,9 @@ import {
 
 const settings = writingSettingsSchema.parse({ spelling: false });
 const articles = async (text: string) =>
-  (await checker.check(text, settings))
-    .issues.filter((issue) => issue.rule === "articles");
+  (await checker.check(text, settings)).issues.filter(
+    (issue) => issue.rule === "articles",
+  );
 
 for (const [correct, phrase] of [
   ["a", "one-time fee"],

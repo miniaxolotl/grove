@@ -18,7 +18,9 @@ test("recognizes accented English loanwords and their noun inflections in either
   }
   const invalid = ["résuméing", "caféss", "jalapeñoss", "hóuse"];
   assert.deepEqual(
-    (await checker.check(invalid.join(" "), settings)).issues.map((i) => i.original),
+    (await checker.check(invalid.join(" "), settings)).issues.map(
+      (i) => i.original,
+    ),
     invalid,
   );
 });
@@ -33,8 +35,13 @@ test("corrects a decomposed typo at its literal UTF-16 span", async () => {
     issues.map(({ from, to, original }) => [from, to, original]),
     [[prefix.length, prefix.length + typo.length, typo]],
   );
-  const replacements = (await checker.check(typo, settings)).issues[0].replacements;
-  assert.deepEqual(replacements, (await checker.check(typo.normalize("NFC"), settings)).issues[0].replacements);
+  const replacements = (await checker.check(typo, settings)).issues[0]
+    .replacements;
+  assert.deepEqual(
+    replacements,
+    (await checker.check(typo.normalize("NFC"), settings)).issues[0]
+      .replacements,
+  );
   assert.equal(replacements[0], "jalapeños");
   assert.equal(
     applyWritingEdit(source, { ...issues[0], replacements }, replacements[0]),
@@ -43,7 +50,8 @@ test("corrects a decomposed typo at its literal UTF-16 span", async () => {
 });
 
 test("transposition ranking honors the shipped affix's NOSUGGEST flag", async () => {
-  const suggestions = (await checker.check("hsit", settings)).issues[0].replacements;
+  const suggestions = (await checker.check("hsit", settings)).issues[0]
+    .replacements;
   assert.ok(suggestions.includes("hist"));
   assert.ok(!suggestions.includes("shit"));
 });

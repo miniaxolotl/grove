@@ -60,6 +60,26 @@ test("an edit in formatted prose beyond 6,000 units uses its own paragraph for b
   expect(bodies[0]!.text).not.toMatch(/Other paragraph|\*/);
 });
 
+test("editing another paragraph preserves a valid local underline", async ({
+  page,
+}) => {
+  await workspace(
+    page,
+    { enabled: false, automatic: false },
+    "Check **teh** draft.\n\nReview this note.",
+  );
+  await page.goto(editorUrl);
+  const mark = (word: string) =>
+    editor(page)
+      .locator(".grove-writing-spelling")
+      .filter({ hasText: new RegExp(`^${word}$`) });
+  await expect(mark("teh")).toHaveCount(1, { timeout: 15000 });
+  await editor(page).press("Control+End");
+  await page.keyboard.insertText(" The enviroment.");
+  await expect(mark("enviroment")).toHaveCount(1);
+  await expect(mark("teh")).toHaveCount(1);
+});
+
 test("Enhanced consent starts off; automatic checks are a separate account choice", async ({
   page,
 }, info) => {

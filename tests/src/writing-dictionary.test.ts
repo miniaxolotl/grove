@@ -1,9 +1,7 @@
 import { checker } from "./fixtures/harper-checker.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  writingSettingsSchema,
-} from "../../lib/shared/src/writing-core.ts";
+import { writingSettingsSchema } from "../../lib/shared/src/writing-core.ts";
 
 const settings = writingSettingsSchema.parse({ grammar: false });
 
@@ -34,7 +32,11 @@ test("dictionary suggestions correct note words and preserve a possessive’s ap
     ["watchlst's", "watchlist's"],
     ["backlnik", "backlink"],
   ]) {
-    assert.equal((await checker.check(typo, settings)).issues[0].replacements[0], correction, typo);
+    assert.equal(
+      (await checker.check(typo, settings)).issues[0].replacements[0],
+      correction,
+      typo,
+    );
   }
 });
 
@@ -80,10 +82,15 @@ for (const [topic, source, typo, correction] of [
 ]) {
   test(`recognizes ${topic} vocabulary and suggests the nearby correction`, async () => {
     assert.deepEqual(
-      (await checker.check(source, settings)).issues.map((issue) => issue.original),
+      (await checker.check(source, settings)).issues.map(
+        (issue) => issue.original,
+      ),
       [typo],
     );
-    assert.equal((await checker.check(typo, settings)).issues[0].replacements[0], correction);
+    assert.equal(
+      (await checker.check(typo, settings)).issues[0].replacements[0],
+      correction,
+    );
   });
 }
 
@@ -124,8 +131,9 @@ test("note words take only the suffixes appropriate to their usage", async () =>
     "endnotebooklist",
   ];
   assert.deepEqual(
-    (await checker.check([...accepted, ...rejected].join(" "), settings))
-      .issues.map((issue) => issue.original),
+    (
+      await checker.check([...accepted, ...rejected].join(" "), settings)
+    ).issues.map((issue) => issue.original),
     rejected,
   );
 });
@@ -133,17 +141,20 @@ test("note words take only the suffixes appropriate to their usage", async () =>
 test("personal names and acronyms keep their singular possessive without masking other suffixes", async () => {
   const source =
     "Bramblewick’s notes on the API's limits and the SDK’s roadmap. Bramblewick’ll share Zorbleck’s notes.";
-  const issues = (await checker.check(source, {
-    ...settings,
-    words: ["Bramblewick"],
-  })).issues;
+  const issues = (
+    await checker.check(source, {
+      ...settings,
+      words: ["Bramblewick"],
+    })
+  ).issues;
   assert.deepEqual(
     issues.map((issue) => issue.original),
     ["Bramblewick’ll", "Zorbleck’s"],
   );
   assert.deepEqual(
-    (await checker.check("Bramblewick’s notes", settings))
-      .issues.map((issue) => issue.original),
+    (await checker.check("Bramblewick’s notes", settings)).issues.map(
+      (issue) => issue.original,
+    ),
     ["Bramblewick’s"],
   );
 });

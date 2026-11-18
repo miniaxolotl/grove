@@ -121,6 +121,7 @@ export class EditorChecks {
   };
   change(update: ViewUpdate) {
     if (!update.docChanged) return;
+    const previousLocal = this.local;
     this.cancel();
     this.ignored.current = this.ignored.current.flatMap((i) => {
       if (update.changes.touchesRange(i.from, i.to)) return [];
@@ -142,6 +143,31 @@ export class EditorChecks {
       update.changes.iterChangedRanges((_a, _b, from, to) => {
         this.changedAt = Math.max(from, to - 1);
       });
+    if (this.changedAt !== null && !this.composing && this.settings.automatic) {
+      // Rechecking one paragraph must not erase feedback in untouched ones.
+      // A fence or blank-line edit can change a different block's Markdown
+      // interpretation, so verify its new projection as well as its text.
+      this.local = previousLocal.flatMap((issue) => {
+        const before = projectMarkdownParagraph(
+          update.startState,
+          issue.from,
+          6000,
+        );
+        if (!before || update.changes.touchesRange(before.from, before.to))
+          return [];
+        const from = update.changes.mapPos(issue.from, 1),
+          to = update.changes.mapPos(issue.to, -1);
+        const after = projectMarkdownParagraph(update.state, from, 6000);
+        if (
+          !after ||
+          before.text !== after.text ||
+          from - after.from !== issue.from - before.from ||
+          !after.allows(from - after.from, to - after.from)
+        )
+          return [];
+        return [{ ...issue, from, to, id: `${issue.rule}:${from}:${to}` }];
+      });
+    }
     this.paint();
     this.schedule();
   }
@@ -205,7 +231,7 @@ export class EditorChecks {
         state.doc !== this.view.state.doc
       )
         return;
-      this.local = block
+      const fresh = block
         ? result.issues.flatMap((i) => {
             if (
               !block.allows(i.from, i.to) ||
@@ -217,6 +243,12 @@ export class EditorChecks {
             return [{ ...i, from, to, id: `${i.rule}:${from}:${to}` }];
           })
         : protectMarkdownIssues(state, result.issues);
+      this.local = block
+        ? mergeWritingIssues(
+            fresh,
+            this.local.filter((i) => i.to <= block.from || i.from >= block.to),
+          )
+        : fresh;
       this.state.status = "ready";
       this.state.notice = "";
       this.paint();
