@@ -358,57 +358,59 @@ function FilesView({ initial }: { initial: FileSearch }) {
             . Storage totals cover your whole account.
           </p>
         ) : null}
-        <form
-          className="files-filters"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setCursors([undefined]);
-            setFilters((old) => ({ ...old, query: queryText.trim() }));
-          }}
-        >
-          <label>
-            Search files
-            <input
-              type="search"
-              placeholder="Filename, note, notebook or chat…"
-              maxLength={200}
-              value={queryText}
-              onChange={(event) => setQueryText(event.target.value)}
-            />
-          </label>
-          <button
-            type="submit"
-            aria-label="Search files"
-            className="app-button secondary"
+        <div className="files-controls">
+          <form
+            className="files-filters"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setCursors([undefined]);
+              setFilters((old) => ({ ...old, query: queryText.trim() }));
+            }}
           >
-            Search
-          </button>
-        </form>
-        <div className="files-toolbar">
-          <button
-            type="button"
-            className="files-filter-toggle"
-            aria-expanded={filtersOpen}
-            aria-controls="files-filter-options"
-            onClick={() => setFiltersOpen((old) => !old)}
-          >
-            <SlidersHorizontal size={16} />
-            Filters{activeCount ? ` (${activeCount})` : ""}
-          </button>
-          <label className="files-sort">
-            Sort by
-            <select
-              aria-label="Sort by"
-              value={filters.sort}
-              onChange={(event) =>
-                change({ sort: event.target.value as FileSearch["sort"] })
-              }
+            <label>
+              Search files
+              <input
+                type="search"
+                placeholder="Filename, note, notebook or chat…"
+                maxLength={200}
+                value={queryText}
+                onChange={(event) => setQueryText(event.target.value)}
+              />
+            </label>
+            <button
+              type="submit"
+              aria-label="Search files"
+              className="app-button secondary"
             >
-              <option value="newest">Newest first</option>
-              <option value="name">Filename A–Z</option>
-              <option value="size">Largest first</option>
-            </select>
-          </label>
+              Search
+            </button>
+          </form>
+          <div className="files-toolbar">
+            <button
+              type="button"
+              className="files-filter-toggle"
+              aria-expanded={filtersOpen}
+              aria-controls="files-filter-options"
+              onClick={() => setFiltersOpen((old) => !old)}
+            >
+              <SlidersHorizontal size={16} />
+              Filters{activeCount ? ` (${activeCount})` : ""}
+            </button>
+            <label className="files-sort">
+              Sort by
+              <select
+                aria-label="Sort by"
+                value={filters.sort}
+                onChange={(event) =>
+                  change({ sort: event.target.value as FileSearch["sort"] })
+                }
+              >
+                <option value="newest">Newest first</option>
+                <option value="name">Filename A–Z</option>
+                <option value="size">Largest first</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div
           id="files-filter-options"
@@ -582,26 +584,28 @@ function FilesView({ initial }: { initial: FileSearch }) {
                 </Link>
               </div>
             )}
-            <div className="files-paging">
-              <button
-                type="button"
-                className="text-button"
-                disabled={cursors.length === 1 || files.isFetching}
-                onClick={() => setCursors((old) => old.slice(0, -1))}
-              >
-                Previous files
-              </button>
-              <button
-                type="button"
-                className="text-button"
-                disabled={!files.data.nextCursor || files.isFetching}
-                onClick={() =>
-                  setCursors((old) => [...old, files.data!.nextCursor!])
-                }
-              >
-                Next files
-              </button>
-            </div>
+            {(cursors.length > 1 || files.data.nextCursor) && (
+              <div className="files-paging">
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={cursors.length === 1 || files.isFetching}
+                  onClick={() => setCursors((old) => old.slice(0, -1))}
+                >
+                  Previous files
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={!files.data.nextCursor || files.isFetching}
+                  onClick={() =>
+                    setCursors((old) => [...old, files.data!.nextCursor!])
+                  }
+                >
+                  Next files
+                </button>
+              </div>
+            )}
           </>
         )}
       </section>

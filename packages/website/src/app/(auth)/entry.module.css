@@ -1,0 +1,86 @@
+.page {
+  --entry-ground: var(--brand-paper);
+  --entry-surface: var(--brand-surface);
+  --entry-ink: var(--brand-ink);
+  --entry-muted: var(--brand-muted);
+  --entry-line: var(--brand-line);
+  display: grid;
+  align-content: center;
+  min-height: 100svh;
+  padding: clamp(16px, 4vw, 48px) 16px;
+  background: var(--entry-ground);
+  color: var(--entry-ink);
+}
+.column {
+  width: min(100%, 26rem);
+  min-width: 0;
+  margin-inline: auto;
+}
+.back,
+.resources a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--entry-muted);
+  font-size: 14px;
+  text-underline-offset: 4px;
+}
+.back {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.page a:is(:hover, :focus-visible) {
+  text-decoration: underline;
+}
+.back:focus-visible,
+.resources a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.entry :global(.cl-rootBox),
+.entry :global(.cl-cardBox) {
+  width: 100%;
+  max-width: 100%;
+  /* The hosted form uses its configured Grove paper palette in either scheme. */
+  color-scheme: light;
+}
+.notice {
+  padding: clamp(24px, 6vw, 36px);
+  border: 1px solid var(--entry-line);
+  border-radius: 12px;
+  background: var(--entry-surface);
+}
+.notice h1 {
+  margin-block: 28px 8px;
+  font-size: clamp(24px, 5vw, 28px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+.notice p {
+  color: var(--entry-muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.resources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 24px;
+  margin-top: 8px;
+}
+@media (max-width: 600px) {
+  .page {
+    align-content: start;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .page {
+    --entry-ground: #191c1a;
+    --entry-surface: #222624;
+    --entry-ink: #edf2e8;
+    --entry-muted: #b5c3b4;
+    --entry-line: #354437;
+  }
+}

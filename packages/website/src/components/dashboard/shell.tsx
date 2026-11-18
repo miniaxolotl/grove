@@ -155,7 +155,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         </div>
                         <div className="workspace-utilities">
                           <CommandMenuButton />
-                          <WorkspacePlan />
                           <ShortcutHelpButton compact />
                         </div>
                         <nav aria-label="Workspace" className="app-navigation">
@@ -169,6 +168,16 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                           ))}
                         </nav>
                         <NotebookExplorer />
+                        <div className="app-sidebar-footer">
+                          <div className="sidebar-account-avatar">
+                            <UserButton />
+                          </div>
+                          <span className="sidebar-account-text">
+                            <strong>{user?.firstName ?? "Your account"}</strong>
+                            <small>Private Grove</small>
+                          </span>
+                          <WorkspacePlan />
+                        </div>
                         <nav
                           aria-label="Account settings"
                           className="app-settings-navigation"
@@ -178,19 +187,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             current={current}
                           />
                         </nav>
-                        <div className="app-sidebar-footer">
-                          <div className="sidebar-account">
-                            <div className="sidebar-account-avatar">
-                              <UserButton />
-                            </div>
-                            <span className="sidebar-account-text">
-                              <strong>
-                                {user?.firstName ?? "Your account"}
-                              </strong>
-                              <small>Private Grove</small>
-                            </span>
-                          </div>
-                        </div>
                       </aside>
                       <div className="app-main">
                         <header className="app-topbar">

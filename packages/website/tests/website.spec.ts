@@ -67,19 +67,14 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
     .click();
   await expect(page).toHaveURL(/#your-library$/);
   await expect(page.locator("#your-library")).toBeInViewport();
-  await page
-    .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Integrations", exact: true })
-    .click();
-  await expect(page).toHaveURL(/#for-developers$/);
-  await expect(
-    page.getByRole("heading", { name: "Get started", exact: true }),
-  ).toBeInViewport();
   await page.getByText("Is my notebook private?", { exact: true }).click();
   await expect(
     page.getByText("Your notes belong to your account.", { exact: false }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Connect your AI tools" }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Integrations", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/install$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Set up Grove",
@@ -110,8 +105,10 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await expect(page.getByRole("table")).toContainText("1,000 / month");
   await expect(page.getByText("What do writing limits cover?")).toBeVisible();
   await expect(
-    page.getByRole("article", { name: "Pro", exact: true }).getByRole("link"),
+    page.getByRole("link", { name: "Create a free account" }),
   ).toHaveAttribute("href", "/sign-up");
+  await expect(page.getByRole("article", { name: "Pro", exact: true })).toContainText("Pro purchases and trials are unavailable here");
+  await expect(page.getByRole("link", { name: "View billing options" })).toHaveCount(0);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
     `${siteURL}/pricing`,
@@ -462,16 +459,34 @@ test("mobile navigation keeps account access available and dismisses on focus ex
   const navigation = page.getByRole("navigation", {
     name: "Mobile navigation",
   });
+  const account = page
+    .getByRole("banner")
+    .getByRole("link", { name: "Your Grove" });
+  await expect(account).toBeInViewport();
+  await expect(account).toHaveAttribute("href", "/app");
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(
-    navigation.getByRole("link", { name: "Your Grove", exact: true }),
-  ).toHaveAttribute("href", "/app");
+    navigation.getByRole("link", { name: "Integrations", exact: true }),
+  ).toHaveAttribute("href", "/install");
   await page.keyboard.press("Shift+Tab");
   await expect(navigation).not.toBeVisible();
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.setViewportSize({ width: 320, height: 900 });
   await expect(navigation).not.toBeVisible();
+});
+
+test.describe("mobile menu before JavaScript", () => {
+  test.use({ javaScriptEnabled: false, viewport: { width: 320, height: 740 } });
+  test("open setup from the menu", async ({ page }) => {
+    await page.goto("/privacy");
+    await page.getByRole("button", { name: "Open navigation" }).press("Enter");
+    await page
+      .getByRole("navigation", { name: "Mobile navigation" })
+      .getByRole("link", { name: "Integrations" })
+      .click();
+    await expect(page).toHaveURL(/\/install$/);
+  });
 });
 
 test("mobile navigation and layouts work at narrow and wide widths", async ({

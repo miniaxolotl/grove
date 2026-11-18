@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  dictionaryWordKey,
   effectiveWritingSettings,
   writingPatchSchema,
   writingSettingsSchema,
@@ -248,15 +249,13 @@ export class WritingPreferencesStore {
     if (change.removeWord)
       settings.words = settings.words.filter(
         (word) =>
-          word.toLocaleLowerCase("en") !==
-          change.removeWord!.toLocaleLowerCase("en"),
+          dictionaryWordKey(word) !== dictionaryWordKey(change.removeWord!),
       );
     if (
       change.addWord &&
       !settings.words.some(
         (word) =>
-          word.toLocaleLowerCase("en") ===
-          change.addWord!.toLocaleLowerCase("en"),
+          dictionaryWordKey(word) === dictionaryWordKey(change.addWord!),
       )
     )
       settings.words = [...settings.words, change.addWord];

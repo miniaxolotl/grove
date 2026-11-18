@@ -2,6 +2,7 @@
 import {
   useEffect,
   useEffectEvent,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -127,6 +128,8 @@ export function MemoryEditor({
   const drafts = useNoteDrafts();
   const noteExport = useNoteExport();
   const root = useRef<HTMLFormElement>(null);
+  const notebookId = useId();
+  const retentionHelp = useId();
   useLayoutEffect(() => {
     // Carry deferred-shell focus into the compact toolbar when it becomes ready.
     const heading = root.current
@@ -948,95 +951,109 @@ export function MemoryEditor({
               close={() => setProperties(false)}
             >
               {!personal && (
-                <NotebookSelect
-                  label="Notebook"
-                  value={projectId}
-                  onValueChange={setProjectId}
-                  projects={projects}
-                  disabled={busy}
-                />
-              )}
-              {!personal && (
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => setCreateNotebook(true)}
-                >
-                  New notebook
-                </button>
+                <div className="note-form-notebook">
+                  <div className="note-form-field-heading">
+                    <label htmlFor={notebookId}>Notebook</label>
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => setCreateNotebook(true)}
+                    >
+                      New notebook
+                    </button>
+                  </div>
+                  <NotebookSelect
+                    id={notebookId}
+                    aria-label="Notebook"
+                    showHierarchy
+                    value={projectId}
+                    onValueChange={setProjectId}
+                    projects={projects}
+                    disabled={busy}
+                  />
+                </div>
               )}
               <details className="note-options">
                 <summary>Note options</summary>
-                <div className="grid grid-cols-2 gap-4">
-                  <Select
-                    label="Note type"
-                    disabled={busy}
-                    value={kind}
-                    onValueChange={(value) => {
-                      setKind(value as Memory["kind"]);
-                      setAutoKind(false);
-                      if (!base && value === "handoff") setRetention("30");
-                    }}
-                    options={[
-                      { value: "fact", label: "Note" },
-                      { value: "preference", label: "Preference" },
-                      { value: "decision", label: "Decision" },
-                      { value: "solution", label: "How-to" },
-                      { value: "handoff", label: "Progress note" },
-                    ]}
-                  />
+                <div className="note-form-options">
+                  <div className="note-form-setting">
+                    <Select
+                      label="Note type"
+                      disabled={busy}
+                      value={kind}
+                      onValueChange={(value) => {
+                        setKind(value as Memory["kind"]);
+                        setAutoKind(false);
+                        if (!base && value === "handoff") setRetention("30");
+                      }}
+                      options={[
+                        { value: "fact", label: "Note" },
+                        { value: "preference", label: "Preference" },
+                        { value: "decision", label: "Decision" },
+                        { value: "solution", label: "How-to" },
+                        { value: "handoff", label: "Progress note" },
+                      ]}
+                    />
+                    {kind === "handoff" ? (
+                      <p>
+                        Keep what’s done and what comes next together, for you
+                        and your agents.
+                      </p>
+                    ) : (
+                      <label className="note-form-auto-type">
+                        <input
+                          type="checkbox"
+                          disabled={busy}
+                          checked={autoKind}
+                          onChange={(e) => setAutoKind(e.target.checked)}
+                        />
+                        Let Grove choose the note type
+                      </label>
+                    )}
+                  </div>
+                  <div className="note-form-setting">
+                    <Select
+                      label="Keep this note"
+                      aria-describedby={retentionHelp}
+                      disabled={busy}
+                      value={
+                        retention === "permanent" ? "permanent" : "ephemeral"
+                      }
+                      onValueChange={(value) =>
+                        setRetention(value === "permanent" ? "permanent" : "30")
+                      }
+                      options={[
+                        { value: "permanent", label: "Until I remove it" },
+                        { value: "ephemeral", label: "For a limited time" },
+                      ]}
+                    />
+                    {retention !== "permanent" && (
+                      <Select
+                        label="Expires after"
+                        disabled={busy}
+                        value={retention}
+                        onValueChange={setRetention}
+                        options={[...new Set([1, 7, 30, 90, Number(retention)])]
+                          .sort((a, b) => a - b)
+                          .map((days) => ({
+                            value: String(days),
+                            label: `${days} ${days === 1 ? "day" : "days"}`,
+                          }))}
+                      />
+                    )}
+                    <p id={retentionHelp}>
+                      {retention === "permanent"
+                        ? "Yours to keep. Archive or delete it whenever you like."
+                        : "When it expires, this note moves out of search. You have 60 days to restore it before it’s deleted."}
+                    </p>
+                  </div>
                 </div>
-                <Select
-                  label="Keep this note"
-                  disabled={busy}
-                  value={retention === "permanent" ? "permanent" : "ephemeral"}
-                  onValueChange={(value) =>
-                    setRetention(value === "permanent" ? "permanent" : "30")
-                  }
-                  options={[
-                    { value: "permanent", label: "Until I remove it" },
-                    { value: "ephemeral", label: "For a limited time" },
-                  ]}
-                />
-                {retention !== "permanent" && (
-                  <Select
-                    label="Expires after"
-                    disabled={busy}
-                    value={retention}
-                    onValueChange={setRetention}
-                    options={[...new Set([1, 7, 30, 90, Number(retention)])]
-                      .sort((a, b) => a - b)
-                      .map((days) => ({
-                        value: String(days),
-                        label: `${days} ${days === 1 ? "day" : "days"}`,
-                      }))}
-                  />
-                )}
-                <p className="text-xs leading-6 text-muted">
-                  {retention === "permanent"
-                    ? "Yours to keep. Archive or delete it whenever you like."
-                    : "When it expires, this note moves out of search. You have 60 days to restore it before it’s deleted."}
-                </p>
                 {personal && (
                   <p className="text-sm leading-7 text-muted">
                     Saved outside notebooks. You choose which agents can read
                     it.
                   </p>
-                )}
-                {kind === "handoff" ? (
-                  <p className="text-sm leading-7 text-muted">
-                    Keep what’s done and what comes next together, for you and
-                    your agents.
-                  </p>
-                ) : (
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={autoKind}
-                      onChange={(e) => setAutoKind(e.target.checked)}
-                    />
-                    Let Grove choose the note type
-                  </label>
                 )}
               </details>
               {details}
@@ -1064,20 +1081,20 @@ export function MemoryEditor({
               )}
             </p>
           )}
-          {!pageView && (
-            <div className="flex flex-wrap gap-3">
-              {saveButton}
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={busy}
-                onClick={cancel}
-              >
-                Cancel
-              </Button>
-            </div>
-          )}
         </fieldset>
+        {!pageView && (
+          <div className="note-form-footer">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={cancel}
+            >
+              Cancel
+            </Button>
+            {saveButton}
+          </div>
+        )}
       </form>
       {deleteRequested && base && cancelDelete && onDeleted && (
         <NoteDeleteDialog
@@ -1090,7 +1107,7 @@ export function MemoryEditor({
       )}
       {createNotebook && (
         <NotebookDialog
-          action={{ mode: "create" }}
+          action={{ mode: "create", parentId: projectId || undefined }}
           close={() => setCreateNotebook(false)}
           onSaved={(project) => setProjectId(project.id)}
         />

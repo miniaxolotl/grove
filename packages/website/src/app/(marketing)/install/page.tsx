@@ -1,9 +1,8 @@
-import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { Installation } from "@/components/installation";
 import { ExtensionStoreLinks } from "@/components/extension-store-links";
 import { pageMetadata } from "@/lib/metadata";
-import { site } from "@/lib/site";
 
 export const metadata = pageMetadata(
   "Connect your AI tools to Grove",
@@ -27,7 +26,7 @@ export default async function InstallPage() {
           <a href="#browser-extension">Browser extension setup</a>
         </nav>
       </header>
-      <section aria-labelledby="ai-tools" className="setup-tools">
+      <section aria-labelledby="ai-tools" className="setup-tools max-w-[68ch]">
         <h2 id="ai-tools">Connect an AI tool</h2>
         <Installation />
       </section>
@@ -66,30 +65,18 @@ export default async function InstallPage() {
           .
         </p>
       </section>
-      <section className="setup-reference" aria-labelledby="next-heading">
-        <h2 id="next-heading" className="text-xl font-medium tracking-tight">
-          Documentation and self-hosting
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7">
-          Explore the memory and notebook tools, manage connections in your
-          dashboard, or set up Grove on your own server.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2">
-          {[
-            { label: "Server & tool reference", href: site.docs },
-            { label: "OpenCode plugin", href: site.pluginDocs },
-            { label: "Self-host Grove", href: "/self-host" },
-          ].map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
-            >
-              {label} <ArrowUpRight size={14} />
-            </a>
-          ))}
-        </div>
-      </section>
+      <nav className="setup-jump" aria-label="Related setup guides">
+        <Link href="/docs/server#memory-and-notebook-tools">
+          Memory tool reference
+        </Link>
+        <Link
+          href="/self-host"
+          data-analytics-event="docs_link_clicked"
+          data-analytics-placement="install"
+        >
+          Install Grove Open Source
+        </Link>
+      </nav>
     </main>
   );
 }

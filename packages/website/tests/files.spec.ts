@@ -24,6 +24,76 @@ const file = {
   expiresAt: null,
   locationCount: 1,
 };
+for (const width of [320, 1440]) {
+  test(`open files from Settings, filter and retry without losing the selection at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    let unavailable = true;
+    const sketch = {
+      ...file,
+      id: "00000000-0000-4000-a000-000000000102",
+      filename: "Sketch.png",
+      kind: "image",
+    };
+    await page.route("**/api/grove/**", async (route) => {
+      const url = route.request().url();
+      let data: unknown = [];
+      if (url.endsWith("/me")) data = { accountId: "filtered-files" };
+      if (url.endsWith("/files/storage"))
+        data = {
+          ...storage,
+          fileCount: 2,
+          visibleBytes: 200,
+          budgetBytes: 200,
+          attempts: 2,
+        };
+      if (url.endsWith("/files/search")) {
+        const { kind } = route.request().postDataJSON();
+        if (kind === "image" && unavailable) {
+          await route.fulfill({
+            status: 503,
+            json: {
+              success: false,
+              error: { code: "unavailable", message: "Files are unavailable" },
+            },
+          });
+          return;
+        }
+        data = {
+          items: kind === "image" ? [sketch] : [file, sketch],
+          nextCursor: null,
+        };
+      }
+      await route.fulfill({
+        json: { success: true, data: catalogResponse(url, data) },
+      });
+    });
+    await page.goto(`${base}/app/settings`);
+    const nav = page.getByRole("navigation", { name: "Settings sections" });
+    if (width === 320)
+      await nav
+        .getByRole("button", { name: /Change settings section/ })
+        .click();
+    await nav.getByRole("link", { name: "Files & storage" }).click();
+    const results = page.getByRole("list", { name: "Uploaded files" });
+    await expect(results.getByRole("listitem")).toHaveCount(2);
+    await page.getByRole("button", { name: "Filters", exact: true }).click();
+    const kind = page.getByLabel("File type", { exact: true });
+    await kind.selectOption("image");
+    await expect(page.getByRole("alert")).toContainText(
+      "Files are unavailable",
+    );
+    await expect(results).toHaveCount(0);
+    unavailable = false;
+    await page.getByRole("button", { name: "Try again" }).click();
+    await expect(kind).toHaveValue("image");
+    await expect(results.getByRole("listitem")).toHaveCount(1);
+    await expect(results).toContainText("Sketch.png");
+    await page.getByRole("button", { name: /Clear file type/ }).click();
+    await expect(results.getByRole("listitem")).toHaveCount(2);
+  });
+}
 test("files recover from errors, paginate and never show stale locations after a denied refresh", async ({
   page,
 }) => {

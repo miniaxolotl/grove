@@ -98,7 +98,11 @@ function OrganizerContent() {
           ? "Move notebook"
           : "Organize notebooks"
       }
-      close={notebooks.closeOrganizer}
+      close={
+        notebooks.choosingDestination && project
+          ? () => notebooks.setChoosingDestination(false)
+          : notebooks.closeOrganizer
+      }
       busy={notebooks.organizationBusy}
       variant="inspector"
       header={

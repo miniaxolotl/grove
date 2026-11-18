@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { writingRules, type WritingRule } from "@lib/shared/writing-settings";
+import { dictionaryWordKey, personalWordLimit, writingRules, type WritingRule } from "@lib/shared/writing-settings";
 import {
   loadWritingSettings,
   saveWritingSettings,
@@ -115,13 +115,13 @@ export function WritingPreferences() {
   const addWord = () => {
     const clean = newWord.trim();
     if (!clean) return;
-    if (
-      settings.words.some(
-        (entry) =>
-          entry.toLocaleLowerCase("en") === clean.toLocaleLowerCase("en"),
-      )
-    ) {
+    const key = dictionaryWordKey(clean);
+    if (settings.words.some((entry) => dictionaryWordKey(entry) === key)) {
       setWordError("That word is already in your dictionary.");
+      return;
+    }
+    if (settings.words.length >= personalWordLimit) {
+      setWordError("Dictionary full. Remove a word before adding another.");
       return;
     }
     try {
@@ -130,23 +130,25 @@ export function WritingPreferences() {
       setWordError("");
     } catch {
       setWordError(
-        "Use letters with optional apostrophes, up to 80 characters.",
+        "Use letters with optional apostrophes or hyphens, up to 80 characters.",
       );
     }
   };
 
   return (
     <section
-      className="app-panel writing-preferences-panel"
+      className="writing-preferences-panel"
       aria-labelledby="writing-heading"
     >
-      <div className="settings-panel-heading">
-        <h2 id="writing-heading">Writing</h2>
-      </div>
-      <p className="settings-panel-description">
-        Spelling and grammar checks run on this device. Changes apply
-        immediately.
-      </p>
+      <header>
+        <h2 className="settings-section-heading" id="writing-heading">
+          Writing
+        </h2>
+        <p className="settings-section-description">
+          Spelling and grammar checks run on this device. Changes apply
+          immediately.
+        </p>
+      </header>
       <fieldset className="ai-preference-group">
         <legend>
           <h3>Checks</h3>
@@ -173,120 +175,126 @@ export function WritingPreferences() {
           onChange={(grammar) => update({ grammar })}
         />
       </fieldset>
-      <details className="settings-options">
-        <summary>More writing options</summary>
-        <Row
-          id="writing-automatic"
-          label="Check as I type"
-          description="Check after a pause in typing. You can still check manually when this is off."
-          checked={settings.automatic}
-          onChange={(automatic) => update({ automatic })}
-        />
-        <Row
-          id="writing-highlights"
-          label="Inline highlights"
-          description="Underline issues in the note. Off keeps the accessible issue list."
-          checked={settings.highlights}
-          onChange={(highlights) => update({ highlights })}
-        />
-        <div className="ai-preference-group mt-3">
-          <button
-            type="button"
-            className="text-button"
-            aria-expanded={advanced}
-            onClick={() => setAdvanced(!advanced)}
-          >
-            {advanced ? "Hide advanced rules" : "Show advanced rules"}
-          </button>
-          {advanced && (
-            <fieldset className="ai-preference-group">
-              <legend>
-                <h3>Grammar rules</h3>
-              </legend>
-              {writingRules.map((rule) => (
-                <Row
-                  key={rule}
-                  id={`writing-rule-${rule}`}
-                  label={ruleLabels[rule].label}
-                  description={ruleLabels[rule].description}
-                  checked={settings.grammar && settings.rules[rule]}
-                  disabled={!settings.grammar}
-                  onChange={(checked) => update({ rules: { [rule]: checked } })}
-                />
-              ))}
-            </fieldset>
-          )}
-        </div>
-      </details>
-      <details className="settings-options">
-        <summary>Personal dictionary</summary>
-        <fieldset className="ai-preference-group">
-          <p className="ai-preference-description">
-            Names, brands and terms this device won’t flag. This list is
-            separate from the browser extension’s dictionary.
-          </p>
-          {settings.words.length > 0 ? (
-            <ul className="grove-writing-words">
-              {settings.words.map((word) => (
-                <li key={word}>
-                  <span>{word}</span>
-                  <button
-                    type="button"
-                    className="text-button"
-                    aria-label={`Remove ${word} from dictionary`}
-                    onClick={() =>
-                      update({
-                        words: settings.words.filter((entry) => entry !== word),
-                      })
-                    }
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ai-preference-description">No added words yet.</p>
-          )}
-          <div className="grove-writing-add-word">
-            <input
-              type="text"
-              aria-label="Add a word to the dictionary"
-              placeholder="Add a word"
-              value={newWord}
-              spellCheck={false}
-              autoComplete="off"
-              onChange={(event) => {
-                setNewWord(event.target.value);
-                setWordError("");
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  addWord();
-                }
-              }}
-            />
-            <button type="button" onClick={addWord}>
-              Add word
-            </button>
-          </div>
-          {wordError ? (
-            <p className="app-error" role="alert">
-              {wordError}
-            </p>
-          ) : null}
-          {settings.words.length > 0 && (
+      <div className="writing-secondary">
+        <details className="settings-options">
+          <summary>More writing options</summary>
+          <Row
+            id="writing-automatic"
+            label="Check as I type"
+            description="Check after a pause in typing. You can still check manually when this is off."
+            checked={settings.automatic}
+            onChange={(automatic) => update({ automatic })}
+          />
+          <Row
+            id="writing-highlights"
+            label="Inline highlights"
+            description="Underline issues in the note. Off keeps the accessible issue list."
+            checked={settings.highlights}
+            onChange={(highlights) => update({ highlights })}
+          />
+          <div className="ai-preference-group mt-3">
             <button
               type="button"
               className="text-button"
-              onClick={() => update({ words: [] })}
+              aria-expanded={advanced}
+              onClick={() => setAdvanced(!advanced)}
             >
-              Clear dictionary
+              {advanced ? "Hide advanced rules" : "Show advanced rules"}
             </button>
-          )}
-        </fieldset>
-      </details>
+            {advanced && (
+              <fieldset className="ai-preference-group">
+                <legend>
+                  <h3>Grammar rules</h3>
+                </legend>
+                {writingRules.map((rule) => (
+                  <Row
+                    key={rule}
+                    id={`writing-rule-${rule}`}
+                    label={ruleLabels[rule].label}
+                    description={ruleLabels[rule].description}
+                    checked={settings.grammar && settings.rules[rule]}
+                    disabled={!settings.grammar}
+                    onChange={(checked) =>
+                      update({ rules: { [rule]: checked } })
+                    }
+                  />
+                ))}
+              </fieldset>
+            )}
+          </div>
+        </details>
+        <details className="settings-options">
+          <summary>Personal dictionary</summary>
+          <fieldset className="ai-preference-group">
+            <p className="ai-preference-description">
+              Names, brands and terms this device won’t flag. This list is
+              separate from the browser extension’s dictionary.
+            </p>
+            {settings.words.length > 0 ? (
+              <ul className="grove-writing-words">
+                {settings.words.map((word) => (
+                  <li key={word}>
+                    <span>{word}</span>
+                    <button
+                      type="button"
+                      className="text-button"
+                      aria-label={`Remove ${word} from dictionary`}
+                      onClick={() =>
+                        update({
+                          words: settings.words.filter(
+                            (entry) => entry !== word,
+                          ),
+                        })
+                      }
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="ai-preference-description">No added words yet.</p>
+            )}
+            <div className="grove-writing-add-word">
+              <input
+                type="text"
+                aria-label="Add a word to the dictionary"
+                placeholder="Add a word"
+                value={newWord}
+                spellCheck={false}
+                autoComplete="off"
+                onChange={(event) => {
+                  setNewWord(event.target.value);
+                  setWordError("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addWord();
+                  }
+                }}
+              />
+              <button type="button" onClick={addWord}>
+                Add word
+              </button>
+            </div>
+            {wordError ? (
+              <p className="app-error" role="alert">
+                {wordError}
+              </p>
+            ) : null}
+            {settings.words.length > 0 && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => update({ words: [] })}
+              >
+                Clear dictionary
+              </button>
+            )}
+          </fieldset>
+        </details>
+      </div>
     </section>
   );
 }

@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import {
+  dictionaryWordKey,
   englishMessages,
   mapIgnoredIssues,
+  personalWordLimit,
   type WritingIssue,
   type WritingPatch,
   type WritingSettings,
@@ -291,18 +293,20 @@ export function useWritingProofing(
       const clean = word.trim();
       if (!clean) return;
       const { words } = loadWritingSettings();
-      if (
-        !words.some(
-          (entry) => entry.toLocaleLowerCase("en") === clean.toLocaleLowerCase("en"),
-        )
-      )
+      const key = dictionaryWordKey(clean);
+      if (!words.some((entry) => dictionaryWordKey(entry) === key)) {
+        if (words.length >= personalWordLimit) {
+          setNotice("Dictionary full. Remove a word in Writing settings first.");
+          return;
+        }
         setSettings(saveWritingSettings({ words: [...words, clean] }));
+      }
       setIssues((current) =>
         current.filter(
           (issue) =>
             !(
               issue.rule === "spelling" &&
-              issue.original.toLocaleLowerCase("en") === clean.toLocaleLowerCase("en")
+              dictionaryWordKey(issue.original) === key
             ),
         ),
       );
@@ -431,7 +435,7 @@ export function WritingIssueCard({
           ))}
         </div>
       ) : (
-        <p className="grove-writing-original">“{issue.original}”</p>
+        <p className="grove-writing-original">“{issue.rule === "repetition" ? issue.original.trimStart() : issue.original}”</p>
       )}
       {notice ? (
         <p className="grove-writing-notice" role="alert">

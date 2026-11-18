@@ -33,11 +33,7 @@ export default async function ReferencePage({
   const document = await loadDocumentation((await params).slug);
   if (!document) notFound();
   return (
-    <DocumentationPage
-      title={document.title}
-      description={document.description}
-      slug={document.slug}
-    >
+    <DocumentationPage title={document.title} sections={document.sections}>
       <DocumentationMarkdown
         markdown={document.markdown}
         source={document.source}
