@@ -139,6 +139,10 @@ substring matching: blocking `example.com` also blocks `docs.example.com`, but n
 blocked parent. **Use current domain** fills the exact hostname for review; it does
 not guess a registrable parent. Remove an exception to inherit browser defaults.
 
+The extension releases a focused editor when a page enables Grove’s native
+proofing. When native proofing stops, the extension can resume on the same
+focused textarea if it is still eligible; there is no need to refocus it.
+
 Only eligible multiline textareas are currently bound. HTML inputs,
 passwords, usernames, search/subject/title fields, readonly/hidden/code fields and
 author opt-outs are excluded before reading their contents. Verification/identity/
