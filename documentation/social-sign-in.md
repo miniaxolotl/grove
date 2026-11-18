@@ -4,6 +4,12 @@ Grove uses Clerk's existing sign-in and sign-up components for GitHub, Google,
 Microsoft and Apple. Which providers appear is controlled by the Clerk instance,
 so provider credentials are configured in Clerk rather than the website bundle.
 
+Both entry routes offer a **Back to Grove** link above the form. Clerk handles
+the sign-in/sign-up switch and verification. Without a pending destination,
+sign-in returns to `/app` and sign-up continues to `/welcome`. If Clerk keys
+are missing, the page explains which action is unavailable and links to support
+instead of requesting credentials. See the [local fallback captures](design/screenshots/account-entry/README.md).
+
 ## Connecting another account
 
 While signed in, open **Settings → Sign-in & connected accounts**. The panel

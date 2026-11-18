@@ -79,10 +79,9 @@ test("help stays public without JavaScript and account assistance opens support"
   baseURL,
 }) => {
   await page.goto("/sign-in");
-  await expect(page.locator(".auth-help a")).toHaveAttribute(
-    "href",
-    "/support",
-  );
+  await expect(
+    page.getByRole("link", { name: "Support", exact: true }),
+  ).toHaveAttribute("href", "/support");
   const context = await browser.newContext({
     baseURL,
     javaScriptEnabled: false,
