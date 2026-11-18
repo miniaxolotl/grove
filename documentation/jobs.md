@@ -82,7 +82,8 @@ retire the old queue only through a separate operator action.
 
 Settings → Your data and Notebook options → Export notebook prepare background
 exports. Notebook exports default to direct notes; sub-notebooks are opt-in.
-Progress, cancel, retry and download survive navigation. Stable request UUIDs make
+Progress, cancel, retry and download survive navigation. If export status cannot
+load, reload it before starting another export. Stable request UUIDs make
 lost create responses safe to retry. Typed NDJSON records are `notebook`, `note`,
 `revision`, `conversation`, `turn`, `note_relationship`, `notebook_relationship`,
 `notebook_checkpoint`, `notebook_visit`, `assistance_review` and

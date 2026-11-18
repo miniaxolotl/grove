@@ -503,27 +503,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 7px 10px;
   max-width: min(280px, calc(100vw - 16px));
   border: 1px solid var(--color-line);
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 4px 16px #253e3118;
-  cursor: grabbing;
   pointer-events: none;
   width: max-content;
-  animation: drag-lift 140ms cubic-bezier(0.2, 0, 0, 1);
 }
-@keyframes drag-lift {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(2px);
-  }
+.memory-drag-preview[data-keyboard] {
+  opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .memory-drag-preview {
-    animation: none;
-  }
   .drag-handle {
     transition: none;
   }
@@ -689,7 +681,7 @@
   align-items: center;
   margin: 8px 0;
 }
-.library-caption[data-empty]:not(:has(> button)) {
+.library-caption[data-empty]:not(:has(> .library-view-switch)) {
   margin: 0;
 }
 .library-scope {

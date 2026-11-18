@@ -82,6 +82,10 @@ async function forward(
     !admin &&
     !speech &&
     !allowed.test(path) &&
+    !(
+      ["GET", "POST"].includes(request.method) &&
+      /^memories\/daily\/\d{4}-\d{2}-\d{2}$/.test(path)
+    ) &&
     !/^memories\/[0-9a-f-]+\/edit$/.test(path) &&
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
     path !== "conversations/search" &&

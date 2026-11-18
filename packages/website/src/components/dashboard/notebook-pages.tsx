@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -6,16 +7,20 @@ import { FileText, Plus } from "lucide-react";
 import { memoryTitle } from "@/lib/memory-display";
 import { NoteDragHandle, useWorkspaceDrag } from "./memory-drag";
 import { useWorkspaceCache } from "./workspace-cache";
+import {
+  NoteListContinuation,
+  uniquePageNotes,
+} from "./note-list-continuation";
 
 export function NotebookPages({ projectId }: { projectId: string }) {
   const cache = useWorkspaceCache();
   const path = usePathname();
   const { active } = useWorkspaceDrag();
   const query = useInfiniteQuery(cache.notes({ projectId, limit: 8 }));
-  const current = { page: query.data?.pages[0], failed: query.isError };
+  const notes = useMemo(() => uniquePageNotes(query.data?.pages), [query.data]);
   return (
     <ul className="notebook-pages">
-      {current?.page?.items.map((note) => (
+      {notes.map((note) => (
         <li
           key={note.id}
           data-dragging={
@@ -27,6 +32,7 @@ export function NotebookPages({ projectId }: { projectId: string }) {
           <NoteDragHandle memory={note} icon={<FileText size={14} />} />
           <Link
             href={`/app/memories/${note.id}`}
+            data-note-page-link
             title={memoryTitle(note)}
             aria-current={
               path === `/app/memories/${note.id}` ? "page" : undefined
@@ -36,18 +42,14 @@ export function NotebookPages({ projectId }: { projectId: string }) {
           </Link>
         </li>
       ))}
-      {current?.failed && (
+      {query.isError && !query.isFetchNextPageError && (
         <li>
           <button className="text-button" onClick={() => void query.refetch()}>
             Retry notes
           </button>
         </li>
       )}
-      {current?.page?.nextCursor && (
-        <li>
-          <Link href={`/app/projects/${projectId}`}>All notes</Link>
-        </li>
-      )}
+      <NoteListContinuation query={query} paused={!!active} />
       <li>
         <Link href={`/app/notes/new?notebook=${projectId}`}>
           <Plus size={13} />

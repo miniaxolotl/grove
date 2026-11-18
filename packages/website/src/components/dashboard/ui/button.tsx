@@ -7,6 +7,7 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger";
+  ref?: Ref<HTMLButtonElement>;
 }) {
   return (
     <button

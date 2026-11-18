@@ -1,6 +1,6 @@
 .import-notes {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
   font-size: 14px;
   line-height: 1.6;
@@ -12,6 +12,20 @@
 .import-small {
   color: var(--color-muted);
   font-size: 12px;
+}
+.import-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 12px;
+}
+.import-intro .text-button {
+  min-height: 32px;
+}
+.import-section {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
 }
 .import-drop {
   display: grid;
@@ -65,7 +79,7 @@
   display: grid;
   gap: 12px;
   border-top: 1px solid var(--color-line);
-  padding-top: 18px;
+  padding-top: 16px;
 }
 .import-destination {
   display: grid;

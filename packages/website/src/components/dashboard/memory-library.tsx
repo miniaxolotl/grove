@@ -1,21 +1,12 @@
 "use client";
 import { ImportNotesPanel } from "./import-notes-button";
-import {
-  Fragment,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   X,
   Undo2,
-  List,
-  Network,
   CalendarDays,
   RefreshCw,
   Upload,
@@ -32,8 +23,15 @@ import {
 } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
-import { LibrarySkeleton } from "./workspace-opening";
+import {
+  GraphSkeleton,
+  LibrarySkeleton as ListSkeleton,
+} from "./workspace-opening";
 import { MemoryRow } from "./memory-row";
+import {
+  NoteListContinuation,
+  uniquePageNotes,
+} from "./note-list-continuation";
 import { deferredFeature } from "./deferred-feature";
 import { LibrarySelection } from "./library-selection";
 import { useWorkspaceDrag } from "./memory-drag";
@@ -44,6 +42,7 @@ import {
   type LibraryFilters,
 } from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
+import { LibraryViewSwitch, type LibraryView } from "./library-view-switch";
 import { ActionMenu } from "./ui/action-menu";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
@@ -67,11 +66,7 @@ const MemoryEditor = deferredFeature(
 );
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
-  loading: () => (
-    <p role="status" className="library-loading">
-      Opening graph…
-    </p>
-  ),
+  loading: GraphSkeleton,
 });
 
 type Action = "move" | "archive" | "restore";
@@ -95,7 +90,7 @@ export function MemoryLibrary({
   embedded?: boolean;
   initialKind?: string;
   onChanged?: () => void;
-  initialView?: "list" | "graph";
+  initialView?: LibraryView;
   initialProject?: string;
   initialSort?: "updated_desc" | "created_desc";
   onVisit?: (visit: NotebookVisit) => void;
@@ -104,9 +99,6 @@ export function MemoryLibrary({
   const api = cache.api;
   const workspace = useWorkspaceDrag();
   const [view, setView] = useState(initialView);
-  const viewChanged = useRef(false);
-  const moreButton = useRef<HTMLButtonElement>(null);
-  const listButton = useRef<HTMLButtonElement>(null);
   const [importing, setImporting] = useState(false);
   const {
     projects,
@@ -117,7 +109,7 @@ export function MemoryLibrary({
     ...initialFilters(archive),
     kind: initialKind,
     project: initialProject,
-    sort: initialSort,
+    sort: initialSort === "created_desc" ? initialSort : "auto",
   }));
   const {
     search,
@@ -127,9 +119,15 @@ export function MemoryLibrary({
     status,
     sourceAgent,
     updatedAfter,
-    sort,
+    sort: preferredSort,
     lifetime,
   } = filters;
+  const sort =
+    preferredSort === "auto"
+      ? search
+        ? "relevance"
+        : "updated_desc"
+      : preferredSort;
   const [error, setError] = useState("");
   const [failures, setFailures] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
@@ -168,12 +166,6 @@ export function MemoryLibrary({
   const [undo, setUndo] = useState<Undo[]>([]);
   const requests = useRef(new Map<string, string>());
   const summary = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    if (!viewChanged.current) return;
-    viewChanged.current = false;
-    const target = view === "graph" ? listButton.current : moreButton.current;
-    (target ?? summary.current)?.focus({ preventScroll: true });
-  }, [view]);
   const scopedProject =
     fixedProject !== undefined
       ? fixedProject
@@ -205,18 +197,11 @@ export function MemoryLibrary({
     onVisit,
   );
   useSetCurrentNotebook(scopedProject);
-  const items = useMemo(
-    () => [
-      ...new Map(
-        query.data?.pages
-          .flatMap((page) => page.items)
-          .map((note) => [note.id, note]),
-      ).values(),
-    ],
-    [query.data],
-  );
+  const items = useMemo(() => uniquePageNotes(query.data?.pages), [query.data]);
   const next = query.hasNextPage;
-  const loading = query.isPending || query.isFetchingNextPage;
+  const loading = query.isPending;
+  const loadingRows = loading || query.isFetchingNextPage;
+  const hasListContinuation = view === "list" && next;
   const searchMode = query.data?.pages[0]?.searchMode;
   const matches = Object.assign(
     {},
@@ -242,8 +227,13 @@ export function MemoryLibrary({
   );
   const emptyCandidate = !archive && !filtered && !items.length && !next;
   const emptyLibrary =
-    emptyCandidate && !!query.data && !loading && !readError && !currentError;
-  const showEmptyState = !currentError && (!emptyCandidate || !readError);
+    emptyCandidate &&
+    !!query.data &&
+    !loadingRows &&
+    !readError &&
+    !currentError;
+  const showEmptyState =
+    !next && !currentError && (!emptyCandidate || !readError);
   const selectedItems = items.filter((memory) => checked.includes(memory.id));
   const pendingSelected = selectedItems.some((memory) =>
     pending.has(memory.id),
@@ -430,17 +420,18 @@ export function MemoryLibrary({
     deletedMany([memory]);
   }
   useEffect(() => {
-    if (focusAfterDelete.current === undefined || loading) return;
+    if (focusAfterDelete.current === undefined || loadingRows) return;
     const id = focusAfterDelete.current;
     const target =
       (id
         ? document.querySelector<HTMLElement>(
-            `[data-note-id="${id}"] .memory-open`,
+            `[data-note-id="${id}"] .memory-open, .library-main .react-flow__node[data-id="${id}"]`,
           )
         : null) ??
       document.querySelector<HTMLElement>(
-        ".library-main .memory-open, .library-main .app-empty h2",
-      );
+        ".library-main .memory-open, .library-main .react-flow__node, .library-main .app-empty h2",
+      ) ??
+      summary.current;
     if (!target) return;
     const frame = requestAnimationFrame(() => {
       target.tabIndex = target.tabIndex < 0 ? -1 : target.tabIndex;
@@ -448,7 +439,7 @@ export function MemoryLibrary({
       focusAfterDelete.current = undefined;
     });
     return () => cancelAnimationFrame(frame);
-  }, [items, loading]);
+  }, [items, loadingRows]);
   const title = archive
     ? "Archive"
     : initialView === "graph" && view === "graph"
@@ -461,46 +452,14 @@ export function MemoryLibrary({
     selected && selected !== "new"
       ? items.findIndex((m) => m.id === selected.id)
       : -1;
-  function switchView(nextView: typeof view) {
-    viewChanged.current = true;
-    setView(nextView);
-  }
-  const moreActions = !archive &&
-    (!embedded || (view === "list" && items.length > 0)) && (
-      <ActionMenu
-        label="More note actions"
-        visibleLabel="More"
-        triggerRef={moreButton}
-      >
-        {view === "list" && items.length > 0 && (
-          <button type="button" onClick={() => switchView("graph")}>
-            <Network size={16} aria-hidden="true" /> Graph
-          </button>
-        )}
-        {!embedded && (
-          <>
-            <Link href="/app/archive" {...noteListWarmup(cache, "archived")}>
-              <Archive size={16} aria-hidden="true" /> Archive
-            </Link>
-            <Link
-              href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
-            >
-              <CalendarDays size={16} aria-hidden="true" />
-              Today’s note
-            </Link>
-            <button type="button" onClick={() => setImporting(true)}>
-              <Upload size={16} aria-hidden="true" />
-              Import notes
-            </button>
-          </>
-        )}
-      </ActionMenu>
-    );
+  const LibrarySkeleton =
+    !archive && view === "graph" ? GraphSkeleton : ListSkeleton;
   return (
     <>
       {!embedded && (
         <PageHeading
           title={title}
+          className={archive ? undefined : "library-heading"}
           actions={
             archive ? (
               <Link
@@ -511,7 +470,27 @@ export function MemoryLibrary({
                 Back to notes
               </Link>
             ) : (
-              moreActions
+              <>
+                <LibraryViewSwitch view={view} onChange={setView} />
+                <ActionMenu label="More note actions" visibleLabel="More">
+                  <Link
+                    href="/app/archive"
+                    {...noteListWarmup(cache, "archived")}
+                  >
+                    <Archive size={16} aria-hidden="true" /> Archive
+                  </Link>
+                  <Link
+                    href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+                  >
+                    <CalendarDays size={16} aria-hidden="true" />
+                    Today’s note
+                  </Link>
+                  <button type="button" onClick={() => setImporting(true)}>
+                    <Upload size={16} aria-hidden="true" />
+                    Import notes
+                  </button>
+                </ActionMenu>
+              </>
             )
           }
         />
@@ -566,7 +545,9 @@ export function MemoryLibrary({
                 )}
               </span>
               <span className="library-sync" role="status">
-                {query.data && readError ? (
+                {query.data &&
+                readError &&
+                (view === "graph" || !query.isFetchNextPageError) ? (
                   <>
                     <span className="sr-only">
                       {staleSearch
@@ -597,7 +578,7 @@ export function MemoryLibrary({
                       onClick={() => {
                         summary.current?.focus({ preventScroll: true });
                         if (query.isFetchNextPageError && !staleSearch)
-                          void query.fetchNextPage();
+                          void query.fetchNextPage({ cancelRefetch: false });
                         else void query.refetch();
                       }}
                     >
@@ -612,18 +593,9 @@ export function MemoryLibrary({
                 ) : null}
               </span>
             </span>
-            {!archive && view === "graph" ? (
-              <button
-                type="button"
-                className="app-button secondary"
-                ref={listButton}
-                onClick={() => switchView("list")}
-              >
-                <List size={16} aria-hidden="true" /> Back to list
-              </button>
-            ) : embedded ? (
-              moreActions
-            ) : null}
+            {!archive && embedded && (
+              <LibraryViewSwitch view={view} onChange={setView} />
+            )}
           </div>
           {currentError && (
             <LoadError
@@ -710,7 +682,7 @@ export function MemoryLibrary({
               )}
             </section>
           ) : (
-            items.length > 0 &&
+            (items.length > 0 || hasListContinuation) &&
             (view === "graph" ? (
               <MemoryGraph
                 key={JSON.stringify(noteOptions.queryKey)}
@@ -793,8 +765,11 @@ export function MemoryLibrary({
                         }}
                         memory={memory}
                         projectName={
-                          projects.find((p) => p.id === memory.projectId)
-                            ?.name ?? "Unfiled"
+                          fixedProject !== undefined &&
+                          fixedProject === memory.projectId
+                            ? undefined
+                            : (projects.find((p) => p.id === memory.projectId)
+                                ?.name ?? "Unfiled")
                         }
                         selected={checked.includes(memory.id)}
                         selectedItems={selectedItems}
@@ -828,25 +803,26 @@ export function MemoryLibrary({
                       />
                     </Fragment>
                   ))}
+                  <NoteListContinuation
+                    key={JSON.stringify(noteOptions.queryKey)}
+                    query={query}
+                    paused={!!workspace.active}
+                  />
                 </ul>
               </div>
             ))
           )}
-          {next && (
+          {next && view === "graph" && (
             <div className="mt-6 text-center">
               <button
                 className="app-button secondary"
-                disabled={loading}
+                disabled={loadingRows}
                 onClick={() => {
                   if (staleSearch) void query.refetch();
-                  else void query.fetchNextPage();
+                  else void query.fetchNextPage({ cancelRefetch: false });
                 }}
               >
-                {loading
-                  ? "Loading…"
-                  : view === "graph"
-                    ? "Expand graph"
-                    : "Load more"}
+                {loadingRows ? "Loading…" : "Expand graph"}
               </button>
             </div>
           )}

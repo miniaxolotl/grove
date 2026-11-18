@@ -73,6 +73,10 @@ test("account export retries the same request and progresses to an authenticated
   expect(requests).toHaveLength(2);
   expect(requests[0].id).toBe(requests[1].id);
   await expect(prepare).toBeDisabled();
+  task = { ...task!, status: "running" };
+  await expect(
+    page.getByText("Preparing export…", { exact: true }),
+  ).toBeVisible();
   task = { ...task!, status: "succeeded", processed: 230, downloadable: true };
   const link = page.getByRole("link", { name: "Download export" });
   await expect(link).toBeVisible();
@@ -154,13 +158,75 @@ test("notebook exports keep scope explicit and support cancellation and retry af
   await page.keyboard.press("Escape");
   await open();
   await dialog.getByRole("button", { name: "Retry export" }).click();
-  await expect(dialog.getByText("100 records", { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByText("Preparing export · 100 records", { exact: true }),
+  ).toBeVisible();
   await expect(dialog.getByLabel("Include sub-notebooks")).toBeChecked();
   await expect(dialog.getByLabel("Include sub-notebooks")).toBeDisabled();
   await page.screenshot({
     path: testInfo.outputPath("notebook-export.png"),
     fullPage: true,
   });
+});
+
+test("export refresh failure prevents a duplicate request and preserves focus", async ({
+  page,
+}) => {
+  let readsFail = false;
+  let task: Task | undefined;
+  let requests = 0;
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/grove/**", async (route) => {
+    const url = route.request().url();
+    const path = fixturePath(url);
+    if (path.endsWith("/exports")) {
+      requests++;
+      await release.promise;
+      readsFail = true;
+      task = { ...initial(), id: route.request().postDataJSON().id };
+      return route.fulfill({
+        status: 202,
+        json: { success: true, data: task },
+      });
+    }
+    if (path.endsWith("/tasks") && readsFail)
+      return route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: { code: "unavailable", message: "Please retry." },
+        },
+      });
+    return route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(
+          url,
+          path.endsWith("/tasks") && task
+            ? [task]
+            : path.endsWith("/me")
+              ? { accountId: "export-recovery" }
+              : [],
+        ),
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/data`);
+  const prepare = page.getByRole("button", { name: "Prepare export" });
+  await prepare.click();
+  await expect.poll(() => requests).toBe(1);
+  const input = page.getByRole("textbox", { name: /delete my account/i });
+  await input.focus();
+  release.resolve();
+  const reload = page.getByRole("button", { name: "Reload exports" });
+  await expect(reload).toBeVisible({ timeout: 15_000 });
+  await expect(input).toBeFocused();
+  await expect(prepare).toBeDisabled();
+  readsFail = false;
+  await reload.press("Enter");
+  await expect(page.getByText("Queued", { exact: true })).toBeVisible();
+  await expect(reload).toBeHidden();
+  expect(requests).toBe(1);
 });
 
 test("compact export actions remain accessible at desktop and narrow widths", async ({

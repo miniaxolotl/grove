@@ -34,9 +34,14 @@ const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const moreNoteActions = (page: Page) =>
   page.getByRole("button", { name: "More note actions", exact: true });
 const showGraph = (page: Page) =>
-  page.getByRole("button", { name: "Graph", exact: true });
+  page
+    .getByRole("group", { name: "Note view", exact: true })
+    .getByRole("button", { name: "Graph", exact: true });
+const showList = (page: Page) =>
+  page
+    .getByRole("group", { name: "Note view", exact: true })
+    .getByRole("button", { name: "List", exact: true });
 async function openGraph(page: Page) {
-  await moreNoteActions(page).click();
   await showGraph(page).click();
 }
 
@@ -165,7 +170,7 @@ test("search quality defaults to relevance and preserves an explicit date sort",
     .toMatchObject({ query: "garden", sort: "relevance" });
   await page.getByRole("button", { name: /^Filters/ }).click();
   await chooseOption(
-    page.getByRole("combobox", { name: "Sort notes" }),
+    page.getByRole("combobox", { name: "Sort by" }),
     "updated_asc",
   );
   await page.getByRole("button", { name: "Done", exact: true }).click();
@@ -220,7 +225,6 @@ test("search quality restarts a stale relevance cursor instead of retrying the o
   });
   await page.goto(`${base}/app`);
   await page.getByLabel("Search notes", { exact: true }).fill("review");
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
   const refresh = page.getByRole("button", { name: "Refresh search results" });
   await expect(refresh).toBeVisible();
   await refresh.click();
@@ -458,12 +462,13 @@ for (const width of [1440, 390, 320]) {
         name: "Delete notebook",
         exact: true,
       });
-      await expect(dialog).toContainText("soft deletion");
-      await expect(dialog).toContainText("not permanently erased");
       await page.screenshot({
         path: info.outputPath(`delete-notebook-${width}.png`),
         fullPage: true,
       });
+      await expect(dialog).toContainText("You can’t restore these notebooks, notes or their history in Grove.");
+      await expect(dialog).toContainText("contents disappear from shared parent notebooks");
+      await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
       const overflow = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>("body *")]
           .filter(
@@ -496,7 +501,33 @@ for (const width of [1440, 390, 320]) {
   });
 }
 
-test("notebook deletion applies instantly, rolls back conflicts and retries an uncertain response with the same operation", async ({
+test("notebook confirmation requires a fresh preview after a load failure", async ({ page }) => {
+  const state = await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/projects`);
+  const open = async () => {
+    await page.getByRole("button", { name: `More actions for ${project.name}` }).click();
+    await page.getByRole("button", { name: "Archive notebook", exact: true }).click();
+  };
+  await open();
+  const dialog = page.getByRole("dialog", { name: "Archive notebook", exact: true });
+  await expect(dialog.getByRole("button", { name: "Archive notebooks" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  let unavailable = true;
+  await page.route(`**/api/grove/projects/${project.id}/lifecycle`, (route) => {
+    if (!unavailable) return route.fallback();
+    return route.fulfill({ status: 503, json: { success: false, error: { code: "unavailable", message: "Please retry." } } });
+  });
+  await open();
+  await expect(dialog.getByRole("button", { name: "Try again" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Archive notebook", exact: true })).toBeDisabled();
+  unavailable = false;
+  await dialog.getByRole("button", { name: "Try again" }).press("Enter");
+  await expect(dialog.getByRole("button", { name: "Archive notebooks" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  expect(state.lifecycleCalls).toHaveLength(0);
+});
+
+test("notebook deletion applies instantly, rolls back conflicts and allows a fresh confirmation", async ({
   page,
 }) => {
   const state = await notebookLifecycleFixture(page);
@@ -615,9 +646,7 @@ test("notebook archive never discards a retained local draft", async ({
     name: "Archive notebook",
     exact: true,
   });
-  await expect(dialog).toContainText(
-    "Your local writing will not be discarded",
-  );
+  await expect(dialog.getByRole("alert")).toContainText("Resolve 1 draft before archiving.");
   await expect(
     dialog.getByRole("button", { name: "Archive notebooks", exact: true }),
   ).toBeDisabled();
@@ -804,8 +833,8 @@ for (const width of [1440, 390, 320]) {
         panel.getByRole("button", { name: "Done", exact: true }),
       ).toBeFocused();
       await expect(
-        page.getByRole("combobox", { name: "Sort notes" }),
-      ).toHaveText("Date written");
+        page.getByRole("combobox", { name: "Sort by" }),
+      ).toHaveText("Recently created");
       await expect(rows).toHaveCount(2);
       const bounds = (await panel.boundingBox())!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);
@@ -825,7 +854,7 @@ for (const width of [1440, 390, 320]) {
       expect(await rows.first().boundingBox()).toEqual(before);
       await trigger.click();
       await chooseOption(
-        panel.getByRole("combobox", { name: "Sort notes" }),
+        panel.getByRole("combobox", { name: "Sort by" }),
         "updated_desc",
       );
       // Sorting may reorder rows and drop date headings; the page controls
@@ -833,9 +862,7 @@ for (const width of [1440, 390, 320]) {
       expect(await trigger.boundingBox()).toEqual(triggerBefore);
       await panel.getByRole("button", { name: "Done", exact: true }).click();
       await openGraph(page);
-      await expect(
-        page.getByRole("button", { name: "Back to list" }),
-      ).toBeInViewport();
+      await expect(showList(page)).toBeInViewport();
       expect(await trigger.boundingBox()).toEqual(triggerBefore);
     });
   });
@@ -3160,7 +3187,9 @@ test("command search ranks aliases, preserves native text editing and follows no
   await input.fill("journal");
   await input.press("Enter");
   await expect(page).toHaveURL(
-    `${base}/app/notes/new?from=journal&notebook=${project.id}`,
+    new RegExp(
+      `/app/notes/new\\?from=journal&notebook=${project.id}&date=\\d{4}-\\d{2}-\\d{2}$`,
+    ),
   );
 });
 
@@ -3720,9 +3749,36 @@ test("keyboard drag cancels safely and moves a memory to a chosen project", asyn
   expect(state.records.get(note.id)?.projectId).toBe(project.id);
 });
 
-test("sidebar pages and keyboard notebook nesting share destinations, cancellation and undo", async ({
+test("Tab cancels a keyboard drag without moving the note", async ({
   page,
 }) => {
+  const state = await fixture(page, [note]);
+  await page.goto(`${base}/app`);
+  const handle = page.locator(".memory-row .drag-handle");
+  await handle.focus();
+  await page.keyboard.press("Space", { delay: 50 });
+  await expect(page.locator(".memory-drag-preview")).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.locator(`.notebook-explorer [data-destination="${project.id}"]`),
+  ).toHaveAttribute("data-drop-active", "true");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  expect(state.calls.filter(({ path }) => path === "/memories")).toHaveLength(
+    0,
+  );
+  await expect(page.locator('[aria-live="assertive"]')).toHaveText(
+    "Move cancelled.",
+  );
+  await expect(handle).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(handle).not.toBeFocused();
+});
+
+test("sidebar pages and keyboard notebook nesting share destinations, cancellation and undo", async ({
+  page,
+}, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const state = await fixture(page, [handoff]);
   const parent = {
     ...project,
@@ -3750,6 +3806,14 @@ test("sidebar pages and keyboard notebook nesting share destinations, cancellati
   });
   await handle.focus();
   await page.keyboard.press("Space", { delay: 50 });
+  await expect(handle).toBeFocused();
+  await expect(handle).toHaveCSS("outline-style", "solid");
+  await expect(handle).toHaveCSS("outline-width", "2px");
+  await expect(handle).toHaveCSS("outline-offset", "-2px");
+  await expect(page.locator(".memory-drag-preview")).toHaveCSS(
+    "animation-name",
+    "none",
+  );
   await expect(
     sidebar.locator(`[data-destination="${child.id}"]`),
   ).toHaveAttribute("data-drop-disabled", "true");
@@ -3757,8 +3821,18 @@ test("sidebar pages and keyboard notebook nesting share destinations, cancellati
   await expect(
     sidebar.locator(`[data-destination="${parent.id}"]`),
   ).toHaveAttribute("data-drop-active", "true");
+  await expect(page.locator('[aria-live="assertive"]')).toHaveText(
+    "Move into Garden.",
+  );
+  await expect(page.locator(".memory-drag-preview")).toHaveCSS("opacity", "0");
+  const sidebarBox = (await sidebar.boundingBox())!;
+  await page.screenshot({
+    clip: { x: 0, y: sidebarBox.y, width: 440, height: 270 },
+    path: info.outputPath("notebook-drag-keyboard.png"),
+  });
   await page.keyboard.press("Escape");
   await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  await expect(handle).toBeFocused();
   expect(state.projects[0].parentId).toBeNull();
   await handle.focus();
   await page.keyboard.press("Space", { delay: 50 });
@@ -5078,44 +5152,77 @@ test("history switches retain each conversation's unsent draft and closing a hel
   await expect(input).toHaveValue("");
 });
 
-test("notebook Graph preserves scope and filters and returns focus to More", async ({
+const graphSwitchNotes = [
+  {
+    ...note,
+    projectId: project.id,
+    enrichment: {
+      ...note.enrichment!,
+      relationships: [
+        {
+          id: handoff.id,
+          version: handoff.version,
+          relationship: "complementary" as const,
+        },
+      ],
+    },
+  },
+  handoff,
+];
+
+test("notebook Graph preserves scope, shared filters and keyboard focus", async ({
   page,
-}) => {
+}, info) => {
   await fixture(page, [
-    { ...note, projectId: project.id },
-    { ...handoff, projectId: project.id },
+    ...graphSwitchNotes,
     { ...note, id: crypto.randomUUID(), projectId: null },
   ]);
+  let reads = 0;
+  await page.route("**/api/grove/memories/search", (route) => {
+    reads++;
+    return route.fallback();
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${base}/app/projects/${project.id}`);
   const search = page.getByRole("textbox", {
     name: "Search notes",
     exact: true,
   });
-  await search.fill("specific");
   const row = page.locator(".memory-open");
+  await expect(row).toHaveCount(2);
+  await openGraph(page);
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  await page.screenshot({
+    path: info.outputPath("graph-switch-notebook-390.png"),
+  });
+  await showList(page).click();
+  await search.fill("specific");
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("Review preferences");
-  const more = moreNoteActions(page);
   const graph = showGraph(page);
-  await expect(graph).toBeHidden();
-  await more.press("ArrowDown");
+  const list = showList(page);
+  const filteredReads = reads;
+  await expect(moreNoteActions(page)).toHaveCount(0);
+  await expect(list).toHaveAttribute("aria-pressed", "true");
+  await list.focus();
+  await page.keyboard.press("Tab");
   await expect(graph).toBeFocused();
-  await graph.press("Escape");
-  await expect(more).toBeFocused();
-  await more.press("ArrowDown");
   await graph.press("Enter");
-  const back = page.getByRole("button", { name: "Back to list" });
-  await expect(back).toBeFocused();
+  await expect(graph).toHaveAttribute("aria-pressed", "true");
+  await expect(graph).toBeFocused();
   await expect(page.locator(".react-flow__node")).toHaveCount(1);
   await expect(
     page.locator(`.react-flow__node[data-id="${note.id}"]`),
   ).toBeVisible();
-  await back.press("Enter");
-  await expect(more).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(list).toBeFocused();
+  await list.press("Space");
+  await expect(list).toBeFocused();
   await expect(search).toHaveValue("specific");
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("Review preferences");
+  expect(reads).toBe(filteredReads);
   await expect(page).toHaveURL(new RegExp(`/app/projects/${project.id}$`));
   await openGraph(page);
   await search.fill("no-matching-phrase");
@@ -5123,31 +5230,209 @@ test("notebook Graph preserves scope and filters and returns focus to More", asy
     page.getByRole("heading", { name: "No matching notes" }),
   ).toBeVisible();
   await expect(page.getByText("0 notes found", { exact: true })).toBeVisible();
-  await back.press("Enter");
-  await expect(page.locator(".library-summary")).toBeFocused();
+  await list.press("Enter");
+  await expect(list).toBeFocused();
   await expect(
     page.getByRole("button", { name: "Clear filters", exact: true }).last(),
   ).toBeVisible();
-  await expect(more).toBeHidden();
+  await expect(graph).toBeVisible();
+});
+
+test("Graph exposes failed connection reads and keeps list selection during retry", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  let failing = true;
+  await page.route("**/api/grove/relationships/search", (route) =>
+    failing
+      ? route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: { code: "unavailable", message: "Connections unavailable" },
+          },
+        })
+      : route.fallback(),
+  );
+  await page.goto(`${base}/app`);
+  const checked = page.getByRole("checkbox", {
+    name: "Select Review preferences",
+  });
+  await checked.check();
+  await openGraph(page);
+  const graph = page.locator(".memory-graph");
+  await expect(graph.locator(".react-flow__node")).toHaveCount(2);
+  await expect(graph.getByRole("alert")).toContainText(
+    "Connections unavailable",
+  );
+  const retry = graph.getByRole("button", { name: "Try again" });
+  await expect(retry).toBeVisible();
+  failing = false;
+  await retry.click();
+  await expect(graph.locator(".react-flow__edge")).toHaveCount(1);
+  await showList(page).press("Enter");
+  await expect(checked).toBeChecked();
+  await expect(showList(page)).toBeFocused();
+});
+
+test("deleting an open graph note returns keyboard focus to its surviving neighbor", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  await page.goto(`${base}/app/graph`);
+  await page.locator(`.react-flow__node[data-id="${note.id}"]`).press("Enter");
+  await openNoteAction(page, "Delete note…");
+  await page.getByRole("button", { name: "Delete this note" }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await expect(
+    page.locator(`.react-flow__node[data-id="${handoff.id}"]`),
+  ).toBeFocused();
 });
 
 test("the direct Graph route still opens with an obvious return to Notes", async ({
   page,
 }) => {
   await fixture(page, [note]);
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories/search", async (route) => {
+    await release.promise;
+    return route.fallback();
+  });
+  await page.setViewportSize({ width: 320, height: 844 });
   await page.goto(`${base}/app/graph`);
   await expect(
     page.getByRole("heading", { name: "Note graph", exact: true }),
   ).toBeVisible();
+  await expect(showGraph(page)).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Opening graph…" }),
+  ).toBeVisible();
+  await expect(showList(page)).toBeInViewport();
+  await showList(page).press("Enter");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Opening your notes…" }),
+  ).toBeVisible();
+  release.resolve();
+  await expect(page.locator(".memory-open")).toHaveCount(1);
+  await expect(showList(page)).toBeFocused();
+  await showGraph(page).press("Enter");
   await expect(page.locator(".react-flow__node")).toHaveCount(1);
-  await page.getByRole("button", { name: "Back to list" }).press("Enter");
+  await showList(page).press("Enter");
   await expect(
     page.getByRole("heading", { name: "Notes", exact: true }),
   ).toBeVisible();
-  await expect(moreNoteActions(page)).toBeFocused();
+  await expect(showList(page)).toBeFocused();
+  await expect(page).toHaveURL(`${base}/app/graph`);
   await expect(page.locator(".memory-open")).toContainText(
     "Review preferences",
   );
+});
+
+test("Notes keeps the List and Graph switch next to More without moving the filters", async ({
+  page,
+}, info) => {
+  await fixture(page, graphSwitchNotes);
+  await page.goto(`${base}/app`);
+  const more = moreNoteActions(page);
+  const actions = page.getByRole("group", { name: "More note actions" });
+  const list = showList(page);
+  const graph = showGraph(page);
+  const search = page.getByRole("textbox", { name: "Search notes" });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator(".memory-open")).toHaveCount(2);
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(list).toHaveAttribute("aria-pressed", "true");
+    await expect(graph).toHaveAttribute("aria-pressed", "false");
+    const graphBounds = (await graph.boundingBox())!;
+    const moreBounds = (await more.boundingBox())!;
+    const searchBounds = await search.boundingBox();
+    expect(moreBounds.x).toBeGreaterThan(graphBounds.x + graphBounds.width);
+    expect(moreBounds.y + moreBounds.height / 2).toBeCloseTo(
+      graphBounds.y + graphBounds.height / 2,
+    );
+    expect(moreBounds.x + moreBounds.width).toBeLessThanOrEqual(width);
+    if (width === 1440)
+      await page.screenshot({
+        path: info.outputPath("graph-switch-list-1440.png"),
+      });
+    await graph.press("Enter");
+    await expect(graph).toBeFocused();
+    await expect(graph).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".react-flow__node")).toHaveCount(2);
+    await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+    expect(await more.boundingBox()).toEqual(moreBounds);
+    expect(await search.boundingBox()).toEqual(searchBounds);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width);
+    if (width === 1440 || width === 320) {
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .include(".library-heading")
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`graph-switch-graph-${width}.png`),
+      });
+    }
+    await more.press("ArrowDown");
+    await expect(actions.getByRole("link", { name: "Archive" })).toBeFocused();
+    await expect(
+      actions.getByRole("link", { name: "Today’s note" }),
+    ).toBeVisible();
+    await expect(
+      actions.getByRole("button", { name: "Import notes" }),
+    ).toBeVisible();
+    await expect(
+      actions.getByRole("button", { name: "Graph", exact: true }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(more).toBeFocused();
+    await list.press("Enter");
+    await expect(list).toBeFocused();
+  }
+  await expect(page).toHaveURL(`${base}/app`);
+  await page.goto(`${base}/app/archive`);
+  await expect(
+    page.getByRole("heading", { name: "Archive", exact: true }),
+  ).toBeVisible();
+  await expect(list).toHaveCount(0);
+  await expect(graph).toHaveCount(0);
+});
+
+test("the Notes and Graph opening shells reserve the view controls without exposing fake buttons", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  await page.setViewportSize({ width: 320, height: 844 });
+  for (const { path, heading, status } of [
+    { path: "/app", heading: "Notes", status: "Opening your notes…" },
+    { path: "/app/graph", heading: "Note graph", status: "Opening graph…" },
+  ]) {
+    await page.goto(`${base}${path}?fixtureOpening`);
+    const header = page.locator(".library-heading");
+    await expect(
+      header.getByRole("heading", { name: heading, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: status }),
+    ).toBeVisible();
+    await expect(header.getByRole("button")).toHaveCount(0);
+    const controls = header.locator(".heading-actions");
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const opening = (await controls.boundingBox())!;
+    await page.goto(`${base}${path}`);
+    await expect(showGraph(page)).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const ready = (await controls.boundingBox())!;
+    expect(ready.width).toBe(opening.width);
+    expect(ready.height).toBe(opening.height);
+    expect(ready.x).toBe(opening.x);
+  }
 });
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
@@ -5185,7 +5470,7 @@ test("the graph shows current scoped connections, supports zoom and keyboard rea
     revised,
   ]);
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await expect(page.locator(".memory-open")).toHaveCount(4);
   await openGraph(page);
   await expect(page.locator(".react-flow__node")).toHaveCount(4);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
@@ -5383,7 +5668,6 @@ test("embedded touch graph yields to page scrolling and expanded fallback suppor
     );
     await fixture(page, [note, handoff]);
     await page.goto(`${base}/app`);
-    await moreNoteActions(page).tap();
     await showGraph(page).tap();
     const canvas = page.locator(".graph-canvas");
     await canvas.scrollIntoViewIfNeeded();
@@ -6267,7 +6551,9 @@ test("Today's note uses the same editor and library, with date grouping and note
   await page.getByRole("button", { name: "Back to notes" }).click();
   await expect(page.locator(".memory-open")).toContainText("A quiet afternoon");
   expect(
-    state.calls.find((call) => call.path === "/memories")?.body,
+    state.calls.find(
+      (call) => call.path.startsWith("/memories/daily/") && call.body,
+    )?.body,
   ).toMatchObject({
     projectId: null,
     source: { agent: "website" },
@@ -6275,8 +6561,8 @@ test("Today's note uses the same editor and library, with date grouping and note
     autoKind: true,
   });
   await page.getByRole("button", { name: "Filters", exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Sort notes" })).toHaveText(
-    "Date written",
+  await expect(page.getByRole("combobox", { name: "Sort by" })).toHaveText(
+    "Recently created",
   );
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.locator(".library-date")).toHaveCount(1);
@@ -6670,7 +6956,8 @@ test("pagination discards an old scope response after filters change", async ({
     await route.fallback();
   });
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await expect.poll(() => page.locator(".memory-open").count()).toBe(2);
+  await page.locator(".note-continuation-edge").scrollIntoViewIfNeeded();
   await started.promise;
   await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseOption(
@@ -6682,7 +6969,7 @@ test("pagination discards an old scope response after filters change", async ({
   await expect(page.locator(".memory-open")).toContainText("Launch checklist");
   await expect(page.getByText("Old scope only")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Load more", exact: true }),
+    page.getByRole("button", { name: "Load more notes", exact: true }),
   ).toHaveCount(0);
 });
 
@@ -6792,6 +7079,116 @@ test("sidebar note dragging carries a readable preview and marks the whole sourc
     .toBe(project.id);
 });
 
+test("notebook drag distinguishes dropping inside from inserting between siblings", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, [handoff]);
+  state.projects[0].position = 0;
+  const target = {
+    ...project,
+    id: crypto.randomUUID(),
+    name: "Garden",
+    position: 1,
+  };
+  state.projects.push(target);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${base}/app`);
+  const tree = page.getByRole("region", { name: "Your notebooks" });
+  const row = (id: string) => tree.locator(`[data-destination="${id}"]`);
+  const source = row(project.id);
+  const destination = row(target.id);
+  const handle = source.locator(".notebook-drag-handle");
+  const grip = (await handle.boundingBox())!;
+  const sx = grip.x + grip.width / 2;
+  const sy = grip.y + grip.height / 2;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx + 16, sy);
+  const preview = page.locator(".memory-drag-preview");
+  await expect(preview).toHaveText(project.name);
+  await expect(source).toHaveCSS("opacity", "1");
+  await expect(source.locator(".notebook-grip-icon")).toHaveCSS("opacity", "1");
+  await expect(handle).toHaveCSS("outline-style", "none");
+
+  const bounds = (await destination.boundingBox())!;
+  const x = bounds.x + bounds.width * 0.78;
+  const y = bounds.y + bounds.height / 2;
+  await page.mouse.move(x, y, { steps: 6 });
+  await expect(destination).toHaveAttribute("data-drop-active", "true");
+  await expect(
+    destination.locator(".notebook-folder-icon .lucide-folder-input"),
+  ).toBeVisible();
+  await expect(destination).toHaveCSS("outline-style", "none");
+  expect(await destination.boundingBox()).toEqual(bounds);
+  await expect
+    .poll(async () => Math.abs((await preview.boundingBox())!.x - x - 14))
+    .toBeLessThan(2);
+  const clip = { x: 0, y: bounds.y - 90, width: 470, height: 183 };
+  await page.screenshot({
+    clip,
+    path: info.outputPath("notebook-drag-inside.png"),
+  });
+
+  const after = destination
+    .locator("..")
+    .locator(":scope > .notebook-insertion.after");
+  await expect(after).not.toHaveAttribute("data-drop-disabled", "true");
+  const boundary = (await after.boundingBox())!;
+  await page.mouse.move(x, boundary.y + boundary.height / 2);
+  await expect(after).toHaveAttribute("data-drop-active", "true");
+  await expect(destination).not.toHaveAttribute("data-drop-active", "true");
+  expect(await destination.boundingBox()).toEqual(bounds);
+  await page.screenshot({
+    clip,
+    path: info.outputPath("notebook-drag-between.png"),
+  });
+  await page.mouse.up();
+  await expect(page.locator(".workspace-notice")).toContainText("moved");
+  const moves = state.calls.filter(({ path }) => path.endsWith("/organize"));
+  expect(moves).toHaveLength(1);
+  expect(moves[0].body).toMatchObject({ parentId: null, afterId: target.id });
+});
+
+test("a pointer released outside the highlighted notebook never moves it", async ({
+  page,
+  context,
+}) => {
+  const state = await fixture(page, [handoff]);
+  const garden = { ...project, id: crypto.randomUUID(), name: "Garden" };
+  state.projects.push(garden);
+  await page.goto(`${base}/app`);
+  const source = page.locator(
+    `.notebook-explorer [data-destination="${project.id}"] .notebook-drag-handle`,
+  );
+  const destination = page.locator(
+    `.notebook-explorer [data-destination="${garden.id}"]`,
+  );
+  const grip = (await source.boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 10, grip.y + grip.height / 2);
+  await expect(page.locator(".memory-drag-preview")).toHaveText(project.name);
+  const box = (await destination.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(destination).toHaveAttribute("data-drop-active", "true");
+  const cdp = await context.newCDPSession(page);
+  // A terminal native sample can arrive at a different point without another move.
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    button: "left",
+    buttons: 0,
+    x: box.x + box.width + 50,
+    y: box.y,
+  });
+  await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+  expect(
+    state.calls.filter(({ path }) => path.endsWith("/organize")),
+  ).toHaveLength(0);
+  await expect(page.locator('[aria-live="assertive"]')).toHaveText(
+    "Move cancelled.",
+  );
+});
+
 test("touch hold lifts notebooks and notes into drops while quick taps organize", async ({
   page,
   context,
@@ -6823,8 +7220,22 @@ test("touch hold lifts notebooks and notes into drops while quick taps organize"
     });
     // The touch sensor activates after a 220ms deliberate hold; the drop tray
     // with its destination chips only exists once the drag is live.
-    await page.waitForTimeout(320);
-    await expect(page.locator(".memory-drag-preview")).toBeVisible();
+    const preview = page.locator(".memory-drag-preview");
+    await expect(preview).toBeVisible();
+    const expectAboveContact = async (point: { x: number; y: number }) => {
+      await expect
+        .poll(async () => {
+          const { x, y, width, height } = (await preview.boundingBox())!;
+          return Math.max(
+            Math.abs(point.y - y - height - 18),
+            Math.abs(
+              x - Math.max(8, Math.min(point.x - width / 2, 382 - width)),
+            ),
+          );
+        })
+        .toBeLessThan(2);
+    };
+    await expectAboveContact(start);
     const end = center(await destination.boundingBox());
     for (let step = 1; step <= 8; step++) {
       await cdp.send("Input.dispatchTouchEvent", {
@@ -6837,6 +7248,7 @@ test("touch hold lifts notebooks and notes into drops while quick taps organize"
         ],
       });
     }
+    await expectAboveContact(end);
   };
   const release = () =>
     cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
@@ -7599,6 +8011,160 @@ test("touch handles activate deliberately, scroll destinations and cancel withou
   }
 });
 
+test("touch scrolling and interrupted holds neither move nor click the notebook", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 590 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  try {
+    const page = await context.newPage();
+    const state = await fixture(page, [handoff]);
+    state.projects.push(
+      ...Array.from({ length: 12 }, (_, index) => ({
+        ...project,
+        id: crypto.randomUUID(),
+        name: `Notebook ${index}`,
+      })),
+    );
+    await page.goto(`${base}/app`);
+    await page.locator(".notebook-browser-toggle").tap();
+    const source = page.getByRole("button", {
+      name: `Move notebook ${project.name} with drag or keyboard`,
+      exact: true,
+    });
+    const link = page.getByRole("link", { name: project.name, exact: true });
+    const cdp = await context.newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd" | "touchCancel",
+      point?: { x: number; y: number },
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: point ? [point] : [],
+      });
+    const center = async (locator: Locator) => {
+      const rect = (await locator.boundingBox())!;
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    };
+    const preview = page.locator(".memory-drag-preview");
+    const calls = () =>
+      state.calls.filter(({ path }) => path.endsWith("/organize"));
+    await source.scrollIntoViewIfNeeded();
+    const label = await center(link);
+    const readScroll = () =>
+      page.locator(".notebook-explorer").evaluate((el) => el.scrollTop);
+    const idleScroll = await readScroll();
+    expect(idleScroll).toBeGreaterThan(0); // The source starts at the bottom of the long tree.
+    await touch("touchStart", label);
+    for (let step = 1; step <= 4; step++)
+      await touch("touchMove", { x: label.x, y: label.y + 22 * step });
+    await expect.poll(readScroll).toBeLessThan(idleScroll);
+    await touch("touchEnd");
+    await expect(preview).toHaveCount(0);
+    expect(page.url()).toBe(`${base}/app`);
+
+    await source.scrollIntoViewIfNeeded();
+    const grip = await center(source);
+    await touch("touchStart", grip);
+    await touch("touchMove", { x: grip.x + 20, y: grip.y });
+    await touch("touchEnd");
+    await expect(preview).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    for (const interruption of ["touchCancel", "blur"] as const) {
+      await touch("touchStart", await center(source));
+      await expect(preview).toHaveText(project.name);
+      const destination = page.locator(
+        `.mobile-drop-tray [data-destination="${state.projects[1].id}"]`,
+      );
+      await touch("touchMove", await center(destination));
+      await expect(destination).toHaveAttribute("data-drop-active", "true");
+      if (interruption === "touchCancel") await touch("touchCancel");
+      else {
+        await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+        await touch("touchEnd");
+      }
+      await expect(preview).toHaveCount(0);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      expect(calls()).toHaveLength(0);
+    }
+    await source.tap();
+    await expect(page.getByRole("dialog")).toContainText("Organize notebooks");
+  } finally {
+    await context.close();
+  }
+});
+
+test("a notebook covered by the touch destination tray cannot accept a drop", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 510 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  try {
+    const page = await context.newPage();
+    const state = await fixture(page, [handoff]);
+    state.projects[0].position = 0;
+    const garden = {
+      ...project,
+      id: crypto.randomUUID(),
+      name: "Garden",
+      position: 1,
+    };
+    state.projects.push(garden);
+    await page.goto(`${base}/app`);
+    await page.locator(".notebook-browser-toggle").tap();
+    const source = page.locator(
+      `.notebook-explorer [data-destination="${project.id}"] .notebook-drag-handle`,
+    );
+    const covered = page.locator(
+      `.notebook-explorer [data-destination="${garden.id}"]`,
+    );
+    const grip = (await source.boundingBox())!;
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { x: grip.x + grip.width / 2, y: grip.y + grip.height / 2 },
+      ],
+    });
+    await expect(page.locator(".memory-drag-preview")).toHaveText(project.name);
+    const box = (await covered.boundingBox())!;
+    const point = { x: box.x + 2, y: box.y + box.height / 2 };
+    expect(
+      await page.evaluate(({ x, y }) => {
+        const hit = document.elementFromPoint(x, y);
+        return Boolean(
+          hit?.closest(".mobile-drop-tray") &&
+          !hit.closest("[data-destination]"),
+        );
+      }, point),
+    ).toBe(true);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [point],
+    });
+    await expect(covered).not.toHaveAttribute("data-drop-active", "true");
+    await page.screenshot({ path: info.outputPath("touch-drop-covered.png") });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect(page.locator(".memory-drag-preview")).toHaveCount(0);
+    expect(
+      state.calls.filter(({ path }) => path.endsWith("/organize")),
+    ).toHaveLength(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
 test("pen pickup cancels when its source disappears during navigation", async ({
   page,
   context,
@@ -7987,12 +8553,29 @@ test("archived notebooks bulk delete removes each selected root", async ({
     page.getByRole("heading", { name: "Archived notebooks", exact: true }),
   ).toBeVisible();
   await page.getByLabel("Select archived notebooks").check();
+  let previewRequests = 0;
+  let previewUnavailable = true;
+  const child = state.projects.find((item) => item.parentId === project.id)!;
+  await page.route(`**/api/grove/projects/${child.id}/lifecycle`, (route) => {
+    previewRequests++;
+    if (!previewUnavailable) return route.fallback();
+    return route.fulfill({
+      status: 503,
+      json: { success: false, error: { code: "unavailable", message: "Please retry." } },
+    });
+  });
   await page
     .getByRole("group", { name: "Selected notebooks" })
     .getByRole("button", { name: "Delete", exact: true })
     .click();
   const bulk = page.getByRole("dialog", { name: "Delete notebooks" });
-  await expect(bulk).toContainText("soft deletion");
+  await expect(bulk.getByRole("button", { name: "Delete notebooks" })).toBeDisabled();
+  await expect(bulk.getByRole("button", { name: "Try again" })).toBeVisible({ timeout: 15_000 });
+  const failedRequests = previewRequests;
+  previewUnavailable = false;
+  await bulk.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => previewRequests).toBe(failedRequests + 1);
+  await expect(bulk).toContainText("You can’t restore these notebooks, notes or their history in Grove.");
   await bulk
     .getByRole("button", { name: "Delete notebooks", exact: true })
     .click();

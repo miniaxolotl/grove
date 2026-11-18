@@ -269,6 +269,10 @@ html:has(.grove-app) {
   box-shadow: none;
   pointer-events: none;
 }
+.skeleton-graph {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+}
 .skeleton-filter {
   height: 42px;
 }
@@ -1321,7 +1325,43 @@ html:has(.grove-app) {
 }
 .notebook-tree li[data-dragging] > .notebook-tree-row,
 .notebook-pages li[data-dragging] {
-  opacity: 0.45;
+  background: #253e310a;
+}
+.grove-app .notebook-drag-handle:focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -2px;
+}
+.note-continuation,
+.notebook-pages li.note-continuation {
+  position: relative;
+  display: block;
+  overflow-anchor: none;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.note-continuation-edge {
+  display: block;
+  height: 1px;
+}
+.library-list .note-continuation {
+  padding-inline: 12px;
+}
+.note-continuation-status:not(:empty) {
+  display: block;
+  padding: 6px 0;
+}
+.note-continuation .text-button {
+  min-height: 32px;
+}
+.note-continuation-fallback:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .notebook-pages {
   margin: 2px 0 5px 12px;
@@ -1377,12 +1417,20 @@ html:has(.grove-app) {
 .note-file-icon {
   display: flex;
 }
-.notebook-drag-handle:is(:hover, :focus-visible, :active) .notebook-folder-icon,
-.note-icon-handle:is(:hover, :focus-visible, :active) .note-file-icon {
+.notebook-tree-row:not([data-drop-active])
+  .notebook-drag-handle:is(:hover, :focus-visible, :active)
+  .notebook-folder-icon,
+.notebook-branch[data-dragging] > .notebook-tree-row .notebook-folder-icon,
+.note-icon-handle:is(:hover, :focus-visible, :active) .note-file-icon,
+.notebook-pages [data-dragging] .note-file-icon {
   opacity: 0;
 }
-.notebook-drag-handle:is(:hover, :focus-visible, :active) .notebook-grip-icon,
-.note-icon-handle:is(:hover, :focus-visible, :active) .note-grip-icon {
+.notebook-tree-row:not([data-drop-active])
+  .notebook-drag-handle:is(:hover, :focus-visible, :active)
+  .notebook-grip-icon,
+.notebook-branch[data-dragging] > .notebook-tree-row .notebook-grip-icon,
+.note-icon-handle:is(:hover, :focus-visible, :active) .note-grip-icon,
+.notebook-pages [data-dragging] .note-grip-icon {
   opacity: 1;
 }
 .notebook-pages li:hover,
@@ -1401,11 +1449,14 @@ html:has(.grove-app) {
   color: #52634a;
 }
 [data-destination][data-drop-active] {
-  outline: 2px solid #63834e;
-  outline-offset: -2px;
-  background: #e6efdc;
+  background: #e2ebdc;
+  box-shadow: inset 2px 0 var(--color-leaf);
 }
-[data-destination][data-drop-disabled] {
+.notebook-tree-row[data-drop-active] .notebook-drag-handle {
+  color: var(--color-forest);
+  background: transparent;
+}
+.notebook-drop-target[data-drop-disabled] {
   opacity: 0.4;
 }
 .mobile-drop-tray {
@@ -1441,8 +1492,14 @@ html:has(.grove-app) {
 .drag-cancel-target[data-drop-active] {
   background: var(--color-sage);
   color: var(--color-forest);
-  outline: 2px solid #63834e;
-  outline-offset: -2px;
+  box-shadow: inset 0 -2px var(--color-leaf);
+}
+@media (forced-colors: active) {
+  [data-destination][data-drop-active],
+  .drag-cancel-target[data-drop-active] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
 }
 .memory-drag-preview,
 .workspace-notice {
@@ -1541,6 +1598,64 @@ html:has(.grove-app) {
   padding: 4px 8px;
   font-size: 11px;
 }
+.library-heading .heading-actions {
+  max-width: none;
+  flex-wrap: nowrap;
+}
+.library-view-switch {
+  display: inline-flex;
+  justify-self: end;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.library-view-switch > :is(button, span) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 44px;
+  min-height: 30px;
+  padding-inline: 8px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-weight: 500;
+}
+.library-view-switch > button:is(:hover, [aria-pressed="true"]) {
+  background: var(--color-sage);
+  color: var(--color-forest);
+}
+.library-view-switch > button[aria-pressed="true"] {
+  border-color: var(--color-line);
+}
+.library-view-switch > button:focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -2px;
+}
+.library-view-switch[aria-hidden] {
+  border-color: transparent;
+  background: var(--color-line);
+  color: transparent;
+}
+@media (forced-colors: active) {
+  .library-view-switch > button[aria-pressed="true"] {
+    border-color: Highlight;
+  }
+  .library-view-switch > button:focus-visible {
+    outline-color: ButtonText;
+  }
+}
+@media (max-width: 360px) {
+  .library-view-switch svg {
+    display: none;
+  }
+}
 @media (max-width: 480px) {
   .library-caption {
     display: grid;
@@ -1551,6 +1666,10 @@ html:has(.grove-app) {
   }
 }
 @media (pointer: coarse) {
+  .library-view-switch > :is(button, span),
+  .library-heading .heading-actions > .app-button {
+    min-height: 44px;
+  }
   .library-filter-popover .filter-chips button,
   .library-filter-popover .topic-suggestions button,
   .library-filter-footer > .text-button {

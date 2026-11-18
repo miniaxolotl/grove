@@ -27,7 +27,12 @@ export function MemoryInspector({
   journal = false,
 }: {
   id?: string;
-  creation?: { draftKey: string; projectId?: string; initialContent: string };
+  creation?: {
+    draftKey: string;
+    projectId?: string;
+    initialContent: string;
+    dailyDate?: string;
+  };
   onCreated?: (memory: Memory, view?: { preview: boolean }) => void;
   close?: () => void;
   fullPage?: boolean;

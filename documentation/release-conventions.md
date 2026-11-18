@@ -41,7 +41,8 @@ Since [June 2026](https://github.blog/changelog/2026-06-11-bot-created-pull-requ
 Review and approve those runs in GitHub, then verify the actual PR checks. A green
 independent dispatch does not clear that approval or make the PR mergeable.
 
-All five repositories enforce strict `CI Gate`, enable auto-merge and automatic
+PR branches do not need to be updated just because the base branch advanced.
+All five repositories require a passing `CI Gate`, enable auto-merge and automatic
 feature-branch deletion, disable rebase merging and enable Dependabot alerts/security
 updates. Public repositories enable secret scanning/push protection. Private Fern
 and Website scanning requires available GitHub Secret Protection entitlement.

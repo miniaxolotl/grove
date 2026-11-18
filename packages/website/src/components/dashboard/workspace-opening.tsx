@@ -1,4 +1,5 @@
 import { Brand } from "@/components/brand";
+import { LibraryViewSwitch } from "./library-view-switch";
 import { PageHeading } from "./ui/page-heading";
 
 const skeletonTitleWidths = ["72%", "48%", "63%", "55%", "68%"];
@@ -83,6 +84,16 @@ export function DocumentSkeleton({
   );
 }
 
+export function GraphSkeleton() {
+  return (
+    <div className="graph-canvas skeleton-graph">
+      <p className="library-loading" role="status">
+        Opening graph…
+      </p>
+    </div>
+  );
+}
+
 export function WorkspaceRouteSkeleton({ path }: { path: string }) {
   if (path.startsWith("/app/memories/") || path === "/app/notes/new")
     return (
@@ -91,19 +102,24 @@ export function WorkspaceRouteSkeleton({ path }: { path: string }) {
       </div>
     );
   const archive = path === "/app/archive";
-  const list = path === "/app" || archive || path === "/app/journal";
-  if (!list) return <DocumentSkeleton label="Opening your workspace…" />;
+  const graph = path === "/app/graph";
+  if (path !== "/app" && !archive && !graph && path !== "/app/journal")
+    return <DocumentSkeleton label="Opening your workspace…" />;
   return (
     <>
       <PageHeading
-        title={archive ? "Archive" : "Notes"}
+        title={archive ? "Archive" : graph ? "Note graph" : "Notes"}
+        className={archive ? undefined : "library-heading"}
         actions={
-          <span
-            className="app-button secondary skeleton-action"
-            aria-hidden="true"
-          >
-            {archive ? "Back to notes" : "More"}
-          </span>
+          <>
+            {!archive && <LibraryViewSwitch view={graph ? "graph" : "list"} />}
+            <span
+              className="app-button secondary skeleton-action"
+              aria-hidden="true"
+            >
+              {archive ? "Back to notes" : "More"}
+            </span>
+          </>
         }
       />
       <div className="workspace-bone skeleton-filter" aria-hidden="true" />
@@ -114,7 +130,7 @@ export function WorkspaceRouteSkeleton({ path }: { path: string }) {
       >
         <i className="workspace-bone" />
       </div>
-      <LibrarySkeleton archive={archive} />
+      {graph ? <GraphSkeleton /> : <LibrarySkeleton archive={archive} />}
     </>
   );
 }

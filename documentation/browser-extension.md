@@ -601,10 +601,23 @@ Do not advertise signed/store availability or a proven under-one-minute setup.
 
 ### Offline store/reviewer handoff
 
-The package name is **Grove: spelling, grammar, notes**. Suggested listing summary:
-“Save notes and sources, search your Grove notebooks, and share a thought.”
-List only documented panel features; do not promise full-page import,
-AI summaries, chat extraction, Safari/mobile, offline search or signed availability.
+The package and listing name is **Grove: Grammar Checker & Study Notes**.
+
+Short description: “Check grammar and spelling as you write. Save and find study
+notes in your browser.”
+
+Lead with **Catch the typo. Keep the thought.** Grove checks English spelling and
+grammar on your device without an account. Choose a fix rather than having edits
+made for you. Sign in to save class notes and reading takeaways, keep the page
+they came from, and find them again in your notebooks. Optional AI rewrites need
+separate writing permission and run only when you request them and consent to
+sending the selected text and nearby context.
+
+Use the marketing kit’s Grove Sprout and proofreading artwork for the listing.
+Use screenshots of the version being submitted, led by a spelling or grammar
+correction and followed by saving and finding study notes. Do not reuse older UI
+captures as current screenshots or imply flashcards, quizzes, full-page import,
+offline search, Safari/mobile or store availability before approval.
 The product homepage is `https://usegrove.cloud`; legal/privacy declarations and
 store-owned support fields need operator review before submission.
 
@@ -625,6 +638,13 @@ Firefox declares authentication information, website content, browsing activity
 and search terms for user-invoked transmission. There is no analytics or automatic
 history collection. Operators must verify these declarations and corresponding
 Chrome/Edge disclosures against the final production package and privacy policy.
+
+If Firefox validation reports a `.document().write()` call in `panel.js`, trace
+the reported location before submission. The shared Markdown reader bundles
+`mdast-util-from-markdown`, which calls `micromark`’s document tokenizer and
+writes preprocessed Markdown to that tokenizer, not to a browser DOM document.
+If the report points to that call, explain it in the reviewer notes and provide
+buildable source from the exact submitted tag.
 
 ## Shared implementation notes
 

@@ -4,17 +4,21 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { Project } from "@/lib/dashboard-api";
-import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
+import { errorMessage } from "@/lib/dashboard-api";
 import type {
   NotebookLifecycleAction,
   NotebookLifecyclePreview,
 } from "@lib/shared/notebook-lifecycle";
-import { Dialog, useDialogBusy } from "./dialog";
+import { Dialog } from "./dialog";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useNoteDraftRevision, useNoteDrafts } from "./note-drafts";
 import { useToast } from "./toasts";
 import { Button } from "./ui/button";
 import { LoadError } from "./load-error";
+import {
+  NotebookLifecycleSummary,
+  notebookDraftWarning,
+} from "./notebook-lifecycle-summary";
 
 const verbs = { archive: "Archive", restore: "Restore", delete: "Delete" };
 export function NotebookLifecycleDialog({
@@ -52,17 +56,13 @@ function NotebookLifecycleForm({
     refetchOnWindowFocus: false,
   });
   const [reviewed, setReviewed] = useState<NotebookLifecyclePreview>();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [conflict, setConflict] = useState(false);
-  const operationId = useRef(crypto.randomUUID());
-  const setDialogBusy = useDialogBusy();
+  const submitting = useRef(false);
   const router = useRouter();
   const toast = useToast();
   const drafts = useNoteDrafts();
   useNoteDraftRevision();
   // Freeze what the user actually reviews. Background refresh never widens consent.
-  if (!reviewed && !query.isFetching && query.data) setReviewed(query.data);
+  if (!reviewed && !query.isFetching && query.isSuccess) setReviewed(query.data);
   const draftCount =
     reviewed && drafts
       ? [...drafts.values()].filter(
@@ -72,21 +72,7 @@ function NotebookLifecycleForm({
               reviewed.projectIds.includes(draft.base.projectId)),
         ).length
       : 0;
-  async function review() {
-    setBusy(true);
-    try {
-      const result = await query.refetch();
-      if (result.error) throw result.error;
-      setReviewed(result.data);
-      setConflict(false);
-      setError("");
-      operationId.current = crypto.randomUUID();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const cancel = useRef<HTMLButtonElement>(null);
   return (
     <form
       className="app-form"
@@ -94,15 +80,12 @@ function NotebookLifecycleForm({
         event.preventDefault();
         if (
           !reviewed ||
-          busy ||
-          conflict ||
+          submitting.current ||
           draftCount ||
           (action === "restore" && !reviewed.canRestore)
         )
           return;
-        setBusy(true);
-        setDialogBusy(true);
-        setError("");
+        submitting.current = true;
         // Instant patch first: the notebooks leave immediately, then the
         // request settles. Consent is the reviewed preview above.
         const staged = cache.stage({ scopes: reviewed.projectIds });
@@ -115,7 +98,7 @@ function NotebookLifecycleForm({
         );
         try {
           await cache.api(`/projects/${project.id}/${action}`, {
-            operationId: operationId.current,
+            operationId: crypto.randomUUID(),
             expectedVersion: reviewed.project.version,
             fingerprint: reviewed.fingerprint,
           });
@@ -124,91 +107,56 @@ function NotebookLifecycleForm({
           // The notebooks snap back; the failure is reported persistently.
           staged.rollback();
           toast(errorMessage(e), true);
-          if (
-            e instanceof DashboardApiError &&
-            ["version_conflict", "notebook_inactive"].includes(e.code)
-          )
-            setConflict(true);
-          setBusy(false);
-          setDialogBusy(false);
         }
       }}
     >
-      <p>
+      <p className="wrap-anywhere">
         <strong>{reviewed?.project.name ?? project.name}</strong>
       </p>
       {reviewed ? (
         <>
-          <p>
-            {reviewed.notebooks}{" "}
-            {reviewed.notebooks === 1 ? "notebook" : "notebooks"} and{" "}
-            {reviewed.notes} {reviewed.notes === 1 ? "note" : "notes"},
-            including all sub-notebooks.
-          </p>
-          <p>
-            {action === "archive"
-              ? "Hide these notebooks and archive their notes. Restore them from Archived notebooks. Notes already archived stay archived when restored."
-              : action === "restore"
-                ? "Restore the notebooks and notes archived together. Previously archived or expired notes stay inactive; original retention dates do not change."
-                : "Hide these notebooks, their notes and history from Grove. This is a soft deletion: retained records are not permanently erased. There is no in-app Undo."}
-          </p>
-          <p>
-            Direct links to these notebooks and notes will be turned off.
-            Restoring does not turn them back on, but a shared parent notebook
-            can include the restored contents again.
-          </p>
+          <NotebookLifecycleSummary
+            action={action}
+            notebooks={reviewed.notebooks}
+            notes={reviewed.notes}
+          />
           {!!draftCount && (
-            <p role="alert" className="app-error">
-              Finish saving or resolving drafts in these notebooks first (
-              {draftCount}). Your local writing will not be discarded.
+            <p role="alert" className="app-error my-0">
+              {notebookDraftWarning(action, draftCount)}
             </p>
           )}
           {action === "restore" && !reviewed.canRestore && (
-            <p role="alert" className="app-error">
+            <p role="alert" className="app-error my-0">
               Restore the parent notebook first.
             </p>
           )}
         </>
-      ) : query.error ? (
+      ) : !query.isFetching && query.error ? (
         <LoadError
           message={errorMessage(query.error)}
-          retry={() => void review()}
+          title="Couldn’t check notebook contents"
+          retry={() => {
+            cancel.current?.focus();
+            void query.refetch();
+          }}
         />
       ) : (
-        <p role="status">Checking affected contents…</p>
+        <p role="status">Checking contents…</p>
       )}
-      {error && (
-        <p role="alert" className="app-error">
-          {error}
-        </p>
-      )}
-      {conflict && (
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onClick={() => void review()}
-        >
-          Review current contents
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        <Button variant="secondary" data-autofocus onClick={close} ref={cancel}>
+          Cancel
         </Button>
-      )}
-      <div className="flex flex-wrap gap-3">
         <Button
           type="submit"
           variant={action === "delete" ? "danger" : "primary"}
           disabled={
             !reviewed ||
-            busy ||
-            conflict ||
             !!draftCount ||
             (action === "restore" && !reviewed.canRestore)
           }
         >
-          {busy
-            ? "Working…"
-            : `${verbs[action]} notebook${reviewed && reviewed.notebooks > 1 ? "s" : ""}`}
-        </Button>
-        <Button variant="secondary" disabled={busy} onClick={close}>
-          Cancel
+          {`${verbs[action]} notebook${reviewed && reviewed.notebooks > 1 ? "s" : ""}`}
         </Button>
       </div>
     </form>

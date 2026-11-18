@@ -541,6 +541,7 @@ function NoteGraph({
           </button>
         </div>
       </div>
+      {connections.incomplete && <ConnectionStatus state={connections} />}
       <div className={`graph-layout${active ? " has-selection" : ""}`}>
         <div className="graph-canvas">
           <Canvas
@@ -594,7 +595,11 @@ function NoteGraph({
               endpointId={active.id}
               onInspect={setInspected}
             />
-            {!neighbors.size && <p>No recorded connections in this view.</p>}
+            {!neighbors.size &&
+              !connections.incomplete &&
+              !connections.loading && (
+                <p>No recorded connections in this view.</p>
+              )}
           </aside>
         )}
       </div>
@@ -631,13 +636,15 @@ function NoteGraph({
               ))}
           </div>
         ) : (
-          <p className="graph-hint" role="status">
-            {connections.loading
-              ? "Loading connections…"
-              : relationship
-                ? "No matching connections here."
-                : "Connections appear as Grove finds related ideas."}
-          </p>
+          !connections.incomplete && (
+            <p className="graph-hint" role="status">
+              {connections.loading
+                ? "Loading connections…"
+                : relationship
+                  ? "No matching connections here."
+                  : "Connections appear as Grove finds related ideas."}
+            </p>
+          )
         )}
         <button
           type="button"
@@ -664,7 +671,7 @@ function NoteGraph({
       </div>
       <details className="graph-connection-list">
         <summary>Connection list</summary>
-        <ConnectionStatus state={connections} />
+        {!connections.incomplete && <ConnectionStatus state={connections} />}
         <ConnectionList
           items={(connections.page?.items ?? []).filter((c) =>
             visibleEdges.some((e) => e.id === c.id),

@@ -84,6 +84,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
           </div>
         </div>
       </div>
+      {connections.incomplete && <ConnectionStatus state={connections} />}
       <div className={`graph-layout${selected ? " has-selection" : ""}`}>
         <div
           className="graph-canvas"
@@ -188,7 +189,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
       )}
       <details className="graph-connection-list">
         <summary>Connection list</summary>
-        <ConnectionStatus state={connections} />
+        {!connections.incomplete && <ConnectionStatus state={connections} />}
         <ConnectionList items={items} onInspect={setInspected} />
         {connections.page?.nextCursor && (
           <button

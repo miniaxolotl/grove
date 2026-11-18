@@ -27,7 +27,7 @@ export type LibraryFilters = {
   sourceAgent: string;
   updatedAfter: string;
   period: string;
-  sort: NonNullable<MemoryList["sort"]>;
+  sort: Exclude<MemoryList["sort"], "relevance" | undefined> | "auto";
   lifetime: string;
 };
 export const initialFilters = (archive = false): LibraryFilters => ({
@@ -39,7 +39,7 @@ export const initialFilters = (archive = false): LibraryFilters => ({
   sourceAgent: "",
   updatedAfter: "",
   period: "",
-  sort: "updated_desc",
+  sort: "auto",
   lifetime: "",
 });
 export const kindOptions = [
@@ -86,22 +86,6 @@ export function LibraryFilterBar({
   const panel = useRef<HTMLDivElement>(null);
   const done = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const explicitSort = useRef(value.sort !== "updated_desc");
-  const previousSort = useRef(value.sort);
-  function withSearch(current: LibraryFilters, search: string): LibraryFilters {
-    if (!current.search && search && !explicitSort.current) {
-      previousSort.current = current.sort;
-      return { ...current, search, sort: "relevance" };
-    }
-    return {
-      ...current,
-      search,
-      sort:
-        !search && current.sort === "relevance"
-          ? previousSort.current
-          : current.sort,
-    };
-  }
   // An empty-state reset can clear filters outside this bar. Keep unsent typing
   // until the applied query actually changes, then reconcile before rendering.
   if (appliedSearch !== value.search) {
@@ -160,7 +144,7 @@ export function LibraryFilterBar({
         onChange((current) =>
           current.search === query.trim()
             ? current
-            : withSearch(current, query.trim()),
+            : { ...current, search: query.trim() },
         ),
       350,
     );
@@ -205,7 +189,7 @@ export function LibraryFilterBar({
         className="workspace-search"
         onSubmit={(event) => {
           event.preventDefault();
-          onChange((current) => withSearch(current, query.trim()));
+          update({ search: query.trim() });
         }}
       >
         <SearchField
@@ -258,7 +242,7 @@ export function LibraryFilterBar({
         }}
       >
         <div className="library-filter-heading">
-          <h2>Filters</h2>
+          <h2>Filters and sorting</h2>
           <button
             type="button"
             className="app-icon"
@@ -275,6 +259,23 @@ export function LibraryFilterBar({
             update({ tag: tag.trim() });
           }}
         >
+          <Select
+            label="Sort by"
+            value={value.sort}
+            onValueChange={(sort) =>
+              update({ sort: sort as LibraryFilters["sort"] })
+            }
+            options={[
+              {
+                value: "auto",
+                label: "Automatic",
+                description: "Best match in search, recently edited otherwise",
+              },
+              { value: "updated_desc", label: "Recently edited" },
+              { value: "updated_asc", label: "Least recently edited" },
+              { value: "created_desc", label: "Recently created" },
+            ]}
+          />
           {fixedProject === undefined && (
             <NotebookSelect
               label="Notebook"
@@ -287,24 +288,6 @@ export function LibraryFilterBar({
               ]}
             />
           )}
-          <Select
-            label="Sort notes"
-            value={value.sort}
-            onValueChange={(sort) => {
-              explicitSort.current = true;
-              if (sort !== "relevance")
-                previousSort.current = sort as LibraryFilters["sort"];
-              update({ sort: sort as LibraryFilters["sort"] });
-            }}
-            options={[
-              ...(value.search
-                ? [{ value: "relevance", label: "Relevance" }]
-                : []),
-              { value: "updated_desc", label: "Recently updated" },
-              { value: "updated_asc", label: "Oldest updated" },
-              { value: "created_desc", label: "Date written" },
-            ]}
-          />
           <Select
             label="Note type"
             value={value.kind}
@@ -499,10 +482,7 @@ export function LibraryFilterBar({
               setTag("");
               onChange((current) => ({
                 ...initialFilters(archive),
-                sort:
-                  current.sort === "relevance"
-                    ? previousSort.current
-                    : current.sort,
+                sort: current.sort,
               }));
             }}
           >

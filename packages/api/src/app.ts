@@ -1611,6 +1611,22 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.get("/v1/memories/daily/:date", async (c) =>
+    c.json({
+      success: true,
+      data: await service.dailyNote(c.get("principal"), c.req.param("date")),
+    }),
+  );
+  app.post("/v1/memories/daily/:date", async (c) =>
+    c.json({
+      success: true,
+      data: await service.createDailyNote(
+        c.get("principal"),
+        c.req.param("date"),
+        await mutation(c, rememberSchema),
+      ),
+    }),
+  );
   app.post("/v1/memories", async (c) => {
     const input = await mutation(
       c,
