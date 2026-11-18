@@ -7,6 +7,9 @@ Historical deployment IDs, test totals and provider observations are in the
 
 ## Topology and configuration
 
+For offline rehearsal of a release PR's manifest edits and npm publication list,
+see [Stage a selective release PR locally](development/selected-release-writer.md).
+
 - Website: `https://usegrove.cloud`, Next.js on Vercel; production branch `production`.
 - API: `https://api.usegrove.cloud`, Hono REST `/v1` and Streamable HTTP `/mcp`.
 - Worker: same Node 24 image, separate `node dist/worker.js` command and database login.
