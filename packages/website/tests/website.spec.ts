@@ -67,19 +67,14 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
     .click();
   await expect(page).toHaveURL(/#your-library$/);
   await expect(page.locator("#your-library")).toBeInViewport();
-  await page
-    .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Integrations", exact: true })
-    .click();
-  await expect(page).toHaveURL(/#for-developers$/);
-  await expect(
-    page.getByRole("heading", { name: "Get started", exact: true }),
-  ).toBeInViewport();
   await page.getByText("Is my notebook private?", { exact: true }).click();
   await expect(
     page.getByText("Your notes belong to your account.", { exact: false }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Connect your AI tools" }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Integrations", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/install$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Set up Grove",
@@ -462,10 +457,15 @@ test("mobile navigation keeps account access available and dismisses on focus ex
   const navigation = page.getByRole("navigation", {
     name: "Mobile navigation",
   });
+  const account = page
+    .getByRole("banner")
+    .getByRole("link", { name: "Your Grove" });
+  await expect(account).toBeInViewport();
+  await expect(account).toHaveAttribute("href", "/app");
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(
-    navigation.getByRole("link", { name: "Your Grove", exact: true }),
-  ).toHaveAttribute("href", "/app");
+    navigation.getByRole("link", { name: "Integrations", exact: true }),
+  ).toHaveAttribute("href", "/install");
   await page.keyboard.press("Shift+Tab");
   await expect(navigation).not.toBeVisible();
   await page.getByRole("button", { name: "Open navigation" }).click();

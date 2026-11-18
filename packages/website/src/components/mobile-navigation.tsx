@@ -58,32 +58,18 @@ export function MobileNavigation() {
           <Menu size={18} aria-hidden="true" />
         )}
       </button>
-      <nav
-        id="mobile-navigation"
-        aria-label="Mobile navigation"
-        hidden={!open}
-        className="absolute inset-x-0 top-full border-b border-line bg-paper px-6 pb-6 pt-3 shadow-xl shadow-forest/5"
-      >
-        {[
-          ...navigation,
-          { label: "Connect AI tools", href: "/install" },
-          { label: "Your Grove", href: "/app" },
-        ].map(({ label, href }) => (
-          <Link
-            key={label}
-            href={href}
-            onClick={() => setOpen(false)}
-            className="flex min-h-12 items-center border-b border-line text-sm hover:text-leaf"
-          >
+      <nav id="mobile-navigation" aria-label="Mobile navigation" hidden={!open}>
+        {navigation.map(({ label, href }) => (
+          <Link key={label} href={href} onClick={() => setOpen(false)}>
             {label}
           </Link>
         ))}
         <Link
           href="/sign-up"
-          className="button-primary mt-4 w-full"
+          className="header-signup"
           onClick={() => setOpen(false)}
         >
-          Start your notebook <ArrowUpRight size={15} />
+          Start your notebook <ArrowUpRight size={15} aria-hidden="true" />
         </Link>
       </nav>
     </div>
