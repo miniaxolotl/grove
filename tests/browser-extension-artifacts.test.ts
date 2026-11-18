@@ -129,7 +129,18 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       new TextDecoder().decode(files["manifest.json"]),
     );
     assert.equal(manifest.manifest_version, 3);
-    assert.equal(manifest.version, artifact.report.sourceVersion);
+    const { browserVersions } = JSON.parse(
+      await readFile(
+        join(root, "packages/browser-extension/package.json"),
+        "utf8",
+      ),
+    );
+    assert.equal(
+      manifest.version,
+      browserVersions === undefined
+        ? artifact.report.sourceVersion
+        : browserVersions[target],
+    );
     assert.equal(manifest.name, "Grove: Grammar Checker & Study Notes");
     assert.equal(
       manifest.description,

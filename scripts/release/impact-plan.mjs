@@ -29,6 +29,56 @@ const changed = (before, after) =>
     .filter((path) => before[path] !== after[path])
     .sort();
 
+// A website may use its existing compatible backend. Changed downloads are
+// held at their previous receipt until browser reservations are reconciled.
+export function selectWebsite(report, receipts, source) {
+  assert.match(source, /^[0-9a-f]{40}$/);
+  assert.equal(report.candidate, source);
+  assert.equal(report.mode, "production-advisory");
+  const inventory = [
+    "website",
+    "service",
+    "downloads",
+    ...[
+      "grove",
+      "grove-server",
+      "grove-claude-plugin",
+      "grove-codex-plugin",
+      "grove-opencode-plugin",
+    ].map((n) => `npm:${n}`),
+  ].sort();
+  assert.deepEqual(Object.keys(report.targets).sort(), inventory);
+  assert.deepEqual(Object.keys(receipts).sort(), inventory);
+  const held = [];
+  for (const name of inventory) {
+    const item = report.targets[name],
+      receipt = receipts[name];
+    assert(successfulReceipt(name, receipt.identity, receipt.evidence));
+    assert.equal(item.baselineSource, receipt.source);
+    assert.deepEqual(item.oldIdentity, receipt.identity);
+    assert.equal(item.evidence, receipt.evidence);
+    assert(!item.unresolved?.length);
+    if (
+      name === "website" ||
+      (name === "downloads" && item.state === "selected")
+    ) {
+      assert.equal(item.state, "selected");
+      assert(item.changes.length);
+      assert.equal(item.proposedIdentity.source, source);
+      if (name === "downloads") held.push(name);
+    } else {
+      assert.equal(
+        item.state,
+        "unchanged",
+        `Ineligible website-only release: ${name}`,
+      );
+      assert.deepEqual(item.changes, []);
+      assert.deepEqual(item.proposedIdentity, receipt.identity);
+    }
+  }
+  return { deliver: ["website"], held, publish: [] };
+}
+
 export function plan(
   candidate,
   snapshots,
@@ -37,7 +87,7 @@ export function plan(
   effects = {},
 ) {
   const targets = {};
-  assert.equal(candidate.policy, 2);
+  assert.equal(candidate.policy, 3);
   assert.equal(
     candidate.mode,
     "comparison",

@@ -6,6 +6,7 @@ import { resolve, join, dirname } from "node:path";
 import { parseArgs, TextEncoder } from "node:util";
 import process from "node:process";
 import { zipSync } from "fflate";
+import { resolveBrowserVersions } from "./release/browser-versions.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -21,7 +22,7 @@ function origin(value) {
   return url.origin;
 }
 
-/** Shared product version, browser-only bundles and reproducible unsigned packages. */
+/** The internal core identifies its product; each installable ZIP has its own version. */
 export async function buildBrowserExtension({
   outdir = join(root, "packages/browser-extension/dist"),
   apiOrigin = "https://api.usegrove.cloud",
@@ -45,6 +46,13 @@ export async function buildBrowserExtension({
   });
   const code = result.outputFiles[0].contents;
   const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  const { browserVersions } = JSON.parse(
+    await readFile(
+      join(root, "packages/browser-extension/package.json"),
+      "utf8",
+    ),
+  );
+  const versions = resolveBrowserVersions(pkg.version, browserVersions);
   const report = {
     kind: "internal-browser-core",
     sourceVersion: pkg.version,
@@ -161,7 +169,7 @@ export async function buildBrowserExtension({
     const manifest = {
       manifest_version: 3,
       name: "Grove: Grammar Checker & Study Notes",
-      version: pkg.version,
+      version: versions[target],
       description:
         "Check grammar and spelling as you write. Save and find study notes in your browser.",
       homepage_url: siteOrigin,
@@ -305,7 +313,7 @@ export async function buildBrowserExtension({
     await writeFile(join(outdir, `grove-${target}.zip`), zip);
     packages.push({
       target,
-      sourceVersion: pkg.version,
+      sourceVersion: manifest.version,
       config,
       sha256: createHash("sha256").update(zip).digest("hex"),
       inputs: [...inputs, wasmInput].sort(),

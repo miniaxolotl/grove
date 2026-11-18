@@ -149,12 +149,23 @@ test("website publishes only after build and current-ref checks, then verifies e
   );
 });
 
-test("website job requires successful backend deployment and preflight precedes publication", () => {
+test("website-only delivery requires exact scope and live backend verification before deployment", () => {
   const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
-  assert.match(workflow, /website:\n\s+needs: \[candidate, deploy\]/);
+  assert.match(workflow, /website:\n\s+needs: \[candidate, website-scope\]/);
   const website = workflow.split("\n  website:\n")[1];
   assert.doesNotMatch(website, /always\(\)|continue-on-error/);
   assert.match(website, /ref: \$\{\{ needs.candidate.outputs.sha \}\}/);
+  assert.match(
+    website,
+    /verify-website-baselines\.mjs[\s\S]*database-preflight\.mjs[\s\S]*health\/ready[\s\S]*website\.mjs deploy/,
+  );
+  assert.doesNotMatch(website, /NPM_TOKEN|DOCKERHUB_TOKEN|publish\.mjs/);
+  // The alias may have moved before the previous run failed its homepage
+  // check. A retry must verify the live site before it accepts the receipt.
+  assert.match(
+    website,
+    /if: steps\.receipts\.outputs\.alreadyDelivered == 'true'\s+run: \|\s+node scripts\/release\/website\.mjs preflight\s+test "\$\(curl [^\n]+https:\/\/usegrove\.cloud\/\)" = 200[\s\S]*upload-artifact/,
+  );
   assert.ok(
     workflow.indexOf("node scripts/release/website.mjs preflight") <
       workflow.indexOf("name: Publish all coordinated npm artifacts"),

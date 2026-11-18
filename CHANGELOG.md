@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.11.25](https://github.com/miniaxolotl/grove/compare/v1.11.24...v1.11.25) (2026-11-18)
+
+
+### Features
+
+* **pricing:** clarify plan costs and allowances ([#273](https://github.com/miniaxolotl/grove/issues/273)) ([8c8315c](https://github.com/miniaxolotl/grove/commit/8c8315c3e1ab6182710389b696f0c582b06dd02f))
+* **release:** admit website delivery against its live dependencies ([#284](https://github.com/miniaxolotl/grove/issues/284)) ([155c520](https://github.com/miniaxolotl/grove/commit/155c52094f13056b1c63580ca00baee3de7275ec))
+* **release:** verify each browser download against its own version ([#283](https://github.com/miniaxolotl/grove/issues/283)) ([1a09686](https://github.com/miniaxolotl/grove/commit/1a09686d245199ec17158c7315849020e8856163))
+* **website:** lead the overview with notebook evidence ([#271](https://github.com/miniaxolotl/grove/issues/271)) ([a0f8d72](https://github.com/miniaxolotl/grove/commit/a0f8d726108b56f0a6ab5c20dc40f41f29f80c6c))
+* **website:** link documentation and setup by task ([#270](https://github.com/miniaxolotl/grove/issues/270)) ([c8a702e](https://github.com/miniaxolotl/grove/commit/c8a702e8917ae478e20eab8ec41031b00e3c2e74))
+
+
+### Bug Fixes
+
+* **auth:** put account entry first on every screen ([#269](https://github.com/miniaxolotl/grove/issues/269)) ([e55c0fe](https://github.com/miniaxolotl/grove/commit/e55c0fe88ce7cb605d28418b9473a675cf2cff00))
+* **notebooks:** simplify workspace navigation and the Notes toolbar ([#275](https://github.com/miniaxolotl/grove/issues/275)) ([de1f562](https://github.com/miniaxolotl/grove/commit/de1f5622b2039ea861b3f4b0fb5741080681acb3))
+* **notes:** keep note options readable and save within reach ([#272](https://github.com/miniaxolotl/grove/issues/272)) ([a78c03e](https://github.com/miniaxolotl/grove/commit/a78c03eb9279d803a0bfec14e0d6d5f0385eb3ef))
+* **settings:** bring preferences and file controls into reach ([#274](https://github.com/miniaxolotl/grove/issues/274)) ([5ddc6e3](https://github.com/miniaxolotl/grove/commit/5ddc6e3ed34b597834f951a6aade0040529c7651))
+* **website:** guard analytics and campaign documents ([#278](https://github.com/miniaxolotl/grove/issues/278)) ([a597048](https://github.com/miniaxolotl/grove/commit/a5970482c7b98209fa122601e133a18a34069392))
+* **website:** simplify public navigation on small screens ([#268](https://github.com/miniaxolotl/grove/issues/268)) ([fa35379](https://github.com/miniaxolotl/grove/commit/fa3537996a5609491d3d664de4451c3531f788b9))
+* **writing:** recognize note vocabulary and reduce false corrections ([#280](https://github.com/miniaxolotl/grove/issues/280)) ([0e56335](https://github.com/miniaxolotl/grove/commit/0e56335adf845026d23cfeec83b0fdcdd3fa2077))
+
 ## [1.11.24](https://github.com/miniaxolotl/grove/compare/v1.11.23...v1.11.24) (2026-11-18)
 
 
