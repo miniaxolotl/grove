@@ -97,7 +97,7 @@ const a = "a".repeat(40),
   b = "b".repeat(40),
   c = "c".repeat(40);
 const snap = (source, targets) => ({
-  policy: 2,
+  policy: 3,
   versions: Object.fromEntries(
     Object.entries(ledger.targets)
       .filter(([name]) => name.startsWith("npm:"))

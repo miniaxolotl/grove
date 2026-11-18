@@ -95,6 +95,7 @@ jobs:
           npm whoami
           node scripts/release/preflight-production.mjs
           node scripts/release/website.mjs preflight
+          node scripts/release/assets.mjs preflight
           node scripts/publish.mjs --dry-run
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
