@@ -62,7 +62,9 @@ requires the API/website migration described in [Cloud onboarding](cloud-onboard
 
 For a persistent `grove` command, install `@miniaxolotl/grove` globally. Existing
 `init`, `login`, `status` and `project` commands remain supported. `init` uses the
-older dashboard-approval workflow; a login with no grant reports `awaiting-grant`.
+older dashboard-approval workflow and requires `--client opencode`, `--client claude`
+or `--client codex` before sign-in. For standalone CLI credentials, use `login`
+instead. A login with no grant reports `awaiting-grant`.
 `status` checks the API, not whether the host has loaded its plugin.
 
 ### Diagnose installation and startup
