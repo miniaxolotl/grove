@@ -157,10 +157,10 @@ export async function buildBrowserExtension({
       throw new Error("Extension runtime contains unbundled or server imports");
     const manifest = {
       manifest_version: 3,
-      name: "Grove: spelling, grammar, notes",
+      name: "Grove: Grammar Checker & Study Notes",
       version: pkg.version,
       description:
-        "Check spelling and grammar, rewrite with AI, and take notes in your browser.",
+        "Check grammar and spelling as you write. Save and find study notes in your browser.",
       homepage_url: siteOrigin,
       icons: listingIcons,
       action: {

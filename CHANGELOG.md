@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.22](https://github.com/miniaxolotl/grove/compare/v1.11.21...v1.11.22) (2026-11-18)
+
+
+### Features
+
+* **extension:** align store branding with writing and study notes ([#230](https://github.com/miniaxolotl/grove/issues/230)) ([9c67031](https://github.com/miniaxolotl/grove/commit/9c67031ee94b5bf1e73bbb4a44a3c7f215f08c1b))
+
 ## [1.11.21](https://github.com/miniaxolotl/grove/compare/v1.11.20...v1.11.21) (2026-11-18)
 
 
