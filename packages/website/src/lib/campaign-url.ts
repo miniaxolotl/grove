@@ -30,3 +30,25 @@ export function campaignUrl(
     return null;
   }
 }
+
+/** Vendor scripts may inspect the document, not just the projected event URL. */
+export function publicCampaignDocument(
+  raw: string,
+  origin: string,
+  paths: ReadonlySet<string>,
+): boolean {
+  try {
+    const input = new URL(raw);
+    const projected = campaignUrl(raw, origin, paths);
+    if (!projected || input.hash || input.username || input.password)
+      return false;
+    const output = new URL(projected);
+    return [...input.searchParams].every(
+      ([key, value]) =>
+        input.searchParams.getAll(key).length === 1 &&
+        output.searchParams.get(key) === value,
+    );
+  } catch {
+    return false;
+  }
+}
