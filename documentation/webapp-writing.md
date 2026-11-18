@@ -44,6 +44,8 @@ immediately and stays on this device:
 - **Writing assistance** master switch, **Spelling**, **Basic grammar**,
   **Check as I type** and **Inline highlights** (off keeps the accessible issue
   list while removing underlines).
+- Turning off **Check as I type** discards a pending automatic check. Use
+  **Check writing** when you want results in manual mode.
 - **Advanced rules**: ten independent rule switches. Turning a parent off keeps
   the individual choices for when it returns.
 - **Personal dictionary**: names, brands and terms this device will not flag.
