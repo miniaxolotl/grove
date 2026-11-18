@@ -77,6 +77,23 @@ test("release downloads include installable browser ZIPs and a deterministic int
   );
 });
 
+test("coordinated publication cannot write independently versioned downloads without their release admission", async () => {
+  const mod = await helper();
+  assert.equal(typeof mod.assertCoordinatedBrowserSource, "function");
+  assert.doesNotThrow(() => mod.assertCoordinatedBrowserSource({}, {}));
+  const pinned = {
+    browserVersions: { chrome: "2.0.0", edge: "1.1.0", firefox: "1.0.1" },
+  };
+  assert.throws(
+    () => mod.assertCoordinatedBrowserSource({}, pinned),
+    /independent/i,
+  );
+  assert.throws(
+    () => mod.assertCoordinatedBrowserSource(pinned, {}),
+    /independent/i,
+  );
+});
+
 test("the product tag can carry independently versioned browser downloads", async () => {
   const { prepareAssets } = await helper();
   const browserVersions = { chrome: "1.5.4", firefox: "2.0.1", edge: "1.5.2" };
@@ -203,7 +220,7 @@ test("production attaches release downloads after coordinated publication with j
   );
   assert.match(workflow, /publish:[\s\S]*?permissions:\s+contents: write/);
   assert.ok(
-    workflow.indexOf("node scripts/release/assets.mjs") >
+    workflow.indexOf("run: node scripts/release/assets.mjs\n") >
       workflow.indexOf("node scripts/publish.mjs\n"),
   );
   assert.match(workflow, /node scripts\/release\/assets.mjs/);

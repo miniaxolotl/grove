@@ -168,6 +168,14 @@ export async function snapshot(ref, stamped = false) {
     }
     if (!stamped) normalize(dir, manifests);
     const { website, service, watch } = await sourceInputs(dir, source);
+    // A manual pin change, including adding/removing the map, requires review.
+    // Ordinary product version changes in historical coordinated builds do not.
+    if (browser.browserVersions)
+      watch["browserVersions"] = JSON.stringify([
+        browserVersions.chrome,
+        browserVersions.edge,
+        browserVersions.firefox,
+      ]);
     const targets = { website, service, downloads: {} },
       integrity = {};
     const opts = {
@@ -226,8 +234,7 @@ export async function snapshot(ref, stamped = false) {
         targets.downloads[`${target}/${path}`] = digest;
     }
     return {
-      policy: 2,
-      browserVersions,
+      policy: 3,
       versions: Object.fromEntries(
         Object.values(manifests).map((pkg) => [
           "npm:" + pkg.name.split("/")[1],
