@@ -474,6 +474,19 @@ test("mobile navigation keeps account access available and dismisses on focus ex
   await expect(navigation).not.toBeVisible();
 });
 
+test.describe("mobile menu before JavaScript", () => {
+  test.use({ javaScriptEnabled: false, viewport: { width: 320, height: 740 } });
+  test("open setup from the menu", async ({ page }) => {
+    await page.goto("/privacy");
+    await page.getByRole("button", { name: "Open navigation" }).press("Enter");
+    await page
+      .getByRole("navigation", { name: "Mobile navigation" })
+      .getByRole("link", { name: "Integrations" })
+      .click();
+    await expect(page).toHaveURL(/\/install$/);
+  });
+});
+
 test("mobile navigation and layouts work at narrow and wide widths", async ({
   page,
 }) => {

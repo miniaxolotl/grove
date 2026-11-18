@@ -2,76 +2,84 @@
 
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { navigation } from "@/content/site";
 
 export function MobileNavigation() {
-  const [open, setOpen] = useState(false);
-  const toggle = useRef<HTMLButtonElement>(null);
-  const container = useRef<HTMLDivElement>(null);
+  const container = useRef<HTMLDetailsElement>(null);
+  const toggle = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!open) return;
-
+    const menu = container.current;
+    if (!menu) return;
+    const close = () => {
+      menu.open = false;
+    };
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
+      if (menu?.open && event.key === "Escape") {
+        close();
         toggle.current?.focus();
       }
     }
     function onPointerDown(event: PointerEvent) {
-      if (!container.current?.contains(event.target as Node)) setOpen(false);
+      if (menu?.open && !menu.contains(event.target as Node)) close();
     }
     const desktop = window.matchMedia("(min-width: 1024px)");
-    const closeOnResize = () => setOpen(false);
-
+    desktop.addEventListener("change", close);
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("pointerdown", onPointerDown);
-    desktop.addEventListener("change", closeOnResize);
     return () => {
+      desktop.removeEventListener("change", close);
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown);
-      desktop.removeEventListener("change", closeOnResize);
     };
-  }, [open]);
+  }, []);
 
   return (
-    <div
+    <details
       ref={container}
       className="header-menu"
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        if (!event.currentTarget.contains(event.relatedTarget))
+          event.currentTarget.open = false;
       }}
     >
-      <button
+      <summary
+        role="button"
         ref={toggle}
-        type="button"
         className="header-menu-toggle"
-        aria-expanded={open}
         aria-controls="mobile-navigation"
-        aria-label={open ? "Close navigation" : "Open navigation"}
-        onClick={() => setOpen(!open)}
       >
-        {open ? (
-          <X size={18} aria-hidden="true" />
-        ) : (
+        <span className="menu-closed">
           <Menu size={18} aria-hidden="true" />
-        )}
-      </button>
-      <nav id="mobile-navigation" aria-label="Mobile navigation" hidden={!open}>
+          <span className="sr-only">Open navigation</span>
+        </span>
+        <span className="menu-open">
+          <X size={18} aria-hidden="true" />
+          <span className="sr-only">Close navigation</span>
+        </span>
+      </summary>
+      <nav
+        id="mobile-navigation"
+        aria-label="Mobile navigation"
+        onClick={(event) => {
+          if (
+            event.target instanceof Element &&
+            event.target.closest("a") &&
+            container.current
+          )
+            container.current.open = false;
+        }}
+      >
         {navigation.map(({ label, href }) => (
-          <Link key={label} href={href} onClick={() => setOpen(false)}>
+          <Link key={label} href={href}>
             {label}
           </Link>
         ))}
-        <Link
-          href="/sign-up"
-          className="header-signup"
-          onClick={() => setOpen(false)}
-        >
+        <Link href="/sign-up" className="header-signup">
           Start your notebook <ArrowUpRight size={15} aria-hidden="true" />
         </Link>
       </nav>
-    </div>
+    </details>
   );
 }

@@ -102,6 +102,10 @@
 .site-header .header-menu-toggle::-webkit-details-marker {
   display: none;
 }
+.header-menu:not([open]) .menu-open,
+.header-menu[open] .menu-closed {
+  display: none;
+}
 .site-header .header-menu-toggle:hover,
 .site-header .header-menu[open] > summary,
 .site-header .header-menu-toggle[aria-expanded="true"] {
