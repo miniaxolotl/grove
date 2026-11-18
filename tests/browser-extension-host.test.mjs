@@ -102,7 +102,7 @@ for (const target of ["chrome", "edge"])
         }),
       );
       await localPage.goto("https://notes.writing-fixture.test/form");
-      await localPage.locator("#draft").fill("This is a sentnce.");
+      await localPage.locator("#draft").fill("Watchlist: the serializer writes to a read-onyl datastore.");
       await localPage
         .locator("div[data-grove-writing-ui]")
         .waitFor({ state: "attached" });
@@ -123,14 +123,19 @@ for (const target of ["chrome", "edge"])
         .waitFor({ state: "attached", timeout: 3000 });
       await localPage.locator("#draft").press("Alt+Enter");
       await localPage
-        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .getByRole("button", { name: "onyl — Spelling", exact: true })
         .click();
+      if (process.env.EXTENSION_SCREENSHOTS) {
+        await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
+        await localPage.getByRole("button", { name: "only", exact: true }).waitFor();
+        await localPage.screenshot({ path: join(process.env.EXTENSION_SCREENSHOTS, `${target}-compound-card.png`), clip: { x: 0, y: 0, width: 390, height: 450 } });
+      }
       await localPage
-        .getByRole("button", { name: "sentence", exact: true })
+        .getByRole("button", { name: "only", exact: true })
         .click();
       assert.equal(
         await localPage.locator("#draft").inputValue(),
-        "This is a sentence.",
+        "Watchlist: the serializer writes to a read-only datastore.",
         "fresh install checks an unlisted website without signing in or site setup",
       );
       await worker.evaluate(async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { writingRules, type WritingRule } from "@lib/shared/writing-settings";
+import { dictionaryWordKey, personalWordLimit, writingRules, type WritingRule } from "@lib/shared/writing-settings";
 import {
   loadWritingSettings,
   saveWritingSettings,
@@ -115,13 +115,13 @@ export function WritingPreferences() {
   const addWord = () => {
     const clean = newWord.trim();
     if (!clean) return;
-    if (
-      settings.words.some(
-        (entry) =>
-          entry.toLocaleLowerCase("en") === clean.toLocaleLowerCase("en"),
-      )
-    ) {
+    const key = dictionaryWordKey(clean);
+    if (settings.words.some((entry) => dictionaryWordKey(entry) === key)) {
       setWordError("That word is already in your dictionary.");
+      return;
+    }
+    if (settings.words.length >= personalWordLimit) {
+      setWordError("Dictionary full. Remove a word before adding another.");
       return;
     }
     try {
@@ -130,7 +130,7 @@ export function WritingPreferences() {
       setWordError("");
     } catch {
       setWordError(
-        "Use letters with optional apostrophes, up to 80 characters.",
+        "Use letters with optional apostrophes or hyphens, up to 80 characters.",
       );
     }
   };

@@ -32,6 +32,18 @@ checker is ready, choose **Check writing** without having to edit the text again
   verb agreement, confused words and acronym plurals. Inverted questions
   (**does he have**) and mandative clauses (**I suggest he go**) are left
   alone rather than "fixed".
+- The English dictionary recognizes everyday note terms such as **watchlist**,
+  **audiobook** and **backlink**, including plurals and possessives. For example,
+  **watchlists** is accepted and **watchlsit** suggests **watchlist**.
+  Local vocabulary also covers software, science, medicine, law, finance,
+  geography, education and music. You can mix terms from different fields in one note.
+  Hyphenated compounds such as **read-only** and **state-of-the-art** work with
+  regular and nonbreaking hyphens. In **read-onyl**, only **onyl** needs correcting.
+- Grammar leaves **If she were available**, **we should of course wait**, and
+  year possessives such as **2024’s budget** alone. Word-pair checks don’t join
+  words separated by inline code or a blank paragraph.
+  It distinguishes **a UI change** from **an MRI-guided procedure**, leaves
+  either article before **SQL** alone, and suggests **I’ve written** for **I’ve wrote**.
 - **No issues found by spelling and basic grammar checks** means exactly that:
   it is not a complete grammar guarantee.
 
@@ -48,7 +60,9 @@ immediately and stays on this device:
   **Check writing** when you want results in manual mode.
 - **Advanced rules**: ten independent rule switches. Turning a parent off keeps
   the individual choices for when it returns.
-- **Personal dictionary**: names, brands and terms this device will not flag.
+- **Personal dictionary**: save up to 1,000 names, brands and terms. Case,
+  straight or curly apostrophes, and equivalent forms of accented letters count
+  as the same entry. A saved name also covers its possessive.
   This list is separate from the browser extension’s dictionary until a shared
   store lands; adding the same word in both places is expected for now.
 
