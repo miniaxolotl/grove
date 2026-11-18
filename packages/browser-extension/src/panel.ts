@@ -322,6 +322,9 @@ function changedDraft() {
 }
 function scheduleAutosave() {
   cancelAutosave();
+  const saved = state?.draft?.save;
+  if (saved?.status !== "saved") return;
+  const noteId = saved.receipt.noteId;
   const revision = draftRevision;
   const epoch = sessionEpoch;
   autosaveTimer = setTimeout(() => {
@@ -337,11 +340,12 @@ function scheduleAutosave() {
         savingCapture ||
         !state?.identity.capabilities.includes("memory:write") ||
         state.draft?.save?.status !== "saved" ||
+        state.draft.save.receipt.noteId !== noteId ||
         !changedDraft() ||
         !$<HTMLTextAreaElement>("note").value.trim()
       )
         return;
-      await saveCapture();
+      await saveCapture(state.draft.save.request.operationId);
     });
   }, autosaveDelayMs);
 }
@@ -685,7 +689,7 @@ async function followSource() {
     });
   await editTail;
 }
-async function refresh() {
+async function refresh(resumeAutosave = true) {
   if (!preferences.enabled) return;
   await editTail;
   const next = await rpc<State>("state");
@@ -711,7 +715,7 @@ async function refresh() {
       state.draft,
       !$<HTMLTextAreaElement>("note").dataset.loaded || !!changed,
     );
-  if (state.draft?.save?.status === "saved" && changedDraft())
+  if (resumeAutosave && state.draft?.save?.status === "saved" && changedDraft())
     scheduleAutosave();
   $<HTMLButtonElement>("save").disabled =
     !state.identity.capabilities.includes("memory:write");
@@ -1064,14 +1068,18 @@ $("capture-form").addEventListener("submit", (event) => {
   event.preventDefault();
   void action(saveCapture);
 });
-async function saveCapture() {
+async function saveCapture(expectedReceipt?: string) {
   if (savingCapture) throw new Error("Wait for the save to finish.");
   savingCapture = true;
+  let confirmed = false;
   cancelAutosave();
   $<HTMLButtonElement>("share-draft").disabled = true;
   try {
     await editTail;
-    if (!state?.draft?.save || state.draft.save.status === "saved") {
+    if (
+      !expectedReceipt &&
+      (!state?.draft?.save || state.draft.save.status === "saved")
+    ) {
       paintDraft(
         await rpc<CaptureDraft>("edit", {
           text: $<HTMLTextAreaElement>("note").value,
@@ -1084,11 +1092,12 @@ async function saveCapture() {
     button.disabled = true;
     $("save-state").textContent = "Saving…";
     try {
-      const result = await rpc<{ draft: CaptureDraft }>("save");
+      const result = await rpc<{ draft: CaptureDraft }>("save", expectedReceipt);
       paintDraft(result.draft, false);
+      confirmed = true;
     } catch (error) {
       try {
-        await refresh();
+        await refresh(false);
       } catch {
         /* Preserve the mounted draft even when reconnection fails. */
       }
@@ -1101,7 +1110,7 @@ async function saveCapture() {
     if (state?.draft) paintDraft(state.draft, false);
     // Keep autosaving only behind a settled, current receipt: a rejected or
     // unknown save is never retried automatically.
-    if (state?.draft?.save?.status === "saved" && changedDraft())
+    if (confirmed && state?.draft?.save?.status === "saved" && changedDraft())
       scheduleAutosave();
   }
 }

@@ -163,10 +163,18 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     assert.deepEqual(writes[0], writes[1]);
     assert.equal(result.draft?.text, "Newer edits");
     assert.equal(result.draft?.save?.status, "saved");
+    const receipt = result.draft.save!.request.operationId;
+    // A queued timer can arrive after New note has replaced this window's draft.
+    const reviewedDraft = session.get("draft:7");
+    await client.clear(7);
+    await client.edit(7, { text: "Replacement still needs explicit save" });
+    await assert.rejects(client.save(7, receipt), /receipt/i);
+    assert.equal(writes.length, 2, "a timer must never send a create");
+    session.set("draft:7", reviewedDraft);
     assert.ok(!JSON.stringify([...local.values()]).includes("First capture"));
     assert.ok(!JSON.stringify([...local.values()]).includes("fixture-token"));
     await client.edit(7, { text: "First capture", source: null });
-    await client.save(7);
+    await client.save(7, receipt);
     assert.equal(
       writes.length,
       3,

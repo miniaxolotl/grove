@@ -288,10 +288,18 @@ export class ExtensionClient {
     if (result !== draft) await this.session.set(`draft:${windowId}`, result);
     return result;
   }
-  async save(windowId: number) {
+  async save(windowId: number, expectedReceipt?: string) {
     const identity = await this.identity();
     this.need(identity, "memory:write");
     let draft = await this.draft(windowId, identity);
+    if (
+      expectedReceipt !== undefined &&
+      (draft.save?.status !== "saved" ||
+        draft.save.request.operationId !== expectedReceipt)
+    )
+      throw new Error(
+        "The saved receipt has changed. Review the current draft.",
+      );
     if (
       draft.save?.status === "saved" &&
       draft.save.request.content === formatCaptureDraft(draft) &&
