@@ -29,7 +29,8 @@ placement control; apply it explicitly before confirmation.
    notebook evidence. They change only review drafts, not the library. Manual import
    works without AI. Suggestions do not run external research or rewrite content.
 5. Review the sharing notice, check the confirmation and choose **Confirm import**.
-   New notebooks are created only with their first imported note. Existing notes
+   New notebooks appear in the notebook sidebar when the import reports its first
+   saved note in that notebook; no page reload is needed. Existing notes
    are never silently merged or overwritten. New names are explicitly new notebooks,
    even when another notebook has the same display name. If the review changes
    in another tab, confirm the updated version again.

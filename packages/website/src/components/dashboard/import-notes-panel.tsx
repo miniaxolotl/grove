@@ -333,6 +333,9 @@ export function ImportNotesPanel({
     void cache.client.invalidateQueries({
       queryKey: workspaceKeys.resource("/projects"),
     });
+    void cache.client.invalidateQueries({
+      queryKey: cache.notebookCatalog().queryKey,
+    });
   }, [batch?.imported, cache]);
   async function run(work: () => Promise<void>) {
     if (inFlight.current) return;
