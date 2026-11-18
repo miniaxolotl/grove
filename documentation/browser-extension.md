@@ -491,6 +491,9 @@ local structural validation, not proof of server storage, access or indexing.
 Runtime receipts come from authenticated responses. Network/ambiguous failures show
 **Save not confirmed**, not success; retry replays the original request without losing
 newer edits. Settings can reconcile a scoped opaque receipt after session loss.
+A definitive rejection keeps its retry snapshot in the draft, but does not
+leave an unconfirmed receipt in Settings. If an earlier attempt was ambiguous,
+its recovery receipt stays available even when a later retry is rejected.
 Local persistent storage contains only device enablement/appearance preferences,
 public OAuth registration, destination IDs
 and at most ten opaque recovery receipts, pruned after seven days; never note bodies,
