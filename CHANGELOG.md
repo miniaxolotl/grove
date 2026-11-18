@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.11.20](https://github.com/miniaxolotl/grove/compare/v1.11.19...v1.11.20) (2026-11-17)
+
+
+### Features
+
+* **extension:** autosave notes with guarded same-note updates ([#210](https://github.com/miniaxolotl/grove/issues/210)) ([7476281](https://github.com/miniaxolotl/grove/commit/7476281fe464eb269820a353316e32f1e02d6922))
+* **release:** add direct extension downloads ([#187](https://github.com/miniaxolotl/grove/issues/187)) ([5e9ff9f](https://github.com/miniaxolotl/grove/commit/5e9ff9f7db5aae24a3f0009a2e2ee10c9fd14c86))
+* **settings:** simplify writing preferences and connections ([#220](https://github.com/miniaxolotl/grove/issues/220)) ([8be52c9](https://github.com/miniaxolotl/grove/commit/8be52c9f588d4cc64a1952a886c0904537d5371c))
+* **ui:** simplify the Grove extension and website ([#217](https://github.com/miniaxolotl/grove/issues/217)) ([8f2983a](https://github.com/miniaxolotl/grove/commit/8f2983a4d68179fa54cb76434f092a43cbaa55d3))
+* **workspace:** quiet secondary note actions ([#221](https://github.com/miniaxolotl/grove/issues/221)) ([cf4494c](https://github.com/miniaxolotl/grove/commit/cf4494c76326a2ceec17ac99629b76ac17a6dd43))
+
+
+### Bug Fixes
+
+* **release:** reconcile Grove historical version decisions ([ea9deeb](https://github.com/miniaxolotl/grove/commit/ea9deebd8993755ae4c55a835dde0b580ed87ca6))
+* **workspace:** keep settings after notebooks ([#224](https://github.com/miniaxolotl/grove/issues/224)) ([0757499](https://github.com/miniaxolotl/grove/commit/07574996179c5e7f259d7fbbf5383a70bd378aea))
+
+
+### Performance Improvements
+
+* **workspace:** warm navigation and stabilize loading layouts ([#219](https://github.com/miniaxolotl/grove/issues/219)) ([2e61205](https://github.com/miniaxolotl/grove/commit/2e61205d18948283dcb33f52a3f7f4080210559d))
+
+
+### Miscellaneous Chores
+
+* **release:** declare explicit Release-As 1.11.19 ([#211](https://github.com/miniaxolotl/grove/issues/211)) ([a30ec65](https://github.com/miniaxolotl/grove/commit/a30ec65fc6b72dfc60855a4bfaa24502d6415c78))
+
 ## [1.11.19](https://github.com/miniaxolotl/grove/compare/v1.11.16...v1.11.19) (2026-11-08)
 
 
