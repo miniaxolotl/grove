@@ -55,8 +55,9 @@ immediately and stays on this device:
 ## Privacy and limits
 
 - Guests can use the [web writing checker](https://usegrove.cloud/writing)
-  without an account. **Check writing** lists a short English explanation for
-  each issue, such as “This word appears twice.” Text is checked locally and
+  without an account. **Check writing** pairs each explanation with the word or
+  phrase it refers to. For a spacing issue, it names the gap and shows the
+  text that follows it. Text is checked locally and
   is not saved; note storage, account preferences and Ask Grove still require
   sign-in.
 
