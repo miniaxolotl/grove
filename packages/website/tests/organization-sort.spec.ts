@@ -3,17 +3,26 @@ import { fixture, note, project } from "./fixtures/workspace-fixture";
 import { chooseOption } from "./fixtures/select";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
-for (const width of [1440, 390]) {
+for (const width of [1440, 390, 320]) {
   test.describe(`organizer at ${width}px`, () => {
     test.use({
       viewport: { width, height: 844 },
-      isMobile: width === 390,
-      hasTouch: width === 390,
+      isMobile: width < 600,
+      hasTouch: width < 600,
+      colorScheme: width === 320 ? "dark" : "light",
     });
     test("browse, place, undo and return to the sidebar", async ({
       page,
     }, info) => {
       const state = await fixture(page);
+      await page.route("**/api/grove/me", (route) =>
+        route.fulfill({
+          json: {
+            success: true,
+            data: { plan: { tier: "unlimited", source: "complimentary" } },
+          },
+        }),
+      );
       const names = [
         "Field studies",
         "Spring planting and pollinator observations",
@@ -31,7 +40,7 @@ for (const width of [1440, 390]) {
         })),
       );
       await page.goto(`${base}/app`);
-      if (width === 390)
+      if (width < 600)
         await page
           .getByRole("button", { name: "Notebooks", exact: true })
           .tap();
@@ -39,10 +48,18 @@ for (const width of [1440, 390]) {
         .locator(".notebook-explorer")
         .getByRole("button", { name: "Organize", exact: true });
       await expect(entry).toBeInViewport();
-      if (width === 390)
+      if (width < 600) {
         expect((await entry.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        // A disclosed notebook list gets the same space as the navigation above
+        // it, rather than competing with Settings and Commands for a column.
+        const tree = page.getByRole("region", { name: "Your notebooks" });
+        const nav = page.locator(".app-sidebar-heading");
+        expect((await tree.boundingBox())!.width).toBe(
+          (await nav.boundingBox())!.width,
+        );
+      }
       await page.screenshot({ path: info.outputPath(`entry-${width}.png`) });
-      if (width === 390) await entry.tap();
+      if (width < 600) await entry.tap();
       else await entry.press("Enter");
       const dialog = page.getByRole("dialog", { name: "Organize notebooks" });
       await page.screenshot({ path: info.outputPath(`browse-${width}.png`) });
@@ -62,6 +79,13 @@ for (const width of [1440, 390]) {
         name: names[1],
         exact: true,
       });
+      if (width < 600) {
+        const leaf = dialog.getByRole("button", {
+          name: "References",
+          exact: true,
+        });
+        expect((await leaf.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
       await choice.click();
       const move = dialog.getByRole("button", { name: "Move to…" });
       await expect(move).toBeInViewport({ ratio: 1 });
@@ -77,6 +101,10 @@ for (const width of [1440, 390]) {
       await expect(
         chooser.getByRole("heading", { name: "Move notebook" }),
       ).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(move).toBeFocused();
+      await expect(choice).toHaveAttribute("aria-pressed", "true");
+      await page.keyboard.press("Enter");
       await chooser.getByRole("radio", { name: "Top level" }).check();
       await chooseOption(
         chooser.getByRole("combobox", { name: "Position" }),

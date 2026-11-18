@@ -225,12 +225,10 @@ function NotebookBranch(props: NotebookBranchProps) {
       >
         {props.disclosure}
         <span
-          className="drag-handle notebook-drag-handle"
-          data-touch-organize
+          className="notebook-organizer-folder"
           aria-hidden="true"
-          style={{ cursor: "default", color: "var(--color-muted)" }}
         >
-          <span className="notebook-folder-icon">{props.icon}</span>
+          {props.icon}
         </span>
         {props.row}
       </div>

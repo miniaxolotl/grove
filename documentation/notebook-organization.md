@@ -7,7 +7,9 @@ that the owner's reported physical-phone gesture failures are repaired.
 
 ## Organize in the website
 
-- Open **Organize** below the sidebar’s Notebooks heading. It selects the current
+- Open **Organize** in the sidebar’s Notebooks heading. On a phone, first expand
+  **Notebooks** to see the full-width tree. The heading links to the notebook manager;
+  the plus button creates a notebook. Organize selects the current
   notebook when there is one; otherwise choose from the tree. The manager’s
   **Organize** button and a row’s **Rearrange notebook** action also open it.
   Focus starts on the dialog title, so typing is optional. Close or Escape
@@ -21,7 +23,8 @@ that the owner's reported physical-phone gesture failures are repaired.
   explicit before/after sibling position. The source and its descendants are not
   offered as destinations. Search matches full ancestor paths, displayed below
   destination names. A preview retains the chosen destination and position even
-  when search hides its row. Cancel returns focus to Move to in Organize.
+  when search hides its row. From Organize, Cancel, Close or Escape in the chooser
+  returns focus to **Move to…** with the same notebook selected and search intact.
 - Filtered Organize lists omit adjacent Move up/down until the search is cleared;
   a filtered list is not the complete sibling group. Archived notebooks remain in
   their separate list with Restore/Delete, not ordering controls.
