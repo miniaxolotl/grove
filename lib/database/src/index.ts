@@ -131,6 +131,9 @@ export async function probeDatabase(db: Knex) {
   );
   await db.raw("SELECT policy, version FROM writing_consents LIMIT 0");
   await db.raw("SELECT connection_id FROM writing_cancellations LIMIT 0");
+  await db.raw(
+    "SELECT account_id, local_date, memory_id FROM daily_notes LIMIT 0",
+  );
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */
