@@ -152,7 +152,10 @@ test("explicit note order searches and pages the complete notebook", async ({
   expect(requests().at(-1)).not.toHaveProperty("cursor");
   const rows = page.locator(".memory-row");
   await expect(rows.first()).toContainText("Plot 1");
-  await page.getByRole("button", { name: /^Load more( notes)?$/ }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: /^Load more( notes)?$/ })
+    .click();
   await expect
     .poll(() => requests().at(-1))
     .toMatchObject({ ...scope, cursor: "2" });
