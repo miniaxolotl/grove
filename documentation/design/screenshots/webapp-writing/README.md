@@ -2,12 +2,15 @@
 
 ## Guest suggestions
 
-![Guest results explain a repeated word and a possible spelling mistake](guest-writing-messages-320.png)
+![The guest checker quotes “the” and “notebok” beside their explanations](guest-writing-messages-320.png)
 
-Local Next.js production build of `fix/guest-writing-messages`, Playwright Chromium,
-320 × 750. `website.spec.ts` enters synthetic text on `/writing` and checks both
-messages against the rendered list. This capture uses the bundled English dictionary;
-it does not qualify a live deployment or a physical phone.
+Local Next.js production build of `fix/guest-writing-excerpts`, Playwright Chromium.
+`guest-writing-excerpts.spec.ts` submits “Please bring the the notebok.” using
+the keyboard and checks each word with its explanation. Captures: 320 × 750
+(above), [390 × 844](guest-writing-messages-390.png), and
+[1440 × 900](guest-writing-messages-1440.png). The test also exercises missing
+and extra spaces, literal angle brackets, and a long word. These checks use
+the bundled English dictionary, not a live site or a physical device.
 
 ## Note editor
 

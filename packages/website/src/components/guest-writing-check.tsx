@@ -71,7 +71,8 @@ export function GuestWritingCheck() {
       <button
         type="submit"
         className="button-primary"
-        disabled={busy || !text.trim()}
+        disabled={!text.trim()}
+        aria-disabled={busy || undefined}
       >
         {busy ? "Checking…" : "Check writing"}
       </button>
@@ -89,10 +90,32 @@ export function GuestWritingCheck() {
       {!!result?.issues.length && (
         <ul aria-label="Writing suggestions">
           {result.issues.map((issue) => (
-            <li key={issue.id}>{englishMessages[issue.message]}</li>
+            <li key={issue.id}>
+              <strong>{issueExcerpt(issue, text)}</strong>{" "}
+              {englishMessages[issue.message]}
+            </li>
           ))}
         </ul>
       )}
     </form>
   );
+}
+
+function quoteExcerpt(text: string) {
+  const characters = Array.from(text.replace(/\s+/gu, " "));
+  return `“${characters.length > 36 ? characters.slice(0, 36).join("") + "…" : characters.join("")}”`;
+}
+
+function issueExcerpt(issue: WritingResult["issues"][number], text: string) {
+  if (issue.original.trim()) return quoteExcerpt(issue.original);
+  // Spacing checks cover either a run of spaces or a zero-length insertion.
+  const spaces = issue.original.length;
+  const gap =
+    spaces === 0
+      ? "Missing space"
+      : spaces === 1
+        ? "Space"
+        : `${spaces} spaces`;
+  const next = text.slice(issue.to).match(/^[\p{L}\p{M}]+|^\S+/u)?.[0];
+  return next ? `${gap} before ${quoteExcerpt(next)}` : gap;
 }
