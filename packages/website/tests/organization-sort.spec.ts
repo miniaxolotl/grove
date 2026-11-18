@@ -101,6 +101,10 @@ for (const width of [1440, 390, 320]) {
       await expect(
         chooser.getByRole("heading", { name: "Move notebook" }),
       ).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(move).toBeFocused();
+      await expect(choice).toHaveAttribute("aria-pressed", "true");
+      await page.keyboard.press("Enter");
       await chooser.getByRole("radio", { name: "Top level" }).check();
       await chooseOption(
         chooser.getByRole("combobox", { name: "Position" }),

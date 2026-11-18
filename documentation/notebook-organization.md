@@ -23,7 +23,8 @@ that the owner's reported physical-phone gesture failures are repaired.
   explicit before/after sibling position. The source and its descendants are not
   offered as destinations. Search matches full ancestor paths, displayed below
   destination names. A preview retains the chosen destination and position even
-  when search hides its row. Cancel returns focus to Move to in Organize.
+  when search hides its row. From Organize, Cancel, Close or Escape in the chooser
+  returns focus to **Move to…** with the same notebook selected and search intact.
 - Filtered Organize lists omit adjacent Move up/down until the search is cleared;
   a filtered list is not the complete sibling group. Archived notebooks remain in
   their separate list with Restore/Delete, not ordering controls.
