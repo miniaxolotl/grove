@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.21](https://github.com/miniaxolotl/grove/compare/v1.11.20...v1.11.21) (2026-11-18)
+
+
+### Bug Fixes
+
+* **release:** use bundled CPU runtime on hosted runners ([#227](https://github.com/miniaxolotl/grove/issues/227)) ([5af8fbe](https://github.com/miniaxolotl/grove/commit/5af8fbe7a74338909aa0768d07d97a3e72f5faaf))
+
 ## [1.11.20](https://github.com/miniaxolotl/grove/compare/v1.11.19...v1.11.20) (2026-11-17)
 
 
