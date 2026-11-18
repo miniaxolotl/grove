@@ -99,3 +99,11 @@ Actual provider acceptance needs indexed exact-release events/spans, private-mar
 absence and source-map resolution; HTTP ingestion acknowledgement alone is not
 indexing success. Provider configuration, alerts, survey/experiment activation and
 live traffic changes require separate approval.
+
+## Campaign and incident triage
+
+Tag a public landing link with `utm_source`, `utm_medium` and `utm_campaign`; use `utm_content` for creative and `utm_term` for a public keyword code. Use ASCII labels beginning with a letter, up to 64 characters. Never put an address, account identifier or free-text search in a campaign tag.
+
+In Vercel Web Analytics select the production site `usegrove.cloud` and break pageviews down by campaign and source. In PostHog filter `$pageview` and the relevant CTA event to the website surface and production environment, then break down by event `utm_campaign`. Treat an outbound click as a referral, not a confirmed install. Consent, blockers and project boundaries affect coverage.
+
+For a missing view, check the deployed release, analytics consent and whether the landing path is a public route. Inspect the status of the Vercel insights request and PostHog capture request separately. For exceptions, start with the Sentry release and first in-app frame, then compare Vercel logs for that deployment and UTC timestamp. Do not paste full request URLs or payloads into incident reports.
