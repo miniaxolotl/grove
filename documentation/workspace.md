@@ -189,6 +189,29 @@ choose the creation-date order in **Filters**. See [note sorting](search.md).
 **Progress notes** are handoffs whose references survive editing/moving. **Settings →
 Account → About you** records preferences and things you want Grove to know.
 
+### Returning to a daily note
+
+**Today’s note** opens one ordinary note per account and local calendar date,
+regardless of the notebook you open it from. Nothing is created until the first
+save, which uses the selected notebook by default. Older notes with similar
+titles aren’t linked automatically. Editing or moving the note leaves its daily
+identity intact; an archived note opens in its archived view, and deleting it
+does not free the date for a replacement. A draft stays on the date it was opened
+for, even past midnight; open **Today’s note** again for the new day. Devices in
+different time zones can show different dates at the same instant.
+
+If the first save is interrupted, returning to the date in the same workspace
+session resumes the draft and retries the original save. If another device saved
+first, the local draft stays available through navigation and background refresh.
+Copy any text you want to keep before choosing **Discard draft and open saved note**.
+
+The legacy `/app/journal` URL opens Notes sorted by creation date.
+
+Self-hosted rollout requires the `20261117_042_daily_notes` migration before
+the updated app. `tests/src/daily-note.test.ts` exercises isolation, first-save
+races and lifecycle against disposable PostgreSQL; `daily-note.spec.ts` covers
+workspace entry and midnight behavior with synthetic browser fixtures.
+
 ## History and how long notes stay
 
 Ordinary notes stay until removed. Any kind can use a 1–365-day lifetime; progress

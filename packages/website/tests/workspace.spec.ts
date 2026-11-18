@@ -3184,7 +3184,9 @@ test("command search ranks aliases, preserves native text editing and follows no
   await input.fill("journal");
   await input.press("Enter");
   await expect(page).toHaveURL(
-    `${base}/app/notes/new?from=journal&notebook=${project.id}`,
+    new RegExp(
+      `/app/notes/new\\?from=journal&notebook=${project.id}&date=\\d{4}-\\d{2}-\\d{2}$`,
+    ),
   );
 });
 
@@ -6336,7 +6338,9 @@ test("Today's note uses the same editor and library, with date grouping and note
   await page.getByRole("button", { name: "Back to notes" }).click();
   await expect(page.locator(".memory-open")).toContainText("A quiet afternoon");
   expect(
-    state.calls.find((call) => call.path === "/memories")?.body,
+    state.calls.find(
+      (call) => call.path.startsWith("/memories/daily/") && call.body,
+    )?.body,
   ).toMatchObject({
     projectId: null,
     source: { agent: "website" },

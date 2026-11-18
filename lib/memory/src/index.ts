@@ -38,7 +38,12 @@ import {
   type MoveMemories,
   type NotebookList,
 } from "@lib/shared/memory-tools";
-import { rememberSchema, uuidSchema } from "@lib/shared/contracts";
+import {
+  localDateSchema,
+  rememberSchema,
+  uuidSchema,
+  type DailyNote,
+} from "@lib/shared/contracts";
 import { applySourceEdits } from "@lib/shared/document-edits";
 import { compareDocuments } from "@lib/shared/documents";
 import type { RevisionEdit } from "./revision-groups.ts";
@@ -610,6 +615,53 @@ export class MemoryService {
     return this.saveMemory(principal, input, false);
   }
 
+  private async dailyNoteFor(
+    trx: Knex.Transaction,
+    accountId: string,
+    localDate: string,
+  ): Promise<DailyNote> {
+    // The binding outlives the note. Joining through normal memory RLS hides
+    // soft-deleted rows without granting any extra access to their content.
+    const row = await trx("daily_notes as daily")
+      .leftJoin("memories as note", function () {
+        this.on("note.account_id", "daily.account_id").andOn(
+          "note.id",
+          "daily.memory_id",
+        );
+      })
+      .where({ "daily.account_id": accountId, "daily.local_date": localDate })
+      .first<{ id: string | null }>("note.id");
+    return !row
+      ? { state: "empty" }
+      : row.id
+        ? { state: "saved", id: row.id }
+        : { state: "deleted" };
+  }
+
+  async dailyNote(principal: Principal, date: string) {
+    if (principal.type !== "session") throw forbidden();
+    const localDate = localDateSchema.parse(date);
+    return this.access(principal, "memory:read", ({ trx, account }) =>
+      this.dailyNoteFor(trx, account.id, localDate),
+    );
+  }
+
+  async createDailyNote(principal: Principal, date: string, input: Remember) {
+    if (principal.type !== "session") throw forbidden();
+    const localDate = localDateSchema.parse(date);
+    if (
+      input.id ||
+      input.expectedVersion ||
+      input.archived ||
+      input.capture !== "explicit"
+    )
+      throw new GroveError(
+        "invalid_request",
+        "A daily note must start with a new, active note",
+      );
+    return this.saveMemory(principal, input, false, localDate);
+  }
+
   async captureWeb(principal: Principal, raw: BrowserCaptureRequest) {
     const input = browserCaptureRequestSchema.parse(raw);
     return this.access(
@@ -954,6 +1006,7 @@ export class MemoryService {
     principal: Principal,
     request: Remember | MemoryUpdate,
     partial: boolean,
+    localDate?: string,
   ) {
     let created = false;
     const result = await this.access(
@@ -970,8 +1023,27 @@ export class MemoryService {
           trx,
           account.id,
           request.operationId,
-          { action: partial ? "update_memory" : "remember", ...request },
+          localDate
+            ? { action: "create_daily_note", localDate, ...request }
+            : { action: partial ? "update_memory" : "remember", ...request },
           async () => {
+            if (localDate) {
+              // access() serializes writes for this account across replicas.
+              // Check inside operation() so an identical retry replays its receipt.
+              const daily = await this.dailyNoteFor(trx, account.id, localDate);
+              if (daily.state === "saved")
+                throw new GroveError(
+                  "daily_note_exists",
+                  "A daily note was already saved for this date. Copy any draft text you want to keep.",
+                  409,
+                );
+              if (daily.state === "deleted")
+                throw new GroveError(
+                  "daily_note_deleted",
+                  "The daily note for this date was deleted. Your draft was not saved.",
+                  410,
+                );
+            }
             let old: MemoryModel | undefined;
             if (request.id) {
               old = await this.query(trx, grant)
@@ -1133,6 +1205,12 @@ export class MemoryService {
                   id: randomUUID(),
                   status: input.archived ? "archived" : "active",
                 });
+            if (localDate)
+              await trx("daily_notes").insert({
+                accountId: account.id,
+                localDate,
+                memoryId: row.id,
+              });
             const session = editSession ?? principal.sessionId;
             await this.revise(
               trx,

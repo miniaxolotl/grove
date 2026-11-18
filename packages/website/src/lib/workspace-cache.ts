@@ -1141,7 +1141,12 @@ export class WorkspaceCache {
             workspaceKeys.note(noteId),
           );
           if (before) scopes.add(before.projectId);
-          else if (!(path === "/memories" && !(body as { id?: string })?.id))
+          else if (
+            !(
+              (path === "/memories" || path.startsWith("/memories/daily/")) &&
+              !(body as { id?: string })?.id
+            )
+          )
             known = false;
           const after = records.get(noteId);
           if (after) scopes.add(after.projectId);
