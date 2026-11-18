@@ -310,6 +310,37 @@ test("packed stdio MCP authenticates explicit saves, records provenance and bloc
   assert.equal(requests.filter((r) => r.path === "/v1/memories").length, 4);
 });
 
+test("init requires an installable client before authenticating or saving credentials", async () => {
+  const store = await mkdtemp(join(directory, "init-store-"));
+  const before = requests.length;
+  for (const client of [[], ["--client", "cli"]]) {
+    const child = exec(
+      process.execPath,
+      [
+        join(paths.get("mcp")!, "dist/cli.js"),
+        "init",
+        ...client,
+        "--key-stdin",
+        "--json",
+      ],
+      {
+        env: {
+          GROVE_CONFIG_HOME: store,
+          GROVE_API_URL: origin,
+          GROVE_TELEMETRY: "0",
+        },
+      },
+    );
+    child.child.stdin!.end("artifact-test-key\n");
+    await assert.rejects(child, (error: { stdout: string }) => {
+      assert.equal(JSON.parse(error.stdout).code, "choose_client");
+      return true;
+    });
+    assert.equal(requests.length, before);
+    assert.deepEqual(await readdir(store), []);
+  }
+});
+
 test("setup is repeatable, preserves JSONC and other plugins, credentials are private, uninstall is targeted", async () => {
   const executable = join(paths.get("mcp")!, "dist/cli.js");
   const configHome = join(directory, "config");
