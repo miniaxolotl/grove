@@ -40,3 +40,8 @@ document or model provider is used.
 | Desktop review                            | Phone review                           | Narrow phone review                           |
 | ----------------------------------------- | -------------------------------------- | --------------------------------------------- |
 | ![Desktop import review](review-1440.png) | ![Phone import review](review-390.png) | ![Narrow phone import review](review-320.png) |
+
+[Unsaved review at 390×844](unsaved-review-390.png) shows the save-or-discard
+message with confirmation and cancellation disabled. Captured in the Chromium
+dashboard fixture on `3001fd90` with the navigation fix, production CSS and
+synthetic review data. No live account or document parser was used.

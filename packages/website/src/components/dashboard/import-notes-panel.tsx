@@ -458,7 +458,7 @@ export function ImportNotesPanel({
     !["complete", "cancelled"].includes(batch.status) && (
       <Button
         variant="secondary"
-        disabled={busy}
+        disabled={busy || dirty}
         onClick={() =>
           void run(async () => {
             controller.current?.abort();
@@ -478,9 +478,15 @@ export function ImportNotesPanel({
         <p ref={intro} tabIndex={-1}>
           Review files before saving notes.
         </p>
-        <Link className="text-button" href="/app/settings/files">
-          View files &amp; storage
-        </Link>
+        {busy || dirty ? (
+          <button type="button" className="text-button" disabled>
+            View files &amp; storage
+          </button>
+        ) : (
+          <Link className="text-button" href="/app/settings/files">
+            View files &amp; storage
+          </Link>
+        )}
       </div>
       {(error || read.isError) && (
         <div className="app-error my-0">

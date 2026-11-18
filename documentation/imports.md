@@ -21,7 +21,8 @@ placement control; apply it explicitly before confirmation.
    limit. No summary replaces the extracted text. Original bytes preserve material
    such as UTF-8 BOM and original line endings; extracted text normalizes line endings.
 3. Exclude unwanted notes, edit their content and choose destinations. Save or
-   discard local edits before continuing or closing the dialog. Unsaved local edits
+   discard local edits before opening Files & storage, cancelling the import,
+   or closing the dialog. Unsaved local edits
    are not persisted across a browser crash; successfully saved previews are.
 4. Optionally choose **Suggest organization**. This uses the existing generation
    provider, notebook-filing preference and generation allowance. Suggestions may

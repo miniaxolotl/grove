@@ -216,10 +216,27 @@ for (const width of [1440, 390, 320])
       .fill(
         "# Garden journal\n\nWater seedlings in the morning. Check the soil first.",
       );
+    const storageLink = dialog.getByRole("link", {
+      name: "View files & storage",
+    });
+    const cancelImport = dialog.getByRole("button", { name: "Cancel import" });
+    await expect(storageLink).toHaveCount(0);
+    await expect(
+      dialog.getByRole("button", { name: "View files & storage" }),
+    ).toBeDisabled();
+    await expect(cancelImport).toBeDisabled();
+    if (width === 390) {
+      await cancelImport.scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: testInfo.outputPath("unsaved-review-390.png"),
+      });
+    }
     await expect(
       dialog.getByRole("button", { name: "Confirm import", exact: true }),
     ).toBeDisabled();
     await first.getByRole("button", { name: "Save reviewed note" }).click();
+    await expect(storageLink).toHaveAttribute("href", "/app/settings/files");
+    await expect(cancelImport).toBeEnabled();
     await second
       .getByText("Review note and destination", { exact: true })
       .click();
