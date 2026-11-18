@@ -18,6 +18,7 @@ const safe = {
       { 1: "1.1.21", 2: "2.1.7", 3: "3.0.9" }[v.split(".")[0]] ?? "5.0.12",
     ),
   esbuild: (v) => atLeast(v, "0.28.1"),
+  hono: (v) => atLeast(v, "4.13.16"),
 };
 
 for (const [name, accepts] of Object.entries(safe)) {
