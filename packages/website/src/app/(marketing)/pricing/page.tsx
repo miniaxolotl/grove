@@ -56,49 +56,47 @@ function PlanPrices({
         <p className={styles.rate}>
           <strong>$0</strong> / month
         </p>
-        <p>
-          Save up to {number.format(resourceLimits.free.notes)} notes. Search
-          your library, ask questions and connect your tools.
-        </p>
+        <p>Store up to {number.format(resourceLimits.free.notes)} notes.</p>
         <Link className="button-primary" href="/sign-up">
           Create a free account
         </Link>
       </article>
       <article aria-labelledby="pro-heading">
         <h2 id="pro-heading">Pro</h2>
-        <div className={styles.rates}>
+        <dl className={styles.rates}>
           {monthly !== null && (
-            <p className={styles.rate}>
-              <strong>{money.format(monthly)}</strong> / month
-            </p>
+            <div>
+              <dt>Billed monthly</dt>
+              <dd>
+                <strong>{money.format(monthly)}</strong>
+              </dd>
+            </div>
           )}
           {yearly !== null && (
-            <p className={styles.rate}>
-              <strong>{money.format(yearly)}</strong> / year
-            </p>
+            <div>
+              <dt>Billed yearly</dt>
+              <dd>
+                <strong>{money.format(yearly)}</strong>
+                {savingsCents > 0 && (
+                  <small>Save {money.format(savingsCents / 100)} a year</small>
+                )}
+              </dd>
+            </div>
           )}
-        </div>
-        {yearly !== null && (
-          <p>
-            The yearly plan costs {money.format(yearly)} in one annual payment,
-            averaging {money.format(yearly / 12)} per month.
-            {savingsCents > 0 &&
-              ` Save ${money.format(savingsCents / 100)} compared with 12 monthly payments.`}
-          </p>
-        )}
+        </dl>
         {monthly === null && yearly === null && (
           <p>Current Pro prices are unavailable.</p>
         )}
         <p>
-          Store up to {number.format(resourceLimits.pro.notes)} notes, with more
-          Ask replies, AI rewrites and audio time.
+          Store up to {number.format(resourceLimits.pro.notes)} notes, with
+          higher AI and audio limits.
         </p>
         {enabled ? (
           <>
             <p>
-              Confirm your price and billing period in your account. Eligible
-              accounts get one {trialDurationDays}-day trial. A payment method
-              is required; the trial becomes paid unless you cancel.
+              Eligible accounts get one {trialDurationDays}-day trial. A payment
+              method is required. You’re charged automatically when the trial
+              ends unless you cancel first.
             </p>
             <Link className="text-link" href="/app/settings/billing">
               View billing options
@@ -194,11 +192,7 @@ export default async function PricingPage() {
         <div className={styles.inner}>
           <header>
             <h1>Free and Pro</h1>
-            <p>
-              Both Grove Cloud plans include the same notebook. Pro adds storage
-              and higher monthly limits. Prices for new subscriptions are in
-              USD.
-            </p>
+            <p>Grove Cloud plans · Prices in USD</p>
           </header>
           <PlanPrices
             enabled={enabled}

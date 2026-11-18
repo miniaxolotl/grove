@@ -12,8 +12,8 @@ variant is unset); `billing-pro-yearly-usd`
 hidden until its flag is configured, and it never affects the monthly offer.
 
 The public pricing page compares standard Cloud allowances and displays each
-valid price independently. The annual total is billed once a year; its monthly
-equivalent is for comparison. **View billing options** opens Settings → Billing,
+valid price under its billing period. Yearly savings, when positive, compare
+the annual charge with twelve monthly payments. **View billing options** opens Settings → Billing,
 where the account confirms its available intervals, price and trial eligibility.
 When purchases are disabled, the comparison stays visible with a Free signup
 link and no upgrade or trial action. [Pricing page examples](design/screenshots/billing-periods/README.md).

@@ -6,7 +6,7 @@
 }
 .field {
   background: var(--pricing-field);
-  padding-block: clamp(32px, 4vw, 64px);
+  padding-block: clamp(20px, 3vw, 40px);
 }
 .inner {
   width: min(1184px, calc(100% - 40px));
@@ -21,7 +21,7 @@
 }
 .page h1 {
   margin: 0;
-  font-size: clamp(40px, 5vw, 68px);
+  font-size: clamp(32px, 3vw, 44px);
 }
 .page h2 {
   margin: 0;
@@ -40,7 +40,7 @@
   gap: clamp(32px, 6vw, 88px);
 }
 .offers {
-  margin-top: clamp(28px, 4vw, 54px);
+  margin-top: clamp(18px, 2vw, 28px);
 }
 .offers h2 {
   font-size: 22px;
@@ -48,13 +48,28 @@
 .rates {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 28px;
+  gap: 12px 36px;
+  margin-top: 12px;
+}
+.rates dt,
+.rates small {
+  font-size: 14px;
+}
+.rates dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+}
+.rates small {
+  white-space: nowrap;
 }
 .offers .rate {
   white-space: nowrap;
 }
-.rate strong {
-  font-size: clamp(32px, 3.5vw, 48px);
+.rate strong,
+.rates strong {
+  font-size: clamp(30px, 3vw, 42px);
   font-weight: 550;
 }
 .page a:is(:global(.button-primary), :global(.text-link)) {
@@ -124,7 +139,9 @@
     gap: 24px;
   }
   .rates {
-    column-gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+    column-gap: 12px;
   }
   .table :is(th, td) {
     padding: 9px 5px;
