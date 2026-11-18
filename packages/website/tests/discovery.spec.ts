@@ -26,11 +26,15 @@ test.describe("public reference documents", () => {
         "content",
         /\S.{30}/,
       );
-      await expect(
-        page
-          .getByRole("navigation", { name: "Documentation" })
-          .getByRole("link", { name: "Agent installation", exact: true }),
-      ).toHaveAttribute("href", "/docs/client");
+      const shortcuts = page
+        .getByRole("navigation", { name: "In this guide" })
+        .getByRole("link");
+      expect(await shortcuts.count()).toBeGreaterThan(0);
+      for (const link of await shortcuts.all()) {
+        const target = await link.getAttribute("href");
+        expect(target).toMatch(/^#/);
+        await expect(page.locator(`article ${target}`)).toHaveCount(1);
+      }
       const sitemap = await page.request.get("/sitemap.xml");
       const sitemapText = await sitemap.text();
       if (indexable)
@@ -49,7 +53,7 @@ test.describe("public reference documents", () => {
       .click();
     await expect(page).toHaveURL(/\/docs$/);
     await page
-      .getByRole("article")
+      .getByRole("main")
       .getByRole("link", { name: "Agent installation", exact: true })
       .click();
     await expect(
@@ -82,6 +86,32 @@ test.describe("public reference documents", () => {
     const sitemap = await (await request.get("/sitemap.xml")).text();
     expect(sitemap).not.toMatch(/<loc>[^<]*\/(?:app|api|sign-in|sign-up|s)\b/);
   });
+});
+
+test("phone readers can move from tool setup to the right guide and a notebook task by keyboard", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/install#ai-tools");
+  const tab = page.getByRole("tab", { name: "OpenCode", exact: true });
+  await tab.focus();
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByRole("tab", { name: "Claude web" })).toBeFocused();
+  await page
+    .getByRole("link", { name: "Claude web setup guide" })
+    .press("Enter");
+  await expect(page.locator("article #claude-web")).toBeInViewport();
+  await page.locator("main summary").press("Enter");
+  await page
+    .getByRole("navigation", { name: "In this guide" })
+    .getByRole("link", { name: "Test save and recall" })
+    .press("Enter");
+  await expect(page.locator("article #check-save-and-recall")).toBeInViewport();
+  await page.getByRole("link", { name: /All documentation/ }).press("Enter");
+  await page.getByRole("link", { name: "Save your first note" }).press("Enter");
+  await expect(page.locator("article #your-first-saved-note")).toBeInViewport();
 });
 
 test("reference tables and commands stay within narrow viewports", async ({

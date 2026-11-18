@@ -3,57 +3,48 @@ import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import { documentation, documentationHref } from "@/content/documentation";
+import { documentationHref } from "@/content/documentation";
 import styles from "./documentation-page.module.css";
 
 export function DocumentationPage({
   title,
-  description,
-  slug,
+  sections,
   children,
 }: {
   title: string;
-  description: string;
-  slug?: string;
+  sections: readonly (readonly [string, string])[];
   children: ReactNode;
 }) {
   const links = (
     <>
-      <Link href="/install">Connect AI tools</Link>
-      <Link href="/self-host">Self-host Grove</Link>
-      {documentation.map((item) => (
-        <Link
-          key={item.slug}
-          href={`/docs/${item.slug}`}
-          aria-current={slug === item.slug ? "page" : undefined}
-        >
-          {item.title}
-        </Link>
+      {sections.map(([label, id]) => (
+        <a key={id} href={`#${id}`}>
+          {label}
+        </a>
       ))}
-      <Link href="/support">Get support</Link>
     </>
   );
   return (
     <main id="main" className={`page-container ${styles.page}`}>
       <Link href="/docs" className={styles.back}>
-        Grove documentation
+        ← All documentation
       </Link>
       <header className={styles.heading}>
         <h1>{title}</h1>
-        <p>{description}</p>
       </header>
       <div className={styles.layout}>
         <div className={styles.sidebar}>
           <details className={styles.mobileNavigation}>
-            <summary>Guides and reference</summary>
-            <nav className={styles.navigation} aria-label="Documentation">
+            <summary>In this guide</summary>
+            <nav className={styles.navigation} aria-label="In this guide">
               {links}
             </nav>
           </details>
           <nav
             className={`${styles.navigation} ${styles.desktopNavigation}`}
-            aria-label="Documentation"
+            aria-label="In this guide"
           >
+            <strong>In this guide</strong>
             {links}
           </nav>
         </div>

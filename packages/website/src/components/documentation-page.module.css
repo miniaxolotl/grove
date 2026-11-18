@@ -1,5 +1,6 @@
 .page {
-  padding-block: 36px 96px;
+  max-width: 1100px;
+  padding-block: clamp(24px, 4vw, 52px) 80px;
 }
 .back,
 .navigation a {
@@ -14,25 +15,48 @@
 }
 .heading {
   max-width: 780px;
-  padding-block: 32px 48px;
+  padding-block: 8px 32px;
 }
 .heading h1 {
-  font-size: clamp(36px, 5vw, 64px);
+  font-size: clamp(32px, 4vw, 48px);
   font-weight: 500;
   line-height: 1.15;
   letter-spacing: -0.04em;
 }
-.heading p {
-  max-width: 65ch;
-  margin-top: 24px;
-  line-height: 1.8;
+.directory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px clamp(32px, 6vw, 80px);
+}
+.directory h2 {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.directory p {
+  margin-top: 6px;
+  max-width: 42ch;
   color: var(--color-muted);
+}
+.directory ul {
+  margin-top: 10px;
+}
+.directory a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.apps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
 }
 .layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 760px);
+  grid-template-columns: minmax(0, 65ch) minmax(180px, 1fr);
   gap: 48px;
-  padding-top: 32px;
 }
 .navigation {
   display: flex;
@@ -59,10 +83,13 @@
 .mobileNavigation[open] .navigation {
   padding-block: 8px 16px;
 }
-.navigation a[aria-current] {
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+@media (min-width: 761px) {
+  .sidebar {
+    grid-area: 1 / 2;
+  }
+  .body {
+    grid-area: 1 / 1;
+  }
 }
 .navigation a:hover {
   color: var(--brand-ink);
@@ -71,7 +98,7 @@
 }
 .body {
   min-width: 0;
-  max-width: 76ch;
+  max-width: 65ch;
   font-size: 17px;
   line-height: 1.75;
   overflow-wrap: anywhere;
@@ -145,14 +172,18 @@
 .body blockquote > * + * {
   margin-block-start: 0.75em;
 }
-.page :is(a, pre, [role="region"]):focus-visible {
+.page :is(a, pre, summary, [role="region"]):focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 4px;
 }
 @media (max-width: 760px) {
-  .layout {
+  .layout,
+  .directory {
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
+  }
+  .layout {
+    gap: 16px;
   }
   .sidebar {
     position: static;
@@ -164,7 +195,7 @@
     display: block;
   }
   .heading {
-    padding-block: 24px 32px;
+    padding-block: 6px 20px;
   }
   .heading h1 {
     font-size: clamp(28px, 7.8vw, 40px);
