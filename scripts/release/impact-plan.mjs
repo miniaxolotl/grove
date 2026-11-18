@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import process from "node:process";
 import { parseArgs } from "node:util";
 import { pathToFileURL, URL } from "node:url";
+import { successfulReceipt } from "./impact-identity.mjs";
 
 const requirements = {
   website: [
@@ -36,7 +37,7 @@ export function plan(
   effects = {},
 ) {
   const targets = {};
-  assert.equal(candidate.policy, 1);
+  assert.equal(candidate.policy, 2);
   assert.equal(
     candidate.mode,
     "comparison",
@@ -53,6 +54,7 @@ export function plan(
       state: "review",
       baselineSource: source,
       oldIdentity: receipt?.identity ?? null,
+      evidence: receipt?.evidence ?? null,
       proposedIdentity: null,
       prerequisite,
       proofRequired,
@@ -60,7 +62,8 @@ export function plan(
       changes: [],
     });
     if (
-      (!replaySource && (!receipt?.identity || !receipt?.evidence)) ||
+      (!replaySource &&
+        !successfulReceipt(name, receipt?.identity, receipt?.evidence)) ||
       !baseline?.targets[name] ||
       baseline.mode !== "comparison" ||
       baseline.policy !== candidate.policy ||
@@ -70,6 +73,15 @@ export function plan(
       continue;
     }
     result.changes = changed(baseline.targets[name], inputs);
+    if (
+      npm &&
+      !replaySource &&
+      (candidate.versions?.[name] !== receipt.identity.version ||
+        baseline.versions?.[name] !== receipt.identity.version)
+    ) {
+      result.reason = "Package stamp and verified registry version disagree";
+      continue;
+    }
     const unresolved = changed(baseline.watch, candidate.watch);
     if (unresolved.length) {
       result.reason =

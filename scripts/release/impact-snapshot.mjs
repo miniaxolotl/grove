@@ -43,29 +43,45 @@ function files(dir, prefix = "") {
   return result;
 }
 
-function normalize(dir) {
-  const version = json(join(dir, "package.json")).version;
-  // An independently edited install pin stays visible. Only neutralize the
-  // fields currently stamped to the coordinated product version.
-  for (const path of [
-    "package.json",
-    ...packages.map((p) => `packages/${p}/package.json`),
-    "packages/grove-claude-plugin/.claude-plugin/plugin.json",
-    "packages/grove-codex-plugin/plugin.json",
-    ".agents/plugins/marketplace.json",
-    ".claude-plugin/marketplace.json",
-  ]) {
+function normalize(dir, manifests) {
+  // Normalize each writer-owned stamp against its own package, never against
+  // the moving product version. Preserve pins that disagree with their owner.
+  const owners = Object.fromEntries(
+    packages.map((p) => [`packages/${p}/package.json`, p]),
+  );
+  Object.assign(owners, {
+    "package.json": null,
+    "packages/grove-claude-plugin/.claude-plugin/plugin.json":
+      "grove-claude-plugin",
+    "packages/grove-codex-plugin/plugin.json": "grove-codex-plugin",
+    ".agents/plugins/marketplace.json": "grove-codex-plugin",
+    ".claude-plugin/marketplace.json": "grove-claude-plugin",
+  });
+  for (const [path, owner] of Object.entries(owners)) {
     const full = join(dir, path),
       data = json(full);
     const field = path.endsWith("marketplace.json")
       ? data.plugins[0].source
       : data;
-    if (field.version === version) field.version = "0.0.0";
+    if (!owner || field.version === manifests[owner].version)
+      field.version = "0.0.0";
     writeFileSync(full, JSON.stringify(data, null, 2) + "\n");
   }
 }
 
 export function inputBucket(path, docs) {
+  if (
+    [
+      "impact-plan.mjs",
+      "impact-snapshot.mjs",
+      "impact-identity.mjs",
+      "impact-receipts.json",
+      "impact-replay.sh",
+      "selected-writer.mjs",
+      "selected-replay.mjs",
+    ].some((file) => path === `scripts/release/${file}`)
+  )
+    return null;
   if (
     docs.has(path) ||
     /^packages\/website\/(src\/|public\/|package\.json$|next\.config\.|postcss\.config\.|tsconfig\.json$|vercel\.json$)/.test(
@@ -83,7 +99,7 @@ export function inputBucket(path, docs) {
   // These inputs are represented by actual packed files (including LICENSE),
   // or are validation/bookkeeping. New config and library roots need review.
   if (
-    /^(LICENSE$|lib\/(ai|config|database|environment|integration-core|memory|telemetry)\/src\/|packages\/(api|mcp|browser-extension|grove-(claude|codex|opencode)-plugin)\/|packages\/website\/(tests\/|playwright\.|README\.md$|AGENTS\.md$)|documentation\/|tests\/|CHANGELOG\.md$|\.release-please-manifest\.json$|scripts\/release\/impact-|scripts\/.*\.test\.mjs$)/.test(
+    /^(LICENSE$|lib\/(ai|config|database|environment|integration-core|memory|telemetry)\/src\/|packages\/(api|mcp|browser-extension|grove-(claude|codex|opencode)-plugin)\/|packages\/website\/(tests\/|playwright\.|README\.md$|AGENTS\.md$)|documentation\/|tests\/|CHANGELOG\.md$|\.release-please-manifest\.json$|scripts\/.*\.test\.mjs$)/.test(
       path,
     )
   )
@@ -123,8 +139,17 @@ export async function snapshot(ref, stamped = false) {
   try {
     mkdirSync(dir);
     run("git", ["archive", "--output", join(tmp, "source.tar"), source]);
-    run("tar", ["-xf", join(tmp, "source.tar"), "-C", dir]);
-    if (!stamped) normalize(dir);
+    run("tar", [
+      "--same-permissions",
+      "-xf",
+      join(tmp, "source.tar"),
+      "-C",
+      dir,
+    ]);
+    const manifests = Object.fromEntries(
+      packages.map((p) => [p, json(join(dir, `packages/${p}/package.json`))]),
+    );
+    if (!stamped) normalize(dir, manifests);
     const { website, service, watch } = await sourceInputs(dir, source);
     const targets = { website, service, downloads: {} },
       integrity = {};
@@ -149,8 +174,7 @@ export async function snapshot(ref, stamped = false) {
       const archive = packArtifact(workspace, out);
       const name =
         "npm:" + json(join(workspace, "package.json")).name.split("/")[1];
-      run("tar", ["-xzf", archive, "-C", out]);
-      targets[name] = files(join(out, "package"));
+      targets[name] = packedFiles(archive, out);
       if (pkg === "api") {
         // The final image contains pnpm's production deploy, not the build context.
         Object.assign(
@@ -184,7 +208,13 @@ export async function snapshot(ref, stamped = false) {
         targets.downloads[`${target}/${path}`] = digest;
     }
     return {
-      policy: 1,
+      policy: 2,
+      versions: Object.fromEntries(
+        Object.values(manifests).map((pkg) => [
+          "npm:" + pkg.name.split("/")[1],
+          pkg.version,
+        ]),
+      ),
       mode: stamped ? "stamped" : "comparison",
       source,
       toolchain: [
@@ -201,6 +231,11 @@ export async function snapshot(ref, stamped = false) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+export function packedFiles(archive, out) {
+  run("tar", ["--same-permissions", "-xzf", archive, "-C", out]);
+  return files(join(out, "package"));
 }
 
 if (
