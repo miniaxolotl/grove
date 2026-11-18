@@ -18,6 +18,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { packArtifact } from "./pack.mjs";
 import { prepareAssets } from "./assets.mjs";
+import { resolveBrowserVersions } from "./browser-versions.mjs";
 
 const packages = [
   "api",
@@ -149,6 +150,22 @@ export async function snapshot(ref, stamped = false) {
     const manifests = Object.fromEntries(
       packages.map((p) => [p, json(join(dir, `packages/${p}/package.json`))]),
     );
+    const browserManifest = join(
+      dir,
+      "packages/browser-extension/package.json",
+    );
+    const browser = json(browserManifest);
+    const browserVersions = {
+      ...resolveBrowserVersions(
+        json(join(dir, "package.json")).version,
+        browser.browserVersions,
+      ),
+    };
+    if (!stamped && browser.browserVersions) {
+      for (const target of Object.keys(browser.browserVersions))
+        browser.browserVersions[target] = "0.0.0";
+      writeFileSync(browserManifest, JSON.stringify(browser));
+    }
     if (!stamped) normalize(dir, manifests);
     const { website, service, watch } = await sourceInputs(dir, source);
     const targets = { website, service, downloads: {} },
@@ -199,6 +216,7 @@ export async function snapshot(ref, stamped = false) {
     );
     for (const { name, bytes } of await prepareAssets({
       version: json(join(dir, "package.json")).version,
+      browserVersions: browser.browserVersions,
       sourceSha: source,
       files: assets,
     }))
@@ -209,6 +227,7 @@ export async function snapshot(ref, stamped = false) {
     }
     return {
       policy: 2,
+      browserVersions,
       versions: Object.fromEntries(
         Object.values(manifests).map((pkg) => [
           "npm:" + pkg.name.split("/")[1],

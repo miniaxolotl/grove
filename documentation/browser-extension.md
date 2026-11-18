@@ -22,7 +22,12 @@ the package is signed. Use a custom-origin build for an isolated local stack.
 To build the unsigned packages, use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
-`packages.build.json` with product version, configuration, input inventory and hashes.
+`packages.build.json` with each browser's manifest version, configuration, input inventory and hashes.
+If the private extension manifest declares `browserVersions`, its `chrome`, `edge` and
+`firefox` values identify the installable ZIPs. Otherwise all three inherit the product
+version. The source release tag identifies the product in either case. Before changing
+a browser version, check its last GitHub download and published, submitted and reserved
+store versions; a public listing cannot rule out a pending submission.
 Changing the website brand assets or root license also runs extension packaging
 and browser checks because these files ship inside the ZIPs.
 Successful source CI also retains these unsigned ZIPs and their report as a
@@ -528,7 +533,7 @@ that an uncertain provider operation never happened; do not blindly create a new
 
 `browserProfile` distinguishes Chrome/Edge `sidePanel` + service-worker targets
 from Firefox `sidebarAction` + event-page targets. The build generates their separate
-MV3 manifests from the same source and shared product version.
+MV3 manifests from the same source with the browser versions described above.
 
 `openNativePanel` directly calls the supplied native API in the original user event,
 before any await, preserving method receiver and user-gesture timing. Missing APIs

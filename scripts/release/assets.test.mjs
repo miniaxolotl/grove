@@ -15,18 +15,20 @@ async function helper() {
   assert.ok(existsSync(path), "release downloads need a verified asset helper");
   return import(path);
 }
-function fixture() {
+function fixture(versions = {}) {
   const reports = [];
   const files = {};
   for (const target of ["chrome", "firefox", "edge"]) {
     const contents = {
-      "manifest.json": Buffer.from(JSON.stringify({ version })),
+      "manifest.json": Buffer.from(
+        JSON.stringify({ version: versions[target] ?? version }),
+      ),
     };
     const zip = zipSync(contents, { mtime: new Date(2000, 0, 1) });
     files[`grove-${target}.zip`] = zip;
     reports.push({
       target,
-      sourceVersion: version,
+      sourceVersion: versions[target] ?? version,
       sha256: digest(zip),
       files: { "manifest.json": digest(contents["manifest.json"]) },
     });
@@ -72,6 +74,28 @@ test("release downloads include installable browser ZIPs and a deterministic int
   assert.doesNotMatch(
     section,
     /\.tgz|CLI & MCP|Server|OpenCode|Claude Code|Codex/,
+  );
+});
+
+test("the product tag can carry independently versioned browser downloads", async () => {
+  const { prepareAssets } = await helper();
+  const browserVersions = { chrome: "1.5.4", firefox: "2.0.1", edge: "1.5.2" };
+  const input = { ...fixture(browserVersions), browserVersions };
+  const index = JSON.parse(
+    (await prepareAssets(input)).find((a) => a.name === "downloads.json").bytes,
+  );
+  assert.equal(index.tag, "v" + version);
+  assert.deepEqual(index.browserVersions, browserVersions);
+  await assert.rejects(
+    () =>
+      prepareAssets({
+        ...input,
+        browserVersions: { ...browserVersions, firefox: "2.0.2" },
+      }),
+    /version/i,
+  );
+  await assert.rejects(() =>
+    prepareAssets({ ...input, browserVersions: { chrome: "1.5.4" } }),
   );
 });
 

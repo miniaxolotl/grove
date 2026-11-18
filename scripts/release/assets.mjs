@@ -10,6 +10,7 @@ import process from "node:process";
 import { unzipSync } from "fflate";
 import { assertCurrentRef, workflowContext } from "../ci/current-ref.mjs";
 import { readGitHubJson } from "../ci/github-json.mjs";
+import { resolveBrowserVersions } from "./browser-versions.mjs";
 
 const repository = "miniaxolotl/grove";
 const start = "<!-- grove-downloads:start -->";
@@ -27,8 +28,14 @@ const jsonBytes = (value) => Buffer.from(JSON.stringify(value, null, 2) + "\n");
 const validVersion = (version) =>
   assert.match(version ?? "", /^\d+\.\d+\.\d+$/, "Invalid release version");
 
-export async function prepareAssets({ version, sourceSha, files }) {
+export async function prepareAssets({
+  version,
+  sourceSha,
+  files,
+  browserVersions,
+}) {
   validVersion(version);
+  const versions = resolveBrowserVersions(version, browserVersions);
   assert.match(
     sourceSha ?? "",
     /^[a-f0-9]{40}$/,
@@ -50,7 +57,7 @@ export async function prepareAssets({ version, sourceSha, files }) {
     const report = reports.find((item) => item.target === target);
     assert.equal(
       report.sourceVersion,
-      version,
+      versions[target],
       "Browser source version mismatch",
     );
     assert.ok(bytes, `Missing ${name}`);
@@ -77,7 +84,7 @@ export async function prepareAssets({ version, sourceSha, files }) {
       );
     assert.equal(
       JSON.parse(Buffer.from(packed["manifest.json"]).toString()).version,
-      version,
+      versions[target],
       "Packaged version mismatch",
     );
     assets.push({ name, bytes, label: labels[name] });
@@ -94,6 +101,7 @@ export async function prepareAssets({ version, sourceSha, files }) {
       repository,
       version,
       tag: `v${version}`,
+      ...(browserVersions === undefined ? {} : { browserVersions }),
       sourceSha,
       assets: assets.map(({ name, bytes, label }) => ({
         name,
@@ -274,7 +282,18 @@ async function main() {
       ]),
     ),
   );
-  const assets = await prepareAssets({ version, sourceSha, files });
+  const { browserVersions } = JSON.parse(
+    await readFile(
+      join(root, "packages/browser-extension/package.json"),
+      "utf8",
+    ),
+  );
+  const assets = await prepareAssets({
+    version,
+    sourceSha,
+    files,
+    browserVersions,
+  });
   const readRelease = async () => {
     const release = readGitHubJson(`repos/${repository}/releases/tags/${tag}`);
     assert.equal(release.tag_name, tag);
