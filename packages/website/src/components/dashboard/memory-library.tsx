@@ -440,6 +440,12 @@ export function MemoryLibrary({
     selected && selected !== "new"
       ? items.findIndex((m) => m.id === selected.id)
       : -1;
+  const opening =
+    !archive && view === "graph" ? (
+      <GraphSkeleton />
+    ) : (
+      <LibrarySkeleton archive={archive} showExcerpt={!!search} />
+    );
   return (
     <>
       {!embedded && (
@@ -623,11 +629,7 @@ export function MemoryLibrary({
             </div>
           )}
           {loading && !items.length ? (
-            !archive && view === "graph" ? (
-              <GraphSkeleton />
-            ) : (
-              <LibrarySkeleton archive={archive} showExcerpt={!!search} />
-            )
+            opening
           ) : !items.length && showEmptyState ? (
             <section className="app-empty library-empty">
               <h2>
