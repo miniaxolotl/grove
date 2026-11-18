@@ -43,6 +43,9 @@ connections between collections. Only directly filed active, unexpired notes
 participate; sub-notebooks are independent. Both notebook endpoints and every
 cited note must be accessible. Parent grants do not include children.
 
+When the notebook directory refreshes, the selected notebook’s panel shows its
+current name. If it leaves the graph, its panel and **Open notebook** link close.
+
 Notebook explanations show **Shared thread** or **Shared context**, with a visible
 **Partial coverage** qualifier when only some eligible notes were examined. The
 expanded supporting notes show the number examined out of each notebook's total.
