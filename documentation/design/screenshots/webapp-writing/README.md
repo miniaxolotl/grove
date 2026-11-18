@@ -2,6 +2,11 @@
 
 ## Guest suggestions
 
+![Web checker reports only “onyl” in a technical note about a read-only datastore](compound-web.png)
+
+The same synthetic sentence is shown in the [installed extension](../browser-extension/compound-card.png).
+The mobile guest checker lists one issue; Watchlist, serializer, and datastore are accepted.
+
 ![Watchlist and watchlists accepted, with only the typo “teh” reported](watchlist-check.png)
 
 Guest checker on a local production build, Chromium at 390 × 844 (form crop).

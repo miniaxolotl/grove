@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { maskMarkdownCode } from "./writing-markdown.ts";
 
 /** One pack today. UI messages and proofing data stay independent for future i18n. */
 export const writingRules = [
@@ -184,12 +185,7 @@ export type WritingResult = {
 /** Masks syntax without changing offsets. Not a Markdown serializer or content mutation. */
 export function prose(text: string) {
   const hide = (value: string) => value.replace(/[^\r\n]/g, " ");
-  return text
-    .replace(
-      /(^|\n)(?: {0,3})(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n {0,3}\2[^\n]*(?=\n|$)|$)/g,
-      hide,
-    )
-    .replace(/`+[^`\n]*`+/g, hide)
+  return maskMarkdownCode(text, hide)
     .replace(
       /(!?\[)([^\]\n]*)(\]\([^)\n]*\))/g,
       (_, open: string, label: string, close: string) =>
@@ -199,7 +195,6 @@ export function prose(text: string) {
       /https?:\/\/[^\s<>]+|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|<[^>\n]*>/gi,
       hide,
     )
-    .replace(/(?:^|\n)(?: {4}|\t)[^\n]*/g, hide)
     .replace(/\b[\p{L}\d]+(?:[_/][\p{L}\d]+)+\b/gu, hide);
 }
 
@@ -226,16 +221,16 @@ export function articleFor(word: string): "a" | "an" | null {
   return /^[aeiou]/i.test(first) ? "an" : "a";
 }
 
-/** Small, unambiguous wordy phrases only; ambiguous wording is left to the writer.
- * Doubled comparatives and superlatives ("more better", "most biggest") are
- * never correct, so they live here rather than in a style panel. */
+/** Keep the quantifiers in “more smaller boxes” and “most best practices”.
+ * Lookarounds supply evidence without including the context in the edit. */
 export const wordyPhrases: [RegExp, string][] = [
   [/\ball of (the|these|those)\b/gi, "all $1"],
   [/\bin order to\b/gi, "to"],
   [/\bdue to the fact that\b/gi, "because"],
   [/\bin the event that\b/gi, "if"],
   [/\bin spite of the fact that\b/gi, "although"],
-  [/\bon a (daily|weekly|monthly|yearly|regular) basis\b/gi, "$1"],
+  [/\bon a (daily|weekly|monthly|yearly) basis\b/gi, "$1"],
+  [/\bon a regular basis\b/gi, "regularly"],
   [/\bclose proximity\b/gi, "proximity"],
   [/\babsolutely essential\b/gi, "essential"],
   [/\bcompletely finished\b/gi, "finished"],
@@ -244,29 +239,30 @@ export const wordyPhrases: [RegExp, string][] = [
   [/\breturn back\b/gi, "return"],
   [/\brepeat again\b/gi, "repeat"],
   [
-    /\bmore (better|worse|bigger|smaller|greater|larger|higher|lower|faster|slower|easier|harder|smarter|older|younger|newer|stronger|weaker|sooner|later|earlier)\b/gi,
+    /(?<=\b(?:am|is|are|was|were|be) )more (better|worse|bigger|smaller|greater|larger|higher|lower|faster|slower|easier|harder|smarter|older|younger|newer|stronger|weaker|sooner|later|earlier)(?= than\b|[.!?]|$)/gi,
     "$1",
   ],
   [
-    /\bmost (best|worst|biggest|smallest|greatest|largest|highest|lowest|fastest|slowest|easiest|hardest|earliest|latest|smartest|oldest|youngest|newest|strongest|weakest)\b/gi,
+    /(?<=\b(?:am|is|are|was|were|be) the )most (best|worst|biggest|smallest|greatest|largest|highest|lowest|fastest|slowest|easiest|hardest|earliest|latest|smartest|oldest|youngest|newest|strongest|weakest)\b/gi,
     "$1",
   ],
 ];
-/** Fixed phrases whose wrong form is never the intended meaning. */
+/** Common mix-ups. Limit ambiguous fragments to likely idiomatic contexts. */
 export const confusedPhrases: [RegExp, string][] = [
-  [/\bweather or not\b/gi, "whether or not"],
+  [/\bweather or not(?= (?:i|you|he|she|it|we|they)\b)/gi, "whether or not"],
   [/\bfor all intensive purposes\b/gi, "for all intents and purposes"],
   [/\bpiece of mind\b/gi, "peace of mind"],
   [/\bfree reign\b/gi, "free rein"],
   [/\bbaited breath\b/gi, "bated breath"],
   [/\bdeep-seeded\b/gi, "deep-seated"],
-  [/\bescape goat\b/gi, "scapegoat"],
+  [/\ban escape goat\b/gi, "a scapegoat"],
+  [/(?<!\ban )\bescape goat\b/gi, "scapegoat"],
   [/\bpeaked my interest\b/gi, "piqued my interest"],
   [/\bwet your appetite\b/gi, "whet your appetite"],
   [/\bextract revenge\b/gi, "exact revenge"],
-  [/\bby in large\b/gi, "by and large"],
+  [/\bby in large(?=,)/gi, "by and large"],
   [
-    /\b(more|less|fewer|greater|smaller|bigger|larger|higher|lower|faster|slower|easier|harder|stronger|weaker|sooner|later|earlier|better|worse|rather|other)\s+then\b/gi,
+    /\b(more|less|fewer|greater|smaller|bigger|larger|higher|lower|faster|slower|easier|harder|stronger|weaker|sooner|later|earlier|better|worse|rather|other) then(?= (?:this|that|these|those|me|him|her|us|them)(?:[.,;:!?]|$))/gi,
     "$1 than",
   ],
 ];

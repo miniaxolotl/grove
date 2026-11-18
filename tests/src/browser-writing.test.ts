@@ -335,7 +335,7 @@ test("English writing core is local, language-scoped and conservative about edit
         ["He was given free reign.", "free rein"],
         ["We waited with baited breath.", "bated breath"],
         ["a deep-seeded fear", "deep-seated"],
-        ["He is an escape goat.", "scapegoat"],
+        ["He is an escape goat.", "a scapegoat"],
         ["They peaked my interest.", "piqued my interest"],
         ["This will wet your appetite.", "whet your appetite"],
         ["They extract revenge.", "exact revenge"],

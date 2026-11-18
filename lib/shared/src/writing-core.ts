@@ -36,10 +36,7 @@ const participles = new Map(
 );
 
 /**
- * Ordered suggestion transforms. Each maps a misspelling to candidate
- * variants; only dictionary words survive filtering, so transforms cannot
- * invent suggestions. To teach the engine a new typo shape once for both
- * surfaces, add a transform here — no call-site changes needed.
+ * Rank common typo shapes ahead of other nspell suggestions.
  */
 const candidateTransforms: ((word: string) => string[])[] = [
   // Missing apostrophes in contractions ("dont" → "don't").
@@ -74,44 +71,37 @@ const candidateTransforms: ((word: string) => string[])[] = [
 
 export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
   const spell = createNoteDictionary(dictionary);
-  const correct = (word: string) => spell.correct(word.replaceAll("’", "'"));
+  // Normalize lookup copies only: reported ranges belong to the original source.
+  const lookupWord = (word: string) =>
+    word.normalize("NFC").replaceAll("’", "'").replace(/[‐‑]/gu, "-");
   const alternatives = new Map<string, string[]>();
   return {
     language: "en" as const,
     suggest(word: string) {
-      if (!/^[\p{L}\p{M}'’-]{1,24}$/u.test(word)) return [];
-      const phrase = phraseSuggestions.get(word.toLocaleLowerCase("en"));
+      if (word.length > 96) return [];
+      const lookup = lookupWord(word);
+      if (!/^[\p{L}\p{M}'-]{1,24}$/u.test(lookup)) return [];
+      const phrase = phraseSuggestions.get(lookup.toLocaleLowerCase("en"));
       if (phrase) return [matchCase(word, phrase)];
       if (!alternatives.has(word)) {
-        const lookup = word.replaceAll("’", "'");
         if (alternatives.size >= 64)
           alternatives.delete(alternatives.keys().next().value!);
+        // A valid word is not necessarily suggestible (affix NOSUGGEST).
+        // Reorder only candidates that nspell itself offers for this typo.
+        const allowed = new Set(spell.suggest(lookup));
         const ranked: string[] = [];
-        const seen = new Set<string>();
-        const consider = (candidate: string) => {
-          const key = candidate.toLocaleLowerCase("en");
-          if (
-            candidate !== lookup &&
-            ranked.length < 3 &&
-            !seen.has(key) &&
-            correct(candidate)
-          ) {
-            seen.add(key);
-            const styled = word.includes("’")
-              ? candidate.replaceAll("'", "’")
-              : candidate;
-            ranked.push(matchCase(word, styled));
-          }
-        };
-        // Deterministic generators run first: each only fires when its output is
-        // a real dictionary word, so they cannot invent suggestions.
         for (const transform of candidateTransforms)
-          for (const candidate of transform(lookup)) consider(candidate);
-        for (const candidate of spell.suggest(lookup)) {
-          if (ranked.length >= 3) break;
-          consider(candidate);
-        }
-        alternatives.set(word, ranked);
+          for (const candidate of transform(lookup))
+            if (allowed.delete(candidate)) ranked.push(candidate);
+        alternatives.set(
+          word,
+          [...ranked, ...allowed].slice(0, 3).map((candidate) =>
+            matchCase(
+              word,
+              word.includes("’") ? candidate.replaceAll("'", "’") : candidate,
+            ),
+          ),
+        );
       }
       return [...alternatives.get(word)!];
     },
@@ -158,7 +148,7 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
           return (
             personal.has(key) ||
             (key.endsWith("'s") && personal.has(key.slice(0, -2))) ||
-            correct(word.replace(/[‐‑]/gu, "-"))
+            spell.correct(lookupWord(word))
           );
         };
         const checkPart = (word: string, at: number) => {
@@ -191,6 +181,23 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
       // “the notes I have went missing”, “the tools we use to draw”.
       const startsClause = (index: number) =>
         /(?:^|[.!?;:]|\n[ \t]*\n)[ \t“‘"']*$/.test(source.slice(0, index));
+      const checkPhrases = (
+        rule: "confusion" | "redundancy",
+        phrases: [RegExp, string][],
+      ) => {
+        for (const [pattern, replacement] of phrases)
+          for (const match of text.matchAll(pattern)) {
+            // Expand captures from this match: matching the isolated fragment
+            // again would lose the context supplied by lookarounds.
+            const edit = replacement.replace(
+              /\$(\d+)/g,
+              (_, n: string) => match[Number(n)],
+            );
+            add(rule, match.index, match.index + match[0].length, [
+              matchCase(match[0], edit),
+            ]);
+          }
+      };
       const ruleChecks: Record<WritingRule, () => void> = {
         articles: () => {
           for (let i = 0; i + 1 < words.length; i++) {
@@ -296,17 +303,7 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
             capitalize(match.index + match[0].length - 1);
           }
         },
-        redundancy: () => {
-          for (const [pattern, replacement] of wordyPhrases)
-            for (const match of text.matchAll(pattern))
-              add(
-                "redundancy",
-                match.index,
-                match.index + match[0].length,
-                // Rebuild the replacement so its article matches the words found.
-                [matchCase(match[0], match[0].replace(pattern, replacement))],
-              );
-        },
+        redundancy: () => checkPhrases("redundancy", wordyPhrases),
         agreement: () => {
           // Bare verb forms that can be correct after an operator or in a
           // mandative clause. Derived from the singular-subject table so the
@@ -427,11 +424,7 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
           }
         },
         confusion: () => {
-          for (const [pattern, replacement] of confusedPhrases)
-            for (const match of text.matchAll(pattern))
-              add("confusion", match.index, match.index + match[0].length, [
-                matchCase(match[0], match[0].replace(pattern, replacement)),
-              ]);
+          checkPhrases("confusion", confusedPhrases);
           for (const match of text.matchAll(/\b\d{1,4}(?:st|nd|rd|th)\b/gi)) {
             const digits = match[0].slice(0, -2),
               last = Number(digits.slice(-1)),
@@ -505,22 +498,39 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
                   "used to",
                 ]);
             }
-            // A preposition takes object case: "between you and I" → "and me".
+            // Require the end of an object, not merely a nearby preposition:
+            // “I wrote to Sam and I listened” has two independent subjects.
             if (
               /^I$/.test(word[0]) &&
               previous &&
               /^and$/i.test(previous[0]) &&
               adjacent(previous, word)
-            )
-              for (let k = i - 2; k >= 0 && k >= i - 5; k--) {
-                if (!adjacent(words[k], words[k + 1])) break;
-                if (objectPrepositions.test(words[k][0])) {
-                  add("confusion", word.index, word.index + word[0].length, [
-                    "me",
-                  ]);
-                  break;
-                }
-              }
+            ) {
+              // Only a single noun/pronoun, optionally with a determiner:
+              // “to Sam” / “from my mother”, not “to speak were Sam”.
+              const head = words[i - 2],
+                before = words[i - 3];
+              if (
+                !before ||
+                !adjacent(before, head) ||
+                !adjacent(head, previous)
+              )
+                continue;
+              const prep = determiners.test(before[0]) ? words[i - 4] : before;
+              if (
+                !prep ||
+                !objectPrepositions.test(prep[0]) ||
+                (prep !== before && !adjacent(prep, before))
+              )
+                continue;
+              const after = source.charAt(word.index + 1);
+              if (
+                !after ||
+                /[.!?;]/.test(after) ||
+                (after === "," && /^between$/i.test(prep[0]))
+              )
+                add("confusion", word.index, word.index + 1, ["me"]);
+            }
           }
         },
         brackets: () => {

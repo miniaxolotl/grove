@@ -1,5 +1,14 @@
 import { expect, test } from "./telemetry-fixtures";
 
+test("checks just the misspelled component of a technical note", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/writing");
+  await page.getByRole("textbox", { name: "English text" }).fill("Watchlist: the serializer writes to a read-onyl datastore.");
+  await page.getByRole("button", { name: "Check writing" }).click();
+  await expect(page.getByRole("list", { name: "Writing suggestions" }).getByRole("listitem")).toHaveText([/“onyl”\s+Possible spelling mistake\./]);
+  await page.locator(".guest-writing-form").screenshot({ path: info.outputPath("compound-web.png") });
+});
+
 test("Watchlist is accepted while a nearby typo is still identified", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/writing");

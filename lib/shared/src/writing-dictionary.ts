@@ -3,7 +3,13 @@ import { fieldVocabulary } from "./writing-field-vocabulary.ts";
 
 // nspell copies the flags from a model word in the shipped en.dic. Keep
 // mass nouns, adjectives and verbs out of the default count-noun pattern.
-type AffixModel = "checklist" | "hardware" | "film" | "ignore" | undefined;
+type AffixModel =
+  | "checklist"
+  | "hardware"
+  | "film"
+  | "ignore"
+  | "naive"
+  | undefined;
 const noteVocabulary: ReadonlyArray<{
   model: AffixModel;
   words: readonly string[];
@@ -15,6 +21,7 @@ const noteVocabulary: ReadonlyArray<{
       "audiobook",
       "backlink",
       "booklist",
+      "café",
       "changelog",
       "codebase",
       "cutscene",
@@ -22,15 +29,20 @@ const noteVocabulary: ReadonlyArray<{
       "ebook",
       "endnote",
       "ereader",
+      "façade",
+      "fiancé",
+      "fiancée",
       "filmography",
       "frittata",
       "handoff",
       "hostname",
+      "jalapeño",
       "linter",
       "mixtape",
       "mockup",
       "permalink",
       "playdate",
+      "résumé",
       "roadmap",
       "screenshot", // upstream has the plural, but omits the possessive
       "showrunner",
@@ -78,8 +90,19 @@ const noteVocabulary: ReadonlyArray<{
     words: ["declutter"],
   },
   {
+    model: "naive", // RYT: comparative, adverb and superlative
+    words: ["naïve"],
+  },
+  {
     model: undefined, // exact forms; no inherited suffixes
-    words: ["draggable", "monospaced", "scrollable", "weeklong"],
+    words: [
+      "draggable",
+      "geotagged",
+      "geotagging",
+      "monospaced",
+      "scrollable",
+      "weeklong",
+    ],
   },
 ];
 
