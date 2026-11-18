@@ -121,7 +121,7 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     );
     assert.equal(manifest.manifest_version, 3);
     assert.equal(manifest.version, artifact.report.sourceVersion);
-    assert.equal(manifest.name, "Grove: Grammar, Spelling & Study Notes");
+    assert.equal(manifest.name, "Grove: Grammar Checker & Study Notes");
     assert.equal(
       manifest.description,
       "Check grammar and spelling as you write. Save and find study notes in your browser.",

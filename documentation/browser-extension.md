@@ -601,7 +601,7 @@ Do not advertise signed/store availability or a proven under-one-minute setup.
 
 ### Offline store/reviewer handoff
 
-The package and listing name is **Grove: Grammar, Spelling & Study Notes**.
+The package and listing name is **Grove: Grammar Checker & Study Notes**.
 
 Short description: “Check grammar and spelling as you write. Save and find study
 notes in your browser.”
