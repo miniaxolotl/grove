@@ -160,6 +160,12 @@ test("website-only delivery requires exact scope and live backend verification b
     /verify-website-baselines\.mjs[\s\S]*database-preflight\.mjs[\s\S]*health\/ready[\s\S]*website\.mjs deploy/,
   );
   assert.doesNotMatch(website, /NPM_TOKEN|DOCKERHUB_TOKEN|publish\.mjs/);
+  // The alias may have moved before the previous run failed its homepage
+  // check. A retry must verify the live site before it accepts the receipt.
+  assert.match(
+    website,
+    /if: steps\.receipts\.outputs\.alreadyDelivered == 'true'\s+run: \|\s+node scripts\/release\/website\.mjs preflight\s+test "\$\(curl [^\n]+https:\/\/usegrove\.cloud\/\)" = 200[\s\S]*upload-artifact/,
+  );
   assert.ok(
     workflow.indexOf("node scripts/release/website.mjs preflight") <
       workflow.indexOf("name: Publish all coordinated npm artifacts"),
