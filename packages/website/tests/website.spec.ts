@@ -196,7 +196,7 @@ test("mobile setup links lead to the browser extension and AI tools", async ({
   });
   await expect(extension).toBeInViewport({ ratio: 1 });
   await extension.press("Enter");
-  await expect(page).toHaveURL(/#extension-heading$/);
+  await expect(page).toHaveURL(/#browser-extension$/);
   await expect(
     page.getByRole("heading", { name: "Browser extension", exact: true }),
   ).toBeInViewport();
