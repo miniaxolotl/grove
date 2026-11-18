@@ -4,93 +4,93 @@
   "identity": "Approved Grove Sprout",
   "files": {
     "dark-16.png": {
-      "sha256": "2a27d723b1e65f58e8c74dc11c0a9208634c515bd9f6788e36b23b31996bf8bc",
+      "sha256": "7af04f13e8a1e75d2049fac979ee149896523707d23a63921bf9e84f973eb95f",
       "size": 16
     },
     "dark-20.png": {
-      "sha256": "e06d63e042d179b7d319dc620740eefd82f66a786720df20124753e6d29e9f45",
+      "sha256": "f61fa12a0d3b22ec196be9de69d63cbb418e0847485f7a49cbfe36de33c47f76",
       "size": 20
     },
     "dark-24.png": {
-      "sha256": "4aa1069f352f0951c0a7bd288eadbffc4361b1f908800a5f812af6bc2c0f780d",
+      "sha256": "77155e201292e6dd7e1c29df3ddacafb0ebbb0d7e21c7ff77cf5d49c4ac071df",
       "size": 24
     },
     "dark-32.png": {
-      "sha256": "7c3600f470030e634429ec2631d35ef25f0050ec15a2f242153327d8cfb38c08",
+      "sha256": "5ba94079e782e1e2e3ed8993d84317f38a6fd66b71230a8af4ee83d0e537e433",
       "size": 32
     },
     "dark-40.png": {
-      "sha256": "4b53734adaa6a163362e7e72bd9ab1f463d9cd0eedaa137816fa35caff14f853",
+      "sha256": "339520c87bb576b6edb77b4e14be57cd88a36fd4204ec1130a4e2484d2b24841",
       "size": 40
     },
     "dark-48.png": {
-      "sha256": "14a2659973a27e2abcb054a0ff976be335ae4ad574e6439956cce14dfc993c0d",
+      "sha256": "fad3cd1fda41b33c7084817714123acf1535bd2a4d7da4039127d9724b134271",
       "size": 48
     },
     "dark-64.png": {
-      "sha256": "1ace9a5156bdd456cc7a9d24a2ecf2c876ad1f34473b02bb6dd5e49fb4b6a07d",
+      "sha256": "9c4e0b3a45eaa549f93150709f9f170a745937d2e64172c149276082b20584a1",
       "size": 64
     },
     "dark-96.png": {
-      "sha256": "01c90b2cc0260482dcb026971df77f1839b34fe0cc0440443c2ff4fdeac67130",
+      "sha256": "d3d3b8f1f134a09286a65e8193db4b6e9a0928877b43b6eca1c10070628b33f1",
       "size": 96
     },
     "dark.svg": {
-      "sha256": "3e365ef3e4bfba4fbe685d130c2baf4dc81d0351b16a9820d481f156cae9748f"
+      "sha256": "1e9139c74a64019acc08d9022e3782f0a5f6034f8d51e1d390123c9f6414dad7"
     },
     "light-16.png": {
-      "sha256": "8fa549ba586eb971019c1b6708e0b8cd3e946eef45cd044d7c318e9ddda7c0b1",
+      "sha256": "87ccbab57c4da0a3e1728b9439046a959fb29efca230c38861339cb5d79ae96c",
       "size": 16
     },
     "light-20.png": {
-      "sha256": "c1ec56478c1119d3236777fc25df967dc478432a965883835fa7902fca12571e",
+      "sha256": "570eef045bfad992c280bd745935108b2ebaf364bd913ea63ea7063164b2d8df",
       "size": 20
     },
     "light-24.png": {
-      "sha256": "70a9649fda754381a218d3e33f22cb043738b38f4ad95ef168ea1a700d7885f2",
+      "sha256": "cbd77cb2f8a12520d6b5f4ddb3e9850acbb9b8745b81eeed50cc6bc4e59051a8",
       "size": 24
     },
     "light-32.png": {
-      "sha256": "a797a8229e616d6101065de938fde001885d2122f7f06460abf56cf839d5d500",
+      "sha256": "8e987d0ca097c3fedca401ede51b58f9518c25df2622a2a6710d487116d4b400",
       "size": 32
     },
     "light-40.png": {
-      "sha256": "d95c25d51777c7e50f220c4ecafb9faa3a8c4c9e8586563bc7d70d2b6aad82af",
+      "sha256": "a5be1b6aecf9d6c33c15103431e814dafadf82b0b072754033a4486be5aab632",
       "size": 40
     },
     "light-48.png": {
-      "sha256": "c852aaba01349596ba878a5315d7ed292ac8be3ae40fc33e4d3856bcbc5a775f",
+      "sha256": "f8eea0d55ff233946af1ce8894de2b945448bb19aa82b5a156374c79c16938f3",
       "size": 48
     },
     "light-64.png": {
-      "sha256": "acebfe12fadd2ea65b34e93e069eb7709ff81052ac09572414c7258754833244",
+      "sha256": "366816ad2e350eff73e678e86f96cab54cec35b6b1daaa850530e400e9d9e0bc",
       "size": 64
     },
     "light-96.png": {
-      "sha256": "52b8c18cbbdb4036241c8bc77a9b9871d8c981a87378677f6edda2e1333eef49",
+      "sha256": "e6a95bb8aeb96f2676bbd4b73bfcc616bd87f0cb3db09ba38c80a1db1b41595c",
       "size": 96
     },
     "light.svg": {
-      "sha256": "fd5798b55050ae92360f04de7b6022e90c477935ba7f9f0d0699edc06d1c2041"
+      "sha256": "29998330c65f15690d415d1dbe4f6f7fa2b05a720cc2ddb7afb25c83664933d6"
     },
     "store-128.png": {
-      "sha256": "152560ff669c75ad5598d57946f9b061fae9f2f93362d22a509648184255e33c",
+      "sha256": "3adc2fbf03a6cb49e64742564fd06154139ea660e7f1f19030b568582575d4ac",
       "size": 128
     },
     "store-300.png": {
-      "sha256": "94adbe24e0bab89600d9e2847d893a434b7b493a177f7dc4bb24a9d41ad521fb",
+      "sha256": "d03ab1c9b9f8103444e1ffcd30d162480bbc658cad187f5b18d4b03d4ac9198d",
       "size": 300
     },
     "store-512.png": {
-      "sha256": "e9dd1fbf84623bbd9573dd36965b045b4a5ddd193e2c800dba83427b4d6a890a",
+      "sha256": "d2b6a7cc6860596afdfdf28dbcf5ee0d453f9699aebe05d967d7917ddd1e6c7c",
       "size": 512
     },
     "store-96.png": {
-      "sha256": "9add86db5c4aad1bb70255dc5754b2aafe0bf41af298ce4979a5713b97cce7e8",
+      "sha256": "b7ef7ff6ad25d42eaf61947069526dd78f7edc940eaa8c8e46f319798d6f1a9d",
       "size": 96
     },
     "store.svg": {
-      "sha256": "11f09ef59f8cffc0b8baaa0578e3e055760c3b4a341a0151c8812700daf03357"
+      "sha256": "cfdd7e9a1806d0f5458e4e6642c6f6b34754dfe04cbcace83d6f3ee608c8458b"
     }
   }
 }

@@ -37,9 +37,10 @@ does not silently replace authored prose. Transcripts are private unless explici
 inserted into the shared note text. Optional [speech](speech.md) queues transcription
 only on request, presents a separate suggestion and requires explicit draft use/save.
 
-- `GET /v1/memories/:noteId/media/:id/transcript` reads the current transcript.
+- `GET /v1/memories/:noteId/media/:id/transcript` reads the current transcript
+  (`memory:read` on the note scope; agents use `read_media_transcript`).
 - `PATCH` on the same route accepts `{operationId,expectedVersion,text}` (≤6000
-  characters) from the owning website session. Original audio is immutable.
+  characters) with `memory:write` on the note scope. Original audio is immutable.
 - Image/audio reads share the existing authorized media route; `Range: bytes=a-b`
   supports206/416, and HEAD does not open a storage stream.
 

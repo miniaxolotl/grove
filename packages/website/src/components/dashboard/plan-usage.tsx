@@ -7,6 +7,7 @@ const labels = {
   ask: "Ask replies",
   organization: "Organization",
   assistance: "AI assistance",
+  writing: "AI rewrites",
 } as const;
 const number = (value: number) =>
   new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
@@ -98,7 +99,7 @@ export function PlanUsageBreakdown({
             </div>
             <ResourceRows
               usage={resources}
-              resources={["recall", "ask", "organization", "assistance"]}
+              resources={["recall", "ask", "organization", "assistance", "writing"]}
             />
           </section>
         </>

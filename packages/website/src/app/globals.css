@@ -3,6 +3,11 @@
 @import "./expressive.css";
 @import "./legal.css";
 
+:root {
+  --font-interface:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
 @theme {
   --color-paper: #f7f6f0;
   --color-forest: #253e31;
@@ -14,14 +19,13 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-space-grotesk), Arial, sans-serif;
-  --font-editorial: var(--font-space-grotesk), Arial, sans-serif;
+  --font-sans: var(--font-interface);
+  --font-editorial: var(--font-interface);
   --font-mono: var(--font-jetbrains-mono), monospace;
 }
 
 @layer base {
   html {
-    scroll-behavior: smooth;
     scroll-padding-top: 108px;
   }
   body {
@@ -63,6 +67,12 @@
 }
 
 @layer components {
+  .memory-markdown blockquote {
+    padding-inline-start: clamp(12px, 3vw, 22px);
+  }
+  .memory-markdown blockquote > * + * {
+    margin-block-start: 0.75em;
+  }
   .page-container {
     @apply mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-12;
   }

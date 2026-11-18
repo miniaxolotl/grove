@@ -20,6 +20,11 @@ Use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `packages.build.json` with product version, configuration, input inventory and hashes.
 Successful source CI also retains these unsigned ZIPs and their report as a
 `grove-browser-extensions-<source SHA>` artifact for 14 days.
+Protected production delivery also attaches verified browser ZIPs and checksums
+to the version's GitHub release, with direct **Downloads** links. CLI/plugins retain
+their supported package-manager installation instead of separate raw tarball links.
+Download availability alone is not server rollout or signing acceptance; see
+[release downloads](release-conventions.md#release-downloads).
 
 - **Chrome:** open `chrome://extensions`, enable Developer mode, choose **Load
   unpacked** and select the extracted `chrome/` directory.
@@ -35,12 +40,16 @@ API/manifest floors, not claims that every version/OS is tested. Pin the toolbar
 icon or use the suggested **Alt+Shift+G** shortcut (browser conflicts may require
 rebinding). Chrome/Edge use a native side panel; Firefox uses its native sidebar.
 
-Choose **Sign in to Grove**. Native browser identity performs public-client OAuth
-discovery and authorization-code/PKCE sign-in; no pasted key, embedded secret or
-website-cookie extraction is used. Approve only the reading/saving capabilities
-and Personal/notebook scope you want in **Grove Connections**, then check approval.
-Notebook discovery starts immediately; there is no setup wizard. Sign-in alone is
-not an approved grant. Revocation is enforced by the API on subsequent operations.
+Local spelling and grammar work without an account. To save and find notes,
+choose **Sign in to Grove** or **Create an account**. The extension uses native
+browser OAuth with PKCE; no key or website cookie is copied. After sign-in, a
+new connection opens **Connect your browser** in the same browser window. Review
+the prefilled name and choose note access; Personal read and save are suggested.
+AI writing access is optional and off by default. Return to the panel after
+approving. Use **Choose note access** to reopen a dismissed setup screen or
+**Check access** if the panel hasn't updated. Existing approved connections skip
+this step. If the website asks you to sign in, use the same Grove account.
+Change or revoke access later in Connections.
 
 ### Listing and toolbar icons
 
@@ -55,14 +64,17 @@ These are bundled assets, not evidence of store publication.
 
 ## Use the panel
 
-Three tabs keep the panel focused: **Notes**, **Search**, then **Settings**.
-The panel uses a quiet sage frame, a paper-like editor and tonal note rows rather
-than dashboard chrome. Notebook and source controls share one **Details** disclosure.
+The signed-out panel starts with spelling and grammar. Choose **Writing settings**
+to open those controls, or sign in if you want to save and search your notes.
+The tabs stay in order: **Notes**, **Search**, then **Settings**. The note editor
+shows writing feedback and the character count together. **Notebook and source**
+shows the save destination and page details.
 
 ### English writing checks
 
 Spelling and basic grammar run locally by default in eligible textareas across normal
-website tabs, even while signed out. Notes uses the same checker. Open an underline
+website tabs, even while signed out, and they keep working after the anonymous
+grace period ends (see below). Notes uses the same checker. Open an underline
 or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
 word**; **All issues** returns from one issue to the full list without rechecking.
 Choosing a correction copies it and replaces only that range with native Undo,
@@ -70,8 +82,8 @@ without changing an already-submitted save. Clipboard failure leaves the edit in
 and reports that copying was unavailable. Applying a correction updates only
 the current draft, never an already-submitted save. Saving does not wait for checks.
 
-Settings → **Writing** contains independent spelling/grammar switches, an Advanced
-disclosure for individual rules, automatic checking and highlights, and a personal
+Settings → **Writing** contains independent spelling/grammar switches, **More writing
+options** for individual rules, automatic checking and highlights, and a personal
 dictionary. Parent switches preserve individual choices. Writing switches and domain
 exceptions apply browser-wide on this device, including after sign-out. Personal
 dictionary words remain scoped to the API/account and English language (with a separate
@@ -86,20 +98,34 @@ capitalization (including the start of a new line or list item), unambiguous wor
 phrases (**all of the** → **all the**, **in order to** → **to**, **due to the fact
 that** → **because**, **in the event that** → **if**, **in spite of the fact that** →
 **although**, **on a daily basis** → **daily**, **close proximity** → **proximity**,
-**revert back** → **revert**), declarative pronoun verb agreement plus **should of** →
-**should have** and **he don't** → **he doesn't**, and plural acronyms before a plural
-verb (**PR's are** → **PRs are**) or in decades (**1990's** → **1990s**). Confused-word
-checks cover **its a** → **it's a**, **their is** → **there is**, **suppose to** →
-**supposed to**, **I use to** → **I used to** (never after _didn't_), preposition +
+**revert back** → **revert**, doubled comparatives (**more better** → **better**,
+**most biggest** → **biggest**)), declarative pronoun verb agreement for common
+verbs (**he go** → **he goes**, **they goes** → **they go**, **she say** →
+**she says**) plus **should of** → **should have** and **he don't** →
+**he doesn't**, and plural acronyms before a plural verb (**PR's are** →
+**PRs are**) or in decades (**1990's** → **1990s**). Inverted questions keep
+their bare verbs (**does he have**, **will she come**) and mandative clauses
+keep the base form (**I suggest he go**): the agreement check abstains there
+rather than "fixing" correct English. Confused-word
+checks cover **its a** → **it's a**, **its been** → **it's been**,
+**their gone** → **they're gone** (**your gone** → **you're gone**),
+**their is** → **there is**, **suppose to** →
+**supposed to**, **bigger then** → **bigger than**, **I use to** →
+**I used to** (never after _didn't_), preposition +
 **and I** → **and me**, ordinal suffixes (**22th** → **22nd**), common eggcorns
-(**weather or not**, **free reign**, **baited breath**, **escape goat**) and two-word
-spelling fixes (**alot** → **a lot**, **noone** → **no one**, **eachother** →
-**each other**). Spelling alternatives follow the original word's capitalization, and
+(**weather or not**, **free reign**, **baited breath**, **escape goat**) and
+single-token fixes the affix suggester cannot rank (**alot** → **a lot**,
+**maintainance** → **maintenance**, **questionairre** → **questionnaire**,
+**lisence** → **license**, **speach** → **speech**, **tendancy** → **tendency**,
+**wich** → **which**). Spelling alternatives put the obvious fix first:
+adjacent transpositions (**teh** → **the**), missing apostrophes (**dont** →
+**don't**) and dropped doubled letters (**refered** → **referred**) outrank
+unrelated near-edits, then follow the original word's capitalization, and
 plural acronyms such as **PRs** are not flagged as misspellings. An article before a
 plural-looking noun (**an apples**) abstains: the article is not the real error.
 These are not a complete grammar/style analysis. Unknown names can be
 added to the dictionary; ambiguous rules abstain rather than guess a replacement.
-Possessive acronyms (**the PR's title**), inverted questions, soft-wrapped lines,
+Possessive acronyms (**the PR's title**), soft-wrapped lines,
 much/many and less/fewer are deliberately left alone.
 Future UI translations and proofing languages remain separate; only English ships.
 
@@ -164,13 +190,28 @@ wording, not an AI-detection guarantee. Output can be wrong: structural validati
 does not establish factual or semantic equivalence. English is the supported contract;
 sentence segmentation is not language detection or an automatic translation feature.
 
-Settings → Writing → **AI writing tools** is independent of spelling and grammar.
+In extension Settings, **AI writing → Show AI tools in this browser** is
+independent of spelling and grammar under **Writing checks**.
 Site restrictions and Grove Off still win. Enabling a switch never generates text.
 AI needs a separately approved **Allow AI writing tools** permission in
-Grove Connections; note access alone is insufficient. Missing configuration, permission
+the setup screen or Grove Connections; note access alone is insufficient. The
+extension’s **Manage AI permission** link opens this browser’s connection.
+Missing configuration, permission
 or network does not disable local checks, which never fall back to AI.
 Website AI additionally requires browser-supplied document identity; hosts without
 it keep AI unavailable rather than reuse another document's authority.
+
+### Writing limits
+
+Spelling and grammar checks run on your device and are unlimited on every plan,
+including signed out. Each explicit AI rewrite request uses one rewrite from
+your monthly allowance: **100 a month on Free** (up to 30 a day) and
+**1,000 a month on Pro** (up to 200 a day). One request returns up to three
+alternatives and counts once; reopening the same completed result is free.
+When the allowance runs out the card says so with the reset date — local
+checks, Copy and your draft keep working. Allowances reset on the first of
+each UTC month and do not roll over. See the
+[billing guide](billing.md) for the full allowance table.
 
 Requests persist before HTTP **202** acceptance; Grove's existing enrichment workers
 perform generation. The UI reads durable queued, processing, backoff, expired-lease
@@ -205,7 +246,9 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   **Open in Grove** opens the full editor. HTML remains literal text, unsafe links
   are inert and images/media never load automatically. PDF/Word originals are not
   fetched or extracted in the extension; previously imported Markdown is readable.
-- **Share:** choose Share from a result's menu or reader, or **Save & share** in Notes.
+- **Share:** choose **Share** from a result's menu or reader. In Notes, open
+  **More note actions** and choose **Share** or **Save & share**. **Save now**
+  remains separate.
   A new note saves first; changed/uncertain drafts cannot publish an older snapshot.
   The compact dialog identifies the note without reopening a full reader. Its
   title expands a saved-note preview; **Link options** holds expiry (initially one
@@ -226,10 +269,34 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   System/light/dark appearance saves automatically on this device. Enablement has
   one home in the persistent header. Search has one result list and copy action.
 
-Notes opens directly to the editor. Save outcome and newer unsaved edits
-remain visible without version/indexing diagnostics.
+### Anonymous grace and trial
+
+The extension works without an account. Local spelling and basic grammar checks
+run signed out from install and keep working after the grace period ends; they
+never require sign-in, contact Grove, or consume any quota.
+
+Saving, search, capture, reader sharing, and AI writing tools need an account.
+For the first **14 days** after install the signed-out panel invites you to try
+these with a free account; after day 14 it asks you to create a free account to
+continue them. The install date is stored on the device (`chrome.storage.local`,
+with a `chrome.storage.sync` backup when browser sync is on). Reinstalling keeps
+the original date while sync backup exists; with sync off a reinstall restarts
+the local-only grace. This is best-effort and documented: the grace only times
+the signup nudge, never Pro access. Once you create an account, Settings →
+Billing offers a single-use **7-day Pro trial** with full Pro allowances (card
+required; converts to paid unless cancelled). Each account gets one trial; an
+administrator can restore eligibility. See [billing](billing.md#subscriptions).
+
+Notes opens directly to the editor. The first save is explicit (**Save now**);
+after it, changed text, notebook or source saves itself after a short editing
+pause as a guarded update of the same note, never a second capture. Autosave
+waits out IME composition and never runs while Grove is off, access is
+unapproved, an earlier save is unresolved, or the connection lacks write
+access; a rejected conflict stops autosave, keeps the local draft and links
+the contested note for review instead of silently rebasing. Save outcome and
+newer unsaved edits remain visible without version/indexing diagnostics.
 There are no source-link fields. Mounted approved panels follow source metadata
-locally until the first edit pins it; only explicit Save transmits it. Context-menu
+locally until the first edit pins it; only a save transmits it. Context-menu
 captures keep their original event source. Unknown/failed-save
 retries retain the exact original provenance snapshot even after a tab change.
 Restricted/private pages produce no automatic source. Required consent and uncertain-
@@ -247,7 +314,8 @@ in the trusted background, not only through disabled buttons. Opening an off pan
 does not authenticate or contact Grove. Appearance and Settings remain available.
 
 Switching off waits for earlier serialized actions to settle; a save already sent
-is not cancelled, deleted or falsely labelled unsuccessful. Session drafts/tokens,
+is not cancelled, deleted or falsely labelled unsuccessful. Autosave of changed
+drafts does not run while Grove is off. Session drafts/tokens,
 capture inboxes and opaque recovery receipts retain their normal scope/expiry rules.
 No unknown save is automatically retried on resume. Changing appearance cannot
 enable Grove. Other mounted panels update immediately and close private review
@@ -257,7 +325,10 @@ use Connections to revoke access and Sign out to clear a mounted session.
 
 The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
-their previous scroll position. Switches work with the keyboard and retain focus.
+their previous scroll position. Capture, Search, then Settings stay in that order;
+the active destination marks itself current for assistive technology. Capture and
+Search disable while Grove is off or unapproved while Settings stays available.
+Switches and navigation buttons work with the keyboard and retain focus.
 Search preserves its input/results when switching views. Unchanged rows remain
 mounted during refresh. Per-note actions recheck access and saved versions; a
 focused action menu returns focus to its trigger, and sharing never publishes
@@ -270,7 +341,7 @@ active-tab URL/title across sites and may show a browsing-history warning on ins
 or update. It does not grant document contents or history API access. Only mounted,
 enabled, approved panels follow their own window's active tab; no navigation listener
 collects browsing data in the background. Source values stay in scoped session
-storage and reach Grove only on explicit save, never from navigation or search.
+storage and reach Grove only on a save, never from navigation or search.
 
 ## Implemented contracts
 
@@ -303,6 +374,12 @@ are `POST /v1/browser/connect`, `POST /v1/browser/captures`,
 `GET /v1/browser/captures/:operationId` and `POST /v1/browser/pages`. They use the
 normal authentication, quota and connection-grant boundaries. Capture accepts an
 operation UUID, content, destination, `capture: explicit` and optional provenance.
+With a note ID it also requires that note's expected version and optionally an
+edit-session UUID: the update locks the target row, reuses the normal version
+fence and edit coalescing, and rebinds provenance to the new revision; stale
+versions, cross-account targets and a changed source without a new revision are
+rejected conflicts, never silent rebases. Replaying an operation whose note has
+moved past its receipt reports the conflict instead of presenting stale content.
 The note, structured revision, provenance, replay receipt and normal durable
 processing jobs commit atomically. Acceptance of a note is not completed indexing.
 
@@ -397,7 +474,10 @@ do not change capture time, extend expiry or churn storage. Inbox captures remai
 pinned to their original event snapshot rather than a later tab destination.
 
 `prepareCaptureSave` creates an independent local command snapshot with an
-operation UUID, formatted content, notebook and optional provenance. Runtime saves
+operation UUID, formatted content, notebook and optional provenance. After a
+saved receipt, later snapshots carry that note's ID, its expected version and
+the draft's edit-session UUID, so subsequent saves update the same note behind
+the server's version fence instead of capturing again. Runtime saves
 persist this snapshot before authorized HTTP I/O. While a save is unresolved, only
 the same UUID and exact snapshot can be
 retried; newer edits/destinations stay in the draft without altering the snapshot.
@@ -478,7 +558,9 @@ network CSP. Custom-origin acceptance must use the actual
 Firefox network stack, not seeded tokens or intercepted fetch responses.
 
 Root lint/types/build, ordinary TypeScript tests and artifact tests cover the new
-core. Artifact checks rebuild in isolated directories, compare deterministic bytes,
+core. Fast `test:extension` runs capture, drafts, platform, oauth, client plus
+messages, webextension guards, reader summaries/rendering, share-URL validation
+and clipboard helpers. Artifact checks rebuild in isolated directories, compare deterministic bytes,
 restrict the input graph to reviewed core/shared/Zod code, require no external
 imports and exercise exports in a sandbox without Node globals, DOM or fetch.
 Runtime/package checks also validate deterministic ZIPs/manifests/CSP, trusted
@@ -519,7 +601,7 @@ Do not advertise signed/store availability or a proven under-one-minute setup.
 
 ### Offline store/reviewer handoff
 
-The package name is **Grove — private notes**. Suggested listing summary:
+The package name is **Grove: spelling, grammar, notes**. Suggested listing summary:
 “Save notes and sources, search your Grove notebooks, and share a thought.”
 List only documented panel features; do not promise full-page import,
 AI summaries, chat extraction, Safari/mobile, offline search or signed availability.
@@ -543,6 +625,15 @@ Firefox declares authentication information, website content, browsing activity
 and search terms for user-invoked transmission. There is no analytics or automatic
 history collection. Operators must verify these declarations and corresponding
 Chrome/Edge disclosures against the final production package and privacy policy.
+
+## Shared implementation notes
+
+Webapp, extension, API and worker share `@lib/shared` as the single source for
+note limits (`NOTE_CONTENT_MAX`), Markdown parsing (`parseNoteMarkdown`), note
+titles (`noteTitle`/`sharedNoteTitle`), share durations and public share URL
+validation (`parsePublicShareUrl`). Do not re-implement these in package code;
+`tests/src/shared-drift.test.ts` fails on direct `mdast-util-from-markdown`
+imports in the webapp or hardcoded `6000` bounds.
 
 Reviewer checklist: install the matching package; check an eligible textarea while
 signed out; disable checks browser-wide and for a domain plus its subdomains;

@@ -37,8 +37,13 @@ After upload, insertion is one editor Undo transaction and uses normal autosave 
 version conflict handling. Original bytes and metadata, including EXIF, are retained:
 consider their contents before sharing. External images remain click-to-open links.
 New notes must finish their ordinary first save; uploading never creates a blank
-note or public link implicitly. Uploads are session-owner-only; scoped agents can
-read attachments through an authorized saved note/revision but cannot upload them.
+note or public link implicitly. Uploads require `memory:write` on the note scope:
+the owning website session or a scoped OAuth/API-key agent whose grant covers
+that notebook. Agents discover bound items with `list_note_media` /
+`describe_note_media` (metadata only) and fetch bytes only through the
+authorized `GET` route; uploads still bind through an ordinary note save with
+`preview/apply` or `update_memory`. Copying a `grove-media:UUID` across notes
+cannot transfer access.
 
 ## Access and retention
 
@@ -68,7 +73,8 @@ cannot publish. No storage/network transfer holds a DB transaction.
 
 ## API
 
-- `PUT /v1/memories/:noteId/media/:id`: owning session; raw verified image body,
+- `PUT /v1/memories/:noteId/media/:id`: `memory:write` on the note scope (owner
+  session or scoped agent grant); raw verified image body,
   `Content-Type`, accurate `Content-Length`, `X-Grove-Note-Version` and
   `X-Grove-Content-Sha256`. Stable client UUID identifies retries. Returns 201 for
   a newly accepted image or 200 for a completed replay, with a reference and safe

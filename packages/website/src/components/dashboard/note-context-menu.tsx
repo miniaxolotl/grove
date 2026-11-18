@@ -39,7 +39,7 @@ import {
   MousePointer2,
 } from "lucide-react";
 import { mediaReferenceId } from "@lib/shared/media";
-import { fromMarkdown } from "mdast-util-from-markdown";
+import { parseNoteMarkdown } from "@lib/shared/markdown";
 import { mediaSource } from "@/lib/media-path";
 import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { wrapSelection } from "./markdown-surface";
@@ -100,7 +100,7 @@ function sourceTarget(
       if (!urlNode) return;
       // Match rendered CommonMark destinations (entities and backslash escapes),
       // while retaining the syntax tree's exact source range for edits.
-      const block = fromMarkdown(editor.state.sliceDoc(node.from, node.to))
+      const block = parseNoteMarkdown(editor.state.sliceDoc(node.from, node.to))
         .children[0];
       const destination =
         block?.type === "paragraph" ? block.children[0] : null;

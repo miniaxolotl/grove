@@ -164,9 +164,12 @@ for (const width of [1440, 390, 320])
       });
     });
     await page.goto(`${base}/app`);
-    await page
-      .getByRole("button", { name: "Import notes", exact: true })
-      .click();
+    const more = page.getByRole("button", { name: "More note actions" });
+    const importNotes = page.getByRole("button", { name: "Import notes", exact: true });
+    await expect(importNotes).toBeHidden();
+    await more.press("ArrowUp");
+    await expect(importNotes).toBeFocused();
+    await importNotes.press("Enter");
     const dialog = page.getByRole("dialog", {
       name: "Import notes",
       exact: true,

@@ -14,30 +14,6 @@ import "./product-design.css";
 import "./family-finish.css";
 import "./composition.css";
 
-const space = localFont({
-  src: [
-    {
-      path: "../../public/brand-kit/fonts/space-grotesk-400.woff2",
-      weight: "400",
-    },
-    {
-      path: "../../public/brand-kit/fonts/space-grotesk-500.woff2",
-      weight: "500",
-    },
-    {
-      path: "../../public/brand-kit/fonts/space-grotesk-600.woff2",
-      weight: "600",
-    },
-    {
-      path: "../../public/brand-kit/fonts/space-grotesk-700.woff2",
-      weight: "700",
-    },
-  ],
-  variable: "--font-space-grotesk",
-  display: "swap",
-  adjustFontFallback: "Arial",
-});
-
 const mono = localFont({
   src: [
     {
@@ -127,7 +103,7 @@ export default function RootLayout({
           title="Public product guide"
         />
       </head>
-      <body id="top" className={`${space.variable} ${mono.variable}`}>
+      <body id="top" className={mono.variable}>
         <WebsiteTelemetry />
         <WebsiteCookieConsent />
         <WebsiteTagManager />

@@ -10,7 +10,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
-  Archive,
   Settings,
   Plus,
   LockKeyhole,
@@ -18,7 +17,12 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
-import { WorkspaceCacheProvider } from "./workspace-cache";
+import {
+  WorkspaceCacheProvider,
+  noteListWarmup,
+  useWorkspaceCache,
+} from "./workspace-cache";
+import { WorkspaceOpening } from "./workspace-opening";
 import { NoteExportProvider } from "./note-export";
 import { NotebooksProvider, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookExplorer } from "./notebook-explorer";
@@ -35,32 +39,44 @@ import {
   ShortcutHelpButton,
 } from "./workspace-commands";
 
-const links = [
+const workspaceLinks = [
   { href: "/app", name: "Notes", icon: BookOpen },
   { href: "/app/ask", name: "Ask Grove", icon: MessageSquare },
-  { href: "/app/archive", name: "Archive", icon: Archive },
-  { href: "/app/settings", name: "Settings", icon: Settings },
 ];
+const settingsLink = {
+  href: "/app/settings",
+  name: "Settings",
+  icon: Settings,
+};
+const links = [...workspaceLinks, settingsLink];
 
 function WorkspaceNavLink({
   item,
   current,
-  secondary = false,
 }: {
   item: (typeof links)[number];
   current: string | undefined;
-  secondary?: boolean;
 }) {
   const { href, name, icon: Icon } = item;
+  const cache = useWorkspaceCache();
   return (
     <Link
       href={href}
       aria-current={href === current ? "page" : undefined}
-      className={`app-nav${secondary ? " app-nav-secondary" : ""}`}
+      className="app-nav"
+      {...(href === "/app" ? noteListWarmup(cache, "active") : {})}
     >
       <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
       <span>{name}</span>
     </Link>
+  );
+}
+
+function SidebarSection({ children }: { children: string }) {
+  return (
+    <p className="sidebar-section" aria-hidden="true">
+      {children}
+    </p>
   );
 }
 
@@ -77,13 +93,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoaded) setAccountBoundary(user?.id ?? null);
   }, [isLoaded, user?.id]);
-  if (!isLoaded || !sessionLoaded)
-    return (
-      <main id="main" className="app-opening">
-        <Brand />
-        <p role="status">Opening your Grove…</p>
-      </main>
-    );
+  if (!isLoaded || !sessionLoaded) return <WorkspaceOpening path={path} />;
   if (!isSignedIn || !session) return <RedirectToSignIn />;
   if (path.startsWith("/app/connect/"))
     return (
@@ -96,7 +106,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main id="main" className="connect-content" key={user?.id}>
-          {children}
+          {path.startsWith("/app/connect/browser/") ? (
+            <WorkspaceCacheProvider
+              key={`${user!.id}:${session.id}`}
+              account={user!.id}
+              sessionId={session.id}
+            >
+              <NotebooksProvider>{children}</NotebooksProvider>
+            </WorkspaceCacheProvider>
+          ) : (
+            children
+          )}
         </main>
         <footer className="app-footer">
           <TelemetryChoice />
@@ -125,10 +145,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       >
                         <div className="app-sidebar-heading">
                           <Brand href="/app" />
-                          <NewNoteLink />
-                          <WorkspaceSearchButton />
-                          <div className="lg:hidden">
-                            <UserButton />
+                          <div className="workspace-header-actions">
+                            <NewNoteLink />
+                            <WorkspaceSearchButton />
+                            <div className="sidebar-account-avatar lg:hidden">
+                              <UserButton />
+                            </div>
                           </div>
                         </div>
                         <div className="workspace-utilities">
@@ -136,34 +158,36 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                           <WorkspacePlan />
                           <ShortcutHelpButton compact />
                         </div>
-                        <nav
-                          aria-label="Notebook navigation"
-                          className="app-navigation"
-                        >
-                          {links.map((item, index) => (
+                        <nav aria-label="Workspace" className="app-navigation">
+                          <SidebarSection>Workspace</SidebarSection>
+                          {workspaceLinks.map((item) => (
                             <WorkspaceNavLink
                               key={item.href}
                               item={item}
                               current={current}
-                              secondary={index > 1}
                             />
                           ))}
                         </nav>
                         <NotebookExplorer />
+                        <nav
+                          aria-label="Account settings"
+                          className="app-settings-navigation"
+                        >
+                          <WorkspaceNavLink
+                            item={settingsLink}
+                            current={current}
+                          />
+                        </nav>
                         <div className="app-sidebar-footer">
-                          <nav aria-label="Workspace settings">
-                            {links.slice(2).map((item) => (
-                              <WorkspaceNavLink
-                                key={item.href}
-                                item={item}
-                                current={current}
-                              />
-                            ))}
-                          </nav>
                           <div className="sidebar-account">
-                            <UserButton />
-                            <span className="truncate text-xs">
-                              {user?.firstName ?? "Your account"}
+                            <div className="sidebar-account-avatar">
+                              <UserButton />
+                            </div>
+                            <span className="sidebar-account-text">
+                              <strong>
+                                {user?.firstName ?? "Your account"}
+                              </strong>
+                              <small>Private Grove</small>
                             </span>
                           </div>
                         </div>
@@ -176,10 +200,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                             <strong>
                               {path === "/app/graph"
                                 ? "Note graph"
-                                : path === "/app/profile"
-                                  ? "About you"
-                                  : (links.find(({ href }) => href === current)
-                                      ?.name ?? "Your notes")}
+                                : path === "/app/archive"
+                                  ? "Archive"
+                                  : path === "/app/profile"
+                                    ? "About you"
+                                    : (links.find(
+                                        ({ href }) => href === current,
+                                      )?.name ?? "Your notes")}
                             </strong>
                           </span>
                           <div className="flex items-center gap-3">

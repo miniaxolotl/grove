@@ -14,6 +14,7 @@ import { Button } from "./ui/button";
 import { useToast } from "./toasts";
 import { useWorkspaceCache } from "./workspace-cache";
 import { AssistanceAction } from "./assistance-action";
+import { DocumentSkeleton } from "./workspace-opening";
 
 export function MemoryInspector({
   id,
@@ -60,18 +61,36 @@ export function MemoryInspector({
     if (!current || busy) return;
     if (action === "move" && (current.projectId ?? "personal") === destination)
       return;
+    const before = current;
+    const optimistic: Memory = {
+      ...before,
+      projectId:
+        action === "move"
+          ? destination === "personal"
+            ? null
+            : destination
+          : before.projectId,
+      status:
+        action === "archive"
+          ? "archived"
+          : action === "restore"
+            ? "active"
+            : before.status,
+      version: before.version + 1,
+    };
     const body =
       action === "move"
         ? moveMemoryInput(
-            current,
+            before,
             destination === "personal" ? null : destination,
           )
-        : { expectedVersion: current.version };
+        : { expectedVersion: before.version };
     const path =
       action === "move" ? "/memories" : `/memories/${noteId}/${action}`;
     const key = JSON.stringify({ path, body });
     if (!operations.current.has(key))
       operations.current.set(key, crypto.randomUUID());
+    cache.applyNoteRecords(new Map([[before.id, optimistic]]));
     setBusy(true);
     setError("");
     try {
@@ -88,6 +107,7 @@ export function MemoryInspector({
             : "Note restored.",
       );
     } catch (error) {
+      cache.restoreNoteRecords(new Map([[before.id, before]]));
       setError(errorMessage(error));
     } finally {
       setBusy(false);
@@ -107,9 +127,7 @@ export function MemoryInspector({
           }}
         />
       )}
-      {!current && !creation && !error && (
-        <p role="status">Opening your note…</p>
-      )}
+      {!current && !creation && !error && <DocumentSkeleton />}
       {current &&
         citedVersion !== undefined &&
         citedVersion !== current.version && (

@@ -25,7 +25,9 @@ these preferences is promised between already-open tabs.
 
 ## Session readiness and recovery
 
-The shell waits for Clerk's user and session to load before mounting the workspace.
+After server authentication, the initial HTML can show the route-shaped workspace
+shell without exposing private records. Client queries and actions still wait for
+Clerk's user and session; the loading shell mounts neither the cache nor the editor.
 `WorkspaceCacheProvider` creates a `dashboard-session.ts` transport for that exact
 user/session pair. Each cache-owned JSON request waits for `session.getToken()` and
 sets its Bearer header explicitly. Clerk owns token caching and expiry; Grove does
@@ -89,6 +91,11 @@ Use `useWorkspaceCache()` and the query factories in
   normalized into the key. Missing project means all notebooks; `null` means Unfiled.
   Cursor state belongs to that query. Refetch starts at the first page and rebuilds
   subsequent cursors; old-scope requests cannot append into a new scope.
+  Hover or keyboard focus on Notes, **More → Archive**, or **Back to notes** can
+  warm the first page of the default view when it has no snapshot. Navigation
+  joins an in-flight read; it does not prefetch over existing pagination.
+  Data Saver skips this warm-up. Scoped notebook reads are not speculative because
+  they may record a visit on the server.
 - `note(id)` shares complete list and mutation snapshots with the reader/editor.
   Higher content versions win. Equal-version enrichment can refresh, but a read
   begun before a newer snapshot cannot overwrite it.

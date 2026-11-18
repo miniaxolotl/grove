@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { ConnectAttempt } from "@lib/shared/contracts";
+import { catalogResponse } from "./fixtures/notebook-catalog";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const initial: ConnectAttempt = {
@@ -20,6 +21,141 @@ const initial: ConnectAttempt = {
     projectIds: [],
   },
 };
+
+test("browser setup asks for scoped approval without a Settings visit", async ({
+  page,
+}) => {
+  const id = initial.connectionId;
+  let requests = 0;
+  let fail = true;
+  const connection = {
+    ...initial.grant,
+    id,
+    name: "Awaiting approval",
+    capabilities: [],
+    clientId: "extension-client",
+    state: "signed-fixture",
+    createdAt: new Date().toISOString(),
+    revokedAt: null,
+  };
+  await page.route("**/api/grove/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith(`/connections/${id}`)) {
+      expect(route.request().method()).toBe("PATCH");
+      requests++;
+      expect(route.request().postDataJSON()).toMatchObject({
+        name: "My writing browser",
+        expectedState: "signed-fixture",
+        capabilities: ["memory:read"],
+        personal: true,
+        allProjects: false,
+        projectIds: [],
+        writingEnabled: false,
+        sharingEnabled: false,
+      });
+      if (fail)
+        return route.fulfill({
+          status: 503,
+          json: { success: false, error: { message: "Try again shortly." } },
+        });
+    }
+    await route.fulfill({
+      json: {
+        success: true,
+        data: path.endsWith("/connections")
+          ? [connection]
+          : path.endsWith(`/connections/${id}`)
+            ? {}
+            : catalogResponse(route.request().url(), []),
+      },
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const url = `${base}/app/connect/browser/${id}`;
+  await page.goto(url);
+  await expect(
+    page.getByRole("heading", { name: "Connect your browser" }),
+  ).toBeVisible();
+  const name = page.getByLabel("Name", { exact: true });
+  await expect(name).toHaveValue("Grove browser extension");
+  await name.fill("My writing browser");
+  await expect(
+    page.getByLabel("Delete notes", { exact: true }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByLabel("All current and future notebooks"),
+  ).not.toBeChecked();
+  await expect(page.getByLabel("Allow AI writing tools")).not.toBeChecked();
+  expect(requests).toBe(0);
+  const save = page.getByLabel("Save and update notes", { exact: true });
+  await save.uncheck();
+  const approve = page.getByRole("button", { name: "Approve access" });
+  await approve.click();
+  await expect(page.getByRole("alert")).toContainText("Try again shortly.");
+  await expect(save).not.toBeChecked();
+  await expect(name).toHaveValue("My writing browser");
+  fail = false;
+  await approve.click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Browser connected" }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(url);
+  expect(requests).toBe(2);
+  await page.goto(`${base}/app/connect/browser/${initial.id}`);
+  await expect(
+    page.getByText("This connection is unavailable.", { exact: false }),
+  ).toBeVisible();
+  await expect(approve).toHaveCount(0);
+});
+
+test("hiding a connection is reversible and does not change its grant", async ({
+  page,
+}) => {
+  const url = `${base}/app/settings/connections`;
+  const id = initial.connectionId;
+  const connection = {
+    ...initial.grant,
+    id,
+    name: "Old laptop",
+    clientId: "extension-client",
+    createdAt: "2026-10-01T00:00:00Z",
+    revokedAt: null,
+  };
+  const writes: string[] = [];
+  await page.route("**/api/grove/**", (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (
+      pathname.includes("/connections/") &&
+      route.request().method() !== "GET"
+    )
+      writes.push(pathname);
+    return route.fulfill({
+      json: {
+        success: true,
+        data: pathname.endsWith("/connections") ? [connection] : [],
+      },
+    });
+  });
+  await page.goto(url);
+  const title = page.getByRole("heading", { name: "Old laptop" });
+  await page.getByRole("button", { name: "Hide", exact: true }).click();
+  await expect(title).toBeHidden();
+  const hidden = page
+    .locator("summary")
+    .getByText("Hidden connections (1)", { exact: true });
+  await expect(hidden).toBeFocused();
+  await page.reload();
+  await expect(hidden).toBeVisible();
+  await expect(title).toBeHidden();
+  await page.goto(`${url}#connection-${id}`);
+  await expect(title).toBeVisible();
+  await page.goto(url);
+  await hidden.click();
+  await page.getByRole("button", { name: "Show again", exact: true }).click();
+  await expect(title).toBeVisible();
+  await expect(hidden).toHaveCount(0);
+  expect(writes).toEqual([]);
+});
 
 test("contextual approval starts with every permission selected, preserves narrowed choices after failure and completes without a dashboard detour", async ({
   page,

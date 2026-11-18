@@ -1,4 +1,4 @@
-import { ModelSettings } from "@/components/dashboard/model-settings";
+import { AiPreferencesPanel } from "@/components/dashboard/preferences-panel";
 export default function ModelsPage() {
-  return <ModelSettings />;
+  return <AiPreferencesPanel />;
 }

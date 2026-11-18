@@ -13,7 +13,9 @@ import {
 } from "@lib/shared/writing-assistance";
 import { isWritingEditor } from "./editor.ts";
 import type { WritingSettings } from "./core.ts";
-import { copyWritingChoice } from "./clipboard.ts";
+import { copyText, copyWritingChoice } from "./clipboard.ts";
+import { GroveError } from "@lib/shared/contracts";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 export type WritingToolTransport = {
   availability: () => WritingAvailability;
@@ -27,7 +29,7 @@ const css = `
 button{font:inherit;color:inherit;cursor:pointer;min-height:40px;border-radius:12px;border:0;padding:9px 12px;background:transparent}button:hover{background:light-dark(#edf3eb,#303b31)}
 button:focus-visible,a:focus-visible{outline:2px solid currentColor;outline-offset:2px}button:disabled{cursor:default;opacity:.65}
 .trigger{position:fixed;z-index:2147483647;padding:4px 12px;min-height:32px;border-radius:20px;background:light-dark(#e6eee3,#303b31);color:light-dark(#243f2e,#d8e7db)}
-.card{position:fixed;z-index:2147483647;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:12px;border:1px solid light-dark(#d6dfd3,#465446);border-radius:20px;background:light-dark(#fff,#222922);color:light-dark(#181d19,#edf1ed);box-shadow:0 12px 32px #0002}
+ .card{position:fixed;z-index:2147483647;width:min(340px,calc(100vw - 24px));max-height:min(calc(100dvh - 24px),var(--grove-card-space,100dvh));overflow:auto;padding:12px;border:1px solid light-dark(#d6dfd3,#465446);border-radius:20px;background:light-dark(#fff,#222922);color:light-dark(#181d19,#edf1ed);box-shadow:0 12px 32px #0002}
 header,.actions{display:flex;align-items:center;justify-content:space-between;gap:8px}header{margin-bottom:8px}.close{border:0}strong{font-weight:600}
 .menu{display:grid;gap:2px}.tool{text-align:start;padding:10px 12px}.description{display:none}.tool[title]{cursor:pointer}
 p{margin:8px 0 12px}.original{max-height:80px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:light-dark(#f0f5ed,#303b31);padding:12px;border-radius:12px}.status{min-height:20px;margin:8px 0;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.alternatives{display:grid;gap:2px}.alternative{text-align:start;white-space:pre-wrap;overflow-wrap:anywhere;width:100%;font-size:15px}.actions{justify-content:flex-start;margin-top:8px}.copy{min-height:32px;padding:4px 8px;font-size:12px;color:light-dark(#59635b,#b8c4ba)}.footnote{font-size:12px;color:light-dark(#59635b,#b8c4ba)}
@@ -237,7 +239,7 @@ export class WritingToolsController {
     let anchor: DOMRect = rect;
     // Layout only the bounded prefix needed to locate the selected sentence. Never
     // mirror a whole long-form editor merely to position its contextual menu.
-    if (this.selection && this.selection.to <= 6000) {
+    if (this.selection && this.selection.to <= NOTE_CONTENT_MAX) {
       const computed = getComputedStyle(this.editor);
       Object.assign(this.geometry.style, {
         left: `${rect.left + this.editor.clientLeft - this.editor.scrollLeft}px`,
@@ -277,7 +279,14 @@ export class WritingToolsController {
     this.trigger.style.left = `${Math.max(12, Math.min(anchor.right - 80, innerWidth - 92))}px`;
     this.trigger.style.top = `${Math.max(12, anchor.top - 38)}px`;
     if (!this.card.hidden) {
-      this.card.style.maxHeight = `${Math.max(80, Math.max(anchor.top - 20, innerHeight - anchor.bottom - 20))}px`;
+      // An offscreen editor can suggest more space than the viewport has.
+      // Keep the CSS viewport cap in effect when supplying an anchor budget.
+      const space = Math.max(
+        80,
+        anchor.top - 20,
+        innerHeight - anchor.bottom - 20,
+      );
+      this.card.style.setProperty("--grove-card-space", `${space}px`);
       const width = Math.min(340, innerWidth - 24),
         height = this.card.getBoundingClientRect().height;
       this.card.style.left = `${Math.max(12, Math.min(anchor.left, innerWidth - width - 12))}px`;
@@ -339,6 +348,11 @@ export class WritingToolsController {
       menu.append(button);
     }
     this.card.append(menu);
+    const allowance = document.createElement("p");
+    allowance.className = "footnote";
+    allowance.textContent =
+      "Rewrites use your monthly allowance: 100 on Free, 1,000 on Pro. Local spelling and grammar checks are unlimited.";
+    this.card.append(allowance);
     if (!availability.available || !availability.authorized) {
       const reason = document.createElement("p");
       reason.className = "footnote";
@@ -453,17 +467,27 @@ export class WritingToolsController {
         this.timer = setTimeout(() => {
           void this.poll(epoch);
         }, 800);
-    } catch {
+    } catch (error) {
       if (!this.current(epoch)) return;
-      status.textContent = this.pendingId
-        ? "Not confirmed. Check status before trying again."
-        : "Couldn’t start. Your text is unchanged.";
-      if (this.pendingId)
-        this.card.append(
-          this.button("Check status", () => {
-            void this.poll(epoch);
-          }),
-        );
+      const quotaReset =
+        error instanceof GroveError &&
+        error.code === "usage_limit" &&
+        error.details?.resource === "writing"
+          ? (error.details.resetAt ?? null)
+          : undefined;
+      if (quotaReset !== undefined) {
+        status.textContent = `Monthly rewrite allowance used${quotaReset ? ` — resets ${new Date(quotaReset).toLocaleDateString(undefined, { month: "long", day: "numeric" })}` : ""}. Local spelling and grammar checks keep working.`;
+      } else {
+        status.textContent = this.pendingId
+          ? "Not confirmed. Check status before trying again."
+          : "Couldn’t start. Your text is unchanged.";
+        if (this.pendingId)
+          this.card.append(
+            this.button("Check status", () => {
+              void this.poll(epoch);
+            }),
+          );
+      }
       this.position();
     }
   }
@@ -523,15 +547,11 @@ export class WritingToolsController {
             "Copy",
             () => {
               if (!this.current() || !this.freshWork()) return;
-              void navigator.clipboard.writeText(text).then(
-                () => {
-                  status.textContent = "Copied";
-                },
-                () => {
-                  status.textContent =
-                    "Clipboard unavailable. Select and copy the alternative manually.";
-                },
-              );
+              void copyText(text).then((ok) => {
+                status.textContent = ok
+                  ? "Copied"
+                  : "Clipboard unavailable. Select and copy the alternative manually.";
+              });
             },
             "copy",
           ),

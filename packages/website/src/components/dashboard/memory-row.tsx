@@ -75,6 +75,7 @@ export function MemoryRow({
       className="memory-list-item"
       data-note-id={memory.id}
       data-selected={selected || undefined}
+      data-pending={busy || undefined}
       data-dragging={isDragging || undefined}
     >
       <div className="memory-row" ref={row} {...swipe}>

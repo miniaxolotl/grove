@@ -11,6 +11,7 @@ import type {
   ImportDestination,
 } from "@lib/shared/document-imports";
 import type { Task } from "@lib/shared/jobs";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { errorMessage } from "@/lib/dashboard-api";
 import { workspaceKeys } from "@/lib/workspace-cache";
 import { useWorkspaceCache } from "./workspace-cache";
@@ -172,14 +173,15 @@ function DraftReview({
           <textarea
             aria-label={`Content from ${filename}`}
             rows={6}
-            maxLength={6000}
+            maxLength={NOTE_CONTENT_MAX}
             value={content}
             disabled={busy}
             onChange={(event) => setContent(event.target.value)}
           />
         </label>
         <p className="import-small">
-          {content.length.toLocaleString()} / 6,000 characters
+          {content.length.toLocaleString()} /{" "}
+          {NOTE_CONTENT_MAX.toLocaleString()} characters
         </p>
         <Destination
           value={destination}

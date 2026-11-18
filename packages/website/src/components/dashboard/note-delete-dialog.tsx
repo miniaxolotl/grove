@@ -3,41 +3,49 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Memory } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
-import { useWorkspaceApi } from "./workspace-cache";
+import { useWorkspaceCache } from "./workspace-cache";
 import { memoryTitle } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { useNoteDrafts, useNoteDraftRevision } from "./note-drafts";
 import { useToast } from "./toasts";
 
 export function NoteDeleteDialog({
-  memory,
+  memories,
   close,
   onDeleted,
+  onPendingChange,
   retrySave,
   conflict = false,
 }: {
-  memory: Memory;
+  memories: Memory[];
   close: () => void;
-  onDeleted: () => void;
+  onDeleted: (deleted: Memory[]) => void;
+  onPendingChange?: (ids: string[], pending: boolean) => void;
   retrySave?: () => void;
   conflict?: boolean;
 }) {
-  const api = useWorkspaceApi();
+  const cache = useWorkspaceCache();
+  const api = cache.api;
   const drafts = useNoteDrafts();
   useNoteDraftRevision();
+  const single = memories.length === 1;
+  const memory = memories[0];
   const key = `note:${memory.id}`;
-  const draft = drafts?.get(key);
   const [settled, setSettled] = useState<Memory>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reviewRequired, setReviewRequired] = useState(false);
   const submitting = useRef(false);
-  const operation = useRef<{ version: number; id: string }>(undefined);
+  const operation = useRef<{ versions: string; id: string }>(undefined);
   const toast = useToast();
-  useLayoutEffect(() => drafts?.hold(key), [drafts, key]);
-  const saving = draft?.saving;
+  // Hold every selected draft so nothing else settles them mid-delete.
+  useLayoutEffect(() => {
+    if (!drafts) return;
+    for (const note of memories) drafts.hold(`note:${note.id}`);
+  }, [drafts, memories]);
+  const saving = single ? drafts?.get(key)?.saving : undefined;
   useEffect(() => {
-    if (!saving) return;
+    if (!single || !saving) return;
     let active = true;
     const expected = drafts?.get(key)?.pending?.input?.expectedVersion;
     void saving
@@ -58,15 +66,28 @@ export function NoteDeleteDialog({
     return () => {
       active = false;
     };
-  }, [saving, drafts, key]);
-  const current = [memory, draft?.base, settled]
-    .filter((note): note is Memory => !!note)
-    .reduce(
-      (latest, note) => (note.version > latest.version ? note : latest),
-      memory,
-    );
-  const uncertain = !!draft?.pending;
-  const needsReview = conflict || reviewRequired || !!draft?.latest;
+  }, [single, saving, drafts, key]);
+  const entries = memories.map((note) => {
+    const noteKey = `note:${note.id}`;
+    const draft = drafts?.get(noteKey);
+    return { note, key: noteKey, draft };
+  });  const currentFor = (entry: (typeof entries)[number]) =>
+    [entry.note, entry.draft?.base, single ? settled : undefined]
+      .filter((note): note is Memory => !!note)
+      .reduce(
+        (latest, note) => (note.version > latest.version ? note : latest),
+        entry.note,
+      );
+  const anySaving = single
+    ? !!saving
+    : entries.some((entry) => !!entry.draft?.saving);
+  const uncertainCount = entries.filter(
+    (entry) => !!entry.draft?.pending,
+  ).length;
+  const staleCount = entries.filter((entry) => !!entry.draft?.latest).length;
+  const draftCount = entries.filter((entry) => !!entry.draft).length;
+  const needsReview = conflict || reviewRequired || staleCount > 0;
+  if (!memories.length) return null;
   async function retry() {
     if (retrySave) {
       retrySave();
@@ -111,66 +132,129 @@ export function NoteDeleteDialog({
     }
   }
   async function remove() {
-    if (saving || uncertain || needsReview || submitting.current) return;
+    if (
+      anySaving ||
+      uncertainCount > 0 ||
+      needsReview ||
+      submitting.current
+    )
+      return;
     submitting.current = true;
     setBusy(true);
     setError("");
-    if (operation.current?.version !== current.version)
-      operation.current = { version: current.version, id: crypto.randomUUID() };
+    const versions = JSON.stringify(
+      entries.map((entry) => [entry.note.id, currentFor(entry).version]),
+    );
+    if (operation.current?.versions !== versions)
+      operation.current = { versions, id: crypto.randomUUID() };
+    const ids = memories.map((note) => note.id);
+    // Instant patch first: the rows leave immediately, then the request settles.
+    onPendingChange?.(ids, true);
+    cache.applyNoteRecords(new Map(memories.map((note) => [note.id, null])));
+    onDeleted(memories);
+    close();
     try {
-      const result = await api<{ results: { outcome: string }[] }>(
+      const result = await api<{ results: { id?: string; outcome: string }[] }>(
         "/memories/delete",
         {
-          items: [{ id: memory.id, expectedVersion: current.version }],
+          items: entries.map((entry) => ({
+            id: entry.note.id,
+            expectedVersion: currentFor(entry).version,
+          })),
           operationId: operation.current.id,
         },
       );
-      if (result.results[0]?.outcome !== "deleted")
-        throw new Error(
-          "This note changed or is no longer available. Close this dialog and open the note to review it before deleting.",
+      const failed = entries.filter(
+        (_, index) =>
+          !["deleted", "not_found"].includes(
+            result.results[index]?.outcome ?? "",
+          ),
+      );
+      if (failed.length) {
+        // Only the failed notes snap back; the rest stay deleted.
+        cache.restoreNoteRecords(
+          new Map(failed.map((entry) => [entry.note.id, entry.note])),
         );
-      drafts?.delete(key);
-      onDeleted();
-      toast("Note deleted.");
+        const names = failed
+          .slice(0, 3)
+          .map((entry) => `“${memoryTitle(entry.note)}”`)
+          .join(", ");
+        toast(
+          single
+            ? "This note changed or is no longer available. It is back in your notes; open it to review before deleting."
+            : `${failed.length} of ${memories.length} notes changed or are no longer available and are back in your notes (${names}${failed.length > 3 ? ", …" : ""}). Review them before deleting.`,
+          true,
+        );
+      } else {
+        for (const entry of entries) drafts?.delete(entry.key);
+        toast(
+          single ? "Note deleted." : `${memories.length} notes deleted.`,
+        );
+      }
     } catch (reason) {
-      setError(errorMessage(reason));
+      cache.restoreNoteRecords(
+        new Map(memories.map((note) => [note.id, note])),
+      );
+      toast(errorMessage(reason), true);
     } finally {
+      onPendingChange?.(ids, false);
       submitting.current = false;
       setBusy(false);
     }
   }
   return (
-    <Dialog title="Delete note?" close={close} busy={busy}>
-      <p className="mb-4 text-sm">
-        Delete “{memoryTitle(current)}”? It and its history will be hidden from
-        your Grove.
-      </p>
-      {!!draft && (
+    <Dialog
+      title={single ? "Delete note?" : `Delete ${memories.length} notes?`}
+      close={close}
+      busy={busy}
+    >
+      {single ? (
         <p className="mb-4 text-sm">
-          Your local draft will also be discarded. Cancel keeps your changes.
+          Delete “{memoryTitle(currentFor(entries[0]))}”? It and its history
+          will be hidden from your Grove.
+        </p>
+      ) : (
+        <p className="mb-4 text-sm">
+          Delete {memories.length} notes? They and their history will be
+          hidden from your Grove.
+        </p>
+      )}
+      {!!draftCount && (
+        <p className="mb-4 text-sm">
+          {single
+            ? "Your local draft will also be discarded. Cancel keeps your changes."
+            : `Local drafts for these notes will also be discarded. Cancel keeps your changes.`}
         </p>
       )}
       {needsReview ? (
         <p className="app-error" role="alert">
-          This note changed elsewhere. Cancel and review the saved version
-          before deleting.
+          {single
+            ? "This note changed elsewhere. Cancel and review the saved version before deleting."
+            : "Some notes changed elsewhere. Cancel and review the saved versions before deleting."}
         </p>
-      ) : saving ? (
-        <p role="status">Finishing the pending save before deletion…</p>
+      ) : anySaving ? (
+        <p role="status">
+          {single
+            ? "Finishing the pending save before deletion…"
+            : "Finishing the pending saves before deletion…"}
+        </p>
       ) : (
-        uncertain && (
+        uncertainCount > 0 && (
           <div className="app-notice">
             <p>
-              The last save needs to be resolved before deleting this note. Your
-              draft is still here.
+              {single
+                ? "The last save needs to be resolved before deleting this note. Your draft is still here."
+                : `${uncertainCount} ${uncertainCount === 1 ? "note has" : "notes have"} unresolved saves. Save or discard them, then delete again. Your drafts are still here.`}
             </p>
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => void retry()}
-            >
-              Retry pending save
-            </button>
+            {single && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => void retry()}
+              >
+                Retry pending save
+              </button>
+            )}
           </div>
         )
       )}
@@ -192,14 +276,18 @@ export function NoteDeleteDialog({
         <button
           type="button"
           className="app-button danger"
-          disabled={busy || !!saving || uncertain || needsReview}
+          disabled={
+            busy || anySaving || uncertainCount > 0 || needsReview
+          }
           onClick={() => void remove()}
         >
           {busy
             ? "Deleting…"
-            : draft
-              ? "Delete note and discard draft"
-              : "Delete this note"}
+            : single
+              ? draftCount
+                ? "Delete note and discard draft"
+                : "Delete this note"
+              : `Delete ${memories.length} notes`}
         </button>
       </div>
     </Dialog>

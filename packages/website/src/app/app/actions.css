@@ -4,8 +4,7 @@
   margin-top: 4px;
   padding-top: 10px;
 }
-.action-menu > .action-danger,
-.note-delete-button {
+.action-menu > .action-danger {
   color: #923a32;
 }
 .note-context-menu {
@@ -16,14 +15,6 @@
 }
 .note-context-menu > button:disabled {
   opacity: 0.45;
-}
-.note-export-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 6px 10px;
-  flex-shrink: 0;
 }
 .export-options {
   display: grid;
@@ -42,12 +33,6 @@
 .note-editor-full.editor-focus .note-editor-bar > button[popovertarget] {
   display: inline-flex;
 }
-@container note-document (max-width: 600px) {
-  .note-editor-bar > .note-export-button,
-  .note-editor-bar > .note-delete-button {
-    display: none;
-  }
-}
 @media (max-width: 600px) {
   .note-editor-full .note-editor-bar {
     padding-block: 6px;
@@ -61,14 +46,8 @@
     display: none;
   }
 }
-.action-menu > .action-danger:hover,
-.note-delete-button:hover {
+.action-menu > .action-danger:hover {
   background: #fff0ec;
-}
-.note-delete-button {
-  min-width: 36px;
-  min-height: 36px;
-  flex-shrink: 0;
 }
 @media (any-pointer: coarse), (max-width: 600px) {
   .note-editor-bar :is(.app-button, .app-icon) {

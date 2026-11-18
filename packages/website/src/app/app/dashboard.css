@@ -1,6 +1,6 @@
 .grove-app,
 .connect-shell {
-  font-family: var(--font-space-grotesk), Arial, sans-serif;
+  font-family: var(--font-interface);
   font-size: 14px;
   font-optical-sizing: auto;
 }
@@ -36,7 +36,7 @@
 }
 .connect-content .connect-page-heading h1 {
   margin-top: 0;
-  font-size: clamp(30px, 5vw, 42px);
+  font-size: clamp(24px, 4.3vw, 36px);
 }
 .connect-content .connect-page-heading p:last-child {
   margin-top: 8px;
@@ -53,10 +53,10 @@
 .toast-region,
 .workspace-drop-surface,
 .memory-drag-preview {
-  --color-paper: #f8f9f7;
-  --color-line: #e1e5df;
-  --color-muted: #626e66;
-  --color-sage: #edf1e9;
+  --color-paper: #fbfcfb;
+  --color-line: #dce2dc;
+  --color-muted: #535f57;
+  --color-sage: #edf0ec;
 }
 .grove-app {
   min-height: 100vh;
@@ -76,7 +76,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--color-line);
-  background: #ffffff80;
+  background: #fff;
 }
 .app-content {
   width: 100%;
@@ -213,6 +213,10 @@
   height: 36px;
   font-size: 13px;
 }
+.app-search input::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
+}
 .app-search:focus-within {
   outline: 2px solid var(--color-leaf);
   outline-offset: 2px;
@@ -245,6 +249,18 @@
   color: var(--color-muted);
   font-size: 14px;
   line-height: 1.8;
+}
+.app-empty.library-empty {
+  padding: 24px;
+  text-align: left;
+}
+.library-empty h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.app-empty.library-empty > p {
+  margin: 6px 0 0;
+  line-height: 1.5;
 }
 .app-notice {
   padding: 13px 16px;
@@ -496,6 +512,24 @@
   cursor: grabbing;
   pointer-events: none;
   width: max-content;
+  animation: drag-lift 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes drag-lift {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .memory-drag-preview {
+    animation: none;
+  }
+  .drag-handle {
+    transition: none;
+  }
+  .drag-handle:active {
+    transform: none;
+  }
 }
 .memory-drag-preview > svg {
   flex-shrink: 0;
@@ -511,6 +545,11 @@
 }
 .memory-list-item[data-dragging] {
   opacity: 0.35;
+}
+/* A row with a request in flight dims while its controls lock; the row keeps
+   its space so the list never jumps while the request settles. */
+.memory-list-item[data-pending] > .memory-row {
+  opacity: 0.55;
 }
 .memory-list-item {
   transition: opacity 180ms ease;
@@ -650,6 +689,9 @@
   align-items: center;
   margin: 8px 0;
 }
+.library-caption[data-empty]:not(:has(> button)) {
+  margin: 0;
+}
 .library-scope {
   display: block;
   max-width: 160px;
@@ -757,6 +799,10 @@
   padding: 5px;
   border-radius: 5px;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 100ms ease;
   width: 30px;
   height: 32px;
 }
@@ -766,6 +812,7 @@
 }
 .drag-handle:active {
   cursor: grabbing;
+  transform: scale(0.92);
 }
 @media (hover: hover) and (pointer: fine) {
   .memory-row .drag-handle {
@@ -779,7 +826,8 @@
 .memory-row-content {
   min-width: 0;
 }
-.memory-open {
+.memory-open,
+.skeleton-note-open {
   display: block;
   width: 100%;
   text-align: left;
@@ -872,6 +920,12 @@
 }
 .selection-toolbar button:hover {
   background: #fffef9;
+}
+.selection-toolbar button.danger {
+  color: #833323;
+}
+.selection-toolbar button.danger:hover {
+  background: #f8e8e2;
 }
 .workspace-notice {
   position: fixed;
@@ -1141,15 +1195,6 @@
 .memory-markdown a {
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-.memory-markdown blockquote {
-  padding: 14px 18px;
-  background: var(--color-paper);
-  border-radius: 6px;
-  border: 0;
-}
-.memory-markdown blockquote > * + * {
-  margin-top: 10px;
 }
 .memory-markdown code {
   font-size: 0.86em;

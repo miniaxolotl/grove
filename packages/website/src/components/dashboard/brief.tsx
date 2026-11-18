@@ -114,7 +114,7 @@ export function BriefPanel({
       {brief?.status === "disabled" ? (
         <p className="mt-4 text-sm leading-7 text-muted">
           This summary is unavailable. Check your{" "}
-          <Link className="underline" href="/app/settings">
+          <Link className="underline" href="/app/settings/models">
             AI preferences
           </Link>
           .

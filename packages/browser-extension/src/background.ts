@@ -6,6 +6,7 @@ import {
 } from "@lib/shared/writing-assistance";
 import { GroveError } from "@lib/shared/contracts";
 import { webCaptureSchema } from "@lib/shared/web-capture";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { BrowserOAuth } from "./oauth.ts";
 import { ExtensionClient } from "./client.ts";
 import {
@@ -18,6 +19,7 @@ import {
   type MessageSender,
 } from "./webextension.ts";
 import { contextMenuCapture, openNativePanel, tabSource } from "./platform.ts";
+import { ensureGrace, readGrace } from "./grace.ts";
 import {
   WritingPreferencesStore,
   writingSettingsFor,
@@ -82,6 +84,7 @@ const request = z
       "takeInbox",
       "writingState",
       "writingConfigure",
+      "grace",
     ]),
     windowId: z.number().int().nonnegative(),
     accountId: z.uuid().optional(),
@@ -90,12 +93,12 @@ const request = z
   })
   .strict();
 const sourceInput = z.object({
-  text: z.string().max(6000),
+  text: z.string().max(NOTE_CONTENT_MAX),
   source: webCaptureSchema,
 });
 const edit = z
   .object({
-    text: z.string().max(6000).optional(),
+    text: z.string().max(NOTE_CONTENT_MAX).optional(),
     projectId: z.uuid().nullable().optional(),
     source: webCaptureSchema.nullable().optional(),
   })
@@ -112,7 +115,7 @@ async function inbox(id: number) {
   const schema = z.array(
     z.object({
       id: z.uuid(),
-      text: z.string().max(6000),
+      text: z.string().max(NOTE_CONTENT_MAX),
       source: webCaptureSchema,
       createdAt: z.number(),
       accountId: z.uuid().nullable(),
@@ -137,6 +140,8 @@ async function dispatch(raw: unknown) {
   const message = request.parse(raw),
     id = message.windowId;
   if (message.kind === "preferences") return preferences();
+  if (message.kind === "grace")
+    return readGrace(host.storage.local, host.storage.sync);
   if (message.kind === "writingState" || message.kind === "writingConfigure") {
     const identity = (await session.get("identity")) as
       | { accountId: string; connectionId: string }
@@ -304,7 +309,7 @@ async function localWriting(raw: unknown) {
       connectionId: z.uuid(),
       payload: z
         .object({
-          text: z.string().max(6000).optional(),
+          text: z.string().max(NOTE_CONTENT_MAX).optional(),
           word: z.string().max(24).optional(),
         })
         .strict(),
@@ -362,7 +367,7 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
       ]),
       payload: z
         .object({
-          text: z.string().max(6000).optional(),
+          text: z.string().max(NOTE_CONTENT_MAX).optional(),
           word: z.string().max(80).optional(),
         })
         .strict()
@@ -791,6 +796,9 @@ async function recordEntryError(id: number, message: string) {
   await session.set(`entryError:${id}`, message);
 }
 host.runtime.onInstalled.addListener(() => {
+  void serial(() => ensureGrace(host.storage.local, host.storage.sync)).catch(
+    () => {},
+  );
   void serial(async () => {
     await syncWritingSites();
     for (const tab of await host.tabs.query({}))

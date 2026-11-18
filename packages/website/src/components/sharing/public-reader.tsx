@@ -51,14 +51,17 @@ export function PublicReader({
       )}
       <header className="shared-heading">
         <h1 id={titleHeading?.id}>{title || "Untitled note"}</h1>
-        {data.note && (
-          <p className="shared-date">
-            Updated{" "}
-            <time dateTime={data.note.updatedAt}>
-              {dateFormat.format(new Date(data.note.updatedAt))}
-            </time>
-          </p>
-        )}
+        <div className="shared-heading-details">
+          <span>{data.note ? "Shared note" : "Shared notebook"}</span>
+          {data.note && (
+            <span>
+              Updated{" "}
+              <time dateTime={data.note.updatedAt}>
+                {dateFormat.format(new Date(data.note.updatedAt))}
+              </time>
+            </span>
+          )}
+        </div>
       </header>
       {data.note ? (
         <Markdown
@@ -76,7 +79,7 @@ export function PublicReader({
         <>
           {!!data.notebooks.length && (
             <nav className="shared-notebooks" aria-label="Sub-notebooks">
-              <h2>Notebooks</h2>
+              <h2>Sub-notebooks</h2>
               <ul>
                 {data.notebooks.map((notebook) => (
                   <li key={notebook.id}>

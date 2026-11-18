@@ -12,6 +12,7 @@ import type {
 import { Dialog, useDialogBusy } from "./dialog";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useNoteDraftRevision, useNoteDrafts } from "./note-drafts";
+import { useToast } from "./toasts";
 import { Button } from "./ui/button";
 import { LoadError } from "./load-error";
 
@@ -57,6 +58,7 @@ function NotebookLifecycleForm({
   const operationId = useRef(crypto.randomUUID());
   const setDialogBusy = useDialogBusy();
   const router = useRouter();
+  const toast = useToast();
   const drafts = useNoteDrafts();
   useNoteDraftRevision();
   // Freeze what the user actually reviews. Background refresh never widens consent.
@@ -101,26 +103,32 @@ function NotebookLifecycleForm({
         setBusy(true);
         setDialogBusy(true);
         setError("");
+        // Instant patch first: the notebooks leave immediately, then the
+        // request settles. Consent is the reviewed preview above.
+        const staged = cache.stage({ scopes: reviewed.projectIds });
+        cache.applyNotebookLifecycle(action, reviewed.projectIds);
+        close();
+        router.push(
+          action === "archive"
+            ? "/app/projects?status=archived"
+            : "/app/projects",
+        );
         try {
           await cache.api(`/projects/${project.id}/${action}`, {
             operationId: operationId.current,
             expectedVersion: reviewed.project.version,
             fingerprint: reviewed.fingerprint,
           });
-          close();
-          router.push(
-            action === "archive"
-              ? "/app/projects?status=archived"
-              : "/app/projects",
-          );
+          staged.commit();
         } catch (e) {
-          setError(errorMessage(e));
+          // The notebooks snap back; the failure is reported persistently.
+          staged.rollback();
+          toast(errorMessage(e), true);
           if (
             e instanceof DashboardApiError &&
             ["version_conflict", "notebook_inactive"].includes(e.code)
           )
             setConflict(true);
-        } finally {
           setBusy(false);
           setDialogBusy(false);
         }

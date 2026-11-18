@@ -49,7 +49,7 @@ export function MemoryPreview() {
     >
       <div className="notebook-preview-bar">
         <span>
-          <GroveMark className="size-5" /> Your Grove
+          <GroveMark className="size-5" /> Example notebook
         </span>
         <span>
           <LockKeyhole size={13} aria-hidden="true" /> Private

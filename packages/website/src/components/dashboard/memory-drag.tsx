@@ -6,6 +6,7 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -21,6 +22,7 @@ import {
   useDroppable,
   useDraggable,
   pointerWithin,
+  defaultDropAnimationSideEffects,
   type KeyboardCoordinateGetter,
   type Modifier,
 } from "@dnd-kit/core";
@@ -34,7 +36,7 @@ import {
 } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
 import { errorMessage, type Project } from "@/lib/dashboard-api";
-import { useWorkspaceApi } from "./workspace-cache";
+import { useWorkspaceApi, useWorkspaceCache } from "./workspace-cache";
 import { memoryTitle, moveMemoryInput } from "@/lib/memory-display";
 import { notebookPath, notebookOptions } from "@/lib/notebooks";
 import { useNotebooks } from "./notebooks-provider";
@@ -106,6 +108,25 @@ function cancelDrag() {
       bubbles: true,
     }),
   );
+}
+const reducedMotion = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function subscribeReducedMotion(update: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", update);
+  return () => media.removeEventListener("change", update);
+}
+function pickupFeedback(activatorEvent: Event) {
+  if (
+    activatorEvent.type !== "touchstart" &&
+    !(
+      activatorEvent instanceof PointerEvent &&
+      activatorEvent.pointerType === "touch"
+    )
+  )
+    return;
+  // Confirm the hold lifted the item; ignored where unsupported.
+  if ("vibrate" in navigator) navigator.vibrate(10);
 }
 const previewOffset: Modifier = ({
   transform,
@@ -225,6 +246,7 @@ const destinationCoordinates: KeyboardCoordinateGetter = (
 /** One drag surface spans navigation, notes and notebook organization. */
 export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const api = useWorkspaceApi();
+  const cache = useWorkspaceCache();
   const notebooks = useNotebooks();
   const path = usePathname();
   const origin = useRef<{ path: string; source: Element | null } | null>(null);
@@ -237,6 +259,20 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const [failures, setFailures] = useState<string[]>([]);
   const [undo, setUndo] = useState<Undo[]>([]);
   const operations = useRef(new Map<string, string>());
+  const reduced = useSyncExternalStore(
+    subscribeReducedMotion,
+    reducedMotion,
+    () => false,
+  );
+  const dropAnimation = reduced
+    ? null
+    : {
+        duration: 160,
+        easing: "cubic-bezier(0.2, 0, 0, 1)",
+        sideEffects: defaultDropAnimationSideEffects({
+          styles: { active: { opacity: "0.45" } },
+        }),
+      };
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
@@ -300,11 +336,21 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
     setNotice("");
     setFailures([]);
     setUndo([]);
+    const moved = item.items
+      .filter((note) => note.projectId !== destination)
+      .slice(0, 50);
+    // Instant patch first: the rows jump to the destination notebook immediately.
+    cache.applyNoteRecords(
+      new Map(
+        moved.map((note) => [
+          note.id,
+          { ...note, projectId: destination, version: note.version + 1 },
+        ]),
+      ),
+    );
     const completed: Undo[] = [];
     const errors: string[] = [];
-    for (const before of item.items
-      .filter((note) => note.projectId !== destination)
-      .slice(0, 50)) {
+    for (const before of moved) {
       try {
         completed.push({
           kind: "notes",
@@ -312,6 +358,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           after: await moveNote(before, destination),
         });
       } catch (error) {
+        cache.restoreNoteRecords(new Map([[before.id, before]]));
         errors.push(`${memoryTitle(before)}: ${errorMessage(error)}`);
       }
     }
@@ -416,6 +463,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         onDragStart={({ active, activatorEvent }) => {
           setKeyboard(activatorEvent.type === "keydown");
           pickingUp.current = true;
+          pickupFeedback(activatorEvent);
           if (!working.current) {
             origin.current = {
               path,
@@ -476,7 +524,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           </div>
         )}
         <DragOverlay
-          dropAnimation={null}
+          dropAnimation={dropAnimation}
           modifiers={[previewOffset]}
           style={{ width: "max-content" }}
         >
