@@ -175,8 +175,23 @@ an uncertain save first. A concurrent edit requires review, never unseen deletio
 
 ## Daily writing and personal details
 
-**Today’s note** is an ordinary dated note in the current notebook. **Filters →
-Sort notes → Date written** groups notes by day; there is no separate journal store.
+**Today’s note** opens one ordinary note per account and local calendar date,
+regardless of the notebook you open it from. Nothing is created until the first
+save, which uses the selected notebook by default. Older notes with similar
+titles aren’t linked automatically. Editing or moving the note leaves its daily
+identity intact; an archived note opens in its archived view, and deleting it
+does not free the date for a replacement. A draft stays on the date it was opened
+for, even past midnight; open **Today’s note** again for the new day. Devices in
+different time zones can show different dates at the same instant.
+
+**Filters → Sort notes → Date written** groups ordinary notes by when they were
+created; there is no separate journal store. The legacy `/app/journal` URL still
+opens this sorted view.
+
+Self-hosted rollout requires the `20261117_042_daily_notes` migration before
+the updated app. `tests/src/daily-note.test.ts` exercises isolation, first-save
+races and lifecycle against disposable PostgreSQL; `daily-note.spec.ts` covers
+workspace entry and midnight behavior with synthetic browser fixtures.
 **Progress notes** are handoffs whose references survive editing/moving. **Settings →
 Account → About you** records preferences and things you want Grove to know.
 

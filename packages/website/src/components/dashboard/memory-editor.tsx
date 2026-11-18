@@ -17,7 +17,8 @@ import {
   Save,
   Download,
 } from "lucide-react";
-import type { Memory } from "@lib/shared/contracts";
+import Link from "next/link";
+import type { DailyNote, Memory } from "@lib/shared/contracts";
 import { sourceEditsBetween } from "@lib/shared/document-edits";
 import {
   DashboardApiError,
@@ -79,6 +80,7 @@ export function MemoryEditor({
   projectId: defaultProject = null,
   initialKind = "fact",
   initialContent = "",
+  dailyDate,
   guidance,
   personal = false,
   fullPage = false,
@@ -100,6 +102,7 @@ export function MemoryEditor({
   projectId?: string | null;
   initialKind?: Memory["kind"];
   initialContent?: string;
+  dailyDate?: string;
   guidance?: string;
   personal?: boolean;
   fullPage?: boolean;
@@ -138,6 +141,7 @@ export function MemoryEditor({
         ?.focus({ preventScroll: true });
   }, []);
   const [preview, setPreview] = useState(initialPreview);
+  const [dailyConflictId, setDailyConflictId] = useState<string>();
   const api = useWorkspaceApi();
   const [draft] = useState(() =>
     draftKey ? drafts?.get(draftKey) : undefined,
@@ -384,6 +388,21 @@ export function MemoryEditor({
         setError(errorMessage(e));
         if (
           e instanceof DashboardApiError &&
+          e.code === "daily_note_exists" &&
+          dailyDate
+        ) {
+          try {
+            const existing = await api<DailyNote>(
+              `/memories/daily/${dailyDate}`,
+            );
+            if (active() && existing.state === "saved")
+              setDailyConflictId(existing.id);
+          } catch {
+            // The original draft and error remain visible if lookup fails.
+          }
+        }
+        if (
+          e instanceof DashboardApiError &&
           e.code === "version_conflict" &&
           base
         ) {
@@ -491,10 +510,13 @@ export function MemoryEditor({
       };
       submitted.current = { content, kind, retention, autoKind, projectId };
     }
-    const request = api<Memory>("/memories", {
-      ...input,
-      operationId: pending.current.operationId,
-    });
+    const request = api<Memory>(
+      !base && dailyDate ? `/memories/daily/${dailyDate}` : "/memories",
+      {
+        ...input,
+        operationId: pending.current.operationId,
+      },
+    );
     setSaving(request);
     if (draftKey)
       drafts?.set(draftKey, {
@@ -1009,6 +1031,17 @@ export function MemoryEditor({
           {error && (
             <p role="alert" className="app-error note-save-error">
               {error}
+              {dailyConflictId && (
+                <>
+                  {" "}
+                  <Link
+                    className="underline"
+                    href={`/app/memories/${encodeURIComponent(dailyConflictId)}?mode=edit&from=journal`}
+                  >
+                    Open saved daily note
+                  </Link>
+                </>
+              )}
             </p>
           )}
           {!pageView && (

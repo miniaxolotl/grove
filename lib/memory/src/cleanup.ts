@@ -74,13 +74,21 @@ export function cleanupHandlers(
         signal.throwIfAborted();
         // ctid is used only within this transaction; some scratch tables have
         // composite keys. Authored tables intercept DELETE with tombstones.
-        const rows = await trx(table)
-          .select(trx.raw("ctid::text AS row_id"))
-          .limit(batchSize);
-        if (rows.length)
-          await trx(table)
-            .whereRaw("ctid=ANY(?::tid[])", [rows.map((row) => row.rowId)])
-            .delete();
+        const deleteBatch = async (target: string) => {
+          const rows = await trx(target)
+            .select(trx.raw("ctid::text AS row_id"))
+            .limit(batchSize);
+          if (rows.length)
+            await trx(target)
+              .whereRaw("ctid=ANY(?::tid[])", [rows.map((row) => row.rowId)])
+              .delete();
+          return rows.length;
+        };
+        const count = await deleteBatch(table);
+        // Extend the last stage without renumbering persisted task cursors or
+        // adding an extra checkpoint for accounts with no daily bindings.
+        const daily =
+          table === "notebook_expiries" ? await deleteBatch("daily_notes") : 0;
         // Extend the existing usage stage without shifting durable task cursors.
         const research =
           table === "inference_usage"
@@ -99,14 +107,15 @@ export function cleanupHandlers(
         return {
           cursor: {
             stage:
-              rows.length === batchSize ||
+              count === batchSize ||
+              daily === batchSize ||
               research.length === batchSize ||
               cache === batchSize
                 ? stage
                 : stage + 1,
           },
           processed:
-            Number(task.processed) + rows.length + research.length + cache,
+            Number(task.processed) + count + daily + research.length + cache,
         };
       });
       return;

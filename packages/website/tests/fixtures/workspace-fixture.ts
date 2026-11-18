@@ -85,7 +85,11 @@ export const handoff: Memory = {
     tags: ["frontend"],
   },
 };
-export async function fixture(page: Page, initial = [note, handoff]) {
+export async function fixture(
+  page: Page,
+  initial = [note, handoff],
+  dailyNotes = new Map<string, string>(),
+) {
   const revisionGroups = new Map<
     string,
     {
@@ -186,6 +190,10 @@ export async function fixture(page: Page, initial = [note, handoff]) {
   await page.route("**/api/grove/**", async (route) => {
     const request = route.request();
     const path = fixturePath(request.url()).replace("/api/grove", "");
+    const dailyDate = /^\/memories\/daily\/(\d{4}-\d{2}-\d{2})$/.exec(
+      path,
+    )?.[1];
+    const dailyId = dailyDate && dailyNotes.get(dailyDate);
     const body = request.postDataJSON();
     calls.push({ path, body });
     let data: unknown;
@@ -488,12 +496,37 @@ export async function fixture(page: Page, initial = [note, handoff]) {
           return { id: item.id, outcome: "deleted" };
         }),
       };
-    } else if (path === "/memories" || /^\/memories\/[^/]+\/edit$/.test(path)) {
+    } else if (dailyDate && request.method() === "GET") {
+      data = !dailyId
+        ? { state: "empty" }
+        : records.has(dailyId)
+          ? { state: "saved", id: dailyId }
+          : { state: "deleted" };
+    } else if (
+      dailyDate ||
+      path === "/memories" ||
+      /^\/memories\/[^/]+\/edit$/.test(path)
+    ) {
       const replay = noteReceipts.get(body.operationId);
       if (replay) {
-        if (replay.input !== JSON.stringify(body)) return conflict();
+        if (replay.input !== JSON.stringify([path, body])) return conflict();
         return route.fulfill({
           json: { success: true, data: records.get(replay.id) },
+        });
+      }
+      if (dailyId) {
+        const exists = records.has(dailyId);
+        return route.fulfill({
+          status: exists ? 409 : 410,
+          json: {
+            success: false,
+            error: {
+              code: exists ? "daily_note_exists" : "daily_note_deleted",
+              message: exists
+                ? "A daily note was already saved for this date."
+                : "The daily note for this date was deleted.",
+            },
+          },
         });
       }
       if (body.id && records.get(body.id)?.version !== body.expectedVersion)
@@ -538,8 +571,9 @@ export async function fixture(page: Page, initial = [note, handoff]) {
         enrichment: undefined,
       };
       records.set(saved.id, saved);
+      if (dailyDate) dailyNotes.set(dailyDate, saved.id);
       noteReceipts.set(input.operationId, {
-        input: JSON.stringify(body),
+        input: JSON.stringify([path, body]),
         id: saved.id,
       });
       const history = revisions.get(saved.id) ?? [];
@@ -642,5 +676,5 @@ export async function fixture(page: Page, initial = [note, handoff]) {
       },
     });
   });
-  return { records, calls, projects, chats, pairs, revisions };
+  return { records, calls, projects, chats, pairs, revisions, dailyNotes };
 }
