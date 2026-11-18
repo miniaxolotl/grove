@@ -22,7 +22,8 @@ placement control; apply it explicitly before confirmation.
    such as UTF-8 BOM and original line endings; extracted text normalizes line endings.
 3. Exclude unwanted notes, edit their content and choose destinations. Save or
    discard local edits before opening Files & storage, cancelling the import,
-   or closing the dialog. Unsaved local edits
+   or closing the dialog. **Return to edit** at the top or bottom of the review
+   opens and focuses the first note with unsaved edits. Unsaved local edits
    are not persisted across a browser crash; successfully saved previews are.
 4. Optionally choose **Suggest organization**. This uses the existing generation
    provider, notebook-filing preference and generation allowance. Suggestions may
