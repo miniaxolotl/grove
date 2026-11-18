@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { connection } from "next/server";
 import { Installation } from "@/components/installation";
+import { ExtensionStoreLinks } from "@/components/extension-store-links";
 import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
 
@@ -23,14 +24,18 @@ export default async function InstallPage() {
         </p>
         <nav className="setup-jump" aria-label="Setup options">
           <a href="#ai-tools">AI tool setup</a>
-          <a href="#extension-heading">Browser extension setup</a>
+          <a href="#browser-extension">Browser extension setup</a>
         </nav>
       </header>
       <section aria-labelledby="ai-tools" className="setup-tools">
         <h2 id="ai-tools">Connect an AI tool</h2>
         <Installation />
       </section>
-      <section className="setup-reference" aria-labelledby="extension-heading">
+      <section
+        id="browser-extension"
+        className="setup-reference"
+        aria-labelledby="extension-heading"
+      >
         <h2
           id="extension-heading"
           className="text-xl font-semibold tracking-tight"
@@ -42,35 +47,24 @@ export default async function InstallPage() {
           Sign in to save and search notes. Optional sentence rewrites require
           your consent.
         </p>
+        <ExtensionStoreLinks />
         <p className="mt-2 max-w-2xl text-sm leading-7">
-          Install Grove from the Firefox or Edge store. For Chrome, follow the
-          extension setup guide to load the unsigned package. The guide also
-          covers local installation in Firefox and Edge.
+          To install locally in Chrome, download the{" "}
+          <a
+            className="underline"
+            href="https://github.com/miniaxolotl/grove/releases/download/v1.11.21/grove-chrome.zip"
+          >
+            unsigned Chrome ZIP (v1.11.21)
+          </a>{" "}
+          and follow the{" "}
+          <a
+            className="underline"
+            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md"
+          >
+            extension setup guide
+          </a>
+          .
         </p>
-        <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2">
-          {[
-            {
-              label: "Firefox Add-ons",
-              href: "https://addons.mozilla.org/en-US/firefox/addon/grove-private-notes/",
-            },
-            {
-              label: "Microsoft Edge Add-ons",
-              href: "https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo",
-            },
-            {
-              label: "Extension setup guide",
-              href: "https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md",
-            },
-          ].map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
-            >
-              {label} <ArrowUpRight size={14} />
-            </a>
-          ))}
-        </div>
       </section>
       <section className="setup-reference" aria-labelledby="next-heading">
         <h2 id="next-heading" className="text-xl font-medium tracking-tight">

@@ -76,8 +76,10 @@ pricing page deliberately has no decorative media or scroll animation. The maint
 separate writing, approval, activation and save/recall verification. Evidence is local source/fixture qualification,
 not billing activation, provider evaluation or production deployment.
 
-The [extension install options](extension-install-options.png) capture shows the
-Firefox and Edge store links beside the unsigned package guide on `/install`.
-Captured from the local website build with the install-copy fix based on
-`3001fd90`, signed out in Chromium at 1024 × 768, cropped to the extension
-section. It shows the available paths, not a completed browser installation.
+The [Install section](extension-install-options.png) shows all three store links,
+the Chrome availability label and the separate unsigned ZIP. The [Connections
+section](extension-connections-390.png) shows the same links in Settings.
+Captured from the local website build and synthetic signed-in fixture based on
+`40815f99`, cropped to the extension sections: Chromium at 1280 × 800 with an
+Edge desktop identity and at 390 × 844 with a mobile identity. The captures
+show link discovery, not installation or native browser acceptance.

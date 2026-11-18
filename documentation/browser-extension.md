@@ -1,8 +1,13 @@
 # Browser extension
 
-Install Grove from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/grove-private-notes/)
+Install Grove from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
 or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
-For Chrome, use the unsigned local package described below. Local packages are
+The [Chrome Web Store item](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa)
+is not yet publicly available. For local setup, download the unsigned Chrome ZIP
+from the [install page](https://usegrove.cloud/install#browser-extension) or build from source.
+Install and Settings → Connections show all three official items. On a recognized
+desktop browser the matching link is marked **Your browser**; this does not change
+its availability or redirect you. Local packages are
 also available for Firefox and Edge. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 
@@ -29,7 +34,7 @@ Download availability alone is not server rollout or signing acceptance; see
 [release downloads](release-conventions.md#release-downloads).
 
 - **Chrome:** open `chrome://extensions`, enable Developer mode, choose **Load
-  unpacked** and select the extracted `chrome/` directory.
+  unpacked** and select the directory containing the extracted `manifest.json`.
 - **Edge:** open `edge://extensions`, enable Developer mode, choose **Load unpacked**
   and select the extracted `edge/` directory.
 - **Firefox:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary

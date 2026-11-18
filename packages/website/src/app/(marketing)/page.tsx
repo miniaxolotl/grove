@@ -73,7 +73,7 @@ export default async function HomePage() {
                 </Link>
               </li>
               <li>
-                <Link href="/install#extension-heading" className="text-link">
+                <Link href="/install#browser-extension" className="text-link">
                   Browser extension setup
                 </Link>
               </li>
