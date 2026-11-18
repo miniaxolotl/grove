@@ -7,6 +7,9 @@ after a typing pause, and saving never waits for them.
 
 ## Reviewing suggestions
 
+On the guest checker, you can start typing while the page loads. Once the
+checker is ready, choose **Check writing** without having to edit the text again.
+
 - Spelling issues use a red wavy underline; grammar uses a dotted green one.
   Color is never the only signal: every issue opens the same short explanation.
 - Click an underline, or press **Alt+Enter** for the full list. The compact card

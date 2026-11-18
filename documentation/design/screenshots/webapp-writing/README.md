@@ -38,3 +38,13 @@ Ctrl/Cmd+Z restores the original; All-issues navigation; disabling Spelling
 removes only spelling underlines while grammar remains; the
 `data-grove-native-writing` marker is present so the installed extension
 stands down on Grove pages.
+
+## Typing while the guest checker loads
+
+![The guest checker has checked the draft entered before JavaScript loaded](guest-writing-hydration-390.png)
+
+Local Next.js production build of `fix/guest-writing-hydration`, Playwright Chromium,
+390 × 844. `guest-writing-hydration.spec.ts` holds the page scripts, enters
+“The notebook is ready.”, releases the scripts and checks the draft without a
+second edit. The screenshot shows the resulting status. This verifies simulated
+slow loading on a local build, not physical-device or live-site performance.
