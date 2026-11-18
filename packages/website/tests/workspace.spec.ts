@@ -2962,6 +2962,41 @@ test("notebook context and graph share evidence, show partial coverage and offer
   await expect(listTrigger).toBeFocused();
 });
 
+test("a selected graph notebook follows catalog renames and removal", async ({
+  page,
+}, info) => {
+  await page.clock.install();
+  const state = await fixture(page);
+  const selected = {
+    ...project,
+    id: crypto.randomUUID(),
+    name: "Field journal",
+  };
+  state.projects.push(selected);
+  await page.goto(`${base}/app/graph`);
+  await page
+    .getByRole("navigation", { name: "Connection level" })
+    .getByRole("button", { name: "Notebooks" })
+    .click();
+  const node = page.locator(`.react-flow__node[data-id="${selected.id}"]`);
+  await node.press("Space");
+  const inspector = page.getByRole("complementary", {
+    name: "Selected notebook",
+  });
+  await expect(inspector.getByRole("heading")).toHaveText(selected.name);
+  selected.name = "Autumn field journal";
+  await page.clock.fastForward(61_000);
+  await expect(node).toHaveText(selected.name);
+  await expect(inspector.getByRole("heading")).toHaveText(selected.name);
+  await page.screenshot({
+    path: info.outputPath("refreshed-notebook-selection.png"),
+  });
+  state.projects.splice(state.projects.indexOf(selected), 1);
+  await page.clock.fastForward(61_000);
+  await expect(node).toHaveCount(0);
+  await expect(inspector).toHaveCount(0);
+});
+
 test("connections recover from failed processing, paginate, and reject stale review and comparison", async ({
   page,
 }) => {

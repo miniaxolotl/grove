@@ -21,7 +21,9 @@ placement control; apply it explicitly before confirmation.
    limit. No summary replaces the extracted text. Original bytes preserve material
    such as UTF-8 BOM and original line endings; extracted text normalizes line endings.
 3. Exclude unwanted notes, edit their content and choose destinations. Save or
-   discard local edits before continuing or closing the dialog. Unsaved local edits
+   discard local edits before opening Files & storage, cancelling the import,
+   or closing the dialog. **Return to edit** at the top or bottom of the review
+   opens and focuses the first note with unsaved edits. Unsaved local edits
    are not persisted across a browser crash; successfully saved previews are.
 4. Optionally choose **Suggest organization**. This uses the existing generation
    provider, notebook-filing preference and generation allowance. Suggestions may
@@ -29,7 +31,8 @@ placement control; apply it explicitly before confirmation.
    notebook evidence. They change only review drafts, not the library. Manual import
    works without AI. Suggestions do not run external research or rewrite content.
 5. Review the sharing notice, check the confirmation and choose **Confirm import**.
-   New notebooks are created only with their first imported note. Existing notes
+   New notebooks appear in the notebook sidebar when the import reports its first
+   saved note in that notebook; no page reload is needed. Existing notes
    are never silently merged or overwritten. New names are explicitly new notebooks,
    even when another notebook has the same display name. If the review changes
    in another tab, confirm the updated version again.

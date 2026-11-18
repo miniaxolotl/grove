@@ -25,6 +25,7 @@ if (!environment.groveWritingInstalled) {
   let tools = unavailableWriting,
     binding: string | null = null;
   const badge = document.createElement("button");
+  const nativeMarker = "data-grove-native-writing";
   badge.type = "button";
   badge.hidden = true;
   badge.dataset.groveWritingUi = "true";
@@ -93,10 +94,8 @@ if (!environment.groveWritingInstalled) {
     // First-party Grove pages with native proofing own their editor: never
     // inject a second writer there. The webapp sets this marker while its
     // own proofing is mounted and enabled.
-    if (
-      document.documentElement.hasAttribute("data-grove-native-writing")
-    ) {
-      if (element !== badge) detach();
+    if (document.documentElement.hasAttribute(nativeMarker)) {
+      detach();
       return;
     }
     // Check metadata BEFORE reading .value. All inputs and unqualified rich editors
@@ -185,13 +184,24 @@ if (!environment.groveWritingInstalled) {
       return;
     bind(event.target);
   });
-  const changes = new MutationObserver(() => {
+  const changes = new MutationObserver((records) => {
+    if (
+      records.some(
+        (record) =>
+          record.target === document.documentElement &&
+          record.attributeName === nativeMarker,
+      )
+    ) {
+      bind(document.activeElement);
+      return;
+    }
     if (active && (!settings.enabled || !isWritingEditor(active))) detach();
   });
   const observation: MutationObserverInit = {
     subtree: true,
     attributes: true,
     attributeFilter: [
+      nativeMarker,
       "type",
       "autocomplete",
       "readonly",

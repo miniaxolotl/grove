@@ -1,21 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  englishMessages,
   writingSettingsSchema,
   type WritingResult,
 } from "@lib/shared/writing-settings";
-import { loadEnglishDictionary } from "@/lib/writing/dictionary";
+import { loadWritingChecker } from "@/lib/writing/dictionary";
 import { NATIVE_WRITING_ATTRIBUTE } from "@/lib/writing/settings";
 
 export function GuestWritingCheck() {
   const [text, setText] = useState("");
+  // Native edits made before hydration never reached the change handler.
+  const adoptDraft = useCallback((input: HTMLTextAreaElement | null) => {
+    if (input) setText(input.value);
+  }, []);
   const [result, setResult] = useState<WritingResult>();
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
-  const checker = useRef<Promise<
-    ReturnType<typeof import("@lib/shared/writing-core").createEnglishChecker>
-  > | null>(null);
+  const checker = useRef<ReturnType<typeof loadWritingChecker> | null>(null);
   useEffect(() => {
     document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, "true");
     return () =>
@@ -31,12 +34,7 @@ export function GuestWritingCheck() {
         setBusy(true);
         setError(false);
         try {
-          checker.current ??= Promise.all([
-            import("@lib/shared/writing-core"),
-            loadEnglishDictionary(),
-          ]).then(([{ createEnglishChecker }, dictionary]) =>
-            createEnglishChecker(dictionary),
-          );
+          checker.current ??= loadWritingChecker();
           const engine = await checker.current;
           setResult(engine.check(text, writingSettingsSchema.parse({})));
         } catch {
@@ -49,6 +47,7 @@ export function GuestWritingCheck() {
     >
       <label htmlFor="guest-writing-text">English text</label>
       <textarea
+        ref={adoptDraft}
         id="guest-writing-text"
         rows={6}
         maxLength={6000}
@@ -65,7 +64,8 @@ export function GuestWritingCheck() {
       <button
         type="submit"
         className="button-primary"
-        disabled={busy || !text.trim()}
+        disabled={!text.trim()}
+        aria-disabled={busy || undefined}
       >
         {busy ? "Checking…" : "Check writing"}
       </button>
@@ -83,10 +83,32 @@ export function GuestWritingCheck() {
       {!!result?.issues.length && (
         <ul aria-label="Writing suggestions">
           {result.issues.map((issue) => (
-            <li key={issue.id}>{issue.message}</li>
+            <li key={issue.id}>
+              <strong>{issueExcerpt(issue, text)}</strong>{" "}
+              {englishMessages[issue.message]}
+            </li>
           ))}
         </ul>
       )}
     </form>
   );
+}
+
+function quoteExcerpt(text: string) {
+  const characters = Array.from(text.replace(/\s+/gu, " "));
+  return `“${characters.length > 36 ? characters.slice(0, 36).join("") + "…" : characters.join("")}”`;
+}
+
+function issueExcerpt(issue: WritingResult["issues"][number], text: string) {
+  if (issue.original.trim()) return quoteExcerpt(issue.original);
+  // Spacing checks cover either a run of spaces or a zero-length insertion.
+  const spaces = issue.original.length;
+  const gap =
+    spaces === 0
+      ? "Missing space"
+      : spaces === 1
+        ? "Space"
+        : `${spaces} spaces`;
+  const next = text.slice(issue.to).match(/^[\p{L}\p{M}]+|^\S+/u)?.[0];
+  return next ? `${gap} before ${quoteExcerpt(next)}` : gap;
 }

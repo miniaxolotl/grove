@@ -1,3 +1,7 @@
+import {
+  WebsiteSpeedInsights,
+  WebsiteVercelAnalytics,
+} from "@/components/website-speed-insights";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { site } from "@/lib/site";
@@ -104,6 +108,12 @@ export default function RootLayout({
         />
       </head>
       <body id="top" className={mono.variable}>
+        {process.env.VERCEL_ENV === "production" && (
+          <>
+            <WebsiteSpeedInsights />
+            <WebsiteVercelAnalytics />
+          </>
+        )}
         <WebsiteTelemetry />
         <WebsiteCookieConsent />
         <WebsiteTagManager />

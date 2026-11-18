@@ -331,6 +331,12 @@ async function main() {
       "invalid_client",
       "Choose cli, opencode, claude or codex",
     );
+  const installAgent = command === "init" ? agent : undefined;
+  if (installAgent === "cli")
+    throw new GroveError(
+      "choose_client",
+      "Choose --client opencode, claude or codex to install",
+    );
   if (command === "mcp") {
     if (!values.stdio)
       throw new GroveError("invalid_command", "Use grove mcp --stdio");
@@ -389,14 +395,9 @@ async function main() {
       console.log(
         "Approve this client and choose its project/personal access in the Grove Connections page.",
       );
-    if (command === "init") {
-      if (agent === "cli")
-        throw new GroveError(
-          "choose_client",
-          "Choose --client opencode, claude or codex to install",
-        );
-      await installIntegration(agent);
-      console.error(activationInstructions(agent).message);
+    if (installAgent) {
+      await installIntegration(installAgent);
+      console.error(activationInstructions(installAgent).message);
       if (me.capabilities.includes("memory:read"))
         console.log(
           JSON.stringify({

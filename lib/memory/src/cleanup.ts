@@ -147,8 +147,8 @@ export function cleanupHandlers(
   const retention_cleanup: TaskHandler = async (task, signal) => {
     await taskTransaction(db, task, async (trx) => {
       signal.throwIfAborted();
-      await expireDocumentDrafts(trx);
-      await expireConversationDocuments(trx);
+      const drafts = await expireDocumentDrafts(trx);
+      const uploads = await expireConversationDocuments(trx);
       const writingExpired = await expireWriting(trx);
       const expired = await trx("memories")
         .where("purgeAt", "<=", trx.fn.now())
@@ -177,8 +177,15 @@ export function cleanupHandlers(
       const cache = await pruneCache(trx, true);
       return {
         processed:
-          Number(task.processed) + expired.length + cache + writingExpired,
+          Number(task.processed) +
+          expired.length +
+          cache +
+          writingExpired +
+          drafts.processed +
+          uploads.processed,
         complete:
+          !drafts.fullPage &&
+          !uploads.fullPage &&
           expired.length < batchSize &&
           buckets.length < batchSize &&
           writingExpired < batchSize &&

@@ -13,6 +13,7 @@ import { useWorkspaceApi, useWorkspaceCache } from "./workspace-cache";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { AgentSetup } from "@/components/installation";
+import { ExtensionStoreLinks } from "@/components/extension-store-links";
 import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { useNotebooks } from "./notebooks-provider";
@@ -127,6 +128,12 @@ export function Connections({ origin }: { origin: string }) {
       <p className="settings-section-description">
         Choose which notes each connection can read, save or delete.
       </p>
+      <section className="mb-4" aria-labelledby="get-browser-extension">
+        <h3 id="get-browser-extension" className="text-sm font-semibold">
+          Get the browser extension
+        </h3>
+        <ExtensionStoreLinks />
+      </section>
       <details className="connection-setup">
         <summary>
           <Plug size={17} />

@@ -90,7 +90,6 @@ test("native sharing upgrade leaves existing grants off and preserves retained l
     );
     assert.equal((await runtime("connections")).length, 0);
     assert.equal((await runtime("public_shares")).length, 0);
-    await probeDatabase(runtime);
     assert.equal(
       (
         await tenant(runtime, accountId, (trx) =>
@@ -99,6 +98,10 @@ test("native sharing upgrade leaves existing grants off and preserves retained l
       ).sharingEnabled,
       false,
     );
+    // 039 is sufficient for the sharing assertions above; readiness describes
+    // the current runtime, not the historical sharing-only schema.
+    await owner.migrate.latest();
+    await probeDatabase(runtime);
   } finally {
     await Promise.all([owner.destroy(), runtime.destroy()]);
     if (created) await admin.raw("DROP DATABASE ??", [name]);

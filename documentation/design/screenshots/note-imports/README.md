@@ -1,5 +1,10 @@
 # Note and PDF import review
 
+[Notes immediately after import (1440×1000)](imported-notebook.png) shows the
+new Gardening notebook beside Research and both imported notes. Captured in
+Chromium using synthetic import responses and production CSS from `3001fd90`
+with the catalog refresh fix; this does not exercise extraction or a live worker.
+
 The **17 November 2026** Settings and import confirmation captures use synthetic
 data in the Chromium dashboard fixture with production CSS, based on `c56ff529`
 plus the second workspace clarity pass. The import card separates its primary and
@@ -40,3 +45,10 @@ document or model provider is used.
 | Desktop review                            | Phone review                           | Narrow phone review                           |
 | ----------------------------------------- | -------------------------------------- | --------------------------------------------- |
 | ![Desktop import review](review-1440.png) | ![Phone import review](review-390.png) | ![Narrow phone import review](review-320.png) |
+
+[Unsaved review at 390×844](unsaved-review-390.png) shows the save-or-discard
+message with **Return to edit** focused and confirmation and cancellation disabled.
+The keyboard journey reopens a collapsed editor and reaches an offscreen editor
+without losing its selected destination. Captured in the Chromium
+dashboard fixture on `5adf6ba4` with the recovery action, production CSS and
+synthetic review data. No live account or document parser was used.

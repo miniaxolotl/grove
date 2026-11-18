@@ -22,6 +22,11 @@ physical touch or a screen reader.
 
 ## Connection inspector evidence
 
+[Refreshed notebook selection (1280×720)](refreshed-notebook-selection.png)
+shows a notebook renamed while its graph panel is open. The node, sidebar and
+panel agree after the ordinary catalog refresh. Chromium dashboard fixture,
+synthetic data, production CSS from `3001fd90` with the selection fix; no live account.
+
 - [Linked notes, desktop](note-connections-desktop.png): compact rows with a short
   reason and quiet category; each row opens the shared inspector.
 - [Connection, desktop](note-connection-desktop.png): centered summary with source

@@ -106,6 +106,21 @@ for (const target of ["chrome", "edge"])
       await localPage
         .locator("div[data-grove-writing-ui]")
         .waitFor({ state: "attached" });
+      await localPage.evaluate(() =>
+        document.documentElement.setAttribute(
+          "data-grove-native-writing",
+          "true",
+        ),
+      );
+      await localPage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "detached", timeout: 3000 });
+      await localPage.evaluate(() =>
+        document.documentElement.removeAttribute("data-grove-native-writing"),
+      );
+      await localPage
+        .locator("div[data-grove-writing-ui]")
+        .waitFor({ state: "attached", timeout: 3000 });
       await localPage.locator("#draft").press("Alt+Enter");
       await localPage
         .getByRole("button", { name: "sentnce — Spelling", exact: true })

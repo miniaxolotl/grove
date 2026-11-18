@@ -94,14 +94,15 @@ const available = (q: Knex.QueryBuilder) =>
         .orWhere("expiresAt", ">", q.client.raw("now()")),
     );
 export async function expireConversationDocuments(trx: Knex.Transaction) {
+  const limit = 25;
   const docs = await trx("conversation_documents")
     .where({ accepted: false })
     .whereNull("removedAt")
     .where("expiresAt", "<=", trx.fn.now())
     .orderBy("id")
-    .limit(25)
+    .limit(limit)
     .select("id", "conversationId");
-  if (!docs.length) return;
+  if (!docs.length) return { processed: 0, fullPage: false };
   await trx("conversation_document_chunks")
     .whereIn(
       "documentId",
@@ -125,6 +126,7 @@ export async function expireConversationDocuments(trx: Knex.Transaction) {
       docs.map((d) => d.conversationId),
     )
     .increment("documentsVersion", 1);
+  return { processed: docs.length, fullPage: docs.length === limit };
 }
 export async function documentSnapshot(
   trx: Knex.Transaction,
