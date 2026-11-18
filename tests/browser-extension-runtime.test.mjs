@@ -134,6 +134,18 @@ test("packaged background rejects outside senders, fences accounts and avoids re
     new Promise((resolve) => {
       assert.equal(events.message(message, sender, resolve), true);
     });
+  // Persisted native menus can deliver the very first event on worker wake.
+  events.menu(
+    {
+      menuItemId: "grove-capture-selection",
+      selectionText: "Review on wake",
+      pageUrl: "https://example.com/article",
+    },
+    { windowId: 9, incognito: false },
+  );
+  assert.equal(opens, 1, "open the panel during the native gesture");
+  const wakeInbox = await send({ kind: "inbox", windowId: 9 });
+  assert.equal(wakeInbox.data[0]?.text, "Review on wake");
   for (const kind of ["sharing", "publish", "unshare"]) {
     assert.equal(
       events.message(

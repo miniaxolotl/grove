@@ -297,7 +297,9 @@ the contested note for review instead of silently rebasing. Save outcome and
 newer unsaved edits remain visible without version/indexing diagnostics.
 There are no source-link fields. Mounted approved panels follow source metadata
 locally until the first edit pins it; only a save transmits it. Context-menu
-captures keep their original event source. Unknown/failed-save
+captures keep their original event source, including the first click that wakes
+the extension. The panel opens during the gesture; the persisted On/Off setting
+is checked before anything is added to its local inbox. Unknown/failed-save
 retries retain the exact original provenance snapshot even after a tab change.
 Restricted/private pages produce no automatic source. Required consent and uncertain-
 save safeguards remain; automatic provenance is not automatic note capture.
