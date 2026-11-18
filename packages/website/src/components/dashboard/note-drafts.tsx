@@ -28,6 +28,7 @@ export type NoteDraft = NoteValues & {
   saving?: Promise<Memory>;
   submitted?: NoteValues;
   error?: string;
+  dailyConflictId?: string;
 };
 
 class NoteDraftStore extends Map<string, NoteDraft> {

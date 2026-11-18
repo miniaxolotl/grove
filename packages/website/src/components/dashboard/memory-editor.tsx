@@ -17,7 +17,7 @@ import {
   Save,
   Download,
 } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { DailyNote, Memory } from "@lib/shared/contracts";
 import { sourceEditsBetween } from "@lib/shared/document-edits";
 import {
@@ -141,10 +141,13 @@ export function MemoryEditor({
         ?.focus({ preventScroll: true });
   }, []);
   const [preview, setPreview] = useState(initialPreview);
-  const [dailyConflictId, setDailyConflictId] = useState<string>();
+  const router = useRouter();
   const api = useWorkspaceApi();
   const [draft] = useState(() =>
     draftKey ? drafts?.get(draftKey) : undefined,
+  );
+  const [dailyConflictId, setDailyConflictId] = useState(
+    draft?.dailyConflictId,
   );
   const [content, setContent] = useState(
     draft?.content ?? memory?.content ?? initialContent,
@@ -279,6 +282,7 @@ export function MemoryEditor({
         saving,
         submitted: submitted.current,
         error,
+        dailyConflictId,
       });
     else drafts.delete(key);
   }, [
@@ -294,6 +298,7 @@ export function MemoryEditor({
     projectId,
     saving,
     error,
+    dailyConflictId,
   ]);
   const settleSave = useEffectEvent(
     async (
@@ -384,8 +389,7 @@ export function MemoryEditor({
       } catch (e) {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.error = errorMessage(e);
-        if (!active()) return;
-        setError(errorMessage(e));
+        if (active()) setError(errorMessage(e));
         if (
           e instanceof DashboardApiError &&
           e.code === "daily_note_exists" &&
@@ -395,12 +399,17 @@ export function MemoryEditor({
             const existing = await api<DailyNote>(
               `/memories/daily/${dailyDate}`,
             );
-            if (active() && existing.state === "saved")
-              setDailyConflictId(existing.id);
+            if (existing.state === "saved") {
+              const current = draftKey ? drafts?.get(draftKey) : undefined;
+              if (current?.saving === request)
+                current.dailyConflictId = existing.id;
+              if (active()) setDailyConflictId(existing.id);
+            }
           } catch {
             // The original draft and error remain visible if lookup fails.
           }
         }
+        if (!active()) return;
         if (
           e instanceof DashboardApiError &&
           e.code === "version_conflict" &&
@@ -454,6 +463,7 @@ export function MemoryEditor({
   }, [dirty]);
   const saveDisabled =
     mediaBusy ||
+    !!dailyConflictId ||
     busy ||
     !!latest ||
     !content.trim() ||
@@ -465,7 +475,7 @@ export function MemoryEditor({
   function persist(automatic = false) {
     if (!editSession.current || !automatic)
       editSession.current = crypto.randomUUID();
-    if (mediaBusy) return;
+    if (mediaBusy || dailyConflictId) return;
     // Retrying an uncertain save must use its original payload even if newer
     // local edits are empty or exceed the save limit.
     if (saveDisabled && !(pending.current?.input && !busy && !latest)) return;
@@ -597,15 +607,17 @@ export function MemoryEditor({
         disabled: saveDisabled,
         disabledReason: busy
           ? "Saving…"
-          : latest
-            ? "Review the newer version first"
-            : !content.trim()
-              ? "Write something first"
-              : content.length > 6000
-                ? "Over the save limit"
-                : !dirty
-                  ? "All changes saved"
-                  : undefined,
+          : dailyConflictId
+            ? "This date already has a saved note"
+            : latest
+              ? "Review the newer version first"
+              : !content.trim()
+                ? "Write something first"
+                : content.length > 6000
+                  ? "Over the save limit"
+                  : !dirty
+                    ? "All changes saved"
+                    : undefined,
       },
       {
         ...commandDefinitions["note-focus"],
@@ -622,19 +634,21 @@ export function MemoryEditor({
   );
   const saveStatus = busy
     ? "Saving…"
-    : dirty
-      ? error
-        ? "Not saved · retry"
-        : content.length > 6000
-          ? "Over save limit"
-          : !content.trim()
-            ? "Empty draft"
-            : autoSave
-              ? "Waiting to save…"
-              : "Unsaved changes"
-      : base
-        ? `Saved${base.status === "archived" ? " · Archived" : ""}`
-        : "Start a note";
+    : dailyConflictId
+      ? "Daily note already saved"
+      : dirty
+        ? error
+          ? "Not saved · retry"
+          : content.length > 6000
+            ? "Over save limit"
+            : !content.trim()
+              ? "Empty draft"
+              : autoSave
+                ? "Waiting to save…"
+                : "Unsaved changes"
+        : base
+          ? `Saved${base.status === "archived" ? " · Archived" : ""}`
+          : "Start a note";
   const saveButton = (
     <Button
       type="submit"
@@ -905,7 +919,7 @@ export function MemoryEditor({
               onChange={(value, immediate) => {
                 setContent(value);
                 if (immediate) saveImmediately.current = true;
-                if (!latest) setError("");
+                if (!latest && !dailyConflictId) setError("");
               }}
               disabled={mediaBusy || (busy && !autoSave)}
               fullPage={pageView}
@@ -1034,12 +1048,18 @@ export function MemoryEditor({
               {dailyConflictId && (
                 <>
                   {" "}
-                  <Link
+                  <button
+                    type="button"
                     className="underline"
-                    href={`/app/memories/${encodeURIComponent(dailyConflictId)}?mode=edit&from=journal`}
+                    onClick={() => {
+                      if (draftKey) drafts?.delete(draftKey);
+                      router.push(
+                        `/app/memories/${encodeURIComponent(dailyConflictId)}?mode=edit&from=journal`,
+                      );
+                    }}
                   >
-                    Open saved daily note
-                  </Link>
+                    Discard draft and open saved note
+                  </button>
                 </>
               )}
             </p>

@@ -156,6 +156,10 @@ test("daily identity survives filing, renaming, archive and restore; deletion ne
     }),
   );
   assert.equal(archived.status, "archived");
+  const replay = await data<Memory>(await call(path, first));
+  assert.equal(replay.id, saved.id);
+  assert.equal(replay.version, archived.version);
+  assert.equal(replay.status, "archived");
   assert.deepEqual(await data(await call(path)), {
     state: "saved",
     id: saved.id,

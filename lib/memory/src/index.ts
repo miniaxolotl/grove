@@ -1034,7 +1034,7 @@ export class MemoryService {
               if (daily.state === "saved")
                 throw new GroveError(
                   "daily_note_exists",
-                  "A daily note was already saved for this date. Copy any text you want to keep, then open the saved note from Today’s note again.",
+                  "A daily note was already saved for this date. Copy any draft text you want to keep.",
                   409,
                 );
               if (daily.state === "deleted")

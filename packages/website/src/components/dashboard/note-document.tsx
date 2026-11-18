@@ -8,6 +8,7 @@ import { localDateSchema, type DailyNote } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
 import { RecoveryState } from "@/components/recovery-state";
 import { MemoryInspector } from "./memory-inspector";
+import { useNoteDrafts } from "./note-drafts";
 import { useNotebooks } from "./notebooks-provider";
 import { LoadError } from "./load-error";
 import { DocumentSkeleton } from "./workspace-opening";
@@ -36,6 +37,7 @@ export function NoteDocument({ children }: { children: ReactNode }) {
   const query = useSearchParams();
   const router = useRouter();
   const api = useWorkspaceApi();
+  const drafts = useNoteDrafts();
   const { projects, loading, error, reload } = useNotebooks();
   const creating = path === "/app/notes/new";
   const notebook = query.get("notebook") || undefined;
@@ -67,15 +69,19 @@ export function NoteDocument({ children }: { children: ReactNode }) {
     params.set("date", localCalendarDate());
     router.replace(`/app/notes/new?${params}`, { scroll: false });
   }, [daily, day, notebook, router]);
-  const lookup = useQuery({
+  const lookup = useQuery<DailyNote>({
     queryKey: ["daily-note-opening", day, session.key],
     queryFn: ({ signal }) =>
       api<DailyNote>(`/memories/daily/${day}`, undefined, undefined, signal),
     enabled: !!day,
+    // Reattach the editor to its retained values and original save promise or
+    // operation ID before consulting a server that may already have committed.
+    initialData: () =>
+      day && drafts?.has(route) ? { state: "empty" } : undefined,
     gcTime: 0,
     // The result is a snapshot for this opening. Never replace a mounted draft
     // with another tab's save; its create operation will report the conflict.
-    staleTime: Infinity,
+    staleTime: "static",
     retry: false,
   });
   const savedId = lookup.data?.state === "saved" ? lookup.data.id : undefined;

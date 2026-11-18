@@ -184,6 +184,11 @@ does not free the date for a replacement. A draft stays on the date it was opene
 for, even past midnight; open **Today’s note** again for the new day. Devices in
 different time zones can show different dates at the same instant.
 
+If the first save is interrupted, returning to the date in the same workspace
+session resumes the draft and retries the original save. If another device saved
+first, the local draft stays available through navigation and background refresh.
+Copy any text you want to keep before choosing **Discard draft and open saved note**.
+
 **Filters → Sort notes → Date written** groups ordinary notes by when they were
 created; there is no separate journal store. The legacy `/app/journal` URL still
 opens this sorted view.

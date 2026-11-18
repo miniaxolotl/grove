@@ -523,7 +523,7 @@ export async function fixture(
             error: {
               code: exists ? "daily_note_exists" : "daily_note_deleted",
               message: exists
-                ? "A daily note was already saved for this date."
+                ? "A daily note was already saved for this date. Copy any draft text you want to keep."
                 : "The daily note for this date was deleted.",
             },
           },

@@ -20,6 +20,87 @@ const fromNotes = async (page: Page) => {
 
 test.use({ timezoneId: "America/Los_Angeles", locale: "en-US" });
 
+test("the workspace refresh cannot replace a conflicting draft", async ({
+  page,
+}) => {
+  await page.clock.install({ time: beforeMidnight });
+  const state = await fixture(page, []);
+  await page.goto(`${base}/app/notes/new?from=journal&date=${day}`);
+  await expect(editor(page)).toBeVisible();
+  state.dailyNotes.set(day, note.id);
+  state.records.set(note.id, note);
+  await editor(page).fill("Text to keep through refresh");
+  await save(page).click();
+  const open = page.getByRole("button", {
+    name: "Discard draft and open saved note",
+  });
+  await expect(open).toBeVisible();
+  const refresh = page.waitForResponse(
+    (r) => r.url().includes("/api/grove/projects") && r.ok(),
+  );
+  await page.clock.fastForward(61_000);
+  await refresh;
+  await expect(open).toBeVisible();
+  expect(
+    state.calls.filter(
+      ({ path, body }) => path === `/memories/daily/${day}` && !body,
+    ),
+  ).toHaveLength(2);
+  await expect(editor(page)).toHaveText("Text to keep through refresh");
+  await page
+    .getByRole("navigation", { name: "Workspace" })
+    .getByRole("link", { name: "Notes", exact: true })
+    .click();
+  // The workspace refresh crossed midnight: revisit the original date.
+  await page.goBack();
+  await expect(editor(page)).toHaveText("Text to keep through refresh");
+  await expect(open).toBeVisible();
+});
+
+test("reopening an interrupted first save recovers later typing and replays its receipt", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(beforeMidnight);
+  const state = await fixture(page, []);
+  const attempts: unknown[] = [];
+  const committed = { ...note, content: "First draft", projectId: null };
+  await page.route(`**/api/grove/memories/daily/${day}`, async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    attempts.push(route.request().postDataJSON());
+    if (attempts.length === 1) {
+      state.dailyNotes.set(day, committed.id);
+      state.records.set(committed.id, committed);
+      return route.abort();
+    }
+    return route.fulfill({ json: { success: true, data: committed } });
+  });
+  await page.goto(`${base}/app`);
+  await fromNotes(page);
+  await editor(page).fill(committed.content);
+  await save(page).click();
+  await expect(page.locator(".note-save-error")).toBeVisible();
+  await editor(page).fill("Later typing after the interrupted save");
+  await page
+    .getByRole("navigation", { name: "Workspace" })
+    .getByRole("link", { name: "Notes", exact: true })
+    .click();
+  await fromNotes(page);
+  await expect(editor(page)).toHaveText(
+    "Later typing after the interrupted save",
+  );
+  await save(page).click();
+  await expect(page).toHaveURL(
+    `${base}/app/memories/${note.id}?mode=edit&from=journal`,
+  );
+  await expect(page.locator(".note-save-status")).toHaveText("Saved");
+  expect(attempts).toHaveLength(2);
+  expect(attempts[1]).toEqual(attempts[0]);
+  expect(state.records.get(note.id)?.content).toBe(
+    "Later typing after the interrupted save",
+  );
+  expect(state.records.size).toBe(1);
+});
+
 test("a local date is pinned through midnight, then the notebook and Notes reopen the saved id", async ({
   page,
 }, info) => {
@@ -103,7 +184,9 @@ test("a losing first save holds its draft and opens the winner only on request",
   state.dailyNotes.set(day, winner.id);
   state.records.set(winner.id, winner);
   await save(page).click();
-  const open = page.getByRole("link", { name: "Open saved daily note" });
+  const open = page.getByRole("button", {
+    name: "Discard draft and open saved note",
+  });
   await expect(open).toBeVisible();
   await expect(editor(page)).toContainText("available to copy");
   expect(state.records.size).toBe(1);
@@ -122,6 +205,11 @@ test("a losing first save holds its draft and opens the winner only on request",
     contentType: "image/png",
   });
   await open.click();
+  await expect(page).toHaveURL(
+    `${base}/app/memories/${winner.id}?mode=edit&from=journal`,
+  );
+  await expect(editor(page)).toContainText("Saved from another device.");
+  await page.goBack();
   await expect(page).toHaveURL(
     `${base}/app/memories/${winner.id}?mode=edit&from=journal`,
   );
