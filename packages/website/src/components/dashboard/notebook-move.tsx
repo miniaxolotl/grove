@@ -10,10 +10,12 @@ import { Select } from "./ui/select";
 
 export function NotebookMove({
   project,
+  focusSearch = true,
   cancel,
   done,
 }: {
   project: Project;
+  focusSearch?: boolean;
   cancel: () => void;
   done?: (project: Project) => void;
 }) {
@@ -114,7 +116,7 @@ export function NotebookMove({
           value={query}
           onChange={setQuery}
           placeholder="Find a notebook…"
-          autoFocus
+          autoFocus={focusSearch}
           disabled={saving}
         />
         <fieldset

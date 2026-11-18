@@ -117,7 +117,7 @@ export function MemoryLibrary({
     ...initialFilters(archive),
     kind: initialKind,
     project: initialProject,
-    sort: initialSort,
+    sort: initialSort === "created_desc" ? initialSort : "auto",
   }));
   const {
     search,
@@ -127,9 +127,15 @@ export function MemoryLibrary({
     status,
     sourceAgent,
     updatedAfter,
-    sort,
+    sort: preferredSort,
     lifetime,
   } = filters;
+  const sort =
+    preferredSort === "auto"
+      ? search
+        ? "relevance"
+        : "updated_desc"
+      : preferredSort;
   const [error, setError] = useState("");
   const [failures, setFailures] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
@@ -793,8 +799,11 @@ export function MemoryLibrary({
                         }}
                         memory={memory}
                         projectName={
-                          projects.find((p) => p.id === memory.projectId)
-                            ?.name ?? "Unfiled"
+                          fixedProject !== undefined &&
+                          fixedProject === memory.projectId
+                            ? undefined
+                            : (projects.find((p) => p.id === memory.projectId)
+                                ?.name ?? "Unfiled")
                         }
                         selected={checked.includes(memory.id)}
                         selectedItems={selectedItems}

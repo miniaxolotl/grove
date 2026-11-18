@@ -34,7 +34,7 @@ export function MemoryRow({
   evidence,
 }: {
   memory: Memory;
-  projectName: string;
+  projectName?: string;
   selected: boolean;
   busy: boolean;
   onSelect: () => void;
@@ -189,9 +189,11 @@ export function MemoryRow({
               {memory.expiresAt && (
                 <span>Until {dateLabel(memory.expiresAt)}</span>
               )}
-              <span className="memory-notebook" title={projectName}>
-                {projectName}
-              </span>
+              {projectName && (
+                <span className="memory-notebook" title={projectName}>
+                  {projectName}
+                </span>
+              )}
               <time dateTime={memory.updatedAt}>
                 {dateLabel(memory.updatedAt)}
               </time>

@@ -45,9 +45,10 @@ No accent folding/language detection is added. Expansion is bounded to 16 tokens
 of at most 64 UTF-16 units each; the full accepted query still reaches strict
 parsing when expansion is disabled.
 
-Entering a library query selects Relevance unless you deliberately chose a date
-sort. Explicit date sorts stay global; clearing restores the prior non-query
-sort. No-query listing and Date written retain their existing behavior.
+In **Filters → Sort by**, **Automatic** shows recently edited notes when
+browsing and the best matches when searching. Choose a date order to keep it
+when entering or clearing a query or filter. Sorting applies to the full
+matching library or notebook before paging; subsequent pages use the same order.
 
 ## Evidence and passages
 

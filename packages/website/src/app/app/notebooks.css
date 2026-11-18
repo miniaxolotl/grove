@@ -296,12 +296,6 @@
 .notebook-drag-handle[data-touch-organize] .notebook-folder-icon {
   display: block;
 }
-.notebook-organize-entry {
-  font-size: 12px;
-  margin-left: auto;
-  min-height: 44px;
-  padding-inline: 8px;
-}
 .notebook-organizer {
   display: flex;
   flex: 1;
@@ -311,12 +305,14 @@
 }
 .app-dialog.inspector-dialog:has(> .notebook-organizer) {
   --inspector-width: min(
-    720px,
+    480px,
     calc(var(--overlay-viewport-width, 100vw) - var(--inspector-inset) * 2)
   );
-  height: min(780px, calc(var(--overlay-viewport-height, 100dvh) - 24px));
+  height: auto;
+  max-height: calc(var(--overlay-viewport-height, 100dvh) - 24px);
 }
 .app-dialog.inspector-dialog:has(.notebook-move) {
+  height: min(720px, calc(var(--overlay-viewport-height, 100dvh) - 24px));
   --inspector-width: min(
     520px,
     calc(var(--overlay-viewport-width, 100vw) - var(--inspector-inset) * 2)
@@ -341,11 +337,6 @@
   font-size: 12px;
   margin: 10px 0;
 }
-.notebook-organizer-intro {
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
 .notebook-organizer .app-search input,
 .notebook-move.app-form .app-search input {
   font-size: 16px;
@@ -361,7 +352,8 @@
   min-height: 44px;
 }
 .notebook-organizer-list {
-  max-height: min(24dvh, 220px);
+  margin-top: 12px;
+  max-height: min(42dvh, 360px);
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--color-line);
@@ -422,30 +414,17 @@
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
-.notebook-position-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.notebook-placement-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0;
+  margin-top: 12px;
 }
-.notebook-position-controls .app-button,
-.notebook-location-controls .app-button {
+.notebook-placement-actions .app-button {
   min-height: 44px;
   white-space: normal;
-  padding: 8px;
+  padding: 8px 12px;
 }
-.notebook-location-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 12px 0;
-}
-.notebook-organization-controls .notebook-sibling-position {
-  font-size: 12px;
-  margin-top: 8px;
-  font-variant-numeric: tabular-nums;
-}
-.notebook-reorder-help .text-button,
 .notebook-organizer-empty .text-button {
   min-height: 44px;
   text-decoration: underline;
@@ -456,37 +435,6 @@
   font-size: 14px;
   line-height: 1.6;
   color: var(--color-muted);
-}
-.notebook-organizer-prompt {
-  text-align: center;
-  align-self: center;
-}
-.notebook-organizer-prompt > svg {
-  margin: 0 auto 12px;
-  color: var(--color-leaf);
-}
-.notebook-organizer-prompt h3 {
-  color: var(--color-forest);
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 6px;
-}
-.notebook-organizer-done {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-  gap: 12px;
-  background: var(--color-paper);
-  border-top: 1px solid var(--color-line);
-  padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px));
-}
-.notebook-organizer-done p {
-  color: var(--color-muted);
-  font-size: 12px;
-}
-.notebook-organizer-done .app-button {
-  min-height: 44px;
 }
 .notebook-move.app-form {
   display: flex;
@@ -620,33 +568,6 @@
 }
 .notebook-move-error {
   font-size: 14px;
-}
-@media (min-width: 700px) {
-  .notebook-organizer-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 260px);
-    gap: 20px;
-    overflow: hidden;
-  }
-  .notebook-organizer-browser {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .notebook-organizer-list {
-    flex: 1;
-    max-height: none;
-  }
-  .notebook-organization-controls {
-    margin-top: 0;
-    padding: 0 0 0 20px;
-    border-top: 0;
-    border-left: 1px solid var(--color-line);
-    overflow-y: auto;
-  }
-  .notebook-organizer-body > [role="alert"] {
-    grid-column: 1 / -1;
-  }
 }
 @media (max-width: 600px) {
   .app-content:has(> .notebook-manager) {

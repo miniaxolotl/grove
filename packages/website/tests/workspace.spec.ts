@@ -165,7 +165,7 @@ test("search quality defaults to relevance and preserves an explicit date sort",
     .toMatchObject({ query: "garden", sort: "relevance" });
   await page.getByRole("button", { name: /^Filters/ }).click();
   await chooseOption(
-    page.getByRole("combobox", { name: "Sort notes" }),
+    page.getByRole("combobox", { name: "Sort by" }),
     "updated_asc",
   );
   await page.getByRole("button", { name: "Done", exact: true }).click();
@@ -804,8 +804,8 @@ for (const width of [1440, 390, 320]) {
         panel.getByRole("button", { name: "Done", exact: true }),
       ).toBeFocused();
       await expect(
-        page.getByRole("combobox", { name: "Sort notes" }),
-      ).toHaveText("Date written");
+        page.getByRole("combobox", { name: "Sort by" }),
+      ).toHaveText("Recently created");
       await expect(rows).toHaveCount(2);
       const bounds = (await panel.boundingBox())!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);
@@ -825,7 +825,7 @@ for (const width of [1440, 390, 320]) {
       expect(await rows.first().boundingBox()).toEqual(before);
       await trigger.click();
       await chooseOption(
-        panel.getByRole("combobox", { name: "Sort notes" }),
+        panel.getByRole("combobox", { name: "Sort by" }),
         "updated_desc",
       );
       // Sorting may reorder rows and drop date headings; the page controls
@@ -6275,8 +6275,8 @@ test("Today's note uses the same editor and library, with date grouping and note
     autoKind: true,
   });
   await page.getByRole("button", { name: "Filters", exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Sort notes" })).toHaveText(
-    "Date written",
+  await expect(page.getByRole("combobox", { name: "Sort by" })).toHaveText(
+    "Recently created",
   );
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.locator(".library-date")).toHaveCount(1);

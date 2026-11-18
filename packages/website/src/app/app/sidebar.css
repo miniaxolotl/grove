@@ -317,9 +317,31 @@
 .notebook-explorer-heading .sidebar-count {
   flex-shrink: 0;
 }
-.notebook-explorer-heading .notebook-organize-entry {
-  flex-shrink: 0;
-  padding-inline: 6px;
+.notebook-explorer-heading .notebook-manage {
+  margin-left: auto;
+}
+.notebook-organize-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 4px 6px 6px;
+  padding: 4px 12px;
+  min-height: 32px;
+  background: var(--color-paper);
+  color: var(--color-forest);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.notebook-organize-entry:hover,
+.notebook-organize-entry:active {
+  background: var(--color-sage);
+  border-color: var(--color-leaf);
+}
+.notebook-organize-entry:focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: 2px;
 }
 .notebook-manage {
   padding: 0;
@@ -527,6 +549,7 @@
   .workspace-command-launcher,
   .app-nav,
   .notebook-browser-toggle,
+  .notebook-organize-entry,
   .notebook-manage,
   .notebook-collapse-toggle,
   .notebook-explorer .notebook-tree-link,

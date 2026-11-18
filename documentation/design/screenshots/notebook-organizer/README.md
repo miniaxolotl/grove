@@ -1,5 +1,26 @@
 # Notebook organizer review
 
+## Sidebar, placement and note sorting — 17 November 2026
+
+Synthetic workspace fixture with production styles from build `l_jyhVC7Lhz9nyXrCderS`.
+Open Organize beneath the notebook heading; a known notebook is preselected.
+The tree otherwise opens on its own. Selecting a single child exposes the two
+available moves without an ordering toolbar or a save footer.
+
+| Viewport | Sidebar entry | Browse | Selection |
+| --- | --- | --- | --- |
+| Desktop, 1440 × 844 | ![Organize below the notebook heading](entry-1440.png) | ![Tree before selection](browse-1440.png) | ![Selected child and available moves](selected-1440.png) |
+| Touch, 390 × 844 | ![Organize in the open phone sidebar](entry-390.png) | ![Phone browse view](browse-390.png) | ![Wrapped notebook name and placement on phone](selected-390.png) |
+
+![Sort by in the scoped notebook’s existing Filters panel at 1280 × 720](sort-desktop.png)
+
+`organization-sort.spec.ts` exercises heading focus, tab order, exact placement,
+Undo and focus return, plus the search request and cursor for a date-sorted,
+filtered notebook. These are Chromium and touch-emulation checks, not physical
+iOS or software-keyboard validation. All identities and records are fixtures.
+
+## Earlier organizer review
+
 26 October 2026 polish. Actual workspace components and production CSS, build
 `90_hUwA8nK3oRNZo31GFO`, in the isolated loopback dashboard fixture. The API and
 500-notebook account use disposable PostgreSQL and the non-owner API role. All
