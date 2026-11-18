@@ -1,10 +1,12 @@
 import { SignUp } from "@clerk/nextjs";
-import { AuthSetup } from "@/components/auth-setup";
+import { EntryNotice } from "../../entry-notice";
+
+export const metadata = { title: "Create an account | Grove" };
 export default function SignUpPage() {
   return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
     process.env.CLERK_SECRET_KEY ? (
-    <SignUp />
+    <SignUp fallback={<EntryNotice signUp loading />} />
   ) : (
-    <AuthSetup />
+    <EntryNotice signUp />
   );
 }

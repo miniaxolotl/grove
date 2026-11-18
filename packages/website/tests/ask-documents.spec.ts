@@ -102,6 +102,10 @@ for (const width of [1440, 390, 320])
     const list: DocumentList = { version: 0, documents: [] },
       chunkId = "00000000-0000-4000-a000-000000000021",
       batchId = "00000000-0000-4000-a000-000000000022";
+    // Exercise a first load whose empty snapshot is still in flight when
+    // the upload commits. The composer must request the post-upload list.
+    const initialRead = Promise.withResolvers<void>();
+    const releaseRead = Promise.withResolvers<void>();
     await page.route("**/api/grove/**", async (route) => {
       const request = route.request(),
         path = new URL(request.url()).pathname.replace("/api/grove", "");
@@ -133,6 +137,7 @@ for (const width of [1440, 390, 320])
         path.match(/\/documents\/[0-9a-f-]+$/) &&
         request.method() === "PUT"
       ) {
+        if (width === 390) await initialRead.promise;
         expect(request.headers()["x-grove-content-sha256"]).toMatch(
           /^[a-f0-9]{64}$/,
         );
@@ -183,8 +188,13 @@ for (const width of [1440, 390, 320])
           newNotebooks: 0,
           next: null,
         };
-      else if (path.endsWith("/documents")) data = list;
-      else if (path.endsWith("/turns") && request.method() === "POST") {
+      else if (path.endsWith("/documents")) {
+        data = structuredClone(list);
+        if (width === 390 && !list.version) {
+          initialRead.resolve();
+          await releaseRead.promise;
+        }
+      } else if (path.endsWith("/turns") && request.method() === "POST") {
         const input = request.postDataJSON();
         expect(input.documentsVersion).toBe(list.version);
         expect(accepted).toBeGreaterThan(0);
@@ -243,9 +253,13 @@ for (const width of [1440, 390, 320])
       mimeType: "text/markdown",
       buffer: Buffer.from("# Oak care\n\nOak roots need damp mulch."),
     });
-    await expect(
-      page.getByRole("list", { name: "Attached documents" }),
-    ).toContainText("Ready");
+    try {
+      await expect(
+        page.getByRole("list", { name: "Attached documents" }),
+      ).toContainText("Ready");
+    } finally {
+      releaseRead.resolve();
+    }
     expect(
       await page
         .getByRole("button", { name: "Send question", exact: true })

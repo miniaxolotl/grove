@@ -44,6 +44,11 @@ export function notebookOptions(
     .map(({ project, path }) => ({
       value: project.id,
       label: path.map((p) => p.name).join(" / "),
+      name: project.name,
+      parentPath: path
+        .slice(0, -1)
+        .map((p) => p.name)
+        .join(" / "),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }

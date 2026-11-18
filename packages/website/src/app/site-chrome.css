@@ -102,6 +102,10 @@
 .site-header .header-menu-toggle::-webkit-details-marker {
   display: none;
 }
+.header-menu:not([open]) .menu-open,
+.header-menu[open] .menu-closed {
+  display: none;
+}
 .site-header .header-menu-toggle:hover,
 .site-header .header-menu[open] > summary,
 .site-header .header-menu-toggle[aria-expanded="true"] {
@@ -124,20 +128,25 @@
   background: var(--brand-paper);
   box-shadow: 0 12px 20px -20px var(--brand-ink);
 }
-.site-header .header-menu nav > a:not(.button-primary) {
+.site-header .header-menu nav > a {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 44px;
   padding: 10px 0;
-  border: 0;
-  border-bottom: 1px solid var(--brand-line);
   color: var(--brand-ink);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 24px;
 }
-.site-header .header-menu nav > a:last-child {
-  border-bottom: 0;
+.site-header .header-menu nav > a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.site-header .header-menu nav > .header-signup {
+  margin-top: 8px;
+  justify-content: flex-start;
+  gap: 6px;
+  font-weight: 600;
 }
 :is(.site-header, .site-footer) :is(a, button, summary):focus-visible {
   outline: 2px solid var(--brand-accent);
@@ -271,8 +280,9 @@
   }
 }
 @media (max-width: 359px) {
-  .site-header .header-actions > a {
-    display: none;
+  .site-header .site-brand > img {
+    width: 102px;
+    height: auto;
   }
 }
 @media (pointer: coarse) {

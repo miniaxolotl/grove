@@ -102,97 +102,92 @@ export function AgentSetup({
 export function Installation() {
   const [client] = useSelectedAgent();
   const hosted = isHostedClient(client);
+  const tool = clientOptions.find(({ value }) => value === client)!;
   return (
-    <ol className="installation-steps">
-      <li className="installation-step">
-        <div className="installation-copy">
-          <h3>Choose your tool</h3>
-          <p>Pick the chat or coding tool you already use.</p>
-        </div>
+    <>
+      <div className="mt-3 max-w-[68ch]">
         <AgentSetup />
-      </li>
-      <li className="installation-step">
-        <div className="installation-copy">
-          <h3>Sign in and review access</h3>
-          <p>
-            Create an account or sign in with your preferred provider. Approve
-            access and return to {hosted ? "your chat" : "your terminal"}.
-          </p>
-        </div>
-        <div className="max-w-[68ch] text-sm leading-6">
-          <p>
-            New connections start with all permission and scope checkboxes
-            selected, including deletion and all current and future notebooks.
-            Uncheck any access you do not want before approving. Existing
-            connections keep their saved choices.
-          </p>
-          <p className="mt-3 text-muted">
-            {hosted
-              ? "In Settings → Connections, approve the exact pending client you just added. Signing in alone does not approve its access."
-              : "Keep the terminal open while you approve. Interrupted? Run the same command to resume; do not delete credentials to start over."}
-          </p>
-        </div>
-      </li>
-      <li className="installation-step">
-        <div className="installation-copy">
-          <h3>{hosted ? "Return to your chat" : "Load Grove in your tool"}</h3>
-          <p>
-            Account access and a running host connection are separate checks.
-          </p>
-        </div>
-        <div className="setup-checkpoint">
-          <p>
-            {hosted
-              ? "Return to the chat where you added Grove and check that its tools are available. A completed Grove approval alone does not prove the chat has loaded the connection."
-              : client === "opencode"
-                ? "OpenCode reloads watched configuration automatically. Check its MCP tools for Grove; use /reload if it has not appeared."
-                : client === "claude"
-                  ? "In Claude Code, run /reload-plugins or start a new session. Check that the Grove plugin and its MCP tools are available."
-                  : client === "codex"
-                    ? "Restart Codex after setup. Check that Grove's MCP tools are loaded, and review or trust optional hooks in the host before relying on automatic recall."
-                    : "Refresh your MCP client's server connection and tool catalog. Use its connection status to check that Grove is available."}
-          </p>
-          <Link href="/docs/client#diagnose-installation-and-startup">
-            Troubleshoot the connection
-          </Link>
-        </div>
-      </li>
-      <li className="installation-step">
-        <div className="installation-copy">
-          <h3>Save and find a note</h3>
-          <p>
-            Ask your agent to save a note. Open a new session and ask it to
-            recall that note.
-          </p>
-        </div>
-        <div className="min-w-0 space-y-3">
-          <CodeBlock
-            title="Ask your agent to remember"
-            code={hosted ? firstPersonalMemory : firstMemory}
-            light
-          />
-          <p className="flex items-center gap-2 pl-4 text-[11px] text-leaf">
-            <ArrowDown size={13} /> Then, in a new session
-          </p>
-          <CodeBlock
-            title="Ask your agent to recall"
-            code={hosted ? recallPersonalMemory : recallMemory}
-            light
-          />
-          <p className="pt-2 text-xs leading-6 text-muted">
-            Running your own infrastructure?{" "}
+        <Link
+          className="inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+          href={tool.guide}
+        >
+          {tool.label} setup guide
+        </Link>
+      </div>
+      <ol className="installation-steps">
+        <li className="installation-step">
+          <div className="installation-copy">
+            <h3>Review access before approving</h3>
+          </div>
+          <div className="max-w-[68ch] text-sm leading-6">
+            <p>
+              New connections start with all permission and scope checkboxes
+              selected, including deletion and all current and future notebooks.
+              Uncheck any access you do not want before approving. Existing
+              connections keep their saved choices.
+            </p>
+            {!hosted && client !== "mcp" && (
+              <p className="mt-3 text-muted">
+                Keep the terminal open while you approve. If interrupted, run
+                the same command to resume.
+              </p>
+            )}
+          </div>
+        </li>
+        <li className="installation-step">
+          <div className="installation-copy">
+            <h3>
+              {hosted ? "Return to your chat" : "Load Grove in your tool"}
+            </h3>
+          </div>
+          <div className="setup-checkpoint">
+            <p>
+              {hosted
+                ? "Return to the chat where you added Grove and check that its tools are available. A completed Grove approval alone does not prove the chat has loaded the connection."
+                : client === "opencode"
+                  ? "OpenCode reloads watched configuration automatically. Check its MCP tools for Grove; use /reload if it has not appeared."
+                  : client === "claude"
+                    ? "In Claude Code, run /reload-plugins or start a new session. Check that the Grove plugin and its MCP tools are available."
+                    : client === "codex"
+                      ? "Restart Codex after setup. Check that Grove's MCP tools are loaded, and review or trust optional hooks in the host before relying on automatic recall."
+                      : "Refresh your MCP client's server connection and tool catalog. Use its connection status to check that Grove is available."}
+            </p>
             <Link
-              href="/self-host"
-              data-analytics-event="docs_link_clicked"
-              data-analytics-placement="install"
-              className="text-leaf underline underline-offset-4"
+              href={
+                hosted
+                  ? "/docs/hosted-chat#troubleshooting"
+                  : "/docs/client#diagnose-installation-and-startup"
+              }
             >
-              Install Grove Open Source
+              Troubleshoot the connection
             </Link>
-            .
-          </p>
-        </div>
-      </li>
-    </ol>
+          </div>
+        </li>
+        <li className="installation-step">
+          <div className="installation-copy">
+            <h3>Save and find a note</h3>
+            <p>
+              Ask your agent to save a note. Open a new session and ask it to
+              recall that note.
+            </p>
+          </div>
+          <div className="min-w-0 space-y-3">
+            <CodeBlock
+              title="Ask your agent to remember"
+              code={hosted ? firstPersonalMemory : firstMemory}
+              light
+            />
+            <p className="flex items-center gap-2 pl-4 text-[11px] text-leaf">
+              <ArrowDown size={13} /> Then, in a new session
+            </p>
+            <CodeBlock
+              title="Ask your agent to recall"
+              code={hosted ? recallPersonalMemory : recallMemory}
+              light
+            />
+          </div>
+        </li>
+      </ol>
+    </>
   );
 }

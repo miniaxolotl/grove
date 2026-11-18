@@ -1,0 +1,144 @@
+{
+  "policy": 1,
+  "environment": "production",
+  "observedAt": "2026-11-18",
+  "targets": {
+    "website": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "productionSha": "9fdab919144f2b0494ae7347f74024adceedd724",
+        "deploymentUrl": "https://grove-fq82h3ejo-bramble-labs-inc.vercel.app",
+        "deploymentId": "dpl_EYSFnSoGPMNifoMEG8LB51yWw11z",
+        "alias": "https://usegrove.cloud"
+      },
+      "evidence": "https://github.com/miniaxolotl/grove/actions/runs/44339009513"
+    },
+    "service": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "imageDigest": "sha256:083e2eb0fc6598b70ed67d2f917c77a831dd8851bd00922fcaa493ec29451fb6",
+        "deploymentId": "e1cf515c-997f-4985-b7fe-817009f5484e",
+        "phase": "ACTIVE"
+      },
+      "evidence": "https://github.com/miniaxolotl/grove/actions/runs/44339009513"
+    },
+    "downloads": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "assets": {
+          "downloads.json": "sha256:d6f3b33680766e1ad836a3d9f9d4a704258e984365e4151f9809ff2270e97f4b",
+          "grove-chrome.zip": "sha256:047c6399270b32d0d2dcfd11dd61649ecde76d36ae3c0efcddcd3dec6147269a",
+          "grove-edge.zip": "sha256:b0074a3433007136ae6cf409ad4f4e5af20ea787637b231f4d76a4ce0bbe56c1",
+          "grove-firefox.zip": "sha256:2183633cdec23b6f5bc6688758307cb00ea695733e7354f8885af5845713590d",
+          "packages.build.json": "sha256:54105013a64a6717af12b96147ee24b71d178033fc102f4846a99eea6c93f78b",
+          "SHA256SUMS": "sha256:59e0653cd7b4d789c1a6a3e5355368a64251bfb47cc3df07a449ea1ae4a55b41"
+        }
+      },
+      "evidence": "https://github.com/miniaxolotl/grove/releases/tag/v1.11.24"
+    },
+    "npm:grove-server": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-swv1M2CoVu1wmx5UP3Yfm7qQF3NNw4Dzfyisc9hlX/1+mEt8jPIl2JU7goHheklywcU3wqSxQeaX7e9z1rZz5g==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-server/1.11.24"
+    },
+    "npm:grove": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-Nf8c1L3VFJm4Il/JLwzQbB6iCxcJvlCDgPx1iziY2hdi7G2MC/D0oqRpGRU+vbr+rqmGZsOa9Re2aVu/LYq0zw==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove/1.11.24"
+    },
+    "npm:grove-claude-plugin": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-qfhZuKLIOD1bH911RU1JrFa8Prscq6sysQRDVe6dLU3uYndltn2iQC0kV8O82jDxGpAs3JTJZhLHJDn3G0hpFw==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-claude-plugin/1.11.24"
+    },
+    "npm:grove-codex-plugin": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-f30RFWcpwma3X8+4cRiEJqEQHSr25XYNO2ijE+PAicfHXrbxGEX2oqyfHnimtLA+GI13IWnEdrPCpQnipd3+lw==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-codex-plugin/1.11.24"
+    },
+    "npm:grove-opencode-plugin": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-Pu/2g7drAgepNcWIoaVzErLOJaVINevtwYezWYHDSNG6bQPmUP2pUIRVVMjg9oUpTpkhITFh28J7MkN0jA1xpA==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-opencode-plugin/1.11.24"
+    }
+  },
+  "storeChannels": {
+    "chrome": {
+      "state": "review",
+      "identity": null,
+      "reason": "No verified reservation, submission, approval or live listing receipt"
+    },
+    "edge": {
+      "state": "review",
+      "identity": null,
+      "reason": "No verified reservation, submission, approval or live listing receipt"
+    },
+    "firefox": {
+      "state": "review",
+      "identity": null,
+      "reason": "No verified reservation, submission, approval or live listing receipt"
+    }
+  },
+  "reviewedReleaseInputs": {
+    "9ee71cc987a443c020fbf6030f76664b4cc5e914": {
+      ".github/workflows/deploy.yml": [
+        "0:bc939c4244477c37dc121f810c2fe4c66d8ece354ddc9bfadad44497226fe646",
+        "0:eb9a19d73e78735cff2be3b277770d97cdc9e12fa3a51eeaa48c71f0cbe1f094"
+      ],
+      ".github/workflows/release.yml": [
+        "0:d9075c1aed3b096e963f444827ce2ce3b19172f7b78669773d4e97ea6b6967c9",
+        "0:d06932b6b8ef412f956b685642958fcda05184d47d37990ea5c109829d11329a"
+      ],
+      ".github/workflows/website-impact.yml": [
+        null,
+        "0:cf394b1f758d6b6e3d18457b4c241f06d71673e52db0aee60c2d34e2c0b8be47"
+      ],
+      "release-please-website.json": [
+        null,
+        "0:2122dc20f490adb643d3f1580159b720cb50b0e53a3051a2980ac76a565327a8"
+      ],
+      "scripts/build-browser-extension.mjs": [
+        "0:f4d1e28fb5baf9858836b2de38bdea3d8351fdf69db6abac2bd521092d6ba3fb",
+        "0:eb27be75c62c4ffd12c8bbaddd3323e0ef37a7dc5e64632bd0a17d7b3329cfec"
+      ],
+      "scripts/release/assets.mjs": [
+        "0:d7cbaa2651f0bfd6898e0b3d163d1f11eea7ea6f764b7a270a9d1dd2a51142d2",
+        "0:b983c63912097a71aa35aeb5494333a6b03ae5e1ab9a4ea02b30f31ecdc7c8cf"
+      ],
+      "scripts/release/browser-versions.mjs": [
+        null,
+        "0:027387a398380ffe6869de0e7fd06a8ceba6c79973b40dc8243191a588368d94"
+      ],
+      "scripts/release/select-website.mjs": [
+        null,
+        "0:54f9eeec9d8cdd2d144bb3ea7b271d7a9e0a027b91bc89a34b09f5d619afbe36"
+      ],
+      "scripts/release/verify-website-baselines.mjs": [
+        null,
+        "0:c858bb7d7131e045323d6bde4b10a5e691d82626fb4451ee5a687960ac3c8ee9"
+      ]
+    }
+  }
+}

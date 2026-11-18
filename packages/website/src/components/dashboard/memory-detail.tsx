@@ -336,11 +336,14 @@ export function MemoryDetail({
           memory && (
             <>
               {!!memory.enrichment?.tags.length && (
-                <div className="reader-tags">
-                  {memory.enrichment.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
+                <section className="note-form-tags" aria-label="Generated tags">
+                  <h3>Generated tags</h3>
+                  <ul>
+                    {memory.enrichment.tags.map((tag) => (
+                      <li key={tag}>{tag}</li>
+                    ))}
+                  </ul>
+                </section>
               )}
               <dl className="note-dates">
                 <dt>Created</dt>

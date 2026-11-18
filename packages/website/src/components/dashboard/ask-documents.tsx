@@ -123,11 +123,14 @@ export function AskDocuments({
       }
       retry.current = null;
       setUploadPending(false);
-      await cache.client.invalidateQueries({
-        queryKey: [
-          ...cache.resource(`/conversations/${id}/documents`).queryKey,
-        ],
-      });
+      const documents = {
+        queryKey: cache.resource(`/conversations/${id}/documents`).queryKey,
+        exact: true,
+      };
+      // Invalidation can reuse a first read that started before the upload.
+      // Cancel that snapshot before fetching the committed document list.
+      await cache.client.cancelQueries(documents);
+      await cache.client.invalidateQueries(documents);
     } catch (e) {
       if (!request.signal.aborted) setError(errorMessage(e));
     } finally {

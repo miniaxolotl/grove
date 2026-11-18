@@ -10,7 +10,7 @@ export const positioning = {
 export const navigation = [
   { label: "Features", href: "/#features" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Integrations", href: "/#for-developers" },
+  { label: "Integrations", href: "/install" },
   { label: "Docs", href: "/docs" },
 ];
 

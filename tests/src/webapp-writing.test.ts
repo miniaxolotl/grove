@@ -40,6 +40,10 @@ test("webapp and extension resolve the same writing engine", async (t) => {
       dic: await readFile(join(directory, "index.dic"), "utf8"),
     };
     const engine = core.createEnglishChecker(dictionary);
+    const name = "d'arve\u0301l";
+    const defaults = shared.writingSettingsSchema.parse({ grammar: false });
+    assert.ok(engine.check(name, defaults).issues.length);
+    assert.deepEqual(engine.check(name, { ...defaults, words: ["D’Arvél"] }).issues, []);
     // nspell's ranking buries the obvious keyboard swap below unrelated
     // single-edits; the shared suggester must surface it first.
     assert.equal(engine.suggest("teh")[0], "the");

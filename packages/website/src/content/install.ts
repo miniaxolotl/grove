@@ -12,12 +12,20 @@ export const connectCommand = (
 
 export const mcpEndpoint = "https://api.usegrove.cloud/mcp";
 export const clientOptions = [
-  { value: "opencode", label: "OpenCode" },
-  { value: "claude", label: "Claude Code" },
-  { value: "codex", label: "Codex" },
-  { value: "chatgpt", label: "ChatGPT" },
-  { value: "claude-web", label: "Claude web" },
-  { value: "mcp", label: "Other MCP clients" },
+  { value: "opencode", label: "OpenCode", guide: "/docs/client#opencode-v2" },
+  { value: "claude", label: "Claude Code", guide: "/docs/client#claude-code" },
+  { value: "codex", label: "Codex", guide: "/docs/client#codex" },
+  { value: "chatgpt", label: "ChatGPT", guide: "/docs/hosted-chat#chatgpt" },
+  {
+    value: "claude-web",
+    label: "Claude web",
+    guide: "/docs/hosted-chat#claude-web",
+  },
+  {
+    value: "mcp",
+    label: "Other MCP clients",
+    guide: "/docs/client#other-mcp-clients",
+  },
 ];
 export const hostedClients = {
   chatgpt: { name: "ChatGPT", url: "https://chatgpt.com/plugins" },

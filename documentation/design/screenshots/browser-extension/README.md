@@ -1,5 +1,13 @@
 # Browser extension evidence
 
+## Correcting a compound word
+
+![Installed extension underlines onyl and offers only as its first correction](compound-card.png)
+
+Local Chrome package installed in Chromium, 390px viewport. **Only** changes the
+synthetic textarea from **read-onyl** to **read-only**. Compare the
+[web checker’s issue list](../webapp-writing/compound-web.png) for the same text.
+
 ## Richer local proofing — 6 November 2026
 
 Unsigned product `1.11.15`, refinement following `0d628aeb`; exact source/checks are

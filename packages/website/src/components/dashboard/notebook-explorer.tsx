@@ -9,14 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import {
-  Plus,
-  Inbox,
-  Folder,
-  FolderCog,
-  ListTree,
-  ChevronDown,
-} from "lucide-react";
+import { Plus, Inbox, Folder, ChevronDown } from "lucide-react";
 import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
@@ -161,10 +154,20 @@ export function NotebookExplorer() {
             className="notebook-collapse-toggle"
             aria-expanded={!sectionCollapsed}
             aria-controls={bodyId}
+            aria-label={
+              sectionCollapsed ? "Expand notebooks" : "Collapse notebooks"
+            }
             onClick={() => setSectionCollapsed((value) => !value)}
             title={sectionCollapsed ? "Expand notebooks" : "Collapse notebooks"}
           >
             <ChevronDown size={14} aria-hidden="true" />
+          </button>
+          <Link
+            href="/app/projects"
+            className="notebook-manage"
+            aria-label="Manage notebooks"
+            title="Manage notebooks"
+          >
             <span>Notebooks</span>
             <span
               className="sidebar-count"
@@ -174,37 +177,23 @@ export function NotebookExplorer() {
             >
               {projects.length}
             </span>
-          </button>
-          <span className="notebook-heading-static" aria-hidden="true">
-            <span>Notebooks</span>
-            {!loading && !error ? (
-              <span className="sidebar-count">{projects.length}</span>
-            ) : null}
-          </span>
-          <Link
-            href="/app/projects"
-            className="app-icon notebook-manage"
-            aria-label="Manage notebooks"
-            title="Manage notebooks"
-          >
-            <FolderCog size={16} aria-hidden="true" />
           </Link>
-          <IconButton
-            label="Create notebook"
-            onClick={() => setAction({ mode: "create" })}
-          >
-            <Plus size={14} />
-          </IconButton>
-        </div>
-        <div id={bodyId} className="notebook-explorer-body">
           <button
             type="button"
             className="notebook-organize-entry"
             aria-haspopup="dialog"
             onClick={() => openOrganizer(currentNotebook ?? undefined)}
           >
-            <ListTree size={16} aria-hidden="true" /> Organize
+            Organize
           </button>
+          <IconButton
+            label="Create notebook"
+            onClick={() => setAction({ mode: "create" })}
+          >
+            <Plus size={16} />
+          </IconButton>
+        </div>
+        <div id={bodyId} className="notebook-explorer-body">
           <Link
             ref={setNodeRef}
             className="notebook-personal"

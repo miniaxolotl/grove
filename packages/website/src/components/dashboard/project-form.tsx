@@ -118,6 +118,7 @@ export function ProjectForm({
         <NotebookSelect
           autoFocus={mode === "move"}
           label="Parent notebook"
+          showHierarchy
           value={parentId}
           onValueChange={setParentId}
           projects={notebooks.projects}
@@ -148,12 +149,6 @@ export function ProjectForm({
         Nest notebooks to keep related ideas together. Each notebook keeps its
         own agent access.
       </p>
-      {!base && (
-        <p className="text-sm leading-7 text-muted">
-          A home for related notes, decisions, and work in progress. You can
-          start with just a name.
-        </p>
-      )}
       {mode === "create" && (
         <details className="agent-details">
           <summary>

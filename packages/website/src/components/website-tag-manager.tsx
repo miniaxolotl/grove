@@ -2,11 +2,13 @@
 
 import { useEffect } from "react";
 import { consentAllowed, subscribeConsent } from "@/lib/cookie-consent";
+import { publicCampaignDocument } from "@/lib/campaign-url";
 import { registrationDocumentReady } from "@/lib/registration-document";
 
 const containerId = "GTM-M5WKD5LZ";
 const hosts = new Set(["usegrove.cloud", "www.usegrove.cloud"]);
 const paths = new Set(["/", "/privacy", "/terms", "/install", "/self-host"]);
+const registrationPaths = new Set([...paths, "/welcome"]);
 let started = false;
 
 function publicLocation(url: URL, registrationComplete = false) {
@@ -15,8 +17,10 @@ function publicLocation(url: URL, registrationComplete = false) {
     hosts.has(url.hostname) &&
     (paths.has(url.pathname) ||
       (registrationComplete && url.pathname === "/welcome" && !url.hash)) &&
-    [...url.searchParams.keys()].every((key) =>
-      /^utm_(source|medium|campaign|term|content)$/.test(key),
+    publicCampaignDocument(
+      url.href,
+      url.origin,
+      registrationComplete ? registrationPaths : paths,
     )
   );
 }

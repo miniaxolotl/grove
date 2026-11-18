@@ -13,8 +13,9 @@
   font-weight: 600;
 }
 .files-storage {
-  border-block: 1px solid var(--color-line);
-  padding-block: 0.9rem;
+  background: var(--color-sage);
+  border-radius: 6px;
+  padding: 0.75rem;
 }
 .files-storage > summary {
   display: grid;
@@ -109,7 +110,18 @@
   display: flex;
   gap: 0.75rem;
   align-items: end;
-  margin-block: 1rem 0.75rem;
+  margin: 0;
+}
+.files-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 1.25rem;
+  align-items: end;
+  margin-block: 0.75rem;
+}
+.files-controls > form {
+  flex: 1 1 19rem;
+  min-width: 0;
 }
 .files-filters label {
   display: grid;
@@ -136,7 +148,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.75rem;
+  flex: 1 1 auto;
 }
 .files-filter-toggle {
   display: flex;
@@ -168,9 +180,7 @@
   gap: 0.75rem;
   padding: 0.75rem;
   margin-bottom: 0.75rem;
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-  border-radius: 0.5rem;
+  padding-inline: 0;
 }
 .files-filter-grid[hidden] {
   display: none;
@@ -354,18 +364,21 @@
 }
 @media (max-width: 640px) {
   .files-heading {
-    display: block;
-    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 8px;
+    align-items: center;
   }
-  .files-heading h2 {
-    padding-right: 6.5rem;
+  .files-heading > div {
+    display: contents;
+  }
+  .files-heading p {
+    grid-column: 1 / -1;
   }
   .files-heading > .text-button {
-    position: absolute;
-    right: 0;
-    top: 0;
+    grid-area: 1 / 2;
     font-size: 0.75rem;
-    min-height: 24px;
+    min-height: 44px;
   }
   .files-storage dl {
     grid-template-columns: 1fr;
@@ -381,17 +394,12 @@
     font-size: 1rem;
     text-align: right;
   }
-  .files-filters {
-    flex-wrap: wrap;
+  .files-controls > * {
+    width: 100%;
   }
-  .files-filters label:first-child {
-    flex-basis: 100%;
-  }
-  .files-filters label:nth-child(2) {
-    flex: 1;
-  }
-  .files-filters label:first-child {
-    flex-basis: 0;
+  .files-controls :is(input, button, select),
+  .files-filter-grid :is(button, select) {
+    min-height: 44px;
   }
   .files-filter-grid {
     grid-template-columns: 1fr 1fr;

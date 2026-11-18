@@ -55,6 +55,40 @@ shared-reader and sign-in pages remain excluded. Normalize DOM URL attributes an
 disable JSON-LD capture. `session-replay` gates recording; `website-cta-copy` controls
 the public CTA. An experiment/flag definition does not establish a live experiment.
 
+### Vercel website insights
+
+The root layout mounts Web Analytics and Speed Insights only for
+`VERCEL_ENV=production`. Both require analytics consent and the same browser,
+footer-preference and storage-failure vetoes as website telemetry. Enabling the
+Vercel features or installing the packages is not deployed initialization evidence.
+
+SDKs initialize only in an initially public `https://usegrove.cloud` document on
+the component's enumerated marketing paths. Authenticated `/app`, shared-reader,
+sign-in/up, approval/welcome and unknown paths are excluded. Fragments, arbitrary
+query parameters and invalid/duplicate campaign tags also prevent initialization.
+Client navigation from an initially private document cannot enable collection.
+The `tracking=off` recovery URL stays disabled until consent explicitly clears it.
+
+Before sending, both SDKs recheck current consent/document scope. Web Analytics
+projects only validated campaign labels; Speed Insights removes queries/fragments
+and projects the public pathname. Malformed and foreign-origin URLs are dropped
+without throwing. This does not enable replay on private content or add workspace
+tracking. Public route additions require an explicit allowlist review.
+
+GTM separately requires Advertising consent and its narrower marketing-route
+allowlist; its guarded completed-registration document remains a distinct case.
+Tags validate the document before loading, since they can read its URL independently
+of event projection. Each `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`,
+`utm_term` may occur once, matching `[a-z][a-z0-9_-]{0,63}` (case-insensitive).
+Use public codes, never identity/free text. Fragments and invalid/duplicate
+parameters prevent tag initialization.
+
+Vercel may inject hashed first-party intake paths: identify script `data-sdkn`
+attributes rather than assuming only `/_vercel/*` endpoints. Vendor scripts exclude
+automated/headless visits. A production build with synthetic SDK sinks can verify
+initialization, revocation and URL projection without proving live ingestion;
+fresh deployment-specific provider receipts remain separate acceptance evidence.
+
 Sentry projects sanitized errors, 10% spans, bounded metrics/logs, exact-source debug
 coordinates and opt-out/generation checks at transport, including queued envelopes.
 Browser propagation is restricted to the same-origin API proxy; server propagation

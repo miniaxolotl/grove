@@ -22,7 +22,14 @@ the package is signed. Use a custom-origin build for an isolated local stack.
 To build the unsigned packages, use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
-`packages.build.json` with product version, configuration, input inventory and hashes.
+`packages.build.json` with each browser's manifest version, configuration, input inventory and hashes.
+If the private extension manifest declares `browserVersions`, its `chrome`, `edge` and
+`firefox` values identify the installable ZIPs. Otherwise all three inherit the product
+version. The source release tag identifies the product in either case. Before changing
+a browser version, check its last GitHub download and published, submitted and reserved
+store versions; a public listing cannot rule out a pending submission.
+The coordinated publisher rejects an independent map during preflight. Local
+builds and CI can exercise it before a protected, reservation-aware download release.
 Changing the website brand assets or root license also runs extension packaging
 and browser checks because these files ship inside the ZIPs.
 Successful source CI also retains these unsigned ZIPs and their report as a
@@ -99,6 +106,14 @@ They do not contain draft text or check results. Turning Grove off overrides the
 
 The bundled `dictionary-en` 4.0.0 data is SCOWL-derived **American English**, with
 `nspell` 2.1.5 for affix-aware lookup. Their MIT/BSD notices are included in the ZIP.
+The shared checker adds common note words such as **watchlist**, **roadmap** and
+**audiobook** with their plurals and possessives. Personal names are matched
+regardless of case, apostrophe style or equivalent accent encoding; adding a name
+also covers its possessive.
+Specialist vocabulary for software, science, medicine, law, finance, geography,
+education and music works across sites and in Notes. A compound such as
+**read-only** is checked by its parts when it has no dictionary entry; fixing
+**read-onyl** changes only the misspelled part and preserves the hyphen.
 There is no dictionary download, external spelling service or AI request. Basic rules
 cover brackets/quotes, **a/an** sound exceptions, repeated words, spacing, obvious
 capitalization (including the start of a new line or list item), unambiguous wordy
@@ -520,7 +535,7 @@ that an uncertain provider operation never happened; do not blindly create a new
 
 `browserProfile` distinguishes Chrome/Edge `sidePanel` + service-worker targets
 from Firefox `sidebarAction` + event-page targets. The build generates their separate
-MV3 manifests from the same source and shared product version.
+MV3 manifests from the same source with the browser versions described above.
 
 `openNativePanel` directly calls the supplied native API in the original user event,
 before any await, preserving method receiver and user-gesture timing. Missing APIs
