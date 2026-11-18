@@ -100,5 +100,45 @@
       "identity": null,
       "reason": "No verified reservation, submission, approval or live listing receipt"
     }
+  },
+  "reviewedReleaseInputs": {
+    "9ee71cc987a443c020fbf6030f76664b4cc5e914": {
+      ".github/workflows/deploy.yml": [
+        "0:bc939c4244477c37dc121f810c2fe4c66d8ece354ddc9bfadad44497226fe646",
+        "0:a1ee4d520a917424acc2e845eb21d5a5ef0189d68208b13fa5ae2f1da1f11d83"
+      ],
+      ".github/workflows/release.yml": [
+        "0:d9075c1aed3b096e963f444827ce2ce3b19172f7b78669773d4e97ea6b6967c9",
+        "0:d06932b6b8ef412f956b685642958fcda05184d47d37990ea5c109829d11329a"
+      ],
+      ".github/workflows/website-impact.yml": [
+        null,
+        "0:cf394b1f758d6b6e3d18457b4c241f06d71673e52db0aee60c2d34e2c0b8be47"
+      ],
+      "release-please-website.json": [
+        null,
+        "0:2122dc20f490adb643d3f1580159b720cb50b0e53a3051a2980ac76a565327a8"
+      ],
+      "scripts/build-browser-extension.mjs": [
+        "0:f4d1e28fb5baf9858836b2de38bdea3d8351fdf69db6abac2bd521092d6ba3fb",
+        "0:eb27be75c62c4ffd12c8bbaddd3323e0ef37a7dc5e64632bd0a17d7b3329cfec"
+      ],
+      "scripts/release/assets.mjs": [
+        "0:d7cbaa2651f0bfd6898e0b3d163d1f11eea7ea6f764b7a270a9d1dd2a51142d2",
+        "0:b983c63912097a71aa35aeb5494333a6b03ae5e1ab9a4ea02b30f31ecdc7c8cf"
+      ],
+      "scripts/release/browser-versions.mjs": [
+        null,
+        "0:027387a398380ffe6869de0e7fd06a8ceba6c79973b40dc8243191a588368d94"
+      ],
+      "scripts/release/select-website.mjs": [
+        null,
+        "0:54f9eeec9d8cdd2d144bb3ea7b271d7a9e0a027b91bc89a34b09f5d619afbe36"
+      ],
+      "scripts/release/verify-website-baselines.mjs": [
+        null,
+        "0:c858bb7d7131e045323d6bde4b10a5e691d82626fb4451ee5a687960ac3c8ee9"
+      ]
+    }
   }
 }
