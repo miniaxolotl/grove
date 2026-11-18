@@ -1,5 +1,19 @@
 # Notebook organizer review
 
+## Notebook navigation and Notes toolbar — 18 November 2026
+
+Actual workspace components, production build `Epy0cs4NF59uzZr-6dpGP`, and
+synthetic account, plan, notebooks and notes from `organization-sort.spec.ts`.
+
+| Notes, 1440 × 844 | Open tree, 390 × 844 | Open tree, 320 × 844 | Nested selection, 390 × 844 |
+| --- | --- | --- | --- |
+| ![Notebook controls, account footer and Notes toolbar](rail-entry-1440.webp) | ![Full-width notebook list on a phone](rail-entry-390.webp) | ![Small phone with dark OS preference](rail-entry-320.webp) | ![Selected child notebook with its available moves](rail-selected-390.webp) |
+
+The notebook heading keeps Organize and creation together. On phones, the tree
+opens below the navigation and uses its full width. The 320px capture uses a
+dark system preference; the website retains its existing light palette. These
+are Chromium captures with emulated touch, not physical-device verification.
+
 ## Sidebar, placement and note sorting — 17 November 2026
 
 Synthetic workspace fixture with production styles from build `l_jyhVC7Lhz9nyXrCderS`.

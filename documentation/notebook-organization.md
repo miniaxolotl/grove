@@ -7,7 +7,9 @@ that the owner's reported physical-phone gesture failures are repaired.
 
 ## Organize in the website
 
-- Open **Organize** below the sidebar’s Notebooks heading. It selects the current
+- Open **Organize** in the sidebar’s Notebooks heading. On a phone, first expand
+  **Notebooks** to see the full-width tree. The heading links to the notebook manager;
+  the plus button creates a notebook. Organize selects the current
   notebook when there is one; otherwise choose from the tree. The manager’s
   **Organize** button and a row’s **Rearrange notebook** action also open it.
   Focus starts on the dialog title, so typing is optional. Close or Escape

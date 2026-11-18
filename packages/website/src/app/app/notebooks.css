@@ -11,7 +11,6 @@
 }
 .notebook-tree-list .notebook-tree-list {
   margin-left: min(10px, 2vw);
-  border-left: 1px solid #dce3d6;
   padding-left: 3px;
 }
 .notebook-tree-row {
@@ -25,7 +24,8 @@
   background: #e7eddf80;
 }
 .notebook-tree-row[data-current] {
-  background: #e1e9d8;
+  background: var(--color-sage);
+  font-weight: 600;
 }
 .notebook-tree-link {
   display: flex;
@@ -59,12 +59,6 @@
 }
 .notebook-disclosure[aria-expanded="true"] > svg {
   transform: rotate(90deg);
-}
-.notebook-manager {
-  padding: 8px;
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: 10px;
 }
 .notebook-manager .notebook-tree-link {
   min-height: 40px;
@@ -269,12 +263,8 @@
 }
 .notebook-manager .notebook-tree-row {
   flex-wrap: nowrap;
-  min-height: 64px;
-  padding: 6px 8px;
-  border-radius: 0;
-}
-.notebook-manager .notebook-tree-list > li + li {
-  border-top: 1px solid var(--color-line);
+  min-height: 44px;
+  padding: 0 4px;
 }
 .notebook-manager .notebook-tree-link {
   font-size: 16px;
@@ -366,10 +356,7 @@
   max-height: min(42dvh, 360px);
   overflow: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  padding: 4px;
-  background: #fff;
+  padding-block: 2px;
 }
 .notebook-organizer-choice {
   display: flex;
@@ -378,14 +365,23 @@
   flex: 1;
   min-width: 0;
   text-align: left;
-  padding: 10px 6px;
-  min-height: 48px;
-  font-size: 16px;
+  padding: 6px;
+  min-height: 36px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .notebook-organizer-choice > span {
   flex: 1;
   min-width: 0;
+}
+.notebook-organizer-folder {
+  flex: none;
+  color: var(--color-muted);
+}
+@media (any-pointer: coarse) {
+  .notebook-organizer-choice {
+    min-height: 44px;
+  }
 }
 .notebook-organizer-choice > svg {
   flex-shrink: 0;

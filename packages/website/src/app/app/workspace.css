@@ -1365,7 +1365,6 @@ html:has(.grove-app) {
 }
 .notebook-pages {
   margin: 2px 0 5px 12px;
-  border-left: 1px solid var(--color-line);
   padding-left: 12px;
 }
 .notebook-pages li {
@@ -1607,8 +1606,7 @@ html:has(.grove-app) {
   justify-self: end;
   flex-shrink: 0;
   gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--color-line);
+  padding: 0;
   border-radius: 6px;
   color: var(--color-muted);
   font-size: 13px;
@@ -1621,18 +1619,31 @@ html:has(.grove-app) {
   justify-content: center;
   gap: 5px;
   min-width: 44px;
-  min-height: 30px;
+  min-height: 36px;
   padding-inline: 8px;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 6px;
   font-weight: 500;
 }
 .library-view-switch > button:is(:hover, [aria-pressed="true"]) {
   background: var(--color-sage);
   color: var(--color-forest);
 }
-.library-view-switch > button[aria-pressed="true"] {
-  border-color: var(--color-line);
+.library-heading .heading-actions > .secondary,
+.workspace-search > .library-filter-trigger {
+  min-width: 44px;
+  min-height: 36px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-muted);
+}
+.library-heading
+  .heading-actions
+  > button.secondary:is(:hover, [aria-expanded="true"]),
+.workspace-search > .library-filter-trigger:is(:hover, [aria-expanded="true"]) {
+  background: var(--color-sage);
+  color: var(--color-forest);
 }
 .library-view-switch > button:focus-visible {
   outline: 2px solid var(--color-leaf);
@@ -1665,8 +1676,9 @@ html:has(.grove-app) {
     display: none;
   }
 }
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .library-view-switch > :is(button, span),
+  .workspace-search > .library-filter-trigger,
   .library-heading .heading-actions > .app-button {
     min-height: 44px;
   }
@@ -2195,6 +2207,18 @@ html:has(.grove-app) {
   }
   .library-filter-trigger .filter-trigger-label {
     display: none;
+  }
+  .workspace-search > .library-filter-trigger {
+    position: relative;
+    width: 44px;
+    padding: 0;
+  }
+  .library-filter-trigger .filter-count {
+    position: absolute;
+    inset: 0 0 auto auto;
+    min-width: 16px;
+    font-size: 10px;
+    line-height: 16px;
   }
   .settings-navigation a {
     padding: 6px 8px;
