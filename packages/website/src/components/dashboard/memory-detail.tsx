@@ -44,7 +44,12 @@ export function MemoryDetail({
   close,
 }: {
   memory?: Memory;
-  creation?: { draftKey: string; projectId?: string; initialContent: string };
+  creation?: {
+    draftKey: string;
+    projectId?: string;
+    initialContent: string;
+    dailyDate?: string;
+  };
   projects: Project[];
   onSaved: (memory: Memory, view?: { preview: boolean }) => void;
   onMove: () => void;
@@ -209,6 +214,7 @@ export function MemoryDetail({
         memory={memory}
         projectId={creation?.projectId}
         initialContent={creation?.initialContent}
+        dailyDate={creation?.dailyDate}
         projects={projects}
         fullPage={fullPage}
         workspace

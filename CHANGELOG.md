@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.11.23](https://github.com/miniaxolotl/grove/compare/v1.11.22...v1.11.23) (2026-11-18)
+
+
+### Features
+
+* **workspace:** append note pages on scroll ([#234](https://github.com/miniaxolotl/grove/issues/234)) ([7dff182](https://github.com/miniaxolotl/grove/commit/7dff18281375af7aae3b4a48cd0bd22e960729d4))
+* **workspace:** bring Graph beside More in Notes ([#232](https://github.com/miniaxolotl/grove/issues/232)) ([898a374](https://github.com/miniaxolotl/grove/commit/898a374d9fe9e403e6f5de0ce6ecadfcd0bebd7b))
+* **workspace:** clarify notebook and data actions ([#236](https://github.com/miniaxolotl/grove/issues/236)) ([20c494f](https://github.com/miniaxolotl/grove/commit/20c494fad984b2f4a2a65694bd76be19590c211a))
+* **workspace:** streamline notebook placement and note sorting ([#237](https://github.com/miniaxolotl/grove/issues/237)) ([835e460](https://github.com/miniaxolotl/grove/commit/835e460654d955cc97efaba6255971476f54454c))
+
+
+### Bug Fixes
+
+* **workspace:** clarify notebook drag feedback ([#233](https://github.com/miniaxolotl/grove/issues/233)) ([67e3179](https://github.com/miniaxolotl/grove/commit/67e317954611e182bd9ebaff32a44403a52d7e1d))
+* **workspace:** reopen the same daily note ([#235](https://github.com/miniaxolotl/grove/issues/235)) ([851550b](https://github.com/miniaxolotl/grove/commit/851550bfcec1e7eb81f318b1945ad2dbdd74e121))
+
+## [1.11.22](https://github.com/miniaxolotl/grove/compare/v1.11.21...v1.11.22) (2026-11-18)
+
+
+### Features
+
+* **extension:** align store branding with writing and study notes ([#230](https://github.com/miniaxolotl/grove/issues/230)) ([9c67031](https://github.com/miniaxolotl/grove/commit/9c67031ee94b5bf1e73bbb4a44a3c7f215f08c1b))
+
 ## [1.11.21](https://github.com/miniaxolotl/grove/compare/v1.11.20...v1.11.21) (2026-11-18)
 
 

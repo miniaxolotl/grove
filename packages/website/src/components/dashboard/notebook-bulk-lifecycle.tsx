@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage, type Project } from "@/lib/dashboard-api";
 import type { NotebookLifecyclePreview } from "@lib/shared/notebook-lifecycle";
-import { Dialog, useDialogBusy } from "./dialog";
+import { Dialog } from "./dialog";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useNoteDraftRevision, useNoteDrafts } from "./note-drafts";
 import { useToast } from "./toasts";
 import { Button } from "./ui/button";
 import { LoadError } from "./load-error";
+import {
+  NotebookLifecycleSummary,
+  notebookDraftWarning,
+} from "./notebook-lifecycle-summary";
 
 const verbs = { restore: "Restore", delete: "Delete" } as const;
 
@@ -33,44 +37,42 @@ export function NotebookBulkLifecycleDialog({
   const toast = useToast();
   const drafts = useNoteDrafts();
   useNoteDraftRevision();
-  const setDialogBusy = useDialogBusy();
   const [previews, setPreviews] = useState<Map<
     string,
     NotebookLifecyclePreview
   > | null>(null);
   const [loadError, setLoadError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const submitting = useRef(false);
+  const cancel = useRef<HTMLButtonElement>(null);
   const idsKey = projects.map((project) => project.id).join(",");
-  const operationIds = useRef(new Map<string, string>());
   useEffect(() => {
-    let active = true;
-    setDialogBusy(true);
+    const controller = new AbortController();
     Promise.all(
       projects.map(async (project) => {
         const preview = await cache.fetch<NotebookLifecyclePreview>(
           `/projects/${project.id}/lifecycle`,
+          undefined,
+          controller.signal,
         );
         return [project.id, preview] as const;
       }),
     )
       .then((results) => {
-        if (active) {
+        if (!controller.signal.aborted) {
           setPreviews(new Map(results));
           setLoadError("");
         }
       })
       .catch((reason: unknown) => {
-        if (active) setLoadError(errorMessage(reason));
-      })
-      .finally(() => {
-        if (active) setDialogBusy(false);
+        if (!controller.signal.aborted) setLoadError(errorMessage(reason));
       });
     return () => {
-      active = false;
+      controller.abort();
     };
     // idsKey stands in for the fixed selection this dialog opened with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cache, idsKey]);
+  }, [cache, idsKey, loadAttempt]);
   const roots = useMemo(() => {
     if (!previews) return [];
     return projects
@@ -94,8 +96,7 @@ export function NotebookBulkLifecycleDialog({
       ? [...drafts.values()].filter(
           (draft) =>
             covered.includes(draft.projectId) ||
-            (!!draft.base?.projectId &&
-              covered.includes(draft.base.projectId)),
+            (!!draft.base?.projectId && covered.includes(draft.base.projectId)),
         ).length
       : 0;
   const blocked =
@@ -114,9 +115,8 @@ export function NotebookBulkLifecycleDialog({
     0,
   );
   async function confirm() {
-    if (!actionable.length || busy || draftCount) return;
-    setBusy(true);
-    setDialogBusy(true);
+    if (!actionable.length || submitting.current || draftCount) return;
+    submitting.current = true;
     const verb = action === "restore" ? "restored" : "deleted";
     const noun = (count: number) =>
       `${count} notebook${count === 1 ? "" : "s"}`;
@@ -130,11 +130,8 @@ export function NotebookBulkLifecycleDialog({
       const staged = cache.stage({ scopes: root.preview.projectIds });
       cache.applyNotebookLifecycle(action, root.preview.projectIds);
       try {
-        const retained = operationIds.current.get(root.project.id);
-        const operationId = retained ?? crypto.randomUUID();
-        operationIds.current.set(root.project.id, operationId);
         await cache.api(`/projects/${root.project.id}/${action}`, {
-          operationId,
+          operationId: crypto.randomUUID(),
           expectedVersion: root.preview.project.version,
           fingerprint: root.preview.fingerprint,
         });
@@ -146,11 +143,8 @@ export function NotebookBulkLifecycleDialog({
         failed.push(`${root.project.name}: ${errorMessage(reason)}`);
       }
     }
-    setBusy(false);
-    setDialogBusy(false);
     const parts: string[] = [];
-    if (succeeded)
-      parts.push(`${noun(succeeded)} ${verb}.`);
+    if (succeeded) parts.push(`${noun(succeeded)} ${verb}.`);
     if (failed.length)
       parts.push(
         `${noun(failedNotebooks)} could not be ${verb}. ${failed.slice(0, 3).join("; ")}${failed.length > 3 ? "; …" : ""}`,
@@ -174,67 +168,67 @@ export function NotebookBulkLifecycleDialog({
     <Dialog
       title={`${verbs[action]} ${projects.length === 1 ? "notebook" : "notebooks"}`}
       close={close}
-      busy={busy}
     >
-      {!previews && !loadError ? (
-        <p role="status">Checking affected contents…</p>
-      ) : loadError ? (
-        <LoadError
-          message={loadError}
-          retry={() => {
-            setPreviews(null);
-            setLoadError("");
-          }}
-        />
-      ) : (
-        <>
-          <p>
-            <strong>
-              {roots.map((root) => root.project.name).join(", ")}
-            </strong>
-          </p>
-          <p>
-            {notebooks} {notebooks === 1 ? "notebook" : "notebooks"} and{" "}
-            {notes} {notes === 1 ? "note" : "notes"}, including all
-            sub-notebooks.
-          </p>
-          <p>
-            {action === "restore"
-              ? "Restore the notebooks and notes archived together. Previously archived or expired notes stay inactive; original retention dates do not change."
-              : "Hide these notebooks, their notes and history from Grove. This is a soft deletion: retained records are not permanently erased. There is no Undo."}
-          </p>
-          <p>
-            Direct links to these notebooks and notes will be turned off.
-            Restoring does not turn them back on, but a shared parent notebook
-            can include the restored contents again.
-          </p>
-          {!!blocked.length && action === "restore" && (
-            <p role="alert" className="app-error">
-              Restore the parent notebook first for:{" "}
-              {blocked.map((root) => root.project.name).join(", ")}.
-            </p>
-          )}
-          {!!draftCount && (
-            <p role="alert" className="app-error">
-              Finish saving or resolving drafts in these notebooks first (
-              {draftCount}). Your local writing will not be discarded.
-            </p>
-          )}
-        </>
-      )}
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Button
-          variant={action === "delete" ? "danger" : "primary"}
-          disabled={!actionable.length || busy || !!draftCount}
-          onClick={() => void confirm()}
-        >
-          {busy
-            ? "Working…"
-            : `${verbs[action]} ${projects.length > 1 ? "notebooks" : "notebook"}`}
-        </Button>
-        <Button variant="secondary" disabled={busy} onClick={close}>
-          Cancel
-        </Button>
+      <div className="app-form">
+        {!previews && !loadError ? (
+          <p role="status">Checking contents…</p>
+        ) : loadError ? (
+          <LoadError
+            title="Couldn’t check notebook contents"
+            message={loadError}
+            retry={() => {
+              cancel.current?.focus();
+              setPreviews(null);
+              setLoadError("");
+              setLoadAttempt((attempt) => attempt + 1);
+            }}
+          />
+        ) : (
+          <>
+            {!!actionable.length && (
+              <>
+                <p className="wrap-anywhere">
+                  <strong>
+                    {actionable.map((root) => root.project.name).join(", ")}
+                  </strong>
+                </p>
+                <NotebookLifecycleSummary
+                  action={action}
+                  notebooks={notebooks}
+                  notes={notes}
+                />
+              </>
+            )}
+            {!!blocked.length && action === "restore" && (
+              <p role="alert" className="app-error my-0 wrap-anywhere">
+                Restore the parent notebook first for:{" "}
+                {blocked.map((root) => root.project.name).join(", ")}.
+              </p>
+            )}
+            {!!draftCount && (
+              <p role="alert" className="app-error my-0">
+                {notebookDraftWarning(action, draftCount)}
+              </p>
+            )}
+          </>
+        )}
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <Button
+            variant="secondary"
+            ref={cancel}
+            data-autofocus
+            onClick={close}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant={action === "delete" ? "danger" : "primary"}
+            disabled={!actionable.length || !!draftCount}
+            onClick={() => void confirm()}
+          >
+            {`${verbs[action]} ${projects.length > 1 ? "notebooks" : "notebook"}`}
+          </Button>
+        </div>
       </div>
     </Dialog>
   );

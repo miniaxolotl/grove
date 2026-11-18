@@ -34,3 +34,20 @@ and keyboard help share a baseline, and compact desktop controls retain separate
 Mode and notebook controls align; the search field/status retain their positions
 through loading, results, clearing and retry. The full browser suite also checks
 short windows, enlarged text, reduced motion, keyboard/touch and accessibility.
+
+## Automatic note continuation
+
+18 November 2026 UTC · `feat/workspace-infinite-scroll` on base `c8de2701` ·
+production CSS build `UQ53TPHD8KH8DIXA8T2YF`. Playwright Chromium 1.64.1 rendered
+actual workspace components with synthetic notes and mocked cursor responses.
+
+- [Notes after scrolling (1440 × 760)](scroll-append-1440.png): focus moves with
+  Arrow Down from the last original row to the first appended row while selection stays active.
+- [Notebook sidebar (390 × 640)](scroll-sidebar-390.png): notes 14–19 are
+  reachable in the sidebar’s own scroll area; **New note** is still at the end.
+- [Keyboard continuation (1280 × 720)](scroll-keyboard-1280.png): with the
+  observer disabled in the fixture, Tab reveals the fallback at the list edge.
+
+These are browser-fixture captures, not a live account, physical-device test,
+or validation with a native screen reader. The fallback's browser accessibility
+tree and keyboard focus state are covered by automated tests.

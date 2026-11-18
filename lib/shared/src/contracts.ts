@@ -13,6 +13,12 @@ export type Capability = z.infer<typeof capabilitySchema>;
 // Clerk accepts OIDC identity scopes; Grove's database grant owns memory authorization.
 export const oauthScopes = ["openid", "offline_access"] as const;
 export const uuidSchema = z.uuid();
+export const localDateSchema = z.iso
+  .date()
+  .refine((date) => !date.startsWith("0000-"));
+export type DailyNote =
+  | { state: "empty" | "deleted" }
+  | { state: "saved"; id: string };
 export const operationSchema = z
   .uuid()
   .describe(

@@ -547,9 +547,17 @@ test("an empty library has one next step and keeps recovery when refresh fails",
   const more = page.getByRole("button", { name: "More note actions" });
   await more.click();
   await expect(
-    page.getByRole("button", { name: "Graph", exact: true }),
-  ).toBeHidden();
+    page
+      .getByRole("group", { name: "More note actions" })
+      .getByRole("button", { name: "Graph", exact: true }),
+  ).toHaveCount(0);
   await page.keyboard.press("Escape");
+  const view = page.getByRole("group", { name: "Note view", exact: true });
+  const graph = view.getByRole("button", { name: "Graph", exact: true });
+  await graph.press("Enter");
+  await expect(graph).toHaveAttribute("aria-pressed", "true");
+  await expect(empty).toBeVisible();
+  await view.getByRole("button", { name: "List", exact: true }).press("Enter");
   await write.focus();
   fail = true;
   await invalidateNotes(page);
@@ -605,10 +613,8 @@ test("an interrupted next page retries its cursor without replacing loaded notes
   const first = page.locator(".memory-list-item").first();
   const selection = first.getByRole("checkbox");
   await selection.check();
-  const loadMore = page.getByRole("button", { name: "Load more", exact: true });
-  await loadMore.scrollIntoViewIfNeeded();
   const before = await first.boundingBox();
-  await loadMore.click();
+  await page.locator(".note-continuation-edge").scrollIntoViewIfNeeded();
   const retry = page.getByRole("button", { name: "Retry loading more notes" });
   await expect(retry).toBeVisible();
   await expect(selection).toBeChecked();
@@ -623,8 +629,43 @@ test("an interrupted next page retries its cursor without replacing loaded notes
   expect(cursors.filter((cursor) => cursor === null)).toHaveLength(1);
   expect(cursors.at(-1)).toBe("next-page");
   await expect(selection).toBeChecked();
-  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(first.locator(".memory-open")).toBeFocused();
   await expect(retry).toHaveCount(0);
+});
+
+test("an intersecting next page waits for the existing background refresh", async ({
+  page,
+}) => {
+  await fixture(page);
+  const refresh = Promise.withResolvers<void>();
+  const cursors: unknown[] = [];
+  const items = Array.from({ length: 20 }, (_, index) => ({
+    ...note,
+    id: `43210000-1000-4000-a000-${String(index).padStart(12, "0")}`,
+    content: `# Cached thought ${index}`,
+  }));
+  await page.route("**/api/grove/memories/search", async (route) => {
+    const { cursor } = route.request().postDataJSON();
+    cursors.push(cursor ?? null);
+    if (!cursor && cursors.length === 2) await refresh.promise;
+    await route.fulfill({ json: { success: true, data: {
+      items: cursor ? [{ ...note, content: "# Appended thought" }] : items,
+      nextCursor: cursor ? null : cursors.length === 1 ? "old" : "fresh",
+    } } });
+  });
+  await page.goto(`${base}/app`);
+  const rows = page.locator(".memory-open");
+  await expect(rows).toHaveCount(20);
+  await invalidateNotes(page);
+  await expect(page.locator(".library-refreshing")).toBeVisible();
+  const edge = page.locator(".library-list .note-continuation-edge");
+  await edge.scrollIntoViewIfNeeded();
+  await expect(edge).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Load more notes" })).toBeDisabled();
+  expect(cursors).toEqual([null, null]);
+  refresh.resolve();
+  await expect(rows.last()).toHaveText("Appended thought");
+  expect(cursors).toEqual([null, null, "fresh"]);
 });
 
 test("a successful replay returning a later agent edit requires explicit review and retains the original draft", async ({

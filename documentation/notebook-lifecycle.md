@@ -18,6 +18,7 @@ only that notebook. Restore the parent first when
 attempting to restore a child of an archived notebook. Notes and child notebooks
 archived separately before the operation remain archived. Expired notes retain
 their expiry and purge dates; notebook restoration never extends retention.
+If the preview cannot load, **Try again** reloads it before enabling confirmation.
 
 Archived notebooks cannot be renamed, moved, populated, or used to edit/restore
 individual notes until restored. Read-only note/history access and ordinary
@@ -62,8 +63,8 @@ OAuth grants cannot administer a subtree, even if they can write/delete individu
 notes; parent scope never implies child authorization.
 
 The ordinary account write lock makes each subtree mutation atomic. The fingerprint
-checks the content/change/catalogue counters: note edits, additions, moves, and
-hierarchy changes require **Review current contents** and a fresh confirmation.
+checks the content/change/catalogue counters: after a note edit, addition, move,
+or hierarchy change, reopen the action to review and confirm the current contents.
 Conservatively, unrelated account edits can also require review. A retry retains
 the exact original payload and operation ID; replay cannot repeat the mutation or
 reactivate a deleted record. Interrupted transactions roll back as a unit.
