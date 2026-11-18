@@ -4,7 +4,16 @@ import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { parse, modify, applyEdits } from "jsonc-parser";
+import {
+  parseTree,
+  findNodeAtLocation,
+  getNodeValue,
+  createScanner,
+  SyntaxKind,
+  modify,
+  applyEdits,
+  type Edit,
+} from "jsonc-parser";
 import { type AgentName } from "@lib/integration-core/node";
 import { GroveError } from "@lib/shared/contracts";
 import claudePackage from "../../grove-claude-plugin/package.json" with { type: "json" };
@@ -153,8 +162,13 @@ export async function installIntegration(agent: AgentName, remove = false) {
       }
     }
     const errors: import("jsonc-parser").ParseError[] = [];
-    const config = parse(source, errors, { allowTrailingComma: true });
-    if (errors.length || !config || typeof config !== "object")
+    const config = parseTree(source, errors, { allowTrailingComma: true });
+    const plugins = config && findNodeAtLocation(config, ["plugins"]);
+    if (
+      errors.length ||
+      config?.type !== "object" ||
+      (plugins && plugins.type !== "array")
+    )
       throw new GroveError(
         "invalid_config",
         "OpenCode configuration could not be parsed; no changes made",
@@ -165,15 +179,14 @@ export async function installIntegration(agent: AgentName, remove = false) {
         typeof entry === "string"
           ? entry
           : (entry as { package?: string } | null)?.package;
-      return value === name || value?.startsWith(`${name}@`);
+      return (
+        typeof value === "string" &&
+        (value === name || value.startsWith(`${name}@`))
+      );
     };
-    const existing = Array.isArray(config.plugins) ? config.plugins : [];
-    const entries = existing.filter((entry: unknown) => !isGrove(entry));
-    if (!remove) entries.push(existing.find(isGrove) ?? name);
-    if (
-      (!remove && existing.filter(isGrove).length === 1) ||
-      (remove && !existing.some(isGrove))
-    ) {
+    const entries = plugins?.children ?? [];
+    const matches = entries.filter((node) => isGrove(getNodeValue(node)));
+    if ((!remove && matches.length === 1) || (remove && !matches.length)) {
       console.error(
         remove
           ? "Grove plugin entry is already removed"
@@ -181,12 +194,33 @@ export async function installIntegration(agent: AgentName, remove = false) {
       );
       return;
     }
-    source = applyEdits(
-      source,
-      modify(source, ["plugins"], entries, {
-        formattingOptions: { insertSpaces: true, tabSize: 2 },
-      }),
-    );
+    if (!matches.length) {
+      source = applyEdits(source, modify(source, ["plugins", -1], name, {}));
+    } else {
+      // Keep the first configured Grove entry in place during deduplication.
+      // Remove values and separator tokens, never intervening comments/trivia.
+      const discard = new Set(remove ? matches : matches.slice(1));
+      const lastKept = entries.filter((node) => !discard.has(node)).at(-1);
+      const scanner = createScanner(source, true);
+      const edits: Edit[] = [];
+      for (const node of entries) {
+        if (discard.has(node))
+          edits.push({ offset: node.offset, length: node.length, content: "" });
+        if (
+          discard.has(node) ||
+          (node === lastKept && node !== entries.at(-1))
+        ) {
+          scanner.setPosition(node.offset + node.length);
+          if (scanner.scan() === SyntaxKind.CommaToken)
+            edits.push({
+              offset: scanner.getTokenOffset(),
+              length: 1,
+              content: "",
+            });
+        }
+      }
+      source = applyEdits(source, edits);
+    }
     await mkdir(directory, { recursive: true });
     const temporary = `${path}.${randomUUID()}.tmp`;
     await writeFile(temporary, source, { flag: "wx", mode: 0o600 });
