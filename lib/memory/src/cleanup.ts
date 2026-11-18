@@ -86,7 +86,10 @@ export function cleanupHandlers(
         };
         const count = await deleteBatch(table);
         // Keep durable checkpoint numbers stable. One proofing grant per account.
-        const proofing = table === "notebook_expiries" ? await deleteBatch("proofing_consents") : 0;
+        const proofing =
+          table === "notebook_expiries"
+            ? await deleteBatch("proofing_consents")
+            : 0;
         // Extend the last stage without renumbering persisted task cursors or
         // adding an extra checkpoint for accounts with no daily bindings.
         const daily =
@@ -117,7 +120,12 @@ export function cleanupHandlers(
                 : stage + 1,
           },
           processed:
-            Number(task.processed) + count + daily + proofing + research.length + cache,
+            Number(task.processed) +
+            count +
+            daily +
+            proofing +
+            research.length +
+            cache,
         };
       });
       return;

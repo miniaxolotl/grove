@@ -27,7 +27,11 @@ export type MessageSender = {
 };
 export type BrowserHost = NativePanelHost & {
   offscreen?: {
-    createDocument(options: {url: string; reasons: ["WORKERS"]; justification: string}): Promise<void>;
+    createDocument(options: {
+      url: string;
+      reasons: ["WORKERS"];
+      justification: string;
+    }): Promise<void>;
   };
   identity: BrowserIdentity;
   runtime: {

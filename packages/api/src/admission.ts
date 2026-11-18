@@ -5,7 +5,11 @@ const busy = () =>
 
 /** Buffer at most one small API body, only after admission. The stream signal
  * interrupts stalled reads; received bytes, not Content-Length, enforce the cap. */
-export async function admittedRequest(request: Request, signal: AbortSignal, maximum=128*1024) {
+export async function admittedRequest(
+  request: Request,
+  signal: AbortSignal,
+  maximum = 128 * 1024,
+) {
   if (!request.body) return request;
   const tooLarge = () =>
     new GroveError("too_large", "Request body is too large", 413);

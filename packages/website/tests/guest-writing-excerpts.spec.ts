@@ -1,5 +1,27 @@
 import { expect, test } from "./telemetry-fixtures";
 
+test('a warm guest worker stays manual and checks offline without sending prose', async ({page, context}) => {
+  const transfers: string[] = [];
+  context.on('request', request => {
+    if (/\/api\/grove\/proofing\//.test(request.url()) || (request.postData() ?? '').includes('Guest marker')) transfers.push(request.url());
+  });
+  await page.goto('/writing');
+  const input = page.getByRole('textbox', {name:'English text'});
+  const submit = page.getByRole('button',{name:'Check writing'});
+  await input.fill('The notebook is ready.');
+  expect(page.workers()).toHaveLength(0); await submit.click();
+  await expect(page.getByText('No issues found.',{exact:true})).toBeVisible();
+  await context.setOffline(true);
+  try {
+    await input.fill('Guest marker: the the notebok.');
+    await expect(page.getByRole('list',{name:'Writing suggestions'})).toHaveCount(0);
+    await submit.click();
+    await expect(page.getByRole('list',{name:'Writing suggestions'})).toContainText('notebok');
+    await expect(page.getByRole('list',{name:'Writing suggestions'})).toContainText('appears twice');
+    expect(transfers).toEqual([]);
+  } finally { await context.setOffline(false); }
+});
+
 test("checks just the misspelled component of a technical note", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/writing");

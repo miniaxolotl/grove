@@ -109,6 +109,15 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     "packages.build.json",
   ]);
   const second = await build("second");
+  const reports = JSON.parse(
+    await readFile(join(artifact.outdir, "packages.build.json"), "utf8"),
+  ) as { target: string; inputs: string[] }[];
+  const slim = await readFile(
+    join(
+      root,
+      "lib/shared/node_modules/harper.js/dist/harper_wasm_slim_bg.wasm",
+    ),
+  );
   for (const target of ["chrome", "firefox", "edge"]) {
     const zip = await readFile(join(artifact.outdir, `grove-${target}.zip`));
     assert.deepEqual(
@@ -188,9 +197,31 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     assert.match(csp, /script-src 'self' 'wasm-unsafe-eval';/);
     assert.match(csp, /worker-src 'self';/);
     assert.doesNotMatch(csp, /'unsafe-(?:eval|inline)'|blob:|data:/);
-    assert.equal(manifest.permissions.includes("offscreen"), target !== "firefox");
-    assert.deepEqual(Object.keys(files).filter(name => name.endsWith(".wasm")), ["harper.wasm"]);
+    assert.equal(
+      manifest.permissions.includes("offscreen"),
+      target !== "firefox",
+    );
+    assert.deepEqual(
+      Object.keys(files).filter((name) => name.endsWith(".wasm")),
+      ["harper.wasm"],
+    );
     assert.ok(WebAssembly.validate(new Uint8Array(files["harper.wasm"])));
+    assert.equal(
+      Buffer.compare(files["harper.wasm"], slim),
+      0,
+      "package the pinned slim binary unchanged",
+    );
+    const inputs = reports.find((report) => report.target === target)!.inputs;
+    assert.ok(inputs.includes("lib/shared/src/writing-harper-worker.ts"));
+    assert.ok(
+      inputs.every(
+        (input) =>
+          !/nspell|dictionary-en|writing-dictionary\.ts|proofing-contract\.ts|BinaryInlined\.js/.test(
+            input,
+          ),
+      ),
+      "no legacy checker, duplicate inlined WASM or hosted proofing client",
+    );
     const notices = new TextDecoder().decode(files["THIRD-PARTY-NOTICES.txt"]);
     assert.match(notices, /harper\.js 3\.2\.0/);
     assert.doesNotMatch(notices, /dictionary-en|nspell/);

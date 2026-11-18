@@ -45,10 +45,10 @@ test("superseding a check during worker startup keeps the next check usable", as
   await page.addInitScript(() => {
     localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
   });
-  const requested = page.waitForRequest("**/proofing/worker.js*");
+  const requested = page.waitForRequest(/\/proofing\/worker\.js\?/);
   const gate = Promise.withResolvers<void>();
   let requests = 0;
-  await page.route("**/proofing/worker.js*", async (route) => {
+  await page.route(/\/proofing\/worker\.js\?/, async (route) => {
     requests++;
     await gate.promise;
     await route.continue();
@@ -165,9 +165,9 @@ for (const width of [1440, 390]) {
 test("switching to manual checks discards an automatic check still loading", async ({
   page,
 }) => {
-  const requested = page.waitForRequest("**/proofing/worker.js*");
+  const requested = page.waitForRequest(/\/proofing\/worker\.js\?/);
   const gate = Promise.withResolvers<void>();
-  await page.route("**/proofing/worker.js*", async (route) => {
+  await page.route(/\/proofing\/worker\.js\?/, async (route) => {
     await gate.promise;
     await route.continue();
   });

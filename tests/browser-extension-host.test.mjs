@@ -25,21 +25,33 @@ for (const target of ["chrome", "edge"])
       ),
     );
     const extension = resolve(`packages/browser-extension/dist/${target}`);
+    const chromeBinary =
+      target === "chrome" && process.env.EXTENSION_CHROME_BINARY;
     const context = await chromium.launchPersistentContext(directory, {
       channel: "chromium",
       ignoreDefaultArgs: ["--disable-extensions"],
       ...(target === "edge" && process.env.EXTENSION_EDGE_BINARY
         ? { executablePath: process.env.EXTENSION_EDGE_BINARY }
         : {}),
+      ...(chromeBinary ? { executablePath: chromeBinary } : {}),
       headless: process.env.EXTENSION_HEADED !== "1",
       args: [
-        `--disable-extensions-except=${extension}`,
-        `--load-extension=${extension}`,
+        ...(chromeBinary
+          ? ["--enable-unsafe-extension-debugging"]
+          : [
+              `--disable-extensions-except=${extension}`,
+              `--load-extension=${extension}`,
+            ]),
       ],
       viewport: { width: 390, height: 844 },
     });
     try {
       console.info(`${target} host: ${context.browser().version()}`);
+      if (chromeBinary) {
+        const cdp = await context.browser().newBrowserCDPSession();
+        await cdp.send("Extensions.loadUnpacked", { path: extension });
+        await cdp.detach();
+      }
       const worker =
         context.serviceWorkers()[0] ??
         (await context.waitForEvent("serviceworker"));
@@ -109,11 +121,30 @@ for (const target of ["chrome", "edge"])
       };
       context.on("request", recordRequest);
       // Fresh install with no panel, account, per-site grant prompt or network.
-      await localPage.locator("#draft").fill("This is a sentnce. This is a apple.");
-      await localPage.locator("mark.spelling").filter({hasText: "sentnce"}).waitFor();
-      await localPage.locator("mark.grammar").filter({hasText: /^a$/}).waitFor();
+      await localPage
+        .locator("#draft")
+        .fill("This is a sentnce. This is a apple.");
+      await localPage
+        .locator("mark.spelling")
+        .filter({ hasText: "sentnce" })
+        .waitFor();
+      await localPage
+        .locator("mark.grammar")
+        .filter({ hasText: /^a$/ })
+        .waitFor();
       assert.equal(await localPage.locator("mark").count(), 2);
-      await localPage.locator("#draft").fill("Watchlist: the serializer writes to a read-onyl datastore.");
+      await localPage.locator("#draft").dispatchEvent("compositionstart");
+      await localPage.locator("#draft").press("Alt+Enter");
+      assert.equal(
+        await localPage.locator("mark").count(),
+        0,
+        "do not check unfinished IME text",
+      );
+      await localPage.locator("#draft").dispatchEvent("compositionend");
+      await localPage.locator("mark.spelling").waitFor();
+      await localPage
+        .locator("#draft")
+        .fill("Watchlist: the serializer writes to a read-onyl datastore.");
       await localPage
         .locator("div[data-grove-writing-ui]")
         .waitFor({ state: "attached" });
@@ -138,8 +169,16 @@ for (const target of ["chrome", "edge"])
         .click();
       if (process.env.EXTENSION_SCREENSHOTS) {
         await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
-        await localPage.getByRole("button", { name: "only", exact: true }).waitFor();
-        await localPage.screenshot({ path: join(process.env.EXTENSION_SCREENSHOTS, `${target}-compound-card.png`), clip: { x: 0, y: 0, width: 390, height: 450 } });
+        await localPage
+          .getByRole("button", { name: "only", exact: true })
+          .waitFor();
+        await localPage.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-compound-card.png`,
+          ),
+          clip: { x: 0, y: 0, width: 390, height: 450 },
+        });
       }
       await localPage
         .getByRole("button", { name: "only", exact: true })
@@ -149,7 +188,11 @@ for (const target of ["chrome", "edge"])
         "Watchlist: the serializer writes to a read-only datastore.",
         "fresh install checks an unlisted website without signing in or site setup",
       );
-      assert.deepEqual(offlineRequests, [], "offline checking does not even attempt HTTP(S)");
+      assert.deepEqual(
+        offlineRequests,
+        [],
+        "offline checking does not even attempt HTTP(S)",
+      );
       context.off("request", recordRequest);
       await context.setOffline(false);
       await worker.evaluate(async () => {
@@ -556,46 +599,50 @@ for (const target of ["chrome", "edge"])
         })
         .waitFor({ timeout: 3000 });
       await page.locator("#dismiss-notice").click();
-      await page.evaluate(async () => {
-        const window = await globalThis.chrome.windows.getCurrent();
-        globalThis.chrome.sidePanel.onOpened.addListener((info) => {
-          globalThis.nativePanelOpened = info;
+      // Edge may start the newly opened panel's ordinary connect/notebooks
+      // requests after open() resolves. Probe it after the no-network check.
+      async function checkNativePanel() {
+        await page.evaluate(async () => {
+          const window = await globalThis.chrome.windows.getCurrent();
+          globalThis.chrome.sidePanel.onOpened.addListener((info) => {
+            globalThis.nativePanelOpened = info;
+          });
+          const button = document.createElement("button");
+          button.id = "native-panel-probe";
+          button.textContent = "Native panel probe";
+          button.onclick = () => {
+            void globalThis.chrome.sidePanel.open({ windowId: window.id }).then(
+              () => {
+                globalThis.nativePanelResult = "accepted";
+              },
+              (error) => {
+                globalThis.nativePanelResult = error.message;
+              },
+            );
+          };
+          document.body.prepend(button);
         });
-        const button = document.createElement("button");
-        button.id = "native-panel-probe";
-        button.textContent = "Native panel probe";
-        button.onclick = () => {
-          void globalThis.chrome.sidePanel.open({ windowId: window.id }).then(
-            () => {
-              globalThis.nativePanelResult = "accepted";
-            },
-            (error) => {
-              globalThis.nativePanelResult = error.message;
-            },
+        await page.locator("#native-panel-probe").click();
+        await page.waitForFunction(() => globalThis.nativePanelResult);
+        assert.equal(
+          await page.evaluate(() => globalThis.nativePanelResult),
+          "accepted",
+        );
+        if (!process.env.EXTENSION_EDGE_BINARY || target !== "edge") {
+          await page.waitForFunction(() => globalThis.nativePanelOpened);
+          assert.ok(
+            (
+              await page.evaluate(() => globalThis.nativePanelOpened.path)
+            ).endsWith("/panel.html"),
           );
-        };
-        document.body.prepend(button);
-      });
-      await page.locator("#native-panel-probe").click();
-      await page.waitForFunction(() => globalThis.nativePanelResult);
-      assert.equal(
-        await page.evaluate(() => globalThis.nativePanelResult),
-        "accepted",
-      );
-      if (!process.env.EXTENSION_EDGE_BINARY || target !== "edge") {
-        await page.waitForFunction(() => globalThis.nativePanelOpened);
-        assert.ok(
-          (
-            await page.evaluate(() => globalThis.nativePanelOpened.path)
-          ).endsWith("/panel.html"),
-        );
-      } else
-        console.info(
-          "Native Edge accepted sidePanel.open; onOpened/visible sidebar is not asserted by this supplemental host test.",
-        );
-      await page
-        .locator("#native-panel-probe")
-        .evaluate((element) => element.remove());
+        } else
+          console.info(
+            "Native Edge accepted sidePanel.open; onOpened/visible sidebar is not asserted by this supplemental host test.",
+          );
+        await page
+          .locator("#native-panel-probe")
+          .evaluate((element) => element.remove());
+      }
       assert.equal(await page.locator("#note").inputValue(), "");
       const requestsBeforeWriting = await worker.evaluate(
         () => globalThis.fixtureRequests.length,
@@ -643,9 +690,12 @@ for (const target of ["chrome", "edge"])
         "This is a sentnce.",
         "corrections must preserve native Undo",
       );
-      assert.equal(
-        await worker.evaluate(() => globalThis.fixtureRequests.length),
-        requestsBeforeWriting,
+      assert.deepEqual(
+        await worker.evaluate(
+          (before) => globalThis.fixtureRequests.slice(before),
+          requestsBeforeWriting,
+        ),
+        [],
         "typing, checking, correction and Undo must not call the server/model",
       );
       const writingTimings = await page.evaluate(
@@ -905,7 +955,9 @@ for (const target of ["chrome", "edge"])
       await sourcePage
         .getByRole("button", { name: "sentnce — Spelling", exact: true })
         .click();
-      await sourcePage.getByRole("button", {name: "sentence", exact: true}).waitFor();
+      await sourcePage
+        .getByRole("button", { name: "sentence", exact: true })
+        .waitFor();
       await sourcePage
         .getByRole("button", { name: "Ignore", exact: true })
         .focus();
@@ -1079,6 +1131,7 @@ for (const target of ["chrome", "edge"])
         requestsBeforeWriting,
         "website checking must not use HTTP/model requests",
       );
+      await checkNativePanel();
       const siteAIEnabled = await page.evaluate(
         async ({ accountId, connectionId, origin }) => {
           const window = await chrome.windows.getCurrent();

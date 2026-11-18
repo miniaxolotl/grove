@@ -30,7 +30,8 @@ export function useWritingProofing(view: EditorView | null, { disabled, preview,
   const [listOpen, setListOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const active = !preview && !disabled && settings.enabled && (settings.grammar || settings.spelling);
-  const { grant, request, current } = useEnhancedConsent(!!view && active);
+  const { grant: consent, request, current } = useEnhancedConsent(!!view && active);
+  const grant = consent?.enabled ? consent : null;
   const worker = useRef<ReturnType<typeof openWritingChecker> | null>(null);
   const controller = useRef<EditorChecks | null>(null);
   const ignored = useRef<WritingIssue[]>([]);

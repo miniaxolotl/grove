@@ -91,18 +91,26 @@ export async function buildBrowserExtension({
     size,
   }));
   const packages = [];
-  const wasmInput = "lib/shared/node_modules/harper.js/dist/harper_wasm_slim_bg.wasm";
+  const wasmInput =
+    "lib/shared/node_modules/harper.js/dist/harper_wasm_slim_bg.wasm";
   const wasm = await readFile(join(root, wasmInput));
   const worker = await build({
     absWorkingDir: root,
     entryPoints: ["lib/shared/src/writing-harper-worker.ts"],
     outfile: "harper-worker.js",
+    inject: ["packages/browser-extension/src/writing/worker-asset.ts"],
     // Markdown entity decoding must be DOM-free in a dedicated worker.
     conditions: ["worker"],
-    bundle: true, platform: "browser", format: "esm", target: "es2022",
+    bundle: true,
+    platform: "browser",
+    format: "esm",
+    target: "es2022",
     // Exclude Harper's Node-only file:// branch from store packages.
     define: { process: "undefined" },
-    minify: true, legalComments: "eof", metafile: true, write: false,
+    minify: true,
+    legalComments: "eof",
+    metafile: true,
+    write: false,
   });
   for (const target of report.targets) {
     const config = { apiOrigin, siteOrigin, issuer, target };
@@ -115,7 +123,9 @@ export async function buildBrowserExtension({
         "packages/browser-extension/src/background.ts",
         "packages/browser-extension/src/panel.ts",
         "packages/browser-extension/src/content.ts",
-        ...(target === "firefox" ? [] : ["packages/browser-extension/src/writing/offscreen.ts"]),
+        ...(target === "firefox"
+          ? []
+          : ["packages/browser-extension/src/writing/offscreen.ts"]),
       ],
       bundle: true,
       platform: "browser",
@@ -129,10 +139,16 @@ export async function buildBrowserExtension({
       write: false,
       outdir: "runtime",
     });
-    const inputs = [...new Set([...Object.keys(runtime.metafile.inputs), ...Object.keys(worker.metafile.inputs)])].sort();
-    const imports = Object.values({...runtime.metafile.outputs, ...worker.metafile.outputs}).flatMap(
-      (output) => output.imports,
-    );
+    const inputs = [
+      ...new Set([
+        ...Object.keys(runtime.metafile.inputs),
+        ...Object.keys(worker.metafile.inputs),
+      ]),
+    ].sort();
+    const imports = Object.values({
+      ...runtime.metafile.outputs,
+      ...worker.metafile.outputs,
+    }).flatMap((output) => output.imports);
     if (
       imports.length ||
       inputs.some((input) =>
@@ -229,7 +245,16 @@ export async function buildBrowserExtension({
     const files = {
       "harper.wasm": wasm,
       "harper-worker.js": worker.outputFiles[0].contents,
-      ...(target === "firefox" ? {} : {"offscreen.html": await readFile(join(root, "packages/browser-extension/src/writing/offscreen.html"))}),
+      ...(target === "firefox"
+        ? {}
+        : {
+            "offscreen.html": await readFile(
+              join(
+                root,
+                "packages/browser-extension/src/writing/offscreen.html",
+              ),
+            ),
+          }),
       "manifest.json": new TextEncoder().encode(
         `${JSON.stringify(manifest, null, 2)}\n`,
       ),

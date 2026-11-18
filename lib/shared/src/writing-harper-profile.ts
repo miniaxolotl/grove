@@ -26,3 +26,19 @@ export function profilePack(){
   for(const [id,[family,expr,to,exact]] of Object.entries(rules)) files.set(`${id}.weir`, `expr main ${expr}\nlet message "Check this ${family}."\nlet description "Grove ${family} supplement."\nlet kind "Grammar"\nlet becomes ${JSON.stringify(to)}\nlet strategy "${exact?'Exact':'MatchCase'}"`);
   return packWeirpackFiles(files);
 }
+
+/** Contexts in which Harper 3.2.0 flags grammatical prose. Reject rather
+ * than guessing whether the author meant a subjunctive, referent or idiom. */
+export function abstain(name:string,original:string,before:string,after:string) {
+  if(name==='AnA') {
+    if(/^\s+(?:sql(?:ite)?|s\.q\.l|faq|url|xyz|herb|h[-‐‑]|html|historic|homage|unioni[sz]ed)/i.test(after)) return true;
+    if(/^\s+(?:uni(?:vers|form|fy|on|t)|unanim|use|usual|one\b|ubiquit|ewe|n\.a\.s\.a)/i.test(after) && original.toLowerCase()==='a') return true;
+    if(/^\s+(?:onerous|unidentified|honourable)/i.test(after)&&original.toLowerCase()==='an') return true;
+  }
+  if(name==='PronounVerbAgreement'&&/\b(?:suggest|insist|require|recommend|let|make)\b[^.!?;]*$/i.test(before)) return true;
+  if(name==='MoreBetter'||name==='AdjectiveDoubleDegree') return !/\b(?:is|are|was|were|be)(?: the)?\s+$/i.test(before);
+  if(name==='ThenThan'&&/\bif\b[^.!?;]*$/i.test(before)) return true;
+  if(name==='ModalOf'&&/^\s+(?:necessity|course)\b/i.test(after)) return true;
+  if(name==='SimplePastToPastParticiple'&&(/^(?:saw|rose)$/i.test(original)||/^\s+(?:missing|bankrupt)\b/i.test(after))) return true;
+  return name==='SupposedTo'&&/^\s+some extent\b/i.test(after);
+}

@@ -551,13 +551,16 @@ messages, off-state request/menu enforcement and storage feedback. Installed Chr
 package with synthetic HTTP/auth, native panel calls, retry, reading/copying,
 sharing, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
 keyboard-switch focus and 320/390/768px accessibility/overflow (including short
-windows and dark Settings). Set
-`EXTENSION_EDGE_BINARY` to an actual Edge executable for its supplemental host run;
-that run checks API acceptance, not the unobserved Edge `onOpened` event.
+windows and dark Settings). The host test starts with a signed-out, offline spelling
+and grammar check. By default both packages use Playwright Chromium. To test branded
+desktop browsers in isolated profiles, set `EXTENSION_CHROME_BINARY` to a Chrome
+executable with CDP `Extensions.loadUnpacked` support and `EXTENSION_EDGE_BINARY`
+to an Edge executable. The Edge run checks side-panel API acceptance, not visibility.
 
 `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 python scripts/testing/browser-extension-firefox.py`
-uses an isolated native Firefox profile and temporary add-on to check installation,
-native sidebar, capture, formatted search and reader/copy with synthetic HTTP/auth. This variable
+uses an isolated native Firefox profile and temporary add-on to check signed-out
+spelling and grammar on a loopback page in offline mode, native sidebar, capture,
+formatted search and reader/copy with synthetic HTTP/auth. This variable
 permits test automation of that disposable browser only, not application privilege.
 Firefox packaging can also be checked with `pnpm dlx web-ext@10.8.0 lint --source-dir
 packages/browser-extension/dist/firefox`. [Visual evidence](design/screenshots/browser-extension/README.md)

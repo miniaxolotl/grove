@@ -16,9 +16,9 @@ export function mergeWritingIssues(local: WritingIssue[], hosted: WritingIssue[]
   const kept: WritingIssue[] = [];
   for (const issue of [...local, ...hosted]) {
     const hit = kept.find(i => i.from < issue.to && issue.from < i.to);
-    if (!hit) kept.push({ ...issue, replacements: [...issue.replacements] });
-    else if (hit.from === issue.from && hit.to === issue.to)
-      hit.replacements = [...new Set([...hit.replacements, ...issue.replacements])];
+    if (!hit && kept.length < 50) kept.push({ ...issue, replacements: [...new Set(issue.replacements)].slice(0,3) });
+    else if (hit && hit.from === issue.from && hit.to === issue.to)
+      hit.replacements = [...new Set([...hit.replacements.slice(0,1), ...issue.replacements.filter(r=>!hit.replacements.includes(r)), ...hit.replacements])].slice(0,3);
   }
   return kept.sort((a,b) => a.from - b.from);
 }
@@ -36,7 +36,7 @@ export class EditorChecks {
   private hosted: WritingIssue[] = [];
   private state = empty();
   private pendingLocal = false;
-  private queued = false;
+  private queued: 'paragraph' | 'document' | null = null;
   constructor(private view: EditorView, private settings: WritingSettings, private enhanced: Enhanced,
     private worker: { current: ReturnType<typeof openWritingChecker> | null },
     private ignored: { current: WritingIssue[] }, private publish: (state: CheckState) => void) {
@@ -51,7 +51,7 @@ export class EditorChecks {
     this.publish(this.state);
   }
   private cancel() {
-    ++this.revision; clearTimeout(this.timer); clearTimeout(this.remoteTimer); this.remote?.abort(); this.queued = false;
+    ++this.revision; clearTimeout(this.timer); clearTimeout(this.remoteTimer); this.remote?.abort(); this.queued = null;
     this.local = []; this.hosted = []; this.state = empty();
   }
   private composition = (event: Event) => {
@@ -74,25 +74,36 @@ export class EditorChecks {
   }
   private schedule() {
     if (this.composing || !this.settings.automatic) return;
-    this.timer = setTimeout(() => void this.checkLocal(), 350);
+    this.timer = setTimeout(() => void this.checkLocal(this.changedAt === null ? 'document' : 'paragraph'), 350);
     const at = this.changedAt;
     if (this.enhanced.grant?.automatic && at !== null)
       this.remoteTimer = setTimeout(() => void this.checkEnhanced(at, false), 650);
   }
-  checkLocal = async () => {
+  checkLocal = async (scope: 'document' | 'paragraph' = 'document') => {
     clearTimeout(this.timer);
     if (this.stopped || this.composing || this.view.state.readOnly) return;
-    if (this.pendingLocal) { this.queued = true; return; }
+    if (this.pendingLocal) { this.queued = scope; return; }
     const rev = this.revision;
     const state = this.view.state;
-    const text = state.doc.toString();
+    // A changed block has its own UTF-16 origin, even beyond the initial
+    // document window. For long notes a manual pass checks the caret block.
+    const at = scope === 'paragraph' ? this.changedAt : state.selection.main.head >= 6000 ? state.selection.main.head : null;
+    const block = at === null ? null : projectMarkdownParagraph(state, at, 6000);
+    // Harper parses Markdown locally. Keep delimiters in its block input so a
+    // formatted link at the start isn't misread as space-indented code. Never
+    // accept an edit outside the independently projected prose spans.
+    const text = block ? state.sliceDoc(block.from, block.to) : at === null ? state.sliceDoc(0, Math.min(state.doc.length,6001)) : '';
     if (!text.trim()) { this.state.status = 'ready'; this.paint(); return; }
     this.pendingLocal = true; this.state.status = 'checking'; this.paint();
     try {
       this.worker.current ??= openWritingChecker();
       const result = await this.worker.current.check(text, this.settings);
       if (rev !== this.revision || this.stopped || state.doc !== this.view.state.doc) return;
-      this.local = protectMarkdownIssues(state, result.issues);
+      this.local = block ? result.issues.flatMap(i => {
+        if (!block.allows(i.from,i.to) || block.text.slice(i.from,i.to) !== i.original) return [];
+        const from = block.from + i.from, to = block.from + i.to;
+        return [{...i, from, to, id:`${i.rule}:${from}:${to}`}];
+      }) : protectMarkdownIssues(state, result.issues);
       this.state.status = 'ready'; this.state.notice = ''; this.paint();
     } catch {
       if (rev !== this.revision || this.stopped) return;
@@ -100,7 +111,7 @@ export class EditorChecks {
       this.state.status = 'unavailable'; this.state.notice = 'On-device checks couldn’t load. Try again.'; this.paint();
     } finally {
       this.pendingLocal = false;
-      if (this.queued && !this.stopped) { this.queued = false; void this.checkLocal(); }
+      if (this.queued && !this.stopped) { const next = this.queued; this.queued = null; void this.checkLocal(next); }
     }
   };
   manual = () => this.checkEnhanced(this.view.state.selection.main.head, true);

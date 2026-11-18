@@ -29,7 +29,7 @@ tar -Af "$work/grove.tar" "$work/harper.tar"
 cat > "$work/BUILD.txt" <<EOF
 Grove source: $source_sha
 Harper 3.2.0 source: $harper_sha (Automattic/harper)
-In grove/, use Node 24 and pnpm 10.33: pnpm install --frozen-lockfile && pnpm build:extension
+In grove/, use Node 24 and pnpm 10.33: pnpm install --frozen-lockfile --ignore-scripts && pnpm build:extension
 Compare packages/browser-extension/dist/grove-{chrome,edge,firefox}.zip to the submitted package.
 The normal build uses the integrity-locked npm package's dist/harper_wasm_slim_bg.wasm.
 Upstream WASM/JS build recipe: in harper/, use the upstream toolchain and just build-harperjs.

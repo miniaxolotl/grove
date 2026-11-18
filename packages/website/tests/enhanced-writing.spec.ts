@@ -8,10 +8,10 @@ const text = 'Keep this other paragraph private.\n\nReview [**teh** notebook](ht
 const editor = (page: Page) => page.getByRole('textbox', {name:'What should stay with you?'});
 const check = (page: Page) => page.getByRole('button', {name:'Check paragraph'});
 
-async function workspace(page: Page, initial: ProofingConsent) {
+async function workspace(page: Page, initial: ProofingConsent, content = text) {
   let consent = initial;
   const writes: ProofingConsent[] = [];
-  await fixture(page, [{...note, content:text}]);
+  await fixture(page, [{...note, content}]);
   await page.route('**/api/grove/proofing/consent', async route => {
     if(route.request().method() === 'PUT') { consent = route.request().postDataJSON(); writes.push(consent); }
     await route.fulfill({json:consent});
@@ -19,17 +19,34 @@ async function workspace(page: Page, initial: ProofingConsent) {
   return writes;
 }
 
+test('an edit in formatted prose beyond 6,000 units uses its own paragraph for both checkers',async({page})=>{
+  const adjacent = 'Other paragraph stays on device. '.repeat(190);
+  expect(adjacent.length).toBeGreaterThan(6000);
+  await workspace(page,{enabled:true,automatic:true}, `${adjacent}\n\nReview this note.`);
+  const bodies:ProofingCheck[]=[];
+  await page.route('**/api/grove/proofing/check',async route=>{
+    const body:ProofingCheck=route.request().postDataJSON(); bodies.push(body);
+    await route.fulfill({json:{revision:body.revision,complete:true,issues:[]}});
+  });
+  await page.goto(editorUrl); await expect(check(page)).toBeVisible();
+  await editor(page).press('Control+End'); await page.keyboard.insertText(' Review **teh** draft.');
+  await expect(editor(page).locator('.grove-writing-spelling').filter({hasText:/^teh$/})).toHaveCount(1,{timeout:12000});
+  await expect.poll(()=>bodies.length).toBe(1); expect(bodies[0]!.text).toContain('teh');
+  expect(bodies[0]!.text).not.toMatch(/Other paragraph|\*/);
+});
+
 test('Enhanced consent starts off; automatic checks are a separate account choice', async ({page}, info) => {
   await page.setViewportSize({width:390,height:844});
   const writes = await workspace(page, {enabled:false, automatic:false});
+  await page.route('**/api/grove/admin', route => route.fulfill({json:{success:true,data:{role:'member'}}}));
   await page.goto(`${base}/app/settings`);
   const grant = page.getByRole('checkbox', {name:'Enhanced grammar', exact:true});
   const auto = page.getByRole('checkbox', {name:'Automatically check edited paragraphs'});
   await expect(grant).toBeEnabled(); await expect(grant).not.toBeChecked(); await expect(auto).toHaveCount(0);
-  await grant.check(); await expect(auto).not.toBeChecked(); await auto.check(); await expect(auto).toBeChecked();
+  await grant.click(); await expect(grant).toBeChecked(); await expect(auto).not.toBeChecked(); await auto.click(); await expect(auto).toBeChecked();
   await grant.scrollIntoViewIfNeeded();
   await page.screenshot({path:info.outputPath('enhanced-settings-390.png')});
-  await grant.uncheck(); await expect(auto).toHaveCount(0);
+  await grant.click(); await expect(grant).not.toBeChecked(); await expect(auto).toHaveCount(0);
   expect(writes).toEqual([{enabled:true,automatic:false},{enabled:true,automatic:true},{enabled:false,automatic:false}]);
 });
 

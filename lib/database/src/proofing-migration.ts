@@ -1,8 +1,8 @@
-import type {Knex} from 'knex';
+import type { Knex } from "knex";
 
 export const proofingConsents = {
-  name:"20261118_044_proofing_consent",
-  async up(db:Knex) {
+  name: "20261118_044_proofing_consent",
+  async up(db: Knex) {
     await db.raw(`CREATE TABLE proofing_consents (
       account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
       scope text NOT NULL CHECK(scope='grove-note-editor'),
@@ -20,5 +20,7 @@ export const proofingConsents = {
     GRANT SELECT, INSERT, UPDATE ON proofing_consents TO grove_runtime;
     GRANT SELECT, DELETE ON proofing_consents TO grove_worker;`);
   },
-  async down(){throw new Error('Use a forward migration');},
+  async down() {
+    throw new Error("Use a forward migration");
+  },
 };

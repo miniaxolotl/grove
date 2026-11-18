@@ -2,7 +2,10 @@ import { randomUUID, createHash } from "node:crypto";
 import { DocumentImports } from "@lib/memory";
 import { WritingTools } from "@lib/memory";
 import { ProofingConsents } from "@lib/memory";
-import { proofingConsentSchema, proofingCheckSchema } from "@lib/shared/proofing-contract";
+import {
+  proofingConsentSchema,
+  proofingCheckSchema,
+} from "@lib/shared/proofing-contract";
 import { languageTool } from "./proofing.ts";
 import { writingRequestSchema } from "@lib/shared/writing-assistance";
 import { ConversationDocuments } from "@lib/memory";
@@ -61,7 +64,6 @@ import {
   connectSchema,
   approveConnectSchema,
   uuidSchema,
-  type Principal,
 } from "@lib/shared/contracts";
 import {
   ConnectionSetup,
@@ -150,7 +152,7 @@ export type AppDependencies = {
 };
 type Environment = {
   Variables: {
-    principal: Principal;
+    principal: Awaited<ReturnType<Authentication["principal"]>>;
     requestId: string;
     signal: AbortSignal;
     finish: () => void;
@@ -163,6 +165,10 @@ export function createApp(deps: AppDependencies) {
   const proofing = new ProofingConsents(deps.memories);
   const checkParagraph = languageTool(deps.languageToolUrl);
   const proofingLane = new Admission(1, 0, 0);
+  const liveSession = (principal: Environment["Variables"]["principal"]) => {
+    if (!principal.sessionExpiresAt || principal.sessionExpiresAt <= Date.now())
+      throw new GroveError("unauthorized", "Sign in to Grove", 401);
+  };
   const writing = new WritingTools(
     deps.memories,
     deps.writingStagingKey,
@@ -354,10 +360,21 @@ export function createApp(deps: AppDependencies) {
     c.set("signal", signal);
     c.set("finish", finish);
     try {
-      const isCheck=c.req.path==="/v1/proofing/check";
-      release = await (isCheck ? proofingLane : long ? interactive : foreground).acquire(signal);
+      const isCheck = c.req.path === "/v1/proofing/check";
+      release = await (
+        isCheck ? proofingLane : long ? interactive : foreground
+      ).acquire(signal);
       await withMemoryOperation(async () => {
-        if (!mediaUpload) c.req.raw = await admittedRequest(c.req.raw, signal, isCheck ? 16384 : c.req.path==="/v1/proofing/consent" ? 512 : undefined);
+        if (!mediaUpload)
+          c.req.raw = await admittedRequest(
+            c.req.raw,
+            signal,
+            isCheck
+              ? 16384
+              : c.req.path === "/v1/proofing/consent"
+                ? 512
+                : undefined,
+          );
         await next();
         if (!c.get("streaming") && !c.error) signal.throwIfAborted();
       }, signal);
@@ -451,9 +468,16 @@ export function createApp(deps: AppDependencies) {
       throw new GroveError("forbidden", "Origin is not allowed", 403);
     c.set("principal", principal);
     c.get("signal").throwIfAborted();
-    if(c.req.path.startsWith("/v1/proofing/")) {
-      if(origin !== deps.siteUrl) throw new GroveError("forbidden","Editor origin is required",403);
-      if(principal.type!=="session" || !principal.sessionId) throw new GroveError("forbidden","A signed-in editor session is required",403);
+    if (c.req.path.startsWith("/v1/proofing/")) {
+      if (origin !== deps.siteUrl)
+        throw new GroveError("forbidden", "Editor origin is required", 403);
+      if (principal.type !== "session" || !principal.sessionId)
+        throw new GroveError(
+          "forbidden",
+          "A signed-in editor session is required",
+          403,
+        );
+      liveSession(principal);
       return next();
     }
     await deps.models?.refresh();
@@ -596,14 +620,28 @@ export function createApp(deps: AppDependencies) {
     c: import("hono").Context<Environment>,
     schema: z.ZodType<T>,
   ) => schema.parse(await c.req.json());
-  app.get("/v1/proofing/consent", async c=>c.json(await proofing.settings(c.get("principal"))));
-  app.put("/v1/proofing/consent", async c=>c.json(await proofing.settings(c.get("principal"),await body(c,proofingConsentSchema))));
-  app.post("/v1/proofing/check", async c=>{
-    const principal=c.get("principal"), input=await body(c,proofingCheckSchema);
-    const mode=z.enum(["manual","automatic"]).parse(c.req.header("x-grove-proofing-mode") ?? "manual");
-    const generation=await proofing.grant(principal,mode);
-    const result=await checkParagraph(input,c.get("signal"));
-    await proofing.grant(principal,mode,generation);
+  app.get("/v1/proofing/consent", async (c) =>
+    c.json(await proofing.settings(c.get("principal"))),
+  );
+  app.put("/v1/proofing/consent", async (c) =>
+    c.json(
+      await proofing.settings(
+        c.get("principal"),
+        await body(c, proofingConsentSchema),
+      ),
+    ),
+  );
+  app.post("/v1/proofing/check", async (c) => {
+    const principal = c.get("principal"),
+      input = await body(c, proofingCheckSchema);
+    const mode = z
+      .enum(["manual", "automatic"])
+      .parse(c.req.header("x-grove-proofing-mode") ?? "manual");
+    const generation = await proofing.grant(principal, mode);
+    liveSession(principal);
+    const result = await checkParagraph(input, c.get("signal"));
+    await proofing.grant(principal, mode, generation);
+    liveSession(principal);
     return c.json(result);
   });
   const mutation = async <T>(

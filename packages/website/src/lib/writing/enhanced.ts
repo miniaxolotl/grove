@@ -6,6 +6,16 @@ import { proofingConsentSchema, type ProofingConsent as Consent } from '@lib/sha
 
 type Grant = Consent & { signal: AbortSignal };
 
+/** The credential SDK can't cancel its promise; a departed editor must stop waiting. */
+function sessionToken(token: Promise<string | null>, signal: AbortSignal) {
+  return new Promise<string | null>((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, {once:true});
+    token.then(value => { signal.removeEventListener('abort',abort); resolve(value); }, error => { signal.removeEventListener('abort',abort); reject(error); });
+  });
+}
+
 /** Deliberately outside query caches, diagnostics, refresh/replay and offline queues. */
 export function useEnhancedConsent(eligible = true) {
   const clerk = useClerk();
@@ -25,7 +35,7 @@ export function useEnhancedConsent(eligible = true) {
       if (!current()) throw new Error('Writing session changed');
     };
     verify();
-    if (!await clerk.session!.getToken()) throw new Error('Writing session ended');
+    if (!await sessionToken(clerk.session!.getToken(), deadline)) throw new Error('Writing session ended');
     verify();
     const res = await fetch(`/api/grove/proofing/${path}`, {
       method, signal: deadline, credentials: 'same-origin', redirect: 'error', cache: 'no-store',
@@ -70,7 +80,16 @@ export function useEnhancedConsent(eligible = true) {
       if (data === 'refresh') void refresh();
     };
     const start = setTimeout(() => void refresh(), 0);
-    return () => { clearTimeout(start); lifetime.current?.abort(); updates?.close(); channel.current = null; };
-  }, [account, active, refresh, invalidate]);
+    // Clerk can extend a session. Re-read the current deadline on wake; never
+    // let an idle tab keep a grant past an expiry without a React render.
+    let expiry: ReturnType<typeof setTimeout>;
+    const onExpiry = () => {
+      const remaining = (clerk.session?.expireAt.getTime() ?? 0) - Date.now();
+      if (remaining <= 0 || !current()) invalidate();
+      else expiry = setTimeout(onExpiry, Math.min(remaining, 2_147_483_647));
+    };
+    expiry = setTimeout(onExpiry, Math.max(0, Math.min((clerk.session?.expireAt.getTime() ?? 0) - Date.now(), 2_147_483_647)));
+    return () => { clearTimeout(start); clearTimeout(expiry); lifetime.current?.abort(); updates?.close(); channel.current = null; };
+  }, [account, active, refresh, invalidate, current, clerk]);
   return { grant: active && grant && !grant.signal.aborted ? grant : null, failed, refresh, request, current };
 }

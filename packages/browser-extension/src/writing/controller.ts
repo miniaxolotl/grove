@@ -414,16 +414,16 @@ export class WritingController {
       actions.className = "actions";
       const replacements = document.createElement("div");
       replacements.className = "replacements";
-        for (const replacement of issue.replacements)
-          replacements.append(
-            this.button(
-              replacement || "Remove",
-              () => this.apply(issue, replacement),
-              "replacement",
-            ),
-          );
-        if (!issue.replacements.length)
-          replacements.textContent = "No alternative found.";
+      for (const replacement of issue.replacements)
+        replacements.append(
+          this.button(
+            replacement || "Remove",
+            () => this.apply(issue, replacement),
+            "replacement",
+          ),
+        );
+      if (!issue.replacements.length)
+        replacements.textContent = "No alternative found.";
       actions.append(
         this.button("All issues", () => this.review(), "close"),
         this.button("Ignore", () => {

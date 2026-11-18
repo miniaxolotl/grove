@@ -319,7 +319,10 @@ async function localWriting(raw: unknown) {
     throw new Error("Writing checks are paused or the account changed.");
   const before = await writing.read(identity.accountId);
   if (!before.settings.enabled) throw new Error("Writing assistance is off.");
-  const result = await checkLocally(message.payload.text, effectiveWritingSettings(before.settings));
+  const result = await checkLocally(
+    message.payload.text,
+    effectiveWritingSettings(before.settings),
+  );
   const after = await writing.read(identity.accountId);
   const current = (await session.get("identity")) as typeof identity;
   if (

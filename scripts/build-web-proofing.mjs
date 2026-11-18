@@ -11,6 +11,8 @@ await Promise.all([
     entryPoints: [join(root, 'lib/shared/src/writing-harper-worker.ts')],
     bundle: true, platform: 'browser', format: 'esm', minify: true,
     define: {process: 'undefined'},
+    // Use the Markdown entity decoder for workers (the browser decoder needs document).
+    conditions: ['worker'],
     outfile: join(output, 'worker.js'),
   }),
   copyFile(join(harper, 'dist/harper_wasm_slim_bg.wasm'), join(output, 'harper.wasm')),
