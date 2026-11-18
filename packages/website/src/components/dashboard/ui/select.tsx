@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useState, type ReactNode } from "react";
 import * as Primitive from "@radix-ui/react-select";
 import { isolateOverlay } from "./overlay-focus";
 import { Check, ChevronDown } from "lucide-react";
@@ -8,6 +8,7 @@ import { Check, ChevronDown } from "lucide-react";
 export type SelectOption = {
   value: string;
   label: string;
+  displayLabel?: ReactNode;
   description?: string;
   disabled?: boolean;
 };
@@ -102,7 +103,9 @@ export function Select({
                   data-value={option.value}
                 >
                   <span className="app-select-copy">
-                    <Primitive.ItemText>{option.label}</Primitive.ItemText>
+                    <Primitive.ItemText>
+                      {option.displayLabel ?? option.label}
+                    </Primitive.ItemText>
                     {option.description && (
                       <span className="app-select-description">
                         {option.description}
