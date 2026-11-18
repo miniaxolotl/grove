@@ -126,7 +126,10 @@ automatic recall and capture. A response already sent to a host cannot be recall
 ## OpenCode V2
 
 `grove connect opencode` merges only the Grove entry in the global JSON/JSONC
-`plugins` array. Comments, unrelated plugins and MCP entries are preserved.
+`plugins` array. Comments and unrelated plugin settings are preserved without
+rewriting their values. If Grove is listed more than once, setup keeps the
+first entry in place, including its version and options. A malformed `plugins`
+field must be repaired before setup changes the file.
 
 ```json
 { "plugins": ["@miniaxolotl/grove-opencode-plugin"] }
