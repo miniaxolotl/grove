@@ -175,8 +175,8 @@ an uncertain save first. A concurrent edit requires review, never unseen deletio
 
 ## Daily writing and personal details
 
-**Today’s note** is an ordinary dated note in the current notebook. **Filters →
-Sort by → Recently created** groups notes by creation day; there is no separate journal store.
+**Today’s note** uses the regular note editor. To group notes by creation day,
+choose the creation-date order in **Filters**. See [note sorting](search.md).
 **Progress notes** are handoffs whose references survive editing/moving. **Settings →
 Account → About you** records preferences and things you want Grove to know.
 
