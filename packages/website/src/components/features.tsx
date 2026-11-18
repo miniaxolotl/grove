@@ -15,7 +15,7 @@ const features = [
   ],
   [
     "Browser extension",
-    "Check spelling and grammar on your device, and save or find notes from the browser panel. Install locally in Chrome, Firefox, or Edge.",
+    "Check spelling and grammar on your device, and save or find notes from the browser panel in Chrome, Firefox or Edge.",
   ],
 ] as const;
 

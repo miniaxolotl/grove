@@ -162,8 +162,8 @@ The home feature index now includes the shipped browser extension: locally
 installable unsigned packages for Chrome, Firefox and Edge, on-device spelling
 and grammar checks, optional sentence-level AI rewrites behind explicit consent
 plus a separate connection permission and provider configuration, and panel
-capture/search/sharing. Copy states it is not a browser-store listing and does
-not claim long-form writing AI, which the extension does not provide. The
+capture/search/sharing. At the time, setup required a local package; see the
+[extension guide](browser-extension.md) for current installation options. The
 History row mentions grouped before/after revision comparisons from the shipped
 structured-notes work. An extension FAQ entry and an `/install` extension
 section link the repository's `browser-extension.md` setup guide; no new public

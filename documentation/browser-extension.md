@@ -1,9 +1,9 @@
 # Browser extension
 
-Grove builds unsigned, locally installable extensions for Chrome, Firefox and Edge
-from `packages/browser-extension`. Store publication and live provider acceptance
-are separate: these packages are not signed Firefox releases or published store
-listings. Source behavior and installation are described here; the
+Install Grove from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/grove-private-notes/)
+or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
+For Chrome, use the unsigned local package described below. Local packages are
+also available for Firefox and Edge. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 
 ## Install and connect
@@ -14,7 +14,7 @@ point at production; passing source CI does not deploy that server. An older API
 rejects extension requests with **Origin is not allowed**, regardless of whether
 the package is signed. Use a custom-origin build for an isolated local stack.
 
-Use Node 24 and pnpm 10.33, install the locked dependencies, then run
+To build the unsigned packages, use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
 `packages.build.json` with product version, configuration, input inventory and hashes.
@@ -597,7 +597,8 @@ still need release acceptance. Writing also needs live-model meaning/quality rev
 and native writing/permission-removal qualification; synthetic alternatives do not
 establish these. In particular, a Chromium fixture is not branded
 Chrome acceptance, and Edge method acceptance is not visible-sidebar qualification.
-Do not advertise signed/store availability or a proven under-one-minute setup.
+Verify each public store listing before linking it; unsigned builds do not prove
+store availability or an under-one-minute setup.
 
 ### Offline store/reviewer handoff
 

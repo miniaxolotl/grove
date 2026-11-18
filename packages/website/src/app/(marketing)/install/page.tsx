@@ -43,16 +43,33 @@ export default async function InstallPage() {
           your consent.
         </p>
         <p className="mt-2 max-w-2xl text-sm leading-7">
-          Install locally, not from a browser store. The guide covers building
-          the packages and loading them in each browser.
+          Install Grove from the Firefox or Edge store. For Chrome, follow the
+          extension setup guide to load the unsigned package. The guide also
+          covers local installation in Firefox and Edge.
         </p>
         <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2">
-          <a
-            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md"
-            className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
-          >
-            Extension setup guide <ArrowUpRight size={14} />
-          </a>
+          {[
+            {
+              label: "Firefox Add-ons",
+              href: "https://addons.mozilla.org/en-US/firefox/addon/grove-private-notes/",
+            },
+            {
+              label: "Microsoft Edge Add-ons",
+              href: "https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo",
+            },
+            {
+              label: "Extension setup guide",
+              href: "https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md",
+            },
+          ].map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
+            >
+              {label} <ArrowUpRight size={14} />
+            </a>
+          ))}
         </div>
       </section>
       <section className="setup-reference" aria-labelledby="next-heading">
