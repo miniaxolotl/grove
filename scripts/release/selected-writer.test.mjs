@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
-  existsSync,
   readFileSync,
   mkdtempSync,
   mkdirSync,
@@ -11,19 +10,13 @@ import {
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import test from "node:test";
-import { Buffer } from "node:buffer";
-import { Manifest, setLogger } from "release-please";
+import { writeProposal } from "./selected-replay.mjs";
 import { stageRelease as stage } from "./selected-writer.mjs";
-
-setLogger({ info() {}, warn() {}, error() {}, debug() {}, trace() {} });
-async function* iterate(items) {
-  yield* items;
-}
 
 // Recreate the twelve coordinated writes from Grove release #264 without
 // depending on tag history in a shallow CI checkout. The server is deliberately
 // one installer version behind the product to catch accidental product copying.
-async function fixture(t) {
+async function fixture(t, footer = "") {
   const cwd = mkdtempSync(join(tmpdir(), "grove-writer-test-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const git = (...args) =>
@@ -49,6 +42,7 @@ async function fixture(t) {
         targets[target] ??= {
           oldIdentity: {
             version: field.version,
+            latest: field.version,
             integrity: "sha512-" + "A".repeat(86) + "==",
           },
         };
@@ -77,65 +71,57 @@ async function fixture(t) {
   writeVersions("1.11.23", "1.11.19");
   put("CHANGELOG.md", "# Changelog\n");
   const baseline = commit("chore(release): previous delivery");
+  git("tag", "v1.11.23", baseline);
   put(
     "packages/website/src/components/guest-writing-check.tsx",
     "// #265 UI fixture\n",
   );
   const message =
-    "fix(website): identify the text in guest writing suggestions (#265)";
+    "fix(website): identify the text in guest writing suggestions (#265)" +
+    footer;
   const candidate = commit(message);
   // Use the pinned Release Please implementation. Substitute only its GitHub
   // reads. This is an isolated replay, not a claim #265 was released alone.
-  const github = {
-    repository: {
-      owner: "miniaxolotl",
-      repo: "grove",
-      defaultBranch: "development",
+  const proposal = commit(
+    await writeProposal(cwd, git, message, [
+      "packages/website/src/components/guest-writing-check.tsx",
+    ]),
+  );
+  targets.website = {
+    oldIdentity: {
+      version: "1.11.23",
+      productionSha: baseline,
+      deploymentId: "dpl_fixture",
+      deploymentUrl: "https://grove-fixture.vercel.app",
+      alias: "https://usegrove.cloud",
     },
-    async getFileContentsOnBranch(path) {
-      if (!existsSync(join(cwd, path)))
-        throw Object.assign(new Error(path), { status: 404 });
-      return {
-        parsedContent: get(path),
-        content: Buffer.from(get(path)).toString("base64"),
-        sha: git("rev-parse", `HEAD:${path}`),
-      };
-    },
-    async getFileJson(path) {
-      return JSON.parse(get(path));
-    },
-    releaseIterator: () =>
-      iterate([{ tagName: "v1.11.23", sha: baseline, notes: "previous" }]),
-    tagIterator: () => iterate([{ name: "v1.11.23", sha: baseline }]),
-    pullRequestIterator: () => iterate([]),
-    mergeCommitIterator: () =>
-      iterate([
-        {
-          sha: candidate,
-          message,
-          files: ["packages/website/src/components/guest-writing-check.tsx"],
-        },
-        { sha: baseline, message: "chore: previous", files: [] },
-      ]),
   };
-  const releases = await (
-    await Manifest.fromManifest(github, "development")
-  ).buildPullRequests();
-  assert.equal(releases.length, 1);
-  for (const { path, updater, createIfMissing } of releases[0].updates)
-    if (existsSync(join(cwd, path)) || createIfMissing)
-      put(
-        path,
-        updater.updateContent(
-          existsSync(join(cwd, path)) ? get(path) : undefined,
-        ),
-      );
-  const proposal = commit(releases[0].title.toString());
-  for (const name of ["website", "downloads", "service"])
-    targets[name] = { oldIdentity: { source: baseline } };
+  targets.service = {
+    oldIdentity: {
+      phase: "ACTIVE",
+      deploymentId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      imageDigest: "sha256:" + "a".repeat(64),
+    },
+  };
+  targets.downloads = {
+    oldIdentity: {
+      version: "1.11.23",
+      assets: Object.fromEntries(
+        [
+          "downloads.json",
+          "packages.build.json",
+          "SHA256SUMS",
+          "grove-chrome.zip",
+          "grove-edge.zip",
+          "grove-firefox.zip",
+        ].map((k) => [k, "sha256:" + "b".repeat(64)]),
+      ),
+    },
+  };
   for (const target of Object.values(targets))
     Object.assign(target, {
       baselineSource: baseline,
+      evidence: "simulated provider readback",
       proposedIdentity: target.oldIdentity,
       state: "unchanged",
       changes: [],
@@ -174,6 +160,43 @@ test("UI-only release stages the upstream product files byte-for-byte and no npm
   assert.deepEqual(out.deliver, ["website"]);
   assert.deepEqual(out.storeChannels, f.report.storeChannels);
   assert.equal(f.git("status", "--porcelain"), "");
+});
+
+test("rejects unsuccessful or incomplete identities even when marked unchanged", async (t) => {
+  const f = await fixture(t);
+  f.select("website", "guest UI");
+  for (const [key, patch] of [
+    ["service", { phase: "ERROR" }],
+    ["downloads", { assets: {} }],
+    ["npm:grove", { latest: "0.1.0" }],
+  ]) {
+    const r = globalThis.structuredClone(f.report);
+    Object.assign(r.targets[key].oldIdentity, patch);
+    assert.throws(() => stage(f.proposal, r, f.cwd), /evidence|identity/i);
+  }
+});
+
+test("product versions follow merged intent, never the proposal's own message", async (t) => {
+  const f = await fixture(t);
+  f.select("website", "guest UI");
+  const paths = f
+    .git("diff", "--name-only", f.report.candidate, f.proposal)
+    .split("\n");
+  for (const next of ["1.11.22", "2.0.0"]) {
+    f.git("reset", "--hard", f.proposal);
+    f.git("reset", "--soft", f.report.candidate);
+    for (const path of paths)
+      f.put(path, f.get(path).replaceAll("1.11.24", next));
+    const wrong = f.commit(
+      `chore(release): release ${next}\n\nRelease-As: ${next}`,
+    );
+    assert.throws(() => stage(wrong, f.report, f.cwd), /Release-As|version/i);
+  }
+  const explicit = await fixture(t, "\n\nRelease-As: 2.0.0");
+  explicit.select("website", "guest UI");
+  const out = stage(explicit.proposal, explicit.report, explicit.cwd);
+  t.after(() => rmSync(out.directory, { recursive: true, force: true }));
+  assert.equal(out.version, "2.0.0");
 });
 
 test("hosted service and installable server can be selected independently or together", async (t) => {

@@ -11,9 +11,11 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { successfulReceipt } from "./impact-identity.mjs";
 import {
   assertManifestVersion,
   assertReleaseIntent,
+  reconcileGroveReleaseHistory,
 } from "./release-intent.mjs";
 
 const packages = {
@@ -112,13 +114,42 @@ export function stageRelease(proposal, report, cwd = process.cwd()) {
   assert.deepEqual(JSON.parse(staged[".release-please-manifest.json"]), {
     ".": version,
   });
+  assert.deepEqual(
+    JSON.parse(blob(candidate, ".release-please-manifest.json")),
+    { ".": baseRoot.version },
+  );
+  const tag = `v${baseRoot.version}`;
+  const previousSource = git(
+    "rev-parse",
+    "--verify",
+    `refs/tags/${tag}^{commit}`,
+  ).trim();
+  git("merge-base", "--is-ancestor", previousSource, candidate);
+  const records = git(
+    "log",
+    "--first-parent",
+    "-z",
+    "--format=%H%x00%B",
+    `${previousSource}..${candidate}`,
+  ).split("\0");
+  assert.equal(records.pop(), "");
+  const history = [];
+  for (let i = 0; i < records.length; i += 2)
+    history.push({ sha: records[i], message: records[i + 1] });
+  const intent = assertReleaseIntent(
+    reconcileGroveReleaseHistory(tag, previousSource, history),
+    baseRoot.version,
+  );
+  assertManifestVersion(baseRoot.version, version, intent);
 
   for (const [name, t] of Object.entries(targets)) {
     assert(!t.unresolved?.length, `Unresolved inputs for ${name}`);
     assert.match(t.baselineSource, sha);
     git("merge-base", "--is-ancestor", t.baselineSource, candidate);
     assert(
-      t.oldIdentity && t.prerequisite && t.proofRequired,
+      successfulReceipt(name, t.oldIdentity, t.evidence) &&
+        t.prerequisite &&
+        t.proofRequired,
       `Missing evidence for ${name}`,
     );
     if (t.state === "unchanged") {
