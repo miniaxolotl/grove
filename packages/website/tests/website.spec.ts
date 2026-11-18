@@ -6,9 +6,9 @@ const siteURL = canonical.origin;
 
 test("a guest can check writing without sending text or opening an account", async ({
   page,
-}) => {
+}, info) => {
   await page.setViewportSize({ width: 320, height: 750 });
-  const text = "This is is a smple sentence.";
+  const text = "This is the the smple sentence.";
   const transfers: string[] = [];
   page.on("request", (request) => {
     if (
@@ -28,7 +28,13 @@ test("a guest can check writing without sending text or opening an account", asy
     page
       .getByRole("list", { name: "Writing suggestions" })
       .getByRole("listitem"),
-  ).not.toHaveCount(0);
+  ).toHaveText([
+    /“the”\s+This word appears twice\./,
+    /“smple”\s+Possible spelling mistake\./,
+  ]);
+  await page.screenshot({
+    path: info.outputPath("guest-writing-messages.png"),
+  });
   await expect(
     page.getByRole("link", { name: "Create an account", exact: true }),
   ).toHaveAttribute("href", "/sign-up");
@@ -193,7 +199,7 @@ test("mobile setup links lead to the browser extension and AI tools", async ({
   });
   await expect(extension).toBeInViewport({ ratio: 1 });
   await extension.press("Enter");
-  await expect(page).toHaveURL(/#extension-heading$/);
+  await expect(page).toHaveURL(/#browser-extension$/);
   await expect(
     page.getByRole("heading", { name: "Browser extension", exact: true }),
   ).toBeInViewport();

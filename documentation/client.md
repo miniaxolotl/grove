@@ -62,7 +62,9 @@ requires the API/website migration described in [Cloud onboarding](cloud-onboard
 
 For a persistent `grove` command, install `@miniaxolotl/grove` globally. Existing
 `init`, `login`, `status` and `project` commands remain supported. `init` uses the
-older dashboard-approval workflow; a login with no grant reports `awaiting-grant`.
+older dashboard-approval workflow and requires `--client opencode`, `--client claude`
+or `--client codex` before sign-in. For standalone CLI credentials, use `login`
+instead. A login with no grant reports `awaiting-grant`.
 `status` checks the API, not whether the host has loaded its plugin.
 
 ### Diagnose installation and startup
@@ -126,7 +128,10 @@ automatic recall and capture. A response already sent to a host cannot be recall
 ## OpenCode V2
 
 `grove connect opencode` merges only the Grove entry in the global JSON/JSONC
-`plugins` array. Comments, unrelated plugins and MCP entries are preserved.
+`plugins` array. Comments and unrelated plugin settings are preserved without
+rewriting their values. If Grove is listed more than once, setup keeps the
+first entry in place, including its version and options. A malformed `plugins`
+field must be repaired before setup changes the file.
 
 ```json
 { "plugins": ["@miniaxolotl/grove-opencode-plugin"] }
@@ -137,7 +142,9 @@ context hook through the V2 APIs. The bridge reuses OpenCode's executable (with
 Bun runtime mode for compiled hosts), so desktop/background launches do not need
 `node` on PATH. It does not add a second Grove server if one is
 already configured. No V1 hook or handwritten MCP transport remains. Plugin option
-`private: true` or session metadata `private: true` also disables automatic recall.
+`private: true` or session metadata `private: true` disables automatic recall and
+automatic saves and edits, including targeted patch previews and applies. Explicit
+user-requested edits remain available.
 OpenCode reloads watched configuration automatically; check its MCP tools and
 use `/reload` if Grove has not appeared. `grove uninstall --client opencode` removes
 only the matching plugin entry; it does not delete memories or credentials.

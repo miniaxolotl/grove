@@ -17,6 +17,13 @@ export default function WritingPage() {
         and isn’t saved.
       </p>
       <GuestWritingCheck />
+      <p>
+        Check writing on other sites with the{" "}
+        <Link className="text-link" href="/install#browser-extension">
+          browser extension
+        </Link>
+        .
+      </p>
       <section
         className="guest-writing-account"
         aria-labelledby="guest-account-heading"

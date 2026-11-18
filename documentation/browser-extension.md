@@ -1,9 +1,14 @@
 # Browser extension
 
-Grove builds unsigned, locally installable extensions for Chrome, Firefox and Edge
-from `packages/browser-extension`. Store publication and live provider acceptance
-are separate: these packages are not signed Firefox releases or published store
-listings. Source behavior and installation are described here; the
+Install Grove from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
+or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
+The [Chrome Web Store item](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa)
+is not yet publicly available. For local setup, download the unsigned Chrome ZIP
+from the [install page](https://usegrove.cloud/install#browser-extension) or build from source.
+Install and Settings → Connections show all three official items. On a recognized
+desktop browser the matching link is marked **Your browser**; this does not change
+its availability or redirect you. Local packages are
+also available for Firefox and Edge. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 
 ## Install and connect
@@ -14,10 +19,12 @@ point at production; passing source CI does not deploy that server. An older API
 rejects extension requests with **Origin is not allowed**, regardless of whether
 the package is signed. Use a custom-origin build for an isolated local stack.
 
-Use Node 24 and pnpm 10.33, install the locked dependencies, then run
+To build the unsigned packages, use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
 `packages.build.json` with product version, configuration, input inventory and hashes.
+Changing the website brand assets or root license also runs extension packaging
+and browser checks because these files ship inside the ZIPs.
 Successful source CI also retains these unsigned ZIPs and their report as a
 `grove-browser-extensions-<source SHA>` artifact for 14 days.
 Protected production delivery also attaches verified browser ZIPs and checksums
@@ -27,7 +34,7 @@ Download availability alone is not server rollout or signing acceptance; see
 [release downloads](release-conventions.md#release-downloads).
 
 - **Chrome:** open `chrome://extensions`, enable Developer mode, choose **Load
-  unpacked** and select the extracted `chrome/` directory.
+  unpacked** and select the directory containing the extracted `manifest.json`.
 - **Edge:** open `edge://extensions`, enable Developer mode, choose **Load unpacked**
   and select the extracted `edge/` directory.
 - **Firefox:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary
@@ -136,6 +143,10 @@ substring matching: blocking `example.com` also blocks `docs.example.com`, but n
 `notexample.com` or `example.com.other.test`. A child exception cannot override a
 blocked parent. **Use current domain** fills the exact hostname for review; it does
 not guess a registrable parent. Remove an exception to inherit browser defaults.
+
+The extension releases a focused editor when a page enables Grove’s native
+proofing. When native proofing stops, the extension can resume on the same
+focused textarea if it is still eligible; there is no need to refocus it.
 
 Only eligible multiline textareas are currently bound. HTML inputs,
 passwords, usernames, search/subject/title fields, readonly/hidden/code fields and
@@ -289,7 +300,10 @@ administrator can restore eligibility. See [billing](billing.md#subscriptions).
 
 Notes opens directly to the editor. The first save is explicit (**Save now**);
 after it, changed text, notebook or source saves itself after a short editing
-pause as a guarded update of the same note, never a second capture. Autosave
+pause as a guarded update of the same note, never a second capture. Each timer
+save names the prior receipt. If the draft expires or is replaced before the
+background handles it, that timer cannot create a note or replay another save.
+Autosave
 waits out IME composition and never runs while Grove is off, access is
 unapproved, an earlier save is unresolved, or the connection lacks write
 access; a rejected conflict stops autosave, keeps the local draft and links
@@ -297,7 +311,9 @@ the contested note for review instead of silently rebasing. Save outcome and
 newer unsaved edits remain visible without version/indexing diagnostics.
 There are no source-link fields. Mounted approved panels follow source metadata
 locally until the first edit pins it; only a save transmits it. Context-menu
-captures keep their original event source. Unknown/failed-save
+captures keep their original event source, including the first click that wakes
+the extension. The panel opens during the gesture; the persisted On/Off setting
+is checked before anything is added to its local inbox. Unknown/failed-save
 retries retain the exact original provenance snapshot even after a tab change.
 Restricted/private pages produce no automatic source. Required consent and uncertain-
 save safeguards remain; automatic provenance is not automatic note capture.
@@ -489,6 +505,9 @@ local structural validation, not proof of server storage, access or indexing.
 Runtime receipts come from authenticated responses. Network/ambiguous failures show
 **Save not confirmed**, not success; retry replays the original request without losing
 newer edits. Settings can reconcile a scoped opaque receipt after session loss.
+A definitive rejection keeps its retry snapshot in the draft, but does not
+leave an unconfirmed receipt in Settings. If an earlier attempt was ambiguous,
+its recovery receipt stays available even when a later retry is rejected.
 Local persistent storage contains only device enablement/appearance preferences,
 public OAuth registration, destination IDs
 and at most ten opaque recovery receipts, pruned after seven days; never note bodies,
@@ -597,7 +616,8 @@ still need release acceptance. Writing also needs live-model meaning/quality rev
 and native writing/permission-removal qualification; synthetic alternatives do not
 establish these. In particular, a Chromium fixture is not branded
 Chrome acceptance, and Edge method acceptance is not visible-sidebar qualification.
-Do not advertise signed/store availability or a proven under-one-minute setup.
+Verify each public store listing before linking it; unsigned builds do not prove
+store availability or an under-one-minute setup.
 
 ### Offline store/reviewer handoff
 

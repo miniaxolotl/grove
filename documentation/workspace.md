@@ -208,7 +208,9 @@ Copy any text you want to keep before choosing **Discard draft and open saved no
 The legacy `/app/journal` URL opens Notes sorted by creation date.
 
 Self-hosted rollout requires the `20261117_042_daily_notes` migration before
-the updated app. `tests/src/daily-note.test.ts` exercises isolation, first-save
+the updated app. API and worker startup and API readiness check that the daily
+note bindings are readable. `tests/src/daily-note-migration.test.ts` checks both
+service roles before and after migration. `tests/src/daily-note.test.ts` exercises isolation, first-save
 races and lifecycle against disposable PostgreSQL; `daily-note.spec.ts` covers
 workspace entry and midnight behavior with synthetic browser fixtures.
 

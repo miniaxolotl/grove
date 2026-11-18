@@ -645,6 +645,68 @@ test("imports and connector checkpoints commit with source mappings, avoid dupli
   );
 });
 
+for (const source of ["imports", "chat uploads"] as const)
+  test(`retention cleanup continues across a full page of expired ${source}`, async () => {
+    const { accountId, enqueue } = await fixture();
+    const imports = source === "imports";
+    const limit = imports ? 20 : 25;
+    const conversationId = randomUUID();
+    const table = imports
+      ? "document_import_batches"
+      : "conversation_documents";
+    const rows = Array.from({ length: limit + 1 }, () => ({
+      accountId,
+      id: randomUUID(),
+      expiresAt: admin.fn.now(),
+    }));
+    if (imports) await admin(table).insert(rows);
+    else {
+      const taskId = await enqueue("conversation_document");
+      await admin("conversations").insert({
+        id: conversationId,
+        accountId,
+        scope: "{}",
+      });
+      await admin(table).insert(
+        rows.map((row) => ({
+          ...row,
+          conversationId,
+          taskId,
+          filename: "draft.txt",
+          bytes: 1,
+          sha256: "a".repeat(64),
+          staging: Buffer.from("x"),
+        })),
+      );
+    }
+    await scheduleCleanup(worker);
+    const task = admin("background_tasks").where({
+      accountId,
+      kind: "retention_cleanup",
+    });
+    const { id } = await task.clone().first();
+    const run = () =>
+      runTask(
+        worker,
+        cleanupHandlers(worker, async () => {}),
+        { id },
+      );
+    const remaining = () =>
+      admin(table)
+        .where({ accountId })
+        .modify((q) => {
+          if (imports) q.where({ draftsCleared: false });
+          else q.whereNull("removedAt");
+        })
+        .pluck("id");
+    await run();
+    assert.equal((await remaining()).length, 1);
+    assert.equal((await task.clone().first()).status, "pending");
+    await run();
+    assert.equal((await remaining()).length, 0);
+    assert.equal((await task.clone().first()).status, "succeeded");
+  });
+
 test("retention cleanup marks expired records without physically removing source versions", async () => {
   const f = await fixture();
   const account = await admin("accounts").where({ id: f.accountId }).first();

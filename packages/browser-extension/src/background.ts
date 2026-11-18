@@ -56,7 +56,8 @@ const preferenceSchema = z
     theme: z.enum(["system", "light", "dark"]).default("system"),
   })
   .strict();
-let enabled = false;
+// A native menu can wake the worker before its persisted settings are read.
+let enabled: boolean | undefined;
 async function preferences() {
   return preferenceSchema.parse((await local.get("preferences")) ?? {});
 }
@@ -219,7 +220,7 @@ async function dispatch(raw: unknown) {
     case "edit":
       return client.edit(id, edit.parse(message.payload));
     case "save":
-      return client.save(id);
+      return client.save(id, z.uuid().optional().parse(message.payload));
     case "clear":
       return client.clear(id);
     case "notebooks":
@@ -846,7 +847,7 @@ host.action.onClicked.addListener((tab) => {
 });
 host.contextMenus.onClicked.addListener((event, tab) => {
   const id = tab?.windowId;
-  if (!enabled || id === undefined || tab?.incognito !== false) return;
+  if (enabled === false || id === undefined || tab?.incognito !== false) return;
   // Open before any promise/network work so native gesture attribution survives.
   try {
     void openNativePanel(config.target, host, id).catch(() =>

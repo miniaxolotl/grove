@@ -2,7 +2,7 @@ import { Plugin, Skill } from "@opencode/plugin";
 import { Error as ToolError } from "@opencode/plugin/promise/tool";
 import { fileURLToPath } from "node:url";
 import { automaticContext, readConfig } from "@lib/integration-core/node";
-import { memorySkill } from "@lib/integration-core";
+import { isAutomaticCapture, memorySkill } from "@lib/integration-core";
 
 export default Plugin.define({
   id: "grove",
@@ -39,8 +39,8 @@ export default Plugin.define({
     );
     await ctx.tool.hook("execute.before", async (event) => {
       if (
-        !["grove_remember", "grove_update_memory"].includes(event.tool) ||
-        (event.input as { capture?: string } | null)?.capture !== "automatic"
+        !event.tool.startsWith("grove_") ||
+        !isAutomaticCapture(event.tool.slice("grove_".length), event.input)
       )
         return;
       const session = await ctx.session.get({ sessionID: event.sessionID });

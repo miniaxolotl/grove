@@ -142,6 +142,12 @@ matching API/worker together before fractional-usage/source-refresh website cont
 old count-only readers cannot promise cached discounts. Keep schema and provider
 usage on rollback; no price, subscription or billing-flag change is implied.
 
+Apply `20261118_043_cache_retention` after 042 so expired entries and provider
+backoffs more than a day past their retry time independently schedule a retention
+task. Expiry blocks reuse immediately; the maintenance worker removes due rows
+in batches even if the account makes no further requests. `ai-cache.test.ts`
+exercises both idle-account triggers and verifies newer rows survive cleanup.
+
 `ai-cache.test.ts`, `ai-cache-migration.test.ts`, action/model/conversation/background/
 capacity and recovery suites cover cross-replica coalescing, exact keys, invalid
 vectors, cancellation/late owners, tenant isolation, expiry/generation fences,

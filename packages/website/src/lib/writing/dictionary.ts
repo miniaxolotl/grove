@@ -10,20 +10,18 @@ export type EnglishDictionary = { aff: string; dic: string };
 
 let pending: Promise<EnglishDictionary> | null = null;
 
-async function fetchText(path: string, signal?: AbortSignal): Promise<string> {
-  const response = await fetch(path, { signal, cache: "force-cache" });
+async function fetchText(path: string): Promise<string> {
+  const response = await fetch(path, { cache: "force-cache" });
   if (!response.ok)
     throw new Error("The spelling dictionary isn’t available. Try again.");
   return response.text();
 }
 
-export function loadEnglishDictionary(
-  signal?: AbortSignal,
-): Promise<EnglishDictionary> {
+function loadEnglishDictionary(): Promise<EnglishDictionary> {
   if (!pending) {
     pending = Promise.all([
-      fetchText("/dictionaries/en.aff", signal),
-      fetchText("/dictionaries/en.dic", signal),
+      fetchText("/dictionaries/en.aff"),
+      fetchText("/dictionaries/en.dic"),
     ])
       .then(([aff, dic]) => ({ aff, dic }))
       .catch((error: unknown) => {
@@ -32,4 +30,14 @@ export function loadEnglishDictionary(
       });
   }
   return pending;
+}
+
+// Share the static assets, not a caller's cancellation or the checker's
+// suggestion cache, which can contain words from the current editor.
+export async function loadWritingChecker() {
+  const [{ createEnglishChecker }, dictionary] = await Promise.all([
+    import("@lib/shared/writing-core"),
+    loadEnglishDictionary(),
+  ]);
+  return createEnglishChecker(dictionary);
 }

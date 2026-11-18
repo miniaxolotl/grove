@@ -41,6 +41,28 @@ async function openDraft(page: Page) {
   await expect(page.locator("html[data-grove-native-writing]")).toHaveCount(1);
 }
 
+test("superseding a check during dictionary loading keeps the next check usable", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
+  });
+  const requested = page.waitForRequest("**/dictionaries/en.dic");
+  const gate = Promise.withResolvers<void>();
+  let requests = 0;
+  await page.route("**/dictionaries/en.dic", async (route) => {
+    requests++;
+    await gate.promise;
+    await route.continue();
+  });
+  await openDraft(page);
+  const check = page.getByRole("button", { name: "Check writing", exact: true });
+  await check.click();
+  await requested;
+  await check.click();
+  gate.resolve();
+  await expect(page.locator(".grove-writing-status").first()).toContainText(/suggestion/);
+  expect(requests).toBe(1);
+});
+
 for (const width of [1440, 390]) {
   test.describe(`webapp writing at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width < 600 });
@@ -139,3 +161,30 @@ for (const width of [1440, 390]) {
     });
   });
 }
+
+test("switching to manual checks discards an automatic check still loading", async ({
+  page,
+}) => {
+  const requested = page.waitForRequest("**/dictionaries/en.dic");
+  const gate = Promise.withResolvers<void>();
+  await page.route("**/dictionaries/en.dic", async (route) => {
+    await gate.promise;
+    await route.continue();
+  });
+  await openDraft(page);
+  await requested;
+  const checking = page.getByText("Checking…", { exact: true });
+  await expect(checking).toBeVisible();
+  // Preferences changed in another tab while the first check was waiting.
+  const otherTab = await page.context().newPage();
+  await otherTab.goto(`${base}/dictionaries/en.aff`);
+  await otherTab.evaluate(() => {
+    localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
+  });
+  const manual = page.getByRole("button", { name: "Check writing", exact: true });
+  await expect(manual).toBeVisible();
+  await expect(checking).toHaveCount(0);
+  gate.resolve();
+  await manual.click();
+  await expect(page.locator(".grove-writing-status").first()).toContainText(/suggestion/);
+});

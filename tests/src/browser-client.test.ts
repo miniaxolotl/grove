@@ -37,6 +37,7 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     updatedAt: new Date().toISOString(),
   };
   let fail = true,
+    conflict = false,
     write = true;
   const writes: unknown[] = [];
   const urls: string[] = [];
@@ -62,6 +63,14 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
       data = { items: [], nextCursor: null };
     else if (path === "/v1/browser/captures") {
       writes.push(JSON.parse(String(init?.body)));
+      if (conflict)
+        return Response.json(
+          {
+            success: false,
+            error: { code: "version_conflict", message: "Changed" },
+          },
+          { status: 409 },
+        );
       if (fail) {
         fail = false;
         throw new Error("connection lost after acceptance");
@@ -149,6 +158,7 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
       "typed draft retains originating page",
     );
     await assert.rejects(client.save(7));
+    assert.equal((await client.state(7)).pending.length, 1);
     await client.edit(7, { text: "Newer edits" });
     const result = await client.save(7);
     assert.equal(
@@ -163,10 +173,18 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     assert.deepEqual(writes[0], writes[1]);
     assert.equal(result.draft?.text, "Newer edits");
     assert.equal(result.draft?.save?.status, "saved");
+    const receipt = result.draft.save!.request.operationId;
+    // A queued timer can arrive after New note has replaced this window's draft.
+    const reviewedDraft = session.get("draft:7");
+    await client.clear(7);
+    await client.edit(7, { text: "Replacement still needs explicit save" });
+    await assert.rejects(client.save(7, receipt), /receipt/i);
+    assert.equal(writes.length, 2, "a timer must never send a create");
+    session.set("draft:7", reviewedDraft);
     assert.ok(!JSON.stringify([...local.values()]).includes("First capture"));
     assert.ok(!JSON.stringify([...local.values()]).includes("fixture-token"));
     await client.edit(7, { text: "First capture", source: null });
-    await client.save(7);
+    await client.save(7, receipt);
     assert.equal(
       writes.length,
       3,
@@ -180,6 +198,18 @@ test("extension controller preserves reviewed drafts, retries, grants and contex
     write = false;
     await assert.rejects(client.save(7));
     assert.equal(writes.length, 3);
+    write = true;
+    conflict = true;
+    await client.edit(7, { text: "Keep after conflict" });
+    await assert.rejects(client.save(7));
+    const rejected = await client.state(7);
+    assert.equal(rejected.draft?.save?.status, "failed");
+    assert.equal(rejected.draft?.text, "Keep after conflict");
+    assert.deepEqual(
+      rejected.pending,
+      [],
+      "rejection is not an unconfirmed save",
+    );
     await client.search({ query: "everywhere" });
     assert.deepEqual(searches, [
       { query: "everywhere", status: "active", limit: 20, sort: "relevance" },

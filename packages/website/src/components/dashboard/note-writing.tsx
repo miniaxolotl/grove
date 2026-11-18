@@ -7,10 +7,9 @@ import {
   mapIgnoredIssues,
   type WritingIssue,
   type WritingPatch,
-  type WritingResult,
   type WritingSettings,
 } from "@lib/shared/writing-settings";
-import { loadEnglishDictionary } from "@/lib/writing/dictionary";
+import { loadWritingChecker } from "@/lib/writing/dictionary";
 import {
   loadWritingSettings,
   NATIVE_WRITING_ATTRIBUTE,
@@ -18,20 +17,6 @@ import {
   subscribeWritingSettings,
 } from "@/lib/writing/settings";
 import { setWritingIssues } from "@/lib/writing/proofing";
-
-type Checker = {
-  check: (source: string, settings: WritingSettings) => WritingResult;
-  suggest: (word: string) => string[];
-};
-
-async function loadChecker(signal: AbortSignal): Promise<Checker> {
-  const [{ createEnglishChecker }, dictionary] = await Promise.all([
-    import("@lib/shared/writing-core"),
-    loadEnglishDictionary(signal),
-  ]);
-  signal.throwIfAborted();
-  return createEnglishChecker(dictionary);
-}
 
 export type WritingStatus =
   | "idle"
@@ -57,7 +42,7 @@ export function useWritingProofing(
   const [lookup, setLookup] = useState<{ id: string; words: string[] } | null>(
     null,
   );
-  const checker = useRef<Promise<Checker> | null>(null);
+  const checker = useRef<ReturnType<typeof loadWritingChecker> | null>(null);
   const snapshot = useRef("");
   const ignored = useRef<WritingIssue[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,7 +99,11 @@ export function useWritingProofing(
         setStatus("off");
         return;
       }
-      if (!manual && !current.settings.automatic) return;
+      if (!manual && !current.settings.automatic) {
+        if (!abort.current)
+          setStatus((previous) => previous === "checking" ? "idle" : previous);
+        return;
+      }
       if (!text.trim()) {
         snapshot.current = text;
         ignored.current = [];
@@ -124,14 +113,14 @@ export function useWritingProofing(
       }
       setStatus("checking");
       setNotice("");
+      const controller = new AbortController();
       try {
         abort.current?.abort();
-        const controller = new AbortController();
         abort.current = controller;
-        checker.current ??= loadChecker(controller.signal);
+        checker.current ??= loadWritingChecker();
         const engine = await checker.current;
         controller.signal.throwIfAborted();
-        if (state.current.doc !== text) return;
+        if (abort.current !== controller || state.current.doc !== text) return;
         const fresh = engine.check(text, state.current.settings);
         const kept = mapIgnoredIssues(snapshot.current, text, ignored.current);
         ignored.current = kept;
@@ -142,6 +131,7 @@ export function useWritingProofing(
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         checker.current = null;
+        if (abort.current !== controller) return;
         setStatus("unavailable");
         setNotice(
           error instanceof Error
@@ -170,8 +160,11 @@ export function useWritingProofing(
     );
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      // This editor may stop waiting, but another consumer can still need
+      // the pending dictionary. Discard this run's results, not the fetch.
+      abort.current = null;
     };
-  }, [doc, active, runCheck]);
+  }, [view, doc, active, settings.automatic, runCheck]);
 
   // Keep decorations in sync with the visible issue set.
   const visible = useMemo(

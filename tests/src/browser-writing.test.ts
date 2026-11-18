@@ -397,6 +397,25 @@ test("English writing core is local, language-scoped and conservative about edit
       assert.ok(rules("This is fine. i agree.").includes("capitalization"));
     },
   );
+  await t.test("image alt corrections leave Markdown delimiters intact", () => {
+    const text = "See 😀 ![sentnce](diagram.png).";
+    const issue = check(text).issues.find(
+      (i: { rule: string }) => i.rule === "spelling",
+    );
+    assert.equal(issue.original, "sentnce");
+    issue.replacements = checker.suggest(issue.original);
+    assert.equal(
+      core.applyWritingEdit(text, issue, "sentence"),
+      text.replace("sentnce", "sentence"),
+    );
+  });
+  await t.test(
+    "spacing fixes cannot remove inline code before punctuation",
+    () => {
+      assert.ok(!rules("Run `build`, then test.").includes("spacing"));
+      assert.ok(rules("Run , then test.").includes("spacing"));
+    },
+  );
   await t.test(
     "source ranges preserve emoji, CRLF and Markdown exclusions",
     () => {

@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
+import { note as savedNote } from "./fixtures/workspace-fixture";
 import type {
   ImportBatch,
   ImportDestination,
@@ -10,6 +11,7 @@ import type {
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const notebook = "88e5a309-73d4-4e34-a979-aec791c0f6d2";
+const gardening = "5b7a7fce-6ad2-4106-8e73-be87065d8b5d";
 const noteIds = [
   "b8232e9e-5400-4c5b-941c-e3cb79967935",
   "9dcb5b64-1600-4c44-a301-f20e7b363c8f",
@@ -38,9 +40,25 @@ for (const width of [1440, 390, 320])
             version: 1,
             status: "active",
           },
+          ...(batch?.imported ? [{ id: gardening, name: "Gardening" }] : []),
         ];
       else if (path === "/memories/search")
-        data = { items: [], nextCursor: null };
+        data = {
+          items:
+            batch?.notes
+              .filter((n) => n.memoryId)
+              .map((n) => ({
+                ...savedNote,
+                id: n.memoryId,
+                content: n.content,
+                enrichment: null,
+                projectId:
+                  n.destination && "projectId" in n.destination
+                    ? n.destination.projectId
+                    : gardening,
+              })) ?? [],
+          nextCursor: null,
+        };
       else if (path === "/me")
         data = { accountId: "import-fixture", mediaAvailable: true };
       else if (path === "/import-batches" && request.method() === "POST") {
@@ -216,15 +234,63 @@ for (const width of [1440, 390, 320])
       .fill(
         "# Garden journal\n\nWater seedlings in the morning. Check the soil first.",
       );
+    const storageLink = dialog.getByRole("link", {
+      name: "View files & storage",
+    });
+    const cancelImport = dialog.getByRole("button", { name: "Cancel import" });
+    await expect(storageLink).toHaveCount(0);
+    await expect(cancelImport).toBeDisabled();
+    const editor = first.getByRole("textbox", {
+      name: "Content from Garden.md",
+    });
+    await first.locator("summary").click();
+    const consent = dialog.getByLabel(
+      "I’ve reviewed the notes, destinations and sharing.",
+    );
+    await consent.focus();
+    await page.keyboard.press("Tab");
+    const recover = dialog
+      .locator(".import-confirm")
+      .getByRole("button", { name: "Return to edit" });
+    await expect(recover).toBeFocused();
+    if (width === 390) {
+      await cancelImport.scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: testInfo.outputPath("unsaved-review-390.png"),
+      });
+    }
+    expect(
+      await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await page.keyboard.press("Enter");
+    await expect(editor).toBeFocused();
+    await expect(editor).toBeInViewport();
+    await expect(editor).toHaveValue(/Check the soil first\./);
     await expect(
       dialog.getByRole("button", { name: "Confirm import", exact: true }),
     ).toBeDisabled();
     await first.getByRole("button", { name: "Save reviewed note" }).click();
+    await expect(storageLink).toHaveAttribute("href", "/app/settings/files");
+    await expect(cancelImport).toBeEnabled();
     await second
       .getByText("Review note and destination", { exact: true })
       .click();
     await second.getByRole("combobox").first().click();
     await page.getByRole("option", { name: "Research", exact: true }).click();
+    const topRecovery = dialog
+      .locator(".import-intro")
+      .getByRole("button", { name: "Return to edit" });
+    await topRecovery.focus();
+    const secondEditor = second.getByRole("textbox", {
+      name: "Content from Botany.pdf",
+    });
+    await expect(secondEditor).not.toBeInViewport();
+    await page.keyboard.press("Space");
+    await expect(secondEditor).toBeFocused();
+    await expect(secondEditor).toBeInViewport();
+    await expect(second.getByRole("combobox").first()).toContainText(
+      "Research",
+    );
     await second.getByRole("button", { name: "Save reviewed note" }).click();
     await expect(
       second.getByRole("button", { name: "Save reviewed note" }),
@@ -295,6 +361,20 @@ for (const width of [1440, 390, 320])
       version: 1,
     });
     expect(errors).toEqual([]);
+    await page.keyboard.press("Escape");
+    if (width !== 1440)
+      await page
+        .getByRole("button", { name: "Notebooks", exact: true })
+        .click();
+    await expect(
+      page
+        .locator(".notebook-explorer")
+        .getByRole("link", { name: "Gardening", exact: true }),
+    ).toBeVisible();
+    if (width === 1440)
+      await page.screenshot({
+        path: testInfo.outputPath("imported-notebook.png"),
+      });
   });
 
 test("import status follows a queued, running and failed job and retries the same task", async ({

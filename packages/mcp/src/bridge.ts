@@ -1,5 +1,6 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMemoryMcp } from "@lib/integration-core/mcp";
+import { isAutomaticCapture } from "@lib/integration-core";
 import {
   nodeClient,
   readConfig,
@@ -21,13 +22,7 @@ export async function startBridge(agent: AgentName = "cli") {
       if (tool === "remember")
         input.source = { ...(input.source as Record<string, unknown>), agent };
       if (
-        [
-          "remember",
-          "update_memory",
-          "preview_memory_patch",
-          "apply_memory_patch",
-        ].includes(tool) &&
-        input.capture === "automatic" &&
+        isAutomaticCapture(tool, input) &&
         (process.env.GROVE_PRIVATE === "1" || (await readConfig()).paused)
       )
         throw new GroveError(

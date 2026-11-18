@@ -48,6 +48,10 @@ use 100 records, and imports 10. Five consecutive failures exhaust a task; succe
 checkpoints reset the budget. Exponential retries include jitter. Task attempts have
 a 15-minute ceiling to accommodate streaming artifact assembly.
 
+A retention checkpoint clears at most 20 expired import batches and 25 expired
+chat uploads. A full page keeps the task pending for another claim. The queue
+tests cover both backlogs draining without a second scheduler pass.
+
 The [action allowances](billing.md#library-and-user-actions) are distinct from these
 provider attempts. Monthly-exhausted organization jobs defer to the actual UTC
 month boundary without consuming a failure attempt; temporary account generation

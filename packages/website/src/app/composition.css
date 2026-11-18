@@ -270,8 +270,20 @@
   background: #fff;
 }
 .guest-writing-form button { justify-self: start; }
-.guest-writing-form button:disabled { opacity: 0.6; }
-.guest-writing-form > ul { list-style: disc; padding-inline-start: 20px; }
+.guest-writing-form button:is(:disabled, [aria-disabled="true"]) { opacity: 0.6; }
+.guest-writing-form :is(button, textarea):focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 3px;
+}
+.guest-writing-form > ul {
+  display: grid;
+  gap: 8px;
+  border-inline-start: 3px solid var(--brand-line);
+  padding-inline-start: 14px;
+  color: var(--brand-muted);
+  overflow-wrap: anywhere;
+}
+.guest-writing-form li strong { color: var(--brand-ink); }
 .guest-writing-account { margin-top: 32px; }
 .guest-writing-account h2 { font-size: 20px; font-weight: 600; }
 .guest-writing-account .home-resource-links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }

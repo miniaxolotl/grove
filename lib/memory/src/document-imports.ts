@@ -129,13 +129,14 @@ async function owned(trx: Knex.Transaction, id: string): Promise<BatchRow> {
 
 /** Only ephemeral source bytes/drafts can expire; retained source keys and notes stay. */
 export async function expireDocumentDrafts(trx: Knex.Transaction) {
+  const limit = 20;
   const expired = trx("document_import_batches")
     .select("id")
     .where("expiresAt", "<=", trx.fn.now())
     .where({ draftsCleared: false })
     .whereIn("status", ["uploading", "preparing", "ready", "cancelled"])
     .orderBy("id")
-    .limit(20);
+    .limit(limit);
   await trx("document_import_files")
     .whereIn("batchId", expired)
     .where({ originalReady: false })
@@ -150,9 +151,10 @@ export async function expireDocumentDrafts(trx: Knex.Transaction) {
       included: false,
       suggestion: null,
     });
-  await trx("document_import_batches")
+  const processed = await trx("document_import_batches")
     .whereIn("id", expired)
     .update({ draftsCleared: true });
+  return { processed, fullPage: processed === limit };
 }
 
 export class DocumentImports {
