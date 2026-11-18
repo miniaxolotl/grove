@@ -3,8 +3,11 @@ import { NextResponse } from "next/server";
 
 // Authentication is enforced by the dashboard layout and each data route.
 const middleware = clerkMiddleware(async (auth, request) => {
-  // Preserve the exact pending connection across browser sign-in/sign-up.
-  if (request.nextUrl.pathname.startsWith("/app/connect/"))
+  // Return to the requested connection or billing options after sign-in.
+  if (
+    request.nextUrl.pathname.startsWith("/app/connect/") ||
+    request.nextUrl.pathname === "/app/settings/billing"
+  )
     await auth.protect();
 });
 export default function proxy(...args: Parameters<typeof middleware>) {
