@@ -105,8 +105,10 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await expect(page.getByRole("table")).toContainText("1,000 / month");
   await expect(page.getByText("What do writing limits cover?")).toBeVisible();
   await expect(
-    page.getByRole("article", { name: "Pro", exact: true }).getByRole("link"),
+    page.getByRole("link", { name: "Create a free account" }),
   ).toHaveAttribute("href", "/sign-up");
+  await expect(page.getByRole("article", { name: "Pro", exact: true })).toContainText("Pro purchases and trials are unavailable here");
+  await expect(page.getByRole("link", { name: "View billing options" })).toHaveCount(0);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
     `${siteURL}/pricing`,
