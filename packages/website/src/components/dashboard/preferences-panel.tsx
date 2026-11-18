@@ -12,7 +12,7 @@ import { useWorkspaceCache } from "./workspace-cache";
 
 export function PreferencesPanel() {
   return (
-    <div className="settings-content">
+    <div className="settings-content settings-writing">
       <WritingPreferences />
     </div>
   );
@@ -26,7 +26,7 @@ export function AiPreferencesPanel() {
     editor.availability &&
     Object.values(editor.availability).some((available) => !available);
   return (
-    <div className="settings-content">
+    <div className="settings-content settings-ai">
       <div>
         <h2 className="settings-section-heading">AI &amp; search</h2>
         <p className="settings-section-description">
@@ -34,7 +34,7 @@ export function AiPreferencesPanel() {
         </p>
       </div>
       <section
-        className="app-panel ai-preferences-panel"
+        className="ai-preferences-panel"
         aria-label="Account AI preferences"
       >
         {unavailable && (
@@ -89,7 +89,7 @@ export function AiPreferencesPanel() {
         )}
       </section>
       <section
-        className="app-panel settings-search-status"
+        className="settings-search-status"
         aria-labelledby="settings-search-heading"
       >
         <h3 id="settings-search-heading">Note search</h3>
